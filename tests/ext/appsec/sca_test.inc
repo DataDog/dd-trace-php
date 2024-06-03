@@ -21,7 +21,9 @@ for ($i = 0; $i < 100; ++$i) {
         foreach (file(__DIR__ . '/'.$id.'-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
-                array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
+                if ($json && ($json["application"]["service_name"] ?? "") != "background_sender-php-service") {
+                    array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
+                }
             }
         }
         $found = array_filter($batches, function ($json) {
@@ -41,6 +43,9 @@ for ($i = 0; $i < 100; ++$i) {
             break;
         }
     }
+}
+if ($i == 100) {
+    var_dump(file(__DIR__ . '/'.$id.'-telemetry.out'));
 }
 
 ?>

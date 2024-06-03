@@ -24,7 +24,6 @@ $payload = "\x91\x90";
 var_dump(dd_trace_send_traces_via_thread(1, $headersToIgnore, $payload));
 
 $rr = new RequestReplayer();
-$rr->waitForFlush();
 
 echo PHP_EOL;
 $headers = $rr->replayHeaders([

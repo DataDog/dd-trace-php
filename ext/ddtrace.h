@@ -1,5 +1,8 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,6 +44,10 @@ static inline zend_array *ddtrace_property_array(zval *zv) {
     return Z_ARR_P(zv);
 }
 
+#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
+#define CXA_THREAD_ATEXIT_WRAPPER 1
+#endif
+
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
@@ -53,6 +60,9 @@ bool ddtrace_alter_dd_env(zval *old_value, zval *new_value);
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value);
 void dd_force_shutdown_tracing(void);
 void dd_internal_handle_fork(void);
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+void dd_run_rust_thread_destructors(void *unused);
+#endif
 
 typedef struct {
     int type;

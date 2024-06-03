@@ -30,6 +30,18 @@ class RequestReplayer
         usleep($this->flushInterval * 2 * 1000);
     }
 
+    public function waitForDataAndReplay()
+    {
+        $i = 0;
+        do {
+            if ($i++ == 100) {
+                throw new Exception("wait for replay timeout");
+            }
+            usleep($this->flushInterval * 1000);
+        } while (empty($data = $this->replayRequest()));
+        return $data;
+    }
+
     public function replayRequest()
     {
         // Request replayer now returns as many requests as were sent during a session.
@@ -40,7 +52,7 @@ class RequestReplayer
 
     public function replayHeaders($showOnly = [])
     {
-        $request = $this->replayRequest();
+        $request = $this->waitForDataAndReplay();
         if (!isset($request['headers'])) {
             return [];
         }
