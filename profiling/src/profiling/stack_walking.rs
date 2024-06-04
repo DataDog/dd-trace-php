@@ -79,7 +79,7 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 mod detail {
     use super::*;
     use crate::string_set::{StringSet, ThinStr};
-    use log::debug;
+    use log::{debug, trace};
     use std::cell::RefCell;
 
     /// Used to help track the function run_time_cache hit rate. It glosses over
@@ -139,6 +139,8 @@ mod detail {
                 // ThinStrs inside the run time cache need to remain valid
                 // during the request.
                 cell.replace(StringSet::new());
+            } else {
+                trace!("string cache arena is using {arena_used_bytes} bytes which is less than the {threshold} byte threshold");
             }
         });
     }
