@@ -3382,6 +3382,9 @@ jobs:
       - store_artifacts:
           path: system-tests/logs
           destination: system-tests.tar.gz
+      - store_artifacts:
+          path: system-tests/logs_parametric
+          destination: parametric-tests.tar.gz
 
 workflows:
   version: 2
