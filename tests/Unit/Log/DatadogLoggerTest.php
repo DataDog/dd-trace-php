@@ -82,7 +82,7 @@ class DatadogLoggerTest extends BaseTestCase
     {
         $url = "any:///tmp/php-error.log";
         (new DatadogLogger($url))->info("oui");
-        $this->assertFileDoesNotExist("/tmp/php-error.log");
+        $this->assertFileNotExist("/tmp/php-error.log");
     }
 
     // ---
@@ -110,6 +110,6 @@ class DatadogLoggerTest extends BaseTestCase
     {
         ini_set("error_log", "/dev/null/php-error.log");
         (new DatadogLogger())->info("oui");
-        $this->assertFileDoesNotExist("/dev/null/php-error.log");
+        $this->assertFileNotExist("/dev/null/php-error.log");
     }
 }
