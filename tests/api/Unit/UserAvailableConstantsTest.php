@@ -31,8 +31,8 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Type::CASSANDRA, 'cassandra'],
             [Type::ELASTICSEARCH, 'elasticsearch'],
             [Type::MEMCACHED, 'memcached'],
-            [Type::OPENAI, 'openai'],
             [Type::MONGO, 'mongodb'],
+            [Type::OPENAI, 'openai'],
             [Type::REDIS, 'redis'],
             [Type::SYSTEM, 'system'],
         ];
