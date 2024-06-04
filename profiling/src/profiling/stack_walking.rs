@@ -130,8 +130,11 @@ mod detail {
 
         CACHED_STRINGS.with(|cell| {
             let set: &StringSet = &cell.borrow();
-            // todo: pin down threshold and remove magic number
-            if set.arena_used_bytes() > 4 * 1024 * 1024 {
+            let arena_used_bytes = set.arena_used_bytes();
+            // todo: pin down threshold
+            let threshold = 4 * 1024 * 1024;
+            if arena_used_bytes > threshold {
+                debug!("string cache arena is using {arena_used_bytes} bytes which exceeds the {threshold} byte threshold, resetting");
                 // Note that this cannot be done _during_ a request. The
                 // ThinStrs inside the run time cache need to remain valid
                 // during the request.
