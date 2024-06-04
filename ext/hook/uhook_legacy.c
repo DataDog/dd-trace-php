@@ -433,6 +433,7 @@ PHP_FUNCTION(dd_untrace) {
     LOG(HOOK_TRACE, "Removing all hook functions installed by hook&trace_%s at %s:%d on %s %s%s%s",
         class_name ? "method" : "function",
         zend_get_executed_filename(), zend_get_executed_lineno(),
+        class_name ? "method" : "function",
         class_name ? ZSTR_VAL(class_name) : "",
         class_name ? "::" : "",
         ZSTR_VAL(method_name));
