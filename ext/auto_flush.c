@@ -93,10 +93,12 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 }
                             }
 
-                            char *url = ddtrace_agent_url();
-                            LOG(INFO, "Flushing trace of size %d to send-queue for %s",
-                                zend_hash_num_elements(Z_ARR(trace)), url);
-                            free(url);
+                            LOGEV(INFO, {
+                                char *url = ddtrace_agent_url();
+                                log("Flushing trace of size %d to send-queue for %s",
+                                    zend_hash_num_elements(Z_ARR(trace)), url);
+                                free(url);
+                            });
                         } while (0);
                     } else {
                         ddog_drop_anon_shm_handle(shm);
@@ -118,10 +120,12 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
             } else {
                 success = ddtrace_send_traces_via_thread(1, payload, size);
                 if (success) {
-                    char *url = ddtrace_agent_url();
-                    LOG(INFO, "Flushing trace of size %d to send-queue for %s",
-                                       zend_hash_num_elements(Z_ARR(trace)), url);
-                    free(url);
+                    LOGEV(INFO, {
+                        char *url = ddtrace_agent_url();
+                        log("Flushing trace of size %d to send-queue for %s",
+                                        zend_hash_num_elements(Z_ARR(trace)), url);
+                        free(url);
+                    });
                 }
                 dd_prepare_for_new_trace();
             }
