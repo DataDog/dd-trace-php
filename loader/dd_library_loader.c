@@ -6,8 +6,10 @@
 
 #include <Zend/zend_extensions.h>
 #include <php.h>
+#include <stdbool.h>
 
 #include "php_dd_library_loader.h"
+#include "compat_php.h"
 
 static int (*origin_ddtrace_module_startup_func)(INIT_FUNC_ARGS);
 static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard") ZEND_MOD_OPTIONAL("ddtrace")
@@ -61,44 +63,6 @@ static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with
     return symbol;
 }
 
-// This is a copy of zend_hash_set_bucket_key which is only available only starting from PHP 7.4
-static Bucket *ddloader_hash_find_bucket(const HashTable *ht, const zend_string *key)
-{
-	uint32_t nIndex;
-	uint32_t idx;
-	Bucket *p, *arData;
-
-	ZEND_ASSERT(ZSTR_H(key) != 0 && "Hash must be known");
-
-	arData = ht->arData;
-	nIndex = ZSTR_H(key) | ht->nTableMask;
-	idx = HT_HASH_EX(arData, nIndex);
-
-	if (UNEXPECTED(idx == HT_INVALID_IDX)) {
-		return NULL;
-	}
-	p = HT_HASH_TO_BUCKET_EX(arData, idx);
-	if (EXPECTED(p->key == key)) { /* check for the same interned string */
-		return p;
-	}
-
-	while (1) {
-		if (p->h == ZSTR_H(key) &&
-		    EXPECTED(p->key) &&
-		    zend_string_equal_content(p->key, key)) {
-			return p;
-		}
-		idx = Z_NEXT(p->val);
-		if (idx == HT_INVALID_IDX) {
-			return NULL;
-		}
-		p = HT_HASH_TO_BUCKET_EX(arData, idx);
-		if (p->key == key) { /* check for the same interned string */
-			return p;
-		}
-	}
-}
-
 static PHP_MINIT_FUNCTION(ddtrace_injected) {
     zend_module_entry *ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (ddtrace) {
@@ -123,12 +87,12 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
      * Rename the "key" of the module_registry to access ddtrace.
      * Must be done at the bucket level to not change the order of the HashTable.
      */
-    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 1);
-    (void)zend_string_hash_val(old_name);
-    Bucket *bucket = ddloader_hash_find_bucket(&module_registry, old_name);
+    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 0); // FIXME: non-persistent, otherwise it crash from PHP 7.0 to 7.2
+    Bucket *bucket = ddloader_zend_hash_find_bucket(php_api_no, &module_registry, old_name);
     zend_string_release(old_name);
-    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 1);
-    zend_hash_set_bucket_key(&module_registry, bucket, new_name);
+
+    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 0); // FIXME: non-persistent, otherwise it crash from PHP 7.0 to 7.2
+    ddloader_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
     zend_string_release(new_name);
 
     ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
