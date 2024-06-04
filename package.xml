@@ -96,6 +96,7 @@ This changeset is on top of 1.0.0beta1.
 - Link libpthread into the spawn_worker trampoline Datadog/libdatadog#452
 - Make use of the sidecar thread safe #2671
 - Send a correct size hint to the sidecar trace flusher #2686
+- Allow synchronous sidecar flushes and reduce flush limit #2689
 
 ### Internal
 - Update to maintain compatibility with libdatadog #2634, #2661

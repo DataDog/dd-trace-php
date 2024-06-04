@@ -1033,12 +1033,12 @@ namespace {
      * @param string|null $className In the case of a method, its respective class should be provided as well
      * @return bool 'true' if the un-tracing process was successful, else 'false'
      */
-    function dd_untrace(string $functionName, string $className = null): bool {}
+    function dd_untrace(string $functionName, string|null $className = null): bool {}
 
     /**
      * Blocking-call synchronously flushing all spans to the agent
      *
      * @param int $timeout Timeout in milliseconds to wait for the flush to complete
      */
-    function dd_trace_synchronous_flush(int $timeout): void {}
+    function dd_trace_synchronous_flush(int $timeout = 100): void {}
 }

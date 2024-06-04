@@ -1186,6 +1186,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
+static bool dd_rinit_once_done = false;
+
 static void dd_rinit_once(void) {
     /* The env vars are memoized on MINIT before the SAPI env vars are available.
      * We use the first RINIT to bust the env var cache and use the SAPI env vars.
@@ -1197,9 +1199,19 @@ static void dd_rinit_once(void) {
 #ifndef _WIN32
     ddtrace_signals_first_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
+            // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
+        }
+        if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
+            // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
+        }
         ddtrace_coms_init_and_start_writer();
     }
 #endif
+
+    dd_rinit_once_done = true;
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -2143,6 +2155,22 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice slice = ddog_sidecar_stats(&ddtrace_sidecar);
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
+        } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
+            uint32_t timeout = 100;
+            if (params_count == 1) {
+                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+#ifndef _WIN32
+            if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+                if (dd_rinit_once_done) {
+                    ddtrace_coms_synchronous_flush(timeout);
+                }
+            } else
+#endif
+            if (ddtrace_sidecar) {
+                ddog_sidecar_flush_traces(&ddtrace_sidecar);
+            }
+            RETVAL_TRUE;
 #ifndef _WIN32
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
@@ -2175,13 +2203,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
-            RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
-            uint32_t timeout = 100;
-            if (params_count == 1) {
-                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
-            }
-            ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
 #endif
         } else if (FUNCTION_NAME_MATCHES("test_logs")) {
@@ -2244,9 +2265,9 @@ PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
 
 /* {{{ proto void dd_trace_synchronous_flush(int) */
 PHP_FUNCTION(dd_trace_synchronous_flush) {
-    zend_long timeout;
+    zend_long timeout = 100;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &timeout) == FAILURE) {
         RETURN_THROWS();
     }
 
@@ -2257,8 +2278,15 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     }
 
 #ifndef _WIN32
-    ddtrace_coms_synchronous_flush(timeout);
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        if (dd_rinit_once_done) {
+            ddtrace_coms_synchronous_flush(timeout);
+        }
+    } else
 #endif
+    if (ddtrace_sidecar) {
+        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    }
     RETURN_NULL();
 }
 
