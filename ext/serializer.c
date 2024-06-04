@@ -1019,6 +1019,7 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
 
 static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
     // encode to memory buffer
+    UNUSED(value);
     char *data;
     size_t size;
     mpack_writer_t writer;
@@ -1859,12 +1860,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     add_next_index_zval(array, el);
-
-    size_t size = 1000000;
-    char ptr[size];
-
-    size_t written = ddtrace_serialize_simple_array_into_mapped_menory(array, &ptr[0], size);
-    php_printf("HERe alex with %x\n", ptr);
 }
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
