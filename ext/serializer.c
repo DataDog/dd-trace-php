@@ -1023,12 +1023,36 @@ static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
+    mpack_start_map(&writer, 1);
+    mpack_write_cstr(&writer, "foo");
+    mpack_write_cstr(&writer, "bar");
+    mpack_finish_map(&writer);
 
-    mpack_write_bin(&writer, Z_STRVAL_P(value), Z_STRLEN_P(value));
     mpack_writer_destroy(&writer);
     zval serialised;
-
     ZVAL_STRINGL(&serialised, data, size);
+
+//    mpack_reader_t reader;
+//    mpack_reader_init_data(&reader, data, size);
+//    mpack_tag_t tag = mpack_read_tag(&reader);
+//    char buffer[3];
+//
+//    if (mpack_tag_type(&tag) == mpack_type_bin) {
+//        uint32_t length = mpack_tag_bin_length(&tag);
+//        php_printf("length is %d\n", length);
+//
+//        mpack_read_bytes(&reader, buffer, length);
+//
+//        if (mpack_reader_error(&reader) != mpack_ok) { // critical check!
+//            php_printf("Error\n");
+//        }
+//        php_printf("Good\n");
+//        buffer[length] = '\0';
+//
+//        mpack_done_bin(&reader);
+//    }
+
+//    php_printf("Read from stirng is %s\n", &buffer[0]);
 
 //    ddtrace_serialize_simple_array(value, &serialised);
 
@@ -1828,12 +1852,19 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
     ZEND_HASH_FOREACH_END();
     if (zend_hash_num_elements(Z_ARR(meta_struct_zv))) {
+        php_printf("Added meta struct\n");
         zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("meta_struct"), &meta_struct_zv);
     } else {
         zend_array_destroy(Z_ARR(meta_struct_zv));
     }
 
     add_next_index_zval(array, el);
+
+    size_t size = 1000000;
+    char ptr[size];
+
+    size_t written = ddtrace_serialize_simple_array_into_mapped_menory(array, &ptr[0], size);
+    php_printf("HERe alex with %x\n", ptr);
 }
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
