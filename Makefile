@@ -932,6 +932,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog3 \
 	test_integrations_mysqli \
+	test_integrations_openai \
 	test_opentelemetry_1 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \

@@ -212,7 +212,7 @@ trait SnapshotTestTrait
 
     private function stopAndCompareMetricsSnapshotSession(
         string $token,
-        array $fieldsToIgnore = ['openai.request.duration'],
+        array $fieldsToIgnore = ['openai.request.duration']
     ) {
         $receivedMetrics = $this->server->dump();
         $this->server->close();

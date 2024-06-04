@@ -26,7 +26,9 @@ function mockClient($response)
         BaseUri::from('api.openai.com/v1'),
         Headers::withAuthorization($apiKey)->withContentType(ContentType::JSON),
         QueryParams::create()->withParam('foo', 'bar'),
-        fn (RequestInterface $request): ResponseInterface => $httpClient->sendRequest($request)
+        function (RequestInterface $request) use ($httpClient): ResponseInterface {
+            return $httpClient->sendRequest($request);
+        }
     );
 
     $client = new Client($httpTransporter);
