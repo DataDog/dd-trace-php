@@ -105,7 +105,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                         \
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
-    CONFIG(BOOL, DD_TRACE_DEBUG, "false", .ini_change = ddtrace_alter_dd_trace_debug)                          \
+    CONFIG(BOOL, DD_TRACE_DEBUG, "true", .ini_change = ddtrace_alter_dd_trace_debug)                          \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config)               \
     CONFIG(BOOL, DD_INSTRUMENTATION_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)     \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
