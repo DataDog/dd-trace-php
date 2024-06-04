@@ -1186,6 +1186,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
+static bool dd_rinit_once_done = false;
+
 static void dd_rinit_once(void) {
     /* The env vars are memoized on MINIT before the SAPI env vars are available.
      * We use the first RINIT to bust the env var cache and use the SAPI env vars.
@@ -1208,6 +1210,8 @@ static void dd_rinit_once(void) {
         ddtrace_coms_init_and_start_writer();
     }
 #endif
+
+    dd_rinit_once_done = true;
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -2158,7 +2162,9 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
 #ifndef _WIN32
             if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-                ddtrace_coms_synchronous_flush(timeout);
+                if (dd_rinit_once_done) {
+                    ddtrace_coms_synchronous_flush(timeout);
+                }
             } else
 #endif
             if (ddtrace_sidecar) {
@@ -2273,7 +2279,9 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
 
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_coms_synchronous_flush(timeout);
+        if (dd_rinit_once_done) {
+            ddtrace_coms_synchronous_flush(timeout);
+        }
     } else
 #endif
     if (ddtrace_sidecar) {
