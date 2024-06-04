@@ -13,8 +13,6 @@ class Type
     const MESSAGE_CONSUMER = 'queue';
     const MESSAGE_PRODUCER = 'queue';
 
-    const LLM = 'llm';
-
     const CASSANDRA = 'cassandra';
     const ELASTICSEARCH = 'elasticsearch';
     const MEMCACHED = 'memcached';
