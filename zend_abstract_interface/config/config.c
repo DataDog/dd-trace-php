@@ -22,13 +22,22 @@ static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
     return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
 }
 
+static inline void zai_config_process_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, zai_option_str *value) {
+    zval tmp;
+    ZVAL_UNDEF(&tmp);
+    zai_str env_value = ZAI_STR_FROM_CSTR(buf.ptr);
+    if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
+        // TODO Log decoding error
+    } else {
+        zai_json_dtor_pzval(&tmp);
+        *value = zai_option_str_from_str(env_value);
+    }
+}
+
 static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {
     // TODO Use less buffer space
     // TODO Make a more generic zai_string_buffer
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-
-    zval tmp;
-    ZVAL_UNDEF(&tmp);
 
     zai_option_str value = ZAI_OPTION_STR_NONE;
 
@@ -36,15 +45,13 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     for (; name_index < memoized->names_count; name_index++) {
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
         if (zai_config_get_env_value(name, buf)) {
-            zai_str env_value = ZAI_STR_FROM_CSTR(buf.ptr);
-            if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
-                // TODO Log decoding error
-            } else {
-                zai_json_dtor_pzval(&tmp);
-                value = zai_option_str_from_str(env_value);
-            }
+            zai_config_process_env(memoized, buf, &value);
             break;
         }
+    }
+    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(buf, true)) {
+        zai_config_process_env(memoized, buf, &value);
+        name_index = 0;
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
@@ -56,6 +63,10 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             name_index = ini_name_index;
         }
         // TODO If name_index > 0, log deprecation notice
+
+        zval tmp;
+        ZVAL_UNDEF(&tmp);
+
         zai_config_decode_value(value_view, memoized->type, memoized->parser, &tmp, /* persistent */ true);
         assert(Z_TYPE(tmp) > IS_NULL);
         zai_json_dtor_pzval(&memoized->decoded_value);
@@ -95,6 +106,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     }
     memoized->name_index = -1;
     memoized->original_on_modify = NULL;
+    memoized->env_config_fallback = entry->env_config_fallback;
     memoized->ini_change = entry->ini_change;
 
     return memoized;

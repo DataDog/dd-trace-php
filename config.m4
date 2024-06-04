@@ -157,8 +157,9 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/integrations/integrations.c \
     ext/ip_extraction.c \
     ext/logging.c \
-    ext/memory_limit.c \
     ext/limiter/limiter.c \
+    ext/memory_limit.c \
+    ext/otel_config.c \
     ext/priority_sampling/priority_sampling.c \
     ext/profiling.c \
     ext/random.c \
