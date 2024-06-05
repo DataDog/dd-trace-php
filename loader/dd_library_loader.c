@@ -12,8 +12,8 @@
 #include "compat_php.h"
 
 static int (*origin_ddtrace_module_startup_func)(INIT_FUNC_ARGS);
-static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard") ZEND_MOD_OPTIONAL("ddtrace")
-                                                          ZEND_MOD_END};
+static const zend_module_dep ddtrace_injected_module_deps[] = {ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END};
+static const zend_module_dep *orig_ddtrace_module_deps = NULL;
 static const zend_function_entry *orig_functions;
 
 static bool debug_logs = false;
@@ -63,36 +63,71 @@ static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with
     return symbol;
 }
 
+static bool ddloader_check_deps(const zend_module_dep *deps) {
+    if (!deps) {
+        return true;
+    }
+
+	size_t name_len;
+	zend_string *lcname;
+    char i = 0;
+    while (deps[i].name) {
+        if (deps[i].type == MODULE_DEP_REQUIRED) {
+            zend_module_entry *req_mod;
+
+            name_len = strlen(deps[i].name);
+            lcname = zend_string_alloc(name_len, 0);
+            zend_str_tolower_copy(ZSTR_VAL(lcname), deps[i].name, name_len);
+
+            if ((req_mod = zend_hash_find_ptr(&module_registry, lcname)) == NULL || !req_mod->module_started) {
+                zend_string_efree(lcname);
+                return false;
+            }
+            zend_string_efree(lcname);
+        }
+        ++i;
+    }
+
+    return true;
+}
+
+static void ddloader_unregister_module(void) {
+    zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
+    // Set the MSHUTDOWN function to NULL to avoid it being called by zend_hash_str_del
+    ddtrace_injected->module_shutdown_func = NULL;
+    zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
+}
+
 static PHP_MINIT_FUNCTION(ddtrace_injected) {
     zend_module_entry *ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (ddtrace) {
         LOG("ddtrace is already loaded, unregister ddtrace_injected");
-
-        /**
-         * If we return FAILURE, the module is removed, but it produces a fatal error
-         * "Fatal error: Unable to start ddtrace_injected module in Unknown on line 0".
-         * To avoid this message, we remove the module ourselves. But as the destructor
-         * calls the MSHUTDOWN function, we must set it to NULL first.
-         */
-        zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
-        ddtrace_injected->module_shutdown_func = NULL;
-        zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
+        ddloader_unregister_module();
 
         return SUCCESS;
     }
 
-    LOG("ddtrace is not loaded, rename ddtrace_injected to ddtrace");
+    LOG("ddtrace is not loaded, check the dependencies");
+
+    if (!ddloader_check_deps(orig_ddtrace_module_deps)) {
+        LOG("ddtrace dependencies are not met, unregister ddtrace_injected");
+        ddloader_unregister_module();
+
+        return SUCCESS;
+    }
+
+    LOG("Rename ddtrace_injected to ddtrace");
 
     /**
      * Rename the "key" of the module_registry to access ddtrace.
      * Must be done at the bucket level to not change the order of the HashTable.
      */
-    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 0); // FIXME: non-persistent, otherwise it crash from PHP 7.0 to 7.2
+    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 0); // non-persistent to avoid a crash with PHP 7.0/7.1/7.2 at release because IS_STR_PERSISTENT has a different value
     Bucket *bucket = ddloader_zend_hash_find_bucket(php_api_no, &module_registry, old_name);
     zend_string_release(old_name);
 
-    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 0); // FIXME: non-persistent, otherwise it crash from PHP 7.0 to 7.2
-    ddloader_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
+    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 0); // non-persistent to avoid a crash with PHP 7.0/7.1/7.2 at release because IS_STR_PERSISTENT has a different value
+    ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
     zend_string_release(new_name);
 
     ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
@@ -101,7 +136,8 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
         return SUCCESS;
     }
 
-    /* Restore the functions of the module*/
+    /* Restore the dependencies and the functions of the module */
+    ddtrace->deps = orig_ddtrace_module_deps;
     ddtrace->functions = orig_functions;
 	if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
 		LOG("Unable to register ddtrace's functions");
@@ -149,15 +185,16 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
 
     /**
      * At that point, we don't know if ddtrace will be registered or not by the PHP configuration.
-     * So we register it under the name "ddtrace_injected", add an optional dependency to be sure
-     * that our injected extension will be started up after the regular ddtrace (if it's loaded!),
-     * and finally wrap the MINIT function to perform our checks there.
+     * So we register it under the name "ddtrace_injected", add set an optional dependency to
+     * "ddtrace" to be sure that our injected extension will be started up after the regular "ddtrace"
+     * (if it's loaded!), and finally we wrap the MINIT function to perform our checks there.
      */
     module_entry->name = "ddtrace_injected";
     origin_ddtrace_module_startup_func = module_entry->module_startup_func;
     module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddtrace_injected);
-    // FIXME: allocate memory, copy existings deps then add the new optional one to "ddtrace"?
-    module_entry->deps = ddtrace_module_deps;
+    // Set our optional dependency to the real "ddtrace" module
+    orig_ddtrace_module_deps = module_entry->deps;
+    module_entry->deps = ddtrace_injected_module_deps;
     // Backup the function list and set it to NULL to make sure we don't register the functions twice
     // They'll be restored if ddtrace is not already registered.
     orig_functions = module_entry->functions;
