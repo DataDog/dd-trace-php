@@ -1434,6 +1434,13 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
+    // Remap OTel's status code to DD's status code
+    zval *http_response_status_code = zend_hash_str_find(meta, ZEND_STRL("http.response.status_code"));
+    if (http_response_status_code) {
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_response_status_code);
+        zend_hash_str_del(meta, ZEND_STRL("http.response.status_code"));
+    }
+
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
     zval *prop_name = &span->property_name;
