@@ -4,7 +4,7 @@ http.response.status_code takes precedence over http.status_code
 <?php
 
 $span = \DDTrace\start_span();
-$span->meta['http.response.status_code'] = 300;
+$span->metrics['http.response.status_code'] = 300;
 $span->meta['http.status_code'] = 302;
 \DDTrace\close_span();
 
