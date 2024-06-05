@@ -7,6 +7,8 @@
 #define PHP_70_71_72_IS_STR_INTERNED (1<<1)
 #define PHP_70_71_72_ZSTR_IS_INTERNED(s) (GC_FLAGS(s) & PHP_70_71_72_IS_STR_INTERNED)
 
+ZEND_API zval* ZEND_FASTCALL zend_hash_set_bucket_key(HashTable *ht, Bucket *b, zend_string *key) __attribute__((weak));
+
 static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
         return PHP_70_71_72_ZSTR_IS_INTERNED(key);
@@ -18,6 +20,12 @@ static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
 // This is an adaptation of zend_hash_set_bucket_key which is only available only starting from PHP 7.4
 // to be compatible with PHP 7.0+
 zval* ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b, zend_string *key) {
+    // Use the real implementation if it exists
+    if (zend_hash_set_bucket_key) {
+        return zend_hash_set_bucket_key(ht, b, key);
+    }
+
+    // Fallback for PHP < 7.4
 	uint32_t nIndex;
 	uint32_t idx, i;
 	Bucket *p, *arData;
