@@ -1,0 +1,114 @@
+[[
+  {
+    "name": "symfony.request",
+    "service": "symfony",
+    "resource": "homepage",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 11107866176292952379,
+    "type": "web",
+    "error": 1,
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "6660d06100000000",
+      "component": "symfony",
+      "error.message": "Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`",
+      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#1 [internal function]: Composer\\Autoload\\ClassLoader->loadClass()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/NodeVisitorInterface.php(45): class_exists()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#5 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/BaseNodeVisitor.php(17): Composer\\Autoload\\ClassLoader->loadClass()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/NodeVisitor/TranslationNodeVisitor.php(21): Composer\\Autoload\\ClassLoader->loadClass()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#11 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Extension/TranslationExtension.php(34): Composer\\Autoload\\ClassLoader->loadClass()\n#12 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(2576): Symfony\\Bridge\\Twig\\Extension\\TranslationExtension->__construct()\n#13 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTwigService()\n#14 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(1983): Symfony\\Component\\DependencyInjection\\Container->get()\n#15 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTemplatingService()\n#16 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Component\\DependencyInjection\\Container->get()\n#17 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/DefaultController.php(17): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#18 [internal function]: AppBundle\\Controller\\DefaultController->testingRouteNameAction()\n#19 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#20 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#21 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#22 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#23 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#24 {main}",
+      "error.type": "E_COMPILE_ERROR",
+      "http.method": "GET",
+      "http.status_code": "200",
+      "http.url": "http://localhost:9999/?key=value&<redacted>",
+      "runtime-id": "304f5d0a-90ff-4832-a828-686003b1f38f",
+      "span.kind": "server",
+      "symfony.route.action": "AppBundle\\Controller\\DefaultController@testingRouteNameAction",
+      "symfony.route.name": "homepage"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "symfony.httpkernel.kernel.handle",
+       "service": "symfony",
+       "resource": "AppKernel",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "error": 1,
+       "meta": {
+         "component": "symfony",
+         "error.message": "Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`",
+         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#1 [internal function]: Composer\\Autoload\\ClassLoader->loadClass()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/NodeVisitorInterface.php(45): class_exists()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#5 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/BaseNodeVisitor.php(17): Composer\\Autoload\\ClassLoader->loadClass()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/NodeVisitor/TranslationNodeVisitor.php(21): Composer\\Autoload\\ClassLoader->loadClass()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#11 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Extension/TranslationExtension.php(34): Composer\\Autoload\\ClassLoader->loadClass()\n#12 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(2576): Symfony\\Bridge\\Twig\\Extension\\TranslationExtension->__construct()\n#13 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTwigService()\n#14 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(1983): Symfony\\Component\\DependencyInjection\\Container->get()\n#15 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTemplatingService()\n#16 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Component\\DependencyInjection\\Container->get()\n#17 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/DefaultController.php(17): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#18 [internal function]: AppBundle\\Controller\\DefaultController->testingRouteNameAction()\n#19 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#20 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#21 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#22 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#23 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#24 {main}",
+         "error.type": "E_COMPILE_ERROR",
+         "span.kind": "server"
+       }
+     },
+        {
+          "name": "symfony.httpkernel.kernel.boot",
+          "service": "symfony",
+          "resource": "AppKernel",
+          "trace_id": 0,
+          "span_id": 3,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+        {
+          "name": "symfony.kernel.handle",
+          "service": "symfony",
+          "resource": "symfony.kernel.handle",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "error": 1,
+          "meta": {
+            "component": "symfony",
+            "error.message": "Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`",
+            "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#1 [internal function]: Composer\\Autoload\\ClassLoader->loadClass()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/NodeVisitorInterface.php(45): class_exists()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#5 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/BaseNodeVisitor.php(17): Composer\\Autoload\\ClassLoader->loadClass()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/NodeVisitor/TranslationNodeVisitor.php(21): Composer\\Autoload\\ClassLoader->loadClass()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#11 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Extension/TranslationExtension.php(34): Composer\\Autoload\\ClassLoader->loadClass()\n#12 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(2576): Symfony\\Bridge\\Twig\\Extension\\TranslationExtension->__construct()\n#13 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTwigService()\n#14 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(1983): Symfony\\Component\\DependencyInjection\\Container->get()\n#15 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTemplatingService()\n#16 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Component\\DependencyInjection\\Container->get()\n#17 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/DefaultController.php(17): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#18 [internal function]: AppBundle\\Controller\\DefaultController->testingRouteNameAction()\n#19 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#20 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#21 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#22 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#23 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#24 {main}",
+            "error.type": "E_COMPILE_ERROR"
+          }
+        },
+           {
+             "name": "symfony.kernel.request",
+             "service": "symfony",
+             "resource": "symfony.kernel.request",
+             "trace_id": 0,
+             "span_id": 5,
+             "parent_id": 4,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.kernel.controller",
+             "service": "symfony",
+             "resource": "symfony.kernel.controller",
+             "trace_id": 0,
+             "span_id": 6,
+             "parent_id": 4,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.controller",
+             "service": "symfony",
+             "resource": "AppBundle\\Controller\\DefaultController::testingRouteNameAction",
+             "trace_id": 0,
+             "span_id": 7,
+             "parent_id": 4,
+             "type": "web",
+             "error": 1,
+             "meta": {
+               "component": "symfony",
+               "error.message": "Unparenthesized `a ? b : c ? d : e` is not supported. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)`",
+               "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#1 [internal function]: Composer\\Autoload\\ClassLoader->loadClass()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/NodeVisitorInterface.php(45): class_exists()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#5 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/BaseNodeVisitor.php(17): Composer\\Autoload\\ClassLoader->loadClass()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/NodeVisitor/TranslationNodeVisitor.php(21): Composer\\Autoload\\ClassLoader->loadClass()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(576): include()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/composer/ClassLoader.php(427): Composer\\Autoload\\{closure}()\n#11 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Extension/TranslationExtension.php(34): Composer\\Autoload\\ClassLoader->loadClass()\n#12 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(2576): Symfony\\Bridge\\Twig\\Extension\\TranslationExtension->__construct()\n#13 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTwigService()\n#14 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/appProdProjectContainer.php(1983): Symfony\\Component\\DependencyInjection\\Container->get()\n#15 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2069): appProdProjectContainer->getTemplatingService()\n#16 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Component\\DependencyInjection\\Container->get()\n#17 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/DefaultController.php(17): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#18 [internal function]: AppBundle\\Controller\\DefaultController->testingRouteNameAction()\n#19 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#20 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#21 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#22 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#23 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#24 {main}",
+               "error.type": "E_COMPILE_ERROR"
+             }
+           }]]
