@@ -1438,6 +1438,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code
     zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
     if (http_response_status_code) {
+        Z_TRY_ADDREF_P(http_response_status_code);
         zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_response_status_code);
         zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
     }
