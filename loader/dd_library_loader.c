@@ -135,13 +135,13 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
      * Rename the "key" of the module_registry to access ddtrace.
      * Must be done at the bucket level to not change the order of the HashTable.
      */
-    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 0); // non-persistent to avoid a crash with PHP 7.0/7.1/7.2 at release because IS_STR_PERSISTENT has a different value
+    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 1);
     Bucket *bucket = (Bucket*)zend_hash_find(&module_registry, old_name);
-    zend_string_release(old_name);
+    // zend_string_release(old_name); // FIXME: crash on PHP <= 7.2
 
-    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 0); // non-persistent to avoid a crash with PHP 7.0/7.1/7.2 at release because IS_STR_PERSISTENT has a different value
+    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 1);
     ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
-    zend_string_release(new_name);
+    // zend_string_release(new_name); // FIXME: crash on PHP <= 7.2
 
     ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (!ddtrace) {
@@ -149,7 +149,8 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
         return SUCCESS;
     }
 
-    /* Restore the original MINIT, dependencies and functions of the module */
+    /* Restore name, MINIT, dependencies and functions of the module */
+    ddtrace->name = "ddtrace";
     ddtrace->module_startup_func = origin_ddtrace_module_startup_func;
     ddtrace->deps = orig_ddtrace_module_deps;
     ddtrace->functions = orig_functions;
