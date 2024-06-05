@@ -93,6 +93,10 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
 
 static void ddloader_unregister_module(void) {
     zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
+    if (!ddtrace_injected) {
+        return;
+    }
+
     // Set the MSHUTDOWN function to NULL to avoid it being called by zend_hash_str_del
     ddtrace_injected->module_shutdown_func = NULL;
     zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
@@ -136,7 +140,8 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
         return SUCCESS;
     }
 
-    /* Restore the dependencies and the functions of the module */
+    /* Restore the original MINIT, dependencies and functions of the module */
+    ddtrace->module_startup_func = origin_ddtrace_module_startup_func;
     ddtrace->deps = orig_ddtrace_module_deps;
     ddtrace->functions = orig_functions;
 	if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
