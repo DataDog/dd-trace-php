@@ -303,27 +303,56 @@ trait TracerTestTrait
 
     private function parseRawDumpedTraces($rawTraces)
     {
+        // error_log('RawTraces: ' . print_r($rawTraces, 1));
+
+        if (empty($rawTraces['chunks'])) {
+            return $this->parseRawDumpedTraces04($rawTraces);
+        } else {
+            return $this->parseRawDumpedTraces07($rawTraces);
+        }
+    }
+
+    private function parseRawDumpedTraces04($rawTraces)
+    {
         $traces = [];
 
         foreach ($rawTraces as $spansInTrace) {
-            $spans = [];
-            foreach ($spansInTrace as $rawSpan) {
-                if (empty($rawSpan['resource'])) {
-                    TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
-                    return;
-                }
-
-                if ($rawSpan['trace_id'] == "0") {
-                    TestCase::fail(sprintf("Span '%s' has zero trace_id", $rawSpan['name']));
-                    return;
-                }
-
-                $spans[] = $rawSpan;
-            }
-            $traces[] = $spans;
+            $traces[] = $this->parseRawDumpedSpans($spansInTrace);
         }
 
         return $traces;
+    }
+
+    private function parseRawDumpedTraces07($rawTraces)
+    {
+        $traces = [];
+
+        foreach ($rawTraces['chunks'] as $chunk) {
+            $traces[] = $this->parseRawDumpedSpans($chunk['spans']);
+        }
+        //error_log('Traces v07: ' . print_r($traces, 1));
+        return $traces;
+    }
+
+    private function parseRawDumpedSpans($rawSpans)
+    {
+        //error_log('RawSpans: ' . print_r($rawSpans, 1));
+
+        $spans = [];
+        foreach ($rawSpans as $rawSpan) {
+            if (empty($rawSpan['resource'])) {
+                TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
+                return;
+            }
+
+            if ($rawSpan['trace_id'] == "0") {
+                TestCase::fail(sprintf("Span '%s' has zero trace_id", $rawSpan['name']));
+                return;
+            }
+
+            $spans[] = $rawSpan;
+        }
+        return $spans;
     }
 
     /**
