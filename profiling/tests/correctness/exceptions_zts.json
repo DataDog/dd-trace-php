@@ -17,6 +17,11 @@
                         }, {
                             "key": "exception message",
                             "values_regex": "Exception from (worker [0-9]|main thread)"
+                        }, {
+                            "key": "thread name",
+                            "values": [
+                                "Main"
+                            ]
                         }
                     ]
                 }

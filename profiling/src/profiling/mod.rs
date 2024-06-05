@@ -33,7 +33,7 @@ use std::intrinsics::transmute;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
-use std::thread::JoinHandle;
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "timeline")]
@@ -1000,6 +1000,24 @@ impl Profiler {
 
     fn message_labels() -> Vec<Label> {
         let gpc = unsafe { datadog_php_profiling_get_profiling_context };
+
+        let mut labels = vec![
+            Label {
+                key: "thread id",
+                value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+            },
+            Label {
+                key: "thread name",
+                value: LabelValue::Str(
+                    thread::current()
+                        .name()
+                        .unwrap_or("Main")
+                        .to_string()
+                        .into(),
+                ),
+            },
+        ];
+
         if let Some(get_profiling_context) = gpc {
             let context = unsafe { get_profiling_context() };
             if context.local_root_span_id != 0 {
@@ -1010,27 +1028,26 @@ impl Profiler {
                 let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
                 let span_id: i64 = unsafe { transmute(context.span_id) };
 
-                return vec![
-                    Label {
-                        key: "local root span id",
-                        value: LabelValue::Num(local_root_span_id, None),
-                    },
-                    Label {
-                        key: "span id",
-                        value: LabelValue::Num(span_id, None),
-                    },
-                ];
+                labels.push(Label {
+                    key: "local root span id",
+                    value: LabelValue::Num(local_root_span_id, None),
+                });
+
+                labels.push(Label {
+                    key: "span id",
+                    value: LabelValue::Num(span_id, None),
+                });
             }
         }
-        vec![]
+        labels
     }
 
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
         samples: SampleValues,
-        #[cfg(any(php_has_fibers, php_zts))] mut labels: Vec<Label>,
-        #[cfg(not(any(php_has_fibers, php_zts)))] labels: Vec<Label>,
+        #[cfg(php_has_fibers)] mut labels: Vec<Label>,
+        #[cfg(not(php_has_fibers))] labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
         // If profiling is disabled, these will naturally return empty Vec.
@@ -1055,12 +1072,6 @@ impl Profiler {
                 });
             }
         }
-
-        #[cfg(php_zts)]
-        labels.push(Label {
-            key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
-        });
 
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
