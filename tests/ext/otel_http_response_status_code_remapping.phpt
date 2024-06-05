@@ -4,7 +4,7 @@ Remap http.response.status_code to http.status_code
 <?php
 
 $span = \DDTrace\start_span();
-$span->metrics['http.response.status_code'] = 300;
+$span->metrics['http.response.status_code'] = "300";
 \DDTrace\close_span();
 
 var_dump(dd_trace_serialize_closed_spans());
