@@ -123,7 +123,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
      * Must be done at the bucket level to not change the order of the HashTable.
      */
     zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 0); // non-persistent to avoid a crash with PHP 7.0/7.1/7.2 at release because IS_STR_PERSISTENT has a different value
-    Bucket *bucket = ddloader_zend_hash_find_bucket(php_api_no, &module_registry, old_name);
+    Bucket *bucket = (Bucket*)zend_hash_find(&module_registry, old_name);
     zend_string_release(old_name);
 
     zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 0); // non-persistent to avoid a crash with PHP 7.0/7.1/7.2 at release because IS_STR_PERSISTENT has a different value
