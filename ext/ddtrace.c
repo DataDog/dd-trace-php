@@ -397,14 +397,14 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
-
 #ifndef _WIN32
-        if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()){
+        // Only disable sidecar sender when explicitly disabled
+        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
+        if (bgs_fallback) {
             // We enabled sending traces through the sidecar by default
             // That said a few customers have explicitly disabled telemetry to disable the sidecar
             // So if telemetry is disabled, we will disable the sidecar and send a one shot telemetry call
-            disable_sidecar_sending();
-            // TODO: report the fallback in telemetry
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER, (zai_str) ZAI_STR_FROM_CSTR("0"));
         }
         if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
 #endif
@@ -416,23 +416,22 @@ static void dd_activate_once(void) {
         }
 #ifndef _WIN32
         if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
+                // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
+                ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
+            }
+            if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
+                // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
+                ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
+            }
             ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                                get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
-                               get_global_DD_TRACE_AGENT_STACK_BACKLOG());
+                               get_global_DD_TRACE_AGENT_STACK_BACKLOG(),
+                               bgs_fallback ? get_DD_SERVICE() ? ZSTR_VAL(get_DD_SERVICE()) : "" : (strcmp(sapi_module.name, "cli") == 0 ? "cli.command" : "web.request"));
         }
 #endif
     }
 }
-
-#ifndef _WIN32
-void disable_sidecar_sending(void){
-    zend_string *zero = zend_string_init("0", 1, 1);
-    zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].ini_entries[0]->name, zero,
-                    ZEND_INI_SYSTEM, ZEND_INI_STAGE_RUNTIME);
-    zend_string_release(zero);
-    ZVAL_FALSE(&zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].decoded_value);
-}
-#endif
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
@@ -1219,14 +1218,6 @@ static void dd_rinit_once(void) {
 #ifndef _WIN32
     ddtrace_signals_first_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
-            // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
-            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
-        }
-        if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
-            // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
-            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
-        }
         ddtrace_coms_init_and_start_writer();
     }
 #endif

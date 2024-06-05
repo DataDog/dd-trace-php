@@ -16,13 +16,6 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-\DDTrace\start_span();
-\DDTrace\close_span();
-// make sure any outstanding data on the sidecar side has been flushed
-do {
-    $out = $rr->waitForDataAndReplay();
-} while ($out && strpos($out["body"], basename(__FILE__)) === false);
-
 $get_sampling = function() use ($rr) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
     $spans = $root["chunks"][0]["spans"] ?? $root[0];
@@ -55,7 +48,6 @@ echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Initial sampling: 1
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
