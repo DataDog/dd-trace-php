@@ -14,7 +14,8 @@
                             "values": [
                                 "FooBar\\Exception"
                             ]
-                        }, {
+                        },
+                        {
                             "key": "thread name",
                             "values": [
                                 "Main"
