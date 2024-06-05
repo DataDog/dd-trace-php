@@ -969,7 +969,7 @@ TEST_WEB_83 := \
 	test_web_custom \
 	test_web_zend_1_21
 
-FILTER := .
+FILTER := $(if $(FILTER),$(FILTER),".")
 MAX_RETRIES := 3
 
 # Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
