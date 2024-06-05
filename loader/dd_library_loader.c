@@ -23,13 +23,22 @@ static int php_api_no = 0;
 
 static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {}
 
-#define LOG(str) ddloader_log(str);
+#define INFO "info"
+#define WARN "warn"
+#define ERROR "error"
+#define LOG(level, format, ...) ddloader_logf(level, format, ##__VA_ARGS__);
 
-static inline void ddloader_log(const char *log) {
+static inline void ddloader_logf(const char *level, const char *format, ...) {
     if (!debug_logs) {
         return;
     }
-    php_printf("[dd_library_loader][error] %s\n", log);
+    char buf[256];
+
+    va_list va;
+    va_start(va, format);
+    vsnprintf(buf, sizeof(buf), format, va);
+    php_printf("[dd_library_loader][%s] %s\n", level, buf);
+    va_end(va);
 }
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
@@ -105,22 +114,22 @@ static void ddloader_unregister_module(void) {
 static PHP_MINIT_FUNCTION(ddtrace_injected) {
     zend_module_entry *ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (ddtrace) {
-        LOG("ddtrace is already loaded, unregister ddtrace_injected");
+        LOG(INFO, "ddtrace is already loaded, unregister ddtrace_injected");
         ddloader_unregister_module();
 
         return SUCCESS;
     }
 
-    LOG("ddtrace is not loaded, check the dependencies");
+    LOG(INFO, "ddtrace is not loaded, checking the dependencies");
 
     if (!ddloader_check_deps(orig_ddtrace_module_deps)) {
-        LOG("ddtrace dependencies are not met, unregister ddtrace_injected");
+        LOG(WARN, "ddtrace dependencies are not met, unregister ddtrace_injected");
         ddloader_unregister_module();
 
         return SUCCESS;
     }
 
-    LOG("Rename ddtrace_injected to ddtrace");
+    LOG(INFO, "Rename ddtrace_injected to ddtrace");
 
     /**
      * Rename the "key" of the module_registry to access ddtrace.
@@ -136,7 +145,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
 
     ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (!ddtrace) {
-        LOG("ddtrace not found. Something wrong happened");
+        LOG(ERROR, "ddtrace not found. Something wrong happened");
         return SUCCESS;
     }
 
@@ -145,7 +154,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
     ddtrace->deps = orig_ddtrace_module_deps;
     ddtrace->functions = orig_functions;
 	if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
-		LOG("Unable to register ddtrace's functions");
+		LOG(ERROR, "Unable to register ddtrace's functions");
         return SUCCESS;
 	}
 
@@ -155,7 +164,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
 static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_zts, bool is_debug) {
     char *ext_path = ddloader_find_ext_path("trace", "ddtrace", php_api_no, is_zts, is_debug);
     if (!ext_path) {
-        LOG("Extension file not found");
+        LOG(ERROR, "Extension file not found");
         return SUCCESS;
     }
 
@@ -165,26 +174,28 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
     zend_module_entry *module_entry;
     zend_module_entry *(*get_module)(void);
 
+    LOG(INFO, "Found extension file: %s", ext_path);
+
     void *handle = DL_LOAD(ext_path);
     if (!handle) {
-        LOG("Cannot load the extension");
+        LOG(ERROR, "Cannot load the extension");
         goto abort;
     }
 
     get_module = (zend_module_entry * (*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
     if (!get_module) {
-        LOG("Cannot fetch the module entry");
+        LOG(ERROR, "Cannot fetch the module entry");
         goto abort_and_unload;
     }
 
     module_entry = get_module();
 
     if (module_entry->zend_api != php_api_no) {
-        LOG("Wrong API number");
+        LOG(ERROR, "API number mismatch between module (%d) and runtime (%d)", module_entry->zend_api, php_api_no);
         goto abort_and_unload;
     }
     if (strcmp(module_entry->build_id, module_build_id)) {
-        LOG("Wrong Build ID");
+        LOG(ERROR, "Build ID mismatch between module (%s) and runtime (%s)", module_entry->build_id, module_build_id);
         goto abort_and_unload;
     }
 
@@ -213,17 +224,17 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
     zend_error_cb = old_error_handler;
 
     if (module_entry == NULL) {
-        LOG("Cannot register the module");
+        LOG(ERROR, "Cannot register the module");
         goto abort_and_unload;
     }
 
     return SUCCESS;
 
 abort_and_unload:
-    LOG("Unloading the library");
+    LOG(INFO, "Unloading the library");
     DL_UNLOAD(handle);
 abort:
-    LOG("Abort the loader");
+    LOG(INFO, "Abort the loader");
     free(ext_path);
 
     return SUCCESS;
@@ -254,13 +265,13 @@ static int ddloader_api_no_check(int api_no) {
             break;
 
         default:
-            LOG("Unknown api no");
+            LOG(WARN, "Unknown api no: %d", api_no);
             if (!force_load) {
                 // If we return FAILURE, this Zend extension would be unload, BUT it would produce an error
                 // similar to "The Zend Engine API version 220100525 which is installed, is newer."
                 return SUCCESS;
             }
-            LOG("Continue to load the extension even if the api no is not supported");
+            LOG(WARN, "Continue to load the extension even if the api no is not supported");
             break;
     }
 
