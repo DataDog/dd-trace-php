@@ -5,20 +5,16 @@
     "resource": "simple_view",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1476812018967513985,
+    "parent_id": 1287804500397355135,
     "type": "web",
-    "error": 1,
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "6660af7200000000",
+      "_dd.p.tid": "6661bc6500000000",
       "component": "symfony",
-      "error.message": "Uncaught Twig_Error_Loader (500): Unable to find template \"twig_template.html.twig\" (looked into: /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/Resources/views, /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Resources/views/Form). in /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/Loader/Filesystem.php:240",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/Loader/FilesystemLoader.php(78): Twig_Loader_Filesystem->findTemplate()\n#1 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/twig/twig/lib/Twig/Loader/Filesystem.php(150): Symfony\\Bundle\\TwigBundle\\Loader\\FilesystemLoader->findTemplate()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/classes.php(2918): Twig_Loader_Filesystem->getCacheKey()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/cache/prod/classes.php(2946): Twig_Environment->getTemplateClass()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php(131): Twig_Environment->loadTemplate()\n#5 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php(53): Symfony\\Bridge\\Twig\\TwigEngine->load()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(76): Symfony\\Bridge\\Twig\\TwigEngine->render()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(105): Symfony\\Bundle\\TwigBundle\\TwigEngine->render()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Bundle\\TwigBundle\\TwigEngine->renderResponse()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/CommonScenariosController.php(30): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#10 [internal function]: AppBundle\\Controller\\CommonScenariosController->simpleViewAction()\n#11 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#12 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#13 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#14 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#15 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#16 {main}\n\nNext InvalidArgumentException: Unable to find template \"twig_template.html.twig\" (looked into: /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/Resources/views, /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Resources/views/Form). in /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php:133\nStack trace:\n#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php(53): Symfony\\Bridge\\Twig\\TwigEngine->load()\n#1 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(76): Symfony\\Bridge\\Twig\\TwigEngine->render()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(105): Symfony\\Bundle\\TwigBundle\\TwigEngine->render()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Bundle\\TwigBundle\\TwigEngine->renderResponse()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/CommonScenariosController.php(30): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#5 [internal function]: AppBundle\\Controller\\CommonScenariosController->simpleViewAction()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#11 {main}",
-      "error.type": "Twig_Error_Loader",
       "http.method": "GET",
-      "http.status_code": "500",
+      "http.status_code": "200",
       "http.url": "http://localhost:9999/app.php/simple_view?key=value&<redacted>",
-      "runtime-id": "8f936f13-94c5-4abb-89df-d2f9e2e34071",
+      "runtime-id": "05d2d546-7cb6-4e46-bc10-0ff5602cdf9d",
       "span.kind": "server",
       "symfony.route.action": "AppBundle\\Controller\\CommonScenariosController@simpleViewAction",
       "symfony.route.name": "simple_view"
@@ -96,12 +92,8 @@
              "span_id": 8,
              "parent_id": 5,
              "type": "web",
-             "error": 1,
              "meta": {
-               "component": "symfony",
-               "error.message": "Thrown InvalidArgumentException (500): Unable to find template \"twig_template.html.twig\" (looked into: /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/Resources/views, /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Resources/views/Form). in /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php:133",
-               "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php(53): Symfony\\Bridge\\Twig\\TwigEngine->load()\n#1 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(76): Symfony\\Bridge\\Twig\\TwigEngine->render()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(105): Symfony\\Bundle\\TwigBundle\\TwigEngine->render()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Bundle\\TwigBundle\\TwigEngine->renderResponse()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/CommonScenariosController.php(30): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#5 [internal function]: AppBundle\\Controller\\CommonScenariosController->simpleViewAction()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#11 {main}",
-               "error.type": "InvalidArgumentException"
+               "component": "symfony"
              }
            },
               {
@@ -112,18 +104,14 @@
                 "span_id": 10,
                 "parent_id": 8,
                 "type": "web",
-                "error": 1,
                 "meta": {
-                  "component": "symfony",
-                  "error.message": "Thrown InvalidArgumentException (500): Unable to find template \"twig_template.html.twig\" (looked into: /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/Resources/views, /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/Resources/views/Form). in /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php:133",
-                  "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bridge/Twig/TwigEngine.php(53): Symfony\\Bridge\\Twig\\TwigEngine->load()\n#1 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(76): Symfony\\Bridge\\Twig\\TwigEngine->render()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/TwigBundle/TwigEngine.php(105): Symfony\\Bundle\\TwigBundle\\TwigEngine->render()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Controller/Controller.php(107): Symfony\\Bundle\\TwigBundle\\TwigEngine->renderResponse()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/CommonScenariosController.php(30): Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller->render()\n#5 [internal function]: AppBundle\\Controller\\CommonScenariosController->simpleViewAction()\n#6 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#7 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#8 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#9 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#10 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#11 {main}",
-                  "error.type": "InvalidArgumentException"
+                  "component": "symfony"
                 }
               },
            {
-             "name": "symfony.kernel.handleException",
+             "name": "symfony.kernel.response",
              "service": "test_symfony_23",
-             "resource": "symfony.kernel.handleException",
+             "resource": "symfony.kernel.response",
              "trace_id": 0,
              "span_id": 9,
              "parent_id": 5,
@@ -132,90 +120,6 @@
                "component": "symfony"
              }
            },
-              {
-                "name": "symfony.kernel.exception",
-                "service": "test_symfony_23",
-                "resource": "symfony.kernel.exception",
-                "trace_id": 0,
-                "span_id": 11,
-                "parent_id": 9,
-                "type": "web",
-                "meta": {
-                  "component": "symfony"
-                }
-              },
-                 {
-                   "name": "symfony.kernel.request",
-                   "service": "test_symfony_23",
-                   "resource": "symfony.kernel.request",
-                   "trace_id": 0,
-                   "span_id": 13,
-                   "parent_id": 11,
-                   "type": "web",
-                   "meta": {
-                     "component": "symfony"
-                   }
-                 },
-                 {
-                   "name": "symfony.kernel.controller",
-                   "service": "test_symfony_23",
-                   "resource": "symfony.kernel.controller",
-                   "trace_id": 0,
-                   "span_id": 14,
-                   "parent_id": 11,
-                   "type": "web",
-                   "meta": {
-                     "component": "symfony"
-                   }
-                 },
-                 {
-                   "name": "symfony.controller",
-                   "service": "test_symfony_23",
-                   "resource": "Symfony\\Bundle\\TwigBundle\\Controller\\ExceptionController::showAction",
-                   "trace_id": 0,
-                   "span_id": 15,
-                   "parent_id": 11,
-                   "type": "web",
-                   "meta": {
-                     "component": "symfony"
-                   }
-                 },
-                    {
-                      "name": "symfony.templating.render",
-                      "service": "test_symfony_23",
-                      "resource": "Twig_Environment TwigBundle:Exception:error.html.twig",
-                      "trace_id": 0,
-                      "span_id": 17,
-                      "parent_id": 15,
-                      "type": "web",
-                      "meta": {
-                        "component": "symfony"
-                      }
-                    },
-                 {
-                   "name": "symfony.kernel.response",
-                   "service": "test_symfony_23",
-                   "resource": "symfony.kernel.response",
-                   "trace_id": 0,
-                   "span_id": 16,
-                   "parent_id": 11,
-                   "type": "web",
-                   "meta": {
-                     "component": "symfony"
-                   }
-                 },
-              {
-                "name": "symfony.kernel.response",
-                "service": "test_symfony_23",
-                "resource": "symfony.kernel.response",
-                "trace_id": 0,
-                "span_id": 12,
-                "parent_id": 9,
-                "type": "web",
-                "meta": {
-                  "component": "symfony"
-                }
-              },
      {
        "name": "symfony.kernel.terminate",
        "service": "test_symfony_23",
