@@ -460,7 +460,7 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_TRACE_CLI_ENABLED=true
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://127.0.0.1:9876 DD_TRACE_CLI_ENABLED=true
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
@@ -477,6 +477,7 @@ PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
 PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
+TELEMETRY_ENABLED=0
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -988,11 +989,11 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=0 -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 84 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell test $(TELEMETRY_ENABLED) && echo 1 || test $(PHP_MAJOR_MINOR) -ge 84 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=0 $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(TELEMETRY_ENABLED) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
 endef
 
 # Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
@@ -1205,9 +1206,9 @@ test_integrations_mongodb1:
 	$(call run_tests_debug,tests/Integrations/MongoDB)
 test_integrations_openai:
 	$(MAKE) test_scenario_openai
-	$(eval TEST_EXTRA_ENV=DD_DOGSTATSD_URL=http://127.0.0.1:9876)
+	$(eval TELEMETRY_ENABLED=1)
 	$(call run_tests_debug,tests/Integrations/OpenAI)
- 	$(eval TEST_EXTRA_ENV=)
+ 	$(eval TELEMETRY_ENABLED=0)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies

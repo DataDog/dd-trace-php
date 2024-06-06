@@ -144,6 +144,10 @@ trait SnapshotTestTrait
         $logsFile = null,
         $fieldsToIgnoreLogs = ['timestamp', 'dd.trace_id', 'dd.span_id']
     ) {
+        if ($snapshotMetrics) {
+            $this->stopAndCompareMetricsSnapshotSession($token, $fieldsToIgnoreMetrics);
+        }
+
         $this->waitForTraces($token, $numExpectedTraces);
 
         $url = self::$testAgentUrl . '/test/session/snapshot?ignores=' . implode(',', $fieldsToIgnore) .
@@ -158,10 +162,6 @@ trait SnapshotTestTrait
         }
 
         TestCase::assertSame('200: OK', $response);
-
-        if ($snapshotMetrics) {
-            $this->stopAndCompareMetricsSnapshotSession($token, $fieldsToIgnoreMetrics);
-        }
 
         if ($logsFile) {
             $this->compareLogsSnapshotSession($token, $logsFile, $fieldsToIgnoreLogs);
