@@ -37,8 +37,6 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "timeline")]
-use lazy_static::lazy_static;
-#[cfg(feature = "timeline")]
 use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
@@ -681,6 +679,7 @@ impl Profiler {
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
+    #[inline]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -690,7 +689,7 @@ impl Profiler {
                 let depth = frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with(|cell| cell.borrow_mut().rotate_clocks());
 
-                let labels = Profiler::message_labels();
+                let labels = Profiler::common_labels(0);
                 let mut timestamp = 0;
                 // SAFETY: collecting time is done during PHP requests only,
                 //         so the ptr is valid at this time.
@@ -703,7 +702,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                match self.send_sample(self.prepare_sample_message(
+                match self.prepare_and_send_message(
                     frames,
                     SampleValues {
                         interrupt_count,
@@ -713,7 +712,7 @@ impl Profiler {
                     },
                     labels,
                     timestamp,
-                )) {
+                ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames and {n_labels} labels to profiler."
                     ),
@@ -728,8 +727,9 @@ impl Profiler {
         }
     }
 
+    /// Collect a stack sample with memory allocations.
     #[cfg(feature = "allocation_profiling")]
-    /// Collect a stack sample with memory allocations
+    #[inline]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -740,10 +740,10 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let labels = Profiler::message_labels();
+                let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                match self.send_sample(self.prepare_sample_message(
+                match self.prepare_and_send_message(
                     frames,
                     SampleValues {
                         alloc_size,
@@ -752,7 +752,7 @@ impl Profiler {
                     },
                     labels,
                     NO_TIMESTAMP,
-                )) {
+                ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
                     ),
@@ -767,8 +767,9 @@ impl Profiler {
         }
     }
 
+    /// Collect a stack sample with exception.
     #[cfg(feature = "exception_profiling")]
-    /// Collect a stack sample with exception
+    #[inline]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
@@ -779,7 +780,7 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let mut labels = Profiler::message_labels();
+                let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
                     key: "exception type",
@@ -795,7 +796,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                match self.send_sample(self.prepare_sample_message(
+                match self.prepare_and_send_message(
                     frames,
                     SampleValues {
                         exception: 1,
@@ -803,7 +804,7 @@ impl Profiler {
                     },
                     labels,
                     NO_TIMESTAMP,
-                )) {
+                ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
                     ),
@@ -819,20 +820,19 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    const TIMELINE_COMPILE_FILE_LABELS: &'static [Label] = &[Label {
+        key: "event",
+        value: LabelValue::Str(Cow::Borrowed("compilation")),
+    }];
+
+    #[cfg(feature = "timeline")]
+    #[inline]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
-        let mut labels = Profiler::message_labels();
-
-        lazy_static! {
-            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
-                key: "event",
-                value: LabelValue::Str("compilation".into()),
-            },];
-        }
-
-        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
+        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: COW_EVAL,
                 file: Some(filename),
@@ -844,7 +844,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
             }
@@ -857,6 +857,7 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    #[inline]
     pub fn collect_compile_file(
         &self,
         now: i64,
@@ -864,16 +865,8 @@ impl Profiler {
         filename: String,
         include_type: &str,
     ) {
-        let mut labels = Profiler::message_labels();
-
-        lazy_static! {
-            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
-                key: "event",
-                value: LabelValue::Str("compilation".into()),
-            },];
-        }
-
-        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
+        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         labels.push(Label {
             key: "filename",
             value: LabelValue::Str(Cow::from(filename)),
@@ -881,7 +874,7 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: format!("[{include_type}]").into(),
                 file: None,
@@ -893,7 +886,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
             }
@@ -905,10 +898,11 @@ impl Profiler {
         }
     }
 
-    #[cfg(feature = "timeline")]
     /// This function can be called to collect any kind of inactivity that is happening
+    #[cfg(feature = "timeline")]
+    #[inline(never)]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
-        let mut labels = Profiler::message_labels();
+        let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
             key: "event",
@@ -917,7 +911,7 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[idle]".into(),
                 file: None,
@@ -929,7 +923,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'idle' with {n_labels} labels to profiler.")
             }
@@ -939,9 +933,10 @@ impl Profiler {
         }
     }
 
-    #[cfg(feature = "timeline")]
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
+    #[cfg(feature = "timeline")]
+    #[inline]
     pub fn collect_garbage_collection(
         &self,
         now: i64,
@@ -950,16 +945,13 @@ impl Profiler {
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
     ) {
-        let mut labels = Profiler::message_labels();
+        let mut labels = Profiler::common_labels(4);
 
-        lazy_static! {
-            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![Label {
-                key: "event",
-                value: LabelValue::Str("gc".into()),
-            },];
-        }
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(Cow::Borrowed("gc")),
+        });
 
-        labels.extend_from_slice(&TIMELINE_GC_LABELS);
         labels.push(Label {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
@@ -976,7 +968,7 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[gc]".into(),
                 file: None,
@@ -988,7 +980,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
             }
@@ -998,10 +990,13 @@ impl Profiler {
         }
     }
 
-    fn message_labels() -> Vec<Label> {
-        // todo: some callers are going to add labels we don't have capacity
-        //       for, causing needless reallocations.
-        let mut labels = Vec::with_capacity(4);
+    /// Creates the common message labels for all samples.
+    ///
+    /// * `n_extra_labels` - Reserve room for extra labels, such as when the
+    ///                      caller adds gc or exception labels.
+    #[inline(never)]
+    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+        let mut labels = Vec::with_capacity(4 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
             value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
@@ -1046,6 +1041,21 @@ impl Profiler {
         labels
     }
 
+    #[inline(never)]
+    fn prepare_and_send_message(
+        &self,
+        frames: Vec<ZendFrame>,
+        samples: SampleValues,
+        labels: Vec<Label>,
+        timestamp: i64,
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
+        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
+        self.message_sender
+            .try_send(ProfilerMessage::Sample(message))
+            .map_err(Box::new)
+    }
+
+    #[inline(always)]
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
@@ -1125,7 +1135,7 @@ mod tests {
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
         let samples = get_samples();
-        let labels = Profiler::message_labels();
+        let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
