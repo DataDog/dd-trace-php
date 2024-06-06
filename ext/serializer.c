@@ -1433,6 +1433,15 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     add_assoc_long(el, "duration", span->duration);
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+
+    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code
+    zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
+    if (http_response_status_code) {
+        Z_TRY_ADDREF_P(http_response_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_response_status_code);
+        zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
+    }
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
@@ -1528,12 +1537,10 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             double parsed_analytics_event = strconv_parse_bool(Z_STR_P(analytics_event));
             if (parsed_analytics_event >= 0) {
                 ZVAL_DOUBLE(&analytics_event_as_double, parsed_analytics_event);
-                zend_array *metrics = ddtrace_property_array(&span->property_metrics);
                 zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
             }
         } else {
             ZVAL_DOUBLE(&analytics_event_as_double, zval_get_double(analytics_event));
-            zend_array *metrics = ddtrace_property_array(&span->property_metrics);
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
         }
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
@@ -1670,8 +1677,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
                 }
             }
 
-            zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-
             zval mechanism;
             ZVAL_LONG(&mechanism, 8);
             zend_hash_str_update(metrics, ZEND_STRL("_dd.span_sampling.mechanism"), &mechanism);
@@ -1698,7 +1703,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     _serialize_meta(el, span);
 
 
-    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
     zval metrics_zv;
     array_init(&metrics_zv);
     zend_string *str_key;
