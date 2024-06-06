@@ -78,7 +78,7 @@ download_circle_ci_release:
   timeout: 45m
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   script:
-    - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - git clone --branch pierre/change-sidecar-enablement https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - ./steps/download-circle-ci-release.sh
   artifacts:
     name: "artifacts"
