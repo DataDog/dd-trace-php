@@ -135,13 +135,13 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
      * Rename the "key" of the module_registry to access ddtrace.
      * Must be done at the bucket level to not change the order of the HashTable.
      */
-    zend_string *old_name = zend_string_init(ZEND_STRL("ddtrace_injected"), 1);
+    zend_string *old_name = ddloader_zend_string_init(php_api_no, ZEND_STRL("ddtrace_injected"), 1);
     Bucket *bucket = (Bucket*)zend_hash_find(&module_registry, old_name);
-    // zend_string_release(old_name); // FIXME: crash on PHP <= 7.2
+    ddloader_zend_string_release(php_api_no, old_name);
 
-    zend_string *new_name = zend_string_init(ZEND_STRL("ddtrace"), 1);
+    zend_string *new_name = ddloader_zend_string_init(php_api_no, ZEND_STRL("ddtrace"), 1);
     ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
-    // zend_string_release(new_name); // FIXME: crash on PHP <= 7.2
+    ddloader_zend_string_release(php_api_no, new_name);
 
     ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
     if (!ddtrace) {

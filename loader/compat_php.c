@@ -4,6 +4,7 @@
 #include "compat_php.h"
 
 #define HT_FLAGS(ht) (ht)->u.flags
+#define PHP_70_71_72_IS_STR_PERSISTENT (1<<0)
 #define PHP_70_71_72_IS_STR_INTERNED (1<<1)
 #define PHP_70_71_72_ZSTR_IS_INTERNED(s) (GC_FLAGS(s) & PHP_70_71_72_IS_STR_INTERNED)
 
@@ -12,14 +13,52 @@ ZEND_API zval* ZEND_FASTCALL zend_hash_set_bucket_key(HashTable *ht, Bucket *b, 
 static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
         return PHP_70_71_72_ZSTR_IS_INTERNED(key);
-    } else {
-        return ZSTR_IS_INTERNED(key);
     }
+
+    return ZSTR_IS_INTERNED(key);
+}
+
+static zend_string *php70_71_72_zend_string_alloc(size_t len, int persistent)
+{
+	zend_string *ret = (zend_string *)pemalloc(ZEND_MM_ALIGNED_SIZE(_ZSTR_STRUCT_SIZE(len)), persistent);
+
+	GC_SET_REFCOUNT(ret, 1);
+	GC_TYPE_INFO(ret) = IS_STRING | ((persistent ? PHP_70_71_72_IS_STR_PERSISTENT : 0) << 8);
+	zend_string_forget_hash_val(ret);
+	ZSTR_LEN(ret) = len;
+
+	return ret;
+}
+
+zend_string *ddloader_zend_string_init(int php_api_no, const char *str, size_t len, bool persistent) {
+    if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
+        zend_string *ret = php70_71_72_zend_string_alloc(len, persistent);
+        memcpy(ZSTR_VAL(ret), str, len);
+        ZSTR_VAL(ret)[len] = '\0';
+
+        return ret;
+    }
+
+    return zend_string_init(str, len, persistent);
+}
+
+void ddloader_zend_string_release(int php_api_no, zend_string *s) {
+    if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
+        if (!PHP_70_71_72_ZSTR_IS_INTERNED(s)) {
+            if (GC_DELREF(s) == 0)  {
+                pefree(s, GC_FLAGS(s) & (PHP_70_71_72_IS_STR_PERSISTENT << 8));
+            }
+	    }
+
+        return;
+    }
+
+    zend_string_release(s);
 }
 
 // This is an adaptation of zend_hash_set_bucket_key which is only available only starting from PHP 7.4
 // to be compatible with PHP 7.0+
-zval* ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b, zend_string *key) {
+zval *ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b, zend_string *key) {
     // Use the real implementation if it exists
     if (zend_hash_set_bucket_key) {
         return zend_hash_set_bucket_key(ht, b, key);
@@ -38,7 +77,7 @@ zval* ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b
 	}
 
 	if (!ddloader_zstr_is_interned(php_api_no, key)) {
-		zend_string_addref(key);
+		GC_ADDREF(key);
 		HT_FLAGS(ht) &= ~HASH_FLAG_STATIC_KEYS;
 	}
 
@@ -58,15 +97,7 @@ zval* ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b
 		}
 		Z_NEXT(p->val) = Z_NEXT(b->val);
 	}
-
-    if (php_api_no > 20170718) {
-        // Disabled from PHP 7.0 to 7.2 because it causes a crash:
-        //      zend_mm_heap corrupted
-        //      Segmentation fault (core dumped)
-	    // That's because the values of the string flags, like IS_STR_PERSISTENT are differents.
-        // Better leak than crash.
-        zend_string_release(b->key);
-    }
+    ddloader_zend_string_release(php_api_no, b->key);
 
 	/* add to hash */
 	idx = b - arData;
