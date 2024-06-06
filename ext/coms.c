@@ -761,7 +761,7 @@ void ddtrace_curl_set_hostname(CURL *curl) {
 }
 
 void ddtrace_curl_set_telemetry_url(CURL *curl) {
-    ddtrace_curl_set_hostname_generic(curl, "/api/v2/apmtelemetry");
+    ddtrace_curl_set_hostname_generic(curl, "/telemetry/proxy/api/v2/apmtelemetry");
 }
 
 static struct timespec _dd_deadline_in_ms(uint32_t ms) {
