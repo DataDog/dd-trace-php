@@ -16,6 +16,7 @@ typedef struct _trace_api_metrics {
     int errors_status_code;
 } trace_api_metrics;
 
+ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void);
 void ddtrace_telemetry_first_init(void);
 void ddtrace_telemetry_rinit(void);
 void ddtrace_telemetry_rshutdown(void);

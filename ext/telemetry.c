@@ -11,6 +11,13 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 zend_long dd_composer_hook_id;
 ddog_QueueId dd_bgs_queued_id;
 
+ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
+    if (DDTRACE_G(telemetry_buffer)) {
+        return ddtrace_telemetry_buffer();
+    }
+    return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
+}
+
 static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     UNUSED(invocation, auxiliary, dynamic);
 
@@ -62,7 +69,8 @@ void ddtrace_telemetry_finalize(void) {
         return;
     }
 
-    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+    ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
+    DDTRACE_G(telemetry_buffer) = NULL;
 
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };

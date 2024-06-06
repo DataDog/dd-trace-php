@@ -572,6 +572,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
         ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
     }
     zai_hook_gshutdown();
+    if (ddtrace_globals->telemetry_buffer) {
+        ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
+    }
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown

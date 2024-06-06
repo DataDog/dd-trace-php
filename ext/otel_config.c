@@ -3,20 +3,19 @@
 #include "ddtrace.h"
 #include <components/log/log.h>
 #include "sidecar.h"
+#include "telemetry.h"
 #include "configuration.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *dd_cfg) {
-    if (ddtrace_sidecar && get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-        UNUSED(otel_cfg, dd_cfg);
-        ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
+static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *dd_cfg, bool pre_rinit) {
+    if (!pre_rinit && ddtrace_sidecar && get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
         ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("tracers.otel.env.invalid"), DDOG_METRIC_NAMESPACE_TRACERS);
         ddog_CharSlice tags;
         tags.len = asprintf((char **)&tags.ptr, "config.opentelemetry:%s,config.datadog:%s", otel_cfg, dd_cfg);
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("tracers.otel.env.invalid"), 1, tags);
         free((char *)tags.ptr);
-        ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
     }
 }
 
@@ -128,7 +127,7 @@ bool ddtrace_conf_otel_sample_rate(zai_env_buffer buf, bool pre_rinit) {
     } else {
         LOG_ONCE(WARN, "OTEL_TRACES_SAMPLER has invalid value: %s", buf.ptr);
     }
-    report_otel_cfg_telemetry_invalid("OTEL_TRACES_SAMPLER", "trace.sample_rate");
+    report_otel_cfg_telemetry_invalid("OTEL_TRACES_SAMPLER", "trace.sample_rate", pre_rinit);
     return false;
 }
 
@@ -139,7 +138,7 @@ bool ddtrace_conf_otel_traces_exporter(zai_env_buffer buf, bool pre_rinit) {
             return true;
         }
         LOG_ONCE(WARN, "OTEL_TRACES_EXPORTER has invalid value: %s", buf.ptr);
-        report_otel_cfg_telemetry_invalid("OTEL_TRACES_EXPORTER", "trace.enabled");
+        report_otel_cfg_telemetry_invalid("OTEL_TRACES_EXPORTER", "trace.enabled", pre_rinit);
     }
     return false;
 }
@@ -151,7 +150,7 @@ bool ddtrace_conf_otel_metrics_exporter(zai_env_buffer buf, bool pre_rinit) {
             return true;
         }
         LOG_ONCE(WARN, "OTEL_METRICS_EXPORTER has invalid value: %s", buf.ptr);
-        report_otel_cfg_telemetry_invalid("OTEL_METRICS_EXPORTER", "integration_metrics_enabled");
+        report_otel_cfg_telemetry_invalid("OTEL_METRICS_EXPORTER", "integration_metrics_enabled", pre_rinit);
     }
     return false;
 }
