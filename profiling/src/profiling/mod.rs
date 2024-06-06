@@ -33,7 +33,7 @@ use std::intrinsics::transmute;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
-use std::thread::{self, JoinHandle};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "timeline")]
@@ -999,64 +999,35 @@ impl Profiler {
     }
 
     fn message_labels() -> Vec<Label> {
-        let gpc = unsafe { datadog_php_profiling_get_profiling_context };
+        // todo: some callers are going to add labels we don't have capacity
+        //       for, causing needless reallocations.
+        let mut labels = Vec::with_capacity(4);
+        labels.push(Label {
+            key: "thread id",
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+        });
 
-        let mut labels = vec![
-            Label {
-                key: "thread id",
-                value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
-            },
-            Label {
-                key: "thread name",
-                value: LabelValue::Str(
-                    thread::current()
-                        .name()
-                        .unwrap_or("Main")
-                        .to_string()
-                        .into(),
-                ),
-            },
-        ];
+        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
+        // we're getting the profiling context on a PHP thread.
+        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+        if context.local_root_span_id != 0 {
+            /* Safety: PProf only has signed integers for label.num.
+             * We bit-cast u64 to i64, and the backend does the
+             * reverse so the conversion is lossless.
+             */
+            let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
+            let span_id: i64 = unsafe { transmute(context.span_id) };
 
-        if let Some(get_profiling_context) = gpc {
-            let context = unsafe { get_profiling_context() };
-            if context.local_root_span_id != 0 {
-                /* Safety: PProf only has signed integers for label.num.
-                 * We bit-cast u64 to i64, and the backend does the
-                 * reverse so the conversion is lossless.
-                 */
-                let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
-                let span_id: i64 = unsafe { transmute(context.span_id) };
+            labels.push(Label {
+                key: "local root span id",
+                value: LabelValue::Num(local_root_span_id, None),
+            });
 
-                labels.push(Label {
-                    key: "local root span id",
-                    value: LabelValue::Num(local_root_span_id, None),
-                });
-
-                labels.push(Label {
-                    key: "span id",
-                    value: LabelValue::Num(span_id, None),
-                });
-            }
+            labels.push(Label {
+                key: "span id",
+                value: LabelValue::Num(span_id, None),
+            });
         }
-        labels
-    }
-
-    fn prepare_sample_message(
-        &self,
-        frames: Vec<ZendFrame>,
-        samples: SampleValues,
-        #[cfg(php_has_fibers)] mut labels: Vec<Label>,
-        #[cfg(not(php_has_fibers))] labels: Vec<Label>,
-        timestamp: i64,
-    ) -> SampleMessage {
-        // If profiling is disabled, these will naturally return empty Vec.
-        // There's no short-cutting here because:
-        //  1. Nobody should be calling this when it's disabled anyway.
-        //  2. It would require tracking more state and/or spending CPU on
-        //     something that shouldn't be done anyway (see #1).
-        let sample_types = self.sample_types_filter.sample_types();
-        let sample_values = self.sample_types_filter.filter(samples);
 
         #[cfg(php_has_fibers)]
         if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
@@ -1072,6 +1043,23 @@ impl Profiler {
                 });
             }
         }
+        labels
+    }
+
+    fn prepare_sample_message(
+        &self,
+        frames: Vec<ZendFrame>,
+        samples: SampleValues,
+        labels: Vec<Label>,
+        timestamp: i64,
+    ) -> SampleMessage {
+        // If profiling is disabled, these will naturally return empty Vec.
+        // There's no short-cutting here because:
+        //  1. Nobody should be calling this when it's disabled anyway.
+        //  2. It would require tracking more state and/or spending CPU on
+        //     something that shouldn't be done anyway (see #1).
+        let sample_types = self.sample_types_filter.sample_types();
+        let sample_values = self.sample_types_filter.filter(samples);
 
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
