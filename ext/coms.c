@@ -1072,6 +1072,7 @@ static void *_dd_writer_loop(void *_) {
         CURL *curl = writer->curl;
         writer->curl = NULL;
         curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
     }
 
     do {

@@ -796,6 +796,19 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     ZVAL_COPY(prop_env, env);
 }
 
+zend_string *ddtrace_default_service_name(void) {
+    if (strcmp(sapi_module.name, "cli") != 0) {
+        return zend_string_init(ZEND_STRL("web.request"), 0);
+    }
+
+    const char *script_name;
+    if (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0') {
+        return php_basename(script_name, strlen(script_name), NULL, 0);
+    } else {
+        return zend_string_init(ZEND_STRL("cli.command"), 0);
+    }
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
@@ -866,18 +879,12 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (strcmp(sapi_module.name, "cli") == 0) {
             zval_ptr_dtor(prop_type);
             ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
-            const char *script_name;
-            zval_ptr_dtor(prop_name);
-            ZVAL_STR(prop_name,
-                     (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0')
-                     ? php_basename(script_name, strlen(script_name), NULL, 0)
-                     : zend_string_init(ZEND_STRL("cli.command"), 0));
         } else {
             zval_ptr_dtor(prop_type);
             ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
-            zval_ptr_dtor(prop_name);
-            ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
         }
+        zval_ptr_dtor(prop_name);
+        ZVAL_STR(prop_name, ddtrace_default_service_name());
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 

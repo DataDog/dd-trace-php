@@ -400,11 +400,17 @@ static void dd_activate_once(void) {
 #ifndef _WIN32
         // Only disable sidecar sender when explicitly disabled
         bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
+        zend_string *bgs_service = NULL;
         if (bgs_fallback) {
             // We enabled sending traces through the sidecar by default
             // That said a few customers have explicitly disabled telemetry to disable the sidecar
             // So if telemetry is disabled, we will disable the sidecar and send a one shot telemetry call
             ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER, (zai_str) ZAI_STR_FROM_CSTR("0"));
+            if ((bgs_service = get_DD_SERVICE())) {
+                zend_string_addref(bgs_service);
+            } else {
+                bgs_service = ddtrace_default_service_name();
+            }
         }
         if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
 #endif
@@ -427,7 +433,10 @@ static void dd_activate_once(void) {
             ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                                get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                get_global_DD_TRACE_AGENT_STACK_BACKLOG(),
-                               bgs_fallback ? get_DD_SERVICE() ? ZSTR_VAL(get_DD_SERVICE()) : "" : (strcmp(sapi_module.name, "cli") == 0 ? "cli.command" : "web.request"));
+                               bgs_fallback ? ZSTR_VAL(bgs_service) : NULL);
+            if (bgs_fallback) {
+                zend_string_release(bgs_service);
+            }
         }
 #endif
     }
