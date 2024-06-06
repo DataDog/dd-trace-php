@@ -232,7 +232,7 @@ final class DatadogLogger
         restore_error_handler();
     }
 
-    private function customErrorHandler(int $code, string $msg): bool
+    public function customErrorHandler(int $code, string $msg): bool
     {
         $this->errorMessage = preg_replace('{^(fopen|mkdir)\(.*?\): }', '', $msg);
 
