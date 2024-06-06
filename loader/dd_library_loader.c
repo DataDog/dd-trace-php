@@ -8,8 +8,8 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include "php_dd_library_loader.h"
 #include "compat_php.h"
+#include "php_dd_library_loader.h"
 
 static int (*origin_ddtrace_module_startup_func)(INIT_FUNC_ARGS);
 static const zend_module_dep ddtrace_injected_module_deps[] = {ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END};
@@ -77,8 +77,8 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
         return true;
     }
 
-	size_t name_len;
-	zend_string *lcname;
+    size_t name_len;
+    zend_string *lcname;
     char i = 0;
     while (deps[i].name) {
         if (deps[i].type == MODULE_DEP_REQUIRED) {
@@ -136,7 +136,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
      * Must be done at the bucket level to not change the order of the HashTable.
      */
     zend_string *old_name = ddloader_zend_string_init(php_api_no, ZEND_STRL("ddtrace_injected"), 1);
-    Bucket *bucket = (Bucket*)zend_hash_find(&module_registry, old_name);
+    Bucket *bucket = (Bucket *)zend_hash_find(&module_registry, old_name);
     ddloader_zend_string_release(php_api_no, old_name);
 
     zend_string *new_name = ddloader_zend_string_init(php_api_no, ZEND_STRL("ddtrace"), 1);
@@ -154,10 +154,10 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
     ddtrace->module_startup_func = origin_ddtrace_module_startup_func;
     ddtrace->deps = orig_ddtrace_module_deps;
     ddtrace->functions = orig_functions;
-	if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
-		LOG(ERROR, "Unable to register ddtrace's functions");
+    if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
+        LOG(ERROR, "Unable to register ddtrace's functions");
         return SUCCESS;
-	}
+    }
 
     return origin_ddtrace_module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
 }
