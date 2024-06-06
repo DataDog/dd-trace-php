@@ -55,20 +55,8 @@ class OpenAIIntegration extends Integration
 
     public function setServiceName(SpanData $span)
     {
-        if (!empty($this->serviceName)) {
-            $span->service = $this->serviceName;
-        }
-
-        if (\dd_trace_env_config('DD_OPENAI_SERVICE')) {
-            $this->serviceName = \dd_trace_env_config('DD_OPENAI_SERVICE');
-        } elseif (\dd_trace_env_config('DD_SERVICE')) {
-            $this->serviceName = \dd_trace_env_config('DD_SERVICE');
-        } else {
-            $this->serviceName = null;
-        }
-
-        if (!empty($this->serviceName)) {
-            $span->service = $this->serviceName;
+        if ($service = \dd_trace_env_config('DD_OPENAI_SERVICE')) {
+            $span->service = $service;
         }
     }
 
