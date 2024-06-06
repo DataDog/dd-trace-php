@@ -3365,7 +3365,9 @@ jobs:
             docker-compose --version
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          command: |
+            git clone https://github.com/DataDog/system-tests.git
+            git reset --hard 29d02a27c76a97228494f8a0b696890d5196daa8
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
