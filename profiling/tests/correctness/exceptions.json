@@ -15,7 +15,10 @@
                                 "FooBar\\Exception"
                             ]
                         },
-                        { "key": "thread id" }
+                        {
+                            "key": "thread id",
+                            "values_regex": "[0-9]+"
+                        }
                     ]
                 }
             ]
