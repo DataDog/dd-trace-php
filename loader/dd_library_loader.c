@@ -12,7 +12,7 @@
 #include "php_dd_library_loader.h"
 
 static int (*origin_ddtrace_module_startup_func)(INIT_FUNC_ARGS);
-static const zend_module_dep ddtrace_injected_module_deps[] = {ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END};
+static const zend_module_dep ddtrace_injected_module_deps[] = {ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END};
 static const zend_module_dep *orig_ddtrace_module_deps = NULL;
 static const zend_function_entry *orig_functions;
 
