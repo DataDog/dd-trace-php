@@ -29,7 +29,7 @@ use bindings::{
 use clocks::*;
 use core::ptr;
 use datadog_profiling::exporter::Tag;
-use ddcommon::cstr;
+use ddcommon::{cstr, tag};
 use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn};
@@ -85,13 +85,12 @@ static mut RUNTIME_PHP_VERSION: &str = {
 lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
         vec![
-            Tag::from_value("language:php").expect("language tag to be valid"),
+            tag!("language", "php"),
             // Safety: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
-            Tag::from_value(concat!("profiler_version:", include_str!("../../VERSION")))
-                .expect("profiler_version tag to be valid"),
-            Tag::new("runtime-id", &runtime_id().to_string()).expect("runtime-id tag to be valid"),
+            tag!("profiler_version", include_str!("../../VERSION")),
+            Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
         ]
     };
 

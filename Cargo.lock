@@ -978,8 +978,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=9b531d525b4cb37cd4439445612f283b646d4338#9b531d525b4cb37cd4439445612f283b646d4338"
+version = "10.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
 dependencies = [
  "allocator-api2",
  "libc 0.2.154",
@@ -1041,7 +1041,7 @@ dependencies = [
  "crossbeam-channel",
  "datadog-alloc",
  "datadog-profiling",
- "ddcommon 9.0.0",
+ "ddcommon 10.0.0",
  "env_logger 0.11.3",
  "indexmap 2.2.6",
  "lazy_static",
@@ -1058,8 +1058,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=9b531d525b4cb37cd4439445612f283b646d4338#9b531d525b4cb37cd4439445612f283b646d4338"
+version = "10.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1067,7 +1067,7 @@ dependencies = [
  "bytes",
  "chrono",
  "datadog-alloc",
- "ddcommon 9.0.0",
+ "ddcommon 10.0.0",
  "derivative",
  "futures",
  "futures-core",
@@ -1244,8 +1244,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=9b531d525b4cb37cd4439445612f283b646d4338#9b531d525b4cb37cd4439445612f283b646d4338"
+version = "10.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
 dependencies = [
  "anyhow",
  "futures",
@@ -1262,6 +1262,7 @@ dependencies = [
  "rustls",
  "rustls-native-certs",
  "serde",
+ "static_assertions",
  "tokio",
  "tokio-rustls",
 ]
