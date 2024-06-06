@@ -15,12 +15,7 @@
                                 "FooBar\\Exception"
                             ]
                         },
-                        {
-                            "key": "thread name",
-                            "values": [
-                                "Main"
-                            ]
-                        }
+                        { "key": "thread id" }
                     ]
                 }
             ]
