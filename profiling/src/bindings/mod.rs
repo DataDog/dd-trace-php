@@ -548,6 +548,12 @@ impl<'a> From<&'a str> for ZaiStr<'a> {
     }
 }
 
+impl<'a> Default for ZaiStr<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ZaiStr<'a> {
     pub const fn new() -> ZaiStr<'a> {
         const NULL: &[u8] = b"\0";
