@@ -221,7 +221,7 @@ trait TracerTestTrait
         return $out;
     }
 
-    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
+    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $skipSyncFlush = false)
     {
         $envs = (string) new EnvSerializer(array_merge(
             [
@@ -262,7 +262,7 @@ trait TracerTestTrait
             `$commandToExecute`;
             $ret = null;
         }
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+        if (!$skipSyncFlush && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
             \dd_trace_synchronous_flush();
         }
         return $ret;
