@@ -22,6 +22,18 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected function ddSetUp()
+    {
+        // Dummy Request
+        $this->call(
+            GetSpec::create(
+                'A simple GET request returning a string',
+                '/app.php/simple?key=value&pwd=should_redact'
+            )
+        );
+        parent::ddSetUp();
+    }
+
     public function testScenarioGetReturnStringApache()
     {
         $isApache = \getenv('DD_TRACE_TEST_SAPI') == 'apache2handler';
@@ -127,7 +139,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         if (!$isApache) {
             $this->markTestSkipped('This test is only for apache2handler');
         }
-        
+
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
