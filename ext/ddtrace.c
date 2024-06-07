@@ -398,6 +398,20 @@ static void dd_activate_once(void) {
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
 #ifndef _WIN32
+        // Only disable sidecar sender when explicitly disabled
+        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
+        zend_string *bgs_service = NULL;
+        if (bgs_fallback) {
+            // We enabled sending traces through the sidecar by default
+            // That said a few customers have explicitly disabled telemetry to disable the sidecar
+            // So if telemetry is disabled, we will disable the sidecar and send a one shot telemetry call
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER, (zai_str) ZAI_STR_FROM_CSTR("0"));
+            if ((bgs_service = get_DD_SERVICE())) {
+                zend_string_addref(bgs_service);
+            } else {
+                bgs_service = ddtrace_default_service_name();
+            }
+        }
         if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
 #endif
         {
@@ -406,6 +420,25 @@ static void dd_activate_once(void) {
             ddtrace_sidecar_setup();
             PG(modules_activated) = modules_activated;
         }
+#ifndef _WIN32
+        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
+                // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
+                ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
+            }
+            if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
+                // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
+                ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
+            }
+            ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
+                               get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
+                               get_global_DD_TRACE_AGENT_STACK_BACKLOG(),
+                               bgs_fallback ? ZSTR_VAL(bgs_service) : NULL);
+            if (bgs_fallback) {
+                zend_string_release(bgs_service);
+            }
+        }
+#endif
     }
 }
 
@@ -1117,14 +1150,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_engine_hooks_minit();
 
-#ifndef _WIN32
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
-                           get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
-                           get_global_DD_TRACE_AGENT_STACK_BACKLOG());
-    }
-#endif
-
     ddtrace_integrations_minit();
     dd_ip_extraction_startup();
     ddtrace_serializer_startup();
@@ -1202,14 +1227,6 @@ static void dd_rinit_once(void) {
 #ifndef _WIN32
     ddtrace_signals_first_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
-            // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
-            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
-        }
-        if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
-            // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
-            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
-        }
         ddtrace_coms_init_and_start_writer();
     }
 #endif

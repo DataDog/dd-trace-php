@@ -53,6 +53,12 @@ enum ddtrace_sampling_rules_format {
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1
 
+#if PHP_VERSION_ID >= 80300 || defined(_WIN32)
+#define DD_SIDECAR_TRACE_SENDER_DEFAULT true
+#else
+#define DD_SIDECAR_TRACE_SENDER_DEFAULT false
+#endif
+
 #if _BUILD_FROM_PECL_
 #define DD_DEFAULT_SOURCES_PATH "@php_dir@/datadog_trace/src/"
 #else
@@ -200,11 +206,11 @@ enum ddtrace_sampling_rules_format {
     DD_INTEGRATIONS
 
 #ifndef _WIN32
-#define DD_CONFIGURATION \
-    CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, "false", .ini_change = zai_config_system_ini_change) \
-    DD_CONFIGURATION_ALL
+#  define DD_CONFIGURATION \
+        CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, DD_CFG_EXPSTR(DD_SIDECAR_TRACE_SENDER_DEFAULT), .ini_change = zai_config_system_ini_change) \
+        DD_CONFIGURATION_ALL
 #else
-#define DD_CONFIGURATION DD_CONFIGURATION_ALL
+#  define DD_CONFIGURATION DD_CONFIGURATION_ALL
 #endif
 
 #define CALIAS CONFIG

@@ -907,9 +907,13 @@ final class AMQPTest extends IntegrationTestCase
         // Spans: send.php -> basic_publish -> queue_declare -> connect
         $basicPublishSpan = $sendTraces[1];
 
-        $receiveTraces = $receiveTraces[3]; // There isn't a root span
-        // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-        $basicDeliverSpan = $receiveTraces[0];
+        foreach ($receiveTraces as $receiveTrace) {
+            // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
+            if ($receiveTrace[0]["name"] == "amqp.basic.deliver") {
+                $basicDeliverSpan = $receiveTrace[0];
+                break;
+            }
+        }
 
         $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
         $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
