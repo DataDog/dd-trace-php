@@ -679,7 +679,6 @@ impl Profiler {
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
-    #[inline]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -729,7 +728,6 @@ impl Profiler {
 
     /// Collect a stack sample with memory allocations.
     #[cfg(feature = "allocation_profiling")]
-    #[inline]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -769,7 +767,6 @@ impl Profiler {
 
     /// Collect a stack sample with exception.
     #[cfg(feature = "exception_profiling")]
-    #[inline]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
@@ -826,7 +823,6 @@ impl Profiler {
     }];
 
     #[cfg(feature = "timeline")]
-    #[inline]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
@@ -857,7 +853,6 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
-    #[inline]
     pub fn collect_compile_file(
         &self,
         now: i64,
@@ -900,7 +895,6 @@ impl Profiler {
 
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg(feature = "timeline")]
-    #[inline(never)]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
         let mut labels = Profiler::common_labels(1);
 
@@ -936,7 +930,6 @@ impl Profiler {
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
     #[cfg(feature = "timeline")]
-    #[inline]
     pub fn collect_garbage_collection(
         &self,
         now: i64,
@@ -994,7 +987,6 @@ impl Profiler {
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///                      caller adds gc or exception labels.
-    #[inline(never)]
     fn common_labels(n_extra_labels: usize) -> Vec<Label> {
         let mut labels = Vec::with_capacity(4 + n_extra_labels);
         labels.push(Label {
@@ -1041,7 +1033,6 @@ impl Profiler {
         labels
     }
 
-    #[inline(never)]
     fn prepare_and_send_message(
         &self,
         frames: Vec<ZendFrame>,
@@ -1055,7 +1046,6 @@ impl Profiler {
             .map_err(Box::new)
     }
 
-    #[inline(always)]
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
