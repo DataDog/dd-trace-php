@@ -286,7 +286,6 @@ final class PCNTLTest extends IntegrationTestCase
         usort($requests, function ($a, $b) { return count($a) <=> count($b); });
 
         for ($i = 0; $i < 3; ++$i) {
-            var_dump($requests[$i]);
             $this->assertFlameGraph([$requests[$i]], [
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
