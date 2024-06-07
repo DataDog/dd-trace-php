@@ -472,7 +472,7 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_add_meta_struct) // NOLINT
         RETURN_FALSE;
     }
 
-    if (!key || !value || Z_TYPE_P(value) != IS_STRING) {
+    if (!key || !value) {
         RETURN_FALSE;
     }
 

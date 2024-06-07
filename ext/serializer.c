@@ -63,8 +63,10 @@ static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str,
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
+#define KEY_META_STRUCT "meta_struct"
 
 static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level);
+static void serialize_meta_struct(mpack_writer_t *writer, zval *trace);
 
 static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
     zval *tmp;
@@ -89,6 +91,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
     ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
         // Writing the key, if associative
         bool zval_string_as_uint64 = false;
+        bool is_meta_struct = false;
         if (is_assoc == 1) {
             char num_str_buf[MAX_ID_BUFSIZ], *key;
             size_t len;
@@ -105,11 +108,17 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
                 (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
                 zval_string_as_uint64 = true;
             }
+            if (level <= 3 &&
+                (0 == strcmp(KEY_META_STRUCT, key))) {
+                is_meta_struct = true;
+            }
         }
 
         // Writing the value
         if (zval_string_as_uint64) {
             mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
+        } else if(is_meta_struct) {
+            serialize_meta_struct(writer, tmp);
         } else if (msgpack_write_zval(writer, tmp, level) != 1) {
             return 0;
         }
@@ -128,7 +137,6 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
     if (Z_TYPE_P(trace) == IS_REFERENCE) {
         trace = Z_REFVAL_P(trace);
     }
-    mpack_reader_t reader;
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
             if (write_hash_table(writer, Z_ARRVAL_P(trace), level + 1) != 1) {
@@ -157,6 +165,26 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             return 0;
     }
     return 1;
+}
+
+static void serialize_meta_struct(mpack_writer_t *writer, zval *meta_struct) {
+    zval *tmp;
+    zend_string *string_key;
+
+    HashTable *ht = Z_ARRVAL_P(meta_struct);
+
+    mpack_start_map(writer, zend_hash_num_elements(ht));
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
+        if (!string_key) {
+            continue;
+        }
+        mpack_write_cstr(writer, ZSTR_VAL(string_key));
+        mpack_write_bin(writer, Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
+    }
+    ZEND_HASH_FOREACH_END();
+
+    mpack_finish_map(writer);
 }
 
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p) {
@@ -1019,49 +1047,23 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
 
 static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
     // encode to memory buffer
-    UNUSED(value);
     char *data;
     size_t size;
+
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    mpack_start_map(&writer, 1);
-    mpack_write_cstr(&writer, "foo");
-    mpack_write_cstr(&writer, "bar");
-    mpack_finish_map(&writer);
-
+    int result = msgpack_write_zval(&writer, value, 5);
     mpack_writer_destroy(&writer);
+
+    if (size == 0 || result == 0) {
+        return;
+    }
+
     zval serialised;
     ZVAL_STRINGL(&serialised, data, size);
 
-//    mpack_reader_t reader;
-//    mpack_reader_init_data(&reader, data, size);
-//    mpack_tag_t tag = mpack_read_tag(&reader);
-//    char buffer[3];
-//
-//    if (mpack_tag_type(&tag) == mpack_type_bin) {
-//        uint32_t length = mpack_tag_bin_length(&tag);
-//        php_printf("length is %d\n", length);
-//
-//        mpack_read_bytes(&reader, buffer, length);
-//
-//        if (mpack_reader_error(&reader) != mpack_ok) { // critical check!
-//            php_printf("Error\n");
-//        }
-//        php_printf("Good\n");
-//        buffer[length] = '\0';
-//
-//        mpack_done_bin(&reader);
-//    }
-
-//    php_printf("Read from stirng is %s\n", &buffer[0]);
-
-//    ddtrace_serialize_simple_array(value, &serialised);
-
-//    php_printf("Alex value is %s\n", Z_STRVAL_P(value));
-//    php_printf("Alex serialised is %s\n", Z_STRVAL(serialised));
-//    php_printf("Alex data is %s(%u)\n", Z_STRVAL(serialised), size);
-    free(data);
     dd_serialize_array_recursively(target, str, &serialised, false);
+    free(data);
 }
 
 struct iter {
@@ -1473,7 +1475,6 @@ static zend_always_inline double strconv_parse_bool(zend_string *str) {
 
 void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
-
     zval *el;
     zval zv;
     el = &zv;
@@ -1853,7 +1854,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
     ZEND_HASH_FOREACH_END();
     if (zend_hash_num_elements(Z_ARR(meta_struct_zv))) {
-        php_printf("Added meta struct\n");
         zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("meta_struct"), &meta_struct_zv);
     } else {
         zend_array_destroy(Z_ARR(meta_struct_zv));
