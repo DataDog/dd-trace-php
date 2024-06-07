@@ -540,8 +540,8 @@ class OpenAIIntegration extends Integration
     ): array
     {
         $tags = [
-            'env' => \dd_trace_env_config('DD_ENV'),
-            'version' => \dd_trace_env_config('DD_VERSION'),
+            'env' => $span->env,
+            'version' => $span->version,
             'service' => $span->service,
             'openai.request.method' => $span->meta['openai.request.method'] ?? null,
             'openai.request.endpoint' => $span->meta['openai.request.endpoint'] ?? null,
