@@ -658,9 +658,9 @@ class OpenAIIntegration extends Integration
 
 
         $tags = [
-            'env' => \dd_trace_env_config('DD_ENV'),
+            'env' => $span->env,
             'service' => $span->service,
-            'version' => \dd_trace_env_config('DD_VERSION'),
+            'version' => $span->version,
             'openai.request.model' => $span->meta['openai.request.model'] ?? null,
             'model' => $span->meta['openai.request.model'] ?? null,
             'openai.organization.id' => $span->meta['openai.organization.id'] ?? null,
