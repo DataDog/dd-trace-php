@@ -63,6 +63,9 @@ pub extern "C" fn ddog_sidecar_telemetry_buffer_alloc() -> Box<SidecarActionsBuf
 }
 
 #[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_buffer_drop(_: Box<SidecarActionsBuffer>) {}
+
+#[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
     buffer: &mut SidecarActionsBuffer,
     integration_name: CharSlice,

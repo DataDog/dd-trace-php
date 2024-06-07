@@ -163,6 +163,8 @@ bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **trans
 
 struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
 
+void ddog_sidecar_telemetry_buffer_drop(struct ddog_SidecarActionsBuffer*);
+
 void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                   ddog_CharSlice integration_name,
                                                   ddog_CharSlice integration_version,

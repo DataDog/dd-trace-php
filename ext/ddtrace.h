@@ -124,6 +124,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_string *last_flushed_root_env_name;
 
     HashTable telemetry_spans_created_per_integration;
+    ddog_SidecarActionsBuffer *telemetry_buffer;
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
