@@ -24,13 +24,14 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     protected function ddSetUp()
     {
-        // Dummy Request
-        $this->call(
-            GetSpec::create(
-                'A simple GET request returning a string',
-                '/app.php/simple?key=value&pwd=should_redact'
-            )
-        );
+        $this->tracesFromWebRequest(function () {
+            $this->call(
+                GetSpec::create(
+                    'A simple GET request returning a string',
+                    '/app.php/simple?key=value&pwd=should_redact'
+                )
+            );
+        });
         parent::ddSetUp();
     }
 
