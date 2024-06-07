@@ -1046,7 +1046,6 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
 }
 
 static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
-    // encode to memory buffer
     char *data;
     size_t size;
 

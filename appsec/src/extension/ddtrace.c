@@ -110,7 +110,9 @@ void dd_trace_startup()
     _meta_struct_propname =
         zend_string_init_interned(LSTRARG("meta_struct"), 1);
 
-    _register_testing_objects();
+    if (get_global_DD_APPSEC_TESTING()) {
+        _register_testing_objects();
+    }
 
     zend_module_entry *mod = _find_ddtrace_module();
     if (mod == NULL) {
