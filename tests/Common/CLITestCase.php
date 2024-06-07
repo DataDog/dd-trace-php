@@ -101,7 +101,7 @@ abstract class CLITestCase extends IntegrationTestCase
      *
      * @return array
      */
-    private function loadTraces($request)
+    public function loadTraces($request)
     {
         if (!isset($request['body'])) {
             return [];

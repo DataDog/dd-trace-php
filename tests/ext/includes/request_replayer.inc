@@ -48,7 +48,7 @@ class RequestReplayer
         // For the scope of the tests, we are returning the very first one.
         $allRequests = json_decode(file_get_contents($this->endpoint . '/replay'), true);
         if ($allRequests && $ignoreTelemetry) {
-            $allRequests = array_values(array_filter($allRequests, function ($v) { return $v["uri"] != '/api/v2/apmtelemetry'; }));
+            $allRequests = array_values(array_filter($allRequests, function ($v) { return $v["uri"] != '/telemetry/proxy/api/v2/apmtelemetry'; }));
         }
         return $allRequests ? $allRequests[0] : [];
     }
