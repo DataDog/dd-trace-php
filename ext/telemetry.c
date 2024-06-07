@@ -13,7 +13,7 @@ ddog_QueueId dd_bgs_queued_id;
 
 ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
     if (DDTRACE_G(telemetry_buffer)) {
-        return ddtrace_telemetry_buffer();
+        return DDTRACE_G(telemetry_buffer);
     }
     return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 }
