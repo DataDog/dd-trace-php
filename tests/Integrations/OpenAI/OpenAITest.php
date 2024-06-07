@@ -417,6 +417,28 @@ class OpenAITest extends IntegrationTestCase
         $this->callStreamed('fineTunes', 'listEventsStreamed', metaHeaders(), fineTuneListEventsStream(), 'ft-MaoEAULREoazpupm8uB7qoIl');
     }
 
+    public function testStreamedResponseUsability()
+    {
+        $this->isolateTracer(function () {
+            $mockResponse = new Response(
+                headers: metaHeaders(),
+                body: new Stream(completionStream())
+            );
+            $client = mockClient($mockResponse);
+            $response = $client->completions()->createStreamed([
+                'model' => 'gpt-3.5-turbo-instruct',
+                'prompt' => 'hi',
+            ]);
+
+            // Verify that we do have a populated response
+            $responseIterator = $response->getIterator();
+            var_dump(iterator_to_array($responseIterator));
+            $this->assertNotNull($responseIterator);
+            $this->assertIsIterable($responseIterator);
+            $this->assertIsObject($responseIterator->current());
+        });
+    }
+
     // Errors
 
     public function testCreateChatCompletionStreamWithError()
