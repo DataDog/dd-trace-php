@@ -1,5 +1,5 @@
 --TEST--
-The background sender informs about changes to the agent sample rate
+The sidecar trace flusher sender informs about changes to the agent sample rate
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
@@ -9,7 +9,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
-DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_TRACE_AUTO_FLUSH_ENABLED=1
 --FILE--
 <?php
