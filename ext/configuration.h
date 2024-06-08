@@ -53,11 +53,7 @@ enum ddtrace_sampling_rules_format {
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1
 
-#if PHP_VERSION_ID >= 80300 || defined(_WIN32)
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
-#else
-#define DD_SIDECAR_TRACE_SENDER_DEFAULT false
-#endif
 
 #if _BUILD_FROM_PECL_
 #define DD_DEFAULT_SOURCES_PATH "@php_dir@/datadog_trace/src/"
