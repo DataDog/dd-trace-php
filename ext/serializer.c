@@ -47,13 +47,16 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str resource);
 
 static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str, size_t len) {
-    char *strippedStr = ddtrace_strip_invalid_utf8(str, &len);
-    if (strippedStr) {
-        mpack_write_str(writer, strippedStr, len);
-        ddtrace_drop_rust_string(strippedStr, len);
-    } else {
-        mpack_write_str(writer, str, len);
+    if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        char *strippedStr = ddtrace_strip_invalid_utf8(str, &len);
+        if (strippedStr) {
+            mpack_write_str(writer, strippedStr, len);
+            ddtrace_drop_rust_string(strippedStr, len);
+            return;
+        }
     }
+
+    mpack_write_str(writer, str, len);
 }
 
 #define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
