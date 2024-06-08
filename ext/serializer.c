@@ -47,10 +47,10 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str resource);
 
 static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str, size_t len) {
-    char *utf8 = ddtrace_strip_invalid_utf8(str, &len);
-    if (utf8) {
-        mpack_write_str(writer, utf8, len);
-        ddtrace_drop_rust_string(utf8, len);
+    char *strippedStr = ddtrace_strip_invalid_utf8(str, &len);
+    if (strippedStr) {
+        mpack_write_str(writer, strippedStr, len);
+        ddtrace_drop_rust_string(strippedStr, len);
     } else {
         mpack_write_str(writer, str, len);
     }
