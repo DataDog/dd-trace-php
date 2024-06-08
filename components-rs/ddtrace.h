@@ -139,6 +139,10 @@ ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
+char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
+
+void ddtrace_drop_rust_string(char *input, uintptr_t len);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);

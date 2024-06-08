@@ -46,6 +46,19 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str span_type,
                                                zai_str resource);
 
+static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str, size_t len) {
+    if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        char *strippedStr = ddtrace_strip_invalid_utf8(str, &len);
+        if (strippedStr) {
+            mpack_write_str(writer, strippedStr, len);
+            ddtrace_drop_rust_string(strippedStr, len);
+            return;
+        }
+    }
+
+    mpack_write_str(writer, str, len);
+}
+
 #define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
@@ -78,13 +91,15 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
         bool zval_string_as_uint64 = false;
         if (is_assoc == 1) {
             char num_str_buf[MAX_ID_BUFSIZ], *key;
+            size_t len;
             if (string_key) {
                 key = ZSTR_VAL(string_key);
+                len = ZSTR_LEN(string_key);
             } else {
                 key = num_str_buf;
-                sprintf(num_str_buf, ZEND_LONG_FMT, num_key);
+                len = sprintf(num_str_buf, ZEND_LONG_FMT, num_key);
             }
-            mpack_write_cstr(writer, key);
+            mpack_write_utf8_lossy_cstr(writer, key, len);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (level <= 3 &&
                 (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
@@ -134,7 +149,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             mpack_write_bool(writer, Z_TYPE_P(trace) == IS_TRUE);
             break;
         case IS_STRING:
-            mpack_write_cstr(writer, Z_STRVAL_P(trace));
+            mpack_write_utf8_lossy_cstr(writer, Z_STRVAL_P(trace), Z_STRLEN_P(trace));
             break;
         default:
             LOG(WARN, "Serialize values must be of type array, string, int, float, bool or null");
