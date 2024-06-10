@@ -782,6 +782,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingExperimentalFeaturesEnabled),
@@ -792,6 +793,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingEndpointCollectionEnabled),
@@ -802,6 +804,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingExperimentalCpuTimeEnabled),
@@ -812,6 +815,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingAllocationEnabled),
@@ -822,6 +826,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: ALLOCATION_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingTimelineEnabled),
@@ -832,6 +837,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: TIMELINE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingExceptionEnabled),
@@ -842,6 +848,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: EXCEPTION_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingExceptionMessageEnabled),
@@ -852,6 +859,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingExceptionSamplingDistance),
@@ -862,6 +870,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: EXCEPTION_SAMPLING_DISTANCE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_exception_sampling_distance_filter),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingLogLevel),
@@ -872,6 +881,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_level_filter),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(ProfilingOutputPprof),
@@ -882,6 +892,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
                 // At the moment, wall-time cannot be fully disabled. This only
                 // controls automatic collection (manual collection is still
@@ -895,6 +906,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(AgentHost),
@@ -905,6 +917,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(Env),
@@ -915,6 +928,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(Service),
@@ -925,6 +939,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(Tags),
@@ -935,6 +950,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: None,
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(TraceAgentPort),
@@ -945,6 +961,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(TraceAgentUrl),
@@ -955,6 +972,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
                 zai_config_entry {
                     id: transmute(Version),
@@ -965,6 +983,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
+                    env_config_fallback: None,
                 },
             ]
         };

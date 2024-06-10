@@ -139,6 +139,10 @@ ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
+char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
+
+void ddtrace_drop_rust_string(char *input, uintptr_t len);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -151,12 +155,19 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
+ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
+                                         const char *error_path,
+                                         ddog_CharSlice log_level,
+                                         bool enable_telemetry);
+
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
 struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
+
+void ddog_sidecar_telemetry_buffer_drop(struct ddog_SidecarActionsBuffer*);
 
 void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                   ddog_CharSlice integration_name,
@@ -185,10 +196,5 @@ void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActi
                                                          ddog_CharSlice metric_name,
                                                          double metric_value,
                                                          ddog_CharSlice tags);
-
-ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
-                                         const char *error_path,
-                                         ddog_CharSlice log_level,
-                                         bool enable_telemetry);
 
 #endif /* DDTRACE_PHP_H */

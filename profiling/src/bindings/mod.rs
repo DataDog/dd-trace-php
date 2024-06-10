@@ -548,6 +548,12 @@ impl<'a> From<&'a str> for ZaiStr<'a> {
     }
 }
 
+impl<'a> Default for ZaiStr<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ZaiStr<'a> {
     pub const fn new() -> ZaiStr<'a> {
         const NULL: &[u8] = b"\0";
@@ -627,6 +633,7 @@ pub struct ZaiConfigEntry {
     pub aliases_count: u8,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
+    pub env_config_fallback: zai_env_config_fallback,
 }
 
 #[repr(C)]
@@ -640,6 +647,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub name_index: i16,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
+    pub env_config_fallback: zai_env_config_fallback,
     pub original_on_modify: Option<
         unsafe extern "C" fn(
             entry: *mut zend_ini_entry,

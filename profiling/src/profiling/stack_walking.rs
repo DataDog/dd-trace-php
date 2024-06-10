@@ -145,6 +145,7 @@ mod detail {
         });
     }
 
+    #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Vec<ZendFrame>, Utf8Error> {
@@ -302,6 +303,7 @@ mod detail {
     #[inline]
     pub fn rshutdown() {}
 
+    #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Vec<ZendFrame>, Utf8Error> {

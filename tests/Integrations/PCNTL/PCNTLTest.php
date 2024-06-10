@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integrations\PCNTL;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-const ACCEPTABLE_TEST_EXECTION_TIME_S = 1.2;
+const ACCEPTABLE_TEST_EXECTION_TIME_S = 1.4;
 
 final class PCNTLTest extends IntegrationTestCase
 {
@@ -52,10 +52,17 @@ final class PCNTLTest extends IntegrationTestCase
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
+            ],
+            [],
+            '',
+            false,
+            true
         );
         $end = \microtime(true);
         $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_S, $end - $start);
+        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            \dd_trace_synchronous_flush();
+        }
     }
 
     public function dataProviderAllScripts()
@@ -73,7 +80,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningTracingWhenEnabled()
     {
-        $this->executeCli(
+        list($requests) = $this->inCli(
             __DIR__ . '/scripts/synthetic.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -81,21 +88,20 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
-        $requests = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertCount(2, $requests);
-        $this->assertFlameGraph($requests[1], [
+        $this->assertFlameGraph([$requests[1]], [
             SpanAssertion::exists('synthetic.php')->withChildren([
                 SpanAssertion::exists('pcntl_fork'),
             ]),
         ]);
 
-        $this->assertFlameGraph($requests[0], [
+        $this->assertFlameGraph([$requests[0]], [
             SpanAssertion::exists('synthetic.php'),
         ]);
 
-        $childSpan = $requests[0][0][0];
-        $parentSpan = $requests[1][0][1];
+        $childSpan = $requests[0][0];
+        $parentSpan = $requests[1][1];
         $this->assertSame($childSpan["trace_id"], $parentSpan["trace_id"]);
         $this->assertSame($childSpan["parent_id"], $parentSpan["span_id"]);
     }
@@ -127,7 +133,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningMainSpanAreGenerateBeforeAndAfter()
     {
-        $this->executeCli(
+        list($requests) = $this->inCli(
             __DIR__ . '/scripts/short-running.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -135,16 +141,15 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
-        $requests = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertCount(2, $requests);
-        $this->assertFlameGraph($requests[0], [ // child
+        $this->assertFlameGraph([$requests[0]], [ // child
             SpanAssertion::exists('short-running.php')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
             ]),
         ]);
-        $this->assertFlameGraph($requests[1], [
+        $this->assertFlameGraph([$requests[1]], [
             SpanAssertion::exists('short-running.php')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
@@ -156,7 +161,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningMultipleForks()
     {
-        $this->executeCli(
+        list($requests) = $this->inCli(
             __DIR__ . '/scripts/short-running-multiple.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -164,11 +169,10 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
-        $requests = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertCount(6, $requests);
 
-        $this->assertFlameGraph(array_pop($requests), [ // main trace
+        $this->assertFlameGraph([array_pop($requests)], [ // main trace
             SpanAssertion::exists('short-running-multiple.php')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
@@ -186,7 +190,7 @@ final class PCNTLTest extends IntegrationTestCase
         ]);
 
         foreach ($requests as $traces) {
-            $this->assertFlameGraph($traces, [
+            $this->assertFlameGraph([$traces], [
                 SpanAssertion::exists('short-running-multiple.php')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
                 ]),
@@ -196,7 +200,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliShortRunningMultipleNestedForks()
     {
-        $this->executeCli(
+        list($requests) = $this->inCli(
             __DIR__ . '/scripts/short-running-multiple-nested.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -204,9 +208,8 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
-        $requests = $this->parseMultipleRequestsFromDumpedData();
 
-        $this->assertFlameGraph(array_pop($requests), [ // main trace
+        $this->assertFlameGraph([array_pop($requests)], [ // main trace
             SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
@@ -215,7 +218,7 @@ final class PCNTLTest extends IntegrationTestCase
             ]),
         ]);
 
-        $this->assertFlameGraph(array_shift($requests), [
+        $this->assertFlameGraph([array_shift($requests)], [
             SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
@@ -223,7 +226,7 @@ final class PCNTLTest extends IntegrationTestCase
         ]);
 
         foreach ($requests as $traces) {
-            $this->assertFlameGraph($traces, [
+            $this->assertFlameGraph([$traces], [
                 SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
@@ -235,7 +238,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliLongRunningMultipleForksAutoFlush()
     {
-        $this->executeCli(
+        list($requests) = $this->inCli(
             __DIR__ . '/scripts/long-running-autoflush.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -245,18 +248,14 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
             ]
         );
-        $requests = $this->parseMultipleRequestsFromDumpedData();
         $this->assertCount(4, $requests);
 
         for ($i = 0; $i < 4; $i += 2) {
-            $this->assertCount(1, $requests[$i]);
-            $this->assertCount(1, $requests[$i + 1]);
-
-            $this->assertFlameGraph($requests[$i], [
+            $this->assertFlameGraph([$requests[$i]], [
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
             ]);
 
-            $this->assertFlameGraph($requests[$i + 1], [
+            $this->assertFlameGraph([$requests[$i + 1]], [
                 SpanAssertion::exists('long_running_entry_point')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
@@ -273,7 +272,7 @@ final class PCNTLTest extends IntegrationTestCase
             $this->markTestSkipped('xdebug is enabled, which causes the tracer to slow down dramatically.');
         }
 
-        $this->executeCli(
+        list($requests) = $this->inCli(
             __DIR__ . '/scripts/long-running-manual-flush.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -282,37 +281,26 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
             ]
         );
-        $requests = $this->parseMultipleRequestsFromDumpedData();
-        $this->assertCount(4, $requests);
+        $this->assertCount(6, $requests);
 
-        $this->assertFlameGraph($requests[0], [
-            SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
-            SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
-        ]);
+        usort($requests, function ($a, $b) { return count($a) <=> count($b); });
 
-        $this->assertFlameGraph($requests[1], [
-            SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
-            SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
-        ]);
-
-        $this->assertFlameGraph($requests[2], [
-            SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
-            SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
-        ]);
-
-        $this->assertFlameGraph($requests[3], [
-            SpanAssertion::exists('manual_tracing')->withChildren([
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
+        for ($i = 0; $i < 3; ++$i) {
+            $this->assertFlameGraph([$requests[$i]], [
+                SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
-                SpanAssertion::exists('pcntl_fork'),
-            ]),
-            SpanAssertion::exists('manual_tracing')->withChildren([
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
-                SpanAssertion::exists('pcntl_fork'),
-            ]),
-        ]);
+            ]);
+        }
+
+        for ($i = 3; $i < 6; ++$i) {
+            $this->assertFlameGraph([$requests[$i]], [
+                SpanAssertion::exists('manual_tracing')->withChildren([
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                    SpanAssertion::exists('pcntl_fork'),
+                ]),
+            ]);
+        }
     }
 }

@@ -151,10 +151,14 @@ static void _dd_at_exit_hook() {
     }
 }
 
-bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t max_backlog_size) {
+bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t max_backlog_size, char *bgs_fallback_telemetry_service) {
     ddtrace_coms_globals.initial_stack_size = initial_stack_size;
     ddtrace_coms_globals.max_payload_size = max_stack_size;
     ddtrace_coms_globals.max_backlog_size = max_backlog_size;
+    ddtrace_coms_globals.bgs_fallback_telemetry = bgs_fallback_telemetry_service != NULL;
+    if (bgs_fallback_telemetry_service) {
+        strncpy(ddtrace_coms_globals.initial_service_name, bgs_fallback_telemetry_service, sizeof(ddtrace_coms_globals.initial_service_name) - 1);
+    }
 
     atomic_store(&ddtrace_coms_globals.stack_size, initial_stack_size);
 
@@ -735,7 +739,7 @@ void ddtrace_curl_set_connect_timeout(CURL *curl) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 }
 
-void ddtrace_curl_set_hostname(CURL *curl) {
+static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
     char *url = ddtrace_agent_url();
     if (url && url[0]) {
         char *http_url = url;
@@ -743,13 +747,21 @@ void ddtrace_curl_set_hostname(CURL *curl) {
             curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, url + 7);
             http_url = "http://localhost";
         }
-        size_t agent_url_len = strlen(http_url) + sizeof(TRACE_PATH_STR);
+        size_t agent_url_len = strlen(http_url) + strlen(path) + 1;
         char *agent_url = malloc(agent_url_len);
-        sprintf(agent_url, "%s%s", http_url, TRACE_PATH_STR);
+        sprintf(agent_url, "%s%s", http_url, path);
         curl_easy_setopt(curl, CURLOPT_URL, agent_url);
         free(agent_url);
     }
     free(url);
+}
+
+void ddtrace_curl_set_hostname(CURL *curl) {
+    ddtrace_curl_set_hostname_generic(curl, TRACE_PATH_STR);
+}
+
+void ddtrace_curl_set_telemetry_url(CURL *curl) {
+    ddtrace_curl_set_hostname_generic(curl, "/telemetry/proxy/api/v2/apmtelemetry");
 }
 
 static struct timespec _dd_deadline_in_ms(uint32_t ms) {
@@ -992,6 +1004,77 @@ static void *_dd_writer_loop(void *_) {
 
     bool running = true;
     _dd_signal_writer_started(writer);
+
+    if (ddtrace_coms_globals.bgs_fallback_telemetry) {
+        ddtrace_coms_globals.bgs_fallback_telemetry = false;
+        uint8_t runtime_id[36];
+        ddtrace_format_runtime_id(&runtime_id);
+        char hostname[101];
+        hostname[100] = 0;
+        gethostname(hostname, 100);
+        char *payload;
+        asprintf(&payload, "{\n"
+        "    \"api_version\": \"v2\",\n"
+        "    \"request_type\": \"generate-metrics\",\n"
+        "    \"seq_id\": 1,\n"
+        "    \"runtime_id\": \"%.36s\",\n"
+        "    \"tracer_time\": %ld,\n"
+        "    \"payload\": {\n"
+        "        \"namespace\": \"tracers\",\n"
+        "        \"series\": [\n"
+        "            {\n"
+        "                \"metric\": \"exporter_fallback\",\n"
+        "                \"tags\": [\n"
+        "                    \"reason:instrumentation_telemetry_disabled\"\n"
+        "                ],\n"
+        "                \"points\": [\n"
+        "                    [\n"
+        "                        %ld,\n"
+        "                        1\n"
+        "                    ]\n"
+        "                ],\n"
+        "                \"type\": \"count\",\n"
+        "                \"common\": true\n"
+        "            }\n"
+        "        ]\n"
+        "    },\n"
+        "    \"application\": {\n"
+        "        \"service_name\": \"%s\",\n"
+        "        \"tracer_version\": \"%s\",\n"
+        "        \"language_name\": \"php\",\n"
+        "        \"language_version\": \"%s\"\n"
+        "    },\n"
+        "    \"host\": {\n"
+        "        \"hostname\": \"%s\"\n"
+        "    }\n"
+        "}",
+             (char *)runtime_id,
+            time(NULL),
+            time(NULL),
+            ddtrace_coms_globals.initial_service_name,
+            PHP_DDTRACE_VERSION,
+            ZSTR_VAL(ddtrace_php_version),
+            hostname
+        );
+
+        writer->curl = curl_easy_init();
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, _dd_dummy_write_callback);
+        curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
+        curl_easy_setopt(writer->curl, CURLOPT_POSTFIELDS, payload);
+        ddtrace_curl_set_timeout(writer->curl);
+        ddtrace_curl_set_connect_timeout(writer->curl);
+        struct curl_slist *headers = curl_slist_append(NULL, "Content-Type: application/json");
+        curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
+        ddtrace_curl_set_telemetry_url(writer->curl);
+        curl_easy_perform(writer->curl);
+
+        free(payload);
+        CURL *curl = writer->curl;
+        writer->curl = NULL;
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+    }
+
     do {
         atomic_fetch_add(&writer->writer_cycle, 1);
         uint32_t interval = atomic_load(&writer->flush_interval);
@@ -1156,7 +1239,7 @@ void ddtrace_coms_clean_background_sender_after_fork(void) {
     _dd_unsafe_cleanup_dirty_stack_area();
     _dd_coms_stack_shutdown();
     global_writer = (struct _writer_loop_data_t){0};
-    ddtrace_coms_minit(ddtrace_coms_globals.initial_stack_size, ddtrace_coms_globals.max_payload_size, ddtrace_coms_globals.max_backlog_size);
+    ddtrace_coms_minit(ddtrace_coms_globals.initial_stack_size, ddtrace_coms_globals.max_payload_size, ddtrace_coms_globals.max_backlog_size, NULL);
 }
 
 bool ddtrace_coms_on_pid_change(void) {

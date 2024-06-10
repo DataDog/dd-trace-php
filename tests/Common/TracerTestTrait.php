@@ -196,6 +196,9 @@ trait TracerTestTrait
             self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
             self::putEnv('DD_TRACE_AGENT_RETRIES');
 
+            if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+                \dd_trace_synchronous_flush();
+            }
             $traces = $this->parseTracesFromDumpedData();
 
             if ($traces || $retries-- <= 0) {
@@ -218,7 +221,7 @@ trait TracerTestTrait
         return $out;
     }
 
-    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
+    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $skipSyncFlush = false)
     {
         $envs = (string) new EnvSerializer(array_merge(
             [
@@ -254,10 +257,15 @@ trait TracerTestTrait
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         if ($withOutput) {
-            return (string) `$commandToExecute 2>&1`;
+            $ret = (string) `$commandToExecute 2>&1`;
         } else {
             `$commandToExecute`;
+            $ret = null;
         }
+        if (!$skipSyncFlush && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            \dd_trace_synchronous_flush();
+        }
+        return $ret;
     }
 
     /**
@@ -298,32 +306,66 @@ trait TracerTestTrait
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
 
+        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            \dd_trace_synchronous_flush();
+        }
+
         return $this->parseTracesFromDumpedData($until);
     }
 
     private function parseRawDumpedTraces($rawTraces)
     {
+        // error_log('RawTraces: ' . print_r($rawTraces, 1));
+
+        if (empty($rawTraces['chunks'])) {
+            return $this->parseRawDumpedTraces04($rawTraces);
+        } else {
+            return $this->parseRawDumpedTraces07($rawTraces);
+        }
+    }
+
+    private function parseRawDumpedTraces04($rawTraces)
+    {
         $traces = [];
 
         foreach ($rawTraces as $spansInTrace) {
-            $spans = [];
-            foreach ($spansInTrace as $rawSpan) {
-                if (empty($rawSpan['resource'])) {
-                    TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
-                    return;
-                }
-
-                if ($rawSpan['trace_id'] == "0") {
-                    TestCase::fail(sprintf("Span '%s' has zero trace_id", $rawSpan['name']));
-                    return;
-                }
-
-                $spans[] = $rawSpan;
-            }
-            $traces[] = $spans;
+            $traces[] = $this->parseRawDumpedSpans($spansInTrace);
         }
 
         return $traces;
+    }
+
+    private function parseRawDumpedTraces07($rawTraces)
+    {
+        $traces = [];
+
+        foreach ($rawTraces['chunks'] as $chunk) {
+            $traces[] = $this->parseRawDumpedSpans($chunk['spans']);
+        }
+        return $traces;
+    }
+
+    private function parseRawDumpedSpans($rawSpans)
+    {
+        $spans = [];
+        foreach ($rawSpans as $rawSpan) {
+            if (empty($rawSpan['resource'])) {
+                TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
+                return;
+            }
+
+            if ($rawSpan['trace_id'] == "0") {
+                TestCase::fail(sprintf("Span '%s' has zero trace_id", $rawSpan['name']));
+                return;
+            }
+
+            if (($rawSpan['parent_id'] ?? "") == "0") {
+                unset($rawSpan['parent_id']);
+            }
+
+            $spans[] = $rawSpan;
+        }
+        return $spans;
     }
 
     /**
@@ -346,7 +388,7 @@ trait TracerTestTrait
                 if (!isset($dump['body'])) {
                     $dumps[] = [];
                 } else {
-                    $dumps[] = $this->parseRawDumpedTraces(json_decode($dump['body'], true));
+                    $dumps = array_merge($dumps, $this->parseRawDumpedTraces(json_decode($dump['body'], true)));
                 }
             }
 

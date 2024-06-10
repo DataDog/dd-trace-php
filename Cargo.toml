@@ -13,9 +13,10 @@ license = "Apache-2.0"
 debug = 2 # full debug info
 
 [profile.release]
-debug = 1
-lto = "thin"
+codegen-units = 1
+debug = "line-tables-only"
 incremental = false
+lto = "fat"
 
 [profile.tracer-release]
 debug = 1 # line tables only

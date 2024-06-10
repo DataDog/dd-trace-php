@@ -161,6 +161,7 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
+	export DD_TRACE_SIDECAR_TRACE_SENDER=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
@@ -969,7 +970,7 @@ TEST_WEB_83 := \
 	test_web_custom \
 	test_web_zend_1_21
 
-FILTER := .
+FILTER ?= .
 MAX_RETRIES := 3
 
 # Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
@@ -984,7 +985,7 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=0 $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=0 -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 84 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage

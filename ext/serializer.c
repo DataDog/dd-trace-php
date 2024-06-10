@@ -46,6 +46,19 @@ extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str span_type,
                                                zai_str resource);
 
+static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str, size_t len) {
+    if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        char *strippedStr = ddtrace_strip_invalid_utf8(str, &len);
+        if (strippedStr) {
+            mpack_write_str(writer, strippedStr, len);
+            ddtrace_drop_rust_string(strippedStr, len);
+            return;
+        }
+    }
+
+    mpack_write_str(writer, str, len);
+}
+
 #define MAX_ID_BUFSIZ 40  // 3.4e^38 = 39 chars + 1 terminator
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
@@ -78,13 +91,15 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
         bool zval_string_as_uint64 = false;
         if (is_assoc == 1) {
             char num_str_buf[MAX_ID_BUFSIZ], *key;
+            size_t len;
             if (string_key) {
                 key = ZSTR_VAL(string_key);
+                len = ZSTR_LEN(string_key);
             } else {
                 key = num_str_buf;
-                sprintf(num_str_buf, ZEND_LONG_FMT, num_key);
+                len = sprintf(num_str_buf, ZEND_LONG_FMT, num_key);
             }
-            mpack_write_cstr(writer, key);
+            mpack_write_utf8_lossy_cstr(writer, key, len);
             // If the key is trace_id, span_id or parent_id then strings have to be converted to uint64 when packed.
             if (level <= 3 &&
                 (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
@@ -134,7 +149,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             mpack_write_bool(writer, Z_TYPE_P(trace) == IS_TRUE);
             break;
         case IS_STRING:
-            mpack_write_cstr(writer, Z_STRVAL_P(trace));
+            mpack_write_utf8_lossy_cstr(writer, Z_STRVAL_P(trace), Z_STRLEN_P(trace));
             break;
         default:
             LOG(WARN, "Serialize values must be of type array, string, int, float, bool or null");
@@ -796,6 +811,19 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     ZVAL_COPY(prop_env, env);
 }
 
+zend_string *ddtrace_default_service_name(void) {
+    if (strcmp(sapi_module.name, "cli") != 0) {
+        return zend_string_init(ZEND_STRL("web.request"), 0);
+    }
+
+    const char *script_name;
+    if (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0') {
+        return php_basename(script_name, strlen(script_name), NULL, 0);
+    } else {
+        return zend_string_init(ZEND_STRL("cli.command"), 0);
+    }
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
@@ -866,18 +894,12 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (strcmp(sapi_module.name, "cli") == 0) {
             zval_ptr_dtor(prop_type);
             ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("cli"), 0));
-            const char *script_name;
-            zval_ptr_dtor(prop_name);
-            ZVAL_STR(prop_name,
-                     (SG(request_info).argc > 0 && (script_name = SG(request_info).argv[0]) && script_name[0] != '\0')
-                     ? php_basename(script_name, strlen(script_name), NULL, 0)
-                     : zend_string_init(ZEND_STRL("cli.command"), 0));
         } else {
             zval_ptr_dtor(prop_type);
             ZVAL_STR(prop_type, zend_string_init(ZEND_STRL("web"), 0));
-            zval_ptr_dtor(prop_name);
-            ZVAL_STR(prop_name, zend_string_init(ZEND_STRL("web.request"), 0));
         }
+        zval_ptr_dtor(prop_name);
+        ZVAL_STR(prop_name, ddtrace_default_service_name());
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 
@@ -1433,6 +1455,15 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     add_assoc_long(el, "duration", span->duration);
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+
+    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code
+    zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
+    if (http_response_status_code) {
+        Z_TRY_ADDREF_P(http_response_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_response_status_code);
+        zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
+    }
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
@@ -1528,12 +1559,10 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             double parsed_analytics_event = strconv_parse_bool(Z_STR_P(analytics_event));
             if (parsed_analytics_event >= 0) {
                 ZVAL_DOUBLE(&analytics_event_as_double, parsed_analytics_event);
-                zend_array *metrics = ddtrace_property_array(&span->property_metrics);
                 zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
             }
         } else {
             ZVAL_DOUBLE(&analytics_event_as_double, zval_get_double(analytics_event));
-            zend_array *metrics = ddtrace_property_array(&span->property_metrics);
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &analytics_event_as_double);
         }
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
@@ -1670,8 +1699,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
                 }
             }
 
-            zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-
             zval mechanism;
             ZVAL_LONG(&mechanism, 8);
             zend_hash_str_update(metrics, ZEND_STRL("_dd.span_sampling.mechanism"), &mechanism);
@@ -1698,7 +1725,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     _serialize_meta(el, span);
 
 
-    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
     zval metrics_zv;
     array_init(&metrics_zv);
     zend_string *str_key;
