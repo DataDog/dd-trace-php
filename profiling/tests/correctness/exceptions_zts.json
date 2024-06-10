@@ -1,30 +1,30 @@
 {
-    "test_name": "php_exception_zts",
-    "stacks": [
+  "test_name": "php_exception_zts",
+  "stacks": [
+    {
+      "profile-type": "exception-samples",
+      "stack-content": [
         {
-            "profile-type": "exception-samples",
-            "stack-content": [
-                {
-                    "regular_expression": "<\\?php|{closure}",
-                    "percent": 100,
-                    "labels": [
-                        {
-                            "key": "exception type",
-                            "values": [
-                                "Exception"
-                            ]
-                        },
-                        {
-                            "key": "exception message",
-                            "values_regex": "Exception from (worker [0-9]|main thread)"
-                        },
-                        {
-                            "key": "thread id",
-                            "values_regex": "^[0-9]+$"
-                        }
-                    ]
-                }
-            ]
+          "regular_expression": "<\\?php|{closure}",
+          "percent": 100,
+          "labels": [
+            {
+              "key": "exception type",
+              "values": [
+                "Exception"
+              ]
+            },
+            {
+              "key": "exception message",
+              "values_regex": "Exception from (worker [0-9]|main thread)"
+            },
+            {
+              "key": "thread id",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
         }
-    ]
+      ]
+    }
+  ]
 }

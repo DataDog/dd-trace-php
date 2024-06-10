@@ -1,26 +1,26 @@
 {
-    "test_name": "php_exception",
-    "stacks": [
+  "test_name": "php_exception",
+  "stacks": [
+    {
+      "profile-type": "exception-samples",
+      "stack-content": [
         {
-            "profile-type": "exception-samples",
-            "stack-content": [
-                {
-                    "regular_expression": "<\\?php;FooBar\\\\throwAndCatch",
-                    "percent": 100,
-                    "labels": [
-                        {
-                            "key": "exception type",
-                            "values": [
-                                "FooBar\\Exception"
-                            ]
-                        },
-                        {
-                            "key": "thread id",
-                            "values_regex": "^[0-9]+$"
-                        }
-                    ]
-                }
-            ]
+          "regular_expression": "<\\?php;FooBar\\\\throwAndCatch",
+          "percent": 100,
+          "labels": [
+            {
+              "key": "exception type",
+              "values": [
+                "FooBar\\Exception"
+              ]
+            },
+            {
+              "key": "thread id",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
         }
-    ]
+      ]
+    }
+  ]
 }
