@@ -152,7 +152,6 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_exception.c \
     ext/handlers_internal.c \
     ext/handlers_pcntl.c \
-    ext/handlers_librdkafka.c \
     ext/integrations/exec_integration.c \
     ext/integrations/integrations.c \
     ext/ip_extraction.c \

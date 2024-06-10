@@ -29,7 +29,7 @@ class RdKafkaIntegration extends Integration
     }
 
     /**
-     * Add instrumentation to AMQP requests
+     * Add instrumentation to Kafka requests
      */
     public function init()
     {
@@ -42,6 +42,20 @@ class RdKafkaIntegration extends Integration
                     $integration->setGenericTags(
                         $span,
                         'producev',
+                        'client'
+                    );
+                }
+            ]
+        );
+
+        trace_method(
+            "RdKafka\ProducerTopic",
+            "produce",
+            [
+                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                    $integration->setGenericTags(
+                        $span,
+                        'produce',
                         'client'
                     );
                 }
@@ -64,27 +78,7 @@ class RdKafkaIntegration extends Integration
 
         return Integration::LOADED;
     }
-
-    /*public function injectContext(AMQPMessage $message)
-    {
-        if (\ddtrace_config_distributed_tracing_enabled() === false) {
-            return;
-        }
-
-        $distributedHeaders = \DDTrace\generate_distributed_tracing_headers();
-        if ($message->has('application_headers')) {
-            // If the message already has application headers, we need to merge them so user headers are not overwritten
-
-            $headersObj = $message->get('application_headers');
-            $headers = $headersObj->getNativeData();
-            $headers = array_merge($headers, $distributedHeaders);
-            $newHeaders = new AMQPTable($headers);
-        } else {
-            $newHeaders = new AMQPTable($distributedHeaders);
-        }
-        $message->set('application_headers', $newHeaders);
-    }*/
-
+    
     public function setGenericTags(
         SpanData $span,
         string $name,
