@@ -7,6 +7,7 @@
 #include <Zend/zend_extensions.h>
 #include <php.h>
 #include <stdbool.h>
+#include <ext/standard/basic_functions.h>
 
 #include "compat_php.h"
 #include "php_dd_library_loader.h"
@@ -32,13 +33,16 @@ static inline void ddloader_logf(const char *level, const char *format, ...) {
     if (!debug_logs) {
         return;
     }
-    char buf[256];
 
+    char msg[384];
     va_list va;
     va_start(va, format);
-    vsnprintf(buf, sizeof(buf), format, va);
-    php_printf("[dd_library_loader][%s] %s\n", level, buf);
+    vsnprintf(msg, sizeof(msg), format, va);
     va_end(va);
+
+    char full[512];
+    snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level, msg);
+    _php_error_log(0, full, NULL, NULL);
 }
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
@@ -173,7 +177,6 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
     // The code below basically comes from the function "php_load_extension" in "ext/standard/dl.c",
     // but we need to rename the extension before passing it into the module_registry.
 
-
     LOG(INFO, "Found extension file: %s", ext_path);
 
     void *handle = DL_LOAD(ext_path);
@@ -182,7 +185,7 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
         goto abort;
     }
 
-    zend_module_entry *(*)(void) get_module = (zend_module_entry *(*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
+    zend_module_entry *(*get_module)(void) = (zend_module_entry *(*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
     if (!get_module) {
         LOG(ERROR, "Cannot fetch the module entry");
         goto abort_and_unload;
@@ -240,13 +243,37 @@ abort:
     return SUCCESS;
 }
 
+static void ddloader_strtolower(char *dest, char *src) {
+    while (*src) {
+        *dest = (char) tolower((int) *src);
+        ++dest;
+        ++src;
+    }
+}
+
+static bool ddloader_is_truthy(char *str) {
+    if (!str) {
+        return false;
+    }
+
+    size_t len = strlen(str);
+    if (len < 1 || len > 4) {
+        return false;
+    }
+
+    char lower[5] = {0};
+    ddloader_strtolower(lower, str);
+
+    return (strcmp(lower, "1") == 0
+        || strcmp(lower, "true") == 0
+        || strcmp(lower, "yes") == 0
+        || strcmp(lower, "on") == 0
+    );
+}
+
 static inline void ddloader_configure() {
-    if (getenv("DD_TRACE_DEBUG")) {
-        debug_logs = true;
-    }
-    if (getenv("DD_INJECT_FORCE")) {
-        force_load = true;
-    }
+    debug_logs = ddloader_is_truthy(getenv("DD_TRACE_DEBUG"));
+    force_load = ddloader_is_truthy(getenv("DD_INJECT_FORCE"));
 }
 
 static int ddloader_api_no_check(int api_no) {
@@ -343,12 +370,3 @@ ZEND_DLEXPORT zend_extension zend_extension_entry = {
 
     BUILD_COMPAT_ZEND_EXTENSION_PROPERTIES /* Structure-ending macro */
 };
-
-// FIXME: Is this required?
-
-// #ifdef COMPILE_DL_DD_LIBRARY_LOADER
-// # ifdef ZTS
-// ZEND_TSRMLS_CACHE_DEFINE()
-// # endif
-// ZEND_GET_MODULE(dd_library_loader)
-// #endif
