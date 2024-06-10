@@ -5,4 +5,26 @@
 
 #define PHP_DD_LIBRARY_LOADER_VERSION "0.1.0"
 
+#define INFO "info"
+#define WARN "warn"
+#define ERROR "error"
+#define LOG(level, format, ...) ddloader_logf(level, format, ##__VA_ARGS__);
+
+#define DECLARE_INJECTED_EXT(name, dir, deps) {.ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps}
+
+typedef struct _injected_ext {
+    const char *ext_name;
+    const char *ext_dir;
+
+    const char *tmp_name;
+    const zend_module_dep *tmp_deps;
+
+    zend_result (*orig_module_startup_func)(INIT_FUNC_ARGS);
+    const zend_module_dep *orig_module_deps;
+    const zend_function_entry *orig_module_functions;
+    int module_number;
+} injected_ext;
+
+
+
 #endif /* PHP_DD_LIBRARY_LOADER_H */

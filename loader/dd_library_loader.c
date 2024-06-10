@@ -12,20 +12,17 @@
 #include "compat_php.h"
 #include "php_dd_library_loader.h"
 
-static int (*origin_ddtrace_module_startup_func)(INIT_FUNC_ARGS);
-static const zend_module_dep ddtrace_injected_module_deps[] = {ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END};
-static const zend_module_dep *orig_ddtrace_module_deps = NULL;
-static const zend_function_entry *orig_functions;
+// Declare the extension we want to load
+static injected_ext injected_ext_config[] = {
+    DECLARE_INJECTED_EXT("ddtrace", "trace", ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("ddappsec", "appsec", ((zend_module_dep[]){ZEND_MOD_END})),
+};
 
 static bool debug_logs = false;
 static bool force_load = false;
 
 static int php_api_no = 0;
-
-#define INFO "info"
-#define WARN "warn"
-#define ERROR "error"
-#define LOG(level, format, ...) ddloader_logf(level, format, ##__VA_ARGS__);
 
 static inline void ddloader_logf(const char *level, const char *format, ...) {
     if (!debug_logs) {
@@ -106,71 +103,84 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
     return true;
 }
 
-static void ddloader_unregister_module(void) {
-    zend_module_entry *ddtrace_injected = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace_injected"));
-    if (!ddtrace_injected) {
+static void ddloader_unregister_module(const char *name) {
+    zend_module_entry *injected = zend_hash_str_find_ptr(&module_registry, name, strlen(name));
+    if (!injected) {
         return;
     }
 
     // Set the MSHUTDOWN function to NULL to avoid it being called by zend_hash_str_del
-    ddtrace_injected->module_shutdown_func = NULL;
-    zend_hash_str_del(&module_registry, ZEND_STRL("ddtrace_injected"));
+    injected->module_shutdown_func = NULL;
+    zend_hash_str_del(&module_registry, name, strlen(name));
 }
 
-static PHP_MINIT_FUNCTION(ddtrace_injected) {
-    zend_module_entry *ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
-    if (ddtrace) {
-        LOG(INFO, "ddtrace is already loaded, unregister ddtrace_injected");
-        ddloader_unregister_module();
+static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
+    // Find the injected extension config using the module_number set by the engine
+    injected_ext *config = NULL;
+    for (int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
+        if (injected_ext_config[i].module_number == module_number) {
+            config = &injected_ext_config[i];
+            break;
+        }
+    }
+    if (!config) {
+        LOG(ERROR, "Unable to find the configuration for the injected extension. Something went wrong");
+        return SUCCESS;
+    }
+
+    zend_module_entry *module = zend_hash_str_find_ptr(&module_registry, config->ext_name, strlen(config->ext_name));
+    if (module) {
+        LOG(INFO, "Extension '%s' is already loaded, unregister the injected extension", config->ext_name);
+        ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
     }
 
-    LOG(INFO, "ddtrace is not loaded, checking the dependencies");
+    LOG(INFO, "Extension '%s' is not loaded, checking its dependencies", config->ext_name);
 
     // Normally done by zend_startup_module_ex, but we temporarily replaced these to skip potential errors. Check it ourselves here.
-    if (!ddloader_check_deps(orig_ddtrace_module_deps)) {
-        LOG(WARN, "ddtrace dependencies are not met, unregister ddtrace_injected");
-        ddloader_unregister_module();
+    if (!ddloader_check_deps(config->orig_module_deps)) {
+        LOG(WARN, "Extension '%s' dependencies are not met, unregister the injected extension", config->ext_name);
+        ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
     }
 
-    LOG(INFO, "Rename ddtrace_injected to ddtrace");
+    LOG(INFO, "Rename extension '%s' to '%s'", config->tmp_name, config->ext_name);
 
     /**
-     * Rename the "key" of the module_registry to access ddtrace.
+     * Rename the "key" of the module_registry to access the module.
      * Must be done at the bucket level to not change the order of the HashTable.
      */
-    zend_string *old_name = ddloader_zend_string_init(php_api_no, ZEND_STRL("ddtrace_injected"), 1);
+    zend_string *old_name = ddloader_zend_string_init(php_api_no, config->tmp_name, strlen(config->tmp_name), 1);
     Bucket *bucket = (Bucket *)zend_hash_find(&module_registry, old_name);
     ddloader_zend_string_release(php_api_no, old_name);
 
-    zend_string *new_name = ddloader_zend_string_init(php_api_no, ZEND_STRL("ddtrace"), 1);
+    zend_string *new_name = ddloader_zend_string_init(php_api_no, config->ext_name, strlen(config->ext_name), 1);
     ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
     ddloader_zend_string_release(php_api_no, new_name);
 
-    ddtrace = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
-    if (!ddtrace) {
-        LOG(ERROR, "ddtrace not found. Something wrong happened");
+    module = zend_hash_str_find_ptr(&module_registry, config->ext_name, strlen(config->ext_name));
+    if (!module) {
+        LOG(ERROR, "Extension '%s' not found after renaming. Something wrong happened", config->ext_name);
         return SUCCESS;
     }
 
     /* Restore name, MINIT, dependencies and functions of the module */
-    ddtrace->name = "ddtrace";
-    ddtrace->module_startup_func = origin_ddtrace_module_startup_func;
-    ddtrace->deps = orig_ddtrace_module_deps;
-    ddtrace->functions = orig_functions;
-    if (ddtrace->functions && zend_register_functions(NULL, ddtrace->functions, NULL, ddtrace->type) == FAILURE) {
-        LOG(ERROR, "Unable to register ddtrace's functions");
+    module->name = config->ext_name;
+    module->module_startup_func = config->orig_module_startup_func;
+    module->deps = config->orig_module_deps;
+    module->functions = config->orig_module_functions;
+    if (module->functions && zend_register_functions(NULL, module->functions, NULL, module->type) == FAILURE) {
+        LOG(ERROR, "Unable to register extension's functions");
         return SUCCESS;
     }
 
-    return origin_ddtrace_module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
+    return module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
 }
 
-static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_zts, bool is_debug) {
-    char *ext_path = ddloader_find_ext_path("trace", "ddtrace", php_api_no, is_zts, is_debug);
+static int ddloader_load_extension(int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
+    char *ext_path = ddloader_find_ext_path(config->ext_dir, config->ext_name, php_api_no, is_zts, is_debug);
     if (!ext_path) {
         LOG(ERROR, "Extension file not found");
         return SUCCESS;
@@ -205,20 +215,22 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
     }
 
     /**
-     * At that point, we don't know if ddtrace will be registered or not by the PHP configuration.
-     * So we register it under the name "ddtrace_injected", add set an optional dependency to
-     * "ddtrace" to be sure that our injected extension will be started up after the regular "ddtrace"
-     * (if it's loaded!), and finally we wrap the MINIT function to perform our checks there.
+     * At that point, we don't know if the module will be registered or not by the PHP configuration.
+     * So we register it under the a temporary name, add set an optional dependencies to be sure that
+     * our injected extension will be started up after the real one (if it's loaded!), and finally we
+     * wrap the MINIT function to perform our checks there.
      */
-    module_entry->name = "ddtrace_injected";
-    origin_ddtrace_module_startup_func = module_entry->module_startup_func;
-    module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddtrace_injected);
-    // Set our optional dependency to the real "ddtrace" module
-    orig_ddtrace_module_deps = module_entry->deps;
-    module_entry->deps = ddtrace_injected_module_deps;
+    module_entry->name = config->tmp_name;
+
+    config->orig_module_startup_func = module_entry->module_startup_func;
+    module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddloader_injected_extension_minit);
+
+    config->orig_module_deps = module_entry->deps;
+    module_entry->deps = config->tmp_deps;
+
     // Backup the function list and set it to NULL to make sure we don't register the functions twice
     // They'll be restored if ddtrace is not already registered.
-    orig_functions = module_entry->functions;
+    config->orig_module_functions = module_entry->functions;
     module_entry->functions = NULL;
 
     // Register the module, catching all errors that can happen (already loaded, unsatisied dep, ...)
@@ -232,6 +244,8 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
         LOG(ERROR, "Cannot register the module");
         goto abort_and_unload;
     }
+
+    config->module_number = module_entry->module_number;
 
     return SUCCESS;
 
@@ -334,7 +348,10 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    ddloader_load_ddtrace(php_api_no, module_build_id, is_zts, is_debug);
+    // Load the extensions declared in injected_ext_config
+    for (int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
+        ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &injected_ext_config[i]);
+    }
 
     return SUCCESS;
 }
