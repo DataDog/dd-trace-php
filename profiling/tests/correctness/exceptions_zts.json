@@ -7,7 +7,6 @@
                 {
                     "regular_expression": "<\\?php|{closure}",
                     "percent": 100,
-                    "error_margin": 99,
                     "labels": [
                         {
                             "key": "exception type",
@@ -21,7 +20,7 @@
                         },
                         {
                             "key": "thread id",
-                            "values_regex": "[0-9]+"
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 }
