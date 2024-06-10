@@ -38,7 +38,7 @@ pub struct ThinStr<'a> {
     ///     data: [u8],
     /// }
     /// ```
-    inline_ptr: NonNull<u8>,
+    size_ptr: NonNull<u8>,
 
     /// Since [ThinStr] doesn't hold a reference but acts like one, indicate
     /// this to the compiler with phantom data. This takes up no space.
@@ -53,7 +53,7 @@ impl ThinStr<'static> {
             .cast::<u8>()
             .cast_mut();
         Self {
-            inline_ptr: unsafe { NonNull::new_unchecked(ptr) },
+            size_ptr: unsafe { NonNull::new_unchecked(ptr) },
             _marker: PhantomData,
         }
     }
@@ -85,23 +85,24 @@ impl<'a> ThinStr<'a> {
         unsafe { core::ptr::copy_nonoverlapping(str.as_bytes().as_ptr(), data, str.len()) };
 
         Ok(Self {
-            inline_ptr: unsafe { NonNull::new_unchecked(allocation) },
+            size_ptr: unsafe { NonNull::new_unchecked(allocation) },
             _marker: PhantomData,
         })
     }
 
+    /// Reads the size prefix to get the length of the string.
     fn slice_len(&self) -> usize {
-        // SAFETY: todo
-        let size = unsafe { self.inline_ptr.cast::<[u8; USIZE_WIDTH]>().as_ptr().read() };
+        // SAFETY: ThinStr points to the size prefix of the string.
+        let size = unsafe { self.size_ptr.cast::<[u8; USIZE_WIDTH]>().as_ptr().read() };
         usize::from_ne_bytes(size)
     }
 
-    /// Gets the layout of a ThinStr, such as to deallocate it
+    /// Gets the layout of a ThinStr, such as to deallocate it.
     #[allow(unused)]
     #[inline]
     pub fn layout(&self) -> Layout {
         let len = self.slice_len();
-        // SAFETY: todo
+        // SAFETY: since this object exists, its layout must be valid.
         unsafe { Layout::from_size_align_unchecked(len + USIZE_WIDTH, 1) }
     }
 }
@@ -112,12 +113,16 @@ impl<'a> Deref for ThinStr<'a> {
     fn deref(&self) -> &Self::Target {
         let slice = {
             let len = self.slice_len();
-            // SAFETY: todo
-            let data = unsafe { self.inline_ptr.as_ptr().add(USIZE_WIDTH) };
-            // SAFETY: todo
+            // SAFETY: data is located immediately after the header. There are
+            // no padding bytes at play.
+            let data = unsafe { self.size_ptr.as_ptr().add(USIZE_WIDTH) };
+            // SAFETY: bytes are never handed out as mut, so const slices are
+            // not going to break aliasing rules.
             unsafe { core::slice::from_raw_parts(data, len) }
         };
-        // SAFETY: todo
+
+        // SAFETY: since this is a copy of a valid utf-8 string, then it must
+        // also be valid utf-8.
         unsafe { core::str::from_utf8_unchecked(slice) }
     }
 }
@@ -238,11 +243,15 @@ impl StringSet {
         self.arena.used_bytes()
     }
 
+    /// Creates a `&str` from the `thin_str`, binding it to the lifetime of
+    /// the set.
+    ///
+    /// # Safety
+    /// The `thin_str` must live in this string set.
     #[inline]
-    pub fn get_thin_str(&self, thin_str: ThinStr) -> &str {
-        // todo: debug_assert it exists in the memory region
-        // SAFETY: the lifetime is correct as long as the pointer lives in the
-        // allocator.
+    pub unsafe fn get_thin_str(&self, thin_str: ThinStr) -> &str {
+        // todo: debug_assert it exists in the memory region?
+        // SAFETY: see function's safety conditions.
         unsafe { core::mem::transmute(thin_str.deref()) }
     }
 }
@@ -277,7 +286,7 @@ mod tests {
         }
 
         for thin_str in thin_strs.drain(..) {
-            unsafe { alloc.deallocate(thin_str.inline_ptr, thin_str.layout()) };
+            unsafe { alloc.deallocate(thin_str.size_ptr, thin_str.layout()) };
         }
     }
 }
