@@ -86,7 +86,7 @@
 ## Profiling
 
 ### Internal
-- upgrade libdatadog to v10 #2697
+- Reduce memory by upgrading libdatadog to v10 #2697
 ]]></notes>
     <contents>
         <dir name="/">
