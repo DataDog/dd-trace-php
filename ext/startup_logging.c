@@ -160,7 +160,6 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_zstring(ht, ZEND_STRL("dd_version"), zend_string_copy(get_DD_VERSION()));
     // "health_metrics_enabled" N/A for PHP
     _dd_add_assoc_zstring(ht, ZEND_STRL("architecture"), php_get_uname('m'));
-    _dd_add_assoc_bool(ht, ZEND_STRL("instrumentation_telemetry_enabled"), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED());
 
     // PHP-specific values
     _dd_add_assoc_string(ht, ZEND_STRL("sapi"), sapi_module.name);
@@ -182,7 +181,6 @@ static void _dd_get_startup_config(HashTable *ht) {
                           _dd_implode_keys(get_DD_TRACE_TRACED_INTERNAL_FUNCTIONS()));
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
-    _dd_add_assoc_bool(ht, ZEND_STRL("sidecar_trace_sender"), get_global_DD_TRACE_SIDECAR_TRACE_SENDER());
 }
 
 #ifndef _WIN32

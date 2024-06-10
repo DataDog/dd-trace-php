@@ -56,14 +56,15 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $artisanTrace = $this->tracesFromWebRequest(function () {
+        $this->isolateTracer(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
             sleep(4);
         });
+        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
-        // $workTraces should have 1 chunk 'laravel.artisan'
-        $this->assertCount(1, $artisanTrace);
+        // $workTraces should have 1 trace 'laravel.artisan'
+        $artisanTrace = $workTraces[0];
 
         $this->assertFlameGraph(
             $artisanTrace,

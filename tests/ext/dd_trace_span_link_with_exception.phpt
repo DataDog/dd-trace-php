@@ -1,7 +1,7 @@
 --TEST--
 Span Link serialization with non-null EG(exception) doesn't fail
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php include __DIR__ . '/includes/skipif_no_dev_env.inc'; ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
@@ -12,7 +12,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
 
-include __DIR__ . '/../includes/request_replayer.inc';
+include __DIR__ . '/includes/request_replayer.inc';
 
 use DDTrace\SpanData;
 use DDTrace\SpanLink;

@@ -91,9 +91,6 @@ abstract class CLITestCase extends IntegrationTestCase
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         `$commandToExecute`;
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-            \dd_trace_synchronous_flush();
-        }
     }
 
     /**
@@ -101,15 +98,11 @@ abstract class CLITestCase extends IntegrationTestCase
      *
      * @return array
      */
-    public function loadTraces($request)
+    private function loadTraces($request)
     {
         if (!isset($request['body'])) {
             return [];
         }
-        $traces = json_decode($request['body'], true);
-        if (isset($traces['chunks'])) {
-            $traces = array_map(function($chunk) { return $chunk["spans"]; }, $traces["chunks"]);
-        }
-        return $traces;
+        return json_decode($request['body'], true);
     }
 }

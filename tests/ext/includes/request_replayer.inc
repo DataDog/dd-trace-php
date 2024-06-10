@@ -30,7 +30,7 @@ class RequestReplayer
         usleep($this->flushInterval * 2 * 1000);
     }
 
-    public function waitForDataAndReplay($ignoreTelemetry = true)
+    public function waitForDataAndReplay()
     {
         $i = 0;
         do {
@@ -38,18 +38,15 @@ class RequestReplayer
                 throw new Exception("wait for replay timeout");
             }
             usleep($this->flushInterval * 1000);
-        } while (empty($data = $this->replayRequest($ignoreTelemetry)));
+        } while (empty($data = $this->replayRequest()));
         return $data;
     }
 
-    public function replayRequest($ignoreTelemetry = false)
+    public function replayRequest()
     {
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
         $allRequests = json_decode(file_get_contents($this->endpoint . '/replay'), true);
-        if ($allRequests && $ignoreTelemetry) {
-            $allRequests = array_values(array_filter($allRequests, function ($v) { return $v["uri"] != '/telemetry/proxy/api/v2/apmtelemetry'; }));
-        }
         return $allRequests ? $allRequests[0] : [];
     }
 

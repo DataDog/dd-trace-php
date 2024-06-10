@@ -540,10 +540,6 @@ final class SpanChecker
             if (isset($spanMetrics["process_id"])) {
                 unset($spanMetrics['process_id']);
             }
-            if (isset($spanMetrics["_top_level"])) {
-                // Set by sidecar only
-                unset($spanMetrics['_top_level']);
-            }
             TestCase::assertEquals(
                 $metrics,
                 $spanMetrics,

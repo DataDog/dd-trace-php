@@ -74,7 +74,7 @@ aliases:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   - &IMAGE_DOCKER_DD_TEST_AGENT
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
     name: test-agent
     environment:
       LOG_LEVEL: DEBUG
@@ -435,7 +435,7 @@ commands:
                 -e SNAPSHOT_DIR=/snapshots \
                 -p "127.0.0.1:9126:9126" \
                 -v $(pwd)/tests/snapshots:/snapshots \
-                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+                --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
               retry_docker run --detach --rm --net net \
                 --name httpbin_integration kong/httpbin
               retry_docker run --detach --rm --net net \

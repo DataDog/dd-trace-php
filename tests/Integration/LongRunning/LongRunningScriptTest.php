@@ -23,13 +23,8 @@ final class LongRunningScriptTest extends CLITestCase
             'DD_TRACE_BGS_TIMEOUT' => 3000,
         ]);
 
-        $headerName = 'X-Datadog-Trace-Count';
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-            $headerName = strtolower($headerName);
-        }
-
-        $this->assertSame('3', $agentRequest['headers'][$headerName]);
-        $this->assertCount(3, $this->loadTraces($agentRequest));
+        $this->assertSame('3', $agentRequest['headers']['X-Datadog-Trace-Count']);
+        $this->assertCount(3, json_decode($agentRequest['body'], true));
     }
 
     public function testTracesFromLongRunningFunctionWithMixedTracing()
@@ -47,19 +42,19 @@ final class LongRunningScriptTest extends CLITestCase
         $rootTraceAssertion = function ($i) {
             return SpanAssertion::exists("do_manual_instrumentation_within_root_trace_function", "run $i")
                 ->withChildren([
-                    SpanAssertion::exists("first_sub_operation")->withChildren(
+                    SpanAssertion::exists("first-sub-operation")->withChildren(
                         SpanAssertion::exists("array_sum")
                     )->withExactTags(["result" => "42"]),
-                    SpanAssertion::exists("second_sub_operation")->withChildren(
+                    SpanAssertion::exists("second-sub-operation")->withChildren(
                         SpanAssertion::exists("array_sum")
                     )->withExactTags(["result" => "42"]),
                 ]);
         };
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists("custom_root_operation")->withChildren(
+            SpanAssertion::exists("custom-root-operation")->withChildren(
                 SpanAssertion::exists("do_manual_instrumentation_subspan")->withChildren(
-                    SpanAssertion::exists("sub_operation")
+                    SpanAssertion::exists("sub-operation")
                 )
             ),
             $rootTraceAssertion(1),

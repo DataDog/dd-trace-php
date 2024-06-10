@@ -207,7 +207,7 @@ services:
       - .:/app
 
   test-agent:
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
     ports:
       - "127.0.0.1:9126:8126"
     volumes:
