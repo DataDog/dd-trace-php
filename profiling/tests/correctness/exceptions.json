@@ -7,13 +7,16 @@
                 {
                     "regular_expression": "<\\?php;FooBar\\\\throwAndCatch",
                     "percent": 100,
-                    "error_margin": 100,
                     "labels": [
                         {
                             "key": "exception type",
                             "values": [
                                 "FooBar\\Exception"
                             ]
+                        },
+                        {
+                            "key": "thread id",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 }

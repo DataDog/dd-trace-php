@@ -7,16 +7,20 @@
                 {
                     "regular_expression": "<\\?php|{closure}",
                     "percent": 100,
-                    "error_margin": 99,
                     "labels": [
                         {
                             "key": "exception type",
                             "values": [
                                 "Exception"
                             ]
-                        }, {
+                        },
+                        {
                             "key": "exception message",
                             "values_regex": "Exception from (worker [0-9]|main thread)"
+                        },
+                        {
+                            "key": "thread id",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 }
