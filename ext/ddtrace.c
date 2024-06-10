@@ -1302,6 +1302,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
+        DDTRACE_G(active_stack) = NULL; // This should not be necessary, but somehow sometimes it may be a leftover from a previous request.
         DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
 #if PHP_VERSION_ID < 80000
         ddtrace_autoload_rinit();
