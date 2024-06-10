@@ -20,58 +20,86 @@
                             "values": [
                                 "gc"
                             ]
+                        },
+                        {
+                            "key": "end_timestamp_ns",
+                            "values_regex": "^[0-9]+$"
+                        },
+                        {
+                            "key": "gc collected",
+                            "values_regex": "^[0-9]+$"
+                        },
+                        {
+                            "key": "gc runs",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 },
                 {
                     "regular_expression": "^\\[require\\]$",
                     "percent": 100,
-                    "error_margin": 100,
+                    "error_margin": 99,
                     "labels": [
                         {
                             "key": "event",
                             "values": [
                                 "compilation"
                             ]
+                        },
+                        {
+                            "key": "end_timestamp_ns",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 },
                 {
                     "regular_expression": "^\\[include\\]$",
                     "percent": 100,
-                    "error_margin": 100,
+                    "error_margin": 99,
                     "labels": [
                         {
                             "key": "event",
                             "values": [
                                 "compilation"
                             ]
+                        },
+                        {
+                            "key": "end_timestamp_ns",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 },
                 {
                     "regular_expression": "^\\[eval\\]$",
                     "percent": 100,
-                    "error_margin": 100,
+                    "error_margin": 99,
                     "labels": [
                         {
                             "key": "event",
                             "values": [
                                 "compilation"
                             ]
+                        },
+                        {
+                            "key": "end_timestamp_ns",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 },
                 {
                     "regular_expression": "^\\[idle\\]$",
                     "percent": 100,
-                    "error_margin": 100,
+                    "error_margin": 99,
                     "labels": [
                         {
                             "key": "event",
                             "values": [
                                 "sleeping"
                             ]
+                        },
+                        {
+                            "key": "end_timestamp_ns",
+                            "values_regex": "^[0-9]+$"
                         }
                     ]
                 }
