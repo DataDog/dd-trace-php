@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 190a99779c21033f0812df6365a7ebdd87057727 */
+ * Stub hash: f5cd8b10ddb17f4437876d04f2b230573be23cee */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -289,7 +289,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DDTrace_Integration_init arginfo_dd_trace_dd_get_memory_limit
 
-
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_hook_function);
@@ -369,54 +368,53 @@ ZEND_METHOD(DDTrace_SpanData, getStartTime);
 ZEND_METHOD(DDTrace_SpanData, getLink);
 ZEND_METHOD(DDTrace_SpanData, hexId);
 
-
 static const zend_function_entry ext_functions[] = {
-	ZEND_NS_FALIAS("DDTrace", trace_method, DDTrace_trace_method, arginfo_DDTrace_trace_method)
-	ZEND_NS_FALIAS("DDTrace", trace_function, DDTrace_trace_function, arginfo_DDTrace_trace_function)
-	ZEND_NS_FALIAS("DDTrace", hook_function, DDTrace_hook_function, arginfo_DDTrace_hook_function)
-	ZEND_NS_FALIAS("DDTrace", hook_method, DDTrace_hook_method, arginfo_DDTrace_hook_method)
-	ZEND_NS_FALIAS("DDTrace", add_global_tag, DDTrace_add_global_tag, arginfo_DDTrace_add_global_tag)
-	ZEND_NS_FALIAS("DDTrace", add_distributed_tag, DDTrace_add_distributed_tag, arginfo_DDTrace_add_distributed_tag)
-	ZEND_NS_FALIAS("DDTrace", set_user, DDTrace_set_user, arginfo_DDTrace_set_user)
-	ZEND_NS_FALIAS("DDTrace", close_spans_until, DDTrace_close_spans_until, arginfo_DDTrace_close_spans_until)
-	ZEND_NS_FALIAS("DDTrace", active_span, DDTrace_active_span, arginfo_DDTrace_active_span)
-	ZEND_NS_FALIAS("DDTrace", root_span, DDTrace_root_span, arginfo_DDTrace_root_span)
-	ZEND_NS_FALIAS("DDTrace", start_span, DDTrace_start_span, arginfo_DDTrace_start_span)
-	ZEND_NS_FALIAS("DDTrace", close_span, DDTrace_close_span, arginfo_DDTrace_close_span)
-	ZEND_NS_FALIAS("DDTrace", update_span_duration, DDTrace_update_span_duration, arginfo_DDTrace_update_span_duration)
-	ZEND_NS_FALIAS("DDTrace", start_trace_span, DDTrace_start_trace_span, arginfo_DDTrace_start_trace_span)
-	ZEND_NS_FALIAS("DDTrace", active_stack, DDTrace_active_stack, arginfo_DDTrace_active_stack)
-	ZEND_NS_FALIAS("DDTrace", create_stack, DDTrace_create_stack, arginfo_DDTrace_create_stack)
-	ZEND_NS_FALIAS("DDTrace", switch_stack, DDTrace_switch_stack, arginfo_DDTrace_switch_stack)
-	ZEND_NS_FALIAS("DDTrace", set_priority_sampling, DDTrace_set_priority_sampling, arginfo_DDTrace_set_priority_sampling)
-	ZEND_NS_FALIAS("DDTrace", get_priority_sampling, DDTrace_get_priority_sampling, arginfo_DDTrace_get_priority_sampling)
-	ZEND_NS_FALIAS("DDTrace", get_sanitized_exception_trace, DDTrace_get_sanitized_exception_trace, arginfo_DDTrace_get_sanitized_exception_trace)
-	ZEND_NS_FALIAS("DDTrace", consume_distributed_tracing_headers, DDTrace_consume_distributed_tracing_headers, arginfo_DDTrace_consume_distributed_tracing_headers)
-	ZEND_NS_FALIAS("DDTrace", generate_distributed_tracing_headers, DDTrace_generate_distributed_tracing_headers, arginfo_DDTrace_generate_distributed_tracing_headers)
-	ZEND_NS_FALIAS("DDTrace", find_active_exception, DDTrace_find_active_exception, arginfo_DDTrace_find_active_exception)
-	ZEND_NS_FALIAS("DDTrace", extract_ip_from_headers, DDTrace_extract_ip_from_headers, arginfo_DDTrace_extract_ip_from_headers)
-	ZEND_NS_FALIAS("DDTrace", startup_logs, DDTrace_startup_logs, arginfo_DDTrace_startup_logs)
-	ZEND_NS_FALIAS("DDTrace", trace_id, DDTrace_trace_id, arginfo_DDTrace_trace_id)
-	ZEND_NS_FALIAS("DDTrace", logs_correlation_trace_id, DDTrace_logs_correlation_trace_id, arginfo_DDTrace_logs_correlation_trace_id)
-	ZEND_NS_FALIAS("DDTrace", current_context, DDTrace_current_context, arginfo_DDTrace_current_context)
-	ZEND_NS_FALIAS("DDTrace", set_distributed_tracing_context, DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context)
-	ZEND_NS_FALIAS("DDTrace", flush, DDTrace_flush, arginfo_DDTrace_flush)
-	ZEND_NS_FALIAS("DDTrace", curl_multi_exec_get_request_spans, DDTrace_curl_multi_exec_get_request_spans, arginfo_DDTrace_curl_multi_exec_get_request_spans)
-	ZEND_NS_FALIAS("DDTrace", dogstatsd_count, DDTrace_dogstatsd_count, arginfo_DDTrace_dogstatsd_count)
-	ZEND_NS_FALIAS("DDTrace", dogstatsd_distribution, DDTrace_dogstatsd_distribution, arginfo_DDTrace_dogstatsd_distribution)
-	ZEND_NS_FALIAS("DDTrace", dogstatsd_gauge, DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge)
-	ZEND_NS_FALIAS("DDTrace", dogstatsd_histogram, DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram)
-	ZEND_NS_FALIAS("DDTrace", dogstatsd_set, DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set)
-	ZEND_NS_FALIAS("DDTrace\\System", container_id, DDTrace_System_container_id, arginfo_DDTrace_System_container_id)
-	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_enabled, DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled)
-	ZEND_NS_FALIAS("DDTrace\\Config", integration_analytics_sample_rate, DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate)
-	ZEND_NS_FALIAS("DDTrace\\UserRequest", has_listeners, DDTrace_UserRequest_has_listeners, arginfo_DDTrace_UserRequest_has_listeners)
-	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_start, DDTrace_UserRequest_notify_start, arginfo_DDTrace_UserRequest_notify_start)
-	ZEND_NS_FALIAS("DDTrace\\UserRequest", notify_commit, DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit)
-	ZEND_NS_FALIAS("DDTrace\\UserRequest", set_blocking_function, DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function)
-	ZEND_NS_FALIAS("DDTrace\\Testing", trigger_error, DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error)
-	ZEND_NS_FALIAS("DDTrace\\Internal", add_span_flag, DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag)
-	ZEND_NS_FALIAS("DDTrace\\Internal", handle_fork, DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "trace_method"), zif_DDTrace_trace_method, arginfo_DDTrace_trace_method, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "trace_function"), zif_DDTrace_trace_function, arginfo_DDTrace_trace_function, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "hook_function"), zif_DDTrace_hook_function, arginfo_DDTrace_hook_function, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "hook_method"), zif_DDTrace_hook_method, arginfo_DDTrace_hook_method, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_global_tag"), zif_DDTrace_add_global_tag, arginfo_DDTrace_add_global_tag, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_distributed_tag"), zif_DDTrace_add_distributed_tag, arginfo_DDTrace_add_distributed_tag, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_user"), zif_DDTrace_set_user, arginfo_DDTrace_set_user, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "close_spans_until"), zif_DDTrace_close_spans_until, arginfo_DDTrace_close_spans_until, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "active_span"), zif_DDTrace_active_span, arginfo_DDTrace_active_span, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "root_span"), zif_DDTrace_root_span, arginfo_DDTrace_root_span, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "start_span"), zif_DDTrace_start_span, arginfo_DDTrace_start_span, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "close_span"), zif_DDTrace_close_span, arginfo_DDTrace_close_span, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "update_span_duration"), zif_DDTrace_update_span_duration, arginfo_DDTrace_update_span_duration, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "start_trace_span"), zif_DDTrace_start_trace_span, arginfo_DDTrace_start_trace_span, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "active_stack"), zif_DDTrace_active_stack, arginfo_DDTrace_active_stack, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "create_stack"), zif_DDTrace_create_stack, arginfo_DDTrace_create_stack, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "switch_stack"), zif_DDTrace_switch_stack, arginfo_DDTrace_switch_stack, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_priority_sampling"), zif_DDTrace_set_priority_sampling, arginfo_DDTrace_set_priority_sampling, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "get_priority_sampling"), zif_DDTrace_get_priority_sampling, arginfo_DDTrace_get_priority_sampling, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "get_sanitized_exception_trace"), zif_DDTrace_get_sanitized_exception_trace, arginfo_DDTrace_get_sanitized_exception_trace, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "consume_distributed_tracing_headers"), zif_DDTrace_consume_distributed_tracing_headers, arginfo_DDTrace_consume_distributed_tracing_headers, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "generate_distributed_tracing_headers"), zif_DDTrace_generate_distributed_tracing_headers, arginfo_DDTrace_generate_distributed_tracing_headers, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "find_active_exception"), zif_DDTrace_find_active_exception, arginfo_DDTrace_find_active_exception, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "extract_ip_from_headers"), zif_DDTrace_extract_ip_from_headers, arginfo_DDTrace_extract_ip_from_headers, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "startup_logs"), zif_DDTrace_startup_logs, arginfo_DDTrace_startup_logs, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "trace_id"), zif_DDTrace_trace_id, arginfo_DDTrace_trace_id, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "logs_correlation_trace_id"), zif_DDTrace_logs_correlation_trace_id, arginfo_DDTrace_logs_correlation_trace_id, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "current_context"), zif_DDTrace_current_context, arginfo_DDTrace_current_context, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_distributed_tracing_context"), zif_DDTrace_set_distributed_tracing_context, arginfo_DDTrace_set_distributed_tracing_context, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "flush"), zif_DDTrace_flush, arginfo_DDTrace_flush, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "curl_multi_exec_get_request_spans"), zif_DDTrace_curl_multi_exec_get_request_spans, arginfo_DDTrace_curl_multi_exec_get_request_spans, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_count"), zif_DDTrace_dogstatsd_count, arginfo_DDTrace_dogstatsd_count, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_distribution"), zif_DDTrace_dogstatsd_distribution, arginfo_DDTrace_dogstatsd_distribution, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_sample_rate"), zif_DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "has_listeners"), zif_DDTrace_UserRequest_has_listeners, arginfo_DDTrace_UserRequest_has_listeners, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "notify_start"), zif_DDTrace_UserRequest_notify_start, arginfo_DDTrace_UserRequest_notify_start, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "notify_commit"), zif_DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "set_blocking_function"), zif_DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "trigger_error"), zif_DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "add_span_flag"), zif_DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_reset, arginfo_dd_trace_reset)
@@ -439,20 +437,18 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(dd_trace_serialize_closed_spans, arginfo_dd_trace_serialize_closed_spans)
 	ZEND_FE(dd_trace_peek_span_id, arginfo_dd_trace_peek_span_id)
 	ZEND_FE(dd_trace_close_all_spans_and_flush, arginfo_dd_trace_close_all_spans_and_flush)
-	ZEND_FALIAS(dd_trace_function, DDTrace_trace_function, arginfo_dd_trace_function)
-	ZEND_FALIAS(dd_trace_method, DDTrace_trace_method, arginfo_dd_trace_method)
+	ZEND_RAW_FENTRY("dd_trace_function", zif_DDTrace_trace_function, arginfo_dd_trace_function, 0, NULL, NULL)
+	ZEND_RAW_FENTRY("dd_trace_method", zif_DDTrace_trace_method, arginfo_dd_trace_method, 0, NULL, NULL)
 	ZEND_FE(dd_untrace, arginfo_dd_untrace)
 	ZEND_FE(dd_trace_synchronous_flush, arginfo_dd_trace_synchronous_flush)
 	ZEND_FE_END
 };
-
 
 static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 	ZEND_ME(DDTrace_SpanLink, jsonSerialize, arginfo_class_DDTrace_SpanLink_jsonSerialize, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanLink, fromHeaders, arginfo_class_DDTrace_SpanLink_fromHeaders, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
-
 
 static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getDuration, arginfo_class_DDTrace_SpanData_getDuration, ZEND_ACC_PUBLIC)
@@ -462,19 +458,16 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_FE_END
 };
 
-
 static const zend_function_entry class_DDTrace_RootSpanData_methods[] = {
 	ZEND_FE_END
 };
-
 
 static const zend_function_entry class_DDTrace_SpanStack_methods[] = {
 	ZEND_FE_END
 };
 
-
 static const zend_function_entry class_DDTrace_Integration_methods[] = {
-	ZEND_ABSTRACT_ME_WITH_FLAGS(DDTrace_Integration, init, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT)
+	ZEND_RAW_FENTRY("init", NULL, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
 };
 
