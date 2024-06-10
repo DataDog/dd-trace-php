@@ -68,63 +68,25 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release introduces some minor breaking changes. An upgrade guide can be found at https://github.com/DataDog/dd-trace-php/blob/1.0.0/UPGRADE-1.0.md.
-
-This changeset is on top of 1.0.0beta1.
-
 ## Tracer
 
 ### Added
-- Instrument AMQP batched publishing #2659 (Thanks @lcobucci!)
-- Peer Service Precursors for DBM #2664
-- Provide a DogStatsD API #2639
-- Collect trace_api.{requests,responses,errors} metrics in the background trace sender #2672
-
-### Changed
-- Use app name as service for laravel queue #2643
-- Mark Laravel Octane requests as laravel.request #2655
-- Move env and version from meta to span properties #2665
-- w3c(phase 3): ensure tracecontext headers always take precedence #2667
+- Implement OTel config remapping #2691
+- Remap OTel to DD status code #2695
 
 ### Fixed
-- Do not check get_DD_TRACE_ENABLED() outside of a request #2631
-- Fix rejected distributed sampling decision overwrite #2652
-- Fix Background Sender reset on Swoole Fork #2645
-- Don't handle fork in SWOOLE_BASE mode #2656
-- Web Tests Errors Detection #2666
-- Fix coalescing send data DataDog/libdatadog#451
-- Link libpthread into the spawn_worker trampoline Datadog/libdatadog#452
-- Make use of the sidecar thread safe #2671
-- Send a correct size hint to the sidecar trace flusher #2686
-- Allow synchronous sidecar flushes and reduce flush limit #2689
+- Apply some fixes with sidecar trace sender #2680, #2686, #2689, #2698, #2700
+- Don't treat Symfony 2 differently from other versions #2693
+- Ensure DDTRACE_G(active_stack) is always NULL when the root span is being pushed #2701
 
 ### Internal
-- Update to maintain compatibility with libdatadog #2634, #2661
-- Minor cbindgen improvements #2651
-- Compile tracer version into sidecar #2678
+- Switch 2 logs to logev to avoid useless work #2679
+- shrink size of Rust artifacts #2696
 
 ## Profiling
 
-### Added
-- Add uptime information to profiles #2610
-
-### Fixed
-- Fix exception profiling in Generator->throw() #2682
-
 ### Internal
-- Stack walking cleanup #2638
-- Shrink env/service/version and simplify #2640
-- Use php_version when available #2657
-- Update profiling deps/libdatadog v9 #2662
-
-## Application Security Management
-
-### Changed
-- Update asm collected headers #2641
-- Add all asm headers on user events #2647
-
-### Fixed
-- Improve login accuracy event on Laravel>5 #2642
+- upgrade libdatadog to v10 #2697
 ]]></notes>
     <contents>
         <dir name="/">
