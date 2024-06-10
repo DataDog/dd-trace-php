@@ -85,6 +85,9 @@
 
 ## Profiling
 
+### Added
+- Add `thread id` label on every sample #2692
+
 ### Internal
 - Reduce memory usage by upgrading libdatadog to v10 #2697
 ]]></notes>
