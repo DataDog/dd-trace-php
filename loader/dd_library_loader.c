@@ -122,6 +122,7 @@ static PHP_MINIT_FUNCTION(ddtrace_injected) {
 
     LOG(INFO, "ddtrace is not loaded, checking the dependencies");
 
+    // Normally done by zend_startup_module_ex, but we temporarily replaced these to skip potential errors. Check it ourselves here.
     if (!ddloader_check_deps(orig_ddtrace_module_deps)) {
         LOG(WARN, "ddtrace dependencies are not met, unregister ddtrace_injected");
         ddloader_unregister_module();
@@ -170,10 +171,8 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
     }
 
     // The code below basically comes from the function "php_load_extension" in "ext/standard/dl.c",
-    // which does not allow loading an extension using a full path.
+    // but we need to rename the extension before passing it into the module_registry.
 
-    zend_module_entry *module_entry;
-    zend_module_entry *(*get_module)(void);
 
     LOG(INFO, "Found extension file: %s", ext_path);
 
@@ -183,13 +182,13 @@ static int ddloader_load_ddtrace(int php_api_no, char *module_build_id, bool is_
         goto abort;
     }
 
-    get_module = (zend_module_entry * (*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
+    zend_module_entry *(*)(void) get_module = (zend_module_entry *(*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
     if (!get_module) {
         LOG(ERROR, "Cannot fetch the module entry");
         goto abort_and_unload;
     }
 
-    module_entry = get_module();
+    zend_module_entry *module_entry = get_module();
 
     if (module_entry->zend_api != php_api_no) {
         LOG(ERROR, "API number mismatch between module (%d) and runtime (%d)", module_entry->zend_api, php_api_no);
@@ -242,10 +241,10 @@ abort:
 }
 
 static inline void ddloader_configure() {
-    if (getenv("DD_LOADER_ENABLE_LOGS")) {
+    if (getenv("DD_TRACE_DEBUG")) {
         debug_logs = true;
     }
-    if (getenv("DD_LOADER_FORCE")) {
+    if (getenv("DD_INJECT_FORCE")) {
         force_load = true;
     }
 }
@@ -267,7 +266,7 @@ static int ddloader_api_no_check(int api_no) {
 
         default:
             LOG(WARN, "Unknown api no: %d", api_no);
-            if (!force_load) {
+            if (!force_load && api_no > 420230831) {
                 // If we return FAILURE, this Zend extension would be unload, BUT it would produce an error
                 // similar to "The Zend Engine API version 220100525 which is installed, is newer."
                 return SUCCESS;
