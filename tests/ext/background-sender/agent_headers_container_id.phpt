@@ -2,6 +2,7 @@
 The container ID is sent via HTTP headers to the Agent
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no such concept like a container id on windows'); ?>
 --INI--
 ddtrace.cgroup_file={PWD}/stubs/cgroup.docker
 --ENV--

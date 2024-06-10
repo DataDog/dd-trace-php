@@ -57,6 +57,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -977,6 +983,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "datadog-alloc"
+version = "10.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
+dependencies = [
+ "allocator-api2",
+ "libc 0.2.154",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "datadog-ipc"
 version = "0.1.0"
 dependencies = [
@@ -1031,9 +1047,9 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-profiling",
- "ddcommon 9.0.0",
- "env_logger 0.11.2",
- "indexmap 2.2.3",
+ "ddcommon 10.0.0",
+ "env_logger 0.11.3",
+ "indexmap 2.2.6",
  "lazy_static",
  "libc 0.2.153",
  "log",
@@ -1048,19 +1064,21 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v9.0.0#68c5099e9d6265d19c3cb7e0ffc916d85cb966b3"
+version = "10.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
 dependencies = [
  "anyhow",
  "bitmaps",
  "byteorder",
  "bytes",
  "chrono",
- "ddcommon 9.0.0",
+ "datadog-alloc",
+ "ddcommon 10.0.0",
  "derivative",
  "futures",
  "futures-core",
  "futures-util",
+ "hashbrown 0.14.3",
  "http",
  "http-body",
  "hyper",
@@ -1232,8 +1250,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "9.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v9.0.0#68c5099e9d6265d19c3cb7e0ffc916d85cb966b3"
+version = "10.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
 dependencies = [
  "anyhow",
  "futures",
@@ -1250,6 +1268,7 @@ dependencies = [
  "rustls",
  "rustls-native-certs",
  "serde",
+ "static_assertions",
  "tokio",
  "tokio-rustls",
 ]
@@ -1837,6 +1856,9 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+dependencies = [
+ "allocator-api2",
+]
 
 [[package]]
 name = "hdrhistogram"

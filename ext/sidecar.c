@@ -169,7 +169,7 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
 }
 
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags) {
-    if (!ddtrace_sidecar) {
+    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
@@ -180,7 +180,7 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
 }
 
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags) {
-    if (!ddtrace_sidecar) {
+    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
@@ -191,7 +191,7 @@ void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, z
 }
 
 void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags) {
-    if (!ddtrace_sidecar) {
+    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
@@ -202,7 +202,7 @@ void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
 }
 
 void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags) {
-    if (!ddtrace_sidecar) {
+    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
@@ -213,7 +213,7 @@ void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval
 }
 
 void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags) {
-    if (!ddtrace_sidecar) {
+    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 

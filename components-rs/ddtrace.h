@@ -139,6 +139,10 @@ ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
 
+char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
+
+void ddtrace_drop_rust_string(char *input, uintptr_t len);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -162,6 +166,8 @@ bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **trans
                                             ddog_CharSlice path);
 
 struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
+
+void ddog_sidecar_telemetry_buffer_drop(struct ddog_SidecarActionsBuffer*);
 
 void ddog_sidecar_telemetry_addIntegration_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                   ddog_CharSlice integration_name,

@@ -297,14 +297,7 @@ class SymfonyIntegration extends Integration
             }
         );
 
-        if (
-            defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
-            && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
-        ) {
-            $this->loadSymfony2($this);
-        } else {
-            $this->loadSymfony($this);
-        }
+        $this->loadSymfony($this);
 
         return Integration::LOADED;
     }
@@ -531,43 +524,6 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
         \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
-    }
-
-    public function loadSymfony2($integration)
-    {
-        // Symfony 2.x specific resource name assignment
-        \DDTrace\trace_method(
-            'Symfony\Component\HttpKernel\Event\FilterControllerEvent',
-            'setController',
-            function (SpanData $span, $args) use ($integration) {
-                list($controllerInfo) = $args;
-                $resourceParts = [];
-
-                // Controller info can be provided in various ways.
-                if (is_string($controllerInfo)) {
-                    $resourceParts[] = $controllerInfo;
-                } elseif (is_array($controllerInfo) && count($controllerInfo) === 2) {
-                    if (is_object($controllerInfo[0])) {
-                        $resourceParts[] = get_class($controllerInfo[0]);
-                    } elseif (is_string($controllerInfo[0])) {
-                        $resourceParts[] = $controllerInfo[0];
-                    }
-
-                    if (is_string($controllerInfo[1])) {
-                        $resourceParts[] = $controllerInfo[1];
-                    }
-                }
-
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan) {
-                    if (count($resourceParts) > 0) {
-                        $rootSpan->resource = \implode(' ', $resourceParts);
-                    }
-                }
-
-                return false;
-            }
-        );
     }
 
     /**
