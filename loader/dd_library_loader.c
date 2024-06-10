@@ -22,8 +22,6 @@ static bool force_load = false;
 
 static int php_api_no = 0;
 
-static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {}
-
 #define INFO "info"
 #define WARN "warn"
 #define ERROR "error"
@@ -43,6 +41,10 @@ static inline void ddloader_logf(const char *level, const char *format, ...) {
     char full[512];
     snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level, msg);
     _php_error_log(0, full, NULL, NULL);
+}
+
+static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {
+    LOG(WARN, "Error while registering the module: %s (error %d)", ZSTR_VAL(message), error_num);
 }
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
