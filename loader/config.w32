@@ -1,7 +1,0 @@
-ARG_ENABLE('dd_library_loader', 'dd_library_loader support', 'no');
-
-if (PHP_DD_LIBRARY_LOADER != 'no') {
-	AC_DEFINE('HAVE_DD_LIBRARY_LOADER', 1, 'dd_library_loader support enabled');
-
-	EXTENSION('dd_library_loader', 'dd_library_loader.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
-}
