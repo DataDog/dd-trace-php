@@ -112,7 +112,7 @@ bool ddtrace_conf_otel_sample_rate(zai_env_buffer buf, bool pre_rinit) {
     }
 
     if (strcmp(buf.ptr, "always_on") == 0 || strcmp(buf.ptr, "parentbased_always_on") == 0) {
-        memcpy(buf.ptr, ZEND_STRS("q1"));
+        memcpy(buf.ptr, ZEND_STRS("1"));
         return true;
     }
     if (strcmp(buf.ptr, "always_off") == 0 || strcmp(buf.ptr, "parentbased_always_off") == 0) {
