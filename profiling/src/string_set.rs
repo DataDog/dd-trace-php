@@ -77,7 +77,7 @@ impl StringSet {
                 // No match. Make a new string in the arena, and fudge its
                 // lifetime to appease the borrow checker.
                 let new_str = {
-                    let s = ThinStr::new_in(str, &self.arena)
+                    let s = ThinStr::try_from_str_in(str, &self.arena)
                         .expect("allocation for StringSet::insert to succeed");
 
                     // SAFETY: all references to this value get re-narrowed to

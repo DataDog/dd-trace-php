@@ -40,8 +40,9 @@ impl Default for ThinStr<'static> {
 impl<'a> ThinStr<'a> {
     // todo: move ArenaAllocator trait to `datadog_alloc` as a marker trait
     //       (meaning, remove the associated method and leave that in prof)?
-    pub fn new_in(str: &str, arena: &'a impl ArenaAllocator) -> Result<Self, AllocError> {
-        let thin_ptr = ThinPtr::new_in(str, arena)?;
+    #[allow(dead_code)]
+    pub fn try_from_str_in(str: &str, arena: &'a impl ArenaAllocator) -> Result<Self, AllocError> {
+        let thin_ptr = ThinPtr::try_from_str_in(str, arena)?;
         let _marker = PhantomData;
         Ok(Self { thin_ptr, _marker })
     }
@@ -135,7 +136,7 @@ impl ThinPtr {
         unsafe { Layout::from_size_align_unchecked(len + USIZE_WIDTH, 1) }
     }
 
-    fn new_in(str: &str, arena: &impl Allocator) -> Result<Self, AllocError> {
+    fn try_from_str_in(str: &str, arena: &impl Allocator) -> Result<Self, AllocError> {
         let inline_size = str.len() + USIZE_WIDTH;
 
         let layout = match Layout::from_size_align(inline_size, 1) {
@@ -202,7 +203,7 @@ mod tests {
         let mut thin_strs: Vec<ThinStr> = wordpress_test_data::WORDPRESS_STRINGS
             .iter()
             .map(|str| {
-                let thin_str = ThinStr::new_in(str, &alloc).unwrap();
+                let thin_str = ThinStr::try_from_str_in(str, &alloc).unwrap();
                 let actual = thin_str.deref();
                 assert_eq!(*str, actual);
                 thin_str
