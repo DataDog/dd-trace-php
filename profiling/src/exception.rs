@@ -103,6 +103,14 @@ thread_local! {
 static mut GENERATOR_THROW_HANDLER: InternalFunctionHandler = None;
 
 /// Wrapping the PHP `Generator::throw()` method to fixup the prev_execute_data of the fake frame
+///
+/// If an exception gets thrown into a generator the `prev_execute_data` of the generator is a
+/// left-over from the last generator call, which is a stack frame that has already been freed.
+/// This fix sets the `prev_execute_data` to the current `execute_data` that got passed in, which
+/// is the `Generator::throw()` frame itself.
+///
+/// See `tests/phpt/exceptions_generator_throw.phpt` for a reproducer and the upstream bug report
+/// at https://github.com/php/php-src/issues/14387
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_generator_throw(
     execute_data: *mut zend_execute_data,
