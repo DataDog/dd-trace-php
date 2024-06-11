@@ -16,6 +16,8 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
+use crate::thin_str::ThinString;
+use crate::timeline::IncludeType;
 use crate::{CLOCKS, TAGS};
 use chrono::Utc;
 use core::{ptr, str};
@@ -391,7 +393,10 @@ impl TimeCollector {
         for frame in &message.value.frames {
             let location = Location {
                 function: Function {
-                    name: frame.function.as_ref(),
+                    name: frame
+                        .function
+                        .as_deref()
+                        .unwrap_or_else(|| frame.extra.as_ref()),
                     system_name: "",
                     filename: frame.file.as_deref().unwrap_or(""),
                     start_line: 0,
@@ -514,9 +519,6 @@ pub enum UploadMessage {
     Pause,
     Upload(Box<UploadRequest>),
 }
-
-#[cfg(feature = "timeline")]
-const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 impl Profiler {
     pub fn new(system_settings: &SystemSettings) -> Self {
@@ -833,9 +835,10 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(filename),
+                function: None,
+                file: Some(ThinString::from(&filename)),
                 line,
+                extra: StaticNames::Eval,
             }],
             SampleValues {
                 timeline: duration,
@@ -861,7 +864,7 @@ impl Profiler {
         now: i64,
         duration: i64,
         filename: String,
-        include_type: &str,
+        include_type: Result<IncludeType, u32>,
     ) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
@@ -874,9 +877,14 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
+                function: None,
                 file: None,
                 line: 0,
+                extra: match include_type {
+                    Ok(IncludeType::Include) => StaticNames::Include,
+                    Ok(IncludeType::Require) => StaticNames::Require,
+                    Err(_type) => StaticNames::UnknownIncludeType,
+                },
             }],
             SampleValues {
                 timeline: duration,
@@ -910,9 +918,10 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: "[idle]".into(),
+                function: None,
                 file: None,
                 line: 0,
+                extra: StaticNames::Idle,
             }],
             SampleValues {
                 timeline: duration,
@@ -966,9 +975,10 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: "[gc]".into(),
+                function: None,
                 file: None,
                 line: 0,
+                extra: StaticNames::Gc,
             }],
             SampleValues {
                 timeline: duration,
@@ -1085,14 +1095,6 @@ mod tests {
     use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }]
-    }
-
     pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
             profiling_enabled: true,
@@ -1126,7 +1128,12 @@ mod tests {
     #[test]
     #[cfg(all(feature = "timeline", not(miri)))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
-        let frames = get_frames();
+        let frames = vec![ZendFrame {
+            function: Some("foobar()".into()),
+            file: Some("foobar.php".into()),
+            line: 42,
+            extra: StaticNames::Empty,
+        }];
         let samples = get_samples();
         let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();

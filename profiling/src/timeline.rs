@@ -12,6 +12,11 @@ use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+pub enum IncludeType {
+    Include,
+    Require,
+}
+
 /// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
 
@@ -405,9 +410,13 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         }
 
         let include_type = match r#type as u32 {
-            zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
-            zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
-            _default => "",
+            // `include_once()` and `include_once()`
+            zend::ZEND_INCLUDE => Ok(IncludeType::Include),
+
+            // `require()` and `require_once()`
+            zend::ZEND_REQUIRE => Ok(IncludeType::Require),
+
+            include_type => Err(include_type),
         };
 
         // Extract the filename from the returned op_array.
@@ -419,7 +428,16 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
 
         trace!(
-            "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+            "Compile file \"{filename}\" with include type \"{}{}\" took {} nanoseconds",
+            match include_type {
+                Ok(IncludeType::Include) => "include",
+                Ok(IncludeType::Require) => "require",
+                Err(_) => "unknown include type",
+            },
+            match include_type {
+                Err(include_type) => format!(" {include_type}"),
+                _ => String::new(),
+            },
             duration.as_nanos(),
         );
 

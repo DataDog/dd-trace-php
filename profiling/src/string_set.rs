@@ -1,6 +1,5 @@
 use crate::thin_str::ThinStr;
 use core::hash;
-use core::ops::Deref;
 use datadog_alloc::{ChainAllocator, VirtualAllocator};
 
 type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
@@ -100,17 +99,5 @@ impl StringSet {
     #[inline]
     pub fn arena_used_bytes(&self) -> usize {
         self.arena.used_bytes()
-    }
-
-    /// Creates a `&str` from the `thin_str`, binding it to the lifetime of
-    /// the set.
-    ///
-    /// # Safety
-    /// The `thin_str` must live in this string set.
-    #[inline]
-    pub unsafe fn get_thin_str(&self, thin_str: ThinStr) -> &str {
-        // todo: debug_assert it exists in the memory region?
-        // SAFETY: see function's safety conditions.
-        unsafe { core::mem::transmute(thin_str.deref()) }
     }
 }
