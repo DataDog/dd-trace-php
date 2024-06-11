@@ -406,33 +406,18 @@ static inline void ddloader_configure() {
 static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
+    runtime_version = zend_get_module_version("Reflection");
+
     switch (api_no) {
-        case 320151012:
-            runtime_version = "7.0";
-            break;
-        case 320160303:
-            runtime_version = "7.1";
-            break;
-        case 320170718:
-            runtime_version = "7.2";
-            break;
-        case 320180731:
-            runtime_version = "7.3";
-            break;
-        case 320190902:
-            runtime_version = "7.4";
-            break;
-        case 420200930:
-            runtime_version = "8.0";
-            break;
-        case 420210902:
-            runtime_version = "8.1";
-            break;
-        case 420220829:
-            runtime_version = "8.2";
-            break;
-        case 420230831:
-            runtime_version = "8.3";
+        case 320151012: // 7.0
+        case 320160303: // 7.1
+        case 320170718: // 7.2
+        case 320180731: // 7.3
+        case 320190902: // 7.4
+        case 420200930: // 8.0
+        case 420210902: // 8.1
+        case 420220829: // 8.2
+        case 420230831: // 8.3
             break;
 
         default:
