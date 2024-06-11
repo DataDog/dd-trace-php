@@ -5,10 +5,20 @@
 
 #define PHP_DD_LIBRARY_LOADER_VERSION "0.1.0"
 
-#define INFO "info"
-#define WARN "warn"
-#define ERROR "error"
+typedef enum {
+    INFO,
+    WARN,
+    ERROR,
+} log_level;
+
 #define LOG(level, format, ...) ddloader_logf(level, format, ##__VA_ARGS__);
+
+typedef enum {
+    ABORT,
+} telemetry_reason;
+
+#define TELEMETRY(reason, format, ...) ddloader_telemetryf(reason, format, ##__VA_ARGS__);
+
 
 #define DECLARE_INJECTED_EXT(name, dir, deps) {.ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps}
 
@@ -24,7 +34,5 @@ typedef struct _injected_ext {
     const zend_function_entry *orig_module_functions;
     int module_number;
 } injected_ext;
-
-
 
 #endif /* PHP_DD_LIBRARY_LOADER_H */
