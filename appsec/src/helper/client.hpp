@@ -64,7 +64,7 @@ public:
 protected:
     template <typename T>
     std::shared_ptr<typename T::response> publish(typename T::request &command);
-    template <typename T> bool emplace_service();
+    template <typename T> bool service_guard();
     template <typename T>
     bool message_broker(const std::shared_ptr<typename T::response> &message);
     bool initialised{false};

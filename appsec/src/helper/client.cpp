@@ -211,24 +211,15 @@ bool client::handle_command(const network::client_init::request &command)
     return !has_errors;
 }
 
-template <typename T>
-bool client::emplace_service()
+template <typename T> bool client::service_guard()
 {
-    if (!context_) {
-        // A lack of context implies processing request_init failed, this
-        // can happen for legitimate reasons so let's try to process the data.
-        if (!service_) {
-            // This implies a failed client_init, we can't continue.
-            SPDLOG_DEBUG("no service available on {}", T::name);
-            send_error_response(*broker_);
-            return false;
-        }
-
-        context_.emplace(*service_->get_engine());
-
-        if (!context_) {
-            return false;
-        }
+    // A lack of context implies processing request_init failed, this
+    // can happen for legitimate reasons so let's try to process the data.
+    if (!service_) {
+        // This implies a failed client_init, we can't continue.
+        SPDLOG_DEBUG("no service available on {}", T::name);
+        send_error_response(*broker_);
+        return false;
     }
 
     return true;
@@ -238,10 +229,6 @@ template <typename T>
 std::shared_ptr<typename T::response> client::publish(
     typename T::request &command)
 {
-    if (!emplace_service<T>()) {
-        return nullptr;
-    }
-
     SPDLOG_DEBUG("received command {}", T::name);
 
     auto response = std::make_shared<typename T::response>();
@@ -299,7 +286,7 @@ std::shared_ptr<typename T::response> client::publish(
 
 bool client::handle_command(network::request_init::request &command)
 {
-    if (!emplace_service<network::request_init>()) {
+    if (!service_guard<network::request_init>()) {
         return false;
     }
 
@@ -312,6 +299,9 @@ bool client::handle_command(network::request_init::request &command)
         return message_broker<network::config_features>(response_cf);
     }
 
+    // During request init we initialize the engine context
+    context_.emplace(*service_->get_engine());
+
     auto response = publish<network::request_init>(command);
 
     return message_broker<network::request_init>(response);
@@ -319,6 +309,16 @@ bool client::handle_command(network::request_init::request &command)
 
 bool client::handle_command(network::request_exec::request &command)
 {
+    if (!context_) {
+        // A lack of context implies processing request_init failed, this
+        // can happen for legitimate reasons so let's try to process the data.
+        if (!service_guard<network::request_exec>()) {
+            return false;
+        }
+
+        context_.emplace(*service_->get_engine());
+    }
+
     auto response = publish<network::request_exec>(command);
     return message_broker<network::request_exec>(response);
 }
@@ -344,10 +344,7 @@ bool client::compute_client_status()
 
 bool client::handle_command(network::config_sync::request & /* command */)
 {
-    if (!service_) {
-        // This implies a failed client_init, we can't continue.
-        SPDLOG_DEBUG("no service available on config_sync");
-        send_error_response(*broker_);
+    if (!service_guard<network::config_sync>()) {
         return false;
     }
 
@@ -408,8 +405,14 @@ bool client::message_broker(
 
 bool client::handle_command(network::request_shutdown::request &command)
 {
-    if (!emplace_service<network::request_shutdown>()) {
-        return false;
+    if (!context_) {
+        // A lack of context implies processing request_init failed, this
+        // can happen for legitimate reasons so let's try to process the data.
+        if (!service_guard<network::request_shutdown>()) {
+            return false;
+        }
+
+        context_.emplace(*service_->get_engine());
     }
 
     // Free the context at the end of request shutdown
