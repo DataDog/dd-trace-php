@@ -211,14 +211,15 @@ bool client::handle_command(const network::client_init::request &command)
     return !has_errors;
 }
 
-bool client::emplace_service(const std::string &name)
+template <typename T>
+bool client::emplace_service()
 {
     if (!context_) {
         // A lack of context implies processing request_init failed, this
         // can happen for legitimate reasons so let's try to process the data.
         if (!service_) {
             // This implies a failed client_init, we can't continue.
-            SPDLOG_DEBUG("no service available on {}", name);
+            SPDLOG_DEBUG("no service available on {}", T::name);
             send_error_response(*broker_);
             return false;
         }
@@ -237,11 +238,11 @@ template <typename T>
 std::shared_ptr<typename T::response> client::publish(
     typename T::request &command)
 {
-    if (!emplace_service(T::name)) {
+    if (!emplace_service<T>()) {
         return nullptr;
     }
 
-    SPDLOG_DEBUG("received command {}", command.name);
+    SPDLOG_DEBUG("received command {}", T::name);
 
     auto response = std::make_shared<typename T::response>();
     try {
@@ -298,7 +299,7 @@ std::shared_ptr<typename T::response> client::publish(
 
 bool client::handle_command(network::request_init::request &command)
 {
-    if (!emplace_service(network::request_init::name)) {
+    if (!emplace_service<network::request_init>()) {
         return false;
     }
 
@@ -407,7 +408,7 @@ bool client::message_broker(
 
 bool client::handle_command(network::request_shutdown::request &command)
 {
-    if (!emplace_service(network::request_shutdown::name)) {
+    if (!emplace_service<network::request_shutdown>()) {
         return false;
     }
 
