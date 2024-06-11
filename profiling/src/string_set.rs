@@ -1,10 +1,7 @@
 use crate::thin_str::ThinStr;
 use core::hash;
 use core::ops::Deref;
-use datadog_alloc::{Allocator, ChainAllocator, VirtualAllocator};
-
-pub trait ArenaAllocator: Allocator {}
-impl<A: Allocator + Clone> ArenaAllocator for ChainAllocator<A> {}
+use datadog_alloc::{ChainAllocator, VirtualAllocator};
 
 type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
 type HashSet<K> = std::collections::HashSet<K, Hasher>;

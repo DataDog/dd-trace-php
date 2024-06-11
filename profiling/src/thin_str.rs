@@ -1,5 +1,4 @@
-use crate::string_set::ArenaAllocator;
-use datadog_alloc::{AllocError, Allocator};
+use datadog_alloc::{AllocError, Allocator, ChainAllocator};
 use std::alloc::Layout;
 use std::borrow::Borrow;
 use std::hash;
@@ -19,12 +18,22 @@ pub struct ThinStr<'a> {
     _marker: PhantomData<&'a str>,
 }
 
+pub trait ArenaAllocator: Allocator {}
+
+impl<A: Allocator + Clone> ArenaAllocator for ChainAllocator<A> {}
+
 impl ThinStr<'static> {
     pub fn new() -> ThinStr<'static> {
         Self {
             thin_ptr: EMPTY_INLINE_STRING.as_thin_ptr(),
             _marker: PhantomData,
         }
+    }
+}
+
+impl Default for ThinStr<'static> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
