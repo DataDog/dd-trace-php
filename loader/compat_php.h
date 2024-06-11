@@ -6,5 +6,7 @@
 zend_string *ddloader_zend_string_init(int php_api_no, const char *str, size_t len, bool persistent);
 void ddloader_zend_string_release(int php_api_no, zend_string *s);
 zval *ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b, zend_string *key);
+void ddloader_replace_zend_error_cb();
+void ddloader_restore_zend_error_cb(int php_api_no);
 
 #endif /* DD_LIBRARY_LOADER_COMPAT_PHP_H */

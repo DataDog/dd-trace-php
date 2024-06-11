@@ -5,6 +5,8 @@
 
 #define PHP_DD_LIBRARY_LOADER_VERSION "0.1.0"
 
+#define UNUSED(x) (void)(x)
+
 typedef enum {
     INFO,
     WARN,
@@ -12,6 +14,9 @@ typedef enum {
 } log_level;
 
 #define LOG(level, format, ...) ddloader_logf(level, format, ##__VA_ARGS__);
+
+void ddloader_logv(log_level level, const char *format, va_list va);
+void ddloader_logf(log_level level, const char *format, ...);
 
 typedef enum {
     REASON_ERROR,
@@ -23,7 +28,11 @@ typedef enum {
 #define TELEMETRY(reason, format, ...) ddloader_telemetryf(reason, format, ##__VA_ARGS__);
 
 
-#define DECLARE_INJECTED_EXT(name, dir, deps) {.ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps}
+#define DECLARE_INJECTED_EXT(name, dir, deps) { \
+    .ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps, \
+    .orig_module_startup_func = NULL, .orig_module_deps = NULL, .orig_module_functions = NULL, \
+    .module_number = -1, .version = NULL \
+    }
 
 typedef struct _injected_ext {
     const char *ext_name;

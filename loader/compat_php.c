@@ -1,4 +1,5 @@
 #include "compat_php.h"
+#include "php_dd_library_loader.h"
 
 #include <php.h>
 #include <stdbool.h>
@@ -145,4 +146,56 @@ zval *ddloader_zend_hash_set_bucket_key(int php_api_no, HashTable *ht, Bucket *b
         Z_NEXT(p->val) = idx;
     }
     return &b->val;
+}
+
+static void ddloader_php_70_71_zend_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format, va_list args) {
+    UNUSED(type);
+    UNUSED(error_filename);
+    UNUSED(error_lineno);
+    ddloader_logv(WARN, format, args);
+}
+
+static void ddloader_php_72_73_74_zend_error_cb(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args) {
+    UNUSED(type);
+    UNUSED(error_filename);
+    UNUSED(error_lineno);
+    ddloader_logv(WARN, format, args);
+}
+
+static void ddloader_php_80_error_zend_error_cb(int type, const char *error_filename, const uint32_t error_lineno, zend_string *message) {
+    UNUSED(type);
+    UNUSED(error_filename);
+    UNUSED(error_lineno);
+    LOG(WARN, "Error while registering the module: %s", ZSTR_VAL(message));
+}
+
+static void ddloader_php_error_zend_error_cb(int type, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {
+    UNUSED(type);
+    UNUSED(error_filename);
+    UNUSED(error_lineno);
+    LOG(WARN, "Error while registering the module: %s)", ZSTR_VAL(message));
+}
+
+void (*old_zend_error_cb)(void);
+
+void ddloader_replace_zend_error_cb() {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    old_zend_error_cb = zend_error_cb;
+#pragma GCC diagnostic pop
+}
+
+void ddloader_restore_zend_error_cb(int php_api_no) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    if (php_api_no <= 20160303) { // 7.0, 7.1
+        zend_error_cb = ddloader_php_70_71_zend_error_cb;
+    } else if (php_api_no <= 20190902) { // 7.2, 7.3, 7.4
+        zend_error_cb = ddloader_php_72_73_74_zend_error_cb;
+    } else if (php_api_no <= 20200930) { // 8.0
+        zend_error_cb = ddloader_php_80_error_zend_error_cb;
+    } else {
+        zend_error_cb = ddloader_php_error_zend_error_cb;
+    }
+#pragma GCC diagnostic pop
 }

@@ -2962,12 +2962,11 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Compile the loader extension
-          # FIXME:  -Wextra -Werror
           command: |
             set -eo pipefail
             cd loader
             phpize && ./configure
-            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall"
+            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror"
       - run:
           name: Download the dd-trace-php package
           command: |

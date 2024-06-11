@@ -24,11 +24,11 @@ static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
 
-static int php_api_no = 0;
-static char *runtime_version = "unknown";
+static unsigned int php_api_no = 0;
+static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 
-static void ddloader_logv(log_level level, const char *format, va_list va) {
+void ddloader_logv(log_level level, const char *format, va_list va) {
     if (!debug_logs) {
         return;
     }
@@ -55,7 +55,7 @@ static void ddloader_logv(log_level level, const char *format, va_list va) {
     _php_error_log(0, full, NULL, NULL);
 }
 
-static void ddloader_logf(log_level level, const char *format, ...) {
+void ddloader_logf(log_level level, const char *format, ...) {
     va_list va;
     va_start(va, format);
     ddloader_logv(level, format, va);
@@ -142,10 +142,6 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
     }
 }
 
-static void ddloader_error_handler(int error_num, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {
-    LOG(WARN, "Error while registering the module: %s (error %d)", ZSTR_VAL(message), error_num);
-}
-
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
     char *pkg_path = getenv("DD_LOADER_PACKAGE_PATH");
     if (!pkg_path) {
@@ -184,7 +180,7 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
 
     size_t name_len;
     zend_string *lcname;
-    char i = 0;
+    int i = 0;
     while (deps[i].name) {
         if (deps[i].type == MODULE_DEP_REQUIRED) {
             zend_module_entry *req_mod;
@@ -219,7 +215,7 @@ static void ddloader_unregister_module(const char *name) {
 static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     // Find the injected extension config using the module_number set by the engine
     injected_ext *config = NULL;
-    for (int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
+    for (unsigned int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
         if (injected_ext_config[i].module_number == module_number) {
             config = &injected_ext_config[i];
             break;
@@ -288,7 +284,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     return ret;
 }
 
-static int ddloader_load_extension(int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
+static int ddloader_load_extension(unsigned int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
     char *ext_path = ddloader_find_ext_path(config->ext_dir, config->ext_name, php_api_no, is_zts, is_debug);
     if (!ext_path) {
         TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "'%s' extension file not found", config->ext_name);
@@ -343,11 +339,9 @@ static int ddloader_load_extension(int php_api_no, char *module_build_id, bool i
     module_entry->functions = NULL;
 
     // Register the module, catching all errors that can happen (already loaded, unsatisied dep, ...)
-    void (*old_error_handler)(int, zend_string *, const uint32_t, zend_string *);
-    old_error_handler = zend_error_cb;
-    zend_error_cb = ddloader_error_handler;
+    ddloader_replace_zend_error_cb();
     module_entry = zend_register_internal_module(module_entry);
-    zend_error_cb = old_error_handler;
+    ddloader_restore_zend_error_cb(php_api_no);
 
     if (module_entry == NULL) {
         TELEMETRY(REASON_ERROR, "Cannot register '%s' module", config->ext_name);
@@ -466,7 +460,7 @@ static int ddloader_build_id_check(const char *build_id) {
     }
 
     // Load the extensions declared in injected_ext_config
-    for (int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
+    for (unsigned int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
         ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &injected_ext_config[i]);
     }
 
@@ -474,7 +468,7 @@ static int ddloader_build_id_check(const char *build_id) {
 }
 
 // Required. Otherwise the zend_extension is not loaded
-static int ddloader_zend_extension_startup(zend_extension *ext) { return SUCCESS; }
+static int ddloader_zend_extension_startup(zend_extension *ext) { UNUSED(ext); return SUCCESS; }
 
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
 ZEND_DLEXPORT zend_extension_version_info extension_version_info = {
