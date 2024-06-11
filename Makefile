@@ -154,6 +154,7 @@ test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
 	set -xe; \
+	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export DD_TRACE_CLI_ENABLED=1; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
@@ -161,7 +162,6 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	export DD_TRACE_SIDECAR_TRACE_SENDER=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
