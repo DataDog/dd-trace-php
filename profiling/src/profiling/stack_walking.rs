@@ -74,7 +74,8 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
-    use crate::string_set::{StringSet, ThinStr};
+    use crate::string_set::StringSet;
+    use crate::thin_str::ThinStr;
     use log::{debug, trace};
     use std::cell::RefCell;
     use std::ptr::NonNull;
