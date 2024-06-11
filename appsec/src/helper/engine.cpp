@@ -29,11 +29,6 @@ void engine::update(engine_ruleset &ruleset,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    auto new_actions = parse_actions(ruleset.get_document());
-    if (new_actions.empty()) {
-        new_actions = common_->actions;
-    }
-
     std::vector<subscriber::ptr> new_subscribers;
     new_subscribers.reserve(common_->subscribers.size());
     dds::parameter param = json_to_parameter(ruleset.get_document());
@@ -52,7 +47,7 @@ void engine::update(engine_ruleset &ruleset,
     }
 
     std::shared_ptr<shared_state> const new_common(
-        new shared_state{std::move(new_subscribers), std::move(new_actions)});
+        new shared_state{std::move(new_subscribers)});
 
     std::atomic_store(&common_, new_common);
 }
@@ -208,46 +203,6 @@ template <typename T> engine::action parse_action(T &action_object)
     }
 
     return action;
-}
-
-template <typename T, typename>
-engine::action_map engine::parse_actions(const T &doc)
-{
-    engine::action_map actions = {};
-
-    auto it = doc.FindMember("actions");
-    if (it == doc.MemberEnd()) {
-        return actions;
-    }
-
-    const auto &actions_array = it->value;
-    if (actions_array.GetType() != rapidjson::kArrayType) {
-        SPDLOG_ERROR("unexpected 'actions' type {}, expected array",
-            static_cast<unsigned>(actions_array.GetType()));
-        return actions;
-    }
-
-    for (auto &action_object : actions_array.GetArray()) {
-        if (action_object.GetType() != rapidjson::kObjectType) {
-            SPDLOG_ERROR("unexpected action item type {}, expected object",
-                static_cast<unsigned>(action_object.GetType()));
-            continue;
-        }
-
-        it = action_object.FindMember("id");
-        if (it == action_object.MemberEnd() || !it->value.IsString()) {
-            SPDLOG_ERROR("no action.id found or unexpected type");
-            continue;
-        }
-        std::string const id = it->value.GetString();
-        try {
-            actions[id] = parse_action(action_object);
-        } catch (const std::exception &e) {
-            SPDLOG_ERROR("failed to parse action '{}': {}", id, e.what());
-        }
-    }
-
-    return actions;
 }
 
 engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,

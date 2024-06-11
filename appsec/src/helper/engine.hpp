@@ -62,7 +62,6 @@ public:
 protected:
     struct shared_state {
         std::vector<subscriber::ptr> subscribers;
-        action_map actions;
     };
 
 public:
@@ -120,18 +119,10 @@ public:
 
     static engine::action_type string_to_action_type(
         const std::string &action_type);
-    // Only exposed for testing purposes
-    template <typename T,
-        typename = std::enable_if_t<std::disjunction_v<
-            std::is_same<rapidjson::Document,
-                std::remove_cv_t<std::decay_t<T>>>,
-            std::is_same<rapidjson::Value, std::remove_cv_t<std::decay_t<T>>>>>>
-    static action_map parse_actions(const T &doc);
 
 protected:
     explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})
-        : limiter_(trace_rate_limit),
-          common_(new shared_state{{}, std::move(actions)})
+        : limiter_(trace_rate_limit), common_(new shared_state{{}})
     {}
 
     std::shared_ptr<shared_state> common_;
