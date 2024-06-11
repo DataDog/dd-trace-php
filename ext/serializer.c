@@ -1063,6 +1063,7 @@ static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_
 
     dd_serialize_array_recursively(target, str, &serialised, false);
     free(data);
+    zval_ptr_dtor(&serialised);
 }
 
 struct iter {
