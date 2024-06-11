@@ -14,7 +14,10 @@ typedef enum {
 #define LOG(level, format, ...) ddloader_logf(level, format, ##__VA_ARGS__);
 
 typedef enum {
-    ABORT,
+    REASON_ERROR,
+    REASON_EOL_RUNTIME,
+    REASON_INCOMPATIBLE_RUNTIME,
+    REASON_COMPLETE,
 } telemetry_reason;
 
 #define TELEMETRY(reason, format, ...) ddloader_telemetryf(reason, format, ##__VA_ARGS__);
@@ -33,6 +36,7 @@ typedef struct _injected_ext {
     const zend_module_dep *orig_module_deps;
     const zend_function_entry *orig_module_functions;
     int module_number;
+    char *version;
 } injected_ext;
 
 #endif /* PHP_DD_LIBRARY_LOADER_H */

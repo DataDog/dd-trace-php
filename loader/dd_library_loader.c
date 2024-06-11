@@ -14,6 +14,7 @@
 
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
+    // Tracer must be the first
     DECLARE_INJECTED_EXT("ddtrace", "trace", ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
     // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", ((zend_module_dep[]){ZEND_MOD_END})),
     // DECLARE_INJECTED_EXT("ddappsec", "appsec", ((zend_module_dep[]){ZEND_MOD_END})),
@@ -24,6 +25,8 @@ static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
 
 static int php_api_no = 0;
+static char *runtime_version = "unknown";
+static bool injection_forced = false;
 
 static void ddloader_logv(log_level level, const char *format, va_list va) {
     if (!debug_logs) {
@@ -62,43 +65,76 @@ static void ddloader_logf(log_level level, const char *format, ...) {
 static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...) {
     va_list va;
     va_start(va, format);
-    ddloader_logv(ERROR, format, va);
+    ddloader_logv(reason == REASON_COMPLETE ? INFO : ERROR, format, va);
     va_end(va);
 
     if (!telemetry_forwarder_path) {
-        LOG(INFO, "Telemetry: environment varirable 'DD_TELEMETRY_FORWARDER_PATH' is not set.")
+        LOG(INFO, "Telemetry disabled: environment varirable 'DD_TELEMETRY_FORWARDER_PATH' is not set.")
         return;
     }
     if (access(telemetry_forwarder_path, X_OK)) {
-        LOG(ERROR, "Telemetry: forwarder not found or not executable at '%s'", telemetry_forwarder_path)
+        LOG(ERROR, "Telemetry error: forwarder not found or not executable at '%s'", telemetry_forwarder_path)
         return;
     }
 
     pid_t loader_pid = getpid();
     pid_t pid = fork();
     if (pid < 0) {
-        LOG(ERROR, "Telemetry: cannot fork")
+        LOG(ERROR, "Telemetry error: cannot fork")
         return;
     }
     if (pid > 0) {
         return; // parent
     }
 
+    char *points = "";
+    switch (reason)
+    {
+        case REASON_ERROR:
+            points = "\
+                {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:error\"]},\
+                {\"name\": \"library_entrypoint.error\"}, \"tags\": [\"error_type:unknown\"]}\
+            ";
+            break;
+
+        case REASON_EOL_RUNTIME:
+        case REASON_INCOMPATIBLE_RUNTIME:
+            points = "\
+                {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:incompatible_runtime\"]},\
+                {\"name\": \"library_entrypoint.abort.runtime\"}\
+            ";
+            break;
+
+        case REASON_COMPLETE:
+            if (injection_forced) {
+                points = "\
+                    {\"name\": \"library_entrypoint.complete\", \"tags\": [\"injection_forced:true\"]}\
+                ";
+            } else {
+                points = "\
+                    {\"name\": \"library_entrypoint.complete\", \"tags\": [\"injection_forced:false\"]}\
+                ";
+            }
+            break;
+    }
+
     char *template = "\
 {\
     \"metadata\": {\
         \"runtime_name\": \"php\",\
+        \"runtime_version\": \"%s\",\
         \"language_name\": \"php\",\
-        \"pid\": %d,\
+        \"language_version\": \"%s\",\
+        \"tracer_version\": \"%s\",\
+        \"pid\": %d\
     },\
-    \"points\": [\
-        {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:incompatibility\"]}\
-    ]\
+    \"points\": [%s]\
 }\
 ";
+    char *tracer_version = injected_ext_config[0].version ?: "unknown";
 
     char payload[1024];
-    snprintf(payload, sizeof(payload), template, loader_pid);
+    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, points);
 
     char *argv[] = {telemetry_forwarder_path, payload, NULL};
     if (execv(telemetry_forwarder_path, argv)) {
@@ -190,7 +226,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         }
     }
     if (!config) {
-        TELEMETRY(ABORT, "Unable to find the configuration for the injected extension. Something went wrong");
+        TELEMETRY(REASON_ERROR, "Unable to find the configuration for the injected extension. Something went wrong");
         return SUCCESS;
     }
 
@@ -206,7 +242,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
 
     // Normally done by zend_startup_module_ex, but we temporarily replaced these to skip potential errors. Check it ourselves here.
     if (!ddloader_check_deps(config->orig_module_deps)) {
-        TELEMETRY(ABORT, "Extension '%s' dependencies are not met, unregister the injected extension", config->ext_name);
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Extension '%s' dependencies are not met, unregister the injected extension", config->ext_name);
         ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
@@ -228,7 +264,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
 
     module = zend_hash_str_find_ptr(&module_registry, config->ext_name, strlen(config->ext_name));
     if (!module) {
-        TELEMETRY(ABORT, "Extension '%s' not found after renaming. Something wrong happened", config->ext_name);
+        TELEMETRY(REASON_ERROR, "Extension '%s' not found after renaming. Something wrong happened", config->ext_name);
         return SUCCESS;
     }
 
@@ -238,13 +274,15 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     module->deps = config->orig_module_deps;
     module->functions = config->orig_module_functions;
     if (module->functions && zend_register_functions(NULL, module->functions, NULL, module->type) == FAILURE) {
-        TELEMETRY(ABORT, "Unable to register extension's functions");
+        TELEMETRY(REASON_ERROR, "Unable to register extension's functions");
         return SUCCESS;
     }
 
     zend_result ret = module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
     if (ret == FAILURE) {
-        TELEMETRY(ABORT, "'%s' MINIT function failed");
+        TELEMETRY(REASON_ERROR, "'%s' MINIT function failed", config->ext_name);
+    } else {
+        TELEMETRY(REASON_COMPLETE, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
     }
 
     return ret;
@@ -253,7 +291,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
 static int ddloader_load_extension(int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
     char *ext_path = ddloader_find_ext_path(config->ext_dir, config->ext_name, php_api_no, is_zts, is_debug);
     if (!ext_path) {
-        TELEMETRY(ABORT, "'%s' extension file not found", config->ext_name);
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "'%s' extension file not found", config->ext_name);
         return SUCCESS;
     }
 
@@ -264,24 +302,24 @@ static int ddloader_load_extension(int php_api_no, char *module_build_id, bool i
 
     void *handle = DL_LOAD(ext_path);
     if (!handle) {
-        TELEMETRY(ABORT, "Cannot load '%s' extension file", config->ext_name);
+        TELEMETRY(REASON_ERROR, "Cannot load '%s' extension file", config->ext_name);
         goto abort;
     }
 
     zend_module_entry *(*get_module)(void) = (zend_module_entry *(*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
     if (!get_module) {
-        TELEMETRY(ABORT, "Cannot fetch '%s' module entry", config->ext_name);
+        TELEMETRY(REASON_ERROR, "Cannot fetch '%s' module entry", config->ext_name);
         goto abort_and_unload;
     }
 
     zend_module_entry *module_entry = get_module();
 
     if (module_entry->zend_api != php_api_no) {
-        TELEMETRY(ABORT, "'%s' API number mismatch between module (%d) and runtime (%d)", config->ext_name, module_entry->zend_api, php_api_no);
+        TELEMETRY(REASON_ERROR, "'%s' API number mismatch between module (%d) and runtime (%d)", config->ext_name, module_entry->zend_api, php_api_no);
         goto abort_and_unload;
     }
     if (strcmp(module_entry->build_id, module_build_id)) {
-        TELEMETRY(ABORT, "'%s' Build ID mismatch between module (%s) and runtime (%s)", config->ext_name, module_entry->build_id, module_build_id);
+        TELEMETRY(REASON_ERROR, "'%s' Build ID mismatch between module (%s) and runtime (%s)", config->ext_name, module_entry->build_id, module_build_id);
         goto abort_and_unload;
     }
 
@@ -312,11 +350,12 @@ static int ddloader_load_extension(int php_api_no, char *module_build_id, bool i
     zend_error_cb = old_error_handler;
 
     if (module_entry == NULL) {
-        TELEMETRY(ABORT, "Cannot register '%s' module", config->ext_name);
+        TELEMETRY(REASON_ERROR, "Cannot register '%s' module", config->ext_name);
         goto abort_and_unload;
     }
 
     config->module_number = module_entry->module_number;
+    config->version = (char *)module_entry->version;
 
     return SUCCESS;
 
@@ -368,26 +407,45 @@ static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
     switch (api_no) {
-        case 320151012:  // 7.0
-        case 320160303:  // 7.1
-        case 320170718:  // 7.2
-        case 320180731:  // 7.3
-        case 320190902:  // 7.4
-        case 420200930:  // 8.0
-        case 420210902:  // 8.1
-        case 420220829:  // 8.2
-        case 420230831:  // 8.3
+        case 320151012:
+            runtime_version = "7.0";
+            break;
+        case 320160303:
+            runtime_version = "7.1";
+            break;
+        case 320170718:
+            runtime_version = "7.2";
+            break;
+        case 320180731:
+            runtime_version = "7.3";
+            break;
+        case 320190902:
+            runtime_version = "7.4";
+            break;
+        case 420200930:
+            runtime_version = "8.0";
+            break;
+        case 420210902:
+            runtime_version = "8.1";
+            break;
+        case 420220829:
+            runtime_version = "8.2";
+            break;
+        case 420230831:
+            runtime_version = "8.3";
             break;
 
         default:
             if (!force_load || api_no < 320151012) {
-                TELEMETRY(ABORT, "Unknown api no: %d", api_no);
+                telemetry_reason reason = api_no < 320151012 ? REASON_EOL_RUNTIME : REASON_INCOMPATIBLE_RUNTIME;
+                TELEMETRY(reason, "Found incompatible runtime (api no: %d)", api_no);
 
                 // If we return FAILURE, this Zend extension would be unload, BUT it would produce an error
                 // similar to "The Zend Engine API version 220100525 which is installed, is newer."
                 return SUCCESS;
             }
             LOG(WARN, "The api no (%d) is not supported, continuing anyway", api_no);
+            injection_forced = true;
             break;
     }
 
@@ -418,7 +476,7 @@ static int ddloader_build_id_check(const char *build_id) {
 
     // Guardrail
     if (*module_build_id == '\0') {
-        TELEMETRY(ABORT, "Invalid build id");
+        TELEMETRY(REASON_ERROR, "Invalid build id");
         return SUCCESS;
     }
 
