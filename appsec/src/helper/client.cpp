@@ -296,7 +296,7 @@ bool client::handle_command(network::request_init::request &command)
         response_cf->enabled = false;
 
         SPDLOG_DEBUG("sending config_features to request_init");
-        return message_broker<network::config_features>(response_cf);
+        return send_message<network::config_features>(response_cf);
     }
 
     // During request init we initialize the engine context
@@ -304,7 +304,7 @@ bool client::handle_command(network::request_init::request &command)
 
     auto response = publish<network::request_init>(command);
 
-    return message_broker<network::request_init>(response);
+    return send_message<network::request_init>(response);
 }
 
 bool client::handle_command(network::request_exec::request &command)
@@ -320,7 +320,7 @@ bool client::handle_command(network::request_exec::request &command)
     }
 
     auto response = publish<network::request_exec>(command);
-    return message_broker<network::request_exec>(response);
+    return send_message<network::request_exec>(response);
 }
 
 bool client::compute_client_status()
@@ -377,8 +377,7 @@ bool client::handle_command(network::config_sync::request & /* command */)
 }
 
 template <typename T>
-bool client::message_broker(
-    const std::shared_ptr<typename T::response> &message)
+bool client::send_message(const std::shared_ptr<typename T::response> &message)
 {
     if (!message) {
         return false;
@@ -439,7 +438,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     context_->get_meta_and_metrics(response->meta, response->metrics);
 
-    return message_broker<network::request_shutdown>(response);
+    return send_message<network::request_shutdown>(response);
 }
 
 bool client::run_client_init()

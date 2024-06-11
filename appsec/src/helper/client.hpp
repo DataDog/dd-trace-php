@@ -66,7 +66,7 @@ protected:
     std::shared_ptr<typename T::response> publish(typename T::request &command);
     template <typename T> bool service_guard();
     template <typename T>
-    bool message_broker(const std::shared_ptr<typename T::response> &message);
+    bool send_message(const std::shared_ptr<typename T::response> &message);
     bool initialised{false};
     uint32_t version{};
     network::base_broker::ptr broker_;
