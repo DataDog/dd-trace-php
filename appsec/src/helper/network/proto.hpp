@@ -247,7 +247,6 @@ struct config_features {
         {
             return config_features::name;
         };
-        std::vector<action_struct> actions;
         bool enabled;
 
         MSGPACK_DEFINE(enabled);

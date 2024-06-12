@@ -296,7 +296,7 @@ bool client::handle_command(network::request_init::request &command)
         response_cf->enabled = false;
 
         SPDLOG_DEBUG("sending config_features to request_init");
-        return send_message<network::config_features>(response_cf);
+        return send_message<network::config_features, false>(response_cf);
     }
 
     // During request init we initialize the engine context
@@ -376,7 +376,7 @@ bool client::handle_command(network::config_sync::request & /* command */)
     return false;
 }
 
-template <typename T>
+template <typename T, bool actions>
 bool client::send_message(const std::shared_ptr<typename T::response> &message)
 {
     if (!message) {
@@ -385,11 +385,13 @@ bool client::send_message(const std::shared_ptr<typename T::response> &message)
 
     if (spdlog::should_log(spdlog::level::debug)) {
         std::ostringstream all_verdicts;
-        for (const auto &action : message->actions) {
-            all_verdicts << action.verdict << " ";
-        }
-        if (message->actions.empty()) {
-            all_verdicts << "no verdicts";
+        if constexpr (actions) {
+            for (const auto &action : message->actions) {
+                all_verdicts << action.verdict << " ";
+            }
+            if (message->actions.empty()) {
+                all_verdicts << "no verdicts";
+            }
         }
         SPDLOG_DEBUG("sending response to {}, verdicts: {}",
             message->get_type(), all_verdicts.str());
