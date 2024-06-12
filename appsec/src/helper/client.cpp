@@ -213,8 +213,6 @@ bool client::handle_command(const network::client_init::request &command)
 
 template <typename T> bool client::service_guard()
 {
-    // A lack of context implies processing request_init failed, this
-    // can happen for legitimate reasons so let's try to process the data.
     if (!service_) {
         // This implies a failed client_init, we can't continue.
         SPDLOG_DEBUG("no service available on {}", T::name);
@@ -310,8 +308,6 @@ bool client::handle_command(network::request_init::request &command)
 bool client::handle_command(network::request_exec::request &command)
 {
     if (!context_) {
-        // A lack of context implies processing request_init failed, this
-        // can happen for legitimate reasons so let's try to process the data.
         if (!service_guard<network::request_exec>()) {
             return false;
         }
@@ -407,8 +403,6 @@ bool client::send_message(const std::shared_ptr<typename T::response> &message)
 bool client::handle_command(network::request_shutdown::request &command)
 {
     if (!context_) {
-        // A lack of context implies processing request_init failed, this
-        // can happen for legitimate reasons so let's try to process the data.
         if (!service_guard<network::request_shutdown>()) {
             return false;
         }
