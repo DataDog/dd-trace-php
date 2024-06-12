@@ -69,7 +69,7 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
     va_end(va);
 
     if (!telemetry_forwarder_path) {
-        LOG(INFO, "Telemetry disabled: environment varirable 'DD_TELEMETRY_FORWARDER_PATH' is not set.")
+        LOG(INFO, "Telemetry disabled: environment variable 'DD_TELEMETRY_FORWARDER_PATH' is not set.")
         return;
     }
     if (access(telemetry_forwarder_path, X_OK)) {
@@ -164,10 +164,10 @@ static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, i
  * Try to load a symbol from a library handle.
  * As some OS prepend _ to symbol names, we try to load with and without it.
  */
-static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with_underscoe) {
-    void *symbol = DL_FETCH_SYMBOL(handle, symbol_name_with_underscoe + 1);
+static void *ddloader_dl_fetch_symbol(void *handle, const char *symbol_name_with_underscore) {
+    void *symbol = DL_FETCH_SYMBOL(handle, symbol_name_with_underscore + 1);
     if (!symbol) {
-        symbol = DL_FETCH_SYMBOL(handle, symbol_name_with_underscoe);
+        symbol = DL_FETCH_SYMBOL(handle, symbol_name_with_underscore);
     }
 
     return symbol;
