@@ -80,6 +80,21 @@ EOD
 chmod +x /tmp/apxs_wrapper
 }
 
+function run_dsymutil {
+  if [[ $(uname) != Darwin ]] then
+    return
+  fi
+  local readonly dir=$1 exe=
+  find "$dir" -type f -exec test -x '{}' \; -print | while read -r exe; do
+    if ! grep -q '^#!' "$exe"; then
+      local readonly dSYM_DIR="${exe}.dSYM"
+      if [[ ! -d $dSYM_DIR ]]; then
+        dsymutil "$exe"
+      fi
+    fi
+  done
+}
+
 function get_xdebug_version {
   local -r version=$1
   local readonly version_id=$(php_version_id $version)
@@ -294,6 +309,7 @@ function build_php {
   make install-sapi || true
   make install-binaries install-headers install-modules install-programs install-build
 
+  run_dsymutil "$prefix_dir"
   rm -rf "$build_dir"
   cd -
 }
@@ -462,11 +478,12 @@ function install_xdebug {
   "$php_prefix/bin/phpize"
   mkdir -p "$build_dir"
   cd "$build_dir"
-  "$xdebug_source_dir/configure" "--with-php-config=$php_prefix/bin/php-config"
+  CFLAGS="$CFLAGS -ggdb" "$xdebug_source_dir/configure" "--with-php-config=$php_prefix/bin/php-config"
   make -j
   make install
   cd -
 
+  run_dsymutil "$php_prefix/lib"
   rm -rf "$build_dir"
 }
 
