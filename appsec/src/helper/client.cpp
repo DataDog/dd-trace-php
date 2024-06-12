@@ -380,6 +380,7 @@ bool client::send_message(const std::shared_ptr<typename T::response> &message)
     }
 
     if (spdlog::should_log(spdlog::level::debug)) {
+        // NOLINTNEXTLINE(misc-const-correctness)
         std::ostringstream all_verdicts;
         if constexpr (actions) {
             for (const auto &action : message->actions) {
