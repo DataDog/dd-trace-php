@@ -23,6 +23,4 @@ workflows:
             ext/handlers_api.[ch] profiling true
             appsec/.* appsec true
             ext/.* appsec true
-            loader/.* loader true
-
-#            .circleci/continue_config.yml appsec true # FIXME: restore
+            .circleci/continue_config.yml appsec true
