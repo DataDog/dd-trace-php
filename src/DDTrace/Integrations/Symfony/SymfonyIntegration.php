@@ -395,6 +395,13 @@ class SymfonyIntegration extends Integration
                     }
                     $rootSpan->meta['symfony.route.name'] = $route;
                 }
+
+                $path = \DDTrace\Util\Normalizer::uriNormalizeIncomingPath($_SERVER['REQUEST_URI']);
+                foreach (array_keys($parameters) as $key) {
+                    $path = preg_replace('/\?/', '{' . $key . '}', $path, 1);
+                }
+                $span->meta[\DDTrace\Tag::HTTP_ROUTE] = $path;
+                
             }
         );
 
