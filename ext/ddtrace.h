@@ -64,6 +64,10 @@ void dd_internal_handle_fork(void);
 void dd_run_rust_thread_destructors(void *unused);
 #endif
 
+#ifndef _WIN32
+void disable_sidecar_sending(void);
+#endif
+
 typedef struct {
     int type;
     zend_string *message;

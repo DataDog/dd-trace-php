@@ -206,9 +206,15 @@ enum ddtrace_sampling_rules_format {
     DD_INTEGRATIONS
 
 #ifndef _WIN32
-#  define DD_CONFIGURATION \
-        CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, DD_CFG_EXPSTR(DD_SIDECAR_TRACE_SENDER_DEFAULT), .ini_change = zai_config_system_ini_change) \
+#  if 1 || PHP_VERSION_ID >= 80300
+#    define DD_CONFIGURATION \
+        CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, "true", .ini_change = zai_config_system_ini_change) \
         DD_CONFIGURATION_ALL
+#  else
+#    define DD_CONFIGURATION \
+        CONFIG(BOOL, DD_TRACE_SIDECAR_TRACE_SENDER, "false", .ini_change = zai_config_system_ini_change) \
+        DD_CONFIGURATION_ALL
+#  endif
 #else
 #  define DD_CONFIGURATION DD_CONFIGURATION_ALL
 #endif
