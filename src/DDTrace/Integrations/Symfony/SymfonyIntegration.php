@@ -10,7 +10,9 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Routing\Route;
 
 class SymfonyIntegration extends Integration
 {
@@ -314,6 +316,42 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        \DDTrace\trace_method(
+            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'dispatch',
+            function (SpanData $span, $args) {
+                $event = $args[0];
+
+                if (!($event instanceof ControllerEvent)) {
+                    return;
+                }
+
+                $request = $event->getRequest();
+                $controller = $event->getController()[0];
+
+                if (!property_exists($controller, 'container')) {
+                    return;
+                }
+
+                $rc = new \ReflectionClass(get_class($controller));
+                $container = $rc->getProperty('container');
+                $container->setAccessible(true);
+                $container = $container->getValue($controller);
+
+                $router = $container->get('router');
+                $routeName = $request->attributes->get('_route');
+
+                $routeCollection = $router->getRouteCollection();
+                /** @var Route $route */
+                $route = $routeCollection->get($routeName);
+                if (!isset($route)) {
+                    return;
+                }
+                $root_span = \DDTrace\root_span();
+                $root_span->meta[Tag::HTTP_ROUTE] = $route->getPath();
+            }
+        );
+
         $this->loadSymfony($this);
 
         return Integration::LOADED;
@@ -401,7 +439,7 @@ class SymfonyIntegration extends Integration
                 $parameters = $request->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
-                    function_exists('\datadog\appsec\push_addresses')) {
+                    function_exists('datadog\appsec\push_addresses')) {
                     \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                 }
 

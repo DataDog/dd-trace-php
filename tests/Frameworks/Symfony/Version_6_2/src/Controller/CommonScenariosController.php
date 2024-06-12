@@ -10,9 +10,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class CommonScenariosController extends AbstractController
 {
 
-    /**
-     * @Route("/simple", name="simple")
-     */
+    #[Route("/simple", name:"simple")]
     public function simpleAction(Request $request)
     {
         // replace this example code with whatever you need
@@ -21,9 +19,7 @@ class CommonScenariosController extends AbstractController
         );
     }
 
-    /**
-     * @Route("/simple_view", name="simple_view")
-     */
+    #[Route("/simple_view", name:"simple_view")]
     public function simpleViewAction(Request $request)
     {
         // replace this example code with whatever you need
@@ -43,9 +39,9 @@ class CommonScenariosController extends AbstractController
     }
 
     /**
-     * @Route("/error", name="error")
      * @throws \Exception
      */
+     #[Route("/error", name:"error")]
     public function errorAction(Request $request)
     {
         throw new \Exception('An exception occurred');
