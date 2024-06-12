@@ -11,10 +11,14 @@ use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Routing\Route;
+use Symfony\Component\Routing\RouterInterface;
 
 class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
+    const CONTROLLER_EVENT_CLASS =
+        '\Symfony\Component\HttpKernel\Event\ControllerEvent';
 
     /** @var SpanData */
     public $symfonyRequestSpan;
@@ -304,6 +308,41 @@ class SymfonyIntegration extends Integration
                 if ($rootSpan !== null) {
                     $rootSpan->exception = $args[0];
                 }
+            }
+        );
+
+        \DDTrace\trace_method(
+            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'dispatch',
+            function (SpanData $span, $args) {
+                $event = $args[0];
+
+                if (!$event instanceof self::CONTROLLER_EVENT_CLASS) {
+                    return;
+                }
+
+                $request = $event->getRequest();
+                $controller = $event->getController()[0];
+
+                if (!property_exists($controller, 'container')) {
+                    return;
+                }
+
+                $rc = new \ReflectionClass(get_class($controller));
+                $container = $rc->getProperty('container');
+                $container->setAccessible(true);
+                $container = $container->getValue($controller);
+
+                $router = $container->get('router');
+                $routeName = $request->attributes->get('_route');
+
+                $routeCollection = $router->getRouteCollection();
+                /** @var Route $route */
+                $route = $routeCollection->get($routeName);
+                if (!isset($route)) {
+                    return;
+                }
+                $span->meta[\DDTrace\Tag::HTTP_ROUTE] = $route->getPath();
             }
         );
 
