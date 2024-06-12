@@ -1,5 +1,7 @@
 --TEST--
 The loader is able to load ddtrace
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION <= 5) die("skip: The loader extension is not compatible with PHP 5"); ?>
 --FILE--
 <?php
 

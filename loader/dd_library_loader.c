@@ -400,7 +400,21 @@ static inline void ddloader_configure() {
 static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
-    runtime_version = zend_get_module_version("Reflection");
+    switch (api_no)
+    {
+        case 220100525:
+            runtime_version = "5.4";
+            break;
+        case 220121212:
+            runtime_version = "5.5";
+            break;
+        case 220131226:
+            runtime_version = "5.6";
+            break;
+        default:
+            runtime_version = zend_get_module_version("Reflection");
+            break;
+    }
 
     switch (api_no) {
         case 320151012: // 7.0

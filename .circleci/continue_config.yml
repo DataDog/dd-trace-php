@@ -3006,11 +3006,7 @@ jobs:
             set -eo pipefail
             cd loader
             export DD_LOADER_PACKAGE_PATH=$PWD/dd-library-php
-            php -n -v
-            echo
-            php -n -dzend_extension=$PWD/modules/dd_library_loader.so -v  | tee output.txt
-            grep -q "with ddtrace " output.txt
-            grep -q "with dd_library_loader " output.txt
+            ./bin/test.sh
 
   compile_extension_centos:
     working_directory: ~/datadog
@@ -5166,7 +5162,7 @@ workflows:
           matrix:
             parameters:
               php_major_minor:
-#                - "5.6"
+                - "5.6"
                 - "7.0"
                 - "7.1"
                 - "7.2"
@@ -5203,4 +5199,4 @@ workflows:
               php_major_minor:
                 - "8.0"
               switch_php_version:
-                - "8.0" # FIXME: switch-php on Alpine use the PHP version in addition to the flavour
+                - "8.0"
