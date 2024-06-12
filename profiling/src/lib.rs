@@ -6,9 +6,11 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
+mod thin_str;
+mod wall_time;
 
 #[cfg(php_run_time_cache)]
-mod string_table;
+mod string_set;
 
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
@@ -18,8 +20,6 @@ mod exception;
 
 #[cfg(feature = "timeline")]
 mod timeline;
-
-mod wall_time;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use bindings::{

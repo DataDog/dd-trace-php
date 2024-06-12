@@ -515,6 +515,9 @@ pub enum UploadMessage {
     Upload(Box<UploadRequest>),
 }
 
+#[cfg(feature = "timeline")]
+const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+
 impl Profiler {
     pub fn new(system_settings: &SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
