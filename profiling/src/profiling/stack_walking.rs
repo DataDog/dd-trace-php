@@ -172,8 +172,10 @@ mod detail {
         CACHED_STRINGS.with(|cell| {
             let set: &StringSet = &cell.borrow();
             let arena_used_bytes = set.arena_used_bytes();
-            // todo: pin down threshold
-            let threshold = 4 * 1024 * 1024;
+            // A slow ramp up to 2 MiB is probably _not_ going to look like
+            // a memory leak, whereas a higher threshold could make a user
+            // suspect a leak.
+            let threshold = 2 * 1024 * 1024;
             if arena_used_bytes > threshold {
                 debug!("string cache arena is using {arena_used_bytes} bytes which exceeds the {threshold} byte threshold, resetting");
                 // Note that this cannot be done _during_ a request. The

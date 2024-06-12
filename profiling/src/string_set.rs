@@ -35,7 +35,7 @@ impl StringSet {
         // Keep this in the megabyte range. It's virtual, so we do not need
         // to worry much about unused amounts, but asking for wildly too much
         // up front, like in gigabyte+ range, is not good either.
-        const SIZE_HINT: usize = 4 * 1024 * 1024;
+        const SIZE_HINT: usize = 2 * 1024 * 1024;
         let arena = ChainAllocator::new_in(SIZE_HINT, VirtualAllocator {});
 
         let mut strings = HashSet::with_hasher(Hasher::default());
