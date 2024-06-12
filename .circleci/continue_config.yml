@@ -534,7 +534,7 @@ commands:
                   -v /tmp/artifacts:/tmp/artifacts \
                   $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
                   $image \
-                  bash -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
+                  sh -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
               tail -F /tmp/docker.out | grep -Em1 'Started|Error response from daemon'
               if ! grep -q "Error response from daemon" /tmp/docker.out; then
                 container_name=$(docker ps | grep "$image" | awk '{ print $NF }' | head -1)
@@ -549,6 +549,10 @@ commands:
               fi
               sleep 1
             done
+            # On Alpine images, make sure bash is installed
+            if [[ "<< parameters.docker_image >>" == *alpine* ]]; then
+              docker exec -w /home/circleci/datadog -i "${container_name}" sh -c "test -z bash || apk --no-cache add bash" || true
+            fi
             echo 'if [ -f /usr/bin/docker ]; then pid=$$; IFS= readarray -d "" args < <(cat /proc/$pid/cmdline); exec docker exec -w /home/circleci/datadog -i '"${container_name}"' "${args[@]}"; fi' | tee -a $BASH_ENV
             cp $BASH_ENV /tmp/bashenv/bash.sh
             chmod 777 /tmp/bashenv/bash.sh
@@ -2951,7 +2955,6 @@ jobs:
       resource_class:
         type: string
         default: medium
-    environment:
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -2964,18 +2967,30 @@ jobs:
       - run:
           name: Compile the loader extension
           command: |
-            set -eo pipefail
+            set -xeuo pipefail
+
+            if [[ "<< parameters.os >>" == "linux-musl" ]]; then
+              apk add --no-cache \
+                autoconf \
+                coreutils \
+                g++ \
+                gcc \
+                make
+            fi
+
             cd loader
-            phpize && ./configure
-            make clean && make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror"
-            cp modules/dd_library_loader.so modules/dd_library_loader_$(uname -m)_<< parameters.os >>.so
+            phpize
+            ./configure
+            make clean
+            make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror"
+            cp modules/dd_library_loader.so modules/dd_library_loader-$(uname -m)-<< parameters.os >>.so
       - persist_to_workspace:
           root: '.'
-          paths: [ './loader/modules/dd_library_loader_*.so' ]
+          paths: [ './loader/modules/dd_library_loader-*.so' ]
       - store_artifacts:
           path: ./loader/modules/dd_library_loader.so
 
-  "test_loader":
+  "test_loader_linux":
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -2986,14 +3001,9 @@ jobs:
       switch_php_version:
         type: string
         default: none
-      os:
-        type: string
       resource_class:
         type: string
         default: medium
-    docker:
-      - image: << parameters.docker_image >>
-    environment:
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -3008,14 +3018,54 @@ jobs:
       - run:
           name: Test the loader
           command: |
-            set -eo pipefail
+            set -xeuo pipefail
+
             arch=$(uname -m)
-            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-\*-${arch}-<< parameters.docker_image >>.tar.gz")
-            tar -C /tmp xzf ${package}
+            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-*-${arch}-linux-gnu.tar.gz")
+            rm -rf dd-library-php
+            tar -xzf ${package}
+            export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php
 
             cd loader
-            cp modules/dd_library_loader_$(uname -m)_<< parameters.os >>.so modules/dd_library_loader.so
-            export DD_LOADER_PACKAGE_PATH=/tmp/dd-library-php
+            cp modules/dd_library_loader-$(uname -m)-linux-gnu.so modules/dd_library_loader.so
+            ./bin/test.sh
+
+  "test_loader_alpine":
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      alpine_version:
+        type: string
+      alpine_packages:
+        type: string
+      resource_class:
+        type: string
+        default: medium
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: << parameters.docker_image >>
+      - run:
+          name: Test the loader
+          command: |
+            set -xeuo pipefail
+
+            apk add --no-cache curl-dev << parameters.alpine_packages >>
+
+            arch=$(uname -m)
+            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-*-${arch}-linux-musl.tar.gz")
+            rm -rf dd-library-php
+            tar -xzf ${package}
+            export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php
+
+            cd loader
+            cp modules/dd_library_loader-$(uname -m)-linux-musl.so modules/dd_library_loader.so
             ./bin/test.sh
 
   compile_extension_centos:
@@ -4500,33 +4550,36 @@ workflows:
           name: "Compile Loader Linux x86_64"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           resource_class: "medium"
+          os: "linux-gnu"
 
       - "compile_loader":
           requires: [ 'Prepare Code' ]
           name: "Compile Loader Linux aarch64"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           resource_class: "arm.medium"
+          os: "linux-gnu"
 
       - "compile_loader":
           requires: [ 'Prepare Code' ]
           name: "Compile Loader Alpine x86_64"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
           resource_class: "medium"
+          os: "linux-musl"
 
       - "compile_loader":
           requires: [ 'Prepare Code' ]
           name: "Compile Loader Alpine aarch64"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
           resource_class: "arm.medium"
+          os: "linux-musl"
 
-      - "test_loader":
+      - "test_loader_linux":
           requires:
             - "package extension"
             - "Compile Loader Linux x86_64"
           name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "medium"
-          os: "linux-gnu"
           matrix:
             parameters:
               php_major_minor:
@@ -4539,14 +4592,13 @@ workflows:
                 - debug
                 - nts
 
-      - "test_loader":
+      - "test_loader_linux":
           requires:
             - "package extension"
             - "Compile Loader Linux x86_64"
-          name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>-<< matrix.resource_class >>"
+          name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "medium"
-          os: "linux-gnu"
           matrix:
             parameters:
               php_major_minor:
@@ -4560,18 +4612,16 @@ workflows:
                 - zts
                 - nts
 
-      - "test_loader":
+      - "test_loader_linux":
           requires:
             - "package extension"
             - "Compile Loader Linux aarch64"
           name: "[Linux/aarch64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "arm.medium"
-          os: "linux-gnu"
           matrix:
             parameters:
               php_major_minor:
-                - "5.6"
                 - "7.0"
                 - "7.1"
                 - "7.2"
@@ -4580,14 +4630,13 @@ workflows:
                 - debug
                 - nts
 
-      - "test_loader":
+      - "test_loader_linux":
           requires:
             - "package extension"
             - "Compile Loader Linux aarch64"
-          name: "[Linux/aarch64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>-<< matrix.resource_class >>"
+          name: "[Linux/aarch64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "arm.medium"
-          os: "linux-gnu"
           matrix:
             parameters:
               php_major_minor:
@@ -4601,35 +4650,35 @@ workflows:
                 - zts
                 - nts
 
-      - "test_loader":
+      - "test_loader_alpine":
           requires:
             - "package extension"
             - "Compile Loader Alpine x86_64"
-          name: "[Alpine/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>-<< matrix.resource_class >>"
-          docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_alpine"
+          name: "[Alpine/x86_64] Loader PHP Alpine << matrix.alpine_version >>"
+          docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "medium"
-          os: "linux-musl"
+          alpine_packages: "php83 php83-dev"
           matrix:
             parameters:
-              php_major_minor:
-                - "8.0"
-              switch_php_version:
-                - "8.0"
+              alpine_version:
+                # - "3.19"
+                - "3.20"
+                # - "latest"
 
-      - "test_loader":
+      - "test_loader_alpine":
           requires:
             - "package extension"
             - "Compile Loader Alpine aarch64"
-          name: "[Alpine/aarch64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>-<< matrix.resource_class >>"
-          docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_alpine"
+          name: "[Alpine/aarch64] Loader PHP Alpine << matrix.alpine_version >>"
+          docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "arm.medium"
-          os: "linux-musl"
+          alpine_packages: "php83 php83-dev"
           matrix:
             parameters:
-              php_major_minor:
-                - "8.0"
-              switch_php_version:
-                - "8.0"
+              alpine_version:
+                # - "3.19"
+                - "3.20"
+                # - "latest"
 
   build:
     when: << pipeline.parameters.build >>

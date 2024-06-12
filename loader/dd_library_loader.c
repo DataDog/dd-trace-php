@@ -298,7 +298,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
 
     void *handle = DL_LOAD(ext_path);
     if (!handle) {
-        TELEMETRY(REASON_ERROR, "Cannot load '%s' extension file", config->ext_name);
+        TELEMETRY(REASON_ERROR, "Cannot load '%s' extension file: %s", config->ext_name, dlerror());
         goto abort;
     }
 

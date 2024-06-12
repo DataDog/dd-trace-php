@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -euo pipefail
 
 function _exit {
     if [[ $? -eq 0 ]]; then
@@ -16,7 +16,13 @@ if [[ ! -f run-tests.php ]]; then
     phpize
 fi
 
-printf "Running PHPT tests\n"
+printf "PHP version\n\n"
+php -n -v
+
+printf "Test load loader\n\n"
+DD_TRACE_DEBUG=1 php -n -d zend_extension=${PWD}/modules/dd_library_loader.so -v
+
+printf "\nRunning PHPT tests\n"
 php -n run-tests.php -q -p $(which php) -n -d zend_extension=${PWD}/modules/dd_library_loader.so --show-diff
 
 printf "\nRunning functional tests\n\n"
