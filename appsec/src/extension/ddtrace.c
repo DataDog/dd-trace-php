@@ -26,6 +26,7 @@ static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
+static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
@@ -106,6 +107,8 @@ void dd_trace_startup()
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
+    _meta_struct_propname =
+        zend_string_init_interned(LSTRARG("meta_struct"), 1);
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
@@ -283,6 +286,29 @@ zval *nullable dd_trace_span_get_meta(zend_object *nonnull zobj)
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
 {
     return _get_span_modifiable_array_property(zobj, _metrics_propname);
+}
+
+zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
+{
+    return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
+}
+
+void add_entry_to_meta_struct(zend_string *key, zval *value)
+{
+    __auto_type span = dd_trace_get_active_root_span();
+    zval *meta_struct = dd_trace_span_get_meta_struct(span);
+    if (!meta_struct) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
+        }
+        zval_ptr_dtor(value);
+        return;
+    }
+
+    if (zend_hash_add(Z_ARRVAL_P(meta_struct), key, value) == NULL) {
+        zval_ptr_dtor(value);
+        return;
+    }
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
