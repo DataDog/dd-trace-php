@@ -339,9 +339,9 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     module_entry->functions = NULL;
 
     // Register the module, catching all errors that can happen (already loaded, unsatisied dep, ...)
-    ddloader_replace_zend_error_cb();
+    ddloader_replace_zend_error_cb(php_api_no);
     module_entry = zend_register_internal_module(module_entry);
-    ddloader_restore_zend_error_cb(php_api_no);
+    ddloader_restore_zend_error_cb();
 
     if (module_entry == NULL) {
         TELEMETRY(REASON_ERROR, "Cannot register '%s' module", config->ext_name);

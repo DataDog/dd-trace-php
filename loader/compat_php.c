@@ -178,16 +178,11 @@ static void ddloader_php_error_zend_error_cb(int type, zend_string *error_filena
 
 void (*old_zend_error_cb)(void);
 
-void ddloader_replace_zend_error_cb() {
+void ddloader_replace_zend_error_cb(int php_api_no) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
     old_zend_error_cb = zend_error_cb;
-#pragma GCC diagnostic pop
-}
 
-void ddloader_restore_zend_error_cb(int php_api_no) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
     if (php_api_no <= 20160303) { // 7.0, 7.1
         zend_error_cb = ddloader_php_70_71_zend_error_cb;
     } else if (php_api_no <= 20190902) { // 7.2, 7.3, 7.4
@@ -197,5 +192,12 @@ void ddloader_restore_zend_error_cb(int php_api_no) {
     } else {
         zend_error_cb = ddloader_php_error_zend_error_cb;
     }
+#pragma GCC diagnostic pop
+}
+
+void ddloader_restore_zend_error_cb() {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    zend_error_cb = old_zend_error_cb;
 #pragma GCC diagnostic pop
 }
