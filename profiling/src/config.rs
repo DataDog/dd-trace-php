@@ -303,11 +303,11 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config
     let dest_suffix = &mut ini_name.ptr[dest_prefix.len()..];
     let src_suffix = &name[src_prefix.len()..];
     for (dest, src) in dest_suffix.iter_mut().zip(src_suffix.bytes()) {
-        *dest = transmute(src.to_ascii_lowercase());
+        *dest = transmute::<u8, c_char>(src.to_ascii_lowercase());
     }
 
     // Add the null terminator.
-    dest_suffix[src_suffix.len()] = transmute(b'\0');
+    dest_suffix[src_suffix.len()] = transmute::<u8, c_char>(b'\0');
 
     // Store the length without the null.
     ini_name.len = dest_prefix.len() + src_suffix.len();
@@ -317,7 +317,7 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in rshutdown.
 pub(crate) unsafe fn get_value(id: ConfigId) -> &'static mut zval {
-    let value = zai_config_get_value(transmute(id));
+    let value = zai_config_get_value(transmute::<ConfigId, u16>(id));
     // Panic: the implementation makes this guarantee.
     assert!(!value.is_null());
     &mut *value
@@ -648,7 +648,7 @@ unsafe fn profiling_log_level() -> LevelFilter {
     }
     match get_system_zend_long(ProfilingLogLevel) {
         // If this is an lval, then we know we can transmute it because the parser worked.
-        Ok(enabled) => transmute(enabled as usize),
+        Ok(enabled) => transmute::<zend_long, LevelFilter>(enabled),
         Err(err) => {
             warn!("config::profiling_log_level() failed: {err}");
             DEFAULT_SYSTEM_SETTINGS.profiling_log_level
@@ -774,7 +774,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
         static mut ENTRIES: &mut [zai_config_entry] = unsafe {
             &mut [
                 zai_config_entry {
-                    id: transmute(ProfilingEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingEnabled),
                     name: ProfilingEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -785,7 +785,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalFeaturesEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingExperimentalFeaturesEnabled),
                     name: ProfilingExperimentalFeaturesEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
@@ -796,7 +796,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingEndpointCollectionEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingEndpointCollectionEnabled),
                     name: ProfilingEndpointCollectionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -807,7 +807,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExperimentalCpuTimeEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingExperimentalCpuTimeEnabled),
                     name: ProfilingExperimentalCpuTimeEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -818,7 +818,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingAllocationEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingAllocationEnabled),
                     name: ProfilingAllocationEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -829,7 +829,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingTimelineEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingTimelineEnabled),
                     name: ProfilingTimelineEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -840,7 +840,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExceptionEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingExceptionEnabled),
                     name: ProfilingExceptionEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -851,7 +851,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExceptionMessageEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingExceptionMessageEnabled),
                     name: ProfilingExceptionMessageEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
@@ -862,7 +862,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingExceptionSamplingDistance),
+                    id: transmute::<ConfigId, u16>(ProfilingExceptionSamplingDistance),
                     name: ProfilingExceptionSamplingDistance.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM,
                     default_encoded_value: ZaiStr::literal(b"100\0"),
@@ -873,7 +873,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingLogLevel),
+                    id: transmute::<ConfigId, u16>(ProfilingLogLevel),
                     name: ProfilingLogLevel.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
                     default_encoded_value: ZaiStr::literal(b"off\0"),
@@ -884,7 +884,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(ProfilingOutputPprof),
+                    id: transmute::<ConfigId, u16>(ProfilingOutputPprof),
                     name: ProfilingOutputPprof.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
@@ -898,7 +898,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 // controls automatic collection (manual collection is still
                 // possible).
                 zai_config_entry {
-                    id: transmute(ProfilingWallTimeEnabled),
+                    id: transmute::<ConfigId, u16>(ProfilingWallTimeEnabled),
                     name: ProfilingWallTimeEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
@@ -909,7 +909,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(AgentHost),
+                    id: transmute::<ConfigId, u16>(AgentHost),
                     name: AgentHost.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
@@ -920,7 +920,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(Env),
+                    id: transmute::<ConfigId, u16>(Env),
                     name: Env.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
@@ -931,7 +931,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(Service),
+                    id: transmute::<ConfigId, u16>(Service),
                     name: Service.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
@@ -942,7 +942,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(Tags),
+                    id: transmute::<ConfigId, u16>(Tags),
                     name: Tags.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_MAP,
                     default_encoded_value: ZaiStr::new(),
@@ -953,7 +953,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(TraceAgentPort),
+                    id: transmute::<ConfigId, u16>(TraceAgentPort),
                     name: TraceAgentPort.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_INT,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
@@ -964,7 +964,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(TraceAgentUrl),
+                    id: transmute::<ConfigId, u16>(TraceAgentUrl),
                     name: TraceAgentUrl.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING, // TYPE?
                     default_encoded_value: ZaiStr::new(),
@@ -975,7 +975,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute(Version),
+                    id: transmute::<ConfigId, u16>(Version),
                     name: Version.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
@@ -1091,8 +1091,8 @@ mod tests {
 
                 // Check that the bytes match.
                 let cmp = memcmp(
-                    transmute(expected_ini_name.as_ptr()),
-                    transmute(ini.ptr.as_ptr()),
+                    expected_ini_name.as_ptr().cast(),
+                    ini.ptr.as_ptr().cast(),
                     expected_ini_name.len(),
                 );
                 assert_eq!(0, cmp);
