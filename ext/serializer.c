@@ -1061,9 +1061,8 @@ static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_
     zval serialised;
     ZVAL_STRINGL(&serialised, data, size);
 
-    dd_serialize_array_recursively(target, str, &serialised, false);
+    zend_hash_update(target, str, &serialised);
     free(data);
-    zval_ptr_dtor(&serialised);
 }
 
 struct iter {
