@@ -12,6 +12,7 @@ use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Routing\RouterInterface;
 use function DDTrace\install_hook;
 
 class SymfonyIntegration extends Integration
