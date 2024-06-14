@@ -5,6 +5,7 @@ mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
+use once_cell::sync::OnceCell;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
 use uploader::*;
@@ -30,6 +31,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::mem::forget;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
@@ -55,6 +57,10 @@ pub const NO_TIMESTAMP: i64 = 0;
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
+
+/// The global profiler. Profiler gets made during the first rinit after an
+/// minit, and is destroyed on mshutdown.
+static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
 
 /// Order this array this way:
 ///  1. Always enabled types.
@@ -519,6 +525,17 @@ pub enum UploadMessage {
 const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 impl Profiler {
+    pub fn init(system_settings: &SystemSettings) {
+        let profiler = unsafe { PROFILER.get() };
+        if profiler.is_none() {
+            let _ = unsafe { PROFILER.set(Profiler::new(system_settings)) };
+        }
+    }
+
+    pub fn get() -> Option<&'static Profiler> {
+        unsafe { PROFILER.get() }
+    }
+
     pub fn new(system_settings: &SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
@@ -630,7 +647,13 @@ impl Profiler {
     /// Note that you must call [Profiler::shutdown] afterwards; it's two
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
-    pub fn stop(&mut self, timeout: Duration) {
+    pub fn stop(timeout: Duration) {
+        if let Some(profiler) = unsafe { PROFILER.get_mut() } {
+            profiler.join_and_drop_sender(timeout);
+        }
+    }
+
+    pub fn join_and_drop_sender(&mut self, timeout: Duration) {
         debug!("Stopping profiler.");
 
         let sent = match self
@@ -661,7 +684,13 @@ impl Profiler {
     /// Completes the shutdown process; to start it, call [Profiler::stop]
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
-    pub fn shutdown(self, timeout: Duration) {
+    pub fn shutdown(timeout: Duration) {
+        if let Some(profiler) = unsafe { PROFILER.take() } {
+            profiler.join_collector_and_uploader(timeout);
+        }
+    }
+
+    pub fn join_collector_and_uploader(self, timeout: Duration) {
         if self.should_join.load(Ordering::SeqCst) {
             thread_utils::join_timeout(
                 self.time_collector_handle,
@@ -678,6 +707,11 @@ impl Profiler {
                 "Recent samples are most likely lost.",
             );
         }
+    }
+
+    pub fn kill() {
+        let maybe_profiler = unsafe { PROFILER.take() };
+        forget(maybe_profiler);
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if

@@ -3,10 +3,9 @@ use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, zend_execute_data, zend_long, zval,
     InternalFunctionHandler,
 };
-use crate::{config, Profiler, PROFILER};
+use crate::{config, Profiler};
 use log::{error, warn};
 use std::ffi::CStr;
-use std::mem::{forget, swap};
 use std::ptr;
 
 static mut PCNTL_FORK_HANDLER: InternalFunctionHandler = None;
@@ -23,8 +22,8 @@ fn handle_pcntl_fork(
      * the threads while the fork is occurring, they cannot acquire locks
      * since this thread holds them, preventing a deadlock situation.
      */
-    let mut profiler_lock = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler_lock.as_ref() {
+    let profiler_lock = Profiler::get();
+    if let Some(profiler) = profiler_lock {
         profiler.fork_prepare();
     }
 
@@ -45,7 +44,7 @@ fn handle_pcntl_fork(
          * to to prevent further profiling which could cause a crash/deadlock.
          */
 
-        stop_and_forget_profiling(&mut profiler_lock);
+        stop_and_forget_profiling();
     } else {
         // Safety: we checked it wasn't null above.
         let result: Result<zend_long, _> = unsafe { &mut *return_value }.try_into();
@@ -56,12 +55,12 @@ fn handle_pcntl_fork(
                     name, r#type
                 );
 
-                stop_and_forget_profiling(&mut profiler_lock);
+                stop_and_forget_profiling();
             }
             Ok(pid) => {
                 // The child gets pid of 0. For now, stop profiling for safety.
                 if pid == 0 {
-                    stop_and_forget_profiling(&mut profiler_lock);
+                    stop_and_forget_profiling();
 
                     /* When we fully support forking remember:
                      *  - Reset last_cpu_time and last_wall_time.
@@ -80,7 +79,7 @@ fn handle_pcntl_fork(
     }
 }
 
-fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
+fn stop_and_forget_profiling() {
     /* In a forking situation, the currently active profiler may not be valid
      * because it has join handles and other state shared by other threads,
      * and threads are not copied when the process is forked.
@@ -91,9 +90,7 @@ fn stop_and_forget_profiling(maybe_profiler: &mut Option<Profiler>) {
      * and forgetting it, which avoids running the destructor. Yes, this will
      * most likely leak some small amount of memory.
      */
-    let mut old_profiler = None;
-    swap(&mut *maybe_profiler, &mut old_profiler);
-    forget(old_profiler);
+    Profiler::kill();
 
     alloc_prof_rshutdown();
 
