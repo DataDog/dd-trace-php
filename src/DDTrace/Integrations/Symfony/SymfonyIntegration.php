@@ -332,7 +332,11 @@ class SymfonyIntegration extends Integration
         
                 // Replace route parameters in URL with placeholders
                 foreach ($parameters as $key => $value) {
-                    $url = str_replace($value, '{' . $key . '}', $url);
+                    $search = '/' . preg_quote($value, '/') . '/';
+                    if (empty($value)) {
+                        continue;
+                    }
+                    $url = preg_replace($search, '{' . $key . '}', $url, 1);
                 }
         
                 $urlWithoutQueryParameters = strtok($url, '?');
