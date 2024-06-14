@@ -5,7 +5,7 @@ use crate::zend::{
 };
 use crate::REQUEST_LOCALS;
 use libc::c_char;
-use log::{error, trace, warn};
+use log::{error, trace};
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ptr;
@@ -46,13 +46,12 @@ impl State {
     }
 }
 
-#[inline]
-fn try_sleeping_fn(
+fn sleeping_fn(
     func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
     state: State,
-) -> anyhow::Result<()> {
+) {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.system_settings().profiling_timeline_enabled)
@@ -61,7 +60,7 @@ fn try_sleeping_fn(
 
     if !timeline_enabled {
         unsafe { func(execute_data, return_value) };
-        return Ok(());
+        return;
     }
 
     let start = Instant::now();
@@ -75,28 +74,18 @@ fn try_sleeping_fn(
 
     let duration = start.elapsed();
 
-    // > Returns an Err if earlier is later than self, and the error contains
-    // > how far from self the time is.
-    // This shouldn't ever happen (now is always later than the epoch) but in
-    // case it does, short-circuit the function.
-    let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    // This shouldn't ever happen (now is always later than the epoch)
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+
+    if now.is_err() {
+        return;
+    }
 
     if let Some(profiler) = Profiler::get() {
-        let now = now.as_nanos() as i64;
+        // Safety: `unwrap` can be unchecked, as we checked for `is_err()`
+        let now = unsafe { now.unwrap_unchecked().as_nanos() } as i64;
         let duration = duration.as_nanos() as i64;
-        profiler.collect_idle(now, duration, state.as_str())
-    }
-    Ok(())
-}
-
-fn sleeping_fn(
-    func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-    state: State,
-) {
-    if let Err(err) = try_sleeping_fn(func, execute_data, return_value, state) {
-        warn!("error creating profiling timeline sample for an internal function: {err:#}");
+        profiler.collect_idle(now, duration, state.as_str());
     }
 }
 
