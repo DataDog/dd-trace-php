@@ -42,7 +42,8 @@ static void ddtrace_pre_minit_hook(void) {
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_minit_hook, ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
+    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_minit_hook,
+                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
     // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, ((zend_module_dep[]){ZEND_MOD_END})),
     // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, ((zend_module_dep[]){ZEND_MOD_END})),
 };
@@ -56,8 +57,7 @@ void ddloader_logv(log_level level, const char *format, va_list va) {
     vsnprintf(msg, sizeof(msg), format, va);
 
     char *level_str = "unknown";
-    switch (level)
-    {
+    switch (level) {
         case INFO:
             level_str = "info";
             break;
@@ -103,14 +103,14 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
         return;
     }
     if (pid > 0) {
-        return; // parent
+        return;  // parent
     }
 
     char *points = "";
-    switch (reason)
-    {
+    switch (reason) {
         case REASON_ERROR:
-            points = "\
+            points =
+                "\
                 {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:error\"]},\
                 {\"name\": \"library_entrypoint.error\"}, \"tags\": [\"error_type:unknown\"]}\
             ";
@@ -118,7 +118,8 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
 
         case REASON_EOL_RUNTIME:
         case REASON_INCOMPATIBLE_RUNTIME:
-            points = "\
+            points =
+                "\
                 {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:incompatible_runtime\"]},\
                 {\"name\": \"library_entrypoint.abort.runtime\"}\
             ";
@@ -126,18 +127,21 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
 
         case REASON_COMPLETE:
             if (injection_forced) {
-                points = "\
+                points =
+                    "\
                     {\"name\": \"library_entrypoint.complete\", \"tags\": [\"injection_forced:true\"]}\
                 ";
             } else {
-                points = "\
+                points =
+                    "\
                     {\"name\": \"library_entrypoint.complete\", \"tags\": [\"injection_forced:false\"]}\
                 ";
             }
             break;
     }
 
-    char *template = "\
+    char *template =
+        "\
 {\
     \"metadata\": {\
         \"runtime_name\": \"php\",\
@@ -229,7 +233,7 @@ static void ddloader_unregister_module(const char *name) {
 static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     // Find the injected extension config using the module_number set by the engine
     injected_ext *config = NULL;
-    for (unsigned int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
+    for (unsigned int i = 0; i < sizeof(injected_ext_config) / sizeof(injected_ext_config[0]); ++i) {
         if (injected_ext_config[i].module_number == module_number) {
             config = &injected_ext_config[i];
             break;
@@ -320,7 +324,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
         goto abort;
     }
 
-    zend_module_entry *(*get_module)(void) = (zend_module_entry *(*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
+    zend_module_entry *(*get_module)(void) = (zend_module_entry * (*)(void)) ddloader_dl_fetch_symbol(handle, "_get_module");
     if (!get_module) {
         TELEMETRY(REASON_ERROR, "Cannot fetch '%s' module entry", config->ext_name);
         goto abort_and_unload;
@@ -329,11 +333,13 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     zend_module_entry *module_entry = get_module();
 
     if (module_entry->zend_api != php_api_no) {
-        TELEMETRY(REASON_ERROR, "'%s' API number mismatch between module (%d) and runtime (%d)", config->ext_name, module_entry->zend_api, php_api_no);
+        TELEMETRY(REASON_ERROR, "'%s' API number mismatch between module (%d) and runtime (%d)", config->ext_name, module_entry->zend_api,
+                  php_api_no);
         goto abort_and_unload;
     }
     if (strcmp(module_entry->build_id, module_build_id)) {
-        TELEMETRY(REASON_ERROR, "'%s' Build ID mismatch between module (%s) and runtime (%s)", config->ext_name, module_entry->build_id, module_build_id);
+        TELEMETRY(REASON_ERROR, "'%s' Build ID mismatch between module (%s) and runtime (%s)", config->ext_name, module_entry->build_id,
+                  module_build_id);
         goto abort_and_unload;
     }
 
@@ -383,7 +389,7 @@ abort:
 
 static void ddloader_strtolower(char *dest, char *src) {
     while (*src) {
-        *dest = (char) tolower((int) *src);
+        *dest = (char)tolower((int)*src);
         ++dest;
         ++src;
     }
@@ -402,11 +408,7 @@ static bool ddloader_is_truthy(char *str) {
     char lower[5] = {0};
     ddloader_strtolower(lower, str);
 
-    return (strcmp(lower, "1") == 0
-        || strcmp(lower, "true") == 0
-        || strcmp(lower, "yes") == 0
-        || strcmp(lower, "on") == 0
-    );
+    return (strcmp(lower, "1") == 0 || strcmp(lower, "true") == 0 || strcmp(lower, "yes") == 0 || strcmp(lower, "on") == 0);
 }
 
 static inline void ddloader_configure() {
@@ -423,8 +425,7 @@ static inline void ddloader_configure() {
 static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
-    switch (api_no)
-    {
+    switch (api_no) {
         case 220100525:
             runtime_version = "5.4";
             break;
@@ -440,15 +441,15 @@ static int ddloader_api_no_check(int api_no) {
     }
 
     switch (api_no) {
-        case 320151012: // 7.0
-        case 320160303: // 7.1
-        case 320170718: // 7.2
-        case 320180731: // 7.3
-        case 320190902: // 7.4
-        case 420200930: // 8.0
-        case 420210902: // 8.1
-        case 420220829: // 8.2
-        case 420230831: // 8.3
+        case 320151012:  // 7.0
+        case 320160303:  // 7.1
+        case 320170718:  // 7.2
+        case 320180731:  // 7.3
+        case 320190902:  // 7.4
+        case 420200930:  // 8.0
+        case 420210902:  // 8.1
+        case 420220829:  // 8.2
+        case 420230831:  // 8.3
             break;
 
         default:
@@ -497,7 +498,7 @@ static int ddloader_build_id_check(const char *build_id) {
     }
 
     // Load the extensions declared in injected_ext_config
-    for (unsigned int i = 0; i < sizeof(injected_ext_config)/sizeof(injected_ext_config[0]); ++i) {
+    for (unsigned int i = 0; i < sizeof(injected_ext_config) / sizeof(injected_ext_config[0]); ++i) {
         ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &injected_ext_config[i]);
     }
 
@@ -505,7 +506,10 @@ static int ddloader_build_id_check(const char *build_id) {
 }
 
 // Required. Otherwise the zend_extension is not loaded
-static int ddloader_zend_extension_startup(zend_extension *ext) { UNUSED(ext); return SUCCESS; }
+static int ddloader_zend_extension_startup(zend_extension *ext) {
+    UNUSED(ext);
+    return SUCCESS;
+}
 
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
 ZEND_DLEXPORT zend_extension_version_info extension_version_info = {

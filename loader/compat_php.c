@@ -11,8 +11,8 @@
 
 ZEND_API zval *ZEND_FASTCALL zend_hash_set_bucket_key(HashTable *ht, Bucket *b, zend_string *key) __attribute__((weak));
 
-ZEND_API zval* ZEND_FASTCALL zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
-ZEND_API zval* ZEND_FASTCALL _zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
+ZEND_API zval *ZEND_FASTCALL zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
+ZEND_API zval *ZEND_FASTCALL _zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
 
 static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
@@ -194,11 +194,11 @@ void ddloader_replace_zend_error_cb(int php_api_no) {
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
     old_zend_error_cb = zend_error_cb;
 
-    if (php_api_no <= 20160303) { // 7.0, 7.1
+    if (php_api_no <= 20160303) {  // 7.0, 7.1
         zend_error_cb = ddloader_php_70_71_zend_error_cb;
-    } else if (php_api_no <= 20190902) { // 7.2, 7.3, 7.4
+    } else if (php_api_no <= 20190902) {  // 7.2, 7.3, 7.4
         zend_error_cb = ddloader_php_72_73_74_zend_error_cb;
-    } else if (php_api_no <= 20200930) { // 8.0
+    } else if (php_api_no <= 20200930) {  // 8.0
         zend_error_cb = ddloader_php_80_error_zend_error_cb;
     } else {
         zend_error_cb = ddloader_php_error_zend_error_cb;
