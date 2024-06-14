@@ -296,6 +296,48 @@ class SymfonyIntegration extends Integration
                 }
             }
         );
+        
+        \DDTrace\trace_method(
+            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'dispatch',
+            function (DDTrace\SpanData $span, $args) {
+        
+                list($event) = $args;
+        
+                if (!$event instanceof ControllerEvent) {
+                    return;
+                }
+                
+                $request = $event->getRequest();
+                list($controller) = $event->getController();
+        
+                if (!property_exists($controller, 'container')) {
+                    return;
+                }
+        
+                $rc = new \ReflectionClass(get_class($controller));
+                $container = $rc->getProperty('container');
+                $container->setAccessible(true);
+                $container = $container->getValue($controller);
+        
+                $router = $container->get('router');
+                $routeName = $request->attributes->get('_route');
+                $matcher = $router->getMatcher();
+        
+                // Generate URL for the current route
+                $parameters = $matcher->match($request->getPathInfo());
+                $url = $router->generate($routeName, $parameters, RouterInterface::ABSOLUTE_PATH);
+        
+                // Replace route parameters in URL with placeholders
+                foreach ($parameters as $key => $value) {
+                    $url = str_replace($value, '{' . $key . '}', $url);
+                }
+        
+                $urlWithoutQueryParameters = strtok($url, '?');
+        
+                $span->meta[\DDTrace\Tag::HTTP_ROUTE] = $urlWithoutQueryParameters;
+            }
+        );
 
         $this->loadSymfony($this);
 
@@ -395,13 +437,6 @@ class SymfonyIntegration extends Integration
                     }
                     $rootSpan->meta['symfony.route.name'] = $route;
                 }
-
-                $path = \DDTrace\Util\Normalizer::uriNormalizeIncomingPath($_SERVER['REQUEST_URI']);
-                foreach (array_keys($parameters) as $key) {
-                    $path = preg_replace('/\?/', '{' . $key . '}', $path, 1);
-                }
-                $span->meta[\DDTrace\Tag::HTTP_ROUTE] = $path;
-                
             }
         );
 
