@@ -300,11 +300,12 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
-            function (DDTrace\SpanData $span, $args) {
+            function (SpanData $span, $args) {
         
                 list($event) = $args;
-        
-                if (!$event instanceof ControllerEvent) {
+
+                $controllerEventClass = '\Symfony\Component\HttpKernel\Event\ControllerEvent';
+                if (!$event instanceof $controllerEventClass) {
                     return;
                 }
                 
