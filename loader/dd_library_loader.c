@@ -201,17 +201,22 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
     int i = 0;
     while (deps[i].name) {
         if (deps[i].type == MODULE_DEP_REQUIRED) {
-            zend_module_entry *req_mod;
+            zend_module_entry *req_mod = NULL;
 
             name_len = strlen(deps[i].name);
             lcname = ddloader_zend_string_alloc(php_api_no, name_len, 0);
             zend_str_tolower_copy(ZSTR_VAL(lcname), deps[i].name, name_len);
 
-            if ((req_mod = zend_hash_find_ptr(&module_registry, lcname)) == NULL || !req_mod->module_started) {
-                zend_string_efree(lcname);
+            zval *zv = zend_hash_find(&module_registry, lcname);
+            if (zv) {
+                req_mod = Z_PTR_P(zv);
+            }
+
+            if (req_mod == NULL || !req_mod->module_started) {
+                efree(lcname);
                 return false;
             }
-            zend_string_efree(lcname);
+            efree(lcname);
         }
         ++i;
     }
