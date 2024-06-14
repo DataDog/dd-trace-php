@@ -6,27 +6,46 @@
 
 #include <Zend/zend_extensions.h>
 #include <php.h>
+#include <php_ini.h>
 #include <stdbool.h>
 #include <ext/standard/basic_functions.h>
 
 #include "compat_php.h"
 #include "php_dd_library_loader.h"
 
-// Declare the extension we want to load
-static injected_ext injected_ext_config[] = {
-    // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", ((zend_module_dep[]){ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("ddappsec", "appsec", ((zend_module_dep[]){ZEND_MOD_END})),
-};
-
 static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
+static char *package_path = "/home/circleci/app/dd-library-php";  // FIXME
 
 static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
+
+static void ddtrace_pre_minit_hook(void) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (configuration_hash) {
+        char *sources_path;
+        asprintf(&sources_path, "%s/trace/src", package_path);
+
+        // Set 'datadog.trace.sources_path' setting
+        zend_string *name = ddloader_zend_string_init(php_api_no, ZEND_STRL("datadog.trace.sources_path"), 1);
+        zend_string *value = ddloader_zend_string_init(php_api_no, sources_path, strlen(sources_path), 1);
+        free(sources_path);
+
+        zval tmp;
+        ZVAL_STR(&tmp, value);
+        ddloader_zend_hash_update(configuration_hash, name, &tmp);
+    }
+}
+
+// Declare the extension we want to load
+static injected_ext injected_ext_config[] = {
+    // Tracer must be the first
+    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_minit_hook, ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+};
 
 void ddloader_logv(log_level level, const char *format, va_list va) {
     if (!debug_logs) {
@@ -143,13 +162,8 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
 }
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
-    char *pkg_path = getenv("DD_LOADER_PACKAGE_PATH");
-    if (!pkg_path) {
-        pkg_path = "/home/circleci/app/dd-library-php";  // FIXME
-    }
-
     char *full_path;
-    asprintf(&full_path, "%s/%s/ext/%d/%s%s%s.so", pkg_path, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
+    asprintf(&full_path, "%s/%s/ext/%d/%s%s%s.so", package_path, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
 
     if (access(full_path, F_OK)) {
         free(full_path);
@@ -186,7 +200,7 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
             zend_module_entry *req_mod;
 
             name_len = strlen(deps[i].name);
-            lcname = zend_string_alloc(name_len, 0);
+            lcname = ddloader_zend_string_alloc(php_api_no, name_len, 0);
             zend_str_tolower_copy(ZSTR_VAL(lcname), deps[i].name, name_len);
 
             if ((req_mod = zend_hash_find_ptr(&module_registry, lcname)) == NULL || !req_mod->module_started) {
@@ -272,6 +286,10 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     if (module->functions && zend_register_functions(NULL, module->functions, NULL, module->type) == FAILURE) {
         TELEMETRY(REASON_ERROR, "Unable to register extension's functions");
         return SUCCESS;
+    }
+
+    if (config->pre_minit_hook) {
+        config->pre_minit_hook();
     }
 
     zend_result ret = module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
@@ -395,6 +413,11 @@ static inline void ddloader_configure() {
     debug_logs = ddloader_is_truthy(getenv("DD_TRACE_DEBUG"));
     force_load = ddloader_is_truthy(getenv("DD_INJECT_FORCE"));
     telemetry_forwarder_path = getenv("DD_TELEMETRY_FORWARDER_PATH");
+
+    char *pkg_path = getenv("DD_LOADER_PACKAGE_PATH");
+    if (pkg_path) {
+        package_path = pkg_path;
+    }
 }
 
 static int ddloader_api_no_check(int api_no) {

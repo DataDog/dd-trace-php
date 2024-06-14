@@ -11,6 +11,9 @@
 
 ZEND_API zval *ZEND_FASTCALL zend_hash_set_bucket_key(HashTable *ht, Bucket *b, zend_string *key) __attribute__((weak));
 
+ZEND_API zval* ZEND_FASTCALL zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
+ZEND_API zval* ZEND_FASTCALL _zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
+
 static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
         return PHP_70_71_72_ZSTR_IS_INTERNED(key);
@@ -28,6 +31,14 @@ static zend_string *php70_71_72_zend_string_alloc(size_t len, int persistent) {
     ZSTR_LEN(ret) = len;
 
     return ret;
+}
+
+zend_string *ddloader_zend_string_alloc(int php_api_no, size_t len, int persistent) {
+    if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
+        return php70_71_72_zend_string_alloc(len, persistent);
+    }
+
+    return zend_string_alloc(len, persistent);
 }
 
 zend_string *ddloader_zend_string_init(int php_api_no, const char *str, size_t len, bool persistent) {
@@ -200,4 +211,15 @@ void ddloader_restore_zend_error_cb() {
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
     zend_error_cb = old_zend_error_cb;
 #pragma GCC diagnostic pop
+}
+
+zval *ddloader_zend_hash_update(HashTable *ht, zend_string *key, zval *pData) {
+    if (zend_hash_update) {
+        return zend_hash_update(ht, key, pData);
+    }
+    if (_zend_hash_update) {
+        return _zend_hash_update(ht, key, pData);
+    }
+
+    return NULL;
 }

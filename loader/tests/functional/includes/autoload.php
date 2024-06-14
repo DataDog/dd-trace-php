@@ -27,10 +27,11 @@ function runCLI($args, $useLoader = true, $env = []) {
     }
     $cmd .= ' '.$args;
     $cmd .= ' 2>&1';
+    $cmd = trim($cmd);
 
     $res = exec($cmd, $output, $result_code);
     if (!is_string($res) || $result_code !== 0) {
-        throw new \Exception(sprintf('Error while executing "%s" (exit code: %d)', $cmd, $result_code));
+        throw new \Exception(sprintf('Error while executing "%s" (exit code: %d): \n\n', $cmd, $result_code, $output));
     }
 
     return implode("\n", $output);
