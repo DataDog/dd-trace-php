@@ -3366,7 +3366,7 @@ jobs:
       - run:
           name: Clone System Tests repo
           command: |
-            git clone -b julio/test-sidecar https://github.com/DataDog/system-tests.git
+            git clone https://github.com/DataDog/system-tests.git
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
