@@ -26,7 +26,7 @@ use datadog_profiling::api::{
 };
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -524,6 +524,9 @@ pub enum UploadMessage {
 #[cfg(feature = "timeline")]
 const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
+const DDPROF_TIME: &str = "ddprof_time";
+const DDPROF_UPLOAD: &str = "ddprof_upload";
+
 impl Profiler {
     pub fn init(system_settings: &SystemSettings) {
         let profiler = unsafe { PROFILER.get() };
@@ -557,21 +560,19 @@ impl Profiler {
             Utc::now(),
         );
 
-        let ddprof_time = "ddprof_time";
-        let ddprof_upload = "ddprof_upload";
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
             message_sender,
             upload_sender,
-            time_collector_handle: thread_utils::spawn(ddprof_time, move || {
+            time_collector_handle: thread_utils::spawn(DDPROF_TIME, move || {
                 time_collector.run();
-                trace!("thread {ddprof_time} complete, shutting down");
+                trace!("thread {DDPROF_TIME} complete, shutting down");
             }),
-            uploader_handle: thread_utils::spawn(ddprof_upload, move || {
+            uploader_handle: thread_utils::spawn(DDPROF_UPLOAD, move || {
                 uploader.run();
-                trace!("thread {ddprof_upload} complete, shutting down");
+                trace!("thread {DDPROF_UPLOAD} complete, shutting down");
             }),
             should_join: AtomicBool::new(true),
             sample_types_filter,
@@ -601,22 +602,26 @@ impl Profiler {
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
-    pub fn fork_prepare(&self) {
-        // Send the message to the uploader first, as it has a longer worst-
+    pub fn fork_prepare(&self) -> anyhow::Result<()> {
+        // Send the message to the uploader first, as it has a longer worst
         // case time to wait.
         let uploader_result = self.upload_sender.send(UploadMessage::Pause);
         let profiler_result = self.message_sender.send(ProfilerMessage::Pause);
 
-        // todo: handle fails more gracefully, but it's tricky to sync 3
-        //       threads, any of which could have crashed or be delayed. This
-        //       could also deadlock.
         match (uploader_result, profiler_result) {
             (Ok(_), Ok(_)) => {
                 self.fork_barrier.wait();
+                Ok(())
             }
-            (_, _) => {
-                error!("failed to prepare the profiler for forking, a deadlock could occur")
+            (Err(err), Ok(_)) => {
+                anyhow::bail!("failed to prepare {DDPROF_UPLOAD} thread for forking: {err}")
             }
+            (Ok(_), Err(err)) => {
+                anyhow::bail!("failed to prepare {DDPROF_TIME} thread for forking: {err}")
+            }
+            (Err(_), Err(_)) => anyhow::bail!(
+                "failed to prepare both {DDPROF_UPLOAD} and {DDPROF_TIME} threads for forking"
+            ),
         }
     }
 
@@ -709,9 +714,32 @@ impl Profiler {
         }
     }
 
-    pub fn kill() {
-        let maybe_profiler = unsafe { PROFILER.take() };
-        forget(maybe_profiler);
+    /// Throws away the profiler and moves it to uninitialized.
+    ///
+    /// In a forking situation, the currently active profiler may not be valid
+    /// because it has join handles and other state shared by other threads,
+    /// and threads are not copied when the process is forked.
+    /// Additionally, if we've hit certain other issues like not being able to
+    /// determine the return type of the pcntl_fork function, we don't know if
+    /// we're the parent or child.
+    /// So, we throw away the current profiler and forget it, which avoids
+    /// running the destructor. Yes, this will leak some memory.
+    ///
+    /// # Safety
+    /// Must be called when no other thread is using the PROFILER object. That
+    /// includes this thread in some kind of recursive manner.
+    pub unsafe fn kill() {
+        // SAFETY: see this function's safety conditions.
+        if let Some(mut profiler) = PROFILER.take() {
+            // Drop some things to reduce memory.
+            profiler.interrupt_manager = Arc::new(InterruptManager::new());
+            profiler.message_sender = crossbeam_channel::bounded(0).0;
+            profiler.upload_sender = crossbeam_channel::bounded(0).0;
+
+            // But we're not 100% sure everything is safe to drop, notably the
+            // join handles, so we leak the rest.
+            forget(profiler)
+        }
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
