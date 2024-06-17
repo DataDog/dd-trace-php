@@ -6,6 +6,10 @@
 #ifndef BACKTRACE_H
 #define BACKTRACE_H
 
+#include <SAPI.h>
+#include <Zend/zend_builtin_functions.h>
+#include <php.h>
+
 void dd_backtrace_startup();
 void generate_backtrace(zval *result);
 
