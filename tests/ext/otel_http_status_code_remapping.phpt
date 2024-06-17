@@ -1,10 +1,10 @@
 --TEST--
-Remap http.response.status_code to http.status_code - OTel HTTP Semantic Convention >= 1.21.0
+Remap http.status_code metric to http.status_code meta - OTel HTTP Semantic Convention < 1.21.0
 --FILE--
 <?php
 
 $span = \DDTrace\start_span();
-$span->metrics['http.response.status_code'] = "300";
+$span->metrics['http.status_code'] = "200";
 \DDTrace\close_span();
 
 var_dump(dd_trace_serialize_closed_spans());
@@ -29,13 +29,13 @@ array(1) {
     ["resource"]=>
     string(0) ""
     ["service"]=>
-    string(44) "otel_http_response_status_code_remapping.php"
+    string(35) "otel_http_status_code_remapping.php"
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
     array(1) {
       ["http.status_code"]=>
-      string(3) "300"
+      string(3) "200"
     }
   }
 }
