@@ -2,12 +2,14 @@
 
 namespace DDTrace\Integrations\OpenAI;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Log\DatadogLogger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
+use OpenAI\Responses\StreamResponse;
 use function DDTrace\dogstatsd_count;
 use function DDTrace\dogstatsd_distribution;
 use function DDTrace\dogstatsd_gauge;
@@ -202,8 +204,8 @@ class OpenAIIntegration extends Integration
                         OpenAIIntegration::handleStreamedResponse(
                             span: $span,
                             logger: $logger,
-                            headers: method_exists($response, 'meta') ? $response->meta()->toArray() : [],
-                            response: \is_string($response) ? $response : ($response ? $response->getIterator() : []),
+                            headers: $response->meta()->toArray(),
+                            response: $response,
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
                         );
@@ -211,6 +213,19 @@ class OpenAIIntegration extends Integration
                 ]
             );
         }
+
+        \DDTrace\install_hook(
+            'OpenAI\Responses\StreamResponse::getIterator',
+            null,
+            function (HookData $hook) {
+                /** @var \OpenAI\Responses\StreamResponse $this */
+                $generator = ObjectKVStore::get($this, 'generator');
+                if (!is_null($generator)) {
+                    // It is valid for the retval to be empty if the generator was already consumed
+                    $hook->overrideReturnValue($generator);
+                }
+            }
+        );
 
         return Integration::LOADED;
     }
@@ -1035,11 +1050,13 @@ class OpenAIIntegration extends Integration
         SpanData        $span,
         ?DatadogLogger  $logger,
         array           $headers,
-        \Generator      $response,
+        StreamResponse  $response,
         string          $httpMethod,
         string          $endpoint,
     )
     {
+        $responseArray = self::readAndStoreStreamedResponse($span, $response);
+
         $methodName = \explode('/', $span->resource)[0];
 
         $tags = [
@@ -1052,10 +1069,10 @@ class OpenAIIntegration extends Integration
 
         switch ($methodName) {
             case 'createCompletion':
-                $tags += self::commonStreamedCreateResponseExtraction($span, $response);
+                $tags += self::commonStreamedCreateResponseExtraction($span, $responseArray);
                 break;
             case 'createChatCompletion':
-                $tags += self::commonStreamedCreateChatResponseExtraction($span, $response);
+                $tags += self::commonStreamedCreateChatResponseExtraction($span, $responseArray);
                 break;
         }
 
@@ -1073,13 +1090,39 @@ class OpenAIIntegration extends Integration
             logger: $logger,
             span: $span,
             methodName: $methodName,
-            error: $span->exception ? true : false
+            error: (bool)$span->exception
         );
 
         self::applyPromptAndCompletionSampling($span);
     }
 
-    public static function commonStreamedCreateResponseExtraction(SpanData $span, \Generator $response): array
+    public static function readAndStoreStreamedResponse(SpanData $span, StreamResponse $response): array
+    {
+        $responseArray = [];
+        $iterator = $response->getIterator();
+        try {
+            while ($iterator->valid()) {
+                $current = $iterator->current();
+                $responseArray[] = $current;
+                $iterator->next();
+            }
+        } catch (\OpenAI\Exceptions\ErrorException $e) { // This is the error class that could be thrown by requestStream
+            // If there was an error, it is THROWN by the generator
+            $span->exception = $e;
+        }
+
+        // Create a new Generator with the same data
+        $newGenerator = function () use ($responseArray) {
+            foreach ($responseArray as $item) {
+                yield $item;
+            }
+        };
+        ObjectKVStore::put($response, 'generator', $newGenerator);
+
+        return $responseArray;
+    }
+
+    public static function commonStreamedCreateResponseExtraction(SpanData $span, array $response): array
     {
         return self::commonStreamedResponseExtraction(
             $span,
@@ -1088,7 +1131,7 @@ class OpenAIIntegration extends Integration
         );
     }
 
-    public static function commonStreamedCreateChatResponseExtraction(SpanData $span, \Generator $response): array
+    public static function commonStreamedCreateChatResponseExtraction(SpanData $span, array $response): array
     {
         return self::commonStreamedResponseExtraction(
             $span,
@@ -1097,20 +1140,13 @@ class OpenAIIntegration extends Integration
         );
     }
 
-    public static function commonStreamedResponseExtraction(SpanData $span, \Generator $response, callable $estimateTokens): array
+    public static function commonStreamedResponseExtraction(SpanData $span, array $response, callable $estimateTokens): array
     {
         $numCompletionTokens = 0;
         $numPromptTokens = $span->metrics['openai.response.usage.prompt_tokens'] ?? 0;
 
-        try {
-            while ($response->valid()) {
-                $current = $response->current();
-                $numCompletionTokens += $estimateTokens($current->toArray());
-                $response->next();
-            }
-        } catch (\OpenAI\Exceptions\ErrorException $e) { // This is the error class that could be thrown by requestStream
-            // If there was an error, it is THROWN by the generator
-            $span->exception = $e;
+        foreach ($response as $current) {
+            $numCompletionTokens += $estimateTokens($current->toArray());
         }
 
         return [
