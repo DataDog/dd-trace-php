@@ -1504,12 +1504,22 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
-    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code
+    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions >= 1.21.0
     zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
     if (http_response_status_code) {
         Z_TRY_ADDREF_P(http_response_status_code);
         zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_response_status_code);
         zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
+    }
+
+    // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions < 1.21.0
+    zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
+    if (http_status_code) {
+        Z_TRY_ADDREF_P(http_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_status_code);
+        zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
     }
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
