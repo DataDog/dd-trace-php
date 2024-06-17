@@ -28,7 +28,7 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\RootSpanData)#%d (18) {
+object(DDTrace\RootSpanData)#%d (19) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
@@ -39,6 +39,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   string(0) ""
   ["version"]=>
   string(0) ""
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>

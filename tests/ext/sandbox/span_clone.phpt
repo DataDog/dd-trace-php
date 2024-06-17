@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (18) {
+object(DDTrace\RootSpanData)#%d (19) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -35,6 +35,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   string(0) ""
   ["version"]=>
   string(0) ""
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
@@ -82,7 +85,7 @@ object(DDTrace\RootSpanData)#%d (18) {
   ["traceId"]=>
   string(32) "%s"
 }
-object(DDTrace\RootSpanData)#%d (18) {
+object(DDTrace\RootSpanData)#%d (19) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -93,6 +96,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   string(0) ""
   ["version"]=>
   string(0) ""
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
@@ -127,7 +133,7 @@ object(DDTrace\RootSpanData)#%d (18) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (18) {
+    object(DDTrace\RootSpanData)#%d (19) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -138,6 +144,9 @@ object(DDTrace\RootSpanData)#%d (18) {
       string(0) ""
       ["version"]=>
       string(0) ""
+      ["meta_struct"]=>
+      array(0) {
+      }
       ["type"]=>
       string(3) "cli"
       ["meta"]=>

@@ -63,8 +63,10 @@ static void mpack_write_utf8_lossy_cstr(mpack_writer_t *writer, const char *str,
 #define KEY_TRACE_ID "trace_id"
 #define KEY_SPAN_ID "span_id"
 #define KEY_PARENT_ID "parent_id"
+#define KEY_META_STRUCT "meta_struct"
 
 static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level);
+static void serialize_meta_struct(mpack_writer_t *writer, zval *trace);
 
 static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
     zval *tmp;
@@ -89,6 +91,7 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
     ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
         // Writing the key, if associative
         bool zval_string_as_uint64 = false;
+        bool is_meta_struct = false;
         if (is_assoc == 1) {
             char num_str_buf[MAX_ID_BUFSIZ], *key;
             size_t len;
@@ -105,11 +108,17 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht, int level) {
                 (0 == strcmp(KEY_TRACE_ID, key) || 0 == strcmp(KEY_SPAN_ID, key) || 0 == strcmp(KEY_PARENT_ID, key))) {
                 zval_string_as_uint64 = true;
             }
+            if (level <= 3 &&
+                (0 == strcmp(KEY_META_STRUCT, key))) {
+                is_meta_struct = true;
+            }
         }
 
         // Writing the value
         if (zval_string_as_uint64) {
             mpack_write_u64(writer, strtoull(Z_STRVAL_P(tmp), NULL, 10));
+        } else if(is_meta_struct) {
+            serialize_meta_struct(writer, tmp);
         } else if (msgpack_write_zval(writer, tmp, level) != 1) {
             return 0;
         }
@@ -128,7 +137,6 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
     if (Z_TYPE_P(trace) == IS_REFERENCE) {
         trace = Z_REFVAL_P(trace);
     }
-
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
             if (write_hash_table(writer, Z_ARRVAL_P(trace), level + 1) != 1) {
@@ -157,6 +165,26 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace, int level) {
             return 0;
     }
     return 1;
+}
+
+static void serialize_meta_struct(mpack_writer_t *writer, zval *meta_struct) {
+    zval *tmp;
+    zend_string *string_key;
+
+    HashTable *ht = Z_ARRVAL_P(meta_struct);
+
+    mpack_start_map(writer, zend_hash_num_elements(ht));
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
+        if (!string_key) {
+            continue;
+        }
+        mpack_write_cstr(writer, ZSTR_VAL(string_key));
+        mpack_write_bin(writer, Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
+    }
+    ZEND_HASH_FOREACH_END();
+
+    mpack_finish_map(writer);
 }
 
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p) {
@@ -1017,6 +1045,26 @@ static void dd_serialize_array_metrics_recursively(zend_array *target, zend_stri
     dd_serialize_array_recursively(target, str, value, true);
 }
 
+static void dd_serialize_array_meta_struct_recursively(zend_array *target, zend_string *str, zval *value) {
+    char *data;
+    size_t size;
+
+    mpack_writer_t writer;
+    mpack_writer_init_growable(&writer, &data, &size);
+    int result = msgpack_write_zval(&writer, value, 5);
+    mpack_writer_destroy(&writer);
+
+    if (size == 0 || result == 0) {
+        return;
+    }
+
+    zval serialised;
+    ZVAL_STRINGL(&serialised, data, size);
+
+    zend_hash_update(target, str, &serialised);
+    free(data);
+}
+
 struct iter {
     // caller owns key/value
     bool (*next)(struct iter *self, zend_string **key, zend_string **value);
@@ -1426,7 +1474,6 @@ static zend_always_inline double strconv_parse_bool(zend_string *str) {
 
 void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
-
     zval *el;
     zval zv;
     el = &zv;
@@ -1792,6 +1839,23 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("metrics"), &metrics_zv);
     } else {
         zend_array_destroy(Z_ARR(metrics_zv));
+    }
+
+    zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);
+    zval meta_struct_zv;
+    array_init(&meta_struct_zv);
+    zend_string *ms_str_key;
+    zval *ms_val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(meta_struct, ms_str_key, ms_val) {
+        if (ms_str_key) {
+            dd_serialize_array_meta_struct_recursively(Z_ARRVAL(meta_struct_zv), ms_str_key, ms_val);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    if (zend_hash_num_elements(Z_ARR(meta_struct_zv))) {
+        zend_hash_str_add_new(Z_ARR_P(el), ZEND_STRL("meta_struct"), &meta_struct_zv);
+    } else {
+        zend_array_destroy(Z_ARR(meta_struct_zv));
     }
 
     add_next_index_zval(array, el);

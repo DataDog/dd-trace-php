@@ -708,6 +708,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     // Not handled in arginfo on these old versions
     array_init(&span->property_meta);
     array_init(&span->property_metrics);
+    array_init(&span->property_meta_struct);
     array_init(&span->property_links);
     array_init(&span->property_peer_service_sources);
 #endif

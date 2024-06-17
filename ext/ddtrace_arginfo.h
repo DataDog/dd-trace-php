@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 190a99779c21033f0812df6365a7ebdd87057727 */
+ * Stub hash: a92829eefe1ee642b3357f1eef2900f1336e462f */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -564,6 +564,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_version_name = zend_string_init("version", sizeof("version") - 1, 1);
 	zend_declare_typed_property(class_entry, property_version_name, &property_version_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
 	zend_string_release(property_version_name);
+
+	zval property_meta_struct_default_value;
+	ZVAL_EMPTY_ARRAY(&property_meta_struct_default_value);
+	zend_string *property_meta_struct_name = zend_string_init("meta_struct", sizeof("meta_struct") - 1, 1);
+	zend_declare_typed_property(class_entry, property_meta_struct_name, &property_meta_struct_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_meta_struct_name);
 
 	zval property_type_default_value;
 	ZVAL_EMPTY_STRING(&property_type_default_value);

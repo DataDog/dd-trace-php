@@ -95,6 +95,13 @@ namespace DDTrace {
         public string $version = "";
 
         /**
+         * @var string[] Meta struct can be used to send any data to the backend. The peculiarity of meta struct is
+         * that the values are encoded with msgpack when sent to the agent. The values are first encoded to msgpack
+         * and then, encoded again with msgpack to binary
+         */
+        public array $meta_struct = [];
+
+        /**
          * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited
          * from parent.
          */
