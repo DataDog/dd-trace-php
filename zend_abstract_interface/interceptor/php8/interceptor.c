@@ -6,6 +6,7 @@
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
 #include "interceptor.h"
+#include "zend_vm.h"
 
 #ifdef __SANITIZE_ADDRESS__
 # include <sanitizer/common_interface_defs.h>
@@ -672,21 +673,119 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
 #endif
 }
 
+static const zend_op zai_interceptor_generator_post_op_template = {
+    .opcode = ZEND_RETURN,
+    .op1 = { .var = XtOffsetOf(zend_execute_data, This) },
+    .op1_type = IS_TMP_VAR,
+    .op2 = { .num = 0 },
+    .op2_type = IS_UNUSED,
+    .result = { .num = 0 },
+    .result_type = IS_UNUSED,
+    .lineno = -1,
+    .extended_value = 0,
+};
+
+static zend_op zai_interceptor_generator_post_op[2];
+
+ZEND_TLS zend_execute_data *zai_interceptor_prev_execute_data;
+ZEND_TLS uint32_t zai_interceptor_prev_call_info;
+ZEND_TLS zval *zai_interceptor_prev_stack_top;
+
+#ifndef Z_TYPE_EXTRA
+#define Z_TYPE_EXTRA(zval)			(zval).u1.v.u.extra
+#endif
+
+// Copied from zend_vm_execute.h: Make sure we don't mess with JIT/VM internal state, and do back these up
+# if defined(__GNUC__) && defined(__x86_64__)
+#  define HYBRID_JIT_GUARD() __asm__ __volatile__ (""::: "rbx","r12","r13","r14","r15")
+# elif defined(__GNUC__) && defined(__aarch64__)
+#  define HYBRID_JIT_GUARD() __asm__ __volatile__ (""::: "x19","x20","x21","x22","x23","x24","x25","x26","x27","x28")
+# else
+#  define HYBRID_JIT_GUARD()
+# endif
+static zend_never_inline const void *zai_interceptor_handle_created_generator_func(void) {
+    HYBRID_JIT_GUARD();
+    zai_frame_memory frame_memory;
+    zend_execute_data *execute_data = EG(current_execute_data);
+    EX(prev_execute_data) = zai_interceptor_prev_execute_data; // fixup stacktrace
+
+    // put stuff back
+    EX_CALL_INFO() = zai_interceptor_prev_call_info;
+    EG(vm_stack_top) = zai_interceptor_prev_stack_top;
+
+    zend_object *generator = Z_OBJ_P(EX(return_value)); // save it here; EX(return_value) might be updated in zai_hook_continue
+    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
+        frame_memory.resumed = false;
+        frame_memory.implicit = false;
+        frame_memory.ex = execute_data;
+        zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+    }
+    EG(current_execute_data) = execute_data;
+
+    // We'll copy from EX(This) in ZEND_RETURN then (we don't need EX(This) anymore from this moment on)
+    ZVAL_COPY_VALUE(&EX(This), EX(return_value));
+    Z_TYPE_EXTRA(EX(This)) = (zai_interceptor_prev_call_info & ~ZEND_CALL_RELEASE_THIS) >> 16;
+
+    // Now execute a "real" return opcode, which is in control of the VM and can update execute_data and opline.
+    ++EX(opline);
+    return zai_interceptor_generator_post_op[1].handler;
+}
+
+#ifdef __GNUC__
+bool zai_interceptor_avoid_compile_opt = true;
+void *zai_interceptor_dummy_label_use;
+
+// a bit of stuff to make the function control flow undecidable for the compiler, so that it doesn't optimize anything away
+static void *ZEND_FASTCALL zai_interceptor_handle_created_generator_goto(void) {
+    if (zai_interceptor_avoid_compile_opt) {
+        zai_interceptor_dummy_label_use = &&zai_interceptor_handle_created_generator_goto_LABEL2;
+        // We need to return zai_interceptor_handle_created_generator_goto_LABEL; zai_interceptor_handle_created_generator_goto cannot be jumped to directly as it will contain prologue updating the stack pointer.
+        void *tmp = &&zai_interceptor_handle_created_generator_goto_LABEL;
+        return tmp; // extra var to prevent 'function returns address of label [-Werror=return-local-addr]'
+    }
+    zai_interceptor_handle_created_generator_goto_LABEL:
+    goto *(void**)zai_interceptor_handle_created_generator_func();
+    zai_interceptor_handle_created_generator_goto_LABEL2:
+    return zai_interceptor_dummy_label_use;
+}
+#endif
+
+// Windows & Mac use call VM without IP/FP
+static int ZEND_FASTCALL zai_interceptor_handle_created_generator_call(void) {
+    zai_interceptor_handle_created_generator_func();
+    return 0 /* ZEND_VM_CONTINUE */;
+}
+
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
 static zend_object *zai_interceptor_generator_create(zend_class_entry *class_type) {
     zend_generator *generator = (zend_generator *)generator_create_prev(class_type);
 
-    zai_frame_memory frame_memory;
     zend_execute_data *execute_data = EG(current_execute_data);
     // We also land here when new Generator is invoked. We only care about ZEND_GENERATOR_CREATE.
     if (execute_data && execute_data->func
      && (execute_data->func->common.fn_flags & ZEND_ACC_GENERATOR)
      && execute_data->opline->opcode == ZEND_GENERATOR_CREATE) {
-        if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
-            frame_memory.resumed = false;
-            frame_memory.implicit = false;
-            frame_memory.ex = execute_data;
-            zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+        if (zai_hook_installed_user(&execute_data->func->op_array)) {
+            EX(opline) = zai_interceptor_generator_post_op - 1; // will be advanced
+            zai_interceptor_prev_call_info = EX_CALL_INFO();
+            // Prevent freeing the frame (it will reset EG(vm_stack_top) though, so we need to back it up)
+            EX_CALL_INFO() &= ~(ZEND_CALL_TOP|ZEND_CALL_ALLOCATED);
+            zai_interceptor_prev_execute_data = EX(prev_execute_data);
+            EX(prev_execute_data) = execute_data;
+            zai_interceptor_prev_stack_top = EG(vm_stack_top);
+
+            // Now that we're persisting the stack frame a bit longer and are going to free args in ZEND_RETURN later, we have to incref them here
+            for (zval *var = EX_VAR_NUM(0), *end = var + EX(func)->op_array.last_var; var < end; ++var) {
+                Z_TRY_ADDREF_P(var);
+            }
+            if (zai_interceptor_prev_call_info & ZEND_CALL_FREE_EXTRA_ARGS) {
+                for (zval *var = EX_VAR_NUM(EX(func)->op_array.last_var + EX(func)->op_array.T), *end = var + EX_NUM_ARGS() - EX(func)->op_array.num_args; var < end; ++var) {
+                    Z_TRY_ADDREF_P(var);
+                }
+            }
+            if (zai_interceptor_prev_call_info & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS) {
+                GC_ADDREF(EX(extra_named_params));
+            }
         }
     }
 
@@ -845,6 +944,17 @@ void zai_interceptor_startup(void) {
 
     efree(generator);
     EG(objects_store) = objects_store;
+
+    zai_interceptor_generator_post_op[0] = zai_interceptor_generator_post_op_template;
+#ifdef __GNUC__
+    int kind = zend_vm_kind();
+    zai_interceptor_generator_post_op[0].handler = kind == ZEND_VM_KIND_HYBRID || kind == ZEND_VM_KIND_GOTO ? zai_interceptor_handle_created_generator_goto() : (void*)zai_interceptor_handle_created_generator_call;
+#else
+    zai_interceptor_generator_post_op[0].handler = (void *)zai_interceptor_handle_created_generator_call;
+#endif
+    // Note: return handler without SPEC(OBSERVER) (will be the case as before post_startup zend_observer_fcall_op_array_extension won't be set yet)
+    zai_interceptor_generator_post_op[1] = zai_interceptor_generator_post_op_template;
+    zend_vm_set_opcode_handler(&zai_interceptor_generator_post_op[1]);
 
     prev_post_startup = zend_post_startup_cb;
     zend_post_startup_cb = zai_interceptor_post_startup;
