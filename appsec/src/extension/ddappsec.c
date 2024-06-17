@@ -118,8 +118,6 @@ static zend_extension ddappsec_extension_entry = {
 
 ZEND_GET_MODULE(ddappsec)
 
-static zend_string *_dd_stack_key;
-
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
     compare_func_t compare, swap_func_t swp)
@@ -223,8 +221,6 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_ip_extraction_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
-
-    _dd_stack_key = zend_string_init_interned(LSTRARG("_dd.stack"), 1);
 
     return SUCCESS;
 }
@@ -444,20 +440,6 @@ static PHP_FUNCTION(datadog_appsec_testing_stop_for_debugger)
     RETURN_TRUE;
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_generate_signal)
-{
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    zval backtrace;
-    generate_backtrace(&backtrace);
-
-    add_entry_to_meta_struct(_dd_stack_key, &backtrace);
-
-    RETURN_TRUE;
-}
-
 static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 {
     zval *data = NULL;
@@ -551,7 +533,6 @@ static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "generate_signal", PHP_FN(datadog_appsec_testing_generate_signal), void_ret_bool_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on

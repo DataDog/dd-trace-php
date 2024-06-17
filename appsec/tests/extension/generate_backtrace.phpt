@@ -29,7 +29,7 @@ array(3) {
     ["function"]=>
     string(41) "datadog\appsec\testing\generate_backtrace"
     ["file"]=>
-    string(%d) "%s/appsec/tests/extension/generate_backtrace.php"
+    string(%d) "generate_backtrace.php"
     ["id"]=>
     int(0)
   }
@@ -40,7 +40,7 @@ array(3) {
     ["function"]=>
     string(3) "two"
     ["file"]=>
-    string(%d) "%s/appsec/tests/extension/generate_backtrace.php"
+    string(%d) "generate_backtrace.php"
     ["id"]=>
     int(1)
   }
@@ -51,7 +51,7 @@ array(3) {
     ["function"]=>
     string(3) "one"
     ["file"]=>
-    string(%d) "%s/appsec/tests/extension/generate_backtrace.php"
+    string(%d) "generate_backtrace.php"
     ["id"]=>
     int(2)
   }
