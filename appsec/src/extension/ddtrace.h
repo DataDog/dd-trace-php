@@ -45,7 +45,7 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull zobj,
     const char *nonnull tag, size_t tag_len, const char *nonnull value,
     size_t value_len);
 
-void add_entry_to_meta_struct(zend_string *key, zval *value);
+void add_entry_to_meta_struct(zend_string *nonnull key, zval *nonnull value);
 
 // Flush the tracer spans, can be used on RINIT
 void dd_trace_close_all_spans_and_flush(void);
