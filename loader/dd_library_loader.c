@@ -159,7 +159,7 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
     char payload[1024];
     snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, points);
 
-    char *argv[] = {telemetry_forwarder_path, payload, NULL};
+    char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
     if (execv(telemetry_forwarder_path, argv)) {
         LOG(ERROR, "Telemetry: cannot execv")
     }
