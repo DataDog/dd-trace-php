@@ -432,7 +432,6 @@ class OpenAITest extends IntegrationTestCase
 
             // Verify that we do have a populated response
             $responseIterator = $response->getIterator();
-            var_dump(iterator_to_array($responseIterator));
             $this->assertNotNull($responseIterator);
             $this->assertIsIterable($responseIterator);
             $this->assertIsObject($responseIterator->current());

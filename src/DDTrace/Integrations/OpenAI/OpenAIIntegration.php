@@ -216,13 +216,12 @@ class OpenAIIntegration extends Integration
 
         \DDTrace\install_hook(
             'OpenAI\Responses\StreamResponse::getIterator',
-            null,
             function (HookData $hook) {
                 /** @var \OpenAI\Responses\StreamResponse $this */
-                $generator = ObjectKVStore::get($this, 'generator');
-                if (!is_null($generator)) {
+                $generatorClosure = ObjectKVStore::get($this, 'generator');
+                if (!is_null($generatorClosure)) {
                     // It is valid for the retval to be empty if the generator was already consumed
-                    $hook->overrideReturnValue($generator);
+                    $hook->overrideReturnValue($generatorClosure());
                 }
             }
         );
