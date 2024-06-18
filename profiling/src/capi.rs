@@ -42,11 +42,16 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     super::REQUEST_LOCALS.with(|cell| {
         if let Ok(locals) = cell.try_borrow() {
             if locals.system_settings().profiling_enabled {
-                // Safety: only vm interrupts are stored there, or possibly null (edges only).
-                if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
-                    locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
-                    vm_interrupt.store(true, Ordering::SeqCst);
-                }
+                // Safety: only vm interrupts are stored there.
+                let vm_interrupt = unsafe { locals.executor_global_addrs.vm_interrupt.as_ref() };
+                let current_execute_data_cache =
+                    unsafe { *locals.executor_global_addrs.current_execute_data.as_ptr() };
+
+                locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                locals
+                    .current_execute_data_cache
+                    .store(current_execute_data_cache, Ordering::SeqCst);
+                vm_interrupt.store(true, Ordering::SeqCst);
             }
         }
     })

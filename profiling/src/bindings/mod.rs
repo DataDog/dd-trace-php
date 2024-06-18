@@ -6,7 +6,6 @@ use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::marker::PhantomData;
-use std::sync::atomic::AtomicBool;
 use std::{ptr, str};
 
 extern "C" {
@@ -127,7 +126,7 @@ impl _zend_function {
     /// Returns the module name, if there is one. May return Some(b"\0").
     pub fn module_name(&self) -> Option<&[u8]> {
         if self.is_internal() {
-            // Safety: union access is guarded by is_internal(), and assume
+            // SAFETY: union access is guarded by is_internal(), and assume
             // its module is valid.
             unsafe { self.internal_function.module.as_ref() }
                 .filter(|module| !module.name.is_null())
@@ -288,10 +287,11 @@ impl Default for ZendExtension {
 }
 
 extern "C" {
-    /// Retrieves the VM interrupt address of the calling PHP thread.
+    /// Retrieves the addresses of various parts of executor_globals.
+    ///
     /// # Safety
     /// Must be called from a PHP thread during a request.
-    pub fn datadog_php_profiling_vm_interrupt_addr() -> *const AtomicBool;
+    pub fn ddog_php_prof_executor_global_addrs() -> ExecutorGlobalAddrs;
 
     /// Registers the extension. Note that it's kept in a zend_llist and gets
     /// pemalloc'd + memcpy'd into place. The engine says this is a mutable
@@ -347,6 +347,7 @@ extern "C" {
 }
 
 use crate::config::ConfigId;
+use crate::ExecutorGlobalAddrs;
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {

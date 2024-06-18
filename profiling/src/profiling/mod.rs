@@ -1,10 +1,10 @@
-mod interrupts;
 mod sample_type_filter;
-pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
-pub use interrupts::*;
+pub mod interrupts;
+pub mod stack_walking;
+
 pub use sample_type_filter::*;
 pub use stack_walking::*;
 use uploader::*;
@@ -200,7 +200,7 @@ impl Default for Globals {
 
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
-    interrupt_manager: Arc<InterruptManager>,
+    interrupt_manager: Arc<interrupts::Manager>,
     message_sender: Sender<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     time_collector_handle: JoinHandle<()>,
@@ -220,7 +220,7 @@ unsafe impl Send for Profiler {}
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
-    interrupt_manager: Arc<InterruptManager>,
+    interrupt_manager: Arc<interrupts::Manager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
@@ -521,7 +521,7 @@ const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 impl Profiler {
     pub fn new(system_settings: &SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
-        let interrupt_manager = Arc::new(InterruptManager::new());
+        let interrupt_manager = Arc::new(interrupts::Manager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let time_collector = TimeCollector {
@@ -562,18 +562,18 @@ impl Profiler {
         }
     }
 
-    pub fn add_interrupt(&self, interrupt: VmInterrupt) {
+    pub fn add_interrupt(&self, id: interrupts::Id, state: interrupts::State) {
         // First, add the interrupt to the set.
-        self.interrupt_manager.add_interrupt(interrupt);
+        self.interrupt_manager.add_interrupt(id, state);
 
         // Second, make a best-effort attempt to wake the helper thread so
         // that it is aware another PHP request is in flight.
         _ = self.message_sender.try_send(ProfilerMessage::Wake);
     }
 
-    pub fn remove_interrupt(&self, interrupt: VmInterrupt) {
+    pub fn remove_interrupt(&self, id: interrupts::Id) {
         // First, remove the interrupt to the set.
-        self.interrupt_manager.remove_interrupt(interrupt)
+        self.interrupt_manager.remove_interrupt(id)
 
         // Second, do not try to wake the helper thread. In NTS mode, the next
         // request may come before the timer expires anyway, and if not, at
@@ -678,6 +678,11 @@ impl Profiler {
                 "Recent samples are most likely lost.",
             );
         }
+    }
+
+    #[inline(never)]
+    pub fn risky_collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
+        self.collect_time(execute_data, interrupt_count)
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if

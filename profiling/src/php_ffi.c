@@ -239,7 +239,22 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 }
 
-void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
+// Keep in-sync with Rust ExecutorGlobalAddrs.
+struct executor_global_addrs {
+    zval **vm_stack_top;
+    zend_execute_data **current_execute_data;
+    void *vm_interrupt;
+};
+
+// Keep in-sync with Rust version.
+struct executor_global_addrs ddog_php_prof_executor_global_addrs(void) {
+    struct executor_global_addrs addrs = {
+        &EG(vm_stack_top),
+        &EG(current_execute_data),
+        (void*)&EG(vm_interrupt),
+    };
+    return addrs;
+}
 
 zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
     return zend_hash_str_find_ptr(&module_registry, str, len);

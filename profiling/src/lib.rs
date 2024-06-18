@@ -21,10 +21,11 @@ mod exception;
 #[cfg(feature = "timeline")]
 mod timeline;
 
+use crate::bindings::ddog_php_prof_executor_global_addrs;
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use bindings::{
-    self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
-    ZendResult,
+    self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, zend_execute_data, zval,
+    ZendExtension, ZendResult,
 };
 use clocks::*;
 use core::ptr;
@@ -33,14 +34,14 @@ use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
-use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiling::{LocalRootSpanResourceMessage, Profiler};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ops::Deref;
 use std::os::raw::c_int;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -333,6 +334,23 @@ extern "C" fn prshutdown() -> ZendResult {
     ZendResult::Success
 }
 
+// Keep in-sync with php_ffi.c.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct ExecutorGlobalAddrs {
+    pub vm_stack_top: ptr::NonNull<*mut zval>,
+    pub current_execute_data: ptr::NonNull<*mut zend_execute_data>,
+    pub vm_interrupt: ptr::NonNull<AtomicBool>,
+}
+
+impl ExecutorGlobalAddrs {
+    /// # Safety
+    /// Must be called on a PHP thread during a request.
+    unsafe fn new() -> ExecutorGlobalAddrs {
+        ddog_php_prof_executor_global_addrs()
+    }
+}
+
 pub struct RequestLocals {
     pub env: Option<String>,
     pub service: Option<String>,
@@ -347,28 +365,32 @@ pub struct RequestLocals {
     pub system_settings: ptr::NonNull<SystemSettings>,
 
     pub interrupt_count: AtomicU32,
-    pub vm_interrupt_addr: *const AtomicBool,
+    pub current_execute_data_cache: AtomicPtr<zend_execute_data>,
+    pub executor_global_addrs: ExecutorGlobalAddrs,
 }
 
 impl RequestLocals {
-    #[track_caller]
-    pub fn system_settings(&self) -> &SystemSettings {
-        // SAFETY: it should always be valid, either set to the
-        // INITIAL_SYSTEM_SETTINGS or to the SYSTEM_SETTINGS.
-        unsafe { self.system_settings.as_ref() }
-    }
-}
-
-impl Default for RequestLocals {
-    fn default() -> RequestLocals {
+    /// # Safety
+    /// Must be called from a PHP Thread.
+    unsafe fn new() -> RequestLocals {
         RequestLocals {
             env: None,
             service: None,
             version: None,
             system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
             interrupt_count: AtomicU32::new(0),
-            vm_interrupt_addr: ptr::null_mut(),
+            current_execute_data_cache: AtomicPtr::new(ptr::null_mut()),
+
+            // SAFETY: required by this function's safety conditions.
+            executor_global_addrs: ExecutorGlobalAddrs::new(),
         }
+    }
+
+    #[track_caller]
+    pub fn system_settings(&self) -> &SystemSettings {
+        // SAFETY: it should always be valid, either set to the
+        // INITIAL_SYSTEM_SETTINGS or to the SYSTEM_SETTINGS.
+        unsafe { self.system_settings.as_ref() }
     }
 }
 
@@ -378,7 +400,8 @@ thread_local! {
         wall_time: Instant::now(),
     });
 
-    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals::default());
+    // These are only meant to be used on a PHP thread.
+    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(unsafe { RequestLocals::new() });
 
     /// The tags for this thread/request. These get sent to other threads,
     /// which is why they are Arc. However, they are wrapped in a RefCell
@@ -426,9 +449,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // initialize the thread local storage and cache some items
     REQUEST_LOCALS.with(|cell| {
         let mut locals = cell.borrow_mut();
-        // Safety: we are in rinit on a PHP thread.
-        locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
         locals.interrupt_count.store(0, Ordering::SeqCst);
+        // Safety: we are in rinit on a PHP thread.
+        locals.executor_global_addrs = unsafe { ddog_php_prof_executor_global_addrs() };
 
         // Safety: We are after first rinit and before mshutdown.
         unsafe {
@@ -555,11 +578,17 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             }
 
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
-                    engine_ptr: locals.vm_interrupt_addr,
+                let id = profiling::interrupts::Id {
+                    vm_interrupt_addr: locals.executor_global_addrs.vm_interrupt,
+                    current_execute_data_addr: locals.executor_global_addrs.current_execute_data,
                 };
-                profiler.add_interrupt(interrupt);
+                let state = profiling::interrupts::State {
+                    interrupt_count_addr: ptr::NonNull::from(&locals.interrupt_count),
+                    current_execute_data_addr: ptr::NonNull::from(
+                        &locals.current_execute_data_cache,
+                    ),
+                };
+                profiler.add_interrupt(id, state);
             }
         });
     } else {
@@ -611,11 +640,11 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
             if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
-                let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count,
-                    engine_ptr: locals.vm_interrupt_addr,
+                let id = profiling::interrupts::Id {
+                    current_execute_data_addr: locals.executor_global_addrs.current_execute_data,
+                    vm_interrupt_addr: locals.executor_global_addrs.vm_interrupt,
                 };
-                profiler.remove_interrupt(interrupt);
+                profiler.remove_interrupt(id);
             }
         }
     });
