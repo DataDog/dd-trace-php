@@ -430,11 +430,21 @@ class OpenAITest extends IntegrationTestCase
                 'prompt' => 'hi',
             ]);
 
-            // Verify that we do have a populated response
             $responseIterator = $response->getIterator();
             $this->assertNotNull($responseIterator);
             $this->assertIsIterable($responseIterator);
-            $this->assertIsObject($responseIterator->current());
+
+            $expectedContent = file_get_contents(__DIR__ . '/../../OpenAI/Fixtures/Streams/CompletionCreate.txt');
+            $lines = explode("\n", $expectedContent);
+            for ($i = 0; $i < 10; $i++) {
+                $jsonContent = substr($lines[$i], 6); // 6 is the length of 'data: '
+                $encodedLine = json_decode($jsonContent, true);
+
+                $currentItem = $responseIterator->current();
+                $this->assertInstanceOf(\OpenAI\Responses\Completions\CreateStreamedResponse::class, $currentItem);
+                $this->assertEqualsCanonicalizing($encodedLine, $currentItem->toArray());
+                $responseIterator->next();
+            }
         });
     }
 
