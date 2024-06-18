@@ -1,0 +1,27 @@
+version: '3.6'
+
+# For Linux users.
+# Duplicate this file with the name "docker-compose.override.yml",
+# or create a symlink (ln -s docker-compose.linux.override.yml docker-compose.override.yml).
+# Adapt the uid/gid of the tmpfs mounts if needed.
+
+x-aliases:
+  - &linux_php_service
+    # Fix owner/permissions on Linux
+    entrypoint: /home/circleci/app/dockerfiles/dev/linux_entrypoint.sh
+    user: "root:root"
+    tmpfs: [ '/home/circleci/app/tmp:uid=1000,gid=1000,exec', '/home/circleci/app/tests/vendor:uid=1000,gid=1000,exec' ]
+
+services:
+  # --- Alpine ---
+  '8.0-alpine': { <<: *linux_php_service }
+  # --- Buster ---
+  '7.0-buster': { <<: *linux_php_service }
+  '7.1-buster': { <<: *linux_php_service }
+  '7.2-buster': { <<: *linux_php_service }
+  '7.3-buster': { <<: *linux_php_service }
+  '7.4-buster': { <<: *linux_php_service }
+  '8.0-buster': { <<: *linux_php_service }
+  '8.1-buster': { <<: *linux_php_service }
+  '8.2-buster': { <<: *linux_php_service }
+  '8.3-buster': { <<: *linux_php_service }
