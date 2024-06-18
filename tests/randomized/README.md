@@ -4,7 +4,7 @@ The purpose of randomized tests is to find edge cases that users could encounter
 
 The basic idea is to randomly generate a matrix of application configurations:
   - Apache/Nginx
-  - PHP 7.0-8.2
+  - PHP 7.0-8.3
   - Centos 7 / Debian Buster
 
 and to run a application with randomily generated execution paths, which involve a number of scenarios and integrations.
