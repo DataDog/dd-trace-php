@@ -33,7 +33,7 @@ RUN chmod +x /scripts/wait-for.sh
 #    - Install golang
 RUN set -eux; \
     GO_ARCHITECTURE=$(if [ `uname -m` = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi); \
-    curl -L --output golang.tar.gz https://go.dev/dl/go1.18.3.linux-${GO_ARCHITECTURE}.tar.gz; \
+    curl -L --output golang.tar.gz https://go.dev/dl/go1.22.1.linux-${GO_ARCHITECTURE}.tar.gz; \
     rm -rf /usr/local/go && tar -C /usr/local -xzf golang.tar.gz;
 #    - Download vegeta
 RUN set -eux; \
