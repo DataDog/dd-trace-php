@@ -1,7 +1,9 @@
 --TEST--
-Generate backtrace
+Number of frames can be configured
 --INI--
 extension=ddtrace.so
+--ENV--
+DD_APPSEC_MAX_STACK_TRACE_DEPTH=2
 --FILE--
 <?php
 
@@ -21,7 +23,7 @@ one("foo");
 
 ?>
 --EXPECTF--
-array(3) {
+array(2) {
   [0]=>
   array(4) {
     ["line"]=>
@@ -29,7 +31,7 @@ array(3) {
     ["function"]=>
     string(41) "datadog\appsec\testing\generate_backtrace"
     ["file"]=>
-    string(%d) "generate_backtrace.php"
+    string(%d) "generate_backtrace_03.php"
     ["id"]=>
     int(0)
   }
@@ -40,19 +42,8 @@ array(3) {
     ["function"]=>
     string(3) "two"
     ["file"]=>
-    string(%d) "generate_backtrace.php"
+    string(%d) "generate_backtrace_03.php"
     ["id"]=>
     int(1)
-  }
-  [2]=>
-  array(4) {
-    ["line"]=>
-    int(15)
-    ["function"]=>
-    string(3) "one"
-    ["file"]=>
-    string(%d) "generate_backtrace.php"
-    ["id"]=>
-    int(2)
   }
 }
