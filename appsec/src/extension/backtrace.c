@@ -10,8 +10,6 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 
-#define BACKTRACE_NO_LIMIT 0
-
 static zend_string *_dd_stack_key;
 static zend_string *_frame_line;
 static zend_string *_frame_function;
@@ -71,9 +69,13 @@ void php_backtrace_to_datadog_backtrace(
 
 void generate_backtrace(zval *result)
 {
+    if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
+        array_init(result);
+        return;
+    }
     zval php_backtrace;
-    zend_fetch_debug_backtrace(
-        &php_backtrace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, BACKTRACE_NO_LIMIT);
+    zend_fetch_debug_backtrace(&php_backtrace, 0, DEBUG_BACKTRACE_IGNORE_ARGS,
+        get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH());
 
     php_backtrace_to_datadog_backtrace(&php_backtrace, result);
 
