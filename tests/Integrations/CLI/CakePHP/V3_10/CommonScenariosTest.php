@@ -18,11 +18,14 @@ class CommonScenariosTest extends CLITestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'cake_console_test_app',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+            'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
         ]);
     }
 
     public function testCommandWithNoArguments()
     {
+        $this->resetRequestDumper();
+
         $traces = $this->getTracesFromCommand();
 
         $this->assertSpans($traces, [
@@ -39,6 +42,8 @@ class CommonScenariosTest extends CLITestCase
 
     public function testCommandWithArgument()
     {
+        $this->resetRequestDumper();
+
         $traces = $this->getTracesFromCommand('routes');
 
         $this->assertSpans($traces, [
