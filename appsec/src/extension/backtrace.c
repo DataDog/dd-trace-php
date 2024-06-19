@@ -13,6 +13,10 @@
 #define BACKTRACE_NO_LIMIT 0
 
 static zend_string *_dd_stack_key;
+static zend_string *_frame_line;
+static zend_string *_frame_function;
+static zend_string *_frame_file;
+static zend_string *_frame_id;
 
 void php_backtrace_to_datadog_backtrace(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -45,20 +49,20 @@ void php_backtrace_to_datadog_backtrace(
         // In order to be able to test full path encoded everywhere lets set
         // only the file name without path
         char *file_name = strrchr(Z_STRVAL_P(file), '/');
-        zval normalised_file_path;
-        ZVAL_STRINGL(
-            &normalised_file_path, file_name + 1, strlen(file_name) - 1);
-        file = &normalised_file_path;
+        Z_TRY_DELREF_P(file);
+        ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
 #endif
 
         zval new_frame;
         array_init(&new_frame);
         HashTable *new_frame_ht = Z_ARRVAL(new_frame);
-        zend_hash_str_add_new(new_frame_ht, "line", sizeof("line") - 1, line);
-        zend_hash_str_add_new(
-            new_frame_ht, "function", sizeof("function") - 1, function);
-        zend_hash_str_add_new(new_frame_ht, "file", sizeof("file") - 1, file);
-        zend_hash_str_add_new(new_frame_ht, "id", sizeof("id") - 1, &id);
+        zend_hash_add(new_frame_ht, _frame_line, line);
+        zend_hash_add(new_frame_ht, _frame_function, function);
+        zend_hash_add(new_frame_ht, _frame_file, file);
+        zend_hash_add(new_frame_ht, _frame_id, &id);
+
+        Z_TRY_ADDREF_P(function);
+        Z_TRY_ADDREF_P(file);
 
         zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
     }
@@ -128,6 +132,11 @@ void dd_backtrace_startup()
 {
     _dd_stack_key =
         zend_string_init_interned("_dd.stack", sizeof("_dd.stack") - 1, 1);
+    _frame_line = zend_string_init_interned("line", sizeof("line") - 1, 1);
+    _frame_function =
+        zend_string_init_interned("function", sizeof("function") - 1, 1);
+    _frame_file = zend_string_init_interned("file", sizeof("file") - 1, 1);
+    _frame_id = zend_string_init_interned("id", sizeof("id") - 1, 1);
 #ifdef TESTING
     _register_testing_objects();
 #endif
