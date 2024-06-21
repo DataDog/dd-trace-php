@@ -1910,7 +1910,6 @@ jobs:
     <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
-      DD_TRACE_SIDECAR_TRACE_SENDER: 1
     steps:
       - restore_cache:
           keys:
@@ -4898,7 +4897,7 @@ workflows:
           run: |
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
-      
+
       - system_tests:
           requires: [ 'package extension' ]
           name: "System tests Integration Tests"
