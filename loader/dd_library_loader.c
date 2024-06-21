@@ -16,7 +16,7 @@
 static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
-static char *package_path = "/home/circleci/app/dd-library-php";  // FIXME
+static char *package_path = NULL;
 
 static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
@@ -420,11 +420,7 @@ static inline void ddloader_configure() {
     debug_logs = ddloader_is_truthy(getenv("DD_TRACE_DEBUG"));
     force_load = ddloader_is_truthy(getenv("DD_INJECT_FORCE"));
     telemetry_forwarder_path = getenv("DD_TELEMETRY_FORWARDER_PATH");
-
-    char *pkg_path = getenv("DD_LOADER_PACKAGE_PATH");
-    if (pkg_path) {
-        package_path = pkg_path;
-    }
+    package_path = getenv("DD_LOADER_PACKAGE_PATH");
 }
 
 static int ddloader_api_no_check(int api_no) {
@@ -443,6 +439,11 @@ static int ddloader_api_no_check(int api_no) {
         default:
             runtime_version = zend_get_module_version("Reflection");
             break;
+    }
+
+    if (!package_path) {
+        TELEMETRY(REASON_ERROR, "DD_LOADER_PACKAGE_PATH environment variable is not set");
+        return SUCCESS;
     }
 
     switch (api_no) {

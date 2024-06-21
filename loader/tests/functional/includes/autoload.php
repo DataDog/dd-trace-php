@@ -19,6 +19,9 @@ set_exception_handler(function (\Exception $ex) {
 });
 
 function runCLI($args, $useLoader = true, $env = [], $noIni = true) {
+    if (!isset($_SERVER['DD_LOADER_PACKAGE_PATH'])) {
+        $env[] = "DD_LOADER_PACKAGE_PATH=/home/circleci/app/dd-library-php";
+    }
     $cmd = implode(' ', $env).' ';
 
     $cmd .= 'php';
