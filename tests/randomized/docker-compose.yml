@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   centos-7.0:
     build:
@@ -111,3 +109,21 @@ services:
       args:
         PHP_MAJOR_MINOR: "8.2"
     image: 'datadog/dd-trace-ci:php-randomizedtests-buster-8.2-2'
+
+  centos-8.3:
+    build:
+      context: docker
+      dockerfile: centos.Dockerfile
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "8.3"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-centos7-8.3-2'
+
+  buster-8.3:
+    build:
+      context: docker
+      dockerfile: buster.Dockerfile
+      x-bake: *bake
+      args:
+        PHP_MAJOR_MINOR: "8.3"
+    image: 'datadog/dd-trace-ci:php-randomizedtests-buster-8.3-2'
