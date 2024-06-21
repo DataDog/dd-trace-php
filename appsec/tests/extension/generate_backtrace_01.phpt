@@ -21,19 +21,8 @@ one("foo");
 
 ?>
 --EXPECTF--
-array(3) {
+array(2) {
   [0]=>
-  array(4) {
-    ["line"]=>
-    int(7)
-    ["function"]=>
-    string(41) "datadog\appsec\testing\generate_backtrace"
-    ["file"]=>
-    string(%d) "generate_backtrace_01.php"
-    ["id"]=>
-    int(0)
-  }
-  [1]=>
   array(4) {
     ["line"]=>
     int(12)
@@ -42,9 +31,9 @@ array(3) {
     ["file"]=>
     string(%d) "generate_backtrace_01.php"
     ["id"]=>
-    int(1)
+    int(0)
   }
-  [2]=>
+  [1]=>
   array(4) {
     ["line"]=>
     int(15)
@@ -53,6 +42,6 @@ array(3) {
     ["file"]=>
     string(%d) "generate_backtrace_01.php"
     ["id"]=>
-    int(2)
+    int(1)
   }
 }

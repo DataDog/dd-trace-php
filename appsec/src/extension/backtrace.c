@@ -6,15 +6,54 @@
 #include "backtrace.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include "logging.h"
 #include "php_compat.h"
 #include "php_objects.h"
 #include "string_helpers.h"
+
+static const int MAX_FRAMES_ALLOWED = 32;
+static const int NO_LIMIT = 0;
 
 static zend_string *_dd_stack_key;
 static zend_string *_frame_line;
 static zend_string *_frame_function;
 static zend_string *_frame_file;
 static zend_string *_frame_id;
+
+bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    zval *php_backtrace_frame, zval *datadog_backtrace_frame, int index)
+{
+    if (Z_TYPE_P(php_backtrace_frame) != IS_ARRAY) {
+        return false;
+    }
+    HashTable *frame = Z_ARRVAL_P(php_backtrace_frame);
+    zval *line = zend_hash_str_find(frame, "line", sizeof("line") - 1);
+    zval *function =
+        zend_hash_str_find(frame, "function", sizeof("function") - 1);
+    zval *file = zend_hash_str_find(frame, "file", sizeof("file") - 1);
+    zval id;
+    ZVAL_LONG(&id, index);
+
+#ifdef TESTING
+    // In order to be able to test full path encoded everywhere lets set
+    // only the file name without path
+    char *file_name = strrchr(Z_STRVAL_P(file), '/');
+    Z_TRY_DELREF_P(file);
+    ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
+#endif
+
+    array_init(datadog_backtrace_frame);
+    HashTable *datadog_backtrace_frame_ht = Z_ARRVAL_P(datadog_backtrace_frame);
+    zend_hash_add(datadog_backtrace_frame_ht, _frame_line, line);
+    zend_hash_add(datadog_backtrace_frame_ht, _frame_function, function);
+    zend_hash_add(datadog_backtrace_frame_ht, _frame_file, file);
+    zend_hash_add(datadog_backtrace_frame_ht, _frame_id, &id);
+
+    Z_TRY_ADDREF_P(function);
+    Z_TRY_ADDREF_P(file);
+
+    return true;
+}
 
 void php_backtrace_to_datadog_backtrace(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -24,47 +63,57 @@ void php_backtrace_to_datadog_backtrace(
         return;
     }
 
+    int max_frames = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH();
+    HashTable *php_backtrace_ht = Z_ARRVAL_P(php_backtrace);
+    int frames_on_stack = zend_array_count(php_backtrace_ht);
+
+    int top = MIN(max_frames, MAX_FRAMES_ALLOWED);
+    int bottom = 0;
+    UNUSED(bottom);
+    if (frames_on_stack > MAX_FRAMES_ALLOWED && top == MAX_FRAMES_ALLOWED) {
+        top = 8;
+        bottom = 24;
+    }
+
     array_init(datadog_backtrace);
 
     HashTable *datadog_backtrace_ht = Z_ARRVAL_P(datadog_backtrace);
 
     zval *tmp;
     zend_ulong index;
-    ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(php_backtrace), index, tmp)
+    ZEND_HASH_FOREACH_NUM_KEY_VAL(php_backtrace_ht, index, tmp)
     {
-        if (Z_TYPE_P(tmp) != IS_ARRAY) {
+        zval new_frame;
+
+        if (!php_backtrace_frame_to_datadog_backtrace_frame(
+                tmp, &new_frame, index)) {
             continue;
         }
-        HashTable *frame = Z_ARRVAL_P(tmp);
-        zval *line = zend_hash_str_find(frame, "line", sizeof("line") - 1);
-        zval *function =
-            zend_hash_str_find(frame, "function", sizeof("function") - 1);
-        zval *file = zend_hash_str_find(frame, "file", sizeof("file") - 1);
-        zval id;
-        ZVAL_LONG(&id, index);
-
-#ifdef TESTING
-        // In order to be able to test full path encoded everywhere lets set
-        // only the file name without path
-        char *file_name = strrchr(Z_STRVAL_P(file), '/');
-        Z_TRY_DELREF_P(file);
-        ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
-#endif
-
-        zval new_frame;
-        array_init(&new_frame);
-        HashTable *new_frame_ht = Z_ARRVAL(new_frame);
-        zend_hash_add(new_frame_ht, _frame_line, line);
-        zend_hash_add(new_frame_ht, _frame_function, function);
-        zend_hash_add(new_frame_ht, _frame_file, file);
-        zend_hash_add(new_frame_ht, _frame_id, &id);
-
-        Z_TRY_ADDREF_P(function);
-        Z_TRY_ADDREF_P(file);
 
         zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
+        if (--top == 0) {
+            break;
+        }
     }
     ZEND_HASH_FOREACH_END();
+
+    if (bottom > 0) {
+        int position = frames_on_stack - bottom;
+        ZEND_HASH_FOREACH_FROM(php_backtrace_ht, 0, position)
+        {
+            int index = __h;
+            tmp = _z;
+            zval new_frame;
+
+            if (!php_backtrace_frame_to_datadog_backtrace_frame(
+                    tmp, &new_frame, index)) {
+                continue;
+            }
+
+            zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 }
 
 void generate_backtrace(zval *result)
@@ -73,9 +122,10 @@ void generate_backtrace(zval *result)
         array_init(result);
         return;
     }
+
     zval php_backtrace;
-    zend_fetch_debug_backtrace(&php_backtrace, 0, DEBUG_BACKTRACE_IGNORE_ARGS,
-        get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH());
+    zend_fetch_debug_backtrace(
+        &php_backtrace, 1, DEBUG_BACKTRACE_IGNORE_ARGS, NO_LIMIT);
 
     php_backtrace_to_datadog_backtrace(&php_backtrace, result);
 
