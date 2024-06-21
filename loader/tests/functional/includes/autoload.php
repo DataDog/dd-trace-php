@@ -18,16 +18,23 @@ set_exception_handler(function (\Exception $ex) {
     exit(1);
 });
 
-function runCLI($args, $useLoader = true, $env = []) {
+function runCLI($args, $useLoader = true, $env = [], $noIni = true) {
     $cmd = implode(' ', $env).' ';
 
-    $cmd .= 'php -n';
+    $cmd .= 'php';
+    if ($noIni) {
+        $cmd .= ' -n';
+    }
     if ($useLoader) {
         $cmd .= ' -dzend_extension='.getLoaderAbsolutePath();
     }
     $cmd .= ' '.$args;
     $cmd .= ' 2>&1';
     $cmd = trim($cmd);
+
+    if (debug()) {
+        echo '[debug] Executing command: '.$cmd."\n";
+    }
 
     $res = exec($cmd, $output, $result_code);
     if (!is_string($res) || $result_code !== 0) {
@@ -39,6 +46,10 @@ function runCLI($args, $useLoader = true, $env = []) {
 
 function getLoaderAbsolutePath() {
     return __DIR__.'/../../../modules/dd_library_loader.so';
+}
+
+function debug() {
+    return (bool) (isset($_SERVER['DEBUG']) ? $_SERVER['DEBUG'] : false);
 }
 
 function skip_if_php5() {
