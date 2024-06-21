@@ -155,12 +155,12 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::MANUAL_KEEP) {
-                GlobalTracer::get()->setPrioritySampling(Sampling\PrioritySampling::USER_KEEP);
+                set_priority_sampling(Sampling\PrioritySampling::USER_KEEP);
                 return;
             }
 
             if ($key === Tag::MANUAL_DROP) {
-                GlobalTracer::get()->setPrioritySampling(Sampling\PrioritySampling::USER_REJECT);
+                set_priority_sampling(Sampling\PrioritySampling::USER_REJECT);
                 return;
             }
 
