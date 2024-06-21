@@ -15,6 +15,7 @@
 
 #include "ext/version.h"
 #include "compatibility.h"
+#include "git.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
@@ -128,6 +129,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
+
+    ddtrace_git_metadata git_metadata;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
