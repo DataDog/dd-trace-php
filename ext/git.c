@@ -64,11 +64,26 @@ void normalize_string(zend_string* str) {
 }
 
 bool inject_from_binary(zval* meta, bool is_root_span) {
+/*
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
         LOG(DEBUG, "Failed to get current working directory");
         return false;
     }
+*/
+    // Make the above compile on windows
+    char cwd[PATH_MAX];
+#ifndef _WIN32
+    if (!getcwd(cwd, sizeof(cwd))) {
+        LOG(DEBUG, "Failed to get current working directory");
+        return false;
+    }
+#else
+    if (!_getcwd(cwd, sizeof(cwd))) {
+        LOG(DEBUG, "Failed to get current working directory");
+        return false;
+    }
+#endif
 
     LOG(DEBUG, "Current working directory: %s", cwd);
 
