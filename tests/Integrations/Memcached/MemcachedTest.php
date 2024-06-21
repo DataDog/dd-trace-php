@@ -36,6 +36,7 @@ final class MemcachedTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_MEMCACHED_OBFUSCATION',
         ];
     }
 
@@ -521,6 +522,30 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
                 ->withExactTags(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
+                    'memcached.command' => 'getMulti',
+                ]))->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 2,
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
+        ]);
+    }
+
+    public function testGetMultiNoObfuscation()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_MEMCACHED_OBFUSCATION=false']);
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key1', 'value1');
+            $this->client->add('key2', 'value2');
+
+            $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::exists('Memcached.add'),
+            SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'memcached.query' => 'getMulti key1,key2',
                     'memcached.command' => 'getMulti',
                 ]))->withExactMetrics([
                     Tag::DB_ROW_COUNT => 2,

@@ -125,7 +125,7 @@ class MemcachedIntegration extends Integration
                 }
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
-                    $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
+                    $span->meta['memcached.query'] = $command . ' ' . $integration->obfuscateIfNeeded($args[0]);
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
@@ -147,7 +147,7 @@ class MemcachedIntegration extends Integration
                 }
                 if (!is_array($args[0])) {
                     $integration->setServerTags($span, $this);
-                    $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
+                    $span->meta['memcached.query'] = $command . ' ' . $integration->obfuscateIfNeeded($args[0]);
                     $span->meta['memcached.server_key'] = $args[0];
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
@@ -169,7 +169,7 @@ class MemcachedIntegration extends Integration
                     $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
                 $integration->setServerTags($span, $this);
-                $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
+                $span->meta['memcached.query'] = $command . ' ' . $integration->obfuscateIfNeeded($args[0], ',');
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 $integration->markForTraceAnalytics($span, $command);
             }
@@ -189,7 +189,7 @@ class MemcachedIntegration extends Integration
                 }
                 $span->meta['memcached.server_key'] = $args[0];
                 $integration->setServerTags($span, $this);
-                $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
+                $query = "$command " . $integration->obfuscateIfNeeded($args[1], ',');
                 $span->meta['memcached.query'] = $query;
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 $integration->markForTraceAnalytics($span, $command);
@@ -261,6 +261,20 @@ class MemcachedIntegration extends Integration
 
         if (in_array($command, $commandsForAnalytics)) {
             $this->addTraceAnalyticsIfEnabled($span);
+        }
+    }
+
+    /*
+     * Return either the obfuscated params or the params themselves, depending on the env var.
+     */
+    public function obfuscateIfNeeded($params, $glue = ' ')
+    {
+        if (dd_trace_env_config("DD_TRACE_MEMCACHED_OBFUSCATION")) {
+            return Obfuscation::toObfuscatedString($params, $glue);
+        } elseif (is_array($params)) {
+            return implode($glue, $params);
+        } else {
+            return $params;
         }
     }
 }
