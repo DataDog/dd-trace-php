@@ -64,6 +64,10 @@ void normalize_string(zend_string* str) {
 }
 
 bool inject_from_binary(zval* meta, bool is_root_span) {
+#ifdef _WIN32
+    return false;
+#else
+
 /*
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
@@ -73,24 +77,17 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
 */
     // Make the above compile on windows
     char cwd[PATH_MAX];
-#ifndef _WIN32
     if (!getcwd(cwd, sizeof(cwd))) {
         LOG(DEBUG, "Failed to get current working directory");
         return false;
     }
-#else
-    if (!_getcwd(cwd, sizeof(cwd))) {
-        LOG(DEBUG, "Failed to get current working directory");
-        return false;
-    }
-#endif
 
     LOG(DEBUG, "Current working directory: %s", cwd);
 
     char git_commit_sha_command[PATH_MAX];
     char git_repository_url_command[PATH_MAX];
-    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD", cwd);
-    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url", cwd);
+    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD 2>/dev/null", cwd);
+    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url 2>/dev/null", cwd);
 
     FILE* git_commit_sha_pipe = popen(git_commit_sha_command, "r");
     FILE* git_repository_url_pipe = popen(git_repository_url_command, "r");
@@ -122,6 +119,7 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     zend_string_release(zs_git_repository_url);
 
     return result;
+#endif
 }
 
 void ddtrace_inject_git_metadata(zval* meta, bool is_root_span) {
