@@ -11,7 +11,7 @@
 
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 
-#define DD_INTEGRATIONS                         \
+#define DD_INTEGRATIONS                          \
     INTEGRATION(AMQP, "amqp")                   \
     INTEGRATION(CAKEPHP, "cakephp")             \
     INTEGRATION(CODEIGNITER, "codeigniter")     \
@@ -27,13 +27,14 @@
     INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
     INTEGRATION(LOGS, "logs", "false", DD_LOGS_INJECTION) \
     INTEGRATION(LUMEN, "lumen")                 \
-    INTEGRATION(MAGENTO, "magento")            \
+    INTEGRATION(MAGENTO, "magento")             \
     INTEGRATION(MEMCACHE, "memcache")           \
     INTEGRATION(MEMCACHED, "memcached")         \
     INTEGRATION(MONGO, "mongo")                 \
     INTEGRATION(MONGODB, "mongodb")             \
     INTEGRATION(MYSQLI, "mysqli")               \
     INTEGRATION(NETTE, "nette")                 \
+    INTEGRATION(OPENAI, "openai")               \
     INTEGRATION(PCNTL, "pcntl")                 \
     INTEGRATION(PDO, "pdo")                     \
     INTEGRATION(PHPREDIS, "phpredis")           \

@@ -284,12 +284,22 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 
     if (def->begin && !def->running) {
         dyn->hook_data->execute_data = execute_data;
+        // We support it for PHP 8 for now, given we need this for PHP 8.1+ right now.
+        // Bringing it to PHP 7.1-7.4 is possible, but not done yet.
+        // Supporting PHP 7.0 seems impossible.
+#if PHP_VERSION_ID >= 80000
+        if (EX(func)->common.fn_flags & ZEND_ACC_GENERATOR) {
+            dyn->hook_data->retval_ptr = EX(return_value);
+            ZVAL_COPY(&dyn->hook_data->property_returned, EX(return_value));
+        }
+#endif
 
         LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
 
         def->running = true;
         dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
         def->running = false;
+        dyn->hook_data->retval_ptr = NULL;
     }
     dyn->hook_data->execute_data = NULL;
 

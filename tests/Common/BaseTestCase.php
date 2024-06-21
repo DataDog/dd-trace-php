@@ -136,6 +136,15 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         }
     }
 
+    protected function assertFileNotExist($filename, $message = '')
+    {
+        if (PHPUNIT_MAJOR >= 9) {
+            parent::assertFileDoesNotExist($filename, $message);
+        } else {
+            parent::assertFileNotExists($filename, $message);
+        }
+    }
+
     /**
      * Tells whether or not an array is associative.
      *

@@ -17,6 +17,7 @@ class Type
     const ELASTICSEARCH = 'elasticsearch';
     const MEMCACHED = 'memcached';
     const MONGO = 'mongodb';
+    const OPENAI = 'openai';
     const REDIS = 'redis';
 
     const SYSTEM = 'system';

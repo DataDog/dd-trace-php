@@ -76,6 +76,14 @@
     },
     "extra": {
         "scenarios": {
+            "openai": {
+                "require": {
+                    "openai-php/client": "@stable"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "opentelemetry1": {
                 "require": {
                     "open-telemetry/sdk": "@stable",
