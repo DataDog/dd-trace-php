@@ -31,6 +31,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "git.h"
 #include "ip_extraction.h"
 #include <components/log/log.h>
 #include "priority_sampling/priority_sampling.h"
@@ -1503,6 +1504,10 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+
+    if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+        ddtrace_inject_git_metadata(&span->property_meta, is_root_span);
+    }
 
     // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
     // OTel HTTP semantic conventions >= 1.21.0

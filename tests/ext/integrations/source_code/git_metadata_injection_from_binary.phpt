@@ -1,0 +1,38 @@
+--TEST--
+Basic Git Metadata Injection from binary (Repository URL & Commit Sha)
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_GIT_METADATA_ENABLED=1
+--FILE--
+<?php
+
+ini_set('datadog.trace.git_metadata_enabled', 1);
+
+$rootSpan = \DDTrace\start_span();
+$internalSpan = \DDTrace\start_span();
+
+\DDTrace\close_span();
+\DDTrace\close_span();
+
+$closedSpans = dd_trace_serialize_closed_spans();
+
+$gitCommitSha = trim(`git rev-parse HEAD`);
+$gitRepositoryURL = trim(`git config --get remote.origin.url`);
+
+$rootMeta = $closedSpans[0]['meta'];
+$childMeta = $closedSpans[1]['meta'];
+echo 'Root Meta Repo URL: ' . ($rootMeta['git.repository.url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
+echo 'Child Meta Repo URL: ' . ($childMeta['git.repository.url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
+echo 'Root Meta Commit Sha: ' . ($rootMeta['git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
+echo 'Child Meta Commit Sha: ' . ($childMeta['git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
+echo '_dd Root Meta Repo URL: ' . ($rootMeta['_dd.git.repository.url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
+echo '_dd Root Meta Commit Sha: ' . ($rootMeta['_dd.git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
+
+?>
+--EXPECTF--
+Root Meta Repo URL: OK
+Child Meta Repo URL: OK
+Root Meta Commit Sha: OK
+Child Meta Commit Sha: OK
+_dd Root Meta Repo URL: OK
+_dd Root Meta Commit Sha: OK

@@ -117,7 +117,7 @@ run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/configure
 	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -460,7 +460,7 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_TRACE_CLI_ENABLED=true
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_TRACE_CLI_ENABLED=true DD_TRACE_GIT_METADATA_ENABLED=false
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
