@@ -1910,6 +1910,7 @@ jobs:
     <<: *BARE_DOCKER_MACHINE
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
+      DD_TRACE_SIDECAR_TRACE_SENDER: 1
     steps:
       - restore_cache:
           keys:
