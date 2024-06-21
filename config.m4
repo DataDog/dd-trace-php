@@ -152,6 +152,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/engine_api.c \
     ext/engine_hooks.c \
     ext/excluded_modules.c \
+    ext/git.c \
     ext/handlers_api.c \
     ext/handlers_exception.c \
     ext/handlers_internal.c \
