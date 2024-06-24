@@ -6,6 +6,7 @@
 struct ddtrace_git_metadata {
     zend_string *commit_sha;
     zend_string *repository_url;
+    bool called_once;
 };
 typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
