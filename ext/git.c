@@ -41,25 +41,22 @@ void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
         zend_string_release(DDTRACE_G(git_metadata).repository_url);
     }
 
-    DDTRACE_G(git_metadata) = (ddtrace_git_metadata) {
-            .commit_sha = zend_string_copy(commit_sha),
-            .repository_url = zend_string_copy(repository_url),
-    };
+    DDTRACE_G(git_metadata).commit_sha = zend_string_copy(commit_sha);
+    DDTRACE_G(git_metadata).repository_url = zend_string_copy(repository_url);
 }
 
-static bool add_git_info(zval* meta, ddtrace_git_metadata git_metadata, bool is_root_span, bool cache) {
-    if (git_metadata.commit_sha && git_metadata.repository_url &&
-        ZSTR_LEN(git_metadata.commit_sha) > 0 && ZSTR_LEN(git_metadata.repository_url) > 0) {
+static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repository_url, bool is_root_span, bool cache) {
+    if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
         if (is_root_span) {
-            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(git_metadata.commit_sha));
-            add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(git_metadata.repository_url));
+            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
+            add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
         } else {
-            add_assoc_str(meta, "git.commit.sha", zend_string_copy(git_metadata.commit_sha));
-            add_assoc_str(meta, "git.repository_url", zend_string_copy(git_metadata.repository_url));
+            add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
+            add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
         }
 
         if (cache) {
-            cache_git_metadata(git_metadata.commit_sha, git_metadata.repository_url);
+            cache_git_metadata(commit_sha, repository_url);
         }
 
         return true;
@@ -69,9 +66,7 @@ static bool add_git_info(zval* meta, ddtrace_git_metadata git_metadata, bool is_
 }
 
 bool inject_from_env(zval* meta, bool is_root_span) {
-    zend_string* git_commit_sha = get_DD_GIT_COMMIT_SHA();
-    zend_string* git_repository_url = get_DD_GIT_REPOSITORY_URL();
-    return add_git_info(meta, (ddtrace_git_metadata){git_commit_sha, git_repository_url}, is_root_span, true);
+    return add_git_info(meta, get_DD_GIT_COMMIT_SHA(), get_DD_GIT_REPOSITORY_URL(), is_root_span, true);
 }
 
 bool inject_from_global_tags(zval* meta, bool is_root_span) {
@@ -82,7 +77,7 @@ bool inject_from_global_tags(zval* meta, bool is_root_span) {
 
         if (git_commit_sha && git_repository_url && Z_TYPE_P(git_commit_sha) == IS_STRING &&
             Z_TYPE_P(git_repository_url) == IS_STRING) {
-            return add_git_info(meta, (ddtrace_git_metadata){Z_STR_P(git_commit_sha), Z_STR_P(git_repository_url)}, is_root_span, true);
+            return add_git_info(meta, Z_STR_P(git_commit_sha), Z_STR_P(git_repository_url), is_root_span, true);
         }
     }
 
@@ -119,7 +114,7 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
 
     normalize_string(git_commit_sha);
     normalize_string(git_repository_url);
-    bool result = add_git_info(meta, (ddtrace_git_metadata){git_commit_sha, git_repository_url}, is_root_span, true);
+    bool result = add_git_info(meta, git_commit_sha, git_repository_url, is_root_span, true);
 
     zend_string_release(git_commit_sha);
     zend_string_release(git_repository_url);
@@ -129,10 +124,12 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
 
 void ddtrace_inject_git_metadata(zval* meta, bool is_root_span) {
     ddtrace_git_metadata git_metadata = DDTRACE_G(git_metadata);
-    if (git_metadata.commit_sha || git_metadata.repository_url) {
-        add_git_info(meta, git_metadata, is_root_span, false);
+    if (git_metadata.called_once) {
+        add_git_info(meta, git_metadata.commit_sha, git_metadata.repository_url, is_root_span, false);
         return;
     }
+
+    git_metadata.called_once = true;
 
     if (inject_from_env(meta, is_root_span) ||
         inject_from_global_tags(meta, is_root_span) ||
