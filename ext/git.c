@@ -10,6 +10,14 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #endif
 
 void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
+    if (DDTRACE_G(git_metadata).commit_sha) {
+        zend_string_release(DDTRACE_G(git_metadata).commit_sha);
+    }
+
+    if (DDTRACE_G(git_metadata).repository_url) {
+        zend_string_release(DDTRACE_G(git_metadata).repository_url);
+    }
+
     DDTRACE_G(git_metadata) = (ddtrace_git_metadata) {
             .commit_sha = zend_string_copy(commit_sha),
             .repository_url = zend_string_copy(repository_url),
@@ -19,12 +27,12 @@ void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
 static bool add_git_info(zval* meta, ddtrace_git_metadata git_metadata, bool is_root_span, bool cache) {
     if (git_metadata.commit_sha && git_metadata.repository_url &&
         ZSTR_LEN(git_metadata.commit_sha) > 0 && ZSTR_LEN(git_metadata.repository_url) > 0) {
-        add_assoc_str(meta, "git.commit.sha", git_metadata.commit_sha);
-        add_assoc_str(meta, "git.repository.url", git_metadata.repository_url);
+        add_assoc_str(meta, "git.commit.sha", zend_string_copy(git_metadata.commit_sha));
+        add_assoc_str(meta, "git.repository.url", zend_string_copy(git_metadata.repository_url));
 
         if (is_root_span) {
-            add_assoc_str(meta, "_dd.git.commit.sha", git_metadata.commit_sha);
-            add_assoc_str(meta, "_dd.git.repository.url", git_metadata.repository_url);
+            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(git_metadata.commit_sha));
+            add_assoc_str(meta, "_dd.git.repository.url", zend_string_copy(git_metadata.repository_url));
         }
 
         if (cache) {
@@ -107,8 +115,9 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     LOG(DEBUG, "Git commit SHA: %s", git_commit_sha);
     LOG(DEBUG, "Git repository URL: %s", git_repository_url);
 
-    zend_string* zs_git_commit_sha = zend_string_init(git_commit_sha, strlen(git_commit_sha), 1);
-    zend_string* zs_git_repository_url = zend_string_init(git_repository_url, strlen(git_repository_url), 1);
+    zend_string* zs_git_commit_sha = zend_string_init(git_commit_sha, strlen(git_commit_sha), 0);
+    zend_string* zs_git_repository_url = zend_string_init(git_repository_url, strlen(git_repository_url), 0);
+
     normalize_string(zs_git_commit_sha);
     normalize_string(zs_git_repository_url);
     bool result = add_git_info(meta, (ddtrace_git_metadata){zs_git_commit_sha, zs_git_repository_url}, is_root_span, true);
