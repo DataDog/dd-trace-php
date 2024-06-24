@@ -5,6 +5,10 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
     DDTRACE_G(git_metadata) = (ddtrace_git_metadata) {
             .commit_sha = zend_string_copy(commit_sha),
@@ -64,18 +68,6 @@ void normalize_string(zend_string* str) {
 }
 
 bool inject_from_binary(zval* meta, bool is_root_span) {
-#ifdef _WIN32
-    return false;
-#else
-
-/*
-    char cwd[PATH_MAX];
-    if (!getcwd(cwd, sizeof(cwd))) {
-        LOG(DEBUG, "Failed to get current working directory");
-        return false;
-    }
-*/
-    // Make the above compile on windows
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
         LOG(DEBUG, "Failed to get current working directory");
@@ -119,7 +111,6 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     zend_string_release(zs_git_repository_url);
 
     return result;
-#endif
 }
 
 void ddtrace_inject_git_metadata(zval* meta, bool is_root_span) {
