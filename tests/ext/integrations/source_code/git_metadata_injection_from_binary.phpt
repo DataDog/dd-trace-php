@@ -21,9 +21,9 @@ $gitRepositoryURL = trim(`git config --get remote.origin.url`);
 
 $rootMeta = $closedSpans[0]['meta'];
 $childMeta = $closedSpans[1]['meta'];
-echo 'Root Meta Repo URL: ' . ($rootMeta['git.repository.url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
+echo 'Root Meta Repo URL: ' . (!isset($rootMeta['git.repository.url']) ? 'OK' : 'NOK') . PHP_EOL;
 echo 'Child Meta Repo URL: ' . ($childMeta['git.repository.url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
-echo 'Root Meta Commit Sha: ' . ($rootMeta['git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
+echo 'Root Meta Commit Sha: ' . (!isset($rootMeta['git.commit.sha']) ? 'OK' : 'NOK') . PHP_EOL;
 echo 'Child Meta Commit Sha: ' . ($childMeta['git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
 echo '_dd Root Meta Repo URL: ' . ($rootMeta['_dd.git.repository.url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
 echo '_dd Root Meta Commit Sha: ' . ($rootMeta['_dd.git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
