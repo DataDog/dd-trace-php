@@ -1,7 +1,7 @@
 --TEST--
 Basic Git Metadata Injection from global tags (Repository URL & Commit Sha)
 --ENV--
-DD_TAGS=git.commit.sha:123456,git.repository.url:github.com/user/env_repo
+DD_TAGS=git.commit.sha:123456,git.repository_url:github.com/user/env_repo
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
 datadog.trace.git_metadata_enabled=1
@@ -45,13 +45,13 @@ array(2) {
       string(36) "%s"
       ["git.commit.sha"]=>
       string(6) "123456"
-      ["git.repository.url"]=>
+      ["git.repository_url"]=>
       string(24) "github.com/user/env_repo"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
-      ["_dd.git.repository.url"]=>
+      ["_dd.git.repository_url"]=>
       string(24) "github.com/user/env_repo"
       ["_dd.p.tid"]=>
       string(16) "%s"
@@ -92,7 +92,7 @@ array(2) {
     array(2) {
       ["git.commit.sha"]=>
       string(6) "123456"
-      ["git.repository.url"]=>
+      ["git.repository_url"]=>
       string(24) "github.com/user/env_repo"
     }
   }
