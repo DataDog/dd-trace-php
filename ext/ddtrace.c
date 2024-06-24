@@ -1340,6 +1340,16 @@ static void dd_clean_globals(void) {
         DDTRACE_G(tracestate) = NULL;
     }
 
+    if (DDTRACE_G(git_metadata).commit_sha) {
+        zend_string_release(DDTRACE_G(git_metadata).commit_sha);
+        DDTRACE_G(git_metadata).commit_sha = NULL;
+    }
+
+    if (DDTRACE_G(git_metadata).repository_url) {
+        zend_string_release(DDTRACE_G(git_metadata).repository_url);
+        DDTRACE_G(git_metadata).repository_url = NULL;
+    }
+
     ddtrace_internal_handlers_rshutdown();
 #ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
