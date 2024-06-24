@@ -87,9 +87,9 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     char git_commit_sha_command[PATH_MAX];
     char git_repository_url_command[PATH_MAX];
     //snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD 2>/dev/null", cwd);
-    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD", cwd);
+    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "git -C %s rev-parse HEAD", cwd);
     //snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url 2>/dev/null", cwd);
-    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url", cwd);
+    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "git -C %s config --get remote.origin.url", cwd);
 
     FILE* git_commit_sha_pipe = popen(git_commit_sha_command, "r");
     FILE* git_repository_url_pipe = popen(git_repository_url_command, "r");
