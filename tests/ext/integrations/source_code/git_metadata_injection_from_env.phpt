@@ -48,7 +48,7 @@ array(2) {
       string(2) "-0"
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
-      ["_dd.git.repository.url"]=>
+      ["_dd.git.repository_url"]=>
       string(24) "github.com/user/env_repo"
       ["_dd.p.tid"]=>
       string(16) "%s"
@@ -89,7 +89,7 @@ array(2) {
     array(2) {
       ["git.commit.sha"]=>
       string(6) "123456"
-      ["git.repository.url"]=>
+      ["git.repository_url"]=>
       string(24) "github.com/user/env_repo"
     }
   }
