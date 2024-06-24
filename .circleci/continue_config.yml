@@ -1531,6 +1531,20 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
+      - run:
+          name: Test decision
+          command: |
+            set -euo pipefail
+            if [ "$CIRCLE_BRANCH" != "master" ]; then
+              export CIRCLE_SHA1=<<pipeline.git.revision>>
+              chmod +x ./tooling/ci/should-run-integration-tests.sh
+              if ! ./tooling/ci/should-run-integration-tests.sh; then
+                echo "Skipping integration tests because no change was detected in integration files"
+                circleci-agent step halt
+                exit 0
+              fi
+            fi
+            echo "Doing integration tests because changes were detected in integration files"
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
