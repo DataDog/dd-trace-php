@@ -41,15 +41,11 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(7) {
+    array(5) {
       ["runtime-id"]=>
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
-      ["git.commit.sha"]=>
-      string(6) "123456"
-      ["git.repository.url"]=>
-      string(24) "github.com/user/env_repo"
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
       ["_dd.git.repository.url"]=>
