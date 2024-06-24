@@ -78,14 +78,17 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
 
     char git_commit_sha_command[PATH_MAX];
     char git_repository_url_command[PATH_MAX];
-    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD 2>/dev/null", cwd);
-    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url 2>/dev/null", cwd);
+    //snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD 2>/dev/null", cwd);
+    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "cd %s && git rev-parse HEAD", cwd);
+    //snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url 2>/dev/null", cwd);
+    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "cd %s && git config --get remote.origin.url", cwd);
 
     FILE* git_commit_sha_pipe = popen(git_commit_sha_command, "r");
     FILE* git_repository_url_pipe = popen(git_repository_url_command, "r");
     if (!git_commit_sha_pipe || !git_repository_url_pipe) {
         if (git_commit_sha_pipe) pclose(git_commit_sha_pipe);
         if (git_repository_url_pipe) pclose(git_repository_url_pipe);
+        LOG(DEBUG, "Failed to execute git command");
         return false;
     }
 
@@ -95,14 +98,17 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
         !fgets(git_repository_url, sizeof(git_repository_url), git_repository_url_pipe)) {
         pclose(git_commit_sha_pipe);
         pclose(git_repository_url_pipe);
+        LOG(DEBUG, "Failed to read git command output");
         return false;
     }
 
     pclose(git_commit_sha_pipe);
     pclose(git_repository_url_pipe);
+    LOG(DEBUG, "Git commit SHA: %s", git_commit_sha);
+    LOG(DEBUG, "Git repository URL: %s", git_repository_url);
 
-    zend_string* zs_git_commit_sha = zend_string_init(git_commit_sha, strlen(git_commit_sha), 0);
-    zend_string* zs_git_repository_url = zend_string_init(git_repository_url, strlen(git_repository_url), 0);
+    zend_string* zs_git_commit_sha = zend_string_init(git_commit_sha, strlen(git_commit_sha), 1);
+    zend_string* zs_git_repository_url = zend_string_init(git_repository_url, strlen(git_repository_url), 1);
     normalize_string(zs_git_commit_sha);
     normalize_string(zs_git_repository_url);
     bool result = add_git_info(meta, (ddtrace_git_metadata){zs_git_commit_sha, zs_git_repository_url}, is_root_span, true);
