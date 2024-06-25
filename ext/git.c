@@ -139,6 +139,7 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     if (!git_commit_sha || !git_repository_url) {
         if (git_commit_sha) zend_string_release(git_commit_sha);
         if (git_repository_url) zend_string_release(git_repository_url);
+        return false;
     }
 
     normalize_string(git_commit_sha);
