@@ -107,3 +107,18 @@ static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc)
 }
 #define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
 #endif
+
+#if PHP_VERSION_ID < 80000
+#    define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                       \
+        do {                                                                   \
+            Bucket *_p = (_ht)->arData + _from;                                \
+            Bucket *_end = _p + (_ht)->nNumUsed;                               \
+            for (; _p != _end; _p++) {                                         \
+                int __h = _p->h;                                               \
+                zval *_z = &_p->val;                                           \
+                if (indirect && Z_TYPE_P(_z) == IS_INDIRECT) {                 \
+                    _z = Z_INDIRECT_P(_z);                                     \
+                }                                                              \
+                if (UNEXPECTED(Z_TYPE_P(_z) == IS_UNDEF))                      \
+                    continue;
+#endif
