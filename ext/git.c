@@ -141,12 +141,12 @@ static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repos
 
         if (is_root_span) {
             LOG(DEBUG, "Adding git metadata to root span");
-            add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
             add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
+            add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
         } else {
             LOG(DEBUG, "Adding git metadata to span");
-            add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
             add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
+            add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
         }
 
         if (cache) {
