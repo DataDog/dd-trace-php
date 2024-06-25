@@ -15,34 +15,93 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define PATH_MAX 4096
 #endif
 
-zend_string* execute_command(char* command) {
-    LOG(DEBUG, "Executing command: %s", command);
-    FILE* pipe = popen(command, "r");
-    if (!pipe) {
-        LOG(DEBUG, "Failed to open pipe");
+int remove_trailing_newline(char* str) {
+    size_t len = strlen(str);
+    while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
+        len--;
+    }
+    str[len] = '\0';
+    return len;
+}
+
+void normalize_string(zend_string* str) {
+    ZSTR_LEN(str) = remove_trailing_newline(ZSTR_VAL(str));
+}
+
+
+zend_string* read_git_file(char* path) {
+    remove_trailing_newline(path);
+
+    FILE* file = fopen(path, "r");
+    if (!file) {
+        LOG(DEBUG, "Failed to open file: %s", path);
         return NULL;
     }
 
-    char buffer[128];
+    char buffer[256];
+    size_t len = fread(buffer, 1, sizeof(buffer) - 1, file);
+    fclose(file);
+
+    if (len == 0) {
+        LOG(DEBUG, "Failed to read from file: %s", path);
+        return NULL;
+    }
+
+    buffer[len] = '\0';
+    len = remove_trailing_newline(buffer);
+    return zend_string_init(buffer, len, 0);
+}
+
+zend_string* get_commit_sha(const char* git_dir) {
+    char head_path[PATH_MAX];
+    snprintf(head_path, sizeof(head_path), "%s/HEAD", git_dir);
+
+    zend_string* head_content = read_git_file(head_path);
+    if (!head_content) {
+        return NULL;
+    }
+
+    const char* ref_prefix = "ref: ";
+    if (strncmp(ZSTR_VAL(head_content), ref_prefix, strlen(ref_prefix)) == 0) {
+        char ref_path[PATH_MAX];
+        snprintf(ref_path, sizeof(ref_path), "%s/%s", git_dir, ZSTR_VAL(head_content) + strlen(ref_prefix));
+        zend_string_release(head_content);
+        return read_git_file(ref_path);
+    }
+
+    return head_content;
+}
+
+zend_string* get_repository_url(const char* git_dir) {
+    char config_path[PATH_MAX];
+    snprintf(config_path, sizeof(config_path), "%s/config", git_dir);
+
+    FILE* file = fopen(config_path, "r");
+    if (!file) {
+        LOG(DEBUG, "Failed to open file: %s", config_path);
+        return NULL;
+    }
+
+    char buffer[256];
     zend_string* result = NULL;
-    while (!feof(pipe)) {
-        LOG(DEBUG, "Reading from pipe");
-        if (fgets(buffer, 128, pipe) != NULL) {
-            LOG(DEBUG, "Read: %s", buffer);
-            if (result) {
-                LOG(DEBUG, "Extending result");
-                result = zend_string_extend(result, ZSTR_LEN(result) + strlen(buffer), 0);
-                memcpy(ZSTR_VAL(result) + ZSTR_LEN(result), buffer, strlen(buffer));
-                ZSTR_VAL(result)[ZSTR_LEN(result)] = '\0';
-            } else {
-                LOG(DEBUG, "Initializing result");
-                result = zend_string_init(buffer, strlen(buffer), 0);
+
+    while (fgets(buffer, sizeof(buffer), file)) {
+        if (strncmp(buffer, "[remote \"origin\"]", 17) == 0) {
+            while (fgets(buffer, sizeof(buffer), file)) {
+                if (buffer[0] == '[') break;
+                const char* url_prefix = "url = ";
+                char* url = strstr(buffer, url_prefix);
+                if (url) {
+                    result = zend_string_init(url + strlen(url_prefix), strlen(url) - strlen(url_prefix), 0);
+                    normalize_string(result);
+                    break;
+                }
             }
+            break;
         }
     }
-    LOG(DEBUG, "Closing pipe");
 
-    pclose(pipe);
+    fclose(file);
     return result;
 }
 
@@ -82,12 +141,12 @@ static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repos
 
         if (is_root_span) {
             LOG(DEBUG, "Adding git metadata to root span");
-            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
+            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
         } else {
             LOG(DEBUG, "Adding git metadata to span");
-            add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
+            add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
         }
 
         if (cache) {
@@ -103,10 +162,12 @@ static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repos
 }
 
 bool inject_from_env(zval* meta, bool is_root_span) {
+    LOG(DEBUG, "Injecting from environment variables...");
     return add_git_info(meta, get_DD_GIT_COMMIT_SHA(), get_DD_GIT_REPOSITORY_URL(), is_root_span, true);
 }
 
 bool inject_from_global_tags(zval* meta, bool is_root_span) {
+    LOG(DEBUG, "Injecting from global tags...");
     zend_array* global_tags = get_DD_TAGS();
     bool success = false;
 
@@ -128,17 +189,8 @@ bool inject_from_global_tags(zval* meta, bool is_root_span) {
     return success;
 }
 
-void normalize_string(zend_string* str) {
-    size_t len = ZSTR_LEN(str);
-    while (len > 0 && (ZSTR_VAL(str)[len - 1] == '\n' || ZSTR_VAL(str)[len - 1] == '\r')) {
-        len--;
-    }
-    ZSTR_VAL(str)[len] = '\0';
-    ZSTR_LEN(str) = len;
-}
-
-bool inject_from_binary(zval* meta, bool is_root_span) {
-    LOG(DEBUG, "Injecting from binary...");
+bool inject_from_git_files(zval* meta, bool is_root_span) {
+    LOG(DEBUG, "Injecting from git files...");
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
         LOG(DEBUG, "Failed to get current working directory");
@@ -146,23 +198,19 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     }
     LOG(DEBUG, "Current working directory: %s", cwd);
 
-    char git_commit_sha_command[PATH_MAX];
-    char git_repository_url_command[PATH_MAX];
-    snprintf(git_commit_sha_command, sizeof(git_commit_sha_command), "git -C %s rev-parse HEAD 2>/dev/null", cwd);
-    snprintf(git_repository_url_command, sizeof(git_repository_url_command), "git -C %s config --get remote.origin.url 2>/dev/null", cwd);
+    char git_dir[PATH_MAX];
+    snprintf(git_dir, sizeof(git_dir), "%s/.git", cwd);
 
-    zend_string* git_commit_sha = execute_command(git_commit_sha_command);
-    zend_string* git_repository_url = execute_command(git_repository_url_command);
+    zend_string* git_commit_sha = get_commit_sha(git_dir);
+    zend_string* git_repository_url = get_repository_url(git_dir);
 
     if (!git_commit_sha || !git_repository_url) {
         if (git_commit_sha) zend_string_release(git_commit_sha);
         if (git_repository_url) zend_string_release(git_repository_url);
-        LOG(DEBUG, "Failed to execute git command");
+        LOG(DEBUG, "Failed to read git files");
         return false;
     }
 
-    normalize_string(git_commit_sha);
-    normalize_string(git_repository_url);
     bool result = add_git_info(meta, git_commit_sha, git_repository_url, is_root_span, true);
 
     zend_string_release(git_commit_sha);
@@ -173,16 +221,18 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
 
 void ddtrace_inject_git_metadata(zval* meta, bool is_root_span) {
     ddtrace_git_metadata git_metadata = DDTRACE_G(git_metadata);
+    LOG(DEBUG, "Called once: %d", git_metadata.called_once);
     if (git_metadata.called_once) {
         add_git_info(meta, git_metadata.commit_sha, git_metadata.repository_url, is_root_span, false);
         return;
     }
 
-    git_metadata.called_once = true;
+    LOG(DEBUG, "Setting called once to true");
+    DDTRACE_G(git_metadata).called_once = true;
 
     if (inject_from_env(meta, is_root_span) ||
         inject_from_global_tags(meta, is_root_span) ||
-        inject_from_binary(meta, is_root_span)) {
+        inject_from_git_files(meta, is_root_span)) {
         return;
     }
 }
