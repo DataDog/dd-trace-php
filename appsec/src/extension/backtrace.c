@@ -13,7 +13,13 @@
 
 static const int MAX_FRAMES_ALLOWED = 32;
 static const int NO_LIMIT = 0;
+static const int STACK_DEFAULT_TOP = 8;
+static const int STACK_DEFAULT_BOTTOM = 24;
 
+static zend_string *_frames_key;
+static zend_string *_language_key;
+static zend_string *_php_value;
+static zend_string *_exploit_key;
 static zend_string *_dd_stack_key;
 static zend_string *_frame_line;
 static zend_string *_frame_function;
@@ -69,10 +75,9 @@ void php_backtrace_to_datadog_backtrace(
 
     int top = MIN(max_frames, MAX_FRAMES_ALLOWED);
     int bottom = 0;
-    UNUSED(bottom);
     if (frames_on_stack > MAX_FRAMES_ALLOWED && top == MAX_FRAMES_ALLOWED) {
-        top = 8;
-        bottom = 24;
+        top = STACK_DEFAULT_TOP;
+        bottom = STACK_DEFAULT_BOTTOM;
     }
 
     array_init(datadog_backtrace);
@@ -118,16 +123,31 @@ void php_backtrace_to_datadog_backtrace(
 
 void generate_backtrace(zval *result)
 {
+    array_init(result);
     if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
-        array_init(result);
         return;
     }
 
+    zval dd_backtraces;
+    array_init(&dd_backtraces);
+
+    zval dd_backtrace;
+    array_init(&dd_backtrace);
+
+    zval language;
+    ZVAL_STR(&language, _php_value);
+    zend_hash_add(Z_ARRVAL(dd_backtrace), _language_key, &language);
+
+    zval frames;
     zval php_backtrace;
     zend_fetch_debug_backtrace(
         &php_backtrace, 1, DEBUG_BACKTRACE_IGNORE_ARGS, NO_LIMIT);
+    php_backtrace_to_datadog_backtrace(&php_backtrace, &frames);
+    zend_hash_add(Z_ARRVAL(dd_backtrace), _frames_key, &frames);
 
-    php_backtrace_to_datadog_backtrace(&php_backtrace, result);
+    zend_hash_next_index_insert_new(Z_ARRVAL(dd_backtraces), &dd_backtrace);
+
+    zend_hash_add(Z_ARRVAL_P(result), _exploit_key, &dd_backtraces);
 
     zval_dtor(&php_backtrace);
 }
@@ -182,6 +202,12 @@ static void _register_testing_objects()
 
 void dd_backtrace_startup()
 {
+    _frames_key = zend_string_init_interned("frames", sizeof("frames") - 1, 1);
+    _language_key =
+        zend_string_init_interned("language", sizeof("language") - 1, 1);
+    _php_value = zend_string_init_interned("php", sizeof("php") - 1, 1);
+    _exploit_key =
+        zend_string_init_interned("exploit", sizeof("exploit") - 1, 1);
     _dd_stack_key =
         zend_string_init_interned("_dd.stack", sizeof("_dd.stack") - 1, 1);
     _frame_line = zend_string_init_interned("line", sizeof("line") - 1, 1);
