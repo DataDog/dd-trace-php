@@ -108,7 +108,7 @@ static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc)
 #define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
 #endif
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 80100
 #    define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                       \
         do {                                                                   \
             Bucket *_p = (_ht)->arData + _from;                                \

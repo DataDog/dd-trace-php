@@ -11,7 +11,7 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 
-static const int MAX_FRAMES_ALLOWED = 32;
+static const unsigned int MAX_FRAMES_ALLOWED = 32;
 static const int NO_LIMIT = 0;
 static const int STACK_DEFAULT_TOP = 8;
 static const int STACK_DEFAULT_BOTTOM = 24;
@@ -69,12 +69,12 @@ void php_backtrace_to_datadog_backtrace(
         return;
     }
 
-    int max_frames = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH();
+    zend_long max_frames = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH();
     HashTable *php_backtrace_ht = Z_ARRVAL_P(php_backtrace);
-    int frames_on_stack = zend_array_count(php_backtrace_ht);
+    unsigned int frames_on_stack = zend_array_count(php_backtrace_ht);
 
-    int top = MIN(max_frames, MAX_FRAMES_ALLOWED);
-    int bottom = 0;
+    unsigned int top = MIN(max_frames, MAX_FRAMES_ALLOWED);
+    unsigned int bottom = 0;
     if (frames_on_stack > MAX_FRAMES_ALLOWED && top == MAX_FRAMES_ALLOWED) {
         top = STACK_DEFAULT_TOP;
         bottom = STACK_DEFAULT_BOTTOM;
@@ -106,7 +106,7 @@ void php_backtrace_to_datadog_backtrace(
         int position = frames_on_stack - bottom;
         ZEND_HASH_FOREACH_FROM(php_backtrace_ht, 0, position)
         {
-            int index = __h;
+            index = __h;
             tmp = _z;
             zval new_frame;
 
