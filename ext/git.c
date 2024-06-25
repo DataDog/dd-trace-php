@@ -77,8 +77,8 @@ static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repos
     LOG(DEBUG, "Adding git metadata");
     if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
         removeCredentials(repository_url);
-        LOG(DEBUG, "Git commit sha: %s", ZSTR_VAL(git_metadata.commit_sha));
-        LOG(DEBUG, "Git repository url: %s", ZSTR_VAL(git_metadata.repository_url));
+        LOG(DEBUG, "Git commit sha: %s", ZSTR_VAL(commit_sha));
+        LOG(DEBUG, "Git repository url: %s", ZSTR_VAL(repository_url));
 
         if (is_root_span) {
             LOG(DEBUG, "Adding git metadata to root span");
