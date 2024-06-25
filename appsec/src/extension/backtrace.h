@@ -11,6 +11,6 @@
 #include <php.h>
 
 void dd_backtrace_startup();
-void generate_backtrace(zval *result);
+void generate_backtrace(zval *dd_backtrace);
 
 #endif // BACKTRACE_H
