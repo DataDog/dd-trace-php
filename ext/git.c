@@ -3,6 +3,11 @@
 #include "ddtrace.h"
 #include <string.h>
 
+#ifdef PHP_WIN32
+#include <direct.h>
+#define getcwd _getcwd
+#endif
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #ifndef PATH_MAX
