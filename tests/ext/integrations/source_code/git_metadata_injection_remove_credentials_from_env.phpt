@@ -1,7 +1,8 @@
 --TEST--
-Basic Git Metadata Injection from global tags (Repository URL & Commit Sha)
+Remove credentials from repository URL
 --ENV--
-DD_TAGS=git.commit.sha:123456,git.repository_url:github.com/user/env_repo
+DD_GIT_REPOSITORY_URL=https://u:t@github.com/user/repo_new
+DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --INI--
 datadog.trace.git_metadata_enabled=1
@@ -32,11 +33,11 @@ array(2) {
     ["duration"]=>
     int(%d)
     ["name"]=>
-    string(43) "git_metadata_injection_from_global_tags.php"
+    string(54) "git_metadata_injection_remove_credentials_from_env.php"
     ["resource"]=>
-    string(43) "git_metadata_injection_from_global_tags.php"
+    string(54) "git_metadata_injection_remove_credentials_from_env.php"
     ["service"]=>
-    string(43) "git_metadata_injection_from_global_tags.php"
+    string(54) "git_metadata_injection_remove_credentials_from_env.php"
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
@@ -48,7 +49,7 @@ array(2) {
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
       ["_dd.git.repository_url"]=>
-      string(24) "github.com/user/env_repo"
+      string(32) "https://github.com/user/repo_new"
       ["_dd.p.tid"]=>
       string(16) "%s"
     }
@@ -81,7 +82,7 @@ array(2) {
     ["resource"]=>
     string(0) ""
     ["service"]=>
-    string(43) "git_metadata_injection_from_global_tags.php"
+    string(54) "git_metadata_injection_remove_credentials_from_env.php"
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
@@ -89,7 +90,7 @@ array(2) {
       ["git.commit.sha"]=>
       string(6) "123456"
       ["git.repository_url"]=>
-      string(24) "github.com/user/env_repo"
+      string(32) "https://github.com/user/repo_new"
     }
   }
 }
