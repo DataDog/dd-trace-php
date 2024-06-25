@@ -1,6 +1,7 @@
 #include "git.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include <string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -32,6 +33,20 @@ zend_string* execute_command(char* command) {
     return result;
 }
 
+void removeCredentials(zend_string* repo_url) {
+    char* url = ZSTR_VAL(repo_url);
+    char* at = strchr(url, '@');
+    if (at != NULL) {
+        char* start = strstr(url, "://");
+        if (start != NULL) {
+            start += 3; // Move pointer past "://"
+            size_t remaining_length = strlen(at + 1);
+            memmove(start, at + 1, remaining_length + 1);
+            ZSTR_LEN(repo_url) = (start - url) + remaining_length;
+        }
+    }
+}
+
 void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
     if (DDTRACE_G(git_metadata).commit_sha) {
         zend_string_release(DDTRACE_G(git_metadata).commit_sha);
@@ -47,6 +62,8 @@ void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
 
 static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repository_url, bool is_root_span, bool cache) {
     if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
+        removeCredentials(repository_url);
+
         if (is_root_span) {
             add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
@@ -71,17 +88,24 @@ bool inject_from_env(zval* meta, bool is_root_span) {
 
 bool inject_from_global_tags(zval* meta, bool is_root_span) {
     zend_array* global_tags = get_DD_TAGS();
+    bool success = false;
+
     if (global_tags) {
         zval* git_commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
         zval* git_repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
 
         if (git_commit_sha && git_repository_url && Z_TYPE_P(git_commit_sha) == IS_STRING &&
             Z_TYPE_P(git_repository_url) == IS_STRING) {
-            return add_git_info(meta, Z_STR_P(git_commit_sha), Z_STR_P(git_repository_url), is_root_span, true);
+            success = add_git_info(meta, Z_STR_P(git_commit_sha), Z_STR_P(git_repository_url), is_root_span, true);
         }
     }
 
-    return false;
+    if (success && is_root_span) {
+        zend_hash_str_del(Z_ARR_P(meta), ZEND_STRL("git.commit.sha"));
+        zend_hash_str_del(Z_ARR_P(meta), ZEND_STRL("git.repository_url"));
+    }
+
+    return success;
 }
 
 void normalize_string(zend_string* str) {
