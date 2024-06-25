@@ -2,6 +2,7 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include <string.h>
+#include <components/log/log.h>
 
 #ifdef PHP_WIN32
 #include <direct.h>
@@ -15,24 +16,31 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #endif
 
 zend_string* execute_command(char* command) {
+    LOG(DEBUG, "Executing command: %s", command);
     FILE* pipe = popen(command, "r");
     if (!pipe) {
+        LOG(DEBUG, "Failed to open pipe");
         return NULL;
     }
 
     char buffer[128];
     zend_string* result = NULL;
     while (!feof(pipe)) {
+        LOG(DEBUG, "Reading from pipe");
         if (fgets(buffer, 128, pipe) != NULL) {
+            LOG(DEBUG, "Read: %s", buffer);
             if (result) {
+                LOG(DEBUG, "Extending result");
                 result = zend_string_extend(result, ZSTR_LEN(result) + strlen(buffer), 0);
                 memcpy(ZSTR_VAL(result) + ZSTR_LEN(result), buffer, strlen(buffer));
                 ZSTR_VAL(result)[ZSTR_LEN(result)] = '\0';
             } else {
+                LOG(DEBUG, "Initializing result");
                 result = zend_string_init(buffer, strlen(buffer), 0);
             }
         }
     }
+    LOG(DEBUG, "Closing pipe");
 
     pclose(pipe);
     return result;
@@ -66,23 +74,30 @@ void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
 }
 
 static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repository_url, bool is_root_span, bool cache) {
+    LOG(DEBUG, "Adding git metadata");
     if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
         removeCredentials(repository_url);
+        LOG(DEBUG, "Git commit sha: %s", ZSTR_VAL(git_metadata.commit_sha));
+        LOG(DEBUG, "Git repository url: %s", ZSTR_VAL(git_metadata.repository_url));
 
         if (is_root_span) {
+            LOG(DEBUG, "Adding git metadata to root span");
             add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
         } else {
+            LOG(DEBUG, "Adding git metadata to span");
             add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
         }
 
         if (cache) {
+            LOG(DEBUG, "Caching git metadata");
             cache_git_metadata(commit_sha, repository_url);
         }
 
         return true;
     }
+    LOG(DEBUG, "Git metadata is invalid");
 
     return false;
 }
@@ -123,10 +138,13 @@ void normalize_string(zend_string* str) {
 }
 
 bool inject_from_binary(zval* meta, bool is_root_span) {
+    LOG(DEBUG, "Injecting from binary...");
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
+        LOG(DEBUG, "Failed to get current working directory");
         return false;
     }
+    LOG(DEBUG, "Current working directory: %s", cwd);
 
     char git_commit_sha_command[PATH_MAX];
     char git_repository_url_command[PATH_MAX];
@@ -139,6 +157,7 @@ bool inject_from_binary(zval* meta, bool is_root_span) {
     if (!git_commit_sha || !git_repository_url) {
         if (git_commit_sha) zend_string_release(git_commit_sha);
         if (git_repository_url) zend_string_release(git_repository_url);
+        LOG(DEBUG, "Failed to execute git command");
         return false;
     }
 
