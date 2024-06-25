@@ -2,7 +2,6 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include <string.h>
-#include <components/log/log.h>
 
 #ifdef PHP_WIN32
 #include <direct.h>
@@ -34,7 +33,6 @@ zend_string* read_git_file(char* path) {
 
     FILE* file = fopen(path, "r");
     if (!file) {
-        LOG(DEBUG, "Failed to open file: %s", path);
         return NULL;
     }
 
@@ -43,7 +41,6 @@ zend_string* read_git_file(char* path) {
     fclose(file);
 
     if (len == 0) {
-        LOG(DEBUG, "Failed to read from file: %s", path);
         return NULL;
     }
 
@@ -78,7 +75,6 @@ zend_string* get_repository_url(const char* git_dir) {
 
     FILE* file = fopen(config_path, "r");
     if (!file) {
-        LOG(DEBUG, "Failed to open file: %s", config_path);
         return NULL;
     }
 
@@ -133,41 +129,32 @@ void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
 }
 
 static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repository_url, bool is_root_span, bool cache) {
-    LOG(DEBUG, "Adding git metadata");
     if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
         removeCredentials(repository_url);
-        LOG(DEBUG, "Git commit sha: %s", ZSTR_VAL(commit_sha));
-        LOG(DEBUG, "Git repository url: %s", ZSTR_VAL(repository_url));
 
         if (is_root_span) {
-            LOG(DEBUG, "Adding git metadata to root span");
             add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
         } else {
-            LOG(DEBUG, "Adding git metadata to span");
             add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
             add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
         }
 
         if (cache) {
-            LOG(DEBUG, "Caching git metadata");
             cache_git_metadata(commit_sha, repository_url);
         }
 
         return true;
     }
-    LOG(DEBUG, "Git metadata is invalid");
 
     return false;
 }
 
 bool inject_from_env(zval* meta, bool is_root_span) {
-    LOG(DEBUG, "Injecting from environment variables...");
     return add_git_info(meta, get_DD_GIT_COMMIT_SHA(), get_DD_GIT_REPOSITORY_URL(), is_root_span, true);
 }
 
 bool inject_from_global_tags(zval* meta, bool is_root_span) {
-    LOG(DEBUG, "Injecting from global tags...");
     zend_array* global_tags = get_DD_TAGS();
     bool success = false;
 
@@ -190,13 +177,10 @@ bool inject_from_global_tags(zval* meta, bool is_root_span) {
 }
 
 bool inject_from_git_files(zval* meta, bool is_root_span) {
-    LOG(DEBUG, "Injecting from git files...");
     char cwd[PATH_MAX];
     if (!getcwd(cwd, sizeof(cwd))) {
-        LOG(DEBUG, "Failed to get current working directory");
         return false;
     }
-    LOG(DEBUG, "Current working directory: %s", cwd);
 
     char git_dir[PATH_MAX];
     snprintf(git_dir, sizeof(git_dir), "%s/.git", cwd);
@@ -207,7 +191,6 @@ bool inject_from_git_files(zval* meta, bool is_root_span) {
     if (!git_commit_sha || !git_repository_url) {
         if (git_commit_sha) zend_string_release(git_commit_sha);
         if (git_repository_url) zend_string_release(git_repository_url);
-        LOG(DEBUG, "Failed to read git files");
         return false;
     }
 
@@ -221,14 +204,11 @@ bool inject_from_git_files(zval* meta, bool is_root_span) {
 
 void ddtrace_inject_git_metadata(zval* meta, bool is_root_span) {
     ddtrace_git_metadata git_metadata = DDTRACE_G(git_metadata);
-    LOG(DEBUG, "Called once: %d", git_metadata.called_once);
     if (git_metadata.called_once) {
         add_git_info(meta, git_metadata.commit_sha, git_metadata.repository_url, is_root_span, false);
         return;
     }
 
-    LOG(DEBUG, "Setting called once to true");
-    DDTRACE_G(git_metadata).called_once = true;
 
     if (inject_from_env(meta, is_root_span) ||
         inject_from_global_tags(meta, is_root_span) ||
