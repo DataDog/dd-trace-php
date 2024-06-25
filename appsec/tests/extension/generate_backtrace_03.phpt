@@ -23,27 +23,21 @@ one("foo");
 
 ?>
 --EXPECTF--
-array(1) {
-  ["exploit"]=>
+array(2) {
+  ["language"]=>
+  string(3) "php"
+  ["frames"]=>
   array(1) {
     [0]=>
-    array(2) {
-      ["language"]=>
-      string(3) "php"
-      ["frames"]=>
-      array(1) {
-        [0]=>
-        array(4) {
-          ["line"]=>
-          int(12)
-          ["function"]=>
-          string(3) "two"
-          ["file"]=>
-          string(25) "generate_backtrace_03.php"
-          ["id"]=>
-          int(0)
-        }
-      }
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(3) "two"
+      ["file"]=>
+      string(25) "generate_backtrace_03.php"
+      ["id"]=>
+      int(0)
     }
   }
 }

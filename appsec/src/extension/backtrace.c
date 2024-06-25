@@ -121,33 +121,24 @@ void php_backtrace_to_datadog_backtrace(
     }
 }
 
-void generate_backtrace(zval *result)
+void generate_backtrace(zval *dd_backtrace)
 {
-    array_init(result);
+    array_init(dd_backtrace);
+
     if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
         return;
     }
 
-    zval dd_backtraces;
-    array_init(&dd_backtraces);
-
-    zval dd_backtrace;
-    array_init(&dd_backtrace);
-
     zval language;
     ZVAL_STR(&language, _php_value);
-    zend_hash_add(Z_ARRVAL(dd_backtrace), _language_key, &language);
+    zend_hash_add(Z_ARRVAL_P(dd_backtrace), _language_key, &language);
 
     zval frames;
     zval php_backtrace;
     zend_fetch_debug_backtrace(
         &php_backtrace, 1, DEBUG_BACKTRACE_IGNORE_ARGS, NO_LIMIT);
     php_backtrace_to_datadog_backtrace(&php_backtrace, &frames);
-    zend_hash_add(Z_ARRVAL(dd_backtrace), _frames_key, &frames);
-
-    zend_hash_next_index_insert_new(Z_ARRVAL(dd_backtraces), &dd_backtrace);
-
-    zend_hash_add(Z_ARRVAL_P(result), _exploit_key, &dd_backtraces);
+    zend_hash_add(Z_ARRVAL_P(dd_backtrace), _frames_key, &frames);
 
     zval_dtor(&php_backtrace);
 }
@@ -161,16 +152,65 @@ static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)
     generate_backtrace(return_value);
 }
 
+zval* dd_hash_find_or_new(HashTable *ht, zend_string *key)
+{
+    zval *result = zend_hash_find(ht, key);
+
+    if (!result) {
+        zval new_zv;
+        result = zend_hash_add(ht, key, &new_zv);
+    }
+
+    return result;
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
 {
     if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    zend_object *span = dd_trace_get_active_root_span();
+    if (!span) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span");
+        }
+        RETURN_FALSE;
+    }
+
+    zval *meta_struct = dd_trace_span_get_meta_struct(span);
+    if (!meta_struct) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
+        }
+        RETURN_FALSE;
+    }
+
+    if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
+        array_init(meta_struct);
+    }
+
+    zval *dd_stack = dd_hash_find_or_new(Z_ARR_P(meta_struct), _dd_stack_key);
+    if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
+        array_init(dd_stack);
+    }
+
+    zval *exploit = dd_hash_find_or_new(Z_ARR_P(dd_stack), _exploit_key);
+    if (Z_TYPE_P(exploit) != IS_ARRAY) {
+        array_init(exploit);
+    }
+
+    if (zend_array_count(Z_ARR_P(exploit)) == get_global_DD_APPSEC_MAX_STACK_TRACES()) {
         RETURN_FALSE;
     }
 
     zval backtrace;
     generate_backtrace(&backtrace);
 
-    add_entry_to_meta_struct(_dd_stack_key, &backtrace);
+    if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) == NULL) {
+        RETURN_FALSE;
+    }
+
+    zend_hash_add(Z_ARRVAL_P(meta_struct), _dd_stack_key, dd_stack);
 
     RETURN_TRUE;
 }

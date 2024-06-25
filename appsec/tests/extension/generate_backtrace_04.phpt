@@ -10,7 +10,7 @@ use function datadog\appsec\testing\generate_backtrace;
 function recursive_function($limit)
 {
     if (--$limit == 0) {
-        var_dump(count(generate_backtrace()["exploit"][0]["frames"]));
+        var_dump(count(generate_backtrace()["frames"]));
         return;
     }
 
