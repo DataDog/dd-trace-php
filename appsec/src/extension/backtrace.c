@@ -152,7 +152,7 @@ static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)
     generate_backtrace(return_value);
 }
 
-zval* dd_hash_find_or_new(HashTable *ht, zend_string *key)
+zval *dd_hash_find_or_new(HashTable *ht, zend_string *key)
 {
     zval *result = zend_hash_find(ht, key);
 
@@ -199,14 +199,16 @@ static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
         array_init(exploit);
     }
 
-    if (zend_array_count(Z_ARR_P(exploit)) == get_global_DD_APPSEC_MAX_STACK_TRACES()) {
+    if (zend_array_count(Z_ARR_P(exploit)) ==
+        get_global_DD_APPSEC_MAX_STACK_TRACES()) {
         RETURN_FALSE;
     }
 
     zval backtrace;
     generate_backtrace(&backtrace);
 
-    if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) == NULL) {
+    if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) ==
+        NULL) {
         RETURN_FALSE;
     }
 
