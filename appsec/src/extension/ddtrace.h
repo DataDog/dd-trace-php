@@ -54,6 +54,7 @@ void dd_trace_close_all_spans_and_flush(void);
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
+zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 
 // Set sampling priority on root span
