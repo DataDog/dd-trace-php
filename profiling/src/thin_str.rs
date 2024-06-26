@@ -1,6 +1,7 @@
-use datadog_alloc::{AllocError, Allocator, ChainAllocator};
+use datadog_alloc::{AllocError, Allocator, ChainAllocator, Global};
 use std::alloc::Layout;
 use std::borrow::Borrow;
+use std::fmt::{Debug, Formatter};
 use std::hash;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -18,9 +19,105 @@ pub struct ThinStr<'a> {
     _marker: PhantomData<&'a str>,
 }
 
+pub struct ThinString<A: Allocator = Global> {
+    thin_ptr: ThinPtr,
+    allocator: A,
+}
+
 pub trait ArenaAllocator: Allocator {}
 
 impl<A: Allocator + Clone> ArenaAllocator for ChainAllocator<A> {}
+
+impl<A: Allocator + Clone> Clone for ThinString<A> {
+    fn clone(&self) -> Self {
+        Self::from_str_in(self.deref(), self.allocator.clone())
+    }
+}
+
+impl<A: Allocator> Drop for ThinString<A> {
+    fn drop(&mut self) {
+        let ptr = self.thin_ptr.size_ptr;
+        // Don't drop the empty string.
+        let empty_str = core::ptr::addr_of!(EMPTY_INLINE_STRING).cast::<u8>();
+        if ptr.as_ptr() == empty_str.cast_mut() {
+            return;
+        }
+        let layout = self.thin_ptr.layout();
+        unsafe { self.allocator.deallocate(ptr, layout) }
+    }
+}
+
+impl<A: Allocator> ThinString<A> {
+    pub fn try_from_str_in(str: &str, allocator: A) -> Result<Self, AllocError> {
+        let thin_ptr = ThinPtr::try_from_str_in(str, &allocator)?;
+        Ok(Self {
+            thin_ptr,
+            allocator,
+        })
+    }
+
+    pub fn from_str_in(str: &str, allocator: A) -> Self {
+        Self::try_from_str_in(str, allocator).unwrap()
+    }
+
+    pub fn new_in(allocator: A) -> Self {
+        let thin_ptr = EMPTY_INLINE_STRING.as_thin_ptr();
+        Self {
+            thin_ptr,
+            allocator,
+        }
+    }
+}
+
+impl ThinString {
+    pub fn new() -> Self {
+        let thin_ptr = EMPTY_INLINE_STRING.as_thin_ptr();
+        let allocator = Global;
+        Self {
+            thin_ptr,
+            allocator,
+        }
+    }
+}
+
+impl From<&str> for ThinString {
+    fn from(value: &str) -> Self {
+        Self::try_from_str_in(value, Global).unwrap()
+    }
+}
+
+impl From<&String> for ThinString {
+    fn from(value: &String) -> Self {
+        Self::try_from_str_in(value, Global).unwrap()
+    }
+}
+
+impl From<String> for ThinString {
+    fn from(value: String) -> Self {
+        Self::try_from_str_in(&value, Global).unwrap()
+    }
+}
+
+impl<'a> From<ThinStr<'a>> for ThinString {
+    fn from(value: ThinStr<'a>) -> Self {
+        Self::try_from_str_in(value.deref(), Global).unwrap()
+    }
+}
+
+impl<'a> From<ThinStr<'a>> for &'a str {
+    fn from(value: ThinStr<'a>) -> Self {
+        // SAFETY: ThinStr<'a> into &'a str is sound (lifetime has no change).
+        unsafe { value.thin_ptr.into_str() }
+    }
+}
+
+unsafe impl<A: Allocator + Send> Send for ThinString<A> {}
+
+impl Default for ThinString {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ThinStr<'static> {
     pub fn new() -> ThinStr<'static> {
@@ -55,23 +152,37 @@ impl<'a> ThinStr<'a> {
     }
 }
 
+impl Debug for ThinString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.deref().fmt(f)
+    }
+}
+
+impl<'a> Debug for ThinStr<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.deref().fmt(f)
+    }
+}
+
+impl<A: Allocator> Deref for ThinString<A> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.thin_ptr.deref()
+    }
+}
+
 impl<'a> Deref for ThinStr<'a> {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        let slice = {
-            let len = self.thin_ptr.len();
-            let data = self.thin_ptr.data().as_ptr();
+        self.thin_ptr.deref()
+    }
+}
 
-            // SAFETY: bytes are never handed out as mut, so const slices are
-            // not going to break aliasing rules, and this is the correct
-            // lifetime for the data.
-            unsafe { core::slice::from_raw_parts(data, len) }
-        };
-
-        // SAFETY: since this is a copy of a valid utf-8 string, then it must
-        // also be valid utf-8.
-        unsafe { core::str::from_utf8_unchecked(slice) }
+impl<A: Allocator> hash::Hash for ThinString<A> {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.deref().hash(state)
     }
 }
 
@@ -81,13 +192,26 @@ impl<'a> hash::Hash for ThinStr<'a> {
     }
 }
 
+impl<A: Allocator> PartialEq for ThinString<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref().eq(other.deref())
+    }
+}
+
 impl<'a> PartialEq for ThinStr<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.deref().eq(other.deref())
     }
 }
 
+impl<A: Allocator> Eq for ThinString<A> {}
 impl<'a> Eq for ThinStr<'a> {}
+
+impl<A: Allocator> Borrow<str> for ThinString<A> {
+    fn borrow(&self) -> &str {
+        self.deref()
+    }
+}
 
 impl<'a> Borrow<str> for ThinStr<'a> {
     fn borrow(&self) -> &str {
@@ -136,14 +260,14 @@ impl ThinPtr {
         unsafe { Layout::from_size_align_unchecked(len + USIZE_WIDTH, 1) }
     }
 
-    fn try_from_str_in(str: &str, arena: &impl Allocator) -> Result<Self, AllocError> {
+    fn try_from_str_in(str: &str, alloc: &impl Allocator) -> Result<Self, AllocError> {
         let inline_size = str.len() + USIZE_WIDTH;
 
         let layout = match Layout::from_size_align(inline_size, 1) {
             Ok(l) => l,
             Err(_) => return Err(AllocError),
         };
-        let allocation = arena.allocate(layout)?.cast::<u8>().as_ptr();
+        let allocation = alloc.allocate(layout)?.cast::<u8>().as_ptr();
 
         let size = allocation.cast::<[u8; USIZE_WIDTH]>();
         // SAFETY: writing into uninitialized new allocation at correct place.
@@ -160,6 +284,33 @@ impl ThinPtr {
 
         let size_ptr = unsafe { NonNull::new_unchecked(allocation) };
         Ok(ThinPtr { size_ptr })
+    }
+
+    /// # Safety
+    /// The caller must ensure the lifetime is correctly bound.
+    unsafe fn into_str<'a>(self) -> &'a str {
+        let slice = {
+            let len = self.len();
+            let data = self.data().as_ptr();
+
+            // SAFETY: bytes are never handed out as mut, so const slices are
+            // not going to break aliasing rules. Lifetime enforcement must
+            // be taken care of by the caller.
+            core::slice::from_raw_parts(data, len)
+        };
+
+        // SAFETY: since this is a copy of a valid utf-8 string, then it must
+        // also be valid utf-8.
+        core::str::from_utf8_unchecked(slice)
+    }
+}
+
+impl Deref for ThinPtr {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: the self lifetime is correct.
+        unsafe { self.into_str() }
     }
 }
 
@@ -190,34 +341,42 @@ static EMPTY_INLINE_STRING: StaticInlineString<0> = StaticInlineString::<0> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datadog_alloc::Global;
+    use core::mem::size_of;
     use datadog_profiling::collections::string_table::wordpress_test_data;
 
-    // Not really, please manually de-allocate strings when done with them.
-    impl ArenaAllocator for Global {}
+    #[test]
+    fn test_sizes() {
+        let word = size_of::<NonNull<u8>>();
+        assert_eq!(word, size_of::<ThinStr>());
+        assert_eq!(word, size_of::<ThinString>());
+
+        // niche optimization should apply too
+        assert_eq!(word, size_of::<Option<ThinStr>>());
+        assert_eq!(word, size_of::<Option<ThinString>>());
+    }
+
+    #[test]
+    fn test_deallocation_of_empty_since_it_is_special_cased() {
+        let thin_string = ThinString::new();
+        drop(thin_string);
+    }
 
     #[test]
     fn test_allocation_and_deallocation() {
-        let alloc = Global;
-
-        let mut thin_strs: Vec<ThinStr> = wordpress_test_data::WORDPRESS_STRINGS
+        let thin_strs: Vec<ThinString> = wordpress_test_data::WORDPRESS_STRINGS
             .iter()
             .map(|str| {
-                let thin_str = ThinStr::try_from_str_in(str, &alloc).unwrap();
-                let actual = thin_str.deref();
+                let thin_string = ThinString::from(*str);
+                let actual = thin_string.deref();
                 assert_eq!(*str, actual);
-                thin_str
+                thin_string
             })
             .collect();
 
         // This could detect out-of-bounds writes.
-        for (thin_str, str) in thin_strs.iter().zip(wordpress_test_data::WORDPRESS_STRINGS) {
-            let actual = thin_str.deref();
+        for (thin_string, str) in thin_strs.iter().zip(wordpress_test_data::WORDPRESS_STRINGS) {
+            let actual = thin_string.deref();
             assert_eq!(str, actual);
-        }
-
-        for thin_str in thin_strs.drain(..) {
-            unsafe { alloc.deallocate(thin_str.thin_ptr.size_ptr, thin_str.layout()) };
         }
     }
 }
