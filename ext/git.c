@@ -119,7 +119,9 @@ void remove_credentials(zend_string *repo_url) {
 void add_git_info(zval *carrier, zend_string *commit_sha, zend_string *repository_url) {
     object_init_ex(carrier, ddtrace_ce_git_metadata);
     ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
+    zend_string_addref(commit_sha);
     ZVAL_STR(&git_metadata->property_commit, commit_sha);
+    zend_string_addref(repository_url);
     ZVAL_STR(&git_metadata->property_repository, repository_url);
 }
 
@@ -183,6 +185,8 @@ void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
         ZVAL_FALSE(git_metadata_zv);
         zend_hash_add(&DDTRACE_G(git_metadata), cwd_zstr, git_metadata_zv);
     }
+
+    zend_string_release(cwd_zstr);
 
     return;
 }

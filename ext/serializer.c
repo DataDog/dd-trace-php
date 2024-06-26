@@ -1324,7 +1324,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     }
 
     zval *git_metadata = &span->property_git_metadata;
-    if (git_metadata) {
+    if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
         ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
         if (is_root_span) {
             add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(Z_STR_P(&metadata->property_commit)));
