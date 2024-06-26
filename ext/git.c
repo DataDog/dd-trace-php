@@ -151,13 +151,13 @@ void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
 
     if (SG(options) & SAPI_OPTION_NO_CHDIR) {
         const char *script_filename = SG(request_info).path_translated;
-        cwd_zstr = zend_string_init(script_filename, strlen(script_filename), 0);
+        cwd_zstr = zend_string_init(script_filename, strlen(script_filename), 1);
     } else {
         char cwd[PATH_MAX];
         if (getcwd(cwd, sizeof(cwd)) == NULL) {
             return;
         }
-        cwd_zstr = zend_string_init(cwd, strlen(cwd), 0);
+        cwd_zstr = zend_string_init(cwd, strlen(cwd), 1);
     }
     
     zval *entry = zend_hash_find(&DDTRACE_G(git_metadata), cwd_zstr);
@@ -183,8 +183,6 @@ void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
         ZVAL_FALSE(git_metadata_zv);
         zend_hash_add(&DDTRACE_G(git_metadata), cwd_zstr, git_metadata_zv);
     }
-
-    zend_string_release(cwd_zstr);
 
     return;
 }

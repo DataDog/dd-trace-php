@@ -453,7 +453,7 @@ static void ddtrace_activate(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
-    zend_hash_init(&DDTRACE_G(git_metadata), 8, unused, NULL, 0);
+    zend_hash_init(&DDTRACE_G(git_metadata), 8, unused, NULL, 1);
 
     if (!ddtrace_disable && ddtrace_has_excluded_module == true) {
         ddtrace_disable = 2;
@@ -609,6 +609,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
+
+    zend_hash_destroy(&ddtrace_globals->git_metadata);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -1415,18 +1417,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
-    /*
-    zend_string *key;
-    zval *val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(git_metadata), key, val) {
-        //zend_string_release(key);
-        //free(Z_OBJ_P(val));
-        //ddtrace_git_metadata *zv = Z_PTR_P(val);
-        //zend_object_release(&zv->std);
-        //zval_ptr_dtor(val);
-    } ZEND_HASH_FOREACH_END();
-     */
-    zend_hash_destroy(&DDTRACE_G(git_metadata));
 
     // this needs to be done before dropping the spans
     // run unconditionally because ddtrace may've been disabled mid-request
