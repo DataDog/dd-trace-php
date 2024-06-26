@@ -27,7 +27,7 @@ static zend_string *_frame_file;
 static zend_string *_frame_id;
 
 bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    zval *php_backtrace_frame, zval *datadog_backtrace_frame, int index)
+    zval *php_backtrace_frame, zval *datadog_backtrace_frame, zend_ulong index)
 {
     if (Z_TYPE_P(php_backtrace_frame) != IS_ARRAY) {
         return false;
@@ -103,7 +103,7 @@ void php_backtrace_to_datadog_backtrace(
     ZEND_HASH_FOREACH_END();
 
     if (bottom > 0) {
-        int position = frames_on_stack - bottom;
+        unsigned int position = frames_on_stack - bottom;
         ZEND_HASH_FOREACH_FROM(php_backtrace_ht, 0, position)
         {
             index = __h;
