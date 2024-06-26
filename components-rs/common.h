@@ -246,6 +246,8 @@ typedef struct ddog_DslString ddog_DslString;
  */
 typedef struct ddog_InstanceId ddog_InstanceId;
 
+typedef struct ddog_MaybeShmLimiter ddog_MaybeShmLimiter;
+
 typedef struct ddog_ProbeCondition ddog_ProbeCondition;
 
 typedef struct ddog_ProbeValue ddog_ProbeValue;
@@ -314,10 +316,12 @@ typedef struct ddog_Evaluator {
   const void *(*fetch_identifier)(void*, const ddog_CharSlice*);
   const void *(*fetch_index)(void*, const void*, struct ddog_IntermediateValue);
   const void *(*fetch_nested)(void*, const void*, struct ddog_IntermediateValue);
-  uint64_t (*length)(void*, const void*);
+  uintptr_t (*length)(void*, const void*);
   struct ddog_VoidCollection (*try_enumerate)(void*, const void*);
-  struct ddog_VoidCollection (*stringify)(void*, const void*);
+  ddog_CharSlice (*stringify)(void*, const void*);
+  ddog_CharSlice (*get_string)(void*, const void*);
   intptr_t (*convert_index)(void*, const void*);
+  bool (*instanceof)(void*, const void*, const ddog_CharSlice*);
 } ddog_Evaluator;
 
 typedef enum ddog_Option_CharSlice_Tag {
@@ -348,6 +352,27 @@ typedef struct ddog_ProbeTarget {
   enum ddog_InBodyLocation in_body_location;
 } ddog_ProbeTarget;
 
+typedef struct ddog_MetricProbe {
+  enum ddog_MetricKind kind;
+  ddog_CharSlice name;
+  const struct ddog_ProbeValue *value;
+} ddog_MetricProbe;
+
+typedef struct ddog_CaptureConfiguration {
+  uint32_t max_reference_depth;
+  uint32_t max_collection_size;
+  uint32_t max_length;
+  uint32_t max_field_count;
+} ddog_CaptureConfiguration;
+
+typedef struct ddog_LogProbe {
+  const struct ddog_DslString *segments;
+  const struct ddog_ProbeCondition *when;
+  const struct ddog_CaptureConfiguration *capture;
+  bool capture_snapshot;
+  uint32_t sampling_snapshots_per_second;
+} ddog_LogProbe;
+
 typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
@@ -364,64 +389,6 @@ typedef struct ddog_SpanDecorationProbe {
   const struct ddog_SpanProbeTag *span_tags;
   uintptr_t span_tags_num;
 } ddog_SpanDecorationProbe;
-
-typedef struct ddog_Capture {
-  uint32_t max_reference_depth;
-  uint32_t max_collection_size;
-  uint32_t max_length;
-  uint32_t max_field_depth;
-} ddog_Capture;
-
-typedef struct ddog_LogProbe {
-  const struct ddog_DslString *segments;
-  const struct ddog_ProbeCondition *when;
-  const struct ddog_Capture *capture;
-  uint32_t sampling_snapshots_per_second;
-} ddog_LogProbe;
-
-typedef struct ddog_MetricProbe {
-  enum ddog_MetricKind kind;
-  ddog_CharSlice name;
-  const struct ddog_ProbeValue *value;
-} ddog_MetricProbe;
-
-typedef struct ddog_LiveDebuggerCallbacks {
-  int64_t (*set_span_probe)(ddog_CharSlice id, const struct ddog_ProbeTarget *target);
-  int64_t (*set_span_decoration)(ddog_CharSlice id,
-                                 const struct ddog_ProbeTarget *target,
-                                 enum ddog_EvaluateAt evaluate_at,
-                                 struct ddog_SpanDecorationProbe info);
-  int64_t (*set_log_probe)(ddog_CharSlice id,
-                           const struct ddog_ProbeTarget *target,
-                           enum ddog_EvaluateAt evaluate_at,
-                           struct ddog_LogProbe log);
-  int64_t (*set_metric_probe)(ddog_CharSlice id,
-                              const struct ddog_ProbeTarget *target,
-                              enum ddog_EvaluateAt evaluate_at,
-                              struct ddog_MetricProbe metric);
-  void (*remove_probe)(int64_t id);
-} ddog_LiveDebuggerCallbacks;
-
-typedef struct ddog_LiveDebuggerSetup {
-  const struct ddog_Evaluator *evaluator;
-  struct ddog_LiveDebuggerCallbacks callbacks;
-} ddog_LiveDebuggerSetup;
-
-typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
-typedef struct ddog_DebuggerValue ddog_DebuggerValue;
-
-
-typedef enum ddog_FieldType {
-  DDOG_FIELD_TYPE_STATIC,
-  DDOG_FIELD_TYPE_ARG,
-  DDOG_FIELD_TYPE_LOCAL,
-} ddog_FieldType;
-
-typedef struct ddog_DebuggerPayload_CharSlice ddog_DebuggerPayload_CharSlice;
-
-typedef struct ddog_Entry_CharSlice ddog_Entry_CharSlice;
-
-typedef struct ddog_HashMap_CharSlice__ValueCharSlice ddog_HashMap_CharSlice__ValueCharSlice;
 
 typedef enum ddog_ProbeType_Tag {
   DDOG_PROBE_TYPE_METRIC,
@@ -454,6 +421,88 @@ typedef struct ddog_Probe {
   enum ddog_EvaluateAt evaluate_at;
   struct ddog_ProbeType probe;
 } ddog_Probe;
+
+typedef struct ddog_LiveDebuggerCallbacks {
+  int64_t (*set_probe)(const struct ddog_Probe *probe, const struct ddog_MaybeShmLimiter *limiter);
+  void (*remove_probe)(int64_t id);
+} ddog_LiveDebuggerCallbacks;
+
+typedef struct ddog_LiveDebuggerSetup {
+  const struct ddog_Evaluator *evaluator;
+  struct ddog_LiveDebuggerCallbacks callbacks;
+} ddog_LiveDebuggerSetup;
+
+typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
+typedef struct ddog_DebuggerValue ddog_DebuggerValue;
+
+
+#define ddog_EVALUATOR_RESULT_UNDEFINED (const void*)0
+
+#define ddog_EVALUATOR_RESULT_INVALID (const void*)-1
+
+#define ddog_EVALUATOR_RESULT_REDACTED (const void*)-2
+
+typedef enum ddog_FieldType {
+  DDOG_FIELD_TYPE_STATIC,
+  DDOG_FIELD_TYPE_ARG,
+  DDOG_FIELD_TYPE_LOCAL,
+} ddog_FieldType;
+
+typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
+
+typedef struct ddog_Entry ddog_Entry;
+
+typedef struct ddog_HashMap_CowStr__Value ddog_HashMap_CowStr__Value;
+
+typedef struct ddog_InternalIntermediateValue ddog_InternalIntermediateValue;
+
+typedef struct ddog_SenderHandle ddog_SenderHandle;
+
+typedef struct ddog_SnapshotEvaluationError ddog_SnapshotEvaluationError;
+
+typedef struct ddog_String ddog_String;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_SnapshotEvaluationError {
+  const struct ddog_SnapshotEvaluationError *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_SnapshotEvaluationError;
+
+typedef enum ddog_ConditionEvaluationResult_Tag {
+  DDOG_CONDITION_EVALUATION_RESULT_SUCCESS,
+  DDOG_CONDITION_EVALUATION_RESULT_FAILURE,
+  DDOG_CONDITION_EVALUATION_RESULT_ERROR,
+} ddog_ConditionEvaluationResult_Tag;
+
+typedef struct ddog_ConditionEvaluationResult {
+  ddog_ConditionEvaluationResult_Tag tag;
+  union {
+    struct {
+      struct ddog_Vec_SnapshotEvaluationError *error;
+    };
+  };
+} ddog_ConditionEvaluationResult;
+
+typedef enum ddog_ValueEvaluationResult_Tag {
+  DDOG_VALUE_EVALUATION_RESULT_SUCCESS,
+  DDOG_VALUE_EVALUATION_RESULT_ERROR,
+} ddog_ValueEvaluationResult_Tag;
+
+typedef struct ddog_ValueEvaluationResult {
+  ddog_ValueEvaluationResult_Tag tag;
+  union {
+    struct {
+      struct ddog_InternalIntermediateValue *success;
+    };
+    struct {
+      struct ddog_Vec_SnapshotEvaluationError *error;
+    };
+  };
+} ddog_ValueEvaluationResult;
 
 typedef struct ddog_FilterList {
   struct ddog_CharSliceVec package_prefixes;
@@ -494,13 +543,13 @@ typedef struct ddog_LiveDebuggingParseResult {
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
-typedef struct ddog_Vec_DebuggerPayloadCharSlice {
-  const struct ddog_DebuggerPayload_CharSlice *ptr;
+typedef struct ddog_Vec_DebuggerPayload {
+  const struct ddog_DebuggerPayload *ptr;
   uintptr_t len;
   uintptr_t capacity;
-} ddog_Vec_DebuggerPayloadCharSlice;
+} ddog_Vec_DebuggerPayload;
 
-typedef struct ddog_HashMap_CharSlice__ValueCharSlice ddog_Fields_CharSlice;
+typedef struct ddog_HashMap_CowStr__Value ddog_Fields;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -516,23 +565,28 @@ typedef struct ddog_Vec_DebuggerValue {
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
-typedef struct ddog_Vec_EntryCharSlice {
-  const struct ddog_Entry_CharSlice *ptr;
+typedef struct ddog_Vec_Entry {
+  const struct ddog_Entry *ptr;
   uintptr_t len;
   uintptr_t capacity;
-} ddog_Vec_EntryCharSlice;
+} ddog_Vec_Entry;
 
 typedef struct ddog_CaptureValue {
   ddog_CharSlice type;
   ddog_CharSlice value;
-  ddog_Fields_CharSlice *fields;
+  ddog_Fields *fields;
   struct ddog_Vec_DebuggerValue elements;
-  struct ddog_Vec_EntryCharSlice entries;
+  struct ddog_Vec_Entry entries;
   bool is_null;
   bool truncated;
   ddog_CharSlice not_captured_reason;
   ddog_CharSlice size;
 } ddog_CaptureValue;
+
+typedef struct ddog_OwnedCharSlice {
+  ddog_CharSlice slice;
+  void (*free)(ddog_CharSlice);
+} ddog_OwnedCharSlice;
 
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,

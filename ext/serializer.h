@@ -14,12 +14,13 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span);
 void ddtrace_update_root_id_properties(ddtrace_root_span_data *span);
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent);
 zend_string *ddtrace_default_service_name(void);
+zend_string *ddtrace_active_service_name(void);
 
 void ddtrace_initialize_span_sampling_limiter(void);
 void ddtrace_shutdown_span_sampling_limiter(void);
 
 void ddtrace_serializer_startup(void);
 
-void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, const ddog_Capture *config, int remaining_nesting);
+void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, const ddog_CaptureConfiguration *config, int remaining_nesting);
 
 #endif  // DD_SERIALIZER_H

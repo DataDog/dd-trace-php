@@ -207,6 +207,8 @@ enum ddtrace_sampling_rules_format {
            .env_config_fallback = ddtrace_conf_otel_log_level)                                                 \
     CONFIG(INT, DD_REMOTE_CONFIG_INTERVAL, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
+    CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
+    CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

@@ -96,6 +96,7 @@
 #endif
 #include "ddtrace_arginfo.h"
 #include "distributed_tracing_headers.h"
+#include "live_debugger.h"
 
 #if PHP_VERSION_ID < 70200
 #undef ZVAL_EMPTY_STRING
@@ -464,6 +465,8 @@ static void ddtrace_activate(void) {
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
+
+    ddtrace_sidecar_rinit();
 
     if (!ddtrace_disable && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
         ddtrace_sidecar_ensure_active();
@@ -1210,6 +1213,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_ip_extraction_startup();
     ddtrace_serializer_startup();
 
+    ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
 
     return SUCCESS;
@@ -1508,6 +1512,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     dd_finalize_sidecar_lifecycle();
     ddtrace_telemetry_rshutdown();
+    ddtrace_sidecar_rshutdown();
 
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));

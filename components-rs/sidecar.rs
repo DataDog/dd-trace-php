@@ -1,8 +1,11 @@
 use std::ffi::{c_char, CStr, OsStr};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
+use lazy_static::{lazy_static, LazyStatic};
+use tracing::warn;
 use datadog_sidecar::config::{self, LogMethod};
 use datadog_sidecar::service::blocking::SidecarTransport;
+use datadog_sidecar::shm_limiters::{AnyLimiter, Limiter, LocalLimiter, ShmLimiterMemory};
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
 use ddtelemetry_ffi::try_c;
@@ -71,4 +74,58 @@ pub extern "C" fn ddog_sidecar_connect_php(
     *connection = Box::into_raw(stream);
 
     MaybeError::None
+}
+
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut ddtrace_sidecar: *mut SidecarTransport = std::ptr::null_mut();
+
+#[no_mangle]
+pub extern "C" fn ddtrace_sidecar_reconnect(
+    transport: &mut Box<SidecarTransport>,
+    factory: unsafe extern "C" fn() -> Option<Box<SidecarTransport>>,
+) {
+    transport.reconnect(|| unsafe {
+        let sidecar = factory();
+        if sidecar.is_some() {
+            LazyStatic::initialize(&SHM_LIMITER);
+        }
+        sidecar
+    });
+}
+
+
+lazy_static! {
+    pub static ref SHM_LIMITER: Option<ShmLimiterMemory> = ShmLimiterMemory::open().map_or_else(|e| {
+        warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
+        None
+    }, Some);
+}
+
+pub struct MaybeShmLimiter(Option<AnyLimiter>);
+
+impl MaybeShmLimiter {
+    pub fn open(index: u32) -> Self {
+        MaybeShmLimiter(if index == 0 {
+            None
+        } else {
+            match &*SHM_LIMITER {
+                Some(limiter) => limiter.get(index).map(AnyLimiter::Shm),
+                None => Some(AnyLimiter::Local(LocalLimiter::default())),
+            }
+        })
+    }
+    
+    pub fn inc(&self, limit: u32) -> bool {
+        if let Some(ref limiter) = self.0 {
+            limiter.inc(limit)
+        } else {
+            true
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_shm_limiter_inc(limiter: &MaybeShmLimiter, limit: u32) -> bool {
+    limiter.inc(limit)
 }

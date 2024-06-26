@@ -12,7 +12,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-ddog_SidecarTransport *ddtrace_sidecar;
 ddog_Endpoint *ddtrace_endpoint;
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 static uint8_t dd_sidecar_formatted_session_id[36];
@@ -110,7 +109,7 @@ void ddtrace_sidecar_setup(void) {
 
 void ddtrace_sidecar_ensure_active(void) {
     if (ddtrace_sidecar) {
-        ddog_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory);
+        ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory);
     }
 }
 
@@ -260,10 +259,23 @@ void ddtrace_sidecar_submit_root_span_data(void) {
                 version_slice = dd_zend_string_to_CharSlice(Z_STR_P(version));
             }
 
-            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice);
+            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
             if (DDTRACE_G(remote_config_state)) {
                 ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
             }
         }
     }
+}
+
+void ddtrace_sidecar_rinit(void) {
+    DDTRACE_G(active_global_tags) = ddog_Vec_Tag_new();
+    zend_string *tag;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(get_DD_TAGS(), tag, value) {
+        UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), dd_zend_string_to_CharSlice(tag), dd_zend_string_to_CharSlice(Z_STR_P(value))));
+    } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_sidecar_rshutdown(void) {
+    ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
 }

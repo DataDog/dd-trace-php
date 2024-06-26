@@ -1133,9 +1133,13 @@ dependencies = [
  "ddcommon 0.0.1",
  "hyper 0.14.28",
  "json",
+ "lazy_static",
+ "percent-encoding",
  "regex",
+ "regex-automata 0.4.5",
  "serde",
  "serde_json",
+ "sys-info",
  "uuid",
 ]
 
@@ -1143,8 +1147,14 @@ dependencies = [
 name = "datadog-live-debugger-ffi"
 version = "0.0.1"
 dependencies = [
+ "build_common",
  "datadog-live-debugger",
+ "ddcommon 0.0.1",
  "ddcommon-ffi",
+ "log",
+ "percent-encoding",
+ "serde_json",
+ "tokio",
  "uuid",
 ]
 
@@ -1492,6 +1502,8 @@ dependencies = [
  "lazy_static",
  "log",
  "paste",
+ "regex",
+ "regex-automata 0.4.5",
  "serde",
  "serde_json",
  "serde_with",
@@ -2513,9 +2525,9 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lazycell"
@@ -3707,9 +3719,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.3"
+version = "1.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b62dbe01f0b06f9d8dc7d49e05a0785f153b00b2c227856282f671e0318c9b15"
+checksum = "b91213439dad192326a0d7c6ee3955910425f441d7038e0d6933b0aec5c4517f"
 dependencies = [
  "aho-corasick",
  "memchr",

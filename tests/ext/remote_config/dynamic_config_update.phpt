@@ -33,7 +33,6 @@ put_dynamic_config_file([
             "provenance" => "dynamic",
             "sample_rate" => 0,
             "tags" => [
-                ["key" => "foo", "value_glob" => "var"],
                 ["key" => "vuz", "value_glob" => "v?"],
             ],
         ],
@@ -66,4 +65,4 @@ string(9) "foo,other"
 string(1) "1"
 string(15) "foo:bar,baz:qux"
 string(1) "1"
-string(199) "[{"service":"foo","resource":"bar","_provenance":"customer","sample_rate":0.0},{"name":"*","service":"f?o","resource":"b*r","tags":{"foo":"var","vuz":"v?"},"_provenance":"dynamic","sample_rate":0.0}]"
+string(187) "[{"service":"foo","resource":"bar","_provenance":"customer","sample_rate":0.0},{"name":"*","service":"f?o","resource":"b*r","tags":{"vuz":"v?"},"_provenance":"dynamic","sample_rate":0.0}]"

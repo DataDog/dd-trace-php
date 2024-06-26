@@ -163,6 +163,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
             ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
+        } else if (env_name.ptr == strstr(env_name.ptr, "DD_DYNAMIC_INSTRUMENTATION_")) {
+            ini_name->ptr[sizeof("datadog.dynamic_instrumentation") - 1] = '.';
         }
     } else {
         ini_name->len = 0;

@@ -752,7 +752,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         } while (rootstack);
 
         if (ddtrace_exception_debugging_is_active()) {
-            ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(exception_debugger_buffer));
+            ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), DDTRACE_G(exception_debugger_buffer));
             if (DDTRACE_G(exception_debugger_arena)) {
                 zend_arena_destroy(DDTRACE_G(exception_debugger_arena));
                 DDTRACE_G(exception_debugger_arena) = NULL;
