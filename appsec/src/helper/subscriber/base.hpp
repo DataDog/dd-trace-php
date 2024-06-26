@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../action.hpp"
 #include "../engine_settings.hpp"
 #include "../parameter.hpp"
 #include "../parameter_view.hpp"
@@ -19,7 +20,7 @@ public:
     using ptr = std::shared_ptr<subscriber>;
 
     struct action {
-        std::string type;
+        dds::action_type type;
         std::unordered_map<std::string, std::string> parameters;
     };
 

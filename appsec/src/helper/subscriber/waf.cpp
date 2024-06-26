@@ -27,13 +27,35 @@ namespace dds::waf {
 
 namespace {
 
+action_type parse_action_type_string(const std::string &action)
+{
+    if (action == "block_request") {
+        return action_type::block;
+    }
+
+    if (action == "redirect_request") {
+        return action_type::redirect;
+    }
+
+    if (action == "generate_stack") {
+        return action_type::stack_trace;
+    }
+
+    if (action == "generate_schema") {
+        return action_type::extract_schema;
+    }
+
+    return action_type::invalid;
+}
+
 dds::subscriber::event format_waf_result(ddwaf_result &res)
 {
     dds::subscriber::event output;
     try {
         const parameter_view actions{res.actions};
         for (const auto &action : actions) {
-            subscriber::action a{std::string(action.key()), {}};
+            std::string action_string = std::string(action.key());
+            subscriber::action a{parse_action_type_string(action_string), {}};
             for (const auto &parameter : action) {
                 a.parameters.emplace(parameter.key(), parameter);
             }

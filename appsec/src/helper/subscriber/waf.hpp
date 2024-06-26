@@ -5,16 +5,15 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../engine.hpp"
+#include "../engine_ruleset.hpp"
+#include "../exception.hpp"
+#include "../parameter.hpp"
 #include <chrono>
 #include <ddwaf.h>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
-
-#include "../engine.hpp"
-#include "../engine_ruleset.hpp"
-#include "../exception.hpp"
-#include "../parameter.hpp"
 
 namespace dds::waf {
 

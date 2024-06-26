@@ -271,7 +271,7 @@ TEST(WafTest, UpdateRuleData)
             "192.168.1.1");
 
         EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_STREQ(res->actions.begin()->type.c_str(), "block_request");
+        EXPECT_EQ(res->actions.begin()->type, dds::action_type::block);
     }
 }
 
@@ -366,7 +366,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto action = res->actions.begin();
         EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_STREQ(action->type.c_str(), "block_request");
+        EXPECT_EQ(action->type, dds::action_type::block);
         EXPECT_STREQ(
             action->parameters.find("status_code")->second.c_str(), "123");
         EXPECT_STREQ(
@@ -405,7 +405,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto action = res->actions.begin();
         EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_STREQ(action->type.c_str(), "block_request");
+        EXPECT_EQ(action->type, dds::action_type::block);
         EXPECT_STREQ(action->parameters.find("status_code")->second.c_str(),
             "403"); // Default value
         EXPECT_STREQ(
@@ -444,7 +444,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto action = res->actions.begin();
         EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_STREQ(action->type.c_str(), "custom_type");
+        EXPECT_EQ(action->type, dds::action_type::invalid);
         EXPECT_STREQ(
             action->parameters.find("some")->second.c_str(), "parameter");
     }
@@ -478,7 +478,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto action = res->actions.begin();
         EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_STREQ(action->type.c_str(), "block_request");
+        EXPECT_EQ(action->type, dds::action_type::block);
         EXPECT_STREQ(action->parameters.find("status_code")->second.c_str(),
             "403"); // Default value
         EXPECT_STREQ(

@@ -97,16 +97,16 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
     dds::engine::result res{{}, std::move(event_data)};
     // Currently the only action the extension can perform is block
     if (event_actions.empty()) {
-        action record = {action_type::record, {}};
+        action record = {dds::action_type::record, {}};
         res.actions.emplace_back(std::move(record));
     }
 
     for (auto const &action : event_actions) {
         engine::action new_action;
-        new_action.type = string_to_action_type(action.type);
+        new_action.type = action.type;
         new_action.parameters.insert(
             action.parameters.begin(), action.parameters.end());
-        if (new_action.type != action_type::invalid) {
+        if (new_action.type != dds::action_type::invalid) {
             res.actions.push_back(new_action);
         }
     }
@@ -123,86 +123,6 @@ void engine::context::get_meta_and_metrics(
     for (const auto &[subscriber, listener] : listeners_) {
         listener->get_meta_and_metrics(meta, metrics);
     }
-}
-
-engine::action_type engine::string_to_action_type(const std::string &action)
-{
-    if (action == "block_request") {
-        return engine::action_type::block;
-    }
-
-    if (action == "redirect_request") {
-        return engine::action_type::redirect;
-    }
-
-    if (action == "generate_stack") {
-        return engine::action_type::stack_trace;
-    }
-
-    if (action == "generate_schema") {
-        return engine::action_type::extract_schema;
-    }
-
-    return engine::action_type::invalid;
-}
-
-template <typename T> engine::action parse_action(T &action_object)
-{
-    auto it = action_object.FindMember("type");
-    if (it == action_object.MemberEnd() || !it->value.IsString()) {
-        throw parsing_error("no action.type found or unexpected type");
-    }
-    std::string const type = action_object["type"].GetString();
-
-    engine::action action;
-    action.type = engine::string_to_action_type(type);
-    if (action.type == engine::action_type::invalid) {
-        throw parsing_error(
-            "unknown action.type " + type + " only block_request supported");
-    }
-
-    it = action_object.FindMember("parameters");
-    if (it == action_object.MemberEnd() || !it->value.IsObject()) {
-        throw parsing_error("no action.parameters found or unexpected type");
-    }
-    const auto &parameters = action_object["parameters"];
-    for (auto iter = parameters.MemberBegin(); iter != parameters.MemberEnd();
-         ++iter) {
-        if (!iter->name.IsString()) {
-            // Unclear if this is even possible
-            continue;
-        }
-
-        switch (iter->value.GetType()) {
-        case rapidjson::kStringType:
-            action.parameters[iter->name.GetString()] = iter->value.GetString();
-            break;
-        case rapidjson::kNumberType: {
-            std::string value;
-            if (iter->value.IsUint64()) {
-                value = std::to_string(iter->value.GetUint64());
-            } else if (iter->value.IsInt64()) {
-                value = std::to_string(iter->value.GetInt64());
-            } else if (iter->value.IsDouble()) {
-                value = std::to_string(iter->value.GetDouble());
-            }
-
-            action.parameters[iter->name.GetString()] = std::move(value);
-
-            break;
-        }
-        case rapidjson::kTrueType:
-            action.parameters[iter->name.GetString()] = "true";
-            break;
-        case rapidjson::kFalseType:
-            action.parameters[iter->name.GetString()] = "false";
-            break;
-        default:
-            continue;
-        }
-    }
-
-    return action;
 }
 
 engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,

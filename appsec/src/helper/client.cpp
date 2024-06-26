@@ -10,6 +10,7 @@
 #include <string>
 #include <thread>
 
+#include "action.hpp"
 #include "base64.h"
 #include "client.hpp"
 #include "compression.hpp"
@@ -237,19 +238,19 @@ std::shared_ptr<typename T::response> client::publish(
             for (auto &act : res->actions) {
                 dds::network::action_struct new_action;
                 switch (act.type) {
-                case engine::action_type::block:
+                case dds::action_type::block:
                     new_action.verdict = network::verdict::block;
                     new_action.parameters = std::move(act.parameters);
                     break;
-                case engine::action_type::redirect:
+                case dds::action_type::redirect:
                     new_action.verdict = network::verdict::redirect;
                     new_action.parameters = std::move(act.parameters);
                     break;
-                case engine::action_type::stack_trace:
+                case dds::action_type::stack_trace:
                     new_action.verdict = network::verdict::stack_trace;
                     new_action.parameters = std::move(act.parameters);
                     break;
-                case engine::action_type::record:
+                case dds::action_type::record:
                 default:
                     new_action.verdict = network::verdict::record;
                     new_action.parameters = {};

@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "action.hpp"
 #include "config.hpp"
 #include "engine_ruleset.hpp"
 #include "engine_settings.hpp"
@@ -37,17 +38,8 @@ public:
     using subscription_map =
         std::map<std::string_view, std::vector<subscriber::ptr>>;
 
-    enum class action_type : uint8_t {
-        invalid = 0,
-        record = 1,
-        redirect = 2,
-        block = 3,
-        stack_trace = 4,
-        extract_schema = 5
-    };
-
     struct action {
-        action_type type;
+        dds::action_type type;
         std::unordered_map<std::string, std::string> parameters;
     };
 
@@ -116,9 +108,6 @@ public:
     virtual void update(engine_ruleset &ruleset,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
-
-    static engine::action_type string_to_action_type(
-        const std::string &action_type);
 
 protected:
     explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})

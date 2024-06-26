@@ -58,7 +58,8 @@ TEST(EngineTest, SingleSubscriptor)
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {{"block_request", {}}}}));
+        .WillRepeatedly(
+            Return(subscriber::event{{}, {{dds::action_type::block, {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -71,13 +72,13 @@ TEST(EngineTest, SingleSubscriptor)
     p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
 
 using namespace std::literals;
@@ -92,7 +93,7 @@ TEST(EngineTest, MultipleSubscriptors)
             std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
             if (subs.find(data[0].parameterName) != subs.end()) {
                 return subscriber::event{
-                    {"some event"}, {{"block_request", {}}}};
+                    {"some event"}, {{dds::action_type::block, {}}}};
             }
             return std::nullopt;
         }));
@@ -130,43 +131,43 @@ TEST(EngineTest, MultipleSubscriptors)
     p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("c", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("d", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("e", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("f", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("g", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("h", parameter::string("value"sv));
@@ -179,14 +180,14 @@ TEST(EngineTest, MultipleSubscriptors)
     p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("c", parameter::string("value"sv));
     p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 }
 
 TEST(EngineTest, StatefulSubscriptor)
@@ -198,10 +199,12 @@ TEST(EngineTest, StatefulSubscriptor)
         .Times(6)
         .WillOnce(Return(std::nullopt))
         .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(subscriber::event{{}, {{"block_request", {}}}}))
+        .WillOnce(
+            Return(subscriber::event{{}, {{dds::action_type::block, {}}}}))
         .WillOnce(Return(std::nullopt))
         .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(subscriber::event{{}, {{"block_request", {}}}}));
+        .WillOnce(
+            Return(subscriber::event{{}, {{dds::action_type::block, {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -224,7 +227,7 @@ TEST(EngineTest, StatefulSubscriptor)
     p.add("final", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     auto ctx2 = e->get_context();
 
@@ -242,7 +245,7 @@ TEST(EngineTest, StatefulSubscriptor)
     p.add("sub2", parameter::string("value"sv));
     res = ctx2.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
 
 TEST(EngineTest, WafDefaultActions)
@@ -251,9 +254,10 @@ TEST(EngineTest, WafDefaultActions)
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{
-            {}, {{"redirect_request", {}}, {"block_request", {}},
-                    {"generate_stack", {}}, {"generate_schema", {}}}}));
+        .WillRepeatedly(Return(subscriber::event{{},
+            {{dds::action_type::redirect, {}}, {dds::action_type::block, {}},
+                {dds::action_type::stack_trace, {}},
+                {dds::action_type::extract_schema, {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -267,20 +271,20 @@ TEST(EngineTest, WafDefaultActions)
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
     EXPECT_EQ(4, res->actions.size());
-    EXPECT_EQ(res->actions[0].type, engine::action_type::redirect);
-    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
-    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
-    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
+    EXPECT_EQ(res->actions[1].type, dds::action_type::block);
+    EXPECT_EQ(res->actions[2].type, dds::action_type::stack_trace);
+    EXPECT_EQ(res->actions[3].type, dds::action_type::extract_schema);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
     EXPECT_EQ(4, res->actions.size());
-    EXPECT_EQ(res->actions[0].type, engine::action_type::redirect);
-    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
-    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
-    EXPECT_EQ(res->actions[1].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
+    EXPECT_EQ(res->actions[1].type, dds::action_type::block);
+    EXPECT_EQ(res->actions[2].type, dds::action_type::stack_trace);
+    EXPECT_EQ(res->actions[3].type, dds::action_type::extract_schema);
 }
 
 TEST(EngineTest, InvalidActionsAreDiscarded)
@@ -289,8 +293,8 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{
-            {}, {{"invalid_action", {}}, {"block_request", {}}}}));
+        .WillRepeatedly(Return(subscriber::event{{},
+            {{dds::action_type::invalid, {}}, {dds::action_type::block, {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -304,14 +308,14 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
     EXPECT_EQ(1, res->actions.size());
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
     EXPECT_EQ(1, res->actions.size());
-    EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
 
 TEST(EngineTest, WafSubscriptorBasic)
@@ -334,7 +338,7 @@ TEST(EngineTest, WafSubscriptorBasic)
 
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     EXPECT_EQ(res->events.size(), 1);
     for (auto &match : res->events) {
         rapidjson::Document doc;
@@ -490,7 +494,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 
@@ -578,7 +582,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 }
@@ -653,7 +657,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
@@ -671,7 +675,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::redirect);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
     }
 
     {
@@ -689,7 +693,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 }
 
@@ -710,7 +714,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
@@ -775,7 +779,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
     {
         engine_ruleset update(
@@ -791,7 +795,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
     }
 
     {
@@ -804,7 +808,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
@@ -832,7 +836,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->actions[0].type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 }
 
@@ -844,7 +848,8 @@ TEST(EngineTest, RateLimiterForceKeep)
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {{"redirect", {}}}}));
+        .WillRepeatedly(
+            Return(subscriber::event{{}, {{dds::action_type::redirect, {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -865,7 +870,8 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {{"redirect", {}}}}));
+        .WillRepeatedly(
+            Return(subscriber::event{{}, {{dds::action_type::redirect, {}}}}));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
