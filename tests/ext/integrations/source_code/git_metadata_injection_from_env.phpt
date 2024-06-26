@@ -14,15 +14,7 @@ ini_set('datadog.trace.git_metadata_enabled', 1);
 $rootSpan = \DDTrace\start_span();
 $internalSpan = \DDTrace\start_span();
 
-var_dump($rootSpan->gitMetadata->commitSha);
-var_dump($rootSpan->gitMetadata->repositoryUrl);
-var_dump($internalSpan->gitMetadata->commitSha);
-var_dump($internalSpan->gitMetadata->repositoryUrl);
-
 \DDTrace\close_span();
-\DDTrace\close_span();
-
-$rootSpan2 = \DDTrace\start_span();
 \DDTrace\close_span();
 
 var_dump(dd_trace_serialize_closed_spans());

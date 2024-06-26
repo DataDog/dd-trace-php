@@ -986,13 +986,6 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
 
         if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
             ddtrace_inject_git_metadata(&span->property_git_metadata);
-            /*
-            zval *git_metadata = ddtrace_get_git_metadata();
-            if (git_metadata) {
-                ddtrace_git_metadata *metadata = OBJ_GITMETADATA(Z_OBJ_P(git_metadata));
-                ZVAL_OBJ_COPY(prop_git_metadata, &metadata->std);
-            }
-            */
         }
     }
 
