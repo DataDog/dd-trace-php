@@ -24,6 +24,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => false,
             'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::BGS_FLUSH_INTERVAL_MS,
         ]);
