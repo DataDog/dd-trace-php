@@ -102,6 +102,27 @@ zend_string *get_repository_url(const char *git_dir) {
     return result;
 }
 
+zend_string *find_git_dir(const char *start_dir) {
+    char current_dir[PATH_MAX];
+    snprintf(current_dir, sizeof(current_dir), "%s", start_dir);
+
+    while (true) {
+        char git_dir[PATH_MAX];
+        snprintf(git_dir, sizeof(git_dir), "%s/.git", current_dir);
+
+        if (access(git_dir, F_OK) == 0) {
+            return zend_string_init(git_dir, strlen(git_dir), 0);
+        }
+
+        char *last_slash = strrchr(current_dir, '/');
+        if (!last_slash) {
+            return NULL;
+        }
+
+        *last_slash = '\0';
+    }
+}
+
 void remove_credentials(zend_string *repo_url) {
     char *url = ZSTR_VAL(repo_url);
     char *at = strchr(url, '@');
@@ -119,16 +140,14 @@ void remove_credentials(zend_string *repo_url) {
 void add_git_info(zval *carrier, zend_string *commit_sha, zend_string *repository_url) {
     object_init_ex(carrier, ddtrace_ce_git_metadata);
     ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
-    zend_string_addref(commit_sha);
     ZVAL_STR(&git_metadata->property_commit, commit_sha);
-    zend_string_addref(repository_url);
     ZVAL_STR(&git_metadata->property_repository, repository_url);
 }
 
 bool inject_from_env(zval *carrier) {
     zend_string *commit_sha = get_DD_GIT_COMMIT_SHA();
     zend_string *repository_url = get_DD_GIT_REPOSITORY_URL();
-    if (commit_sha && repository_url) {
+    if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
         remove_credentials(repository_url);
         add_git_info(carrier, commit_sha, repository_url);
         return true;
@@ -138,14 +157,31 @@ bool inject_from_env(zval *carrier) {
 
 bool inject_from_global_tags(zval *carrier) {
     zend_array * global_tags = get_DD_TAGS();
-    zval *repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
     zval *commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
-    if (repository_url && commit_sha) {
+    zval *repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
+    if (commit_sha && repository_url && Z_TYPE_P(commit_sha) == IS_STRING && Z_TYPE_P(repository_url) == IS_STRING) {
         remove_credentials(Z_STR_P(repository_url));
         add_git_info(carrier, Z_STR_P(commit_sha), Z_STR_P(repository_url));
         return true;
     }
+
     return false;
+}
+
+bool inject_from_git_dir(zval *carrier, zend_string* cwd) {
+    zend_string *git_dir = find_git_dir(ZSTR_VAL(cwd));
+    zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
+    zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
+    bool success = false;
+
+    if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
+        remove_credentials(repository_url);
+        add_git_info(carrier, commit_sha, repository_url);
+        success = true;
+        zend_string_release(git_dir);
+    }
+
+    return success;
 }
 
 void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
@@ -161,7 +197,7 @@ void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
         }
         cwd_zstr = zend_string_init(cwd, strlen(cwd), 1);
     }
-    
+
     zval *entry = zend_hash_find(&DDTRACE_G(git_metadata), cwd_zstr);
 
     if (entry && Z_TYPE_P(entry) == IS_FALSE) {
@@ -172,14 +208,10 @@ void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
     if (entry) {
         zend_string_release(cwd_zstr);
         ZVAL_COPY(git_metadata_zv, entry);
-        //add_git_info(git_metadata_zv, commit_sha, repository_url);
         return;
     }
 
-    inject_from_env(git_metadata_zv);
-
-    // Add the entry to the hash table
-    if (Z_TYPE_P(git_metadata_zv) == IS_OBJECT) {
+    if (inject_from_env(git_metadata_zv) || inject_from_global_tags(git_metadata_zv) || inject_from_git_dir(git_metadata_zv, cwd_zstr)) {
         zend_hash_add(&DDTRACE_G(git_metadata), cwd_zstr, git_metadata_zv);
     } else {
         ZVAL_FALSE(git_metadata_zv);
