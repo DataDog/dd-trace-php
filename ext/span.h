@@ -56,6 +56,7 @@ typedef union ddtrace_span_properties {
         };
         zval property_links;
         zval property_peer_service_sources;
+        zval property_git_metadata;
         union {
             union ddtrace_span_properties *parent;
             zval property_parent;
@@ -169,6 +170,21 @@ struct ddtrace_span_link {
         };
     };
 };
+
+struct ddtrace_git_metadata {
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_commit;
+            zval property_repository;
+        };
+    };
+};
+
+static inline ddtrace_git_metadata *OBJ_GITMETADATA(zend_object *obj) {
+    return (ddtrace_git_metadata *)((char *)obj - XtOffsetOf(ddtrace_git_metadata, std));
+}
 
 void ddtrace_init_span_stacks(void);
 void ddtrace_free_span_stacks(bool silent);

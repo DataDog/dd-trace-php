@@ -838,6 +838,10 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
         env = &parent->property_env;
     }
     ZVAL_COPY(prop_env, env);
+
+    zval *prop_git_metadata = &span->property_git_metadata;
+    zval_ptr_dtor(prop_git_metadata);
+    ZVAL_COPY(prop_git_metadata, &parent->property_git_metadata);
 }
 
 zend_string *ddtrace_default_service_name(void) {
@@ -966,6 +970,17 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             zval sample_rate;
             ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
+        }
+
+        if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+            ddtrace_inject_git_metadata(&span->property_git_metadata);
+            /*
+            zval *git_metadata = ddtrace_get_git_metadata();
+            if (git_metadata) {
+                ddtrace_git_metadata *metadata = OBJ_GITMETADATA(Z_OBJ_P(git_metadata));
+                ZVAL_OBJ_COPY(prop_git_metadata, &metadata->std);
+            }
+            */
         }
     }
 
@@ -1308,6 +1323,18 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         EG(exception) = current_exception;
     }
 
+    zval *git_metadata = &span->property_git_metadata;
+    if (git_metadata) {
+        ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
+        if (is_root_span) {
+            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(Z_STR_P(&metadata->property_commit)));
+            add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(Z_STR_P(&metadata->property_repository)));
+        } else {
+            add_assoc_str(meta, "git.commit.sha", zend_string_copy(Z_STR_P(&metadata->property_commit)));
+            add_assoc_str(meta, "git.repository_url", zend_string_copy(Z_STR_P(&metadata->property_repository)));
+        }
+    }
+
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
         zend_array *peer_service_sources = ddtrace_property_array(&span->property_peer_service_sources);
         if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"))) { // peer.service is already set by the user, honor it
@@ -1504,10 +1531,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-
-    if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
-        ddtrace_inject_git_metadata(&span->property_meta, is_root_span);
-    }
 
     // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
     // OTel HTTP semantic conventions >= 1.21.0

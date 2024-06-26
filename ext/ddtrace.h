@@ -24,12 +24,14 @@ extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
 extern zend_class_entry *ddtrace_ce_span_link;
 extern zend_class_entry *ddtrace_ce_integration;
+extern zend_class_entry *ddtrace_ce_git_metadata;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
 typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
+typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
 extern datadog_php_sapi ddtrace_active_sapi;
 
@@ -130,7 +132,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
 
-    ddtrace_git_metadata git_metadata;
+    HashTable git_metadata;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
