@@ -3,13 +3,6 @@
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 
-struct ddtrace_git_metadata {
-    zend_string *commit_sha;
-    zend_string *repository_url;
-    bool called_once;
-};
-typedef struct ddtrace_git_metadata ddtrace_git_metadata;
-
-void ddtrace_inject_git_metadata(zval* meta, bool is_root_span);
+void ddtrace_inject_git_metadata(zval *git_metadata_zv);
 
 #endif // DD_GIT_H
