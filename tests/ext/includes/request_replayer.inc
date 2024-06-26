@@ -5,12 +5,12 @@ class RequestReplayer
     /**
      * @var string
      */
-    private $endpoint;
+    public $endpoint;
 
     /**
      * @var int
      */
-    private $flushInterval;
+    public $flushInterval;
 
     /**
      * @var int

@@ -132,11 +132,12 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     zend_arena *exception_debugger_arena;
-    ddog_Vec_DebuggerPayloadCharSlice exception_debugger_buffer;
+    ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
     zend_string *last_flushed_root_env_name;
+    ddog_Vec_Tag active_global_tags;
 
     HashTable telemetry_spans_created_per_integration;
     ddog_SidecarActionsBuffer *telemetry_buffer;

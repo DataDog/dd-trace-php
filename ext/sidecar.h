@@ -14,13 +14,19 @@ void ddtrace_sidecar_submit_root_span_data(void);
 void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);
 ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void);
 
+void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads);
+void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
+
+void ddtrace_sidecar_rinit(void);
+void ddtrace_sidecar_rshutdown(void);
+
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);
 void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags);
 void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags);
 void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags);
 
-bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value);
+bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str);
 
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };

@@ -12,6 +12,7 @@ ddcommon = { path = "../libdatadog/ddcommon" }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
+datadog-dynamic-configuration = { path = "../libdatadog/dynamic-configuration" }
 datadog-live-debugger = { path = "../libdatadog/live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi" }
 datadog-remote-config = { path = "../libdatadog/remote-config" }
@@ -39,6 +40,8 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
     "env-filter",
 ] }
 serde_json = "1.0.113"
+regex = "1.10.5"
+regex-automata = "0.4.5"
 
 [build-dependencies]
 cbindgen = "0.26"

@@ -211,15 +211,15 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
     HashTable *stack_frame, *prev_stack_frame = NULL;
     zend_string *key_locals = NULL;
 
-    if (options & DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS) {
-        key_locals = zend_string_init(ZEND_STRL("locals"), 0);
-    }
-
     array_init(return_value);
 
     call = EG(current_execute_data);
     if (!call) {
         return;
+    }
+
+    if (options & DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS) {
+        key_locals = zend_string_init(ZEND_STRL("locals"), 0);
     }
 
 #if PHP_VERSION_ID >= 80300

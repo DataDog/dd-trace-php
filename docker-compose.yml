@@ -13,7 +13,7 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
         - agent-socket:/var/run/datadog
         - .cargo-registry:/rust/cargo/registry
-      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec,size=12G' ]
       depends_on:
         - agent
         #- staging_agent

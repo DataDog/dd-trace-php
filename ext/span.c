@@ -144,6 +144,12 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
     return span;
 }
 
+uint64_t ddtrace_nanoseconds_realtime(void) {
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    return ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
+}
+
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
@@ -168,9 +174,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     span->duration_start = zend_hrtime();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    span->start = ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
+    span->start = ddtrace_nanoseconds_realtime();
 
     span->span_id = ddtrace_generate_span_id();
 
@@ -752,7 +756,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
         } while (rootstack);
 
         if (ddtrace_exception_debugging_is_active()) {
-            ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(exception_debugger_buffer));
+            ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));
             if (DDTRACE_G(exception_debugger_arena)) {
                 zend_arena_destroy(DDTRACE_G(exception_debugger_arena));
                 DDTRACE_G(exception_debugger_arena) = NULL;

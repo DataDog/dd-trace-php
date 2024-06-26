@@ -224,6 +224,7 @@ void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 // Note that this function is used externally by the appsec extension.
 DDTRACE_PUBLIC zend_object *ddtrace_get_root_span(void);
 
+uint64_t ddtrace_nanoseconds_realtime(void);
 void dd_trace_stop_span_time(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);

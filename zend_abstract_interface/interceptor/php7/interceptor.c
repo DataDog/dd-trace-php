@@ -482,6 +482,11 @@ static int zai_interceptor_bailout_get_closure(zval *obj, zend_class_entry **ce_
 
 static void (*prev_execute_internal)(zend_execute_data *execute_data, zval *return_value);
 static inline void zai_interceptor_execute_internal_impl(zend_execute_data *execute_data, zval *return_value, bool prev) {
+#if PHP_VERSION_ID < 70100
+    if (UNEXPECTED(*zai_vm_interrupt) && zai_interrupt_function) {
+        zai_interrupt_function(execute_data);
+    }
+#endif
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_installed_internal(&func->internal_function))) {
         zai_interceptor_frame_memory frame_memory;

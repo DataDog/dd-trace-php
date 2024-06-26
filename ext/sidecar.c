@@ -17,7 +17,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-ddog_SidecarTransport *ddtrace_sidecar;
 ddog_Endpoint *ddtrace_endpoint;
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 static uint8_t dd_sidecar_formatted_session_id[36];
@@ -139,7 +138,7 @@ void ddtrace_sidecar_setup(void) {
 
 void ddtrace_sidecar_ensure_active(void) {
     if (ddtrace_sidecar) {
-        ddog_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory);
+        ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory);
     }
 }
 
@@ -325,12 +324,12 @@ void ddtrace_sidecar_submit_root_span_data(void) {
             if (!version) {
                 version = &root->property_version;
             }
-            ddog_CharSlice version_slice = DDOG_CHARSLICE_C("none");
+            ddog_CharSlice version_slice = DDOG_CHARSLICE_C("");
             if (version && Z_TYPE_P(version) == IS_STRING && Z_STRLEN_P(version) > 0) {
                 version_slice = dd_zend_string_to_CharSlice(Z_STR_P(version));
             }
 
-            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice);
+            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
             if (DDTRACE_G(remote_config_state)) {
                 ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
             }
@@ -338,8 +337,31 @@ void ddtrace_sidecar_submit_root_span_data(void) {
     }
 }
 
-bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value) {
-    UNUSED(old_value);
+void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads) {
+    LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_data(&payloads););
+    ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), payloads);
+}
+
+void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
+    LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_datum(payload););
+    ddog_sidecar_send_debugger_datum(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), payload);
+}
+
+void ddtrace_sidecar_rinit(void) {
+    DDTRACE_G(active_global_tags) = ddog_Vec_Tag_new();
+    zend_string *tag;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(get_DD_TAGS(), tag, value) {
+        UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), dd_zend_string_to_CharSlice(tag), dd_zend_string_to_CharSlice(Z_STR_P(value))));
+    } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_sidecar_rshutdown(void) {
+    ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
+}
+
+bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
     if (ddtrace_sidecar) {
         ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
         ddtrace_ffi_try("Failed updating test session token",

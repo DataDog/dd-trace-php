@@ -121,6 +121,50 @@ extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 #define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
 
 #define zend_declare_class_constant_ex(ce, name, value, access_type, doc_comment) zend_declare_class_constant(ce, ZSTR_VAL(name), ZSTR_LEN(name), value)
+
+// copied from PHP-7.0 source, but converting zend_long * to uint32_t * - assuming little endian
+static inline void zend_property_guard_dtor(zval *el) {
+    efree_size(Z_PTR_P(el), sizeof(zend_ulong));
+}
+static inline uint32_t *zend_get_property_guard(zend_object *zobj, zend_string *member) {
+    HashTable *guards;
+    zend_long stub, *guard;
+
+    ZEND_ASSERT(GC_FLAGS(zobj) & IS_OBJ_USE_GUARDS);
+    if (GC_FLAGS(zobj) & IS_OBJ_HAS_GUARDS) {
+        guards = Z_PTR(zobj->properties_table[zobj->ce->default_properties_count]);
+        ZEND_ASSERT(guards != NULL);
+        if ((guard = zend_hash_find_ptr(guards, member)) != NULL) {
+            return (uint32_t *)(guard + 1) - 1;
+        }
+    } else {
+        ALLOC_HASHTABLE(guards);
+        zend_hash_init(guards, 8, NULL, zend_property_guard_dtor, 0);
+        Z_PTR(zobj->properties_table[zobj->ce->default_properties_count]) = guards;
+        GC_FLAGS(zobj) |= IS_OBJ_HAS_GUARDS;
+    }
+
+    stub = 0;
+    guard = zend_hash_add_mem(guards, member, &stub, sizeof(zend_ulong));
+    return (uint32_t *)(guard + 1) - 1;
+}
+
+static inline zval *zend_read_property_ex(zend_class_entry *scope, zval *object, zend_string *name, zend_bool silent, zval *rv) {
+    zval property, *value;
+    zend_class_entry *old_scope = EG(scope);
+
+    EG(scope) = scope;
+
+    if (!Z_OBJ_HT_P(object)->read_property) {
+        zend_error_noreturn(E_CORE_ERROR, "Property %s of class %s cannot be read", ZSTR_VAL(name), ZSTR_VAL(Z_OBJCE_P(object)->name));
+    }
+
+    ZVAL_STR(&property, name);
+    value = Z_OBJ_HT_P(object)->read_property(object, &property, silent?BP_VAR_IS:BP_VAR_R, NULL, rv);
+
+    EG(scope) = old_scope;
+    return value;
+}
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -207,6 +251,8 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 
 #define ZEND_CLOSURE_OBJECT(op_array) \
     ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
+
+#define zend_std_read_dimension std_object_handlers.read_dimension
 
 // make ZEND_STRL work
 #undef zend_hash_str_update
@@ -396,6 +442,22 @@ static zend_always_inline void zend_array_release(zend_array *array)
 #define zend_value_error zend_type_error
 
 #define zend_update_property_ex(scope, object, name, value) do { zval _zv; ZVAL_OBJ(&_zv, object); zend_update_property_ex(scope, &_zv, name, value); } while (0)
+
+#define is_numeric_string_ex(str, length, lval, dval, allow_errors, oflow_info, trailing_data) is_numeric_string_ex(str, length, lval, dval, allow_errors, oflow_info)
+
+static zend_always_inline int zend_compare(zval *op1, zval *op2) {
+    zval result;
+    if (compare_function(&result, op1, op2) == FAILURE) {
+        return 1;
+    }
+    return Z_LVAL(result);
+}
+
+// const cast
+#undef Z_OBJPROP_P
+#define Z_OBJPROP_P(zv) Z_OBJPROP(*(zval *)(zv))
+#undef Z_OBJDEBUG_P
+#define Z_OBJDEBUG_P(zv, is_temp) Z_OBJDEBUG(*(zval *)(zv), is_temp)
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -539,12 +601,24 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 
 #define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
 
+#define ZEND_GUARD_PROPERTY_MASK 0xf
+
+// strip const
+#if PHP_VERSION_ID < 70300
+#undef zval_get_double
+#define zval_get_double(zv) _zval_get_double((zval *)(zv))
+#else
+#define zval_get_double(zv) zval_get_double((zval *)(zv))
+#endif
+
 #endif
 
 #if PHP_VERSION_ID < 80400
 #define zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error, free_trampoline) zend_parse_arg_func(arg, dest_fci, dest_fcc, check_null, error)
 #undef ZEND_RAW_FENTRY
 #define ZEND_RAW_FENTRY(zend_name, name, arg_info, flags, ...)   { zend_name, name, arg_info, (uint32_t) (sizeof(arg_info)/sizeof(struct _zend_internal_arg_info)-1), flags },
+
+#define hasThis() (Z_TYPE_P(ZEND_THIS) == IS_OBJECT)
 #endif
 
 #endif  // DD_COMPATIBILITY_H

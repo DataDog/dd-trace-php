@@ -135,6 +135,8 @@ extern const enum ddog_RemoteConfigCapabilities DDTRACE_REMOTE_CONFIG_CAPABILITI
 
 extern const uint8_t *DDOG_PHP_FUNCTION;
 
+extern struct ddog_SidecarTransport *ddtrace_sidecar;
+
 /**
  * # Safety
  * Must be called from a single-threaded context, such as MINIT.
@@ -168,6 +170,11 @@ struct ddog_RemoteConfigState *ddog_init_remote_config(ddog_CharSlice tracer_ver
 
 void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
 
+bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
+                                   ddog_CharSlice typename_);
+
+bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
+
 struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
 
 void ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
@@ -188,10 +195,26 @@ void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
 void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
 
+void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
+
+void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
+
+ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
+                                               struct ddog_SidecarTransport **transport,
+                                               const struct ddog_InstanceId *instance_id,
+                                               ddog_QueueId queue_id,
+                                               const struct ddog_Probe *probe,
+                                               uint64_t timestamp);
+
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry);
+
+void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
+                               struct ddog_SidecarTransport *(*factory)(void));
+
+bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,

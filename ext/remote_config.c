@@ -9,6 +9,9 @@
 #include <hook/hook.h>
 #include "threads.h"
 #include "live_debugger.h"
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 #if PHP_VERSION_ID < 70100
 #include <interceptor/php7/interceptor.h>
@@ -20,7 +23,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static void (*dd_prev_interrupt_function)(zend_execute_data *execute_data);
 static void dd_vm_interrupt(zend_execute_data *execute_data) {
-    dd_prev_interrupt_function(execute_data);
+    if (dd_prev_interrupt_function) {
+        dd_prev_interrupt_function(execute_data);
+    }
     if (DDTRACE_G(remote_config_state)) {
         ddog_process_remote_configs(DDTRACE_G(remote_config_state));
     }

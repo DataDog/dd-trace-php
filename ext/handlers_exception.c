@@ -529,6 +529,14 @@ void ddtrace_exception_handlers_startup(void) {
                     if (child) {
                         ((zend_property_info *)Z_PTR_P(child))->flags |= ZEND_ACC_CHANGED;
                     } else {
+#if PHP_VERSION_ID < 80100
+                        if (ce->type == ZEND_INTERNAL_CLASS) {
+                            zend_property_info *property_info = parent_info;
+                            parent_info = pemalloc(sizeof(zend_property_info), 1);
+                            memcpy(parent_info, property_info, sizeof(zend_property_info));
+                            zend_string_addref(parent_info->name);
+                        }
+#endif
                         zend_hash_add_new_ptr(&ce->properties_info, locals_key, parent_info);
                     }
 

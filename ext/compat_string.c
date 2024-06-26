@@ -34,13 +34,25 @@ try_again:
             return zend_string_init("undef", sizeof("undef") - 1, 0);
 
         case IS_NULL:
+#if PHP_VERSION_ID < 80000
             return zend_string_init("null", sizeof("null") - 1, 0);
+#else
+            return ZSTR_KNOWN(ZEND_STR_NULL_LOWERCASE);
+#endif
 
         case IS_FALSE:
+#if PHP_VERSION_ID < 80000
             return zend_string_init("false", sizeof("false") - 1, 0);
+#else
+            return ZSTR_KNOWN(ZEND_STR_FALSE);
+#endif
 
         case IS_TRUE:
+#if PHP_VERSION_ID < 80200
             return zend_string_init("true", sizeof("true") - 1, 0);
+#else
+            return ZSTR_KNOWN(ZEND_STR_TRUE);
+#endif
 
         case IS_RESOURCE:
             return strpprintf(0, "Resource id #" ZEND_LONG_FMT, (zend_long)Z_RES_HANDLE_P(op));
