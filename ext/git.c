@@ -1,6 +1,7 @@
 #include "git.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include <SAPI.h>
 #include <string.h>
 
 #ifdef PHP_WIN32
@@ -14,7 +15,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define PATH_MAX 4096
 #endif
 
-int remove_trailing_newline(char* str) {
+int remove_trailing_newline(char *str) {
     size_t len = strlen(str);
     while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
         len--;
@@ -23,15 +24,15 @@ int remove_trailing_newline(char* str) {
     return len;
 }
 
-void normalize_string(zend_string* str) {
+void normalize_string(zend_string *str) {
     ZSTR_LEN(str) = remove_trailing_newline(ZSTR_VAL(str));
 }
 
 
-zend_string* read_git_file(char* path) {
+zend_string *read_git_file(char *path) {
     remove_trailing_newline(path);
 
-    FILE* file = fopen(path, "r");
+    FILE *file = fopen(path, "r");
     if (!file) {
         return NULL;
     }
@@ -49,16 +50,16 @@ zend_string* read_git_file(char* path) {
     return zend_string_init(buffer, len, 0);
 }
 
-zend_string* get_commit_sha(const char* git_dir) {
+zend_string *get_commit_sha(const char *git_dir) {
     char head_path[PATH_MAX];
     snprintf(head_path, sizeof(head_path), "%s/HEAD", git_dir);
 
-    zend_string* head_content = read_git_file(head_path);
+    zend_string * head_content = read_git_file(head_path);
     if (!head_content) {
         return NULL;
     }
 
-    const char* ref_prefix = "ref: ";
+    const char *ref_prefix = "ref: ";
     if (strncmp(ZSTR_VAL(head_content), ref_prefix, strlen(ref_prefix)) == 0) {
         char ref_path[PATH_MAX];
         snprintf(ref_path, sizeof(ref_path), "%s/%s", git_dir, ZSTR_VAL(head_content) + strlen(ref_prefix));
@@ -69,24 +70,24 @@ zend_string* get_commit_sha(const char* git_dir) {
     return head_content;
 }
 
-zend_string* get_repository_url(const char* git_dir) {
+zend_string *get_repository_url(const char *git_dir) {
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config", git_dir);
 
-    FILE* file = fopen(config_path, "r");
+    FILE *file = fopen(config_path, "r");
     if (!file) {
         return NULL;
     }
 
     char buffer[256];
-    zend_string* result = NULL;
+    zend_string * result = NULL;
 
     while (fgets(buffer, sizeof(buffer), file)) {
         if (strncmp(buffer, "[remote \"origin\"]", 17) == 0) {
             while (fgets(buffer, sizeof(buffer), file)) {
                 if (buffer[0] == '[') break;
-                const char* url_prefix = "url = ";
-                char* url = strstr(buffer, url_prefix);
+                const char *url_prefix = "url = ";
+                char *url = strstr(buffer, url_prefix);
                 if (url) {
                     result = zend_string_init(url + strlen(url_prefix), strlen(url) - strlen(url_prefix), 0);
                     normalize_string(result);
@@ -101,11 +102,11 @@ zend_string* get_repository_url(const char* git_dir) {
     return result;
 }
 
-void removeCredentials(zend_string* repo_url) {
-    char* url = ZSTR_VAL(repo_url);
-    char* at = strchr(url, '@');
+void remove_credentials(zend_string *repo_url) {
+    char *url = ZSTR_VAL(repo_url);
+    char *at = strchr(url, '@');
     if (at != NULL) {
-        char* start = strstr(url, "://");
+        char *start = strstr(url, "://");
         if (start != NULL) {
             start += 3; // Move pointer past "://"
             size_t remaining_length = strlen(at + 1);
@@ -115,104 +116,75 @@ void removeCredentials(zend_string* repo_url) {
     }
 }
 
-void cache_git_metadata(zend_string* commit_sha, zend_string* repository_url) {
-    if (DDTRACE_G(git_metadata).commit_sha) {
-        zend_string_release(DDTRACE_G(git_metadata).commit_sha);
-    }
-
-    if (DDTRACE_G(git_metadata).repository_url) {
-        zend_string_release(DDTRACE_G(git_metadata).repository_url);
-    }
-
-    DDTRACE_G(git_metadata).commit_sha = zend_string_copy(commit_sha);
-    DDTRACE_G(git_metadata).repository_url = zend_string_copy(repository_url);
+void add_git_info(zval *carrier, zend_string *commit_sha, zend_string *repository_url) {
+    object_init_ex(carrier, ddtrace_ce_git_metadata);
+    ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
+    ZVAL_STR(&git_metadata->property_commit, commit_sha);
+    ZVAL_STR(&git_metadata->property_repository, repository_url);
 }
 
-static bool add_git_info(zval* meta, zend_string* commit_sha, zend_string* repository_url, bool is_root_span, bool cache) {
-    if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
-        removeCredentials(repository_url);
-
-        if (is_root_span) {
-            add_assoc_str(meta, "_dd.git.commit.sha", zend_string_copy(commit_sha));
-            add_assoc_str(meta, "_dd.git.repository_url", zend_string_copy(repository_url));
-        } else {
-            add_assoc_str(meta, "git.commit.sha", zend_string_copy(commit_sha));
-            add_assoc_str(meta, "git.repository_url", zend_string_copy(repository_url));
-        }
-
-        if (cache) {
-            cache_git_metadata(commit_sha, repository_url);
-        }
-
+bool inject_from_env(zval *carrier) {
+    zend_string *commit_sha = get_DD_GIT_COMMIT_SHA();
+    zend_string *repository_url = get_DD_GIT_REPOSITORY_URL();
+    if (commit_sha && repository_url) {
+        remove_credentials(repository_url);
+        add_git_info(carrier, commit_sha, repository_url);
         return true;
     }
-
     return false;
 }
 
-bool inject_from_env(zval* meta, bool is_root_span) {
-    return add_git_info(meta, get_DD_GIT_COMMIT_SHA(), get_DD_GIT_REPOSITORY_URL(), is_root_span, true);
+bool inject_from_global_tags(zval *carrier) {
+    zend_array * global_tags = get_DD_TAGS();
+    zval *repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
+    zval *commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
+    if (repository_url && commit_sha) {
+        remove_credentials(Z_STR_P(repository_url));
+        add_git_info(carrier, Z_STR_P(commit_sha), Z_STR_P(repository_url));
+        return true;
+    }
+    return false;
 }
 
-bool inject_from_global_tags(zval* meta, bool is_root_span) {
-    zend_array* global_tags = get_DD_TAGS();
-    bool success = false;
+void ddtrace_inject_git_metadata(zval *git_metadata_zv) {
+    zend_string *cwd_zstr = NULL;
 
-    if (global_tags) {
-        zval* git_commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
-        zval* git_repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
-
-        if (git_commit_sha && git_repository_url && Z_TYPE_P(git_commit_sha) == IS_STRING &&
-            Z_TYPE_P(git_repository_url) == IS_STRING) {
-            success = add_git_info(meta, Z_STR_P(git_commit_sha), Z_STR_P(git_repository_url), is_root_span, true);
+    if (SG(options) & SAPI_OPTION_NO_CHDIR) {
+        const char *script_filename = SG(request_info).path_translated;
+        cwd_zstr = zend_string_init(script_filename, strlen(script_filename), 0);
+    } else {
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd)) == NULL) {
+            return;
         }
+        cwd_zstr = zend_string_init(cwd, strlen(cwd), 0);
     }
+    
+    zval *entry = zend_hash_find(&DDTRACE_G(git_metadata), cwd_zstr);
 
-    if (success && is_root_span) {
-        zend_hash_str_del(Z_ARR_P(meta), ZEND_STRL("git.commit.sha"));
-        zend_hash_str_del(Z_ARR_P(meta), ZEND_STRL("git.repository_url"));
-    }
-
-    return success;
-}
-
-bool inject_from_git_files(zval* meta, bool is_root_span) {
-    char cwd[PATH_MAX];
-    if (!getcwd(cwd, sizeof(cwd))) {
-        return false;
-    }
-
-    char git_dir[PATH_MAX];
-    snprintf(git_dir, sizeof(git_dir), "%s/.git", cwd);
-
-    zend_string* git_commit_sha = get_commit_sha(git_dir);
-    zend_string* git_repository_url = get_repository_url(git_dir);
-
-    if (!git_commit_sha || !git_repository_url) {
-        if (git_commit_sha) zend_string_release(git_commit_sha);
-        if (git_repository_url) zend_string_release(git_repository_url);
-        return false;
-    }
-
-    bool result = add_git_info(meta, git_commit_sha, git_repository_url, is_root_span, true);
-
-    zend_string_release(git_commit_sha);
-    zend_string_release(git_repository_url);
-
-    return result;
-}
-
-void ddtrace_inject_git_metadata(zval* meta, bool is_root_span) {
-    ddtrace_git_metadata git_metadata = DDTRACE_G(git_metadata);
-    if (git_metadata.called_once) {
-        add_git_info(meta, git_metadata.commit_sha, git_metadata.repository_url, is_root_span, false);
+    if (entry && Z_TYPE_P(entry) == IS_FALSE) {
+        zend_string_release(cwd_zstr);
         return;
     }
 
-
-    if (inject_from_env(meta, is_root_span) ||
-        inject_from_global_tags(meta, is_root_span) ||
-        inject_from_git_files(meta, is_root_span)) {
+    if (entry) {
+        zend_string_release(cwd_zstr);
+        ZVAL_COPY(git_metadata_zv, entry);
+        //add_git_info(git_metadata_zv, commit_sha, repository_url);
         return;
     }
+
+    inject_from_env(git_metadata_zv);
+
+    // Add the entry to the hash table
+    if (Z_TYPE_P(git_metadata_zv) == IS_OBJECT) {
+        zend_hash_add(&DDTRACE_G(git_metadata), cwd_zstr, git_metadata_zv);
+    } else {
+        ZVAL_FALSE(git_metadata_zv);
+        zend_hash_add(&DDTRACE_G(git_metadata), cwd_zstr, git_metadata_zv);
+    }
+
+    zend_string_release(cwd_zstr);
+
+    return;
 }

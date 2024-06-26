@@ -453,6 +453,7 @@ static void ddtrace_activate(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
+    zend_hash_init(&DDTRACE_G(git_metadata), 8, unused, NULL, 0);
 
     if (!ddtrace_disable && ddtrace_has_excluded_module == true) {
         ddtrace_disable = 2;
@@ -1025,6 +1026,7 @@ static void dd_register_fatal_error_ce(void) {
 }
 
 zend_class_entry *ddtrace_ce_integration;
+zend_class_entry *ddtrace_ce_git_metadata;
 
 static bool dd_is_compatible_sapi() {
     switch (ddtrace_active_sapi) {
@@ -1148,6 +1150,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
+    ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
 
     ddtrace_engine_hooks_minit();
 
@@ -1340,16 +1343,6 @@ static void dd_clean_globals(void) {
         DDTRACE_G(tracestate) = NULL;
     }
 
-    if (DDTRACE_G(git_metadata).commit_sha) {
-        zend_string_release(DDTRACE_G(git_metadata).commit_sha);
-        DDTRACE_G(git_metadata).commit_sha = NULL;
-    }
-
-    if (DDTRACE_G(git_metadata).repository_url) {
-        zend_string_release(DDTRACE_G(git_metadata).repository_url);
-        DDTRACE_G(git_metadata).repository_url = NULL;
-    }
-
     ddtrace_internal_handlers_rshutdown();
 #ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
@@ -1422,6 +1415,18 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
     zend_hash_destroy(&DDTRACE_G(traced_spans));
+    /*
+    zend_string *key;
+    zval *val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(git_metadata), key, val) {
+        //zend_string_release(key);
+        //free(Z_OBJ_P(val));
+        //ddtrace_git_metadata *zv = Z_PTR_P(val);
+        //zend_object_release(&zv->std);
+        //zval_ptr_dtor(val);
+    } ZEND_HASH_FOREACH_END();
+     */
+    zend_hash_destroy(&DDTRACE_G(git_metadata));
 
     // this needs to be done before dropping the spans
     // run unconditionally because ddtrace may've been disabled mid-request
