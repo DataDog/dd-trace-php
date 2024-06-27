@@ -838,10 +838,6 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
         env = &parent->property_env;
     }
     ZVAL_COPY(prop_env, env);
-
-    zval *prop_git_metadata = &span->property_git_metadata;
-    zval_ptr_dtor(prop_git_metadata);
-    ZVAL_COPY(prop_git_metadata, &parent->property_git_metadata);
 }
 
 zend_string *ddtrace_default_service_name(void) {
@@ -1328,7 +1324,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         EG(exception) = current_exception;
     }
 
-    zval *git_metadata = &span->property_git_metadata;
+    zval *git_metadata = &span->root->property_git_metadata;
     if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
         ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
         if (is_root_span) {
