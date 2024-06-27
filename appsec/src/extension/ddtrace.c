@@ -18,6 +18,11 @@
 #include "zend_object_handlers.h"
 #include "zend_types.h"
 
+void (*nullable ddtrace_metric_register_buffer)(
+    zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
+bool (*nullable ddtrace_metric_add_point)(
+    zend_string *nonnull name, double value, zend_string *nonnull tags);
+
 static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
 static int _mod_type;
 static int _mod_number;
@@ -29,6 +34,7 @@ static zend_string *_metrics_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
+static void _setup_testing_telemetry_functions(void);
 static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
@@ -43,6 +49,11 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
     ddtrace_user_req_listeners *listeners);
 
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
+
+static void _test_ddtrace_metric_register_buffer(
+    zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
+static bool _test_ddtrace_metric_add_point(
+    zend_string *nonnull name, double value, zend_string *nonnull tags);
 
 static void dd_trace_load_symbols(void)
 {
@@ -97,6 +108,19 @@ static void dd_trace_load_symbols(void)
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
+    ddtrace_metric_register_buffer =
+        dlsym(handle, "ddtrace_metric_register_buffer");
+    if (ddtrace_metric_register_buffer == NULL && !testing) {
+        mlog(dd_log_error, "Failed to load ddtrace_metric_register_buffer: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
+    ddtrace_metric_add_point = dlsym(handle, "ddtrace_metric_add_point");
+    if (ddtrace_metric_add_point == NULL && !testing) {
+        mlog(dd_log_error, "Failed to load ddtrace_metric_add_point: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
     dlclose(handle);
 }
 
@@ -109,6 +133,7 @@ void dd_trace_startup()
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
+        _setup_testing_telemetry_functions();
     }
 
     zend_module_entry *mod = _find_ddtrace_module();
@@ -128,6 +153,16 @@ void dd_trace_startup()
     if (get_global_DD_APPSEC_TESTING()) {
         _orig_ddtrace_shutdown = mod->request_shutdown_func;
         mod->request_shutdown_func = _ddtrace_rshutdown_testing;
+    }
+}
+
+static void _setup_testing_telemetry_functions()
+{
+    if (ddtrace_metric_register_buffer == NULL) {
+        ddtrace_metric_register_buffer = _test_ddtrace_metric_register_buffer;
+    }
+    if (ddtrace_metric_add_point == NULL) {
+        ddtrace_metric_add_point = _test_ddtrace_metric_add_point;
     }
 }
 
@@ -469,3 +504,22 @@ static const zend_function_entry functions[] = {
 // clang-format on
 
 static void _register_testing_objects() { dd_phpobj_reg_funcs(functions); }
+
+static void _test_ddtrace_metric_register_buffer(
+    zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns)
+{
+    php_error_docref(NULL, E_NOTICE,
+        "Would call ddtrace_metric_register_buffer with name=%.*s "
+        "type=%d ns=%d",
+        (int)ZSTR_LEN(name), ZSTR_VAL(name), type, ns);
+}
+static bool _test_ddtrace_metric_add_point(
+    zend_string *nonnull name, double value, zend_string *nonnull tags)
+{
+    php_error_docref(NULL, E_NOTICE,
+        "Would call to ddtrace_metric_add_point with name=%.*s value=%f "
+        "tags=%.*s",
+        (int)ZSTR_LEN(name), ZSTR_VAL(name), value, (int)ZSTR_LEN(tags),
+        ZSTR_VAL(tags));
+    return true;
+}
