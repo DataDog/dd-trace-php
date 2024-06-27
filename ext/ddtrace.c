@@ -610,7 +610,7 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
 
-    zend_hash_destroy(&ddtrace_globals->git_metadata);
+    ddtrace_clean_git_metadata();
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
