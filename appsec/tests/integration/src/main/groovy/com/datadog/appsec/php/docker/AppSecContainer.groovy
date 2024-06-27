@@ -75,6 +75,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
+        withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
             withEnv 'XDEBUG', '1'
@@ -216,6 +217,8 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         ensureVolume('php-composer-cache')
         addVolumeMount('php-composer-cache', '/root/.composer/cache')
+
+        addVolumeMount('php-tracer-cargo-cache', '/root/.cargo/registry')
 
         File composerFile
         if (phpVersion in ['7.0', '7.1']) {
