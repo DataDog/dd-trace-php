@@ -9,7 +9,7 @@
 
 namespace dds {
 
-enum class action_type : uint8_t {
+enum class action_type : unsigned int {
     invalid = 0,
     record = 1,
     redirect = 2,
