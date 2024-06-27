@@ -43,6 +43,7 @@ static zend_always_inline zend_string *zend_string_init_interned(
     return zend_new_interned_string(ret);
 #    endif
 }
+extern zend_string *zend_empty_string;
 #endif
 
 #if PHP_VERSION_ID < 70300
