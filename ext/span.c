@@ -212,10 +212,6 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     if (root_span) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
         LOG(SPAN_TRACE, "Starting new root span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d, parent_SpanStack=%d", Z_STRVAL(root->property_trace_id), span->span_id, root->parent_id, root->stack->std.handle, root->stack->parent_stack->std.handle);
-        if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
-            zend_hash_str_del(Z_ARRVAL(root->property_meta), ZEND_STRL("git.commit.sha"));
-            zend_hash_str_del(Z_ARRVAL(root->property_meta), ZEND_STRL("git.repository_url"));
-        }
     } else {
         LOG(SPAN_TRACE, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
     }

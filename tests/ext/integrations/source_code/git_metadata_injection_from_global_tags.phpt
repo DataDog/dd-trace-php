@@ -40,9 +40,13 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(5) {
+    array(7) {
       ["runtime-id"]=>
       string(36) "%s"
+      ["git.commit.sha"]=>
+      string(6) "123456"
+      ["git.repository_url"]=>
+      string(32) "https://github.com/user/repo_new"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.git.commit.sha"]=>
