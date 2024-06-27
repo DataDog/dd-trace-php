@@ -152,11 +152,6 @@ namespace DDTrace {
         public array $peerServiceSources = [];
 
         /**
-         * @var GitMetadata|null The git metadata of the span
-         */
-        public GitMetadata|null $gitMetadata = null;
-
-        /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
         public readonly SpanData|null $parent;
@@ -233,6 +228,11 @@ namespace DDTrace {
          * This variable cannot be accessed by reference.
          */
         public string $traceId = "";
+
+        /**
+         * @var GitMetadata|null The git metadata of the span
+         */
+        public GitMetadata|null $gitMetadata = null;
     }
 
     /**
