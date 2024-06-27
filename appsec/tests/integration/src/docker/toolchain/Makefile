@@ -7,7 +7,7 @@ RELTYPE := RelWithDebInfo
 # need to be in sync with Toolchain*.cmake files
 MUSL_SYSROOT := $(CURDIR)/muslsysroot
 
-TARGET_ARCH := x86_64
+TARGET_ARCH := $(shell arch)
 TARGET := $(TARGET_ARCH)-none-linux-musl
 
 
@@ -23,7 +23,7 @@ GCC_TOOL_PREFIX := /usr/bin/
 GCC_TOOLCHAIN_SYSROOT := /
 
 .gcc-toolchain-installed:
-	cp -v /lib/x86_64-linux-gnu/libgcc_s.so.1 /usr/lib/gcc/x86_64-linux-gnu/10/libgcc_s.so.1
+	cp -v /lib/$(TARGET_ARCH)-linux-gnu/libgcc_s.so.1 /usr/lib/gcc/$(TARGET_ARCH)-linux-gnu/10/libgcc_s.so.1
 	touch $@
 
 musl-$(MUSL_VERSION).tar.gz:
