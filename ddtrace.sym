@@ -7,3 +7,5 @@ ddtrace_user_req_add_listeners
 ddtrace_ip_extraction_find
 get_module
 ddog_daemon_entry_point
+ddtrace_metric_register_buffer
+ddtrace_metric_add_point
