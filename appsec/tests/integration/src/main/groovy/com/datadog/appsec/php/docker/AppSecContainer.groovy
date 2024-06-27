@@ -75,7 +75,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
+        withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
+        withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
+        withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
+        withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
             withEnv 'XDEBUG', '1'
@@ -105,6 +109,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     void clearTraces() {
         mockDatadogAgent.drainTraces()
+    }
+
+    List<Object> drainTelemetry(int timeoutInMs) {
+        mockDatadogAgent.drainTelemetry(timeoutInMs)
     }
 
     void close() {
