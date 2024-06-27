@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#d (20) {
+object(DDTrace\RootSpanData)#%d (20) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
