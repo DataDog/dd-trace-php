@@ -137,12 +137,28 @@ function build_php {
       options+=(--with-iconv=shared)
     fi
 
+    if [[ -d /opt/homebrew/opt/zlib ]]; then
+      options+=(--with-zlib-dir=/opt/homebrew/opt/zlib)
+    fi
+
+    if [[ -f /opt/homebrew/include/gmp.h ]]; then
+      options+=(--with-gmp=shared,/opt/homebrew)
+    else
+      options+=(--with-gmp=shared)
+    fi
+
+    if [[ -d /opt/homebrew/opt/sqlite ]]; then
+      options+=(--with-pdo-sqlite=shared,/opt/homebrew/opt/sqlite)
+    else
+      options+=(--with-pdo-sqlite=shared,/usr)
+    fi
+
     set -x
-    local -r libpq_dir=$(find /opt/homebrew/Cellar/libpq -depth 1 -type d 2>/dev/null | head -1)
+    local -r libpq_dir=/opt/homebrew/opt/libpq
     if [[ -n $libpq_dir ]]; then
-      #export LDFLAGS="${LDFLAGS:-} -L$libpq_dir/lib"
-      #export CPPFLAGS="${CPPFLAGS:-} -I$libpq_dir/include"
-      #export PATH="$libpq_dir/bin:$PATH"
+      export LDFLAGS="${LDFLAGS:-} -L$libpq_dir/lib"
+      export CPPFLAGS="${CPPFLAGS:-} -I$libpq_dir/include"
+      export PATH="$libpq_dir/bin:$PATH"
       options+=(
       "--with-pgsql=shared,$libpq_dir/bin"
       "--with-pdo-pgsql=shared,$libpq_dir/bin")
@@ -160,11 +176,10 @@ function build_php {
     --enable-dom=shared
     --enable-fileinfo=shared
     --enable-filter
-    --with-gmp=shared
     --enable-intl=shared
     --enable-mbstring=shared
     --enable-opcache=shared
-    --enable-pdo=shared
+    "--enable-pdo=$([[ $(uname -o) != Darwin ]] && echo shared)"
     --enable-phar=shared
     --enable-xml
     --enable-simplexml=shared
@@ -174,7 +189,6 @@ function build_php {
     --enable-ctype=shared
     --enable-session=shared
     --enable-tokenizer=shared
-    --with-pdo-sqlite=shared,/usr
     --with-curl=shared)
   fi
 
@@ -312,15 +326,22 @@ function install_openssl {
   local -r build_dir="$HOME/php/build/openssl$major"
 
   mkdir -p "$build_dir"
-  cd "$build_dir"
+  pushd "$build_dir"
   if [[ $major = 1.0 ]]; then
     cp -a "$source_dir/." "$build_dir"
   fi
-  "$source_dir/config" --prefix="$install_dir" --openssldir="$install_dir" shared zlib no-tests
+  if [[ $version = '1.0.2u' && $(uname -o) = 'Darwin' && $(arch) = 'arm64' ]]; then
+    curl -Lf https://gist.githubusercontent.com/felixbuenemann/5f4dcb30ebb3b86e1302e2ec305bac89/raw/b339a33ff072c9747df21e2558c36634dd62c195/openssl-1.0.2u-darwin-arm64.patch | patch -p1
+    "./Configure" shared zlib no-tests --prefix="$install_dir" \
+      --openssldir="$install_dir" darwin64-arm64-cc
+    make depend
+  else
+    "$source_dir/config" --prefix="$install_dir" --openssldir="$install_dir" shared zlib no-tests
+  fi
 
   make -j && make install_sw
   touch "$install_dir/.installed"
-  cd -
+  popd
   rm -rf "$build_dir"
 
   echo "Installed OpenSSL $version in $install_dir"
@@ -462,6 +483,8 @@ if [[ -d /opt/homebrew/lib ]]; then
   export LDFLAGS="${LDFLAGS:-} -L/opt/homebrew/lib"
   export CPPFLAGS="${CPPFLAGS:-} -I/opt/homebrew/include"
 fi
+export CXXFLAGS="${CXXFLAGS:-} -std=c++11"
+export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration"
 
 install_openssl 1.0.2u
 install_openssl 1.1.1w
