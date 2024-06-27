@@ -45,10 +45,10 @@ M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$
 XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
 
 # Make 'sed -i' portable
-ifeq ($(shell uname),Darwin)
-	SED_I = sed -i ''
-else
+ifeq ($(shell { sed --version 2>&1 || echo ''; } | grep GNU > /dev/null && echo GNU || true),GNU)
 	SED_I = sed -i
+else
+	SED_I = sed -i ''
 endif
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
