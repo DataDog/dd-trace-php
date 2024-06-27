@@ -26,9 +26,7 @@ public:
 
     virtual std::shared_ptr<service> create_service(service_identifier &&id,
         const engine_settings &settings,
-        const remote_config::settings &rc_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics, bool dynamic_enablement);
+        const remote_config::settings &rc_settings, bool dynamic_enablement);
 
 protected:
     using cache_t = std::unordered_map<service_identifier,

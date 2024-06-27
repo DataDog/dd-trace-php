@@ -14,8 +14,10 @@
 #include "client.hpp"
 #include "compression.hpp"
 #include "exception.hpp"
+#include "metrics.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
+#include "service.hpp"
 #include "std_logging.hpp"
 
 using namespace std::chrono_literals;
@@ -23,6 +25,11 @@ using namespace std::chrono_literals;
 namespace dds {
 
 namespace {
+
+void collect_metrics(network::request_shutdown::response &response,
+    service &service, std::optional<engine::context> &context);
+void collect_metrics(network::client_init::response &response,
+    service &service, std::optional<engine::context> &context);
 
 template <typename M, typename... Mrest>
 // NOLINTNEXTLINE(google-runtime-references)
@@ -153,9 +160,6 @@ bool client::handle_command(const network::client_init::request &command)
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     std::vector<std::string> errors;
     bool has_errors = false;
 
@@ -167,7 +171,7 @@ bool client::handle_command(const network::client_init::request &command)
 
     try {
         service_ = service_manager_->create_service(std::move(service_id),
-            eng_settings, command.rc_settings, meta, metrics,
+            eng_settings, command.rc_settings,
             !client_enabled_conf.has_value());
         if (service_) {
             // This null check is only needed due to some tests
@@ -192,8 +196,11 @@ bool client::handle_command(const network::client_init::request &command)
     auto response = std::make_shared<network::client_init::response>();
     response->status = has_errors ? "fail" : "ok";
     response->errors = std::move(errors);
-    response->meta = std::move(meta);
-    response->metrics = std::move(metrics);
+
+    if (service_) {
+        // may be null in testing
+        collect_metrics(*response, *service_, context_);
+    }
 
     try {
         if (!broker_->send(response)) {
@@ -477,7 +484,7 @@ bool client::handle_command(network::request_shutdown::request &command)
             response->verdict = network::verdict::ok;
         }
 
-        context_->get_meta_and_metrics(response->meta, response->metrics);
+        collect_metrics(*response, *service_, context_);
     } catch (const invalid_object &e) {
         // This error indicates some issue in either the communication with
         // the client, incompatible versions or malicious client.
@@ -544,5 +551,74 @@ void client::run(worker::queue_consumer &q)
 
     SPDLOG_DEBUG("Finished handling client");
 }
+
+namespace {
+
+struct RequestMetricsSubmitter : public metrics::TelemetrySubmitter {
+    RequestMetricsSubmitter() = default;
+    ~RequestMetricsSubmitter() override = default;
+    RequestMetricsSubmitter(const RequestMetricsSubmitter &) = delete;
+    RequestMetricsSubmitter &operator=(
+        const RequestMetricsSubmitter &) = delete;
+    RequestMetricsSubmitter(RequestMetricsSubmitter &&) = delete;
+    RequestMetricsSubmitter &operator=(RequestMetricsSubmitter &&) = delete;
+
+    void submit_metric(
+        std::string_view name, double value, std::string tags) override
+    {
+        tel_metrics[name].emplace_back(value, tags);
+    };
+    void submit_legacy_metric(std::string_view name, double value) override
+    {
+        metrics[name] = value;
+    };
+    void submit_legacy_meta(std::string_view name, std::string value) override
+    {
+        meta[std::string{name}] = value;
+    };
+    void submit_legacy_meta_copy_key(
+        std::string name, std::string value) override
+    {
+        meta[name] = value;
+    }
+
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    std::map<std::string_view, std::vector<std::pair<double, std::string>>>
+        tel_metrics;
+};
+
+template <typename Response>
+void collect_metrics_impl(Response &response, service &service,
+    std::optional<engine::context> &context)
+{
+
+    RequestMetricsSubmitter msubmitter{};
+    if (context) {
+        context->get_metrics(msubmitter);
+    }
+    service.drain_metrics(
+        [&msubmitter](std::string_view name, double value, std::string tags) {
+            spdlog::debug(
+                "submit_metric: name={}, value={}, tags={}", name, value, tags);
+            msubmitter.submit_metric(name, value, std::move(tags));
+        });
+    msubmitter.metrics.merge(service.drain_legacy_metrics());
+    msubmitter.meta.merge(service.drain_legacy_meta());
+    response.tel_metrics = std::move(msubmitter.tel_metrics);
+    response.meta = std::move(msubmitter.meta);
+    response.metrics = std::move(msubmitter.metrics);
+}
+void collect_metrics(network::request_shutdown::response &response,
+    service &service, std::optional<engine::context> &context)
+{
+    collect_metrics_impl(response, service, context);
+}
+void collect_metrics(network::client_init::response &response, service &service,
+    std::optional<engine::context> &context)
+{
+    collect_metrics_impl(response, service, context);
+}
+} // namespace
 
 } // namespace dds
