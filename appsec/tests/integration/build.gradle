@@ -431,7 +431,7 @@ task loadCaches(type: Exec) {
             '-v', "${project.buildDir}:/build",
             'busybox',
             'sh', '-c',
-            "tar -xzf /build/php-appsec-volume-caches.tar.gz -C /caches && \
+            "tar -xzf /build/php-appsec-volume-caches-${arch}.tar.gz -C /caches && \
                 chown -R ${uuid} /caches"
 
     dependsOn downloadCaches

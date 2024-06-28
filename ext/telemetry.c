@@ -248,141 +248,35 @@ void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
 }
 
-ZEND_TLS HashTable metric_buffers;
-
-typedef struct {
-    double value;
-    zend_string *tags;
-} ddtrace_value_and_tags;
-typedef struct {
-    union {
-        ddtrace_value_and_tags single_value;
-        ddtrace_value_and_tags *values;
-    };
-    uint32_t capacity;
-    uint32_t count;
-    ddog_MetricType type;
-    ddog_MetricNamespace ns;
-} ddtrace_metric_buffer;
-
-static void dd_metric_buffer_free(zval *buffer_zv) {
-    ddtrace_metric_buffer *buf = Z_PTR_P(buffer_zv);
-    if (buf->capacity == 1 && buf->count == 1) {
-        zend_string_release(buf->single_value.tags);
-    } else {
-        for (uint32_t i = 0; i < buf->count; ++i) {
-            zend_string_release(buf->values[i].tags);
-        }
-        pefree(buf->values, 1);
-    }
-    pefree(buf, 1);
-}
-
-static HashTable *dd_metric_buffers_get() {
-    if (GC_REFCOUNT(&metric_buffers) == 0) {
-        zend_hash_init(&metric_buffers, sizeof(ddtrace_metric_buffer), NULL, dd_metric_buffer_free, 1);
-        assert(GC_REFCOUNT(&metric_buffers) > 0);
-    }
-    return &metric_buffers;
-}
+ZEND_TLS ddog_SidecarActionsBuffer *metrics_buffer;
 
 DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns)
 {
-    HashTable *buffers_ht = dd_metric_buffers_get();
-    if (zend_hash_exists(buffers_ht, name)) {
-        return;
+    if (!metrics_buffer) {
+        metrics_buffer = ddog_sidecar_telemetry_buffer_alloc();
     }
 
-    ddtrace_metric_buffer *buf = pemalloc(sizeof *buf, 1);
-    buf->capacity = 1;
-    buf->count = 0;
-    buf->type = type;
-    buf->ns = ns;
-    zend_hash_add_ptr(buffers_ht, name, buf);
+    ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
+    ddog_sidecar_telemetry_register_metric_buffer(metrics_buffer, metric_name, type, ns);
 }
 
-// takes (shared) onwership of tags if persistent. Otherwise copies.
-// `name` is only used for lookup
 DDTRACE_PUBLIC bool ddtrace_metric_add_point(zend_string *name, double value, zend_string *tags) {
-    ddtrace_metric_buffer *buf = zend_hash_find_ptr(dd_metric_buffers_get(), name);
-    if (!buf) {
-        return false;
+    if (!metrics_buffer) {
+        metrics_buffer = ddog_sidecar_telemetry_buffer_alloc();
     }
-    if (!tags) {
-        // zend_empty_string only available starting in 7.3
-        tags = zend_string_init(ZEND_STRL(""), 1);
-    } else if (GC_FLAGS(tags) & IS_STR_PERSISTENT) {
-        zend_string_addref(tags);
-    } else {
-        tags = zend_string_init(ZSTR_VAL(tags), ZSTR_LEN(tags), 1);
-    }
-
-    ddtrace_value_and_tags value_and_tags = {
-        .value = value,
-        .tags = (zend_string_addref(tags), tags),
-    };
-    if (buf->count == 0) {
-        if (buf->capacity == 1) {
-            buf->single_value = value_and_tags;
-        } else {
-            buf->values[0] = value_and_tags;
-        }
-        buf->count = 1;
-    } else {
-        if (buf->count == buf->capacity) {
-            if (buf->capacity == 1) {
-                buf->values = pemalloc(8 * sizeof(*buf->values), 1);
-                buf->capacity = 8;
-                buf->values[0] = buf->single_value;
-            } else {
-                if (buf->capacity * 2 < buf->capacity) {
-                    // overflow
-                    return false;
-                }
-                buf->capacity *= 2;
-                buf->values = safe_perealloc(buf->values, buf->capacity, sizeof(*buf->values), 0, 1);
-            }
-        }
-
-        buf->values[buf->count++] = value_and_tags;
-    }
-
+    ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
+    ddog_CharSlice tags_slice = dd_zend_string_to_CharSlice(tags);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(metrics_buffer, metric_name, value, tags_slice);
     return true;
 }
 
 static void dd_commit_metrics() {
-    zend_string *name;
-    ddtrace_metric_buffer *buf;
-    HashTable *metric_buffers = dd_metric_buffers_get();
-    ddog_SidecarActionsBuffer *sca_buffer = NULL;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(metric_buffers, name, buf) {
-        if (buf->count == 0) {
-            continue;
-        }
-        if (!sca_buffer) {
-            sca_buffer = ddog_sidecar_telemetry_buffer_alloc();
-        }
-        ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
-        ddog_sidecar_telemetry_register_metric_buffer(sca_buffer, metric_name, buf->type, buf->ns);
-        if (buf->capacity == 1) {
-            assert(buf->count == 1);
-            zend_string *tags = buf->single_value.tags;
-            ddog_sidecar_telemetry_add_span_metric_point_buffer(sca_buffer, metric_name, buf->single_value.value,
-                                                                dd_zend_string_to_CharSlice(tags));
-            zend_string_release(tags);
-        } else {
-            for (uint32_t i = 0; i < buf->count; ++i) {
-                zend_string *tags = buf->values[i].tags;
-                ddog_sidecar_telemetry_add_span_metric_point_buffer(sca_buffer, metric_name, buf->values[i].value,
-                                                                    dd_zend_string_to_CharSlice(tags));
-                zend_string_release(tags);
-            }
-        }
-        buf->count = 0;
+    if (!metrics_buffer) {
+        return;
     }
-    ZEND_HASH_FOREACH_END();
-
-    if (sca_buffer) {
-        ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, sca_buffer);
-    }
+    // no metrics seen at all
+    // ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, metrics_buffer);
+    // second waf.requests metric not seen, only waf.init and 1st waf.requests
+    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), metrics_buffer);
+    metrics_buffer = NULL;
 }
