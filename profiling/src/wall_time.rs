@@ -56,6 +56,29 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
         }
 
         if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            // todo: document this crime.
+            #[cfg(php_good_closure_invoke)]
+            {
+                let current_execute_data_cache = locals
+                    .current_execute_data_cache
+                    .swap(core::ptr::null_mut(), Ordering::SeqCst);
+                let vm_stack_top_addr = locals.executor_global_addrs.vm_stack_top.as_ptr();
+
+                // The engine stores a zend_execute_data* in vm_stack_top even
+                // though it's a zval*. We're just following the engine here.
+                let vm_stack_top = unsafe { *vm_stack_top_addr }.cast::<zend_execute_data>();
+
+                if current_execute_data_cache == vm_stack_top {
+                    let prev = unsafe { (*vm_stack_top).prev_execute_data };
+                    if prev == execute_data {
+                        let func = unsafe { (*vm_stack_top).func };
+                        if !func.is_null() && unsafe { (*func).is_internal() } {
+                            profiler.risky_collect_time(vm_stack_top, interrupt_count);
+                        }
+                        return;
+                    }
+                }
+            }
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             profiler.collect_time(execute_data, interrupt_count);
         }
@@ -133,6 +156,8 @@ pub unsafe fn minit() {
     };
     zend_interrupt_function = Some(function);
 
-    PREV_EXECUTE_INTERNAL.write(zend_execute_internal.unwrap_or(zend::execute_internal));
-    zend_execute_internal = Some(execute_internal);
+    if !cfg!(php_good_closure_invoke) {
+        PREV_EXECUTE_INTERNAL.write(zend_execute_internal.unwrap_or(zend::execute_internal));
+        zend_execute_internal = Some(execute_internal);
+    }
 }
