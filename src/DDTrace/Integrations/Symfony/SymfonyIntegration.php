@@ -12,6 +12,7 @@ use DDTrace\Util\Normalizer;
 use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Routing\RouterInterface;
 use function DDTrace\install_hook;
 
 class SymfonyIntegration extends Integration
@@ -294,6 +295,53 @@ class SymfonyIntegration extends Integration
                 if ($rootSpan !== null) {
                     $rootSpan->exception = $args[0];
                 }
+            }
+        );
+        
+        \DDTrace\trace_method(
+            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'dispatch',
+            function (SpanData $span, $args) {
+        
+                list($event) = $args;
+
+                $controllerEventClass = '\Symfony\Component\HttpKernel\Event\ControllerEvent';
+                if (!$event instanceof $controllerEventClass) {
+                    return;
+                }
+                
+                $request = $event->getRequest();
+                list($controller) = $event->getController();
+        
+                if (!property_exists($controller, 'container')) {
+                    return;
+                }
+        
+                $rc = new \ReflectionClass(get_class($controller));
+                $container = $rc->getProperty('container');
+                $container->setAccessible(true);
+                $container = $container->getValue($controller);
+        
+                $router = $container->get('router');
+                $routeName = $request->attributes->get('_route');
+                $matcher = $router->getMatcher();
+        
+                // Generate URL for the current route
+                $parameters = $matcher->match($request->getPathInfo());
+                $url = $router->generate($routeName, $parameters, RouterInterface::ABSOLUTE_PATH);
+        
+                // Replace route parameters in URL with placeholders
+                foreach ($parameters as $key => $value) {
+                    $search = '/' . preg_quote($value, '/') . '/';
+                    if (empty($value)) {
+                        continue;
+                    }
+                    $url = preg_replace($search, '{' . $key . '}', $url, 1);
+                }
+        
+                $urlWithoutQueryParameters = strtok($url, '?');
+        
+                $span->meta[\DDTrace\Tag::HTTP_ROUTE] = $urlWithoutQueryParameters;
             }
         );
 
