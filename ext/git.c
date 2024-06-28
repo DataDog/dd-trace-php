@@ -28,6 +28,8 @@ struct _git_metadata {
     zend_string *property_repository;
 };
 
+struct _git_metadata empty_git_metadata = {GIT_SOURCE_NONE, NULL, NULL};
+
 int remove_trailing_newline(char *str) {
     size_t len = strlen(str);
     while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
@@ -224,14 +226,16 @@ void inject_git_metadata(zval *carrier, zend_string *cwd) {
         source = inject_from_git_dir(carrier, cwd);
     }
 
-    ddtrace_git_metadata *git_metadata_obj = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
-    zend_string *property_commit = Z_STR(git_metadata_obj->property_commit);
-    zend_string *property_repository = Z_STR(git_metadata_obj->property_repository);
     if (source != GIT_SOURCE_NONE) {
+        ddtrace_git_metadata *git_metadata_obj = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
+        zend_string *property_commit = Z_STR(git_metadata_obj->property_commit);
+        zend_string *property_repository = Z_STR(git_metadata_obj->property_repository);
         zend_string_addref(property_commit);
         zend_string_addref(property_repository);
+        cache_git_metadata(cwd, property_commit, property_repository, source);
+    } else {
+        zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, &empty_git_metadata);
     }
-    cache_git_metadata(cwd, property_commit, property_repository, source);
 }
 
 void use_cached_metadata(zval *carrier, struct _git_metadata *git_metadata) {
@@ -278,11 +282,16 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 void ddtrace_clean_git_metadata(void) {
     struct _git_metadata *val;
     ZEND_HASH_FOREACH_PTR(&DDTRACE_G(git_metadata), val) {
+        if (val == &empty_git_metadata) {
+            continue;
+        }
+
         if (val->source == GIT_SOURCE_GIT_DIR) {
             zend_string_release(val->property_commit);
             zend_string_release(val->property_repository);
         }
         pefree(val, 1);
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
     zend_hash_destroy(&DDTRACE_G(git_metadata));
 }
