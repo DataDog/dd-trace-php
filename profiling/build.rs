@@ -181,6 +181,8 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
             | "IS_STRING" | "IS_ARRAY" | "IS_OBJECT" | "IS_RESOURCE" | "IS_REFERENCE"
             | "_IS_BOOL" => Some(IntKind::U8),
 
+            "ZEND_INTERNAL_FUNCTION" | "ZEND_USER_FUNCTION" => Some(IntKind::U8),
+
             // None means whatever it would have been without this hook
             // (likely u32).
             _ => None,
@@ -248,7 +250,7 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .rustified_enum("zai_config_type")
         .parse_callbacks(Box::new(ignored_macros))
         .clang_args(php_config_includes.split(' '))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(false)
         // this prevents bindgen from copying C comments to Rust, as otherwise
         // rustdoc would look for tests and currently fail as it assumes

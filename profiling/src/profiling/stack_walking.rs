@@ -1,4 +1,4 @@
-use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
+use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
 use std::borrow::Cow;
 use std::str::Utf8Error;
 
@@ -58,7 +58,7 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
-        Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
+        Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
             let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
             let lineno = match execute_data.opline.as_ref() {
@@ -293,8 +293,7 @@ mod detail {
             unsafe {
                 // Safety: if we have cache slots, we definitely have a func.
                 let func = &*execute_data.func;
-                // Safety: this union member is always valid.
-                if func.type_ != ZEND_USER_FUNCTION as u8 {
+                if func.is_internal() {
                     return None;
                 };
 
