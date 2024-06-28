@@ -4,8 +4,6 @@ Basic Git Metadata Injection from env var (Repository URL & Commit Sha)
 DD_GIT_REPOSITORY_URL=github.com/user/env_repo
 DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0
---INI--
-datadog.trace.git_metadata_enabled=1
 --FILE--
 <?php
 

@@ -1,10 +1,12 @@
 --TEST--
-Basic Git Metadata Injection from binary (Repository URL & Commit Sha)
+Basic Git Metadata Injection from .git files (Repository URL & Commit Sha)
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_GIT_METADATA_ENABLED=1
---INI--
-datadog.trace.git_metadata_enabled=1
+--SKIPIF--
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: The pecl run-tests path is not in a git repository");
+?>
 --FILE--
 <?php
 
