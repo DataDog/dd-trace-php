@@ -1,10 +1,11 @@
+use crate::profiling::Profiler;
 use crate::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
 };
-use crate::{PROFILER, REQUEST_LOCALS};
+use crate::REQUEST_LOCALS;
 use libc::c_char;
-use log::{error, trace, warn};
+use log::{error, trace};
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ptr;
@@ -45,13 +46,12 @@ impl State {
     }
 }
 
-#[inline]
-fn try_sleeping_fn(
+fn sleeping_fn(
     func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
     state: State,
-) -> anyhow::Result<()> {
+) {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.system_settings().profiling_timeline_enabled)
@@ -60,7 +60,7 @@ fn try_sleeping_fn(
 
     if !timeline_enabled {
         unsafe { func(execute_data, return_value) };
-        return Ok(());
+        return;
     }
 
     let start = Instant::now();
@@ -74,34 +74,18 @@ fn try_sleeping_fn(
 
     let duration = start.elapsed();
 
-    // > Returns an Err if earlier is later than self, and the error contains
-    // > how far from self the time is.
-    // This shouldn't ever happen (now is always later than the epoch) but in
-    // case it does, short-circuit the function.
-    let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    // This shouldn't ever happen (now is always later than the epoch)
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
 
-    match PROFILER.lock() {
-        Ok(guard) => {
-            // If the profiler isn't there, it's probably just not enabled.
-            if let Some(profiler) = guard.as_ref() {
-                let now = now.as_nanos() as i64;
-                let duration = duration.as_nanos() as i64;
-                profiler.collect_idle(now, duration, state.as_str())
-            }
-        }
-        Err(err) => anyhow::bail!("profiler mutex: {err:#}"),
+    if now.is_err() {
+        return;
     }
-    Ok(())
-}
 
-fn sleeping_fn(
-    func: unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-    state: State,
-) {
-    if let Err(err) = try_sleeping_fn(func, execute_data, return_value, state) {
-        warn!("error creating profiling timeline sample for an internal function: {err:#}");
+    if let Some(profiler) = Profiler::get() {
+        // Safety: `unwrap` can be unchecked, as we checked for `is_err()`
+        let now = unsafe { now.unwrap_unchecked().as_nanos() } as i64;
+        let duration = duration.as_nanos() as i64;
+        profiler.collect_idle(now, duration, state.as_str());
     }
 }
 
@@ -234,7 +218,7 @@ pub unsafe fn timeline_rinit() {
                 return;
             }
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if let Some(profiler) = Profiler::get() {
                 profiler.collect_idle(
                     // Safety: checked for `is_err()` above
                     SystemTime::now()
@@ -293,7 +277,7 @@ pub(crate) unsafe fn timeline_mshutdown() {
                 return;
             }
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if let Some(profiler) = Profiler::get() {
                 profiler.collect_idle(
                     // Safety: checked for `is_err()` above
                     SystemTime::now()
@@ -357,7 +341,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             duration.as_nanos(),
         );
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        if let Some(profiler) = Profiler::get() {
             profiler.collect_compile_string(
                 // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
@@ -423,7 +407,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             duration.as_nanos(),
         );
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        if let Some(profiler) = Profiler::get() {
             profiler.collect_compile_file(
                 // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
@@ -493,7 +477,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             duration.as_nanos()
         );
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        if let Some(profiler) = Profiler::get() {
             cfg_if::cfg_if! {
                 if #[cfg(php_gc_status)] {
                     profiler.collect_garbage_collection(
