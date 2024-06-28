@@ -104,9 +104,8 @@ void php_backtrace_to_datadog_backtrace(
 
     if (bottom > 0) {
         unsigned int position = frames_on_stack - bottom;
-        ZEND_HASH_FOREACH_FROM(php_backtrace_ht, 0, position)
+        DD_FOREACH_FROM(php_backtrace_ht, 0, position, index)
         {
-            index = __h;
             tmp = _z;
             zval new_frame;
 
