@@ -980,7 +980,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
         }
 
-        if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+        if (get_DD_TRACE_GIT_METADATA_ENABLED() & !PG(during_request_startup)) {
             ddtrace_inject_git_metadata(&span->property_git_metadata);
         }
     }
