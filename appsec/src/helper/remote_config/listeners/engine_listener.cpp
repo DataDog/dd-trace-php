@@ -9,18 +9,21 @@
 #include "config_aggregators/asm_dd_aggregator.hpp"
 #include "exception.hpp"
 #include "json_helper.hpp"
+#include "metrics.hpp"
 #include "remote_config/exception.hpp"
 #include "spdlog/spdlog.h"
 #include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 #include <type_traits>
+#include <utility>
 
 namespace dds::remote_config {
 
-engine_listener::engine_listener(
-    engine::ptr engine, const std::string &rules_file)
-    : engine_(std::move(engine))
+engine_listener::engine_listener(engine::ptr engine,
+    std::shared_ptr<dds::metrics::TelemetrySubmitter> msubmitter,
+    const std::string &rules_file)
+    : engine_{std::move(engine)}, msubmitter_{std::move(msubmitter)}
 {
     aggregators_.emplace(asm_product, std::make_unique<asm_aggregator>());
     aggregators_.emplace(
@@ -79,12 +82,8 @@ void engine_listener::commit()
         }
     }
 
-    // TODO find a way to provide this information to the service
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     engine_ruleset ruleset = dds::engine_ruleset(std::move(ruleset_));
-    engine_->update(ruleset, meta, metrics);
+    engine_->update(ruleset, *msubmitter_);
 }
 
 } // namespace dds::remote_config

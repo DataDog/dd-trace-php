@@ -25,6 +25,10 @@ class MockDatadogAgent implements Startable {
         this.httpServer.post('v0.4/traces', tracesHandler)
         this.httpServer.put('v0.4/traces', tracesHandler)
         this.httpServer.get('info', InfoHandler.instance)
+        this.httpServer.post('/telemetry/proxy/api/v2/apmtelemetry', TelemetryHandler.instance)
+        this.httpServer.error(404, ctx -> {
+            log.info("Unmatched request: ${ctx.method()} ${ctx.path()}")
+        })
 
         this.httpServer.start(0)
     }
@@ -59,5 +63,9 @@ class MockDatadogAgent implements Startable {
 
     List<Object> drainTraces() {
         tracesHandler.drainTraces()
+    }
+
+    List<Object> drainTelemetry(int timeoutInMs) {
+        TelemetryHandler.instance.drain(timeoutInMs)
     }
 }

@@ -78,3 +78,28 @@ bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
+
+typedef enum {
+    DDTRACE_METRIC_TYPE_GAUGE,
+    DDTRACE_METRIC_TYPE_COUNT,
+    DDTRACE_METRIC_TYPE_DISTRIBUTION,
+} ddtrace_metric_type;
+
+typedef enum {
+    DDTRACE_METRIC_NAMESPACE_TRACERS,
+    DDTRACE_METRIC_NAMESPACE_PROFILERS,
+    DDTRACE_METRIC_NAMESPACE_RUM,
+    DDTRACE_METRIC_NAMESPACE_APPSEC,
+    DDTRACE_METRIC_NAMESPACE_IDE_PLUGINS,
+    DDTRACE_METRIC_NAMESPACE_LIVE_DEBUGGER,
+    DDTRACE_METRIC_NAMESPACE_IAST,
+    DDTRACE_METRIC_NAMESPACE_GENERAL,
+    DDTRACE_METRIC_NAMESPACE_TELEMETRY,
+    DDTRACE_METRIC_NAMESPACE_APM,
+    DDTRACE_METRIC_NAMESPACE_SIDECAR,
+} ddtrace_metric_ns;
+
+extern void (*nullable ddtrace_metric_register_buffer)(
+    zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
+extern bool (*nullable ddtrace_metric_add_point)(zend_string *nonnull name,
+    double value, zend_string *nonnull tags);

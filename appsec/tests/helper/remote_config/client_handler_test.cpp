@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "../common.hpp"
+#include "metrics.hpp"
 #include "mocks.hpp"
 #include "remote_config/client_handler.hpp"
 
@@ -56,33 +57,39 @@ public:
 
 TEST_F(ClientHandlerTest, IfRemoteConfigDisabledItDoesNotGenerateHandler)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
     rc_settings.enabled = false;
 
     auto client_handler = remote_config::client_handler::from_settings(
         dds::service_identifier(id), settings, service_config, rc_settings,
-        engine, false);
+        engine, msubmitter, false);
 
     EXPECT_FALSE(client_handler);
 }
 
 TEST_F(ClientHandlerTest, IfNoServiceConfigProvidedItDoesNotGenerateHandler)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
     std::shared_ptr<dds::service_config> null_service_config = {};
     auto client_handler = remote_config::client_handler::from_settings(
         dds::service_identifier(id), settings, null_service_config, rc_settings,
-        engine, false);
+        engine, msubmitter, false);
 
     EXPECT_FALSE(client_handler);
 }
 
 TEST_F(ClientHandlerTest, RuntimeIdIsNotGeneratedIfProvided)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
     const char *runtime_id = "some runtime id";
     id.runtime_id = runtime_id;
 
     auto client_handler = remote_config::client_handler::from_settings(
         dds::service_identifier(id), settings, service_config, rc_settings,
-        engine, false);
+        engine, msubmitter, false);
 
     EXPECT_STREQ(runtime_id, client_handler->get_client()
                                  ->get_service_identifier()
@@ -91,10 +98,12 @@ TEST_F(ClientHandlerTest, RuntimeIdIsNotGeneratedIfProvided)
 
 TEST_F(ClientHandlerTest, AsmFeatureProductIsAddeWhenDynamicEnablement)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
     auto dynamic_enablement = true;
     auto client_handler = remote_config::client_handler::from_settings(
         dds::service_identifier(id), settings, service_config, rc_settings,
-        engine, dynamic_enablement);
+        engine, msubmitter, dynamic_enablement);
 
     auto products_list = client_handler->get_client()->get_products();
     EXPECT_TRUE(products_list.find("ASM_FEATURES") != products_list.end());
@@ -103,13 +112,15 @@ TEST_F(ClientHandlerTest, AsmFeatureProductIsAddeWhenDynamicEnablement)
 TEST_F(
     ClientHandlerTest, AsmFeatureProductIsNotAddeWhenDynamicEnablementDisabled)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
     auto dynamic_enablement = false;
 
     // Clear rules file so at least some other products are added
     settings.rules_file.clear();
     auto client_handler = remote_config::client_handler::from_settings(
         dds::service_identifier(id), settings, service_config, rc_settings,
-        engine, dynamic_enablement);
+        engine, msubmitter, dynamic_enablement);
 
     auto products_list = client_handler->get_client()->get_products();
     EXPECT_TRUE(products_list.find("ASM_FEATURES") == products_list.end());
@@ -117,11 +128,14 @@ TEST_F(
 
 TEST_F(ClientHandlerTest, SomeProductsDependOnDynamicEngineBeingSet)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
+
     { // When rules file is not set, products are added
         settings.rules_file.clear();
         auto client_handler = remote_config::client_handler::from_settings(
             dds::service_identifier(id), settings, service_config, rc_settings,
-            engine, true);
+            engine, msubmitter, true);
 
         auto products_list = client_handler->get_client()->get_products();
         EXPECT_TRUE(products_list.find("ASM_DATA") != products_list.end());
@@ -133,7 +147,7 @@ TEST_F(ClientHandlerTest, SomeProductsDependOnDynamicEngineBeingSet)
         settings.rules_file = "/some/file";
         auto client_handler = remote_config::client_handler::from_settings(
             dds::service_identifier(id), settings, service_config, rc_settings,
-            engine, true);
+            engine, msubmitter, true);
 
         auto products_list = client_handler->get_client()->get_products();
         EXPECT_TRUE(products_list.find("ASM_DATA") == products_list.end());
@@ -144,11 +158,13 @@ TEST_F(ClientHandlerTest, SomeProductsDependOnDynamicEngineBeingSet)
 
 TEST_F(ClientHandlerTest, IfNoProductsAreRequiredRemoteClientIsNotGenerated)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new mock::tel_submitter);
     settings.rules_file = "/some/file";
     auto dynamic_enablement = false;
     auto client_handler = remote_config::client_handler::from_settings(
         dds::service_identifier(id), settings, service_config, rc_settings,
-        engine, dynamic_enablement);
+        engine, msubmitter, dynamic_enablement);
 
     EXPECT_FALSE(client_handler);
 }

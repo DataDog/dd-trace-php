@@ -6,6 +6,7 @@
 #pragma once
 
 #include "engine.hpp"
+#include "metrics.hpp"
 #include "remote_config/client.hpp"
 #include "remote_config/settings.hpp"
 #include "service_config.hpp"
@@ -40,7 +41,9 @@ public:
         const dds::engine_settings &eng_settings,
         std::shared_ptr<dds::service_config> service_config,
         const remote_config::settings &rc_settings,
-        const engine::ptr &engine_ptr, bool dynamic_enablement);
+        const engine::ptr &engine_ptr,
+        std::shared_ptr<metrics::TelemetrySubmitter> msubmitter,
+        bool dynamic_enablement);
 
     bool start();
 

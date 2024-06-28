@@ -8,6 +8,7 @@
 #include "listeners/asm_features_listener.hpp"
 #include "listeners/engine_listener.hpp"
 #include "listeners/listener.hpp"
+#include "metrics.hpp"
 
 namespace dds::remote_config {
 
@@ -36,6 +37,7 @@ client_handler::ptr client_handler::from_settings(service_identifier &&id,
     const dds::engine_settings &eng_settings,
     std::shared_ptr<dds::service_config> service_config,
     const remote_config::settings &rc_settings, const engine::ptr &engine_ptr,
+    std::shared_ptr<metrics::TelemetrySubmitter> msubmitter,
     bool dynamic_enablement)
 {
     if (!rc_settings.enabled) {
@@ -54,8 +56,9 @@ client_handler::ptr client_handler::from_settings(service_identifier &&id,
     }
 
     if (eng_settings.rules_file.empty()) {
-        listeners.emplace_back(std::make_shared<remote_config::engine_listener>(
-            engine_ptr, eng_settings.rules_file_or_default()));
+        listeners.emplace_back(
+            std::make_shared<remote_config::engine_listener>(engine_ptr,
+                std::move(msubmitter), eng_settings.rules_file_or_default()));
     }
 
     if (listeners.empty()) {

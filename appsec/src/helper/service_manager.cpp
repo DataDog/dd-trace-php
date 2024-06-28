@@ -9,9 +9,7 @@ namespace dds {
 
 std::shared_ptr<service> service_manager::create_service(
     service_identifier &&id, const engine_settings &settings,
-    const remote_config::settings &rc_settings,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics, bool dynamic_enablement)
+    const remote_config::settings &rc_settings, bool dynamic_enablement)
 {
     const std::lock_guard guard{mutex_};
 
@@ -28,7 +26,7 @@ std::shared_ptr<service> service_manager::create_service(
     SPDLOG_DEBUG("Creating a service for {}::{}", id.service, id.env);
 
     auto service_ptr = service::from_settings(service_identifier(id), settings,
-        rc_settings, meta, metrics, dynamic_enablement);
+        rc_settings, dynamic_enablement);
     cache_.emplace(std::move(id), std::move(service_ptr));
     last_service_ = service_ptr;
 
