@@ -453,7 +453,6 @@ static void ddtrace_activate(void) {
     ddtrace_telemetry_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
-    zend_hash_init(&DDTRACE_G(git_metadata), 8, unused, NULL, 1);
 
     if (!ddtrace_disable && ddtrace_has_excluded_module == true) {
         ddtrace_disable = 2;
@@ -531,6 +530,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
+    zend_hash_init(&DDTRACE_G(git_metadata), 8, unused, NULL, 1);
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
