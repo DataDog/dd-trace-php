@@ -73,23 +73,15 @@ object(DDTrace\RootSpanData)#%d (20) {
     }
     ["active"]=>
     *RECURSION*
-  }
-  ["origin"]=>
-  uninitialized(string)
+  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)
-  ["propagatedSamplingPriority"]=>
-  uninitialized(int)
-  ["tracestate"]=>
-  uninitialized(string)
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
-  }
-  ["parentId"]=>
-  uninitialized(string)
+  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
   ["gitMetadata"]=>
@@ -172,7 +164,7 @@ object(DDTrace\RootSpanData)#%d (20) {
       ["exception"]=>
       NULL
       ["id"]=>
-      string(%d) "%d"
+      string(%d) "%s"
       ["links"]=>
       array(0) {
       }
@@ -182,45 +174,29 @@ object(DDTrace\RootSpanData)#%d (20) {
       ["parent"]=>
       NULL
       ["stack"]=>
-      *RECURSION*
-      ["origin"]=>
-      uninitialized(string)
+      *RECURSION*%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
       }
       ["samplingPriority"]=>
-      int(1073741824)
-      ["propagatedSamplingPriority"]=>
-      uninitialized(int)
-      ["tracestate"]=>
-      uninitialized(string)
+      int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
       ["tracestateTags"]=>
       array(0) {
-      }
-      ["parentId"]=>
-      uninitialized(string)
+      }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
       ["traceId"]=>
       string(32) "%s"
       ["gitMetadata"]=>
       NULL
     }
-  }
-  ["origin"]=>
-  uninitialized(string)
+  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)
-  ["propagatedSamplingPriority"]=>
-  uninitialized(int)
-  ["tracestate"]=>
-  uninitialized(string)
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
-  }
-  ["parentId"]=>
-  uninitialized(string)
+  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
   ["gitMetadata"]=>

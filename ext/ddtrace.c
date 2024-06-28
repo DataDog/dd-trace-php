@@ -530,7 +530,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
-    zend_hash_init(&DDTRACE_G(git_metadata), 8, unused, NULL, 1);
+    zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, NULL, 1);
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
