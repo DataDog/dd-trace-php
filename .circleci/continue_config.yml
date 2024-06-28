@@ -1043,7 +1043,7 @@ jobs:
           name: Set test environment variables
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1'
+            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0'
       - run:
           name: Run extension tests
           shell: powershell.exe

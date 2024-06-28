@@ -3,8 +3,6 @@ Remove credentials from repository URL
 --ENV--
 DD_TAGS=git.commit.sha:123456,git.repository_url:https://u:t@github.com/user/repo_new
 DD_TRACE_GENERATE_ROOT_SPAN=0
---INI--
-datadog.trace.git_metadata_enabled=1
 --FILE--
 <?php
 
