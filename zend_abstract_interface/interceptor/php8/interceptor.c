@@ -63,7 +63,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     const size_t stack_top_offset = 0x400;
     void *volatile stack = malloc(stack_size);
     if (SETJMP(target) == 0) {
-        void *stacktop = stack + stack_size, *stacktarget = stacktop - stack_top_offset;
+        void *stacktop = stack + stack_size;
+#if PHP_VERSION_ID >= 80300
+        register
+#endif
+        void *stacktarget = stacktop - stack_top_offset;
 
 #ifdef __SANITIZE_ADDRESS__
         void *volatile fake_stack;
