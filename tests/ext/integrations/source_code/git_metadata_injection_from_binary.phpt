@@ -3,6 +3,8 @@ Basic Git Metadata Injection from binary (Repository URL & Commit Sha)
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_GIT_METADATA_ENABLED=1
+--INI--
+datadog.trace.git_metadata_enabled=1
 --FILE--
 <?php
 
