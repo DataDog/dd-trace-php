@@ -38,15 +38,10 @@ public:
     using subscription_map =
         std::map<std::string_view, std::vector<subscriber::ptr>>;
 
-    struct action {
-        dds::action_type type;
-        std::unordered_map<std::string, std::string> parameters;
-    };
-
     using action_map = std::unordered_map<std::string /*id*/, action>;
 
     struct result {
-        std::vector<action> actions;
+        std::vector<dds::action> actions;
         std::vector<std::string> events;
         bool force_keep;
     };

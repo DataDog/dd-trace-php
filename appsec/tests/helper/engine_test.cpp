@@ -21,8 +21,7 @@ class listener : public dds::subscriber::listener {
 public:
     typedef std::shared_ptr<dds::mock::listener> ptr;
 
-    MOCK_METHOD1(
-        call, std::optional<dds::subscriber::event>(dds::parameter_view &));
+    MOCK_METHOD2(call, void(dds::parameter_view &, dds::event *));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
@@ -57,9 +56,11 @@ TEST(EngineTest, SingleSubscriptor)
     auto e{engine::create()};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
+    EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Return(subscriber::event{{}, {{dds::action_type::block, {}}}}));
+            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+                event_->actions.push_back({dds::action_type::block, {}});
+            }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -87,30 +88,28 @@ TEST(EngineTest, MultipleSubscriptors)
 {
     auto e{engine::create()};
     mock::listener::ptr blocker = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*blocker, call(_))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data)
-                                   -> std::optional<dds::subscriber::event> {
-            std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
-            if (subs.find(data[0].parameterName) != subs.end()) {
-                return subscriber::event{
-                    {"some event"}, {{dds::action_type::block, {}}}};
-            }
-            return std::nullopt;
-        }));
+    EXPECT_CALL(*blocker, call(_, _))
+        .WillRepeatedly(
+            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+                std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
+                if (subs.find(data[0].parameterName) != subs.end()) {
+                    event_->data.push_back("some event");
+                    event_->actions.push_back({dds::action_type::block, {}});
+                }
+            }));
 
     mock::listener::ptr recorder = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*recorder, call(_))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data)
-                                   -> std::optional<dds::subscriber::event> {
-            std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
-            if (subs.find(data[0].parameterName) != subs.end()) {
-                return subscriber::event{{"some event"}, {}};
-            }
-            return std::nullopt;
-        }));
+    EXPECT_CALL(*recorder, call(_, _))
+        .WillRepeatedly(
+            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+                std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
+                if (subs.find(data[0].parameterName) != subs.end()) {
+                    event_->data.push_back("some event");
+                }
+            }));
 
     mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+    EXPECT_CALL(*ignorer, call(_, _)).Times(testing::AnyNumber());
 
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub1, get_listener()).WillRepeatedly(Return(blocker));
@@ -194,17 +193,17 @@ TEST(EngineTest, StatefulSubscriptor)
 {
     auto e{engine::create()};
 
+    int attempt = 0;
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
+    EXPECT_CALL(*listener, call(_, _))
         .Times(6)
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(
-            Return(subscriber::event{{}, {{dds::action_type::block, {}}}}))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(
-            Return(subscriber::event{{}, {{dds::action_type::block, {}}}}));
+        .WillRepeatedly(Invoke(
+            [&attempt](dds::parameter_view &data, dds::event *event_) -> void {
+                if (attempt == 2 || attempt == 5) {
+                    event_->actions.push_back({dds::action_type::block, {}});
+                }
+                attempt++;
+            }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -253,11 +252,14 @@ TEST(EngineTest, WafDefaultActions)
     auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{},
-            {{dds::action_type::redirect, {}}, {dds::action_type::block, {}},
-                {dds::action_type::stack_trace, {}},
-                {dds::action_type::extract_schema, {}}}}));
+    EXPECT_CALL(*listener, call(_, _))
+        .WillRepeatedly(Invoke([](dds::parameter_view &data,
+                                   dds::event *event_) -> void {
+            event_->actions.push_back({dds::action_type::redirect, {}});
+            event_->actions.push_back({dds::action_type::block, {}});
+            event_->actions.push_back({dds::action_type::stack_trace, {}});
+            event_->actions.push_back({dds::action_type::extract_schema, {}});
+        }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -292,9 +294,12 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
     auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{},
-            {{dds::action_type::invalid, {}}, {dds::action_type::block, {}}}}));
+    EXPECT_CALL(*listener, call(_, _))
+        .WillRepeatedly(
+            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+                event_->actions.push_back({dds::action_type::invalid, {}});
+                event_->actions.push_back({dds::action_type::block, {}});
+            }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -386,7 +391,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     auto e{engine::create()};
 
     mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+    EXPECT_CALL(*ignorer, call(_, _)).Times(testing::AnyNumber());
 
     mock::subscriber::ptr new_sub1 =
         mock::subscriber::ptr(new mock::subscriber());
@@ -429,7 +434,7 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
     auto e{engine::create()};
 
     mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+    EXPECT_CALL(*ignorer, call(_, _)).Times(testing::AnyNumber());
 
     mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub1, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
@@ -608,7 +613,8 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 
     {
         engine_ruleset update(
-            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "enabled": "false"}]})");
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
+             "enabled": "false"}]})");
         e->update(update, meta, metrics);
     }
 
@@ -662,7 +668,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
     {
         engine_ruleset update(
-            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "on_match": ["redirect"]}], "actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}]})");
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
+             "on_match": ["redirect"]}], "actions": [{"id": "redirect",
+             "type": "redirect_request", "parameters": {"status_code": "303",
+             "location": "localhost"}}]})");
         e->update(update, meta, metrics);
     }
 
@@ -680,7 +689,8 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
     {
         engine_ruleset update(
-            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "on_match": ["redirect"]}], "actions": []})");
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
+             "on_match": ["redirect"]}], "actions": []})");
         e->update(update, meta, metrics);
     }
 
@@ -719,7 +729,8 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
     {
         engine_ruleset update(
-            R"({"exclusions": [{"id": "1", "rules_target":[{"rule_id":"1"}]}]})");
+            R"({"exclusions": [{"id": "1",
+             "rules_target":[{"rule_id":"1"}]}]})");
         e->update(update, meta, metrics);
     }
 
@@ -847,9 +858,11 @@ TEST(EngineTest, RateLimiterForceKeep)
     auto e{engine::create(rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
+    EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Return(subscriber::event{{}, {{dds::action_type::redirect, {}}}}));
+            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+                event_->actions.push_back({dds::action_type::redirect, {}});
+            }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
@@ -869,9 +882,11 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     auto e{engine::create(rate_limit)};
 
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
+    EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Return(subscriber::event{{}, {{dds::action_type::redirect, {}}}}));
+            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+                event_->actions.push_back({dds::action_type::redirect, {}});
+            }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));

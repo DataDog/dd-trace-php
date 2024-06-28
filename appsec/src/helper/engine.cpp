@@ -67,8 +67,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
         DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, entry.key());
     }
 
-    std::vector<std::string> event_data;
-    std::vector<subscriber::action> event_actions;
+    event event_;
 
     for (auto &sub : common_->subscribers) {
         auto it = listeners_.find(sub);
@@ -76,33 +75,25 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
             it = listeners_.emplace(sub, sub->get_listener()).first;
         }
         try {
-            auto event = it->second->call(data);
-            if (event) {
-                event_data.insert(event_data.end(),
-                    std::make_move_iterator(event->data.begin()),
-                    std::make_move_iterator(event->data.end()));
-                event_actions.insert(event_actions.end(),
-                    std::make_move_iterator(event->actions.begin()),
-                    std::make_move_iterator(event->actions.end()));
-            }
+            it->second->call(data, &event_);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }
     }
 
-    if (event_actions.empty() && event_data.empty()) {
+    if (event_.actions.empty() && event_.data.empty()) {
         return std::nullopt;
     }
 
-    dds::engine::result res{{}, std::move(event_data)};
+    dds::engine::result res{{}, std::move(event_.data)};
     // Currently the only action the extension can perform is block
-    if (event_actions.empty()) {
+    if (event_.actions.empty()) {
         action record = {dds::action_type::record, {}};
         res.actions.emplace_back(std::move(record));
     }
 
-    for (auto const &action : event_actions) {
-        engine::action new_action;
+    for (auto const &action : event_.actions) {
+        dds::action new_action;
         new_action.type = action.type;
         new_action.parameters.insert(
             action.parameters.begin(), action.parameters.end());

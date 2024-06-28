@@ -73,7 +73,8 @@ TEST(WafTest, RunWithInvalidParam)
     subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
     auto ctx = wi->get_listener();
     parameter_view pv;
-    EXPECT_THROW(ctx->call(pv), invalid_object);
+    dds::event e;
+    EXPECT_THROW(ctx->call(pv, &e), invalid_object);
 }
 
 TEST(WafTest, RunWithTimeout)
@@ -89,7 +90,8 @@ TEST(WafTest, RunWithTimeout)
     p.add("arg2", parameter::string("string 2"sv));
 
     parameter_view pv(p);
-    EXPECT_THROW(ctx->call(pv), timeout_error);
+    dds::event e;
+    EXPECT_THROW(ctx->call(pv, &e), timeout_error);
 }
 
 TEST(WafTest, ValidRunGood)
@@ -104,8 +106,8 @@ TEST(WafTest, ValidRunGood)
     p.add("arg1", parameter::string("string 1"sv));
 
     parameter_view pv(p);
-    auto res = ctx->call(pv);
-    EXPECT_TRUE(!res);
+    dds::event e;
+    ctx->call(pv, &e);
 
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
@@ -125,17 +127,17 @@ TEST(WafTest, ValidRunMonitor)
     p.add("arg2", parameter::string("string 3"sv));
 
     parameter_view pv(p);
-    auto res = ctx->call(pv);
-    EXPECT_TRUE(res);
+    dds::event e;
+    ctx->call(pv, &e);
 
-    for (auto &match : res->data) {
+    for (auto &match : e.data) {
         rapidjson::Document doc;
         doc.Parse(match);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
     }
 
-    EXPECT_TRUE(res->actions.empty());
+    EXPECT_TRUE(e.actions.empty());
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
     EXPECT_GT(metrics[tag::waf_duration], 0.0);
@@ -156,12 +158,12 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     p.add("arg2", parameter::string("string 3"sv));
 
     parameter_view pv(p);
-    auto res = ctx->call(pv);
-    EXPECT_TRUE(res);
+    dds::event e;
+    ctx->call(pv, &e);
 
-    EXPECT_EQ(res->data.size(), 1);
+    EXPECT_EQ(e.data.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(res->data[0]);
+    doc.Parse(e.data[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -170,7 +172,7 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     EXPECT_STREQ(doc["rule_matches"][1]["parameters"][0]["value"].GetString(),
         "<Redacted>");
 
-    EXPECT_TRUE(res->actions.empty());
+    EXPECT_TRUE(e.actions.empty());
 
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
@@ -197,16 +199,16 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     p.add("server.request.headers.no_cookies", std::move(sub_p));
 
     parameter_view pv(p);
-    auto res = ctx->call(pv);
-    EXPECT_TRUE(res);
+    dds::event e;
+    ctx->call(pv, &e);
 
-    EXPECT_EQ(res->data.size(), 1);
+    EXPECT_EQ(e.data.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(res->data[0]);
+    doc.Parse(e.data[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
-    EXPECT_TRUE(res->actions.empty());
+    EXPECT_TRUE(e.actions.empty());
 
     EXPECT_STREQ(doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
         "<Redacted>");
@@ -236,8 +238,8 @@ TEST(WafTest, UpdateRuleData)
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
         parameter_view pv(p);
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(!res);
+        dds::event e;
+        ctx->call(pv, &e);
     }
 
     auto param = json_to_parameter(
@@ -257,12 +259,12 @@ TEST(WafTest, UpdateRuleData)
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
         parameter_view pv(p);
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(res);
+        dds::event e;
+        ctx->call(pv, &e);
 
-        EXPECT_EQ(res->data.size(), 1);
+        EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(res->data[0]);
+        doc.Parse(e.data[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -270,8 +272,8 @@ TEST(WafTest, UpdateRuleData)
             doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
             "192.168.1.1");
 
-        EXPECT_EQ(res->actions.size(), 1);
-        EXPECT_EQ(res->actions.begin()->type, dds::action_type::block);
+        EXPECT_EQ(e.actions.size(), 1);
+        EXPECT_EQ(e.actions.begin()->type, dds::action_type::block);
     }
 }
 
@@ -291,8 +293,8 @@ TEST(WafTest, UpdateInvalid)
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
         parameter_view pv(p);
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(!res);
+        dds::event e;
+        ctx->call(pv, &e);
     }
 
     auto param = json_to_parameter(R"({})");
@@ -314,12 +316,12 @@ TEST(WafTest, SchemasAreAdded)
     p.add("arg2", parameter::string("string 3"sv));
 
     parameter_view pv(p);
-    auto res = ctx->call(pv);
-    EXPECT_TRUE(res);
+    dds::event e;
+    ctx->call(pv, &e);
 
-    EXPECT_EQ(res->data.size(), 1);
+    EXPECT_EQ(e.data.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(res->data[0]);
+    doc.Parse(e.data[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -351,12 +353,12 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto ctx = wi->get_listener();
 
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(res);
+        dds::event e;
+        ctx->call(pv, &e);
 
-        EXPECT_EQ(res->data.size(), 1);
+        EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(res->data[0]);
+        doc.Parse(e.data[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -364,8 +366,8 @@ TEST(WafTest, ActionsAreSentAndParsed)
             doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
             "192.168.1.1");
 
-        auto action = res->actions.begin();
-        EXPECT_EQ(res->actions.size(), 1);
+        auto action = e.actions.begin();
+        EXPECT_EQ(e.actions.size(), 1);
         EXPECT_EQ(action->type, dds::action_type::block);
         EXPECT_STREQ(
             action->parameters.find("status_code")->second.c_str(), "123");
@@ -390,12 +392,12 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto ctx = wi->get_listener();
 
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(res);
+        dds::event e;
+        ctx->call(pv, &e);
 
-        EXPECT_EQ(res->data.size(), 1);
+        EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(res->data[0]);
+        doc.Parse(e.data[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -403,8 +405,8 @@ TEST(WafTest, ActionsAreSentAndParsed)
             doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
             "192.168.1.1");
 
-        auto action = res->actions.begin();
-        EXPECT_EQ(res->actions.size(), 1);
+        auto action = e.actions.begin();
+        EXPECT_EQ(e.actions.size(), 1);
         EXPECT_EQ(action->type, dds::action_type::block);
         EXPECT_STREQ(action->parameters.find("status_code")->second.c_str(),
             "403"); // Default value
@@ -429,12 +431,12 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto ctx = wi->get_listener();
 
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(res);
+        dds::event e;
+        ctx->call(pv, &e);
 
-        EXPECT_EQ(res->data.size(), 1);
+        EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(res->data[0]);
+        doc.Parse(e.data[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -442,8 +444,8 @@ TEST(WafTest, ActionsAreSentAndParsed)
             doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
             "192.168.1.1");
 
-        auto action = res->actions.begin();
-        EXPECT_EQ(res->actions.size(), 1);
+        auto action = e.actions.begin();
+        EXPECT_EQ(e.actions.size(), 1);
         EXPECT_EQ(action->type, dds::action_type::invalid);
         EXPECT_STREQ(
             action->parameters.find("some")->second.c_str(), "parameter");
@@ -463,12 +465,12 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
         auto ctx = wi->get_listener();
 
-        auto res = ctx->call(pv);
-        EXPECT_TRUE(res);
+        dds::event e;
+        ctx->call(pv, &e);
 
-        EXPECT_EQ(res->data.size(), 1);
+        EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(res->data[0]);
+        doc.Parse(e.data[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -476,8 +478,8 @@ TEST(WafTest, ActionsAreSentAndParsed)
             doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
             "192.168.1.1");
 
-        auto action = res->actions.begin();
-        EXPECT_EQ(res->actions.size(), 1);
+        auto action = e.actions.begin();
+        EXPECT_EQ(e.actions.size(), 1);
         EXPECT_EQ(action->type, dds::action_type::block);
         EXPECT_STREQ(action->parameters.find("status_code")->second.c_str(),
             "403"); // Default value

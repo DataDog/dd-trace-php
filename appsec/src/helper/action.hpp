@@ -5,7 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include <map>
 #include <string>
+#include <vector>
 
 namespace dds {
 
@@ -18,4 +20,13 @@ enum class action_type : unsigned int {
     extract_schema = 5
 };
 
+struct action {
+    dds::action_type type;
+    std::unordered_map<std::string, std::string> parameters;
+};
+
+struct event {
+    std::vector<std::string> data;
+    std::vector<action> actions;
+};
 } // namespace dds

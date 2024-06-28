@@ -19,16 +19,6 @@ class subscriber {
 public:
     using ptr = std::shared_ptr<subscriber>;
 
-    struct action {
-        dds::action_type type;
-        std::unordered_map<std::string, std::string> parameters;
-    };
-
-    struct event {
-        std::vector<std::string> data;
-        std::vector<subscriber::action> actions;
-    };
-
     class listener {
     public:
         using ptr = std::shared_ptr<listener>;
@@ -41,7 +31,7 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual std::optional<event> call(parameter_view &data) = 0;
+        virtual void call(parameter_view &data, event *event) = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void get_meta_and_metrics(
