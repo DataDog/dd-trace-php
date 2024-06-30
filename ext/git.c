@@ -258,7 +258,7 @@ void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_
         zend_string_release(commit_sha);
     } else {
         zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
-        replace_git_metadata(git_metadata, commit_sha, repository_url)
+        replace_git_metadata(git_metadata, commit_sha, repository_url);
     }
 
     zend_string_release(git_dir);
