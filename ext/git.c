@@ -239,15 +239,10 @@ void inject_git_metadata(zval *carrier, zend_string *cwd) {
 }
 
 bool replace_git_metadata(struct _git_metadata *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
-    if (GC_REFCOUNT(git_metadata->property_commit) == 1) { // i.e., the value is only used by the global caching struct
-        zend_string_release(git_metadata->property_commit);
-        zend_string_release(git_metadata->property_repository);
-        git_metadata->property_commit = commit_sha;
-        git_metadata->property_repository = repository_url;
-        return true;
-    }
-
-    return false;
+    zend_string_release(git_metadata->property_commit);
+    zend_string_release(git_metadata->property_repository);
+    git_metadata->property_commit = commit_sha;
+    git_metadata->property_repository = repository_url;
 }
 
 void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_metadata) {
@@ -272,18 +267,12 @@ void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_
     zend_string_release(git_dir);
 }
 
-void use_cached_metadata(zval *carrier, zend_string *cwd, struct _git_metadata *git_metadata) {
-    if (git_metadata->source == GIT_SOURCE_NONE) {
-        return;
+void use_cached_metadata(zval *carrier, struct _git_metadata *git_metadata) {
+    if (git_metadata->source != GIT_SOURCE_NONE) {
+        zend_string_addref(git_metadata->property_commit);
+        zend_string_addref(git_metadata->property_repository);
+        add_git_info(carrier, git_metadata->property_commit, git_metadata->property_repository);
     }
-
-    if (git_metadata->source == GIT_SOURCE_GIT_DIR) {
-        refresh_git_metadata_if_needed(cwd, git_metadata);
-    }
-
-    zend_string_addref(git_metadata->property_commit);
-    zend_string_addref(git_metadata->property_repository);
-    add_git_info(carrier, git_metadata->property_commit, git_metadata->property_repository);
 }
 
 void ddtrace_inject_git_metadata(zval *carrier) {
@@ -311,7 +300,7 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 
     struct _git_metadata *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
     if (git_metadata) {
-        use_cached_metadata(carrier, cwd, git_metadata);
+        use_cached_metadata(carrier, git_metadata);
     } else {
         inject_git_metadata(carrier, cwd);
     }
@@ -334,4 +323,13 @@ void ddtrace_clean_git_metadata(void) {
     }
     ZEND_HASH_FOREACH_END();
     zend_hash_destroy(&DDTRACE_G(git_metadata));
+}
+
+void ddtrace_git_metadata_rinit(void) {
+    zend_string *cwd;
+    struct _git_metadata *git_metadata;
+    ZEND_HASH_FOREACH_STR_KEY_PTR(&DDTRACE_G(git_metadata), cwd, git_metadata) {
+        refresh_git_metadata_if_needed(cwd, git_metadata);
+    }
+    ZEND_HASH_FOREACH_END();
 }

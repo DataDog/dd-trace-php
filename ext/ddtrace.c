@@ -451,6 +451,7 @@ static void ddtrace_activate(void) {
     zai_interceptor_activate();
     zai_uhook_rinit();
     ddtrace_telemetry_rinit();
+    ddtrace_git_metadata_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
