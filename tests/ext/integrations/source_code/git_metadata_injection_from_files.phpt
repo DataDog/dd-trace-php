@@ -34,8 +34,6 @@ function makeRequest() {
     echo '_dd Root Meta Repo URL: ' . ($rootMeta['_dd.git.repository_url'] === $gitRepositoryURL ? 'OK' : 'NOK') . PHP_EOL;
     echo '_dd Root Meta Commit Sha: ' . ($rootMeta['_dd.git.commit.sha'] == $gitCommitSha ? 'OK' : 'NOK') . PHP_EOL;
 
-    // TODO: Change the git sha one way or another
-
     \DDTrace\start_span();
     \DDTrace\close_span();
 

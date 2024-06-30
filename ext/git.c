@@ -240,7 +240,7 @@ void inject_git_metadata(zval *carrier, zend_string *cwd) {
     }
 }
 
-bool replace_git_metadata(struct _git_metadata *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
+void replace_git_metadata(struct _git_metadata *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
     zend_string_release(git_metadata->property_commit);
     zend_string_release(git_metadata->property_repository);
     git_metadata->property_commit = commit_sha;
@@ -253,17 +253,12 @@ void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_
         return; // Should we replace git_metadata's properties by (NULL, NULL)?
     }
 
-    // TODO: Check caching
-
     zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
     if (commit_sha && zend_string_equals(git_metadata->property_commit, commit_sha)) {
         zend_string_release(commit_sha);
     } else {
         zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
-        if (!replace_git_metadata(git_metadata, commit_sha, repository_url)) {
-            zend_string_release(commit_sha);
-            zend_string_release(repository_url);
-        }
+        replace_git_metadata(git_metadata, commit_sha, repository_url)
     }
 
     zend_string_release(git_dir);
