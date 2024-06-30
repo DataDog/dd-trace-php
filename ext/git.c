@@ -30,6 +30,8 @@ struct _git_metadata {
 
 struct _git_metadata empty_git_metadata = {GIT_SOURCE_NONE, NULL, NULL};
 
+bool request_cache_updated; // This value is used to avoid updating the cache multiple times in the same request
+
 int remove_trailing_newline(char *str) {
     size_t len = strlen(str);
     while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
@@ -275,7 +277,22 @@ void use_cached_metadata(zval *carrier, struct _git_metadata *git_metadata) {
     }
 }
 
+void update_git_metadata(void) {
+    zend_string *cwd;
+    struct _git_metadata *git_metadata;
+    ZEND_HASH_FOREACH_STR_KEY_PTR(&DDTRACE_G(git_metadata), cwd, git_metadata) {
+        refresh_git_metadata_if_needed(cwd, git_metadata);
+    }
+    ZEND_HASH_FOREACH_END();
+
+    request_cache_updated = true;
+}
+
 void ddtrace_inject_git_metadata(zval *carrier) {
+    if (!request_cache_updated) {
+        update_git_metadata();
+    }
+
     zend_string *cwd = NULL;
 
     if (SG(options) & SAPI_OPTION_NO_CHDIR) {
@@ -326,10 +343,5 @@ void ddtrace_clean_git_metadata(void) {
 }
 
 void ddtrace_git_metadata_rinit(void) {
-    zend_string *cwd;
-    struct _git_metadata *git_metadata;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(&DDTRACE_G(git_metadata), cwd, git_metadata) {
-        refresh_git_metadata_if_needed(cwd, git_metadata);
-    }
-    ZEND_HASH_FOREACH_END();
+    request_cache_updated = false;
 }
