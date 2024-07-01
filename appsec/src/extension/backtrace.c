@@ -11,10 +11,8 @@
 #include "php_objects.h"
 #include "string_helpers.h"
 
-static const unsigned int MAX_FRAMES_ALLOWED = 32;
 static const int NO_LIMIT = 0;
-static const int STACK_DEFAULT_TOP = 8;
-static const int STACK_DEFAULT_BOTTOM = 24;
+static const float STACK_DEFAULT_TOP_PERCENTAGE = 0.25;
 
 static zend_string *_frames_key;
 static zend_string *_language_key;
@@ -69,15 +67,15 @@ void php_backtrace_to_datadog_backtrace(
         return;
     }
 
-    zend_long max_frames = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH();
     HashTable *php_backtrace_ht = Z_ARRVAL_P(php_backtrace);
     unsigned int frames_on_stack = zend_array_count(php_backtrace_ht);
 
-    unsigned int top = MIN(max_frames, MAX_FRAMES_ALLOWED);
+    unsigned int top = frames_on_stack;
     unsigned int bottom = 0;
-    if (frames_on_stack > MAX_FRAMES_ALLOWED && top == MAX_FRAMES_ALLOWED) {
-        top = STACK_DEFAULT_TOP;
-        bottom = STACK_DEFAULT_BOTTOM;
+    if (get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() < frames_on_stack) {
+        top = round(get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() *
+                    STACK_DEFAULT_TOP_PERCENTAGE);
+        bottom = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() - top;
     }
 
     array_init(datadog_backtrace);
@@ -86,21 +84,23 @@ void php_backtrace_to_datadog_backtrace(
 
     zval *tmp;
     zend_ulong index;
-    ZEND_HASH_FOREACH_NUM_KEY_VAL(php_backtrace_ht, index, tmp)
-    {
-        zval new_frame;
+    if (top > 0) {
+        ZEND_HASH_FOREACH_NUM_KEY_VAL(php_backtrace_ht, index, tmp)
+        {
+            zval new_frame;
 
-        if (!php_backtrace_frame_to_datadog_backtrace_frame(
-                tmp, &new_frame, index)) {
-            continue;
-        }
+            if (!php_backtrace_frame_to_datadog_backtrace_frame(
+                    tmp, &new_frame, index)) {
+                continue;
+            }
 
-        zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
-        if (--top == 0) {
-            break;
+            zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
+            if (--top == 0) {
+                break;
+            }
         }
+        ZEND_HASH_FOREACH_END();
     }
-    ZEND_HASH_FOREACH_END();
 
     if (bottom > 0) {
         unsigned int position = frames_on_stack - bottom;
