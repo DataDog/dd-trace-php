@@ -1,5 +1,5 @@
 --TEST--
-DD_APPSEC_MAX_STACK_TRACE_DEPTH max value is 32 picked 24 from bottom and 8 from top
+When DD_APPSEC_MAX_STACK_TRACE_DEPTH is lower than the number of frames. 0.25% are picked from top and 75% from  bottom
 --INI--
 extension=ddtrace.so
 --ENV--
@@ -19,7 +19,7 @@ function recursive_function($limit)
     recursive_function($limit);
 }
 
-recursive_function(40);
+recursive_function(50);
 
 ?>
 --EXPECTF--
@@ -27,7 +27,7 @@ array(2) {
   ["language"]=>
   string(3) "php"
   ["frames"]=>
-  array(32) {
+  array(40) {
     [0]=>
     array(4) {
       ["line"]=>
@@ -125,7 +125,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(16)
+      int(8)
     }
     [9]=>
     array(4) {
@@ -136,7 +136,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(17)
+      int(9)
     }
     [10]=>
     array(4) {
@@ -147,7 +147,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(18)
+      int(20)
     }
     [11]=>
     array(4) {
@@ -158,7 +158,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(19)
+      int(21)
     }
     [12]=>
     array(4) {
@@ -169,7 +169,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(20)
+      int(22)
     }
     [13]=>
     array(4) {
@@ -180,7 +180,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(21)
+      int(23)
     }
     [14]=>
     array(4) {
@@ -191,7 +191,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(22)
+      int(24)
     }
     [15]=>
     array(4) {
@@ -202,7 +202,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(23)
+      int(25)
     }
     [16]=>
     array(4) {
@@ -213,7 +213,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(24)
+      int(26)
     }
     [17]=>
     array(4) {
@@ -224,7 +224,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(25)
+      int(27)
     }
     [18]=>
     array(4) {
@@ -235,7 +235,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(26)
+      int(28)
     }
     [19]=>
     array(4) {
@@ -246,7 +246,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(27)
+      int(29)
     }
     [20]=>
     array(4) {
@@ -257,7 +257,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(28)
+      int(30)
     }
     [21]=>
     array(4) {
@@ -268,7 +268,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(29)
+      int(31)
     }
     [22]=>
     array(4) {
@@ -279,7 +279,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(30)
+      int(32)
     }
     [23]=>
     array(4) {
@@ -290,7 +290,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(31)
+      int(33)
     }
     [24]=>
     array(4) {
@@ -301,7 +301,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(32)
+      int(34)
     }
     [25]=>
     array(4) {
@@ -312,7 +312,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(33)
+      int(35)
     }
     [26]=>
     array(4) {
@@ -323,7 +323,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(34)
+      int(36)
     }
     [27]=>
     array(4) {
@@ -334,7 +334,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(35)
+      int(37)
     }
     [28]=>
     array(4) {
@@ -345,7 +345,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(36)
+      int(38)
     }
     [29]=>
     array(4) {
@@ -356,7 +356,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(37)
+      int(39)
     }
     [30]=>
     array(4) {
@@ -367,9 +367,97 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(38)
+      int(40)
     }
     [31]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(41)
+    }
+    [32]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(42)
+    }
+    [33]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(43)
+    }
+    [34]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(44)
+    }
+    [35]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(45)
+    }
+    [36]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(46)
+    }
+    [37]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(47)
+    }
+    [38]=>
+    array(4) {
+      ["line"]=>
+      int(12)
+      ["function"]=>
+      string(18) "recursive_function"
+      ["file"]=>
+      string(25) "generate_backtrace_05.php"
+      ["id"]=>
+      int(48)
+    }
+    [39]=>
     array(4) {
       ["line"]=>
       int(15)
@@ -378,7 +466,7 @@ array(2) {
       ["file"]=>
       string(25) "generate_backtrace_05.php"
       ["id"]=>
-      int(39)
+      int(49)
     }
   }
 }

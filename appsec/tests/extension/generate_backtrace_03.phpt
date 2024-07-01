@@ -31,13 +31,13 @@ array(2) {
     [0]=>
     array(4) {
       ["line"]=>
-      int(12)
+      int(15)
       ["function"]=>
-      string(3) "two"
+      string(3) "one"
       ["file"]=>
       string(25) "generate_backtrace_03.php"
       ["id"]=>
-      int(0)
+      int(1)
     }
   }
 }
