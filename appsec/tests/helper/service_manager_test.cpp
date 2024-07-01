@@ -36,7 +36,7 @@ TEST(ServiceManagerTest, LoadRulesOK)
     auto service = manager.create_service({"service", {}, "env", "", "", ""},
         engine_settings, {}, meta, metrics, {});
     EXPECT_EQ(manager.get_cache().size(), 1);
-    EXPECT_EQ(metrics[tag::event_rules_loaded], 3);
+    EXPECT_EQ(metrics[tag::event_rules_loaded], 4);
 
     // loading again should take from the cache
     auto service2 = manager.create_service({"service", {}, "env", "", "", ""},

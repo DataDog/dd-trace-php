@@ -211,6 +211,7 @@ class Helper {
 };
 
 function response($type, $message) {
+//     var_dump([$type, $message]);
     return [$type, $message];
 }
 
@@ -231,21 +232,51 @@ function response_client_init($message) {
 
 function response_request_init($message, $mergeWithEmpty = true) {
     if ($mergeWithEmpty) {
-        $message = array_override(['', [], [], false], $message);
+        $message = array_override([
+            [//Actions
+                [ //First action
+                    '', //verdict
+                    [] // parameters
+                ]
+            ],
+            [], //triggers
+            false //force_keep
+        ], $message);
     }
     return response("request_init", $message);
 }
 
 function response_request_exec($message, $mergeWithEmpty = true) {
     if ($mergeWithEmpty) {
-        $message = array_override(['', [], [], false], $message);
+        $message = array_override([
+            [//Actions
+                [ //First action
+                    '', //verdict
+                    [] // parameters
+                ]
+            ],
+            [],
+            false
+        ], $message);
     }
     return response("request_exec", $message);
 }
 
 function response_request_shutdown($message, $mergeWithEmpty = true) {
     if ($mergeWithEmpty) {
-        $message = array_override(['', [], [], false, [], [], []], $message);
+        $message = array_override([
+            [//Actions
+                [ //First action
+                    '', //verdict
+                    [] // parameters
+                ]
+            ],
+            [],
+            false,
+            [],
+            [],
+            []
+        ], $message);
     }
     return response("request_shutdown", $message);
 }

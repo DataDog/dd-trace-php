@@ -12,8 +12,8 @@ $helper = Helper::createInitedRun([
     response_list(response_config_sync()),
     //Second request
     response_list(response_config_features(true)), //Config sync enables
-    response_list(response_request_init(['ok'])), //Since it got enabled, it should call to request init
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])), //End of request
+    response_list(response_request_init([[['ok', []]]])), //Since it got enabled, it should call to request init
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])), //End of request
     //Third request
     response_list(response_config_features(false)), //Config sync enables
     //Four request

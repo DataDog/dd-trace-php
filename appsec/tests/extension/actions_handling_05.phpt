@@ -1,7 +1,9 @@
 --TEST--
-Redirect request as a result of rinit, with custom status_code and location
+Redirect take precedence over block or ok
 --INI--
 datadog.appsec.enabled=1
+--ENV--
+DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML=tests/extension/templates/response.html
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;
@@ -9,7 +11,7 @@ use function datadog\appsec\testing\rinit;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['redirect', ['status_code' => '301', 'location' => 'http://alex.com', 'not-relevant' => 'field']]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['ok', []], ['redirect', ['status_code' => '301', 'location' => 'http://alex.com']], ['block', ['status_code' => '500', 'type' => 'html']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ], ['continuous' => true]);
 
 rinit();

@@ -11,8 +11,8 @@ use function datadog\appsec\testing\{rinit,rshutdown, root_span_get_metrics};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', [], []])),
-    response_list(response_request_shutdown(['ok', [], [], [], []])),
+    response_list(response_request_init([[['ok', []]], []])),
+    response_list(response_request_shutdown([[['ok', []]], [], [], []])),
 ]);
 
 var_dump(rinit());

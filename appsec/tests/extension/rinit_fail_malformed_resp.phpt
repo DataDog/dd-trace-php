@@ -15,7 +15,7 @@ $helper = Helper::createInitedRun([
         response_request_init([['foo' => 'ok']])
     ),
     response_list(
-        response_request_shutdown(['ok', [], $obj, $obj])
+        response_request_shutdown([[['ok', []]], $obj, $obj])
     )
 ]);
 
