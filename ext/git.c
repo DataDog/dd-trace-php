@@ -3,6 +3,7 @@
 #include "ddtrace.h"
 #include <SAPI.h>
 #include <string.h>
+#include <components/log/log.h>
 
 #ifdef PHP_WIN32
 #include <direct.h>
@@ -46,8 +47,10 @@ void normalize_string(zend_string *str) {
 }
 
 zend_string *read_git_file(const char *path, bool persistent) {
+    LOG(DEBUG, "Reading %s", path);
     FILE *file = fopen(path, "r");
     if (!file) {
+        LOG(DEBUG, "Failed to open %s", path);
         return NULL;
     }
 
@@ -56,6 +59,7 @@ zend_string *read_git_file(const char *path, bool persistent) {
     fclose(file);
 
     if (len == 0) {
+        LOG(DEBUG, "Failed to read %s", path);
         return NULL;
     }
 
@@ -74,6 +78,7 @@ zend_string *get_commit_sha(const char *git_dir) {
 
     zend_string *head_content = read_git_file(head_path, false);
     if (!head_content) {
+        LOG(DEBUG, "Failed to read HEAD file");
         return NULL;
     }
 
@@ -125,6 +130,7 @@ zend_string *get_repository_url(const char *git_dir) {
 }
 
 zend_string *find_git_dir(const char *start_dir) {
+    LOG(DEBUG, "Searching for git directory from %s", start_dir);
     char current_dir[PATH_MAX];
     snprintf(current_dir, sizeof(current_dir), "%s", start_dir);
 
@@ -135,6 +141,7 @@ zend_string *find_git_dir(const char *start_dir) {
 #else
         snprintf(git_dir, sizeof(git_dir), "%s\\.git", current_dir);
 #endif
+        LOG(DEBUG, "Checking %s", git_dir);
 
         if (access(git_dir, F_OK) == 0) {
             return zend_string_init(git_dir, strlen(git_dir), 0);
@@ -168,8 +175,10 @@ void remove_credentials(zend_string *repo_url) {
 }
 
 bool add_git_info(zval *carrier, zend_string *commit_sha, zend_string *repository_url) {
+    LOG(DEBUG, "Adding git metadata");
     if (commit_sha && repository_url && ZSTR_LEN(commit_sha) > 0 && ZSTR_LEN(repository_url) > 0) {
         remove_credentials(repository_url);
+        LOG(DEBUG, "Injecting git metadata: commit=%s, repository=%s", ZSTR_VAL(commit_sha), ZSTR_VAL(repository_url));
         object_init_ex(carrier, ddtrace_ce_git_metadata);
         ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
         ZVAL_STR(&git_metadata->property_commit, commit_sha);
@@ -177,16 +186,19 @@ bool add_git_info(zval *carrier, zend_string *commit_sha, zend_string *repositor
         return true;
     }
 
+    LOG(DEBUG, "Failed to inject git metadata");
     return false;
 }
 
 git_source inject_from_env(zval *carrier) {
+    LOG(DEBUG, "Injecting git metadata from environment");
     zend_string *commit_sha = get_DD_GIT_COMMIT_SHA();
     zend_string *repository_url = get_DD_GIT_REPOSITORY_URL();
     return add_git_info(carrier, commit_sha, repository_url) ? GIT_SOURCE_ENV : GIT_SOURCE_NONE;
 }
 
 git_source inject_from_global_tags(zval *carrier) {
+    LOG(DEBUG, "Injecting git metadata from global tags");
     bool success = false;
     zend_array *global_tags = get_DD_TAGS();
     zval *commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
@@ -198,8 +210,10 @@ git_source inject_from_global_tags(zval *carrier) {
 }
 
 git_source inject_from_git_dir(zval *carrier, zend_string *cwd) {
+    LOG(DEBUG, "Injecting git metadata from git directory");
     zend_string *git_dir = find_git_dir(ZSTR_VAL(cwd));
     if (!git_dir) {
+        LOG(DEBUG, "No git directory found for %s", ZSTR_VAL(cwd));
         return false;
     }
 
@@ -212,6 +226,9 @@ git_source inject_from_git_dir(zval *carrier, zend_string *cwd) {
 }
 
 void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *repository_url, git_source source) {
+    LOG(DEBUG, "Caching git metadata for %s", ZSTR_VAL(cwd));
+    LOG(DEBUG, "Commit: %s", ZSTR_VAL(commit_sha));
+    LOG(DEBUG, "Repository: %s", ZSTR_VAL(repository_url));
     struct _git_metadata *git_metadata = pemalloc(sizeof(struct _git_metadata), 1);
     git_metadata->source = source;
     git_metadata->property_commit = commit_sha;
@@ -220,6 +237,7 @@ void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *
 }
 
 void inject_git_metadata(zval *carrier, zend_string *cwd) {
+    LOG(DEBUG, "Injecting git metadata");
     git_source source = inject_from_env(carrier);
     if (source == GIT_SOURCE_NONE) {
         source = inject_from_global_tags(carrier);
@@ -229,6 +247,7 @@ void inject_git_metadata(zval *carrier, zend_string *cwd) {
     }
 
     if (source != GIT_SOURCE_NONE) {
+        LOG(DEBUG, "Caching git metadata");
         ddtrace_git_metadata *git_metadata_obj = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
         zend_string *property_commit = Z_STR(git_metadata_obj->property_commit);
         zend_string *property_repository = Z_STR(git_metadata_obj->property_repository);
@@ -236,6 +255,7 @@ void inject_git_metadata(zval *carrier, zend_string *cwd) {
         zend_string_addref(property_repository);
         cache_git_metadata(cwd, property_commit, property_repository, source);
     } else {
+        LOG(DEBUG, "No git metadata found for %s", ZSTR_VAL(cwd));
         zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, &empty_git_metadata);
     }
 }
@@ -250,13 +270,16 @@ void replace_git_metadata(struct _git_metadata *git_metadata, zend_string *commi
 void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_metadata) {
     zend_string *git_dir = find_git_dir(ZSTR_VAL(cwd));
     if (!git_dir) {
+        LOG(DEBUG, "No git directory found for %s", ZSTR_VAL(cwd));
         return; // Should we replace git_metadata's properties by (NULL, NULL)?
     }
 
     zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
     if (commit_sha && zend_string_equals(git_metadata->property_commit, commit_sha)) {
+        LOG(DEBUG, "Git commit sha is the same for %s", ZSTR_VAL(cwd));
         zend_string_release(commit_sha);
     } else {
+        LOG(DEBUG, "Git commit sha changed for %s", ZSTR_VAL(cwd));
         zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
         replace_git_metadata(git_metadata, commit_sha, repository_url);
     }
@@ -265,14 +288,16 @@ void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_
 }
 
 void use_cached_metadata(zval *carrier, struct _git_metadata *git_metadata) {
-    if (git_metadata->source != GIT_SOURCE_NONE) {
-        zend_string_addref(git_metadata->property_commit);
-        zend_string_addref(git_metadata->property_repository);
-        add_git_info(carrier, git_metadata->property_commit, git_metadata->property_repository);
-    }
+    LOG(DEBUG, "Using cached git metadata");
+    LOG(DEBUG, "Commit: %s", ZSTR_VAL(git_metadata->property_commit));
+    LOG(DEBUG, "Repository: %s", ZSTR_VAL(git_metadata->property_repository));
+    zend_string_addref(git_metadata->property_commit);
+    zend_string_addref(git_metadata->property_repository);
+    add_git_info(carrier, git_metadata->property_commit, git_metadata->property_repository);
 }
 
 void update_git_metadata(void) {
+    LOG(DEBUG, "Updating git metadata");
     zend_string *cwd;
     struct _git_metadata *git_metadata;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&DDTRACE_G(git_metadata), cwd, git_metadata) {
@@ -321,6 +346,7 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 }
 
 void ddtrace_clean_git_metadata(void) {
+    LOG(DEBUG, "Cleaning git metadata");
     struct _git_metadata *val;
     ZEND_HASH_FOREACH_PTR(&DDTRACE_G(git_metadata), val) {
         if (val == &empty_git_metadata) {
@@ -338,5 +364,6 @@ void ddtrace_clean_git_metadata(void) {
 }
 
 void ddtrace_git_metadata_rinit(void) {
+    LOG(DEBUG, "Initializing git metadata");
     request_cache_updated = false;
 }
