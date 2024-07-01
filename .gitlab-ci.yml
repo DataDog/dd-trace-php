@@ -1,12 +1,9 @@
 stages:
   - build
-  - package
-  - internal-publish
+  - shared-pipeline # OCI packaging
   - deploy
   - benchmarks
   - ci-build
-  - test
-  - external-publish
 
 variables:
   LATEST_LIBRARY_x86_64_LINUX_GNU:
@@ -78,6 +75,7 @@ download_artifacts:
 
 deploy_to_reliability_env:
   stage: deploy
+  needs: [ build ]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
       when: always
@@ -103,17 +101,18 @@ tracer-base-image:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
   stage: deploy
+  needs: [ build ]
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
 
     #Dev X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh dev   
+    - ./tooling/ci/download-binary-php.sh dev
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
- 
+
     #Prod X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod   
+    - ./tooling/ci/download-binary-php.sh prod
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
