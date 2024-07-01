@@ -12,7 +12,7 @@
 #include "string_helpers.h"
 
 static const int NO_LIMIT = 0;
-static const float STACK_DEFAULT_TOP_PERCENTAGE = 0.25;
+static const double STACK_DEFAULT_TOP_PERCENTAGE = 0.25;
 
 static zend_string *_frames_key;
 static zend_string *_language_key;
@@ -73,8 +73,9 @@ void php_backtrace_to_datadog_backtrace(
     unsigned int top = frames_on_stack;
     unsigned int bottom = 0;
     if (get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() < frames_on_stack) {
-        top = round(get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() *
-                    STACK_DEFAULT_TOP_PERCENTAGE);
+        top = (unsigned int)round(
+            (double)get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() *
+            STACK_DEFAULT_TOP_PERCENTAGE);
         bottom = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() - top;
     }
 
