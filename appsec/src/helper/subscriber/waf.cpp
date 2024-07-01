@@ -50,14 +50,14 @@ action_type parse_action_type_string(const std::string &action)
 
 void format_waf_result(ddwaf_result &res, event *event)
 {
-    if (!event) {
+    if (event == nullptr) {
         return;
     }
     try {
         const parameter_view actions{res.actions};
         for (const auto &action : actions) {
-            std::string action_string = std::string(action.key());
-            dds::action a{parse_action_type_string(action_string), {}};
+            dds::action a{
+                parse_action_type_string(std::string(action.key())), {}};
             for (const auto &parameter : action) {
                 a.parameters.emplace(parameter.key(), parameter);
             }
