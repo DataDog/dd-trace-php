@@ -420,8 +420,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_rinit() };
 
-    // Safety: We are after first rinit and before config mshutdown.
-    let system_settings = unsafe { SystemSettings::get() };
+    // SAFETY: We are after first rinit and before config mshutdown.
+    let mut system_settings = unsafe { SystemSettings::get() };
 
     // initialize the thread local storage and cache some items
     REQUEST_LOCALS.with(|cell| {
@@ -450,7 +450,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     // SAFETY: still safe to access in rinit after first_rinit.
-    let system_settings = unsafe { system_settings.as_ref() };
+    let system_settings = unsafe { system_settings.as_mut() };
 
     // SAFETY: the once control is not mutable during request.
     let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
