@@ -2037,6 +2037,11 @@ jobs:
       - run:
           name: Install git
           command: |
+            # Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore
+            # https://serverfault.com/a/1161847
+            sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+            sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
+            sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
             yum update -y
             yum install -y git
       - <<: *STEP_CHECKOUT
