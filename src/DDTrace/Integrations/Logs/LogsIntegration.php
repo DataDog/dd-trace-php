@@ -242,7 +242,7 @@ class LogsIntegration extends Integration
             function (HookData $hook) {
                 /** @var array $normalized */
                 $normalized = $hook->args[0];
-                $normalized['ddsource'] = 'php';
+                $normalized['source'] = 'php';
                 $hook->args[0] = $normalized;
                 $hook->overrideArguments($hook->args);
             }
