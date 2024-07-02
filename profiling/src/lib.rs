@@ -65,7 +65,7 @@ static PROFILER_VERSION: &[u8] = concat!(include_str!("../../VERSION"), "\0").as
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
-static mut RUNTIME_PHP_VERSION_ID: u32 = zend::PHP_VERSION_ID;
+static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(zend::PHP_VERSION_ID);
 
 /// Version str of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit, unless there are
@@ -214,8 +214,10 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     // Update the runtime PHP_VERSION and PHP_VERSION_ID.
     {
-        // SAFETY: These are safe to call and mutate in minit.
-        unsafe { RUNTIME_PHP_VERSION_ID = ddog_php_prof_php_version_id() };
+        // SAFETY: safe to call any time in a module because the engine is
+        // initialized before modules are ever loaded.
+        let php_version_id = unsafe { ddog_php_prof_php_version_id() };
+        RUNTIME_PHP_VERSION_ID.store(php_version_id, Ordering::Relaxed);
 
         // SAFETY: calling zero-arg fn that is safe to call in minit.
         let ptr = unsafe { ddog_php_prof_php_version() };
