@@ -65,6 +65,18 @@ namespace DDTrace {
         public static function fromHeaders(array|callable $headersOrCallback): SpanLink {}
     }
 
+    class GitMetadata {
+        /**
+         * @var string The commit sha of the git repository
+         */
+        public string $commitSha = "";
+
+        /**
+         * @var string The repository URL of the git repository
+         */
+        public string $repositoryUrl = "";
+    }
+
     class SpanData {
         /**
          * @var string|null The span name
@@ -216,6 +228,11 @@ namespace DDTrace {
          * This variable cannot be accessed by reference.
          */
         public string $traceId = "";
+
+        /**
+         * @var GitMetadata|null The git metadata of the span
+         */
+        public GitMetadata|null $gitMetadata = null;
     }
 
     /**

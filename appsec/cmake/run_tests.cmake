@@ -14,8 +14,9 @@ add_custom_target(xtest-prepare
     COMMAND mkdir -p /tmp/appsec-ext-test)
 
 add_custom_target(xtest
-    COMMAND ${CMAKE_SOURCE_DIR}/cmake/run-tests-wrapper.sh
-    "${CMAKE_BINARY_DIR}" "$<TARGET_FILE:mock_helper>" "${DD_APPSEC_TRACER_EXT_FILE}"
+    COMMAND ${CMAKE_COMMAND} -E env "DD_TRACE_GIT_METADATA_ENABLED=0"
+        ${CMAKE_SOURCE_DIR}/cmake/run-tests-wrapper.sh
+        "${CMAKE_BINARY_DIR}" "$<TARGET_FILE:mock_helper>" "${DD_APPSEC_TRACER_EXT_FILE}"
         "${PhpConfig_PHP_BINARY}" -n -d variables_order=EGPCS
         run-tests-internal.php
         -n -c ${CMAKE_SOURCE_DIR}/tests/extension/test-php.ini

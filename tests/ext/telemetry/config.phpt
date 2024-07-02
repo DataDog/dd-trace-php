@@ -81,6 +81,13 @@ Array
             [origin] => EnvVar
         )
 
+    [4] => Array
+        (
+            [name] => trace.git_metadata_enabled
+            [value] => 0
+            [origin] => EnvVar
+        )
+
 )
 bool(true)
 int(0)

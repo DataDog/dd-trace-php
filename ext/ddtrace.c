@@ -530,6 +530,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
+    zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, NULL, 1);
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
@@ -608,6 +609,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
+
+    ddtrace_clean_git_metadata();
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -1025,6 +1028,7 @@ static void dd_register_fatal_error_ce(void) {
 }
 
 zend_class_entry *ddtrace_ce_integration;
+zend_class_entry *ddtrace_ce_git_metadata;
 
 static bool dd_is_compatible_sapi() {
     switch (ddtrace_active_sapi) {
@@ -1148,6 +1152,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
+    ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
 
     ddtrace_engine_hooks_minit();
 
@@ -1450,6 +1455,8 @@ int ddtrace_post_deactivate(void) {
 #else
 zend_result ddtrace_post_deactivate(void) {
 #endif
+    ddtrace_clean_git_object();
+
     zai_interceptor_deactivate();
 
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run

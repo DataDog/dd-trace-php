@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a92829eefe1ee642b3357f1eef2900f1336e462f */
+ * Stub hash: b7ca444d39b9a8489e4e93042e0f7e7eb9aa8b05 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -450,6 +450,10 @@ static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 	ZEND_FE_END
 };
 
+static const zend_function_entry class_DDTrace_GitMetadata_methods[] = {
+	ZEND_FE_END
+};
+
 static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getDuration, arginfo_class_DDTrace_SpanData_getDuration, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
@@ -524,6 +528,28 @@ static zend_class_entry *register_class_DDTrace_SpanLink(zend_class_entry *class
 	zend_string *property_droppedAttributesCount_name = zend_string_init("droppedAttributesCount", sizeof("droppedAttributesCount") - 1, 1);
 	zend_declare_typed_property(class_entry, property_droppedAttributesCount_name, &property_droppedAttributesCount_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(property_droppedAttributesCount_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_GitMetadata(void)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "GitMetadata", class_DDTrace_GitMetadata_methods);
+	class_entry = zend_register_internal_class_ex(&ce, NULL);
+
+	zval property_commitSha_default_value;
+	ZVAL_EMPTY_STRING(&property_commitSha_default_value);
+	zend_string *property_commitSha_name = zend_string_init("commitSha", sizeof("commitSha") - 1, 1);
+	zend_declare_typed_property(class_entry, property_commitSha_name, &property_commitSha_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_commitSha_name);
+
+	zval property_repositoryUrl_default_value;
+	ZVAL_EMPTY_STRING(&property_repositoryUrl_default_value);
+	zend_string *property_repositoryUrl_name = zend_string_init("repositoryUrl", sizeof("repositoryUrl") - 1, 1);
+	zend_declare_typed_property(class_entry, property_repositoryUrl_name, &property_repositoryUrl_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+	zend_string_release(property_repositoryUrl_name);
 
 	return class_entry;
 }
@@ -685,6 +711,13 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 	zend_string *property_traceId_name = zend_string_init("traceId", sizeof("traceId") - 1, 1);
 	zend_declare_typed_property(class_entry, property_traceId_name, &property_traceId_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
 	zend_string_release(property_traceId_name);
+
+	zval property_gitMetadata_default_value;
+	ZVAL_NULL(&property_gitMetadata_default_value);
+	zend_string *property_gitMetadata_name = zend_string_init("gitMetadata", sizeof("gitMetadata") - 1, 1);
+	zend_string *property_gitMetadata_class_DDTrace_GitMetadata = zend_string_init("DDTrace\\GitMetadata", sizeof("DDTrace\\GitMetadata")-1, 1);
+	zend_declare_typed_property(class_entry, property_gitMetadata_name, &property_gitMetadata_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_gitMetadata_class_DDTrace_GitMetadata, 0, MAY_BE_NULL));
+	zend_string_release(property_gitMetadata_name);
 
 	return class_entry;
 }
