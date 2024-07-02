@@ -451,7 +451,6 @@ static void ddtrace_activate(void) {
     zai_interceptor_activate();
     zai_uhook_rinit();
     ddtrace_telemetry_rinit();
-    ddtrace_git_metadata_rinit();
     zend_hash_init(&DDTRACE_G(traced_spans), 8, unused, NULL, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, NULL, 0);
 
@@ -1456,6 +1455,8 @@ int ddtrace_post_deactivate(void) {
 #else
 zend_result ddtrace_post_deactivate(void) {
 #endif
+    ddtrace_clean_git_object();
+
     zai_interceptor_deactivate();
 
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run

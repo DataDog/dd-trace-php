@@ -133,6 +133,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable uhook_closure_hooks;
 
     HashTable git_metadata;
+    zend_object *git_object;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
