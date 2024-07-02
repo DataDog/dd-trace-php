@@ -11,7 +11,7 @@ use function datadog\appsec\testing\generate_backtrace;
 
 function two($param01, $param02)
 {
-    var_dump(generate_backtrace());
+    var_dump(generate_backtrace("some id"));
 }
 
 function one($param01)
@@ -23,9 +23,11 @@ one("foo");
 
 ?>
 --EXPECTF--
-array(2) {
+array(3) {
   ["language"]=>
   string(3) "php"
+  ["id"]=>
+  string(7) "some id"
   ["frames"]=>
   array(1) {
     [0]=>
