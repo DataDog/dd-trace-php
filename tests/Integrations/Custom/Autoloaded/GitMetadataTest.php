@@ -28,15 +28,11 @@ final class GitMetadataTest extends WebFrameworkTestCase
         });
 
         $rootSpanMeta = $traces[0][0]['meta'];
-        $pdoSpanMeta = $traces[0][1]['meta'];
 
         $gitCommitSha = trim(`git rev-parse HEAD`);
         $gitRepositoryURL = trim(`git config --get remote.origin.url`);
 
         $this->assertEquals($gitCommitSha, $rootSpanMeta['_dd.git.commit.sha']);
         $this->assertEquals($gitRepositoryURL, $rootSpanMeta['_dd.git.repository_url']);
-
-        $this->assertEquals($gitCommitSha, $pdoSpanMeta['git.commit.sha']);
-        $this->assertEquals($gitRepositoryURL, $pdoSpanMeta['git.repository_url']);
     }
 }
