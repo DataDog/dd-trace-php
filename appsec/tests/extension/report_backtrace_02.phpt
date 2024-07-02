@@ -14,7 +14,7 @@ use function datadog\appsec\testing\{report_backtrace, root_span_get_meta_struct
 
 function two($param01, $param02)
 {
-    report_backtrace();
+    report_backtrace($param01);
 }
 
 function one($param01)
@@ -26,9 +26,9 @@ DDTrace\start_span();
 $root = DDTrace\active_span();
 
 
-one("foo"); //Line 22
-one("foo"); //Line 23
-one("foo"); //Line 24. This one is not generated as default DD_APPSEC_MAX_STACK_TRACES is 2
+one("foo01"); //Line 22
+one("foo02"); //Line 23
+one("foo03"); //Line 24. This one is not generated as default DD_APPSEC_MAX_STACK_TRACES is 2
 
 var_dump(root_span_get_meta_struct());
 
@@ -40,9 +40,11 @@ array(1) {
     ["exploit"]=>
     array(2) {
       [0]=>
-      array(2) {
+      array(3) {
         ["language"]=>
         string(3) "php"
+        ["id"]=>
+        string(5) "foo01"
         ["frames"]=>
         array(2) {
           [0]=>
@@ -70,9 +72,11 @@ array(1) {
         }
       }
       [1]=>
-      array(2) {
+      array(3) {
         ["language"]=>
         string(3) "php"
+        ["id"]=>
+        string(5) "foo02"
         ["frames"]=>
         array(2) {
           [0]=>

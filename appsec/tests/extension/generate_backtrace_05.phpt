@@ -12,7 +12,7 @@ use function datadog\appsec\testing\generate_backtrace;
 function recursive_function($limit)
 {
     if (--$limit == 0) {
-        var_dump(generate_backtrace());
+        var_dump(generate_backtrace("some id"));
         return;
     }
 
@@ -23,9 +23,11 @@ recursive_function(50);
 
 ?>
 --EXPECTF--
-array(2) {
+array(3) {
   ["language"]=>
   string(3) "php"
+  ["id"]=>
+  string(7) "some id"
   ["frames"]=>
   array(40) {
     [0]=>

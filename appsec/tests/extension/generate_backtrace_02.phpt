@@ -11,7 +11,7 @@ use function datadog\appsec\testing\generate_backtrace;
 
 function two($param01, $param02)
 {
-    var_dump(generate_backtrace());
+    var_dump(generate_backtrace("some id"));
 }
 
 function one($param01)

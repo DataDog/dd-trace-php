@@ -22,7 +22,7 @@ static zend_string *_dd_stack_key;
 static zend_string *_frame_line;
 static zend_string *_frame_function;
 static zend_string *_frame_file;
-static zend_string *_frame_id;
+static zend_string *_id_key;
 
 bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     zval *php_backtrace_frame, zval *datadog_backtrace_frame, zend_ulong index)
@@ -51,7 +51,7 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
     zend_hash_add(datadog_backtrace_frame_ht, _frame_line, line);
     zend_hash_add(datadog_backtrace_frame_ht, _frame_function, function);
     zend_hash_add(datadog_backtrace_frame_ht, _frame_file, file);
-    zend_hash_add(datadog_backtrace_frame_ht, _frame_id, &id);
+    zend_hash_add(datadog_backtrace_frame_ht, _id_key, &id);
 
     Z_TRY_ADDREF_P(function);
     Z_TRY_ADDREF_P(file);
@@ -121,17 +121,20 @@ void php_backtrace_to_datadog_backtrace(
     }
 }
 
-void generate_backtrace(zval *dd_backtrace)
+void generate_backtrace(zend_string *id, zval *dd_backtrace)
 {
     array_init(dd_backtrace);
 
-    if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
+    if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED() || !id) {
         return;
     }
 
     zval language;
     ZVAL_STR(&language, _php_value);
+    zval id_zv;
+    ZVAL_STR(&id_zv, id);
     zend_hash_add(Z_ARRVAL_P(dd_backtrace), _language_key, &language);
+    zend_hash_add(Z_ARRVAL_P(dd_backtrace), _id_key, &id_zv);
 
     zval frames;
     zval php_backtrace;
@@ -145,11 +148,12 @@ void generate_backtrace(zval *dd_backtrace)
 
 static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)
 {
-    if (zend_parse_parameters_none() == FAILURE) {
-        return;
+    zend_string *id = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &id) != SUCCESS) {
+        RETURN_FALSE;
     }
 
-    generate_backtrace(return_value);
+    generate_backtrace(id, return_value);
 }
 
 zval *dd_hash_find_or_new(HashTable *ht, zend_string *key)
@@ -166,7 +170,8 @@ zval *dd_hash_find_or_new(HashTable *ht, zend_string *key)
 
 static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
 {
-    if (zend_parse_parameters_none() == FAILURE) {
+    zend_string *id = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &id) != SUCCESS) {
         RETURN_FALSE;
     }
     zend_object *span = dd_trace_get_active_root_span();
@@ -205,7 +210,7 @@ static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
     }
 
     zval backtrace;
-    generate_backtrace(&backtrace);
+    generate_backtrace(id, &backtrace);
 
     if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) ==
         NULL) {
@@ -218,11 +223,13 @@ static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
+    void_ret_bool_arginfo, 0, 1, _IS_BOOL, 0)
+ZEND_ARG_TYPE_INFO(0, id, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    void_ret_array_arginfo, 0, 0, IS_ARRAY, 0)
+    void_ret_array_arginfo, 0, 1, IS_ARRAY, 0)
+ZEND_ARG_TYPE_INFO(0, id, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 // clang-format off
@@ -256,7 +263,7 @@ void dd_backtrace_startup()
     _frame_function =
         zend_string_init_interned("function", sizeof("function") - 1, 1);
     _frame_file = zend_string_init_interned("file", sizeof("file") - 1, 1);
-    _frame_id = zend_string_init_interned("id", sizeof("id") - 1, 1);
+    _id_key = zend_string_init_interned("id", sizeof("id") - 1, 1);
 #ifdef TESTING
     _register_testing_objects();
 #endif
