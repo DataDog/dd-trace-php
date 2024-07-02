@@ -293,9 +293,6 @@ bool inject_from_git_dir() {
 void ddtrace_inject_git_metadata(zval *carrier) {
     if (DDTRACE_G(git_object) || inject_from_env() || inject_from_global_tags() || inject_from_git_dir()) {
         ZVAL_OBJ_COPY(carrier, DDTRACE_G(git_object));
-        ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
-        zend_string *commit = Z_STR(git_metadata->property_commit);
-        zend_string *repository = Z_STR(git_metadata->property_repository);
     }
 }
 
