@@ -15,12 +15,12 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define PATH_MAX 4096
 #endif
 
-struct _git_metadata {
+typedef struct _git_metadata {
     zend_string *property_commit;
     zend_string *property_repository;
-};
+} git_metadata_t;
 
-struct _git_metadata empty_git_metadata = {NULL, NULL};
+git_metadata_t empty_git_metadata = {NULL, NULL};
 
 int remove_trailing_newline(char *str) {
     size_t len = strlen(str);
@@ -154,51 +154,56 @@ void remove_credentials(zend_string *repo_url) {
     }
 }
 
-bool add_git_info(zend_string *commit_sha, zend_string *repository_url) {
+bool add_git_info(zend_string *commit_sha, zend_string *repository_url, zval *carrier) {
     if (!commit_sha || !repository_url || ZSTR_LEN(commit_sha) == 0 || ZSTR_LEN(repository_url) == 0) {
         return false;
     }
 
     remove_credentials(repository_url);
-
-    DDTRACE_G(git_object) = zend_objects_new(ddtrace_ce_git_metadata);
-    ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
-    ZVAL_STR(&git_metadata->property_commit, commit_sha);
-    ZVAL_STR(&git_metadata->property_repository, repository_url);
+    ddtrace_git_metadata *git_metadata = NULL;
+    if (carrier) {
+        object_init_ex(carrier, ddtrace_ce_git_metadata);
+        git_metadata = (ddtrace_git_metadata *) Z_OBJ_P(carrier);
+    } else {
+        DDTRACE_G(git_object) = zend_objects_new(ddtrace_ce_git_metadata);
+        git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
+    }
+    ZVAL_STR_COPY(&git_metadata->property_commit, commit_sha);
+    ZVAL_STR_COPY(&git_metadata->property_repository, repository_url);
     return true;
 }
 
-bool inject_from_env() {
+bool inject_from_env(zval *carrier) {
     zend_string *commit_sha = get_DD_GIT_COMMIT_SHA();
     zend_string *repository_url = get_DD_GIT_REPOSITORY_URL();
-    return add_git_info(commit_sha, repository_url);
+    return add_git_info(commit_sha, repository_url, carrier);
 }
 
-bool inject_from_global_tags() {
+bool inject_from_global_tags(zval *carrier) {
     bool success = false;
     zend_array *global_tags = get_DD_TAGS();
     zval *commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
     zval *repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
     if (commit_sha && repository_url && Z_TYPE_P(commit_sha) == IS_STRING && Z_TYPE_P(repository_url) == IS_STRING) {
-        success = add_git_info(Z_STR_P(commit_sha), Z_STR_P(repository_url));
+        success = add_git_info(Z_STR_P(commit_sha), Z_STR_P(repository_url), carrier);
     }
     return success;
 }
 
-void use_cached_metadata(struct _git_metadata *git_metadata) {
+void use_cached_metadata(git_metadata_t *git_metadata) {
     zend_string_addref(git_metadata->property_commit);
     zend_string_addref(git_metadata->property_repository);
-    add_git_info(git_metadata->property_commit, git_metadata->property_repository);
+    add_git_info(git_metadata->property_commit, git_metadata->property_repository, NULL);
 }
 
-void replace_git_metadata(struct _git_metadata *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
+void replace_git_metadata(git_metadata_t *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
     zend_string_release(git_metadata->property_commit);
     zend_string_release(git_metadata->property_repository);
     git_metadata->property_commit = commit_sha;
     git_metadata->property_repository = repository_url;
 }
 
-void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_metadata) {
+void refresh_git_metadata_if_needed(zend_string *cwd, git_metadata_t *git_metadata) {
     zend_string *git_dir = find_git_dir(ZSTR_VAL(cwd));
     if (!git_dir) {
         return; // Should we replace git_metadata's properties by (NULL, NULL)?
@@ -217,7 +222,7 @@ void refresh_git_metadata_if_needed(zend_string *cwd, struct _git_metadata *git_
 
 void update_git_metadata(void) {
     zend_string *cwd;
-    struct _git_metadata *git_metadata;
+    git_metadata_t *git_metadata;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&DDTRACE_G(git_metadata), cwd, git_metadata) {
         refresh_git_metadata_if_needed(cwd, git_metadata);
     }
@@ -225,7 +230,7 @@ void update_git_metadata(void) {
 }
 
 void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *repository_url) {
-    struct _git_metadata *git_metadata = pemalloc(sizeof(struct _git_metadata), 1);
+    git_metadata_t *git_metadata = pemalloc(sizeof(git_metadata_t), 1);
     git_metadata->property_commit = zend_string_copy(commit_sha);
     git_metadata->property_repository = zend_string_copy(repository_url);
     zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, git_metadata);
@@ -251,7 +256,7 @@ bool inject_from_git_dir() {
 
     update_git_metadata();
 
-    struct _git_metadata *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
+    git_metadata_t *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
     if (git_metadata) {
         use_cached_metadata(git_metadata);
         zend_string_release(cwd);
@@ -266,7 +271,7 @@ bool inject_from_git_dir() {
 
     zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
     zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
-    bool success = add_git_info(commit_sha, repository_url);
+    bool success = add_git_info(commit_sha, repository_url, NULL);
     if (success) {
         cache_git_metadata(cwd, commit_sha, repository_url);
     } else {
@@ -281,13 +286,17 @@ bool inject_from_git_dir() {
 }
 
 void ddtrace_inject_git_metadata(zval *carrier) {
-    if (DDTRACE_G(git_object) || inject_from_env() || inject_from_global_tags() || inject_from_git_dir()) {
+    if (DDTRACE_G(git_object)) {
+        ZVAL_OBJ_COPY(carrier, DDTRACE_G(git_object));
+    } else if (inject_from_env(carrier) || inject_from_global_tags(carrier)) {
+        return;
+    } else if (inject_from_git_dir()) {
         ZVAL_OBJ_COPY(carrier, DDTRACE_G(git_object));
     }
 }
 
 void ddtrace_clean_git_metadata(void) {
-    struct _git_metadata *val;
+    git_metadata_t *val;
     ZEND_HASH_FOREACH_PTR(&DDTRACE_G(git_metadata), val) {
         if (val != &empty_git_metadata) {
             zend_string_release(val->property_commit);
@@ -301,6 +310,9 @@ void ddtrace_clean_git_metadata(void) {
 
 void ddtrace_clean_git_object(void) {
     if (DDTRACE_G(git_object)) {
+        ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
+        zend_string_release(Z_STR(git_metadata->property_commit));
+        zend_string_release(Z_STR(git_metadata->property_repository));
         zend_object_release(DDTRACE_G(git_object));
         efree(DDTRACE_G(git_object));
         DDTRACE_G(git_object) = NULL;
