@@ -26,6 +26,7 @@ static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
+static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
@@ -61,7 +62,7 @@ static void dd_trace_load_symbols(void)
     if (_ddtrace_close_all_spans_and_flush == NULL && !testing) {
         mlog(dd_log_error,
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            "Failed to load ddtrace_close_all_spans_and_flush: %s", dlerror());
+            "Failed to load ddtrace _close_all_spans_and_flush: %s", dlerror());
     }
 
     _ddtrace_get_root_span = dlsym(handle, "ddtrace_get_root_span");
@@ -106,6 +107,8 @@ void dd_trace_startup()
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
+    _meta_struct_propname =
+        zend_string_init_interned(LSTRARG("meta_struct"), 1);
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
@@ -285,6 +288,32 @@ zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
     return _get_span_modifiable_array_property(zobj, _metrics_propname);
 }
 
+zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
+{
+    return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
+}
+
+void add_entry_to_meta_struct(zend_string *nonnull key, zval *nonnull value)
+{
+    zend_object *span = dd_trace_get_active_root_span();
+    if (!span) {
+        return;
+    }
+    zval *meta_struct = dd_trace_span_get_meta_struct(span);
+    if (!meta_struct) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
+        }
+        zval_ptr_dtor(value);
+        return;
+    }
+
+    if (zend_hash_add(Z_ARRVAL_P(meta_struct), key, value) == NULL) {
+        zval_ptr_dtor(value);
+        return;
+    }
+}
+
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
@@ -412,6 +441,23 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
     }
 }
 
+static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta_struct) // NOLINT
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    __auto_type root_span = dd_trace_get_active_root_span();
+    if (!root_span) {
+        RETURN_NULL();
+    }
+
+    zval *meta_struct_zv = dd_trace_span_get_meta_struct(root_span);
+    if (meta_struct_zv) {
+        RETURN_ZVAL(meta_struct_zv, 1 /* copy */, 0 /* no destroy original */);
+    }
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -462,6 +508,7 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta_struct", PHP_FN(datadog_appsec_testing_root_span_get_meta_struct), void_ret_nullable_array, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0)
     ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0)
     PHP_FE_END

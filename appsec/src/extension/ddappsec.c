@@ -6,6 +6,7 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
 #include <ext/standard/info.h>
+#include <ext/standard/php_var.h>
 #include <php.h>
 
 // for open(2)
@@ -18,6 +19,7 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
+#include "backtrace.h"
 #include "commands/client_init.h"
 #include "commands/config_sync.h"
 #include "commands/request_exec.h"
@@ -218,6 +220,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
+    dd_backtrace_startup();
 
     return SUCCESS;
 }

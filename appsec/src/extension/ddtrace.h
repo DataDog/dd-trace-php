@@ -45,6 +45,8 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull zobj,
     const char *nonnull tag, size_t tag_len, const char *nonnull value,
     size_t value_len);
 
+void add_entry_to_meta_struct(zend_string *nonnull key, zval *nonnull value);
+
 // Flush the tracer spans, can be used on RINIT
 void dd_trace_close_all_spans_and_flush(void);
 
@@ -52,6 +54,7 @@ void dd_trace_close_all_spans_and_flush(void);
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
+zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 
 // Set sampling priority on root span
@@ -64,14 +67,14 @@ struct _ddtrace_user_req_listeners {
     zend_array *nullable (*nonnull start_user_req)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
         zend_array *nonnull variables, zval *nullable rbe_zv);
-    zend_array *nullable(*nonnull response_committed)(
+    zend_array *nullable (*nonnull response_committed)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
         int status, zend_array *nonnull headers, zval *nullable entity);
     void (*nonnull finish_user_req)(
         ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span);
     void (*nonnull set_blocking_function)(
-        ddtrace_user_req_listeners *nonnull self,
-        zend_object *nonnull span, zval *nonnull blocking_function);
+        ddtrace_user_req_listeners *nonnull self, zend_object *nonnull span,
+        zval *nonnull blocking_function);
     void (*nullable delete)(ddtrace_user_req_listeners *nonnull self);
 };
 bool dd_trace_user_req_add_listeners(
