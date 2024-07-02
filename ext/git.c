@@ -66,11 +66,7 @@ zend_string *read_git_file(const char *path, bool persistent) {
 
 zend_string *get_commit_sha(const char *git_dir) {
     char head_path[PATH_MAX];
-#ifndef _WIN32
     snprintf(head_path, sizeof(head_path), "%s/HEAD", git_dir);
-#else
-    snprintf(head_path, sizeof(head_path), "%s\\HEAD", git_dir);
-#endif
 
     zend_string *head_content = read_git_file(head_path, false);
     if (!head_content) {
