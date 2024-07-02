@@ -5,7 +5,6 @@
 
 void ddtrace_inject_git_metadata(zval *git_metadata_zv);
 void ddtrace_clean_git_metadata(void);
-void ddtrace_git_metadata_rinit(void);
-
+void ddtrace_clean_git_object(void);
 
 #endif // DD_GIT_H

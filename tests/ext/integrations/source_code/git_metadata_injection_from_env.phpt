@@ -64,7 +64,7 @@ array(2) {
     }
   }
   [1]=>
-  array(10) {
+  array(9) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -83,12 +83,5 @@ array(2) {
     string(35) "git_metadata_injection_from_env.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(2) {
-      ["git.commit.sha"]=>
-      string(6) "123456"
-      ["git.repository_url"]=>
-      string(24) "github.com/user/env_repo"
-    }
   }
 }
