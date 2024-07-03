@@ -65,7 +65,7 @@ static PROFILER_VERSION: &[u8] = concat!(include_str!("../../VERSION"), "\0").as
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
-static mut RUNTIME_PHP_VERSION_ID: u32 = zend::PHP_VERSION_ID;
+static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(zend::PHP_VERSION_ID);
 
 /// Version str of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit, unless there are
@@ -214,8 +214,10 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     // Update the runtime PHP_VERSION and PHP_VERSION_ID.
     {
-        // SAFETY: These are safe to call and mutate in minit.
-        unsafe { RUNTIME_PHP_VERSION_ID = ddog_php_prof_php_version_id() };
+        // SAFETY: safe to call any time in a module because the engine is
+        // initialized before modules are ever loaded.
+        let php_version_id = unsafe { ddog_php_prof_php_version_id() };
+        RUNTIME_PHP_VERSION_ID.store(php_version_id, Ordering::Relaxed);
 
         // SAFETY: calling zero-arg fn that is safe to call in minit.
         let ptr = unsafe { ddog_php_prof_php_version() };
@@ -420,8 +422,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_rinit() };
 
-    // Safety: We are after first rinit and before config mshutdown.
-    let system_settings = unsafe { SystemSettings::get() };
+    // SAFETY: We are after first rinit and before config mshutdown.
+    let mut system_settings = unsafe { SystemSettings::get() };
 
     // initialize the thread local storage and cache some items
     REQUEST_LOCALS.with(|cell| {
@@ -450,7 +452,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     // SAFETY: still safe to access in rinit after first_rinit.
-    let system_settings = unsafe { system_settings.as_ref() };
+    let system_settings = unsafe { system_settings.as_mut() };
 
     // SAFETY: the once control is not mutable during request.
     let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
