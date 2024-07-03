@@ -14,15 +14,19 @@ use spawn_worker::get_trampoline_target_data;
 
 #[cfg(php_shared_build)]
 extern "C" {
-    static DDTRACE_MOCK_PHP: u8;
-    static DDTRACE_MOCK_PHP_SIZE: usize;
+    #[linkage="extern_weak"]
+    static DDTRACE_MOCK_PHP: *mut u8;
+    #[linkage="extern_weak"]
+    static DDTRACE_MOCK_PHP_SIZE: *mut usize;
 }
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    let mock = unsafe { std::slice::from_raw_parts(&DDTRACE_MOCK_PHP, DDTRACE_MOCK_PHP_SIZE) };
-    cfg.library_dependencies
-        .push(LibDependency::Binary(mock));
+    if unsafe { *DDTRACE_MOCK_PHP_SIZE } > 0 {
+        let mock = unsafe { std::slice::from_raw_parts(DDTRACE_MOCK_PHP, *DDTRACE_MOCK_PHP_SIZE) };
+        cfg.library_dependencies
+            .push(LibDependency::Binary(mock));
+    }
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
