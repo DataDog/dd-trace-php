@@ -75,7 +75,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
             it = listeners_.emplace(sub, sub->get_listener()).first;
         }
         try {
-            it->second->call(data, &event_);
+            it->second->call(data, event_);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }

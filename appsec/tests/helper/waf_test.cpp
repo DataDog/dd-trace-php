@@ -74,7 +74,7 @@ TEST(WafTest, RunWithInvalidParam)
     auto ctx = wi->get_listener();
     parameter_view pv;
     dds::event e;
-    EXPECT_THROW(ctx->call(pv, &e), invalid_object);
+    EXPECT_THROW(ctx->call(pv, e), invalid_object);
 }
 
 TEST(WafTest, RunWithTimeout)
@@ -91,7 +91,7 @@ TEST(WafTest, RunWithTimeout)
 
     parameter_view pv(p);
     dds::event e;
-    EXPECT_THROW(ctx->call(pv, &e), timeout_error);
+    EXPECT_THROW(ctx->call(pv, e), timeout_error);
 }
 
 TEST(WafTest, ValidRunGood)
@@ -107,7 +107,7 @@ TEST(WafTest, ValidRunGood)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, &e);
+    ctx->call(pv, e);
 
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
@@ -128,7 +128,7 @@ TEST(WafTest, ValidRunMonitor)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, &e);
+    ctx->call(pv, e);
 
     for (auto &match : e.data) {
         rapidjson::Document doc;
@@ -159,7 +159,7 @@ TEST(WafTest, ValidRunMonitorObfuscated)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, &e);
+    ctx->call(pv, e);
 
     EXPECT_EQ(e.data.size(), 1);
     rapidjson::Document doc;
@@ -200,7 +200,7 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, &e);
+    ctx->call(pv, e);
 
     EXPECT_EQ(e.data.size(), 1);
     rapidjson::Document doc;
@@ -239,7 +239,7 @@ TEST(WafTest, UpdateRuleData)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
     }
 
     auto param = json_to_parameter(
@@ -260,7 +260,7 @@ TEST(WafTest, UpdateRuleData)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
 
         EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
@@ -294,7 +294,7 @@ TEST(WafTest, UpdateInvalid)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
     }
 
     auto param = json_to_parameter(R"({})");
@@ -317,7 +317,7 @@ TEST(WafTest, SchemasAreAdded)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, &e);
+    ctx->call(pv, e);
 
     EXPECT_EQ(e.data.size(), 1);
     rapidjson::Document doc;
@@ -354,7 +354,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
 
         EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
@@ -393,7 +393,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
 
         EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
@@ -432,7 +432,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
 
         EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;
@@ -466,7 +466,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, &e);
+        ctx->call(pv, e);
 
         EXPECT_EQ(e.data.size(), 1);
         rapidjson::Document doc;

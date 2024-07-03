@@ -21,7 +21,7 @@ class listener : public dds::subscriber::listener {
 public:
     typedef std::shared_ptr<dds::mock::listener> ptr;
 
-    MOCK_METHOD2(call, void(dds::parameter_view &, dds::event *));
+    MOCK_METHOD2(call, void(dds::parameter_view &, dds::event &));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
@@ -58,8 +58,8 @@ TEST(EngineTest, SingleSubscriptor)
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
-                event_->actions.push_back({dds::action_type::block, {}});
+            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
+                event_.actions.push_back({dds::action_type::block, {}});
             }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
@@ -90,21 +90,21 @@ TEST(EngineTest, MultipleSubscriptors)
     mock::listener::ptr blocker = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*blocker, call(_, _))
         .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
                 std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
                 if (subs.find(data[0].parameterName) != subs.end()) {
-                    event_->data.push_back("some event");
-                    event_->actions.push_back({dds::action_type::block, {}});
+                    event_.data.push_back("some event");
+                    event_.actions.push_back({dds::action_type::block, {}});
                 }
             }));
 
     mock::listener::ptr recorder = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*recorder, call(_, _))
         .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
+            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
                 std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
                 if (subs.find(data[0].parameterName) != subs.end()) {
-                    event_->data.push_back("some event");
+                    event_.data.push_back("some event");
                 }
             }));
 
@@ -198,9 +198,9 @@ TEST(EngineTest, StatefulSubscriptor)
     EXPECT_CALL(*listener, call(_, _))
         .Times(6)
         .WillRepeatedly(Invoke(
-            [&attempt](dds::parameter_view &data, dds::event *event_) -> void {
+            [&attempt](dds::parameter_view &data, dds::event &event_) -> void {
                 if (attempt == 2 || attempt == 5) {
-                    event_->actions.push_back({dds::action_type::block, {}});
+                    event_.actions.push_back({dds::action_type::block, {}});
                 }
                 attempt++;
             }));
@@ -254,11 +254,11 @@ TEST(EngineTest, WafDefaultActions)
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data,
-                                   dds::event *event_) -> void {
-            event_->actions.push_back({dds::action_type::redirect, {}});
-            event_->actions.push_back({dds::action_type::block, {}});
-            event_->actions.push_back({dds::action_type::stack_trace, {}});
-            event_->actions.push_back({dds::action_type::extract_schema, {}});
+                                   dds::event &event_) -> void {
+            event_.actions.push_back({dds::action_type::redirect, {}});
+            event_.actions.push_back({dds::action_type::block, {}});
+            event_.actions.push_back({dds::action_type::stack_trace, {}});
+            event_.actions.push_back({dds::action_type::extract_schema, {}});
         }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
@@ -296,9 +296,9 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
-                event_->actions.push_back({dds::action_type::invalid, {}});
-                event_->actions.push_back({dds::action_type::block, {}});
+            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
+                event_.actions.push_back({dds::action_type::invalid, {}});
+                event_.actions.push_back({dds::action_type::block, {}});
             }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
@@ -860,8 +860,8 @@ TEST(EngineTest, RateLimiterForceKeep)
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
-                event_->actions.push_back({dds::action_type::redirect, {}});
+            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
+                event_.actions.push_back({dds::action_type::redirect, {}});
             }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
@@ -884,8 +884,8 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event *event_) -> void {
-                event_->actions.push_back({dds::action_type::redirect, {}});
+            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
+                event_.actions.push_back({dds::action_type::redirect, {}});
             }));
 
     mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());

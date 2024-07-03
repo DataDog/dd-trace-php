@@ -48,11 +48,8 @@ action_type parse_action_type_string(const std::string &action)
     return action_type::invalid;
 }
 
-void format_waf_result(ddwaf_result &res, event *event)
+void format_waf_result(ddwaf_result &res, event &event)
 {
-    if (event == nullptr) {
-        return;
-    }
     try {
         const parameter_view actions{res.actions};
         for (const auto &action : actions) {
@@ -61,12 +58,12 @@ void format_waf_result(ddwaf_result &res, event *event)
             for (const auto &parameter : action) {
                 a.parameters.emplace(parameter.key(), parameter);
             }
-            event->actions.emplace_back(std::move(a));
+            event.actions.emplace_back(std::move(a));
         }
 
         const parameter_view events{res.events};
         for (const auto &event_pv : events) {
-            event->data.emplace_back(std::move(parameter_to_json(event_pv)));
+            event.data.emplace_back(std::move(parameter_to_json(event_pv)));
         }
 
     } catch (const std::exception &e) {
@@ -202,7 +199,7 @@ instance::listener::~listener()
     }
 }
 
-void instance::listener::call(dds::parameter_view &data, event *event)
+void instance::listener::call(dds::parameter_view &data, event &event)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;

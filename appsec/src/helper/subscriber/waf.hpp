@@ -35,7 +35,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        void call(dds::parameter_view &data, event *event) override;
+        void call(dds::parameter_view &data, event &event) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void get_meta_and_metrics(std::map<std::string, std::string> &meta,
