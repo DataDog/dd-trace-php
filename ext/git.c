@@ -20,7 +20,7 @@ typedef struct _git_metadata {
     zend_string *property_repository;
 } git_metadata_t;
 
-git_metadata_t empty_git_metadata = {NULL, NULL};
+ddtrace_git_metadata empty_git_object = { };
 
 int remove_trailing_newline(char *str) {
     size_t len = strlen(str);
@@ -123,7 +123,6 @@ zend_string *find_git_dir(const char *start_dir) {
     while (true) {
         char git_dir[PATH_MAX];
         snprintf(git_dir, sizeof(git_dir), "%s/.git", current_dir);
-
         if (access(git_dir, F_OK) == 0) {
             return zend_string_init(git_dir, strlen(git_dir), 0);
         } else if (errno == EACCES || errno == EPERM) {
@@ -202,8 +201,12 @@ void use_cached_metadata(git_metadata_t *git_metadata) {
 }
 
 void replace_git_metadata(git_metadata_t *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
-    zend_string_release(git_metadata->property_commit);
-    zend_string_release(git_metadata->property_repository);
+    if (git_metadata->property_commit) {
+        zend_string_release(git_metadata->property_commit);
+    }
+    if (git_metadata->property_repository) {
+        zend_string_release(git_metadata->property_repository);
+    }
     git_metadata->property_commit = commit_sha;
     git_metadata->property_repository = repository_url;
 }
@@ -211,13 +214,18 @@ void replace_git_metadata(git_metadata_t *git_metadata, zend_string *commit_sha,
 void refresh_git_metadata_if_needed(zend_string *cwd, git_metadata_t *git_metadata) {
     zend_string *git_dir = find_git_dir(ZSTR_VAL(cwd));
     if (!git_dir) {
-        return; // Should we replace git_metadata's properties by (NULL, NULL)?
+        return;
     }
-
     zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
-    if (commit_sha && zend_string_equals(git_metadata->property_commit, commit_sha)) {
-        zend_string_release(commit_sha);
-    } else {
+
+    if (commit_sha && git_metadata->property_commit) {
+        if (!zend_string_equals(git_metadata->property_commit, commit_sha)) {
+            zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
+            replace_git_metadata(git_metadata, commit_sha, repository_url);
+        } else {
+            zend_string_release(commit_sha);
+        }
+    } else if (commit_sha) {
         zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
         replace_git_metadata(git_metadata, commit_sha, repository_url);
     }
@@ -243,11 +251,22 @@ void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *
 
 bool inject_from_git_dir() {
     zend_string *cwd = NULL;
+
+    zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
+    zval *script_filename = NULL;
+
     if (SG(options) & SAPI_OPTION_NO_CHDIR) {
-        const char *script_filename = SG(request_info).path_translated;
-        const char *last_slash = find_last_dir_separator(script_filename);
+        const char *path_translated = SG(request_info).path_translated;
+        const char *last_slash = find_last_dir_separator(path_translated);
         if (last_slash) {
-            cwd = zend_string_init(script_filename, last_slash - script_filename, 1);
+            cwd = zend_string_init(path_translated, last_slash - path_translated, 1);
+        } else {
+            cwd = zend_string_init(ZEND_STRL("."), 1);
+        }
+    } else if (_server_zv && (script_filename = zend_hash_str_find(Z_ARRVAL_P(_server_zv), ZEND_STRL("SCRIPT_FILENAME")))) {
+        const char *last_slash = find_last_dir_separator(Z_STRVAL_P(script_filename));
+        if (last_slash) {
+            cwd = zend_string_init(Z_STRVAL_P(script_filename), last_slash - Z_STRVAL_P(script_filename), 1);
         } else {
             cwd = zend_string_init(ZEND_STRL("."), 1);
         }
@@ -262,6 +281,7 @@ bool inject_from_git_dir() {
     update_git_metadata();
 
     git_metadata_t *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
+
     if (git_metadata) {
         use_cached_metadata(git_metadata);
         zend_string_release(cwd);
@@ -280,10 +300,15 @@ bool inject_from_git_dir() {
     if (success) {
         cache_git_metadata(cwd, commit_sha, repository_url);
     } else {
-        zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, &empty_git_metadata);
+        DDTRACE_G(git_object) = &empty_git_object.std;
+
     }
-    zend_string_release(commit_sha);
-    zend_string_release(repository_url);
+    if (commit_sha) {
+        zend_string_release(commit_sha);
+    }
+    if (repository_url) {
+        zend_string_release(repository_url);
+    }
     zend_string_release(git_dir);
     zend_string_release(cwd);
 
@@ -291,6 +316,10 @@ bool inject_from_git_dir() {
 }
 
 void ddtrace_inject_git_metadata(zval *carrier) {
+    if (DDTRACE_G(git_object) == &empty_git_object.std) {
+        return;
+    }
+
     if (DDTRACE_G(git_object) || inject_from_env() || inject_from_global_tags() || inject_from_git_dir()) {
         ZVAL_OBJ_COPY(carrier, DDTRACE_G(git_object));
     }
@@ -299,20 +328,25 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 void ddtrace_clean_git_metadata(void) {
     git_metadata_t *val;
     ZEND_HASH_FOREACH_PTR(&DDTRACE_G(git_metadata), val) {
-        if (val != &empty_git_metadata) {
-            zend_string_release(val->property_commit);
-            zend_string_release(val->property_repository);
-            pefree(val, 1);
-        }
+        zend_string_release(val->property_commit);
+        zend_string_release(val->property_repository);
+        pefree(val, 1);
     }
     ZEND_HASH_FOREACH_END();
     zend_hash_destroy(&DDTRACE_G(git_metadata));
 }
 
 void ddtrace_clean_git_object(void) {
+    if (DDTRACE_G(git_object) == &empty_git_object.std) {
+        DDTRACE_G(git_object) = NULL;
+        return;
+    }
+
     if (DDTRACE_G(git_object)) {
         ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
-        zend_string_release(Z_STR(git_metadata->property_repository));
+        if (Z_STR(git_metadata->property_repository)) {
+            zend_string_release(Z_STR(git_metadata->property_repository));
+        }
 #if PHP_VERSION_ID < 70300 || PHP_VERSION_ID >= 70400
         zend_object_release(DDTRACE_G(git_object));
 #endif
