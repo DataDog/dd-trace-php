@@ -20,7 +20,7 @@ typedef struct _git_metadata {
     zend_string *property_repository;
 } git_metadata_t;
 
-ddtrace_git_metadata empty_git_object = { };
+ddtrace_git_metadata empty_git_object = { 0 };
 
 int remove_trailing_newline(char *str) {
     size_t len = strlen(str);
