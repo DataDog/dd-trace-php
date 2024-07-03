@@ -166,14 +166,28 @@ zend_string* remove_credentials(zend_string *repo_url) {
 }
 
 bool add_git_info(zend_string *commit_sha, zend_string *repository_url) {
-    if (!commit_sha || !repository_url || ZSTR_LEN(commit_sha) == 0 || ZSTR_LEN(repository_url) == 0) {
+    size_t commit_sha_len = commit_sha ? ZSTR_LEN(commit_sha) : 0;
+    size_t repository_url_len = repository_url ? ZSTR_LEN(repository_url) : 0;
+
+    if (commit_sha_len == 0 && repository_url_len == 0) {
         return false;
     }
 
     DDTRACE_G(git_object) = zend_objects_new(ddtrace_ce_git_metadata);
     ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
-    ZVAL_STR_COPY(&git_metadata->property_commit, commit_sha);
-    ZVAL_STR_COPY(&git_metadata->property_repository, remove_credentials(repository_url));
+
+    if (commit_sha_len != 0) {
+        ZVAL_STR_COPY(&git_metadata->property_commit, commit_sha);
+    } else {
+        ZVAL_NULL(&git_metadata->property_commit);
+    }
+
+    if (repository_url_len != 0) {
+        ZVAL_STR_COPY(&git_metadata->property_repository, remove_credentials(repository_url));
+    } else {
+        ZVAL_NULL(&git_metadata->property_repository);
+    }
+
     return true;
 }
 
@@ -219,8 +233,8 @@ zend_string* get_current_working_directory() {
 
 void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *repository_url) {
     git_metadata_t *git_metadata = pemalloc(sizeof(git_metadata_t), 1);
-    git_metadata->property_commit = zend_string_copy(commit_sha);
-    git_metadata->property_repository = zend_string_copy(repository_url);
+    git_metadata->property_commit = commit_sha && ZSTR_LEN(commit_sha) > 0 ? zend_string_copy(commit_sha) : NULL;
+    git_metadata->property_repository = repository_url && ZSTR_LEN(repository_url) > 0 ? zend_string_copy(repository_url) : NULL;
     zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, git_metadata);
 }
 
@@ -346,8 +360,8 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 void ddtrace_clean_git_metadata(void) {
     git_metadata_t *val;
     ZEND_HASH_FOREACH_PTR(&DDTRACE_G(git_metadata), val) {
-        zend_string_release(val->property_commit);
-        zend_string_release(val->property_repository);
+        if (val->property_commit) zend_string_release(val->property_commit);
+        if (val->property_repository) zend_string_release(val->property_repository);
         pefree(val, 1);
     }
     ZEND_HASH_FOREACH_END();
@@ -362,7 +376,7 @@ void ddtrace_clean_git_object(void) {
 
     if (DDTRACE_G(git_object)) {
         ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
-        if (Z_STR(git_metadata->property_repository)) {
+        if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
             zend_string_release(Z_STR(git_metadata->property_repository));
         }
 #if PHP_VERSION_ID < 70300 || PHP_VERSION_ID >= 70400
