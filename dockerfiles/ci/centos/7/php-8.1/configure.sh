@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 if [ -z "${PHP_SRC_DIR}" ]; then
     echo "Please set PHP_SRC_DIR"
     exit 1
