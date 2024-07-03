@@ -231,8 +231,6 @@ bool process_git_info(zend_string *git_dir, zend_string *cwd) {
     bool success = add_git_info(commit_sha, repository_url);
     if (success) {
         cache_git_metadata(cwd, commit_sha, repository_url);
-    } else {
-        DDTRACE_G(git_object) = &empty_git_object.std;
     }
 
     if (commit_sha) zend_string_release(commit_sha);
@@ -340,6 +338,8 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 
     if (DDTRACE_G(git_object) || inject_from_env() || inject_from_global_tags() || inject_from_git_dir()) {
         ZVAL_OBJ_COPY(carrier, DDTRACE_G(git_object));
+    } else {
+        DDTRACE_G(git_object) = &empty_git_object.std;
     }
 }
 
