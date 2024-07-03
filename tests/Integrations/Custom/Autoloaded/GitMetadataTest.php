@@ -129,7 +129,7 @@ CONFIG
         $trace2Meta = $trace2[0][0]['meta'];
 
         $this->assertArrayNotHasKey('_dd.git.commit.sha', $trace1Meta);
-        $this->assertArrayNotHasKey('_dd.git.repository_url', $trace1Meta);
+        $this->assertEquals('https://github.com/user/repo_new', $trace1Meta['_dd.git.repository_url']);
 
         $this->assertEquals('123456', $trace2Meta['_dd.git.commit.sha']);
         $this->assertEquals('https://github.com/user/repo_new', $trace2Meta['_dd.git.repository_url']);
