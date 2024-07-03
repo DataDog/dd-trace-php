@@ -1,5 +1,5 @@
 --TEST--
-Abort request as a result of rinit, with a custom template
+When there are multiple block action, the first one is the one used
 --INI--
 datadog.appsec.enabled=1
 --ENV--
@@ -11,7 +11,7 @@ use function datadog\appsec\testing\rinit;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['block', ['status_code' => '500', 'type' => 'html']]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['ok', []], ['block', ['status_code' => '500', 'type' => 'html']], ['block', ['status_code' => '501', 'type' => 'json']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ], ['continuous' => true]);
 
 rinit();

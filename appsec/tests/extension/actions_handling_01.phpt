@@ -1,5 +1,5 @@
 --TEST--
-Push address are sent on request_exec - array
+There can be multiple ok actions
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -11,9 +11,9 @@ use function datadog\appsec\push_address;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_exec([[['ok', []]], [], [], [], false])),
-    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
+    response_list(response_request_init([[['ok', []], ['ok', []]]])),
+    response_list(response_request_exec([[['ok', []], ['ok', []]], [], [], [], false])),
+    response_list(response_request_shutdown([[['ok', []], ['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
 
 var_dump(rinit());

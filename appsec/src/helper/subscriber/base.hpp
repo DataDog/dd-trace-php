@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../action.hpp"
 #include "../engine_settings.hpp"
 #include "../parameter.hpp"
 #include "../parameter_view.hpp"
@@ -18,11 +19,6 @@ class subscriber {
 public:
     using ptr = std::shared_ptr<subscriber>;
 
-    struct event {
-        std::vector<std::string> data;
-        std::unordered_set<std::string> actions;
-    };
-
     class listener {
     public:
         using ptr = std::shared_ptr<listener>;
@@ -35,7 +31,7 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual std::optional<event> call(parameter_view &data) = 0;
+        virtual void call(parameter_view &data, event &event) = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void get_meta_and_metrics(
