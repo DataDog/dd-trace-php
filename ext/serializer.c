@@ -1337,8 +1337,12 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
     if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
         ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
         if (is_root_span) {
-            add_assoc_str(meta, "_dd.git.commit.sha", ddtrace_convert_to_str(&metadata->property_commit));
-            add_assoc_str(meta, "_dd.git.repository_url", ddtrace_convert_to_str(&metadata->property_repository));
+            if (Z_TYPE(metadata->property_commit) == IS_STRING) {
+                add_assoc_str(meta, "_dd.git.commit.sha", ddtrace_convert_to_str(&metadata->property_commit));
+            }
+            if (Z_TYPE(metadata->property_repository) == IS_STRING) {
+                add_assoc_str(meta, "_dd.git.repository_url", ddtrace_convert_to_str(&metadata->property_repository));
+            }
         }
     }
 
