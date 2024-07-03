@@ -46,7 +46,14 @@ makeRequest();
 ?>
 --CLEAN--
 <?php
-system('rm -rf ' . __DIR__ . '/.git');
+function rm_rf($dir) {
+    $files = array_diff(scandir($dir), array('.','..'));
+    foreach ($files as $file) {
+        (is_dir("$dir/$file")) ? rm_rf("$dir/$file") : unlink("$dir/$file");
+    }
+    return rmdir($dir);
+}
+rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
 https://github.com/user/repo_new
