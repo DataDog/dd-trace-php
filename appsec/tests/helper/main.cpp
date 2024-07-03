@@ -41,34 +41,6 @@ std::string create_sample_rules_ok()
       ]
     },
     {
-      "id": "blk-001-002",
-      "name": "Block IP Addresses with all actions",
-      "tags": {
-        "type": "block_ip",
-        "category": "security_response"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "http.client_ip"
-              }
-            ],
-            "list": ["192.168.1.2"]
-          },
-          "operator": "ip_match"
-        }
-      ],
-      "transformers": [],
-      "on_match": [
-        "block",
-        "redirect",
-        "stack_trace",
-        "extract_schema"
-      ]
-    },
-    {
       "id": "crs-913-110",
       "name": "Found request header associated with Acunetix security scanner",
       "tags": {
@@ -184,16 +156,7 @@ std::string create_sample_rules_ok()
       "output": true
     }
   ],
-  "scanners": [],
-  "actions": [
-    {
-      "id": "redirect",
-      "type": "redirect_request",
-      "parameters": {
-        "location": "localhost"
-      }
-    }
-  ]
+  "scanners": []
 })";
 
     char tmpl[] = "/tmp/test_ddappsec_XXXXXX";

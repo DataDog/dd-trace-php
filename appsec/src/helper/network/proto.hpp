@@ -24,7 +24,6 @@ struct verdict {
     static constexpr std::string_view record = "record";
     static constexpr std::string_view block = "block";
     static constexpr std::string_view redirect = "redirect";
-    static constexpr std::string_view stack_trace = "stack_trace";
 };
 
 using header_t = struct __attribute__((__packed__)) header {
@@ -134,13 +133,6 @@ struct client_init {
     };
 };
 
-struct action_struct {
-    std::string verdict;
-    std::unordered_map<std::string, std::string> parameters;
-
-    MSGPACK_DEFINE(verdict, parameters);
-};
-
 struct request_init {
     static constexpr const char *name = "request_init";
 
@@ -167,12 +159,13 @@ struct request_init {
         {
             return request_init::name;
         };
-        std::vector<action_struct> actions;
+        std::string verdict;
+        std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> triggers;
 
         bool force_keep;
 
-        MSGPACK_DEFINE(actions, triggers, force_keep);
+        MSGPACK_DEFINE(verdict, parameters, triggers, force_keep);
     };
 };
 
@@ -202,12 +195,13 @@ struct request_exec {
         {
             return request_exec::name;
         };
-        std::vector<action_struct> actions;
+        std::string verdict;
+        std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> triggers;
 
         bool force_keep;
 
-        MSGPACK_DEFINE(actions, triggers, force_keep);
+        MSGPACK_DEFINE(verdict, parameters, triggers, force_keep);
     };
 };
 
@@ -278,7 +272,8 @@ struct request_shutdown {
         {
             return request_shutdown::name;
         };
-        std::vector<action_struct> actions;
+        std::string verdict;
+        std::unordered_map<std::string, std::string> parameters;
         std::vector<std::string> triggers;
 
         bool force_keep;
@@ -286,7 +281,8 @@ struct request_shutdown {
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
 
-        MSGPACK_DEFINE(actions, triggers, force_keep, meta, metrics);
+        MSGPACK_DEFINE(
+            verdict, parameters, triggers, force_keep, meta, metrics);
     };
 };
 

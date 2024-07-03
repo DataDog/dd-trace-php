@@ -420,78 +420,57 @@ static void _command_process_redirect_parameters(mpack_node_t root)
     dd_set_redirect_code_and_location(status_code, location);
 }
 
-dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
-{
-    size_t actions = mpack_node_array_length(root);
-    dd_result res = dd_success;
-
-    for (size_t i = 0; i < actions; i++) {
-        mpack_node_t action = mpack_node_array_at(root, i);
-
-        // expected: ['ok' / 'record' / 'block' / 'redirect']
-        mpack_node_t verdict = mpack_node_array_at(action, 0);
-        if (mlog_should_log(dd_log_debug)) {
-            const char *verd_str = mpack_node_str(verdict);
-            size_t verd_len = mpack_node_strlen(verdict);
-            if (verd_len > INT_MAX) {
-                verd_len = INT_MAX;
-            }
-            mlog(dd_log_debug, "Verdict of %s was '%.*s'",
-                ctx->command_name ? ctx->command_name : "(unknown)",
-                (int)verd_len, verd_str);
-        }
-
-        // Parse parameters
-        if (dd_mpack_node_lstr_eq(verdict, "block") && res != dd_should_block &&
-            res != dd_should_redirect) { // Redirect take over block
-            res = dd_should_block;
-            _command_process_block_parameters(mpack_node_array_at(action, 1));
-            dd_tags_add_blocked();
-        } else if (dd_mpack_node_lstr_eq(verdict, "redirect") &&
-                   res != dd_should_redirect) {
-            res = dd_should_redirect;
-            _command_process_redirect_parameters(
-                mpack_node_array_at(action, 1));
-            dd_tags_add_blocked();
-        } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
-                   res == dd_success) {
-            res = dd_should_record;
-        }
-    }
-
-    return res;
-}
-
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, void *unspecnull _ctx)
 {
     struct req_info *ctx = _ctx;
     assert(ctx != NULL);
 
-    mpack_node_t actions = mpack_node_array_at(root, 0);
+    // expected: ['ok' / 'record' / 'block' / 'redirect']
+    mpack_node_t verdict = mpack_node_array_at(root, 0);
+    if (mlog_should_log(dd_log_debug)) {
+        const char *verd_str = mpack_node_str(verdict);
+        size_t verd_len = mpack_node_strlen(verdict);
+        if (verd_len > INT_MAX) {
+            verd_len = INT_MAX;
+        }
+        mlog(dd_log_debug, "Verdict of %s was '%.*s'",
+            ctx->command_name ? ctx->command_name : "(unknown)", (int)verd_len,
+            verd_str);
+    }
 
-    dd_result res = _command_process_actions(actions, ctx);
+    dd_result res = dd_success;
+    // Parse parameters
+    if (dd_mpack_node_lstr_eq(verdict, "block")) {
+        res = dd_should_block;
+        _command_process_block_parameters(mpack_node_array_at(root, 1));
+        dd_tags_add_blocked();
+    } else if (dd_mpack_node_lstr_eq(verdict, "redirect")) {
+        res = dd_should_redirect;
+        _command_process_redirect_parameters(mpack_node_array_at(root, 1));
+        dd_tags_add_blocked();
+    }
 
     if (res == dd_should_block || res == dd_should_redirect ||
-        res == dd_should_record) {
-        _set_appsec_span_data(mpack_node_array_at(root, 1));
+        dd_mpack_node_lstr_eq(verdict, "record")) {
+        _set_appsec_span_data(mpack_node_array_at(root, 2));
     }
 
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    mpack_node_t force_keep = mpack_node_array_at(root, 2);
+    mpack_node_t force_keep = mpack_node_array_at(root, 3);
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
         dd_tags_set_sampling_priority();
     }
 
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    if (mpack_node_array_length(root) >= 5 && ctx->root_span) {
+    if (mpack_node_array_length(root) >= 6 && ctx->root_span) {
         zend_object *span = ctx->root_span;
 
-        mpack_node_t meta = mpack_node_array_at(root, 3);
+        mpack_node_t meta = mpack_node_array_at(root, 4);
         dd_command_process_meta(meta, span);
         // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        mpack_node_t metrics = mpack_node_array_at(root, 4);
+        mpack_node_t metrics = mpack_node_array_at(root, 5);
         dd_command_process_metrics(metrics, span);
     }
 

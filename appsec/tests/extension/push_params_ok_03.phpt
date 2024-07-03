@@ -11,9 +11,9 @@ use function datadog\appsec\push_address;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_exec([[['ok', []]], [], [], [], false])),
-    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
+    response_list(response_request_init(['ok', []])),
+    response_list(response_request_exec(['ok', [], [], [], [], false])),
+    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()]))
 ]);
 
 var_dump(rinit());

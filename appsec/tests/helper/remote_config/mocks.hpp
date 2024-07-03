@@ -20,7 +20,7 @@ public:
     explicit engine(
         uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit,
         action_map &&actions = {})
-        : dds::engine(trace_rate_limit)
+        : dds::engine(trace_rate_limit, std::move(actions))
     {}
     MOCK_METHOD(void, update,
         (engine_ruleset &, (std::map<std::string, std::string> &),

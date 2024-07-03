@@ -10,7 +10,6 @@
 #include <string>
 #include <thread>
 
-#include "action.hpp"
 #include "base64.h"
 #include "client.hpp"
 #include "compression.hpp"
@@ -212,80 +211,12 @@ bool client::handle_command(const network::client_init::request &command)
     return !has_errors;
 }
 
-template <typename T> bool client::service_guard()
+bool client::handle_command(network::request_init::request &command)
 {
     if (!service_) {
         // This implies a failed client_init, we can't continue.
-        SPDLOG_DEBUG("no service available on {}", T::name);
+        SPDLOG_DEBUG("no service available on request_init");
         send_error_response(*broker_);
-        return false;
-    }
-
-    return true;
-}
-
-template <typename T>
-std::shared_ptr<typename T::response> client::publish(
-    typename T::request &command)
-{
-    SPDLOG_DEBUG("received command {}", T::name);
-
-    auto response = std::make_shared<typename T::response>();
-    try {
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto res = context_->publish(std::move(command.data));
-        if (res) {
-            for (auto &act : res->actions) {
-                dds::network::action_struct new_action;
-                switch (act.type) {
-                case dds::action_type::block:
-                    new_action.verdict = network::verdict::block;
-                    new_action.parameters = std::move(act.parameters);
-                    break;
-                case dds::action_type::redirect:
-                    new_action.verdict = network::verdict::redirect;
-                    new_action.parameters = std::move(act.parameters);
-                    break;
-                case dds::action_type::stack_trace:
-                    new_action.verdict = network::verdict::stack_trace;
-                    new_action.parameters = std::move(act.parameters);
-                    break;
-                case dds::action_type::record:
-                default:
-                    new_action.verdict = network::verdict::record;
-                    new_action.parameters = {};
-                    break;
-                }
-                response->actions.push_back(new_action);
-            }
-            response->triggers = std::move(res->events);
-            response->force_keep = res->force_keep;
-
-            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
-        } else {
-            dds::network::action_struct new_action;
-            new_action.verdict = network::verdict::ok;
-            response->actions.push_back(new_action);
-        }
-    } catch (const invalid_object &e) {
-        // This error indicates some issue in either the communication with
-        // the client, incompatible versions or malicious client.
-        SPDLOG_ERROR("invalid data format provided by the client");
-        send_error_response(*broker_);
-        return nullptr;
-    } catch (const std::exception &e) {
-        // Uncertain what the issue is... lets be cautious
-        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
-        send_error_response(*broker_);
-        return nullptr;
-    }
-
-    return response;
-}
-
-bool client::handle_command(network::request_init::request &command)
-{
-    if (!service_guard<network::request_init>()) {
         return false;
     }
 
@@ -295,29 +226,137 @@ bool client::handle_command(network::request_init::request &command)
         response_cf->enabled = false;
 
         SPDLOG_DEBUG("sending config_features to request_init");
-        return send_message<network::config_features, false>(response_cf);
+        try {
+            return broker_->send(response_cf);
+        } catch (std::exception &e) {
+            SPDLOG_ERROR(e.what());
+        }
+
+        return true;
     }
 
     // During request init we initialize the engine context
     context_.emplace(*service_->get_engine());
 
-    auto response = publish<network::request_init>(command);
+    SPDLOG_DEBUG("received command request_init");
 
-    return send_message<network::request_init>(response);
+    auto response = std::make_shared<network::request_init::response>();
+    try {
+        auto res = context_->publish(std::move(command.data));
+        if (res) {
+            switch (res->type) {
+            case engine::action_type::block:
+                response->verdict = network::verdict::block;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::redirect:
+                response->verdict = network::verdict::redirect;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::record:
+            default:
+                response->verdict = network::verdict::record;
+                response->parameters = {};
+                break;
+            }
+
+            response->triggers = std::move(res->events);
+            response->force_keep = res->force_keep;
+
+            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
+        } else {
+            response->verdict = network::verdict::ok;
+        }
+    } catch (const invalid_object &e) {
+        // This error indicates some issue in either the communication with
+        // the client, incompatible versions or malicious client.
+        SPDLOG_ERROR("invalid data format provided by the client");
+        send_error_response(*broker_);
+        return false;
+    } catch (const std::exception &e) {
+        // Uncertain what the issue is... lets be cautious
+        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
+        send_error_response(*broker_);
+        return false;
+    }
+
+    SPDLOG_DEBUG(
+        "sending response to request_init, verdict: {}", response->verdict);
+    try {
+        return broker_->send(response);
+    } catch (std::exception &e) {
+        SPDLOG_ERROR(e.what());
+    }
+
+    return false;
 }
 
 bool client::handle_command(network::request_exec::request &command)
 {
     if (!context_) {
-        if (!service_guard<network::request_exec>()) {
+        // A lack of context implies processing request_init failed, this
+        // can happen for legitimate reasons so let's try to process the data.
+        if (!service_) {
+            // This implies a failed client_init, we can't continue.
+            SPDLOG_DEBUG("no service available on request_exec");
+            send_error_response(*broker_);
             return false;
         }
 
         context_.emplace(*service_->get_engine());
     }
 
-    auto response = publish<network::request_exec>(command);
-    return send_message<network::request_exec>(response);
+    SPDLOG_DEBUG("received command request_exec");
+
+    auto response = std::make_shared<network::request_exec::response>();
+    try {
+        auto res = context_->publish(std::move(command.data));
+        if (res) {
+            switch (res->type) {
+            case engine::action_type::block:
+                response->verdict = network::verdict::block;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::redirect:
+                response->verdict = network::verdict::redirect;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::record:
+            default:
+                response->verdict = network::verdict::record;
+                response->parameters = {};
+                break;
+            }
+
+            response->triggers = std::move(res->events);
+            response->force_keep = res->force_keep;
+
+            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
+        } else {
+            response->verdict = network::verdict::ok;
+        }
+    } catch (const invalid_object &e) {
+        // This error indicates some issue in either the communication with
+        // the client, incompatible versions or malicious client.
+        SPDLOG_ERROR("invalid data format provided by the client");
+        send_error_response(*broker_);
+        return false;
+    } catch (const std::exception &e) {
+        // Uncertain what the issue is... lets be cautious
+        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
+        send_error_response(*broker_);
+        return false;
+    }
+
+    SPDLOG_DEBUG(
+        "sending response to request_exec, verdict: {}", response->verdict);
+    try {
+        return broker_->send(response);
+    } catch (std::exception &e) {
+        SPDLOG_ERROR(e.what());
+    }
+
+    return false;
 }
 
 bool client::compute_client_status()
@@ -341,7 +380,10 @@ bool client::compute_client_status()
 
 bool client::handle_command(network::config_sync::request & /* command */)
 {
-    if (!service_guard<network::config_sync>()) {
+    if (!service_) {
+        // This implies a failed client_init, we can't continue.
+        SPDLOG_DEBUG("no service available on config_sync");
+        send_error_response(*broker_);
         return false;
     }
 
@@ -373,70 +415,91 @@ bool client::handle_command(network::config_sync::request & /* command */)
     return false;
 }
 
-template <typename T, bool actions>
-bool client::send_message(const std::shared_ptr<typename T::response> &message)
-{
-    if (!message) {
-        return false;
-    }
-
-    if (spdlog::should_log(spdlog::level::debug)) {
-        // NOLINTNEXTLINE(misc-const-correctness)
-        std::ostringstream all_verdicts;
-        if constexpr (actions) {
-            for (const auto &action : message->actions) {
-                all_verdicts << action.verdict << " ";
-            }
-            if (message->actions.empty()) {
-                all_verdicts << "no verdicts";
-            }
-        }
-        SPDLOG_DEBUG("sending response to {}, verdicts: {}",
-            message->get_type(), all_verdicts.str());
-    }
-    try {
-        return broker_->send(message);
-    } catch (std::exception &e) {
-        SPDLOG_ERROR(e.what());
-    }
-    return false;
-}
-
 bool client::handle_command(network::request_shutdown::request &command)
 {
     if (!context_) {
-        if (!service_guard<network::request_shutdown>()) {
+        // A lack of context implies processing request_init failed, this
+        // can happen for legitimate reasons so let's try to process the data.
+        if (!service_) {
+            // This implies a failed client_init, we can't continue.
+            SPDLOG_DEBUG("no service available on request_shutdown");
+            send_error_response(*broker_);
             return false;
         }
 
         context_.emplace(*service_->get_engine());
     }
 
+    SPDLOG_DEBUG("received command request_shutdown");
+
     // Free the context at the end of request shutdown
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
-    auto sampler = service_->get_schema_sampler();
-    std::optional<sampler::scope> scope;
-    if (sampler) {
-        scope = sampler->get();
-        if (scope.has_value()) {
-            parameter context_processor = parameter::map();
-            context_processor.add(
-                "extract-schema", parameter::as_boolean(true));
-            command.data.add(
-                "waf.context.processor", std::move(context_processor));
-        }
-    }
+    auto response = std::make_shared<network::request_shutdown::response>();
 
-    auto response = publish<network::request_shutdown>(command);
-    if (!response) {
+    try {
+        auto sampler = service_->get_schema_sampler();
+        std::optional<sampler::scope> scope;
+        if (sampler) {
+            scope = sampler->get();
+            if (scope.has_value()) {
+                parameter context_processor = parameter::map();
+                context_processor.add(
+                    "extract-schema", parameter::as_boolean(true));
+                command.data.add(
+                    "waf.context.processor", std::move(context_processor));
+            }
+        }
+
+        auto res = context_->publish(std::move(command.data));
+        if (res) {
+            switch (res->type) {
+            case engine::action_type::block:
+                response->verdict = network::verdict::block;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::redirect:
+                response->verdict = network::verdict::redirect;
+                response->parameters = std::move(res->parameters);
+                break;
+            case engine::action_type::record:
+            default:
+                response->verdict = network::verdict::record;
+                response->parameters = {};
+                break;
+            }
+
+            response->triggers = std::move(res->events);
+            response->force_keep = res->force_keep;
+
+            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
+        } else {
+            response->verdict = network::verdict::ok;
+        }
+
+        context_->get_meta_and_metrics(response->meta, response->metrics);
+    } catch (const invalid_object &e) {
+        // This error indicates some issue in either the communication with
+        // the client, incompatible versions or malicious client.
+        SPDLOG_ERROR("invalid data format provided by the client");
+        send_error_response(*broker_);
+        return false;
+    } catch (const std::exception &e) {
+        // Uncertain what the issue is... lets be cautious
+        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
+        send_error_response(*broker_);
         return false;
     }
 
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    context_->get_meta_and_metrics(response->meta, response->metrics);
+    SPDLOG_DEBUG(
+        "sending response to request_shutdown, verdict: {}", response->verdict);
+    try {
+        return broker_->send(response);
+    } catch (std::exception &e) {
+        SPDLOG_ERROR(e.what());
+    }
 
-    return send_message<network::request_shutdown>(response);
+    return false;
 }
 
 bool client::run_client_init()
