@@ -2713,6 +2713,31 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  compile_rust_alpine:
+    working_directory: ~/datadog
+    parameters:
+      resource_class:
+        type: string
+        default: large
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-compile-extension-alpine
+      - run:
+          name: Compile sidecar
+          command: |
+            SHARED=1 PROFILE=tracer-release host_os=linux-musl ./compile_rust.sh
+            cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m)-alpine.a
+            objcopy --compress-debug-sections ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.so libddtrace_php_$(uname -m)-alpine.so
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './libddtrace_php_*.*' ]
+
   compile_alpine:
     working_directory: ~/datadog
     parameters:
@@ -2731,29 +2756,28 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
+      - run: mkdir -p extensions_$(uname -m) standalone_$(uname -m)
       - run:
           name: Build nts extension
           command: |
-            build-dd-trace-php
+            make -j static CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -Wno-error=return-local-addr" ECHO_ARG="-e"
+            objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so standalone_$(uname -m)/ddtrace-${PHP_API}-alpine.so
+            cp -v tmp/build_extension/modules/ddtrace.a extensions_$(uname -m)/ddtrace-${PHP_API}-alpine.a
+            if [ "<< parameters.php_major_minor >>" = "7.0" ]; then
+              cp -v tmp/build_extension/ddtrace.ldflags ddtrace_$(uname -m)-alpine.ldflags
+            fi
       - run:
           name: Build zts extension
           command: |
             . /root/.bashrc
             switch_php zts
             rm -r tmp/build_extension
-            build-dd-trace-php
-      - run:
-          name: Compress debug info
-          command: |
-            pushd extensions
-            for FILE in $(find . -name "*.so"); do
-                objcopy --compress-debug-sections $FILE
-            done
-            popd
-            mv extensions extensions_$(uname -m)
+            make -j static CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -Wno-error=return-local-addr" ECHO_ARG="-e"
+            objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so standalone_$(uname -m)/ddtrace-${PHP_API}-alpine-zts.so
+            cp -v tmp/build_extension/modules/ddtrace.a extensions_$(uname -m)/ddtrace-${PHP_API}-alpine-zts.a
       - persist_to_workspace:
           root: '.'
-          paths: ['./extensions_*']
+          paths: [ './extensions_*', './standalone_*', 'ddtrace_*.ldflags' ]
 
   compile_extension_asan:
     working_directory: ~/datadog
@@ -3091,7 +3115,6 @@ jobs:
       - run:
           name: Compile sidecar
           command: |
-            mkdir -p extensions_$(uname -m)
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
             SHARED=1 PROFILE=tracer-release host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m).a
@@ -3158,12 +3181,17 @@ jobs:
           root: '.'
           paths: [ './extensions_*', './standalone_*', 'ddtrace_*.ldflags' ]
 
-  link_extension_centos:
+  link_extension:
     working_directory: ~/datadog
     parameters:
       resource_class:
         type: string
         default: xlarge
+      docker_image:
+        type: string
+      libddtrace_suffix:
+        type: string
+        default: ""
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -3172,14 +3200,14 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
-          docker_image: datadog/dd-trace-ci:centos-7
+          docker_image: << parameters.docker_image >>
       - run:
           name: Link sidecar and extension
           command: |
-            sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace_$(uname -m).ldflags
+            sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags
             for archive in extensions_$(uname -m)/*.a; do
               (
-                gcc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m).ldflags) libddtrace_php_$(uname -m).a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
+                gcc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags) libddtrace_php_$(uname -m)<< parameters.libddtrace_suffix >>.a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
                 objcopy --compress-debug-sections ${archive%.a}.so
               ) &
             done
@@ -3897,9 +3925,63 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+          resource_class: "medium"
+          name: "Compile alpine x86_64 PHP << matrix.php_major_minor >>"
+      - compile_alpine:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+                - '8.1'
+                - '8.2'
+                - '8.3'
+          resource_class: "arm.medium"
+          name: "Compile alpine aarch64 PHP << matrix.php_major_minor >>"
+      - compile_rust_alpine:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
               resource_class:
                 - "medium"
                 - "arm.medium"
+      - link_extension:
+          requires:
+            - compile_rust_alpine
+            - "Compile alpine x86_64 PHP 7.0"
+            - "Compile alpine x86_64 PHP 7.1"
+            - "Compile alpine x86_64 PHP 7.2"
+            - "Compile alpine x86_64 PHP 7.3"
+            - "Compile alpine x86_64 PHP 7.4"
+            - "Compile alpine x86_64 PHP 8.0"
+            - "Compile alpine x86_64 PHP 8.1"
+            - "Compile alpine x86_64 PHP 8.2"
+            - "Compile alpine x86_64 PHP 8.3"
+          libddtrace_suffix: "-alpine"
+          resource_class: "medium"
+          name: "Link x86_64 alpine"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
+      - link_extension:
+          requires:
+            - compile_rust_alpine
+            - "Compile alpine aarch64 PHP 7.0"
+            - "Compile alpine aarch64 PHP 7.1"
+            - "Compile alpine aarch64 PHP 7.2"
+            - "Compile alpine aarch64 PHP 7.3"
+            - "Compile alpine aarch64 PHP 7.4"
+            - "Compile alpine aarch64 PHP 8.0"
+            - "Compile alpine aarch64 PHP 8.1"
+            - "Compile alpine aarch64 PHP 8.2"
+            - "Compile alpine aarch64 PHP 8.3"
+          libddtrace_suffix: "-alpine"
+          resource_class: "arm.medium"
+          name: "Link aarch64 alpine"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 70 nts + zts + debug"
@@ -4072,7 +4154,7 @@ workflows:
           name: "Compile aarch64 rust"
           resource_class: "arm.large"
 
-      - link_extension_centos:
+      - link_extension:
           requires:
             - "Compile x86_64 rust"
             - "Compile x86_64 PHP 70 nts + zts + debug"
@@ -4085,7 +4167,8 @@ workflows:
             - "Compile x86_64 PHP 82 nts + zts + debug"
             - "Compile x86_64 PHP 83 nts + zts + debug"
           name: "Link x86_64 PHP"
-      - link_extension_centos:
+          docker_image: "datadog/dd-trace-ci:centos-7"
+      - link_extension:
           requires:
             - "Compile aarch64 rust"
             - "Compile aarch64 PHP 70 nts + zts + debug"
@@ -4098,6 +4181,7 @@ workflows:
             - "Compile aarch64 PHP 82 nts + zts + debug"
             - "Compile aarch64 PHP 83 nts + zts + debug"
           name: "Link aarch64 PHP"
+          docker_image: "datadog/dd-trace-ci:centos-7"
           resource_class: "arm.xlarge"
 
       - pecl_build:
@@ -4106,7 +4190,8 @@ workflows:
 
       - "package extension":
           requires:
-            - compile_alpine
+            - "Link x86_64 alpine"
+            - "Link aarch64 alpine"
             - "Link x86_64 PHP"
             - "Link aarch64 PHP"
 
