@@ -2143,7 +2143,7 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
-          docker_image: debian:buster
+          docker_image: debian:bullseye
       - run:
           name: Validate .tar.gz package
           command: PHP_VERSION=<< parameters.php_major_minor >> bash ./dockerfiles/verify_packages/verify_tar_gz_root.sh
@@ -4341,8 +4341,8 @@ workflows:
               install_mode:
                 - sury
               docker_image:
-                - debian:buster
                 - debian:bullseye
+                - debian:bookworm
               configuration:
                 - PHP_VERSION=7.0
                 - PHP_VERSION=7.1
