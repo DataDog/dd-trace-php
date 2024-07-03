@@ -130,9 +130,9 @@ void generate_backtrace(zend_string *id, zval *dd_backtrace)
     }
 
     zval language;
-    ZVAL_STR(&language, _php_value);
+    ZVAL_STR_COPY(&language, _php_value);
     zval id_zv;
-    ZVAL_STR(&id_zv, id);
+    ZVAL_STR_COPY(&id_zv, id);
     zend_hash_add(Z_ARRVAL_P(dd_backtrace), _language_key, &language);
     zend_hash_add(Z_ARRVAL_P(dd_backtrace), _id_key, &id_zv);
 
