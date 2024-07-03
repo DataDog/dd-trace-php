@@ -15,6 +15,8 @@ list(FILTER HELPER_SOURCE EXCLUDE REGEX "^.*main\.cpp$")
 
 add_library(helper_objects OBJECT ${HELPER_SOURCE})
 set_target_properties(helper_objects PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED YES
     POSITION_INDEPENDENT_CODE 1)
 target_include_directories(helper_objects PUBLIC ${HELPER_INCLUDE_DIR})
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
@@ -27,16 +29,16 @@ target_link_libraries(ddappsec-helper helper_objects) # for its PUBLIC deps
 
 try_compile(STDLIBXX_FS_NO_LIB_NEEDED ${CMAKE_CURRENT_BINARY_DIR}
     SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_fslib.cpp
-    CXX_STANDARD 17
+    CXX_STANDARD 20
     CXX_STANDARD_REQUIRED TRUE)
 try_compile(STDLIBXX_FS_NEEDS_STDCXXFS ${CMAKE_CURRENT_BINARY_DIR}
     SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_fslib.cpp
-    CXX_STANDARD 17
+    CXX_STANDARD 20
     CXX_STANDARD_REQUIRED TRUE
     LINK_LIBRARIES stdc++fs)
 try_compile(STDLIBXX_FS_NEEDS_CXXFS ${CMAKE_CURRENT_BINARY_DIR}
     SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_fslib.cpp
-    CXX_STANDARD 17
+    CXX_STANDARD 20
     CXX_STANDARD_REQUIRED TRUE
     LINK_LIBRARIES c++fs)
 if(NOT STDLIBXX_FS_NO_LIB_NEEDED)
