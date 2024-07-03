@@ -177,20 +177,67 @@ bool add_git_info(zend_string *commit_sha, zend_string *repository_url) {
     return true;
 }
 
-bool inject_from_env() {
-    zend_string *commit_sha = get_DD_GIT_COMMIT_SHA();
-    zend_string *repository_url = get_DD_GIT_REPOSITORY_URL();
-    return add_git_info(commit_sha, repository_url);
+zend_string* get_directory_from_path_translated() {
+    const char *path_translated = SG(request_info).path_translated;
+    const char *last_slash = find_last_dir_separator(path_translated);
+    if (last_slash) {
+        return zend_string_init(path_translated, last_slash - path_translated, 1);
+    }
+    return zend_string_init(ZEND_STRL("."), 1);
 }
 
-bool inject_from_global_tags() {
-    bool success = false;
-    zend_array *global_tags = get_DD_TAGS();
-    zval *commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
-    zval *repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
-    if (commit_sha && repository_url && Z_TYPE_P(commit_sha) == IS_STRING && Z_TYPE_P(repository_url) == IS_STRING) {
-        success = add_git_info(Z_STR_P(commit_sha), Z_STR_P(repository_url));
+zend_string* get_directory_from_script_filename(zval *script_filename) {
+    const char *last_slash = find_last_dir_separator(Z_STRVAL_P(script_filename));
+    if (last_slash) {
+        return zend_string_init(Z_STRVAL_P(script_filename), last_slash - Z_STRVAL_P(script_filename), 1);
     }
+    return zend_string_init(ZEND_STRL("."), 1);
+}
+
+zend_string* get_directory_from_getcwd() {
+    char buffer[PATH_MAX];
+    if (getcwd(buffer, sizeof(buffer)) == NULL) {
+        return NULL;
+    }
+    return zend_string_init(buffer, strlen(buffer), 1);
+}
+
+zend_string* get_current_working_directory() {
+    if (SG(options) & SAPI_OPTION_NO_CHDIR) {
+        return get_directory_from_path_translated();
+    }
+
+    zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
+    zval *script_filename = zend_hash_str_find(Z_ARRVAL_P(_server_zv), ZEND_STRL("SCRIPT_FILENAME"));
+
+    if (script_filename) {
+        return get_directory_from_script_filename(script_filename);
+    }
+
+    return get_directory_from_getcwd();
+}
+
+void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *repository_url) {
+    git_metadata_t *git_metadata = pemalloc(sizeof(git_metadata_t), 1);
+    git_metadata->property_commit = zend_string_copy(commit_sha);
+    git_metadata->property_repository = zend_string_copy(repository_url);
+    zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, git_metadata);
+}
+
+bool process_git_info(zend_string *git_dir, zend_string *cwd) {
+    zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
+    zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
+
+    bool success = add_git_info(commit_sha, repository_url);
+    if (success) {
+        cache_git_metadata(cwd, commit_sha, repository_url);
+    } else {
+        DDTRACE_G(git_object) = &empty_git_object.std;
+    }
+
+    if (commit_sha) zend_string_release(commit_sha);
+    if (repository_url) zend_string_release(repository_url);
+
     return success;
 }
 
@@ -242,46 +289,30 @@ void update_git_metadata(void) {
     ZEND_HASH_FOREACH_END();
 }
 
-void cache_git_metadata(zend_string *cwd, zend_string *commit_sha, zend_string *repository_url) {
-    git_metadata_t *git_metadata = pemalloc(sizeof(git_metadata_t), 1);
-    git_metadata->property_commit = zend_string_copy(commit_sha);
-    git_metadata->property_repository = zend_string_copy(repository_url);
-    zend_hash_add_ptr(&DDTRACE_G(git_metadata), cwd, git_metadata);
+bool inject_from_env() {
+    zend_string *commit_sha = get_DD_GIT_COMMIT_SHA();
+    zend_string *repository_url = get_DD_GIT_REPOSITORY_URL();
+    return add_git_info(commit_sha, repository_url);
+}
+
+bool inject_from_global_tags() {
+    bool success = false;
+    zend_array *global_tags = get_DD_TAGS();
+    zval *commit_sha = zend_hash_str_find(global_tags, ZEND_STRL("git.commit.sha"));
+    zval *repository_url = zend_hash_str_find(global_tags, ZEND_STRL("git.repository_url"));
+    if (commit_sha && repository_url && Z_TYPE_P(commit_sha) == IS_STRING && Z_TYPE_P(repository_url) == IS_STRING) {
+        success = add_git_info(Z_STR_P(commit_sha), Z_STR_P(repository_url));
+    }
+    return success;
 }
 
 bool inject_from_git_dir() {
-    zend_string *cwd = NULL;
-
-    zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
-    zval *script_filename = NULL;
-
-    if (SG(options) & SAPI_OPTION_NO_CHDIR) {
-        const char *path_translated = SG(request_info).path_translated;
-        const char *last_slash = find_last_dir_separator(path_translated);
-        if (last_slash) {
-            cwd = zend_string_init(path_translated, last_slash - path_translated, 1);
-        } else {
-            cwd = zend_string_init(ZEND_STRL("."), 1);
-        }
-    } else if (_server_zv && (script_filename = zend_hash_str_find(Z_ARRVAL_P(_server_zv), ZEND_STRL("SCRIPT_FILENAME")))) {
-        const char *last_slash = find_last_dir_separator(Z_STRVAL_P(script_filename));
-        if (last_slash) {
-            cwd = zend_string_init(Z_STRVAL_P(script_filename), last_slash - Z_STRVAL_P(script_filename), 1);
-        } else {
-            cwd = zend_string_init(ZEND_STRL("."), 1);
-        }
-    } else {
-        char buffer[PATH_MAX];
-        if (getcwd(buffer, sizeof(buffer)) == NULL) {
-            return false;
-        }
-        cwd = zend_string_init(buffer, strlen(buffer), 1);
-    }
+    zend_string *cwd = get_current_working_directory();
+    if (!cwd) return false;
 
     update_git_metadata();
 
     git_metadata_t *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
-
     if (git_metadata) {
         use_cached_metadata(git_metadata);
         zend_string_release(cwd);
@@ -294,21 +325,8 @@ bool inject_from_git_dir() {
         return false;
     }
 
-    zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
-    zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
-    bool success = add_git_info(commit_sha, repository_url);
-    if (success) {
-        cache_git_metadata(cwd, commit_sha, repository_url);
-    } else {
-        DDTRACE_G(git_object) = &empty_git_object.std;
+    bool success = process_git_info(git_dir, cwd);
 
-    }
-    if (commit_sha) {
-        zend_string_release(commit_sha);
-    }
-    if (repository_url) {
-        zend_string_release(repository_url);
-    }
     zend_string_release(git_dir);
     zend_string_release(cwd);
 
