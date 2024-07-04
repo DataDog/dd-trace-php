@@ -358,10 +358,10 @@ void ddtrace_inject_git_metadata(zval *carrier) {
 }
 
 void ddtrace_git_metadata_dtor(zval *val) {
-    git_metadata_t *val = (git_metadata_t *) Z_PTR_P(git_metadata_zv);
-    if (val->property_commit) zend_string_release(val->property_commit);
-    if (val->property_repository) zend_string_release(val->property_repository);
-    pefree(val, 1);
+    git_metadata_t *git_metadata = (git_metadata_t *) Z_PTR_P(val);
+    if (git_metadata->property_commit) zend_string_release(git_metadata->property_commit);
+    if (git_metadata->property_repository) zend_string_release(git_metadata->property_repository);
+    pefree(git_metadata, 1);
 }
 
 void ddtrace_clean_git_object(void) {
