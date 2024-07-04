@@ -340,5 +340,5 @@ EOT
     PHP_GLOBAL_OBJS="$ddtrace_rust_lib $PHP_GLOBAL_OBJS"
   fi
 
-  echo "$EXTRA_LDFLAGS" > ddtrace.ldflags
+  echo "$EXTRA_LDFLAGS $EXTRA_CFLAGS" > ddtrace.ldflags
 fi
