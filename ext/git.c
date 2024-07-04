@@ -357,15 +357,15 @@ void ddtrace_inject_git_metadata(zval *carrier) {
     }
 }
 
-void ddtrace_clean_git_metadata(void) {
+void ddtrace_clean_git_metadata(HashTable *git_metadata) {
     git_metadata_t *val;
-    ZEND_HASH_FOREACH_PTR(&DDTRACE_G(git_metadata), val) {
+    ZEND_HASH_FOREACH_PTR(git_metadata, val) {
         if (val->property_commit) zend_string_release(val->property_commit);
         if (val->property_repository) zend_string_release(val->property_repository);
         pefree(val, 1);
     }
     ZEND_HASH_FOREACH_END();
-    zend_hash_destroy(&DDTRACE_G(git_metadata));
+    zend_hash_destroy(git_metadata);
 }
 
 void ddtrace_clean_git_object(void) {

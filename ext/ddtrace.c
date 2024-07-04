@@ -81,6 +81,7 @@
 #include "handlers_fiber.h"
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
+#include "git.h"
 
 // On PHP 7 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
 #if PHP_VERSION_ID < 80000
@@ -524,13 +525,18 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
+static void ddtrace_git_metadata_dtor(void *pData) {
+    HashTable *git_metadata = *((HashTable **) pData);
+    ddtrace_clean_git_metadata(git_metadata);
+}
+
 static PHP_GINIT_FUNCTION(ddtrace) {
 #if defined(COMPILE_DL_DDTRACE) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
-    zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, NULL, 1);
+    zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, (dtor_func_t)ddtrace_git_metadata_dtor, 1);
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
@@ -609,8 +615,6 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
-
-    ddtrace_clean_git_metadata();
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
