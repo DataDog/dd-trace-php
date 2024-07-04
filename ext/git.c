@@ -379,10 +379,7 @@ void ddtrace_clean_git_object(void) {
         if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
             zend_string_release(Z_STR(git_metadata->property_repository));
         }
-#if PHP_VERSION_ID < 70300 || PHP_VERSION_ID >= 70400
         zend_object_release(DDTRACE_G(git_object));
-#endif
-        efree(DDTRACE_G(git_object));
         DDTRACE_G(git_object) = NULL;
     }
 }
