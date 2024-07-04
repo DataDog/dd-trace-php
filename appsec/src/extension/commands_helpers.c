@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
+#include "backtrace.h"
 #include "commands_ctx.h"
 #include "configuration.h"
 #include "ddappsec.h"
@@ -419,6 +420,23 @@ static void _command_process_redirect_parameters(mpack_node_t root)
 
     dd_set_redirect_code_and_location(status_code, location);
 }
+static void _command_process_stack_trace_parameters(mpack_node_t root)
+{
+    int expected_nodes = 1;
+    size_t count = mpack_node_map_count(root);
+    for (size_t i = 0; i < count && expected_nodes > 0; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+        if (dd_mpack_node_lstr_eq(key, "stack_id")) {
+            zend_string *id = NULL;
+            size_t id_len = mpack_node_strlen(value);
+            id = zend_string_init(mpack_node_str(value), id_len, 0);
+            report_backtrace(id);
+            zend_string_release(id);
+            --expected_nodes;
+        }
+    }
+}
 
 dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
 {
@@ -456,6 +474,10 @@ dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
         } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
                    res == dd_success) {
             res = dd_should_record;
+        } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace") &&
+                   res == dd_success) {
+            _command_process_stack_trace_parameters(
+                mpack_node_array_at(action, 1));
         }
     }
 

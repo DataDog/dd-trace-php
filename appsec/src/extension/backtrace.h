@@ -12,5 +12,6 @@
 
 void dd_backtrace_startup();
 void generate_backtrace(zend_string *id, zval *dd_backtrace);
+bool report_backtrace(zend_string *id);
 
 #endif // BACKTRACE_H

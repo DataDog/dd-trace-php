@@ -168,18 +168,14 @@ zval *dd_hash_find_or_new(HashTable *ht, zend_string *key)
     return result;
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
+bool report_backtrace(zend_string *id)
 {
-    zend_string *id = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &id) != SUCCESS) {
-        RETURN_FALSE;
-    }
     zend_object *span = dd_trace_get_active_root_span();
     if (!span) {
         if (!get_global_DD_APPSEC_TESTING()) {
             mlog(dd_log_warning, "Failed to retrieve root span");
         }
-        RETURN_FALSE;
+        return false;
     }
 
     zval *meta_struct = dd_trace_span_get_meta_struct(span);
@@ -187,7 +183,7 @@ static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
         if (!get_global_DD_APPSEC_TESTING()) {
             mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
         }
-        RETURN_FALSE;
+        return false;
     }
 
     if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
@@ -206,7 +202,7 @@ static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
 
     if (zend_array_count(Z_ARR_P(exploit)) ==
         get_global_DD_APPSEC_MAX_STACK_TRACES()) {
-        RETURN_FALSE;
+        return false;
     }
 
     zval backtrace;
@@ -214,12 +210,26 @@ static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
 
     if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) ==
         NULL) {
-        RETURN_FALSE;
+        return false;
     }
 
     zend_hash_add(Z_ARRVAL_P(meta_struct), _dd_stack_key, dd_stack);
 
-    RETURN_TRUE;
+    return true;
+}
+
+static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
+{
+    zend_string *id = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &id) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    if (report_backtrace(id)) {
+        RETURN_TRUE;
+    }
+
+    RETURN_FALSE;
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
