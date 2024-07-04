@@ -1447,6 +1447,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(last_flushed_root_env_name) = NULL;
     }
 
+    ddtrace_clean_git_object();
+
     return SUCCESS;
 }
 
@@ -1455,8 +1457,6 @@ int ddtrace_post_deactivate(void) {
 #else
 zend_result ddtrace_post_deactivate(void) {
 #endif
-    ddtrace_clean_git_object();
-
     zai_interceptor_deactivate();
 
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
