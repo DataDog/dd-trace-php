@@ -22,21 +22,40 @@ static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 
+#if defined(__MUSL__)
+# define OS_PATH "linux-musl/"
+#else
+# define OS_PATH "linux-gnu/"
+#endif
+
 static char *ddtrace_pre_load_hook(void) {
     char *libddtrace_php;
-    asprintf(&libddtrace_php, "%s/libddtrace_php.so", package_path);
-    if (!access(libddtrace_php, F_OK)) {
-        LOG(INFO, "Found libddtrace_php.so during 'ddtrace' pre-load hook. Load it.")
-        void *handle = DL_LOAD(libddtrace_php);
-        if (!handle) {
-            free(libddtrace_php);
-            return dlerror();
+    int res = asprintf(&libddtrace_php, "%s/%sloader/libddtrace_php.so", package_path, OS_PATH);
+    if (res == -1) {
+        return "asprintf error";
+    }
+    if (access(libddtrace_php, F_OK)) {
+        free(libddtrace_php);
+
+        // Test without the OS_PATH (e.g. linux-gnu/)
+        res = asprintf(&libddtrace_php, "%s/loader/libddtrace_php.so", package_path);
+        if (res == -1) {
+            return "asprintf error";
         }
-    } else {
-        LOG(INFO, "libddtrace_php.so not found during 'ddtrace' pre-load hook.")
+
+        if (access(libddtrace_php, F_OK)) {
+            free(libddtrace_php);
+            LOG(INFO, "libddtrace_php.so not found during 'ddtrace' pre-load hook.")
+            return NULL;
+        }
     }
 
+    LOG(INFO, "Found %s during 'ddtrace' pre-load hook. Load it.", libddtrace_php)
+    void *handle = DL_LOAD(libddtrace_php);
     free(libddtrace_php);
+    if (!handle) {
+        return dlerror();
+    }
 
     return NULL;
 }
@@ -45,7 +64,9 @@ static void ddtrace_pre_minit_hook(void) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *sources_path;
-        asprintf(&sources_path, "%s/trace/src", package_path);
+        if (asprintf(&sources_path, "%s/trace/src", package_path) == -1) {
+            return;
+        }
 
         // Set 'datadog.trace.sources_path' setting
         zend_string *name = ddloader_zend_string_init(php_api_no, ZEND_STRL("datadog.trace.sources_path"), 1);
@@ -186,12 +207,23 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
     char *full_path;
-    asprintf(&full_path, "%s/%s/ext/%d/%s%s%s.so", package_path, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
+    int res = asprintf(&full_path, "%s/%s%s/ext/%d/%s%s%s.so", package_path, OS_PATH, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
+    if (res == -1) {
+        return NULL;
+    }
 
     if (access(full_path, F_OK)) {
         free(full_path);
 
-        return NULL;
+        // Test without the OS_PATH (e.g. linux-gnu/)
+        res = asprintf(&full_path, "%s/%s/ext/%d/%s%s%s.so", package_path, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
+        if (res == -1) {
+            return NULL;
+        }
+        if (access(full_path, F_OK)) {
+            free(full_path);
+            return NULL;
+        }
     }
 
     return full_path;
