@@ -173,8 +173,10 @@ bool add_git_info(zend_string *commit_sha, zend_string *repository_url) {
         return false;
     }
 
-    DDTRACE_G(git_object) = zend_objects_new(ddtrace_ce_git_metadata);
-    ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) DDTRACE_G(git_object);
+    zval git_obj;
+    object_init_ex(&git_obj, ddtrace_ce_git_metadata);
+    ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ(git_obj);
+    DDTRACE_G(git_object) = &git_metadata->std;
 
     if (commit_sha_len != 0) {
         ZVAL_STR_COPY(&git_metadata->property_commit, commit_sha);
