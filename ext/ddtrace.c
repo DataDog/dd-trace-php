@@ -525,11 +525,6 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
-static void ddtrace_git_metadata_dtor(void *pData) {
-    HashTable *git_metadata = *((HashTable **) pData);
-    ddtrace_clean_git_metadata(git_metadata);
-}
-
 static PHP_GINIT_FUNCTION(ddtrace) {
 #if defined(COMPILE_DL_DDTRACE) && defined(ZTS)
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -615,6 +610,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
+
+    zend_hash_destroy(&ddtrace_globals->git_metadata);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
