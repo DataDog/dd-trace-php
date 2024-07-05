@@ -142,11 +142,12 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     if (span) {
         env = ddtrace_convert_to_str(&span->property_env);
     } else {
-        env = get_DD_ENV();
+        env = zend_string_copy(get_DD_ENV());
     }
     if (ZSTR_LEN(env) > 0) {
         ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("env"), dd_zend_string_to_CharSlice(env));
     }
+    zend_string_release(env);
     zend_string *service = ddtrace_active_service_name();
     if (ZSTR_LEN(service) > 0) {
         ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("service"), dd_zend_string_to_CharSlice(service));
@@ -156,11 +157,12 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     if (span) {
         version = ddtrace_convert_to_str(&span->property_version);
     } else {
-        version = get_DD_VERSION();
+        version = zend_string_copy(get_DD_VERSION());
     }
     if (ZSTR_LEN(version) > 0) {
         ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("version"), dd_zend_string_to_CharSlice(version));
     }
+    zend_string_release(version);
 
     // Specific tags
     if (!tags || Z_TYPE_P(tags) != IS_ARRAY) {
