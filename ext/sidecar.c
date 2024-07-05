@@ -8,6 +8,7 @@
 #include <components-rs/ddtrace.h>
 #include "sidecar.h"
 #include "telemetry.h"
+#include "serializer.h"
 
 ddog_SidecarTransport *ddtrace_sidecar;
 ddog_Endpoint *ddtrace_endpoint;
@@ -136,15 +137,27 @@ static inline void ddtrace_sidecar_dogstatsd_push_tag(ddog_Vec_Tag *vec, ddog_Ch
 
 static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     // Global tags (https://github.com/DataDog/php-datadogstatsd/blob/0efdd1c38f6d3dd407efbb899ad1fd2e5cd18085/src/DogStatsd.php#L113-L125)
-    zend_string *env = get_DD_ENV();
+    ddtrace_span_data *span = ddtrace_active_span();
+    zend_string *env;
+    if (span) {
+        env = ddtrace_convert_to_str(&span->property_env);
+    } else {
+        env = get_DD_ENV();
+    }
     if (ZSTR_LEN(env) > 0) {
         ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("env"), dd_zend_string_to_CharSlice(env));
     }
-    zend_string *service = get_DD_SERVICE();
+    zend_string *service = ddtrace_active_service_name();
     if (ZSTR_LEN(service) > 0) {
         ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("service"), dd_zend_string_to_CharSlice(service));
     }
-    zend_string *version = get_DD_VERSION();
+    zend_string_release(service);
+    zend_string *version;
+    if (span) {
+        version = ddtrace_convert_to_str(&span->property_version);
+    } else {
+        version = get_DD_VERSION();
+    }
     if (ZSTR_LEN(version) > 0) {
         ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("version"), dd_zend_string_to_CharSlice(version));
     }
