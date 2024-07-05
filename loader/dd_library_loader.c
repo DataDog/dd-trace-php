@@ -22,6 +22,25 @@ static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 
+static char *ddtrace_pre_load_hook(void) {
+    char *libddtrace_php;
+    asprintf(&libddtrace_php, "%s/libddtrace_php.so", package_path);
+    if (!access(libddtrace_php, F_OK)) {
+        LOG(INFO, "Found libddtrace_php.so during 'ddtrace' pre-load hook. Load it.")
+        void *handle = DL_LOAD(libddtrace_php);
+        if (!handle) {
+            free(libddtrace_php);
+            return dlerror();
+        }
+    } else {
+        LOG(INFO, "libddtrace_php.so not found during 'ddtrace' pre-load hook.")
+    }
+
+    free(libddtrace_php);
+
+    return NULL;
+}
+
 static void ddtrace_pre_minit_hook(void) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
@@ -42,10 +61,10 @@ static void ddtrace_pre_minit_hook(void) {
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_minit_hook,
+    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, ((zend_module_dep[]){ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
 };
 
 void ddloader_logv(log_level level, const char *format, va_list va) {
@@ -322,6 +341,15 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     // but we need to rename the extension before passing it into the module_registry.
 
     LOG(INFO, "Found extension file: %s", ext_path);
+
+    if (config->pre_load_hook) {
+        LOG(INFO, "Running '%s' pre-load hook", config->ext_name);
+        char *err = config->pre_load_hook();
+        if (err) {
+            TELEMETRY(REASON_ERROR, "An error occurred while running '%s' pre-load hook: %s", config->ext_name, err);
+            goto abort;
+        }
+    }
 
     void *handle = DL_LOAD(ext_path);
     if (!handle) {

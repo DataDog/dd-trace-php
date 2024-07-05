@@ -4,7 +4,7 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
-PHP_ARG_WITH(ddtrace-rust-library, the rust libary is located; i.e. to compile without cargo,
+PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
 
 PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to generate mock_php.c,
@@ -15,6 +15,9 @@ PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
 
 PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
   [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$($GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h && echo yes || echo no)]], [no])
+
+PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to not link the rust library against the extension at compile time,
+  [  --enable-ddtrace-rust-library-split Do not build nor link against the rust code], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
@@ -294,7 +297,14 @@ EOT
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 
-  if test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
+  cat <<'EOT' >> Makefile.fragments
+./modules/ddtrace.a: $(shared_objects_ddtrace) $(DDTRACE_SHARED_DEPENDENCIES)
+	$(LIBTOOL) --mode=link $(CC) -static $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -avoid-version -prefer-pic -module $(shared_objects_ddtrace)
+EOT
+
+  if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    ddtrace_rust_lib=""
+  elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
     ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
   else
     dnl consider it debug if -g is specified (but not -g0)
@@ -330,4 +340,6 @@ EOT
   else
     PHP_GLOBAL_OBJS="$ddtrace_rust_lib $PHP_GLOBAL_OBJS"
   fi
+
+  echo "$EXTRA_LDFLAGS $EXTRA_CFLAGS" > ddtrace.ldflags
 fi

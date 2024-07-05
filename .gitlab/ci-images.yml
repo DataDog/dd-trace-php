@@ -45,6 +45,7 @@ Alpine Compile Extension:
   parallel:
     matrix:
       - PHP_VERSION:
+        - base-alpine
         - 8.3-alpine
         - 8.2-alpine
         - 8.1-alpine
