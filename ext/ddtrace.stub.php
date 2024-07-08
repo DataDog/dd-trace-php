@@ -32,7 +32,7 @@ namespace DDTrace {
         /**
          * @var int The event start time in nanoseconds, if not provided set the current Unix timestamp
          */
-        public int $time_unix_nano;
+        public int $timeUnixNano;
     }
 
     class SpanLink implements \JsonSerializable {
