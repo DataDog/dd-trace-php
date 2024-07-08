@@ -23,6 +23,18 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    class SpanEvent implements \JsonSerializable {
+        /**
+         * @var string The event name
+         */
+        public string $name;
+
+        /**
+         * @var int The event start time in nanoseconds, if not provided set the current Unix timestamp
+         */
+        public int $time_unix_nano;
+    }
+
     class SpanLink implements \JsonSerializable {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
@@ -131,6 +143,11 @@ namespace DDTrace {
          * @var SpanLink[] $spanLinks An array of span links
          */
         public array $links = [];
+
+        /**
+         * @var SpanEvent[] $spanEvents An array of span events
+         */
+        public array $events = [];
 
         /**
          * @var string[] $peerServiceSources A sorted list of tag names used to set the `peer.service` tag. If a tag
