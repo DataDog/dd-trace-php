@@ -19,7 +19,7 @@ RUN set -xe; \
 
 RUN set -xe; \
     apt-get update; \
-    apt-get install -y $(for V in 7.2 7.3; do \
+    apt-get install -y $(for V in 7.0 7.1 7.2 7.3; do \
         echo \
         php${V}-fpm \
         php${V}-apcu \
