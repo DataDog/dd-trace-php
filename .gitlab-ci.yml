@@ -43,7 +43,6 @@ build:
       - 'upstream.env'
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
-# FIXME: trigger only on master?
 download_artifacts:
   extends: .ci_authenticated_job
   stage: build
@@ -53,25 +52,12 @@ download_artifacts:
     - |
       source .gitlab/download-circleci_artifact.sh
 
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "Compile Loader Linux x86_64" "loader/modules/dd_library_loader.so" "dd_library_loader-x86_64-linux-gnu.so"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "Compile Loader Linux aarch64" "loader/modules/dd_library_loader.so" "dd_library_loader-aarch64-linux-gnu.so"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "Compile Loader Alpine x86_64" "loader/modules/dd_library_loader.so" "dd_library_loader-x86_64-linux-musl.so"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "Compile Loader Alpine aarch64" "loader/modules/dd_library_loader.so" "dd_library_loader-aarch64-linux-musl.so"
-
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-x86_64-linux-gnu.tar.gz" "dd-library-php-x86_64-linux-gnu.tar.gz"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-aarch64-linux-gnu.tar.gz" "dd-library-php-aarch64-linux-gnu.tar.gz"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-x86_64-linux-musl.tar.gz" "dd-library-php-x86_64-linux-musl.tar.gz"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-aarch64-linux-musl.tar.gz" "dd-library-php-aarch64-linux-musl.tar.gz"
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
   artifacts:
     paths:
-      - 'dd_library_loader-x86_64-linux-gnu.so'
-      - 'dd_library_loader-aarch64-linux-gnu.so'
-      - 'dd_library_loader-x86_64-linux-musl.so'
-      - 'dd_library_loader-aarch64-linux-musl.so'
-      - 'dd-library-php-x86_64-linux-gnu.tar.gz'
-      - 'dd-library-php-aarch64-linux-gnu.tar.gz'
-      - 'dd-library-php-x86_64-linux-musl.tar.gz'
-      - 'dd-library-php-aarch64-linux-musl.tar.gz'
+      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
+      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
 
 deploy_to_reliability_env:
   stage: deploy
