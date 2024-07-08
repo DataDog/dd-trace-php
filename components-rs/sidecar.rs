@@ -22,7 +22,7 @@ extern "C" {
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    if unsafe { *DDTRACE_MOCK_PHP_SIZE } > 0 {
+    if !unsafe { DDTRACE_MOCK_PHP_SIZE }.is_null() {
         let mock = unsafe { std::slice::from_raw_parts(DDTRACE_MOCK_PHP, *DDTRACE_MOCK_PHP_SIZE) };
         cfg.library_dependencies
             .push(LibDependency::Binary(mock));
