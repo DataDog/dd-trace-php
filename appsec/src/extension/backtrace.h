@@ -10,6 +10,8 @@
 #include <Zend/zend_builtin_functions.h>
 #include <php.h>
 
+#include <stdbool.h>
+
 void dd_backtrace_startup();
 void generate_backtrace(zend_string *id, zval *dd_backtrace);
 bool report_backtrace(zend_string *id);
