@@ -474,8 +474,7 @@ dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
         } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
                    res == dd_success) {
             res = dd_should_record;
-        } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace") &&
-                   res == dd_success) {
+        } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace")) {
             _command_process_stack_trace_parameters(
                 mpack_node_array_at(action, 1));
         }
