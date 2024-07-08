@@ -1,6 +1,7 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.mock_agent.MsgpackHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
@@ -8,6 +9,8 @@ import org.testcontainers.containers.Container
 
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import org.msgpack.core.MessageUnpacker
+import org.msgpack.core.MessagePack
 
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
@@ -148,21 +151,61 @@ trait CommonTests {
         assertThat appsecJson, matchesJson(expJson, false, true)
     }
 
+    Span test_blocking(Span span) {
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+        assert span.meta."appsec.blocked" == "true"
+
+        return span
+    }
+
     @Test
     void 'test blocking'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/phpinfo.php')
-                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+                .header('X-Forwarded-For', ip).GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
             assert re.body().contains('blocked')
         }
 
         Span span = trace.first()
-        assert span.metrics."_dd.appsec.enabled" == 1.0d
-        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
-        assert span.meta."_dd.appsec.event_rules.version" != ''
-        assert span.meta."appsec.blocked" == "true"
+
+        this.test_blocking(span)
+    }
+
+    @Test
+    void 'test blocking and stack generation'() {
+        HttpRequest req = container.buildReq('/generate_stack.php?id=user2020').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+
+        Span span = trace.first()
+        test_blocking(span)
+
+        InputStream stream = new ByteArrayInputStream( span.meta_struct."_dd.stack".decodeBase64() )
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(stream)
+        List<Object> stacks = []
+        stacks << MsgpackHelper.unpackSingle(unpacker)
+        Object exploit = stacks.first().exploit.first()
+
+        assert exploit.language == "php"
+        assert exploit.id != ""
+        assert exploit.frames[0].file == "generate_stack.php"
+        assert exploit.frames[0].function == "one"
+        assert exploit.frames[0].id == 0
+        assert exploit.frames[0].line == 8
+        assert exploit.frames[1].file == "generate_stack.php"
+        assert exploit.frames[1].function == "two"
+        assert exploit.frames[1].id == 1
+        assert exploit.frames[1].line == 12
+        assert exploit.frames[2].file == "generate_stack.php"
+        assert exploit.frames[2].function == "three"
+        assert exploit.frames[2].id == 2
+        assert exploit.frames[2].line == 15
     }
 
     @Test
