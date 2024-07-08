@@ -57,7 +57,7 @@ for architecture in "${architectures[@]}"; do
     done;
 
     cp -r ./src ${trace}/
-    echo "$release_version" > ${root}/VERSION
+    echo "$release_version" > ${root}/version
 
     ########################
     # Final archives
