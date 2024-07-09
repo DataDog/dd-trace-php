@@ -126,8 +126,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 /** @var EventInterface $event */
 
                 $spanEvent = new SpanEvent();
-                $spanEvent->name = $event->name;
-                $spanEvent->timeUnixNano = $event->timeUnixNano;
+                $spanEvent->name = $event->getName();
+                $spanEvent->timeUnixNano = $event->getTimeUnixNano();
                 $spanEvent->attributes = $event->getAttributes()->toArray();
 
                 // Save the event

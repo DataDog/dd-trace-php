@@ -1160,7 +1160,9 @@ final class InteroperabilityTest extends BaseTestCase
             $spanEvent = new SpanEvent();
             $spanEvent->name = "event-name";
             $spanEvent->timeUnixNano = 1720037568765201300;
-
+            $spanEvent->attributes = [
+                'arg1' => 'value1',
+            ];
             $span->events[] = $spanEvent;
 
             /** @var en $OTelSpan */
@@ -1174,6 +1176,34 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300}]", $traces[0][0]['meta']['events']);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\"}}]", $traces[0][0]['meta']['events']);
+    }
+
+    public function testSpanEventsInteroperabilityFromOpenTelemetrySpan()
+    {
+        $sampledSpanContext = SpanContext::create(
+            '12345678876543211234567887654321',
+            '8765432112345678',
+            TraceFlags::SAMPLED,
+            new TraceState('dd=t.dm:-0')
+        );
+
+        $traces = $this->isolateTracer(function () use ($sampledSpanContext) {
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->addEvent("event-name", 1720037568765201300, ['arg1' => 'value1'])
+                ->startSpan();
+
+            $activeSpan = active_span();
+            $spanEvent = $activeSpan->events[0];
+            $this->assertSame("event-name", $spanEvent->name);
+            $this->assertSame(1720037568765201300, (int)$spanEvent->timeUnixNano);
+            $this->assertSame(['arg1' => 'value1'], $spanEvent->attributes);
+
+            $otelSpan->end();
+        });
+
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\"}}]", $traces[0][0]['meta']['events']);
     }
 }
