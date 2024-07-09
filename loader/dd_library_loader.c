@@ -488,7 +488,6 @@ static bool ddloader_libc_check() {
     const char *error = dlerror();
     // gnu_get_libc_version is available since glibc 2.1
     char *(*get_libc_version)(void) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
-    const char* lib_path;
     error = dlerror();
     if (error == NULL && get_libc_version != NULL) {
         is_musl = false;
