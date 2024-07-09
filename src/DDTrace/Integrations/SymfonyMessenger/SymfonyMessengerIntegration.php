@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\SymfonyMessenger;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Util\DDTraceStamp;
@@ -16,7 +17,9 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 
+use function DDTrace\hook_method;
 use function DDTrace\install_hook;
+use function DDTrace\remove_hook;
 use function DDTrace\trace_method;
 
 class SymfonyMessengerIntegration extends Integration
@@ -31,6 +34,8 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
             function (SpanData $span, array $args, $returnValue, $exception = null) use ($integration) {
+                $span->name = 'symfony.messenger.produce';
+                $span->resource = \get_class($args[0]->getMessage());
                 $integration->setSpanAttributes($span, null, $args[0], $exception);
             }
         );
@@ -40,6 +45,7 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\Transport\Sender\SenderInterface::send',
             function (HookData $hook) {
                 /** @var \Symfony\Component\Messenger\Envelope $envelope */
+                Logger::get()->debug('Hooking Symfony Messenger SenderInterface::send');
                 $envelope = $hook->args[0];
 
                 if (\ddtrace_config_distributed_tracing_enabled()) {
@@ -47,27 +53,10 @@ class SymfonyMessengerIntegration extends Integration
 
                     // Add distributed tracing stamp only if not already on the envelope
                     if ($ddTraceStamp === null) {
+                        $tracingHeaders = \DDTrace\generate_distributed_tracing_headers();
+                        Logger::get()->debug('Injecting ' . json_encode($tracingHeaders));
                         $hook->overrideArguments([
-                            $envelope->with(new DDTraceStamp(\DDTrace\generate_distributed_tracing_headers()))
-                        ]);
-                    }
-                }
-            }
-        );
-
-        install_hook(
-            'Symfony\Component\Messenger\Transport\Sender\SenderInterface::send',
-            function (HookData $hook) {
-                /** @var \Symfony\Component\Messenger\Envelope $envelope */
-                $envelope = $hook->args[0];
-
-                if (\ddtrace_config_distributed_tracing_enabled()) {
-                    $ddTraceStamp = $envelope->last(DDTraceStamp::class);
-
-                    // Add distributed tracing stamp only if not already on the envelope
-                    if ($ddTraceStamp === null) {
-                        $hook->overrideArguments([
-                            $envelope->with(new DDTraceStamp(\DDTrace\generate_distributed_tracing_headers()))
+                            $envelope->with(new DDTraceStamp($tracingHeaders))
                         ]);
                     }
                 }
@@ -79,6 +68,7 @@ class SymfonyMessengerIntegration extends Integration
             'handleMessage',
             [
                 'prehook' => function (SpanData $span, array $args) use ($integration, &$newTrace) {
+                    $span->name = "symfony.messenger.consume";
                     /** @var \Symfony\Component\Messenger\Envelope $envelope */
                     $envelope = $args[0];
                     /** @var string $transportName */
@@ -94,6 +84,8 @@ class SymfonyMessengerIntegration extends Integration
 
                     $ddTraceStamp = $envelope->last(DDTraceStamp::class);
                     if ($ddTraceStamp instanceof DDTraceStamp) {
+                        $tracingHeaders = $ddTraceStamp->getHeaders();
+                        Logger::get()->debug('Extracting ' . json_encode($tracingHeaders));
                         if (\dd_trace_env_config('DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING')) {
                             $newTrace = \DDTrace\start_trace_span();
                             $integration->setSpanAttributes(
@@ -104,12 +96,12 @@ class SymfonyMessengerIntegration extends Integration
                                 true
                             );
 
-                            \DDTrace\consume_distributed_tracing_headers($ddTraceStamp->getHeaders());
+                            //\DDTrace\consume_distributed_tracing_headers($tracingHeaders);
 
                             $span->links[] = $newTrace->getLink();
                             $newTrace->links[] = $span->getLink();
                         } else {
-                            $span->links[] = \DDTrace\SpanLink::fromHeaders($ddTraceStamp->getHeaders());
+                            $span->links[] = \DDTrace\SpanLink::fromHeaders($tracingHeaders);
                         }
                     }
                 },
@@ -170,6 +162,8 @@ class SymfonyMessengerIntegration extends Integration
                 'Symfony\Component\Messenger\Middleware\MiddlewareInterface',
                 'handle',
                 function (SpanData $span, array $args, $returnValue, $exception = null) use ($integration) {
+                    $span->name = 'symfony.messenger.middleware';
+                    $span->resource = \get_class($this);
                     $integration->setSpanAttributes(
                         $span,
                         null,
@@ -184,12 +178,31 @@ class SymfonyMessengerIntegration extends Integration
                 'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
                 'handle',
                 function (SpanData $span, array $args, $returnValue, $exception = null) use ($integration) {
+                    $span->name = 'symfony.messenger.middleware';
+                    $span->resource = \get_class($this);
                     $integration->setSpanAttributes(
                         $span,
                         null,
                         null,
                         $exception
                     );
+
+                }
+            );
+
+            hook_method(
+                'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
+                'callHandler',
+                function ($This, $scope, $args) use ($integration) {
+                    $handler = $args[0];
+                    $class = \get_class($handler);
+                    Logger::get()->debug("Installing hook for $class");
+                    install_hook($handler, function (HookData $hook) use ($integration, $class) {
+                        $span = $hook->span();
+                        $span->name = 'symfony.messenger.handler';
+                        $span->resource = get_class($this);
+                        remove_hook($hook->id);
+                    });
                 }
             );
         }
@@ -197,7 +210,7 @@ class SymfonyMessengerIntegration extends Integration
         return Integration::LOADED;
     }
 
-    private function setSpanAttributes(
+    public function setSpanAttributes(
         SpanData $span,
         $transportName = null,
         $envelope = null,
@@ -205,7 +218,7 @@ class SymfonyMessengerIntegration extends Integration
         $useMessageAsResource = null
     ) {
         // Set defaults
-        $operation = 'dispatch';
+        $operation = 'produce';
         $messageName = \is_object($envelope) ? \get_class($envelope) : null;
         $resource = null;
 
@@ -246,7 +259,7 @@ class SymfonyMessengerIntegration extends Integration
         }
     }
 
-    private function resolveMetadataFromEnvelope(Envelope $envelope): array
+    public function resolveMetadataFromEnvelope(Envelope $envelope): array
     {
         $busStamp = $envelope->last(BusNameStamp::class);
         $delayStamp = $envelope->last(DelayStamp::class);
