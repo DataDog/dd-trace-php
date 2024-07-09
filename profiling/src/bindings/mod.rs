@@ -126,10 +126,9 @@ impl _zend_function {
 
     /// Returns the module name, if there is one. May return Some(b"\0").
     pub fn module_name(&self) -> Option<&[u8]> {
-        // Safety: the function's type field is always safe to access.
-        if unsafe { self.type_ } == ZEND_INTERNAL_FUNCTION as u8 {
-            // Safety: union access is guarded by ZEND_INTERNAL_FUNCTION, and
-            // assume its module is valid.
+        if self.is_internal() {
+            // Safety: union access is guarded by is_internal(), and assume
+            // its module is valid.
             unsafe { self.internal_function.module.as_ref() }
                 .filter(|module| !module.name.is_null())
                 // Safety: assume module.name has a valid c string.
@@ -137,6 +136,12 @@ impl _zend_function {
         } else {
             None
         }
+    }
+
+    #[inline]
+    pub fn is_internal(&self) -> bool {
+        // Safety: the function's type field is always safe to access.
+        unsafe { self.type_ == ZEND_INTERNAL_FUNCTION }
     }
 }
 

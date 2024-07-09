@@ -12,7 +12,7 @@ use function datadog\appsec\testing\{rinit,rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', []]))
+    response_list(response_request_init([[['ok', []]]]))
 ]);
 
 var_dump($_POST);

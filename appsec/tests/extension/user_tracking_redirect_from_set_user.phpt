@@ -14,8 +14,8 @@ include __DIR__ . '/inc/ddtrace_version.php';
 ddtrace_version_at_least('0.85.0');
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_exec(['redirect', ['status_code' => '303', 'location' => 'https://datadoghq.com'], []])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_exec([[['redirect', ['status_code' => '303', 'location' => 'https://datadoghq.com']]], []])),
 ], ['continuous' => true]);
 
 rinit();

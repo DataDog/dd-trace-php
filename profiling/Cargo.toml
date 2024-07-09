@@ -57,7 +57,7 @@ stack_walking_tests = []
 trigger_time_sample = []
 
 [build-dependencies]
-bindgen = { version = "0.66.1" }
+bindgen = { version = "0.69.4" }
 cc = { version = "1.0" }
 
 # profiling release options in root Cargo.toml

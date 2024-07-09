@@ -10,7 +10,7 @@ use function datadog\appsec\testing\rinit;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['block', ['type' => 'xml'], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['block', ['type' => 'xml']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ], ['continuous' => true]);
 
 rinit();

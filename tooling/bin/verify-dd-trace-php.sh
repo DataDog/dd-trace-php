@@ -12,8 +12,8 @@ if [ "z$TMPDIR" = "z" ] ; then
 fi
 
 # Check early for a better user-experience {{{
-if [ "z$PHP_API" = "z" ] ; then
-    >&2 echo 'ERROR: expected environment variable $PHP_API to be set'
+if [ "z${1:-}" = "z" ] ; then
+    >&2 echo 'ERROR: expected first argument to be set'
     exit 1
 fi
 
@@ -26,17 +26,7 @@ fi
 # Env vars have been processed; treat unset parameters as an error.
 set -u
 
-apk add --no-cache \
-    autoconf \
-    coreutils \
-    g++ \
-    gcc \
-    make \
-
-# -Werror=return-local-addr _should be fixed_ but I need to keep working on my CI thing.
-make -j all CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -Wno-error=return-local-addr" ECHO_ARG="-e"
-
-sofile="tmp/build_extension/.libs/ddtrace.so"
+sofile=$1
 actual_symbols=`mktemp "$TMPDIR/actual_symbols.XXXXXXXX"`
 
 # nm -g will only print the extern symbols, so most types can be ignored.
@@ -69,8 +59,3 @@ if [ $lines -gt 0 ] ; then
 else
     rm "$expected_symbols" "$actual_symbols" "$unexpected_symbols"
 fi
-
-mkdir -p extensions
-
-zts=$(php -v | grep -q NTS || echo -zts)
-cp "$sofile" "extensions/ddtrace-${PHP_API}-alpine$zts.so"

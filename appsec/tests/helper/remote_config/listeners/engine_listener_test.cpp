@@ -112,8 +112,8 @@ TEST(RemoteConfigEngineListener, RuleUpdateFallback)
         EXPECT_GT(it->value.Size(), 0);
     }
 
-    std::array<std::string_view, 5> keys = {"rules_override", "exclusions",
-        "actions", "custom_rules", "rules_data"};
+    std::array<std::string_view, 4> keys = {
+        "rules_override", "exclusions", "custom_rules", "rules_data"};
     for (auto key : keys) {
         const auto &it = doc.FindMember(StringRef(key));
         ASSERT_EQ(it, doc.MemberEnd());
@@ -808,7 +808,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 }
@@ -834,7 +834,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 
@@ -921,7 +921,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     const std::string rule_override =
@@ -936,7 +936,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     listener.commit();
@@ -948,7 +948,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
     }
 }
 
@@ -972,7 +972,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
     const std::string update =
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
@@ -989,7 +989,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     listener.commit();
@@ -1001,7 +1001,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::redirect);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
     }
 }
 
@@ -1206,7 +1206,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 }

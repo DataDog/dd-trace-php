@@ -8,8 +8,8 @@ use function datadog\appsec\testing\{rinit, rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 $helper = Helper::createInitedRun([
     response_list(response_config_features(true)), //First rinit enables
-    response_list(response_request_init(['ok'])), //Since it got enabled, it should call to request init
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])), //End of request
+    response_list(response_request_init([[['ok', []]]])), //Since it got enabled, it should call to request init
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])), //End of request
     response_list(response_config_features(false)), //Second call at rinit disabled it
     response_list(response_config_sync()), //Third call which does not change anything
 ]);

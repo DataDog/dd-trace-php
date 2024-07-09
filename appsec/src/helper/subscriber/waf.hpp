@@ -5,16 +5,15 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../engine.hpp"
+#include "../engine_ruleset.hpp"
+#include "../exception.hpp"
+#include "../parameter.hpp"
 #include <chrono>
 #include <ddwaf.h>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
-
-#include "../engine.hpp"
-#include "../engine_ruleset.hpp"
-#include "../exception.hpp"
-#include "../parameter.hpp"
 
 namespace dds::waf {
 
@@ -36,7 +35,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        std::optional<event> call(dds::parameter_view &data) override;
+        void call(dds::parameter_view &data, event &event) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void get_meta_and_metrics(std::map<std::string, std::string> &meta,

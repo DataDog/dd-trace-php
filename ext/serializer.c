@@ -852,6 +852,18 @@ zend_string *ddtrace_default_service_name(void) {
     }
 }
 
+zend_string *ddtrace_active_service_name(void) {
+    ddtrace_span_data *span = ddtrace_active_span();
+    if (span) {
+        return ddtrace_convert_to_str(&span->property_service);
+    }
+    zend_string *ini_service = get_DD_SERVICE();
+    if (ZSTR_LEN(ini_service)) {
+        return zend_string_copy(ini_service);
+    }
+    return ddtrace_default_service_name();
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 

@@ -33,7 +33,7 @@ use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::mem::forget;
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
@@ -213,16 +213,8 @@ pub struct Profiler {
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
     sample_types_filter: SampleTypeFilter,
-    system_settings: ptr::NonNull<SystemSettings>,
+    system_settings: AtomicPtr<SystemSettings>,
 }
-
-/// The [Profiler] is sync *except* for some edge cases system_settings, which
-/// may be mutated under fringe conditions like in the child of a fork.
-unsafe impl Sync for Profiler {}
-
-/// The [Profiler] is send *except* for some edge cases system_settings, which
-/// may be mutated under fringe conditions like in the child of a fork.
-unsafe impl Send for Profiler {}
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
@@ -528,7 +520,7 @@ const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
 impl Profiler {
-    pub fn init(system_settings: &SystemSettings) {
+    pub fn init(system_settings: &mut SystemSettings) {
         let profiler = unsafe { PROFILER.get() };
         if profiler.is_none() {
             let _ = unsafe { PROFILER.set(Profiler::new(system_settings)) };
@@ -539,7 +531,7 @@ impl Profiler {
         unsafe { PROFILER.get() }
     }
 
-    pub fn new(system_settings: &SystemSettings) -> Self {
+    pub fn new(system_settings: &mut SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -576,7 +568,7 @@ impl Profiler {
             }),
             should_join: AtomicBool::new(true),
             sample_types_filter,
-            system_settings: ptr::NonNull::from(system_settings),
+            system_settings: AtomicPtr::new(system_settings),
         }
     }
 
@@ -755,12 +747,14 @@ impl Profiler {
 
                 let labels = Profiler::common_labels(0);
                 let mut timestamp = 0;
-                // SAFETY: collecting time is done during PHP requests only,
-                //         so the ptr is valid at this time.
                 #[cfg(feature = "timeline")]
-                if unsafe { self.system_settings.as_ref() }.profiling_timeline_enabled {
-                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                        timestamp = now.as_nanos() as i64;
+                {
+                    let system_settings = self.system_settings.load(Ordering::SeqCst);
+                    // SAFETY: system settings are stable during a request.
+                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                            timestamp = now.as_nanos() as i64;
+                        }
                     }
                 }
 
@@ -1196,7 +1190,7 @@ mod tests {
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_timeline_enabled = true;
 
-        let profiler = Profiler::new(&settings);
+        let profiler = Profiler::new(&mut settings);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 

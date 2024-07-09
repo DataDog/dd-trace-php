@@ -16,6 +16,7 @@ TEA_BENCHMARK_FORMAT ?= json
 TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
+AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
 LDFLAGS ?=
@@ -24,6 +25,7 @@ PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'echo PHP_MAJOR_VER
 ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
+EXTRA_CONFIGURE_OPTIONS ?=
 
 VERSION := $(shell cat VERSION)
 
@@ -96,15 +98,25 @@ $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSIO
 	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug)
+	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(EXTRA_CONFIGURE_OPTIONS))
 
-$(SO_FILE): $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile $(BUILD_DIR)/compile_rust.sh
+all_object_files: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
+
+$(SO_FILE): all_object_files $(BUILD_DIR)/compile_rust.sh
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)"
+
+$(AR_FILE): all_object_files
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
 
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
+
+set_static_option:
+	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)
+
+static: set_static_option $(AR_FILE)
 
 $(INI_FILE):
 	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
@@ -434,6 +446,9 @@ bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
+	bash ./tooling/bin/generate-ssi-package.sh \
+		$(VERSION) \
+		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
 	BUILD_DIR='$(BUILD_DIR)/'; \
@@ -444,7 +459,7 @@ dbgsym.tar.gz:
 	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
 
 packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
-	tar zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
+	tar --exclude='dd-library-php-ssi-*' -zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
 
 # Generates the src/bridge/_generated_*.php files.
 generate:

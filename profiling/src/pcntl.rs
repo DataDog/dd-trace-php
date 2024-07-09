@@ -23,7 +23,7 @@ enum ForkError {
     ZvalType(u8),
 }
 
-unsafe fn dispatch(
+fn dispatch(
     handler: unsafe extern "C" fn(*mut zend_execute_data, *mut zval),
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
@@ -40,13 +40,10 @@ unsafe fn dispatch(
         match result {
             Err(r#type) => Err(ForkError::ZvalType(r#type)),
             Ok(pid) => {
-                // The child gets pid of 0. For now, stop profiling for safety.
+                // The child gets pid of 0.
                 if pid == 0 {
                     Ok(ForkId::Child)
                 } else {
-                    // If it's positive, then this is the parent process.
-                    // If it's negative, then no child process was made, and
-                    // this must be the parent.
                     Ok(ForkId::Parent)
                 }
             }
@@ -61,10 +58,11 @@ unsafe fn handle_fork(
     execute_data: *mut zend_execute_data,
     return_value: *mut zval,
 ) {
+    // Hold mutexes across the handler. If there are any spurious wakeups by
+    // the threads while the fork is occurring, they cannot acquire locks
+    // since this thread holds them, preventing a deadlock situation.
     if let Some(profiler) = Profiler::get() {
-        if let Err(err) = profiler.fork_prepare() {
-            error!("fork error: {err}");
-        }
+        let _ = profiler.fork_prepare();
     }
 
     match dispatch(handler, execute_data, return_value) {
@@ -99,9 +97,8 @@ unsafe fn handle_fork(
     // Disable the profiler because either:
     //  1. This is the child, and we don't support this yet.
     //  2. Something went wrong, and disable it to be safe.
-
-    // SAFETY: This thread isn't using the PROFILER object, and there are no
-    // other threads.
+    // And then leak the old profiler. Its drop method is not safe to run in
+    // these situations.
     Profiler::kill();
 
     alloc_prof_rshutdown();
@@ -109,7 +106,7 @@ unsafe fn handle_fork(
     // Reset some global state to prevent further profiling and to not handle
     // any pending interrupts.
     // SAFETY: done after config is used to shut down other things, and in a
-    // thread-safe context.
+    //         thread-safe context.
     config::on_fork_in_child();
 }
 

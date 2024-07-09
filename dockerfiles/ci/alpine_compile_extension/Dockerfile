@@ -1,33 +1,4 @@
-FROM alpine:3.18 as base
-
-RUN mkdir -p /app
-WORKDIR /app
-
-# Break the dependencies into multiple layers to reduce individual layer size.
-# This is just to avoid an upload issue I was hitting with large layers.
-RUN set -eux; \
-    apk add --no-cache \
-        bash \
-        build-base \
-        curl-dev \
-        libedit-dev \
-        libffi-dev \
-        libmcrypt-dev \
-        libsodium-dev \
-        libxml2-dev \
-        gnu-libiconv-dev \
-        oniguruma-dev
-
-# Profiling deps
-# Minimum: libclang. Nice-to-have: full toolchain including linker to play
-# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
-# version.
-RUN apk add --no-cache llvm16-libs clang16-dev lld llvm16
-RUN apk add --no-cache rust-stdlib
-RUN apk add --no-cache cargo
-RUN apk add --no-cache clang git protoc unzip
-
-FROM base
+FROM datadog/dd-trace-ci:php-compile-extension-alpine
 
 ADD ./docker-php-source /usr/bin/docker-php-source
 ADD ./install-php /usr/bin/install-php
@@ -48,8 +19,6 @@ ENV PHP_INSTALL_DIR=/usr/local/php-${php_version}
 
 RUN install-php
 ENV PATH ${PATH}:${PHP_INSTALL_DIR}/bin
-
-ADD ./build-dd-trace-php /usr/bin/build-dd-trace-php
 
 ADD ./env-init /root/.bashrc
 ENV ENV=/root/.bashrc

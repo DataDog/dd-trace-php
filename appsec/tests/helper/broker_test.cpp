@@ -120,7 +120,9 @@ TEST(BrokerTest, SendRequestInit)
     packer.pack_array(1);             // Array of messages
     packer.pack_array(2);             // First message
     pack_str(packer, "request_init"); // Type
-    packer.pack_array(4);
+    packer.pack_array(3);
+    packer.pack_array(1); // Array of actions
+    packer.pack_array(2); // First action
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -142,9 +144,9 @@ TEST(BrokerTest, SendRequestInit)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_init::response>();
-    response->verdict = "block";
+    response->actions.push_back(
+        {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
-    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
     response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
@@ -166,7 +168,9 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(1);                 // Array of messages
     packer.pack_array(2);                 // First message
     pack_str(packer, "request_shutdown"); // Type
-    packer.pack_array(6);
+    packer.pack_array(5);
+    packer.pack_array(1);
+    packer.pack_array(2);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -189,9 +193,9 @@ TEST(BrokerTest, SendRequestShutdown)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_shutdown::response>();
-    response->verdict = "block";
+    response->actions.push_back(
+        {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
-    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
     response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
@@ -213,7 +217,9 @@ TEST(BrokerTest, SendRequestExec)
     packer.pack_array(1);             // Array of messages
     packer.pack_array(2);             // First message
     pack_str(packer, "request_exec"); // Type
-    packer.pack_array(4);
+    packer.pack_array(3);
+    packer.pack_array(1);
+    packer.pack_array(2);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -234,9 +240,9 @@ TEST(BrokerTest, SendRequestExec)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_exec::response>();
-    response->verdict = "block";
+    response->actions.push_back(
+        {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
-    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
     response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
