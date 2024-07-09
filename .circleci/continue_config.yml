@@ -3555,8 +3555,7 @@ jobs:
 
   system_tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:2024.05.1
     parameters:
       build:
         type: string
@@ -3572,10 +3571,10 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
 
       - run:
-          name: Install python 3.9
+          name: Install python 3.12
           command: |
             sudo apt-get update
-            sudo apt-get install python3.9-venv
+            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
 
       - run:
           name: versions
