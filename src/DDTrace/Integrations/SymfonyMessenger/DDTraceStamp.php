@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Util;
+namespace DDTrace\Integrations\SymfonyMessenger;
 
 use Symfony\Component\Messenger\Stamp\StampInterface;
 

@@ -415,6 +415,8 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONYMESSENGER, "Symfony\\Component\\Messenger\\Worker", "__construct",
                                              "DDTrace\\Integrations\\SymfonyMessenger\\SymfonyMessengerIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONYMESSENGER, "Symfony\\Component\\Messenger\\MessageBusInterface", "dispatch",
+                                         "DDTrace\\Integrations\\SymfonyMessenger\\SymfonyMessengerIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_SQLSRV, "sqlsrv_connect",
                                          "DDTrace\\Integrations\\SQLSRV\\SQLSRVIntegration");

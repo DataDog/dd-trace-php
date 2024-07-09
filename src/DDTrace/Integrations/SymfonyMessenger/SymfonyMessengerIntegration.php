@@ -7,7 +7,6 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
-use DDTrace\Util\DDTraceStamp;
 use DDTrace\Util\ObjectKVStore;
 use Symfony\Component\Messenger\Bridge\AmazonSqs\Transport\AmazonSqsReceivedStamp;
 use Symfony\Component\Messenger\Envelope;
@@ -16,7 +15,6 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
-
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
@@ -44,7 +42,6 @@ class SymfonyMessengerIntegration extends Integration
         install_hook(
             'Symfony\Component\Messenger\Transport\Sender\SenderInterface::send',
             function (HookData $hook) {
-                /** @var \Symfony\Component\Messenger\Envelope $envelope */
                 Logger::get()->debug('Hooking Symfony Messenger SenderInterface::send');
                 $envelope = $hook->args[0];
 
