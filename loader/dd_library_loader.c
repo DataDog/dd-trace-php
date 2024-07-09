@@ -483,10 +483,51 @@ static inline void ddloader_configure() {
     package_path = getenv("DD_LOADER_PACKAGE_PATH");
 }
 
+static bool ddloader_libc_check() {
+    bool is_musl;
+    const char *error = dlerror();
+    // gnu_get_libc_version is available since glibc 2.1
+    char *(*get_libc_version)(void) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
+    error = dlerror();
+    if (error == NULL && get_libc_version != NULL) {
+        is_musl = false;
+    } else {
+        is_musl = true;
+    }
+
+#if defined(__MUSL__)
+    if (!is_musl) {
+        return false;
+    }
+#else
+    if (is_musl) {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 static int ddloader_api_no_check(int api_no) {
+    if (!ddloader_libc_check()) {
+        return SUCCESS;
+    }
+
     ddloader_configure();
 
     switch (api_no) {
+        case 220040412:
+            runtime_version = "5.0";
+            break;
+        case 220051025:
+            runtime_version = "5.1";
+            break;
+        case 220060519:
+            runtime_version = "5.2";
+            break;
+        case 220090626:
+            runtime_version = "5.3";
+            break;
         case 220100525:
             runtime_version = "5.4";
             break;
@@ -541,7 +582,7 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) {
     // Guardrail
-    if (!php_api_no) {
+    if (!ddloader_libc_check() || !php_api_no) {
         return SUCCESS;
     }
 
