@@ -47,7 +47,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @readonly
      *
-     * @var list<LinkInterface>
+     * @var list<EventInterface>
      */
     private array $events;
 
@@ -78,8 +78,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         ResourceInfo $resource,
         array $links = [],
         int $totalRecordedLinks = 0,
+        bool $isRemapped = true,
         array $events = [],
-        bool $isRemapped = true
     ) {
         $this->span = $span;
         $this->context = $context;
@@ -127,7 +127,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
                 $spanEvent = new SpanEvent();
                 $spanEvent->name = $event->name;
-                $spanEvent->timeUnixNano = $event->name;
+                $spanEvent->timeUnixNano = $event->timeUnixNano;
                 $spanEvent->attributes = $event->getAttributes()->toArray();
 
                 // Save the event
@@ -160,7 +160,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         array $attributes,
         array $links,
         int $totalRecordedLinks,
-        bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
+        bool $isRemapped = true, // Answers the question "Was the span created using the OTel API?"
+        array $events
     ): self {
         self::_setAttributes($span, $attributes);
 
@@ -180,8 +181,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $resource,
             $links,
             $totalRecordedLinks,
-            $events,
-            $isRemapped
+            $isRemapped,
+            $events
         );
 
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);
@@ -504,7 +505,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     private function updateSpanEvents()
     {
-        // Important: Span events are supposed immutable ???????????????
         $datadogSpanEvents = $this->span->events;
 
         $otel = [];
@@ -515,7 +515,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 // Create the event
                 $event = new Event(
                     $datadogSpanEvent->name,
-                    $datadogSpanEvent->timeUnixNano,
+                    (int)$datadogSpanEvent->timeUnixNano,
                     Attributes::create($datadogSpanEvent->attributes ?? [])
                 );
 

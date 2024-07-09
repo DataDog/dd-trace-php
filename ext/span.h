@@ -178,7 +178,7 @@ struct ddtrace_span_event {
             char object_placeholder[sizeof(zend_object) - sizeof(zval)];
             zval property_name;
             zval property_time_unix_nano;
-            // zval property_attributes;
+            zval property_attributes;
         };
     };
 };

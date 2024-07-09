@@ -657,22 +657,22 @@ zend_class_entry *ddtrace_ce_span_event;
 PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
     ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
 
-    zend_array *array = zend_new_array(2);
+    zend_array *array = zend_new_array(3);
 
     zend_string *name = zend_string_init("name", sizeof("name") - 1, 0);
     zend_string *time_unix_nano = zend_string_init("time_unix_nano", sizeof("time_unix_nano") - 1, 0);
-    // zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
 
     Z_TRY_ADDREF(event->property_name);
     zend_hash_add(array, name, &event->property_name);
-    Z_TRY_ADDREF(event->property_time_unix_nano;
+    Z_TRY_ADDREF(event->property_time_unix_nano);
     zend_hash_add(array, time_unix_nano, &event->property_time_unix_nano);
-    // Z_TRY_ADDREF(event->property_attributes);
-    // zend_hash_add(array, attributes, &event->property_attributes);
+    Z_TRY_ADDREF(event->property_attributes);
+    zend_hash_add(array, attributes, &event->property_attributes);
 
     zend_string_release(name);
     zend_string_release(time_unix_nano);
-    // zend_string_release(attributes);
+    zend_string_release(attributes);
 
     RETURN_ARR(array);
 }
@@ -840,7 +840,7 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
-    memset(object->, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
+    memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
 }
 
 #if PHP_VERSION_ID < 80000

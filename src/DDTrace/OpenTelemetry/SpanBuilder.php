@@ -97,7 +97,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     public function addEvent(string $name, int $timeUnixNano = null, iterable $attributes = []): SpanBuilderInterface
     {
-        int $unixTime = $timeUnixNano ?? microtime(true) * 1e9;
+        int $unixTime = $timeUnixNano == null ? microtime(true) * 1e9 : $timeUnixNano;
 
         $this->events[] = new Event(
             $name, 

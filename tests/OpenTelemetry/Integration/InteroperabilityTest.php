@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
 use DDTrace\SpanLink;
+use DDTrace\SpanEvent;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -1148,5 +1149,31 @@ final class InteroperabilityTest extends BaseTestCase
             // Verify that the duplicate is not the same instance
             $this->assertNotSame($otelSpanLinks[1], $otelSpanLinks[3]);
         });
+    }
+
+    public function testSpanEventsInteroperabilityFromDatadogSpan()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = start_span();
+            $span->name = "dd.span";
+
+            $spanEvent = new SpanEvent();
+            $spanEvent->name = "event-name";
+            $spanEvent->timeUnixNano = 1720037568765201300;
+
+            $span->events[] = $spanEvent;
+
+            /** @var en $OTelSpan */
+            $OTelSpan = Span::getCurrent();
+            $OTelSpanEvent = $OTelSpan->toSpanData()->getEvents()[0];
+
+            // Check the first event
+            $this->assertSame('event-name', $OTelSpanEvent->getName());
+
+            close_span();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300}]", $traces[0][0]['meta']['events']);
     }
 }
