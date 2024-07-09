@@ -517,6 +517,18 @@ static int ddloader_api_no_check(int api_no) {
     ddloader_configure();
 
     switch (api_no) {
+        case 220040412:
+            runtime_version = "5.0";
+            break;
+        case 220051025:
+            runtime_version = "5.1";
+            break;
+        case 220060519:
+            runtime_version = "5.2";
+            break;
+        case 220090626:
+            runtime_version = "5.3";
+            break;
         case 220100525:
             runtime_version = "5.4";
             break;
