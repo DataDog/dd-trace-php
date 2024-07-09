@@ -43,6 +43,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
     /** @var list<LinkInterface> */
     private array $links = [];
 
+    /** @var list<EventInterface> */
+    private array $events = [];
+
     /** @var array */
     private array $attributes;
 
@@ -87,6 +90,18 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 ->getLinkAttributesFactory()
                 ->builder($attributes)
                 ->build(),
+        );
+
+        return $this;
+    }
+
+    public function addEvent(string $name, int $timeUnixNano = null, iterable $attributes = []): SpanBuilderInterface
+    {
+        int $unixTime = $timeUnixNano ?? microtime(true) * 1e9;
+
+        $this->events[] = new Event(
+            $name, 
+            $unixTime
         );
 
         return $this;
@@ -204,6 +219,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->attributes,
             $this->links,
             $this->totalNumberOfLinksAdded,
+            $this->events,
         );
     }
 

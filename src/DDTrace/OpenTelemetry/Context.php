@@ -189,6 +189,12 @@ final class Context implements ContextInterface
             $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
         }
 
+        // Check for span events
+        $events = [];
+        foreach ($currentSpan->events as $spanEvent) {
+            $events[] = new SDK\Event($spanEvent->name, $spanEvent->timeUnixNano, Attributes::create($spanEvent->attributes));
+        }
+
         $OTelCurrentSpan = SDK\Span::startSpan(
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
@@ -201,6 +207,7 @@ final class Context implements ContextInterface
             [], // $attributesBuilder
             $links, // $links
             count($links), // $totalRecordedLinks
+            $events,
             false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);

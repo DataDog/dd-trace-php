@@ -6,6 +6,7 @@ namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
+use DDTrace\SpanEvent;
 use DDTrace\Tag;
 use DDTrace\OpenTelemetry\Convention;
 use DDTrace\Util\ObjectKVStore;
@@ -43,6 +44,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     private array $links;
 
+    /**
+     * @readonly
+     *
+     * @var list<LinkInterface>
+     */
+    private array $events;
+
+
     /** @readonly */
     private int $totalRecordedLinks;
 
@@ -69,6 +78,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         ResourceInfo $resource,
         array $links = [],
         int $totalRecordedLinks = 0,
+        array $events = [],
         bool $isRemapped = true
     ) {
         $this->span = $span;
@@ -80,6 +90,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->resource = $resource;
         $this->links = $links;
         $this->totalRecordedLinks = $totalRecordedLinks;
+        $this->events = $events;
 
         $this->status = StatusData::unset();
 
@@ -109,6 +120,19 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 // Save the link
                 ObjectKVStore::put($spanLink, "link", $link);
                 $span->links[] = $spanLink;
+            }
+
+            foreach ($events as $event) {
+                /** @var EventInterface $event */
+
+                $spanEvent = new SpanEvent();
+                $spanEvent->name = $event->name;
+                $spanEvent->timeUnixNano = $event->name;
+                $spanEvent->attributes = $event->getAttributes()->toArray();
+
+                // Save the event
+                ObjectKVStore::put($spanEvent, "event", $event);
+                $span->events[] = $spanEvent;
             }
         }
     }
@@ -156,6 +180,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $resource,
             $links,
             $totalRecordedLinks,
+            $events,
             $isRemapped
         );
 
@@ -203,12 +228,13 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $hasEnded = $this->hasEnded();
 
         $this->updateSpanLinks();
+        $this->updateSpanEvents();
 
         return new ImmutableSpan(
             $this,
             $this->getName(),
             $this->links,
-            [], // TODO: Handle Span Events
+            $this->events,
             Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
             0,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
@@ -474,5 +500,32 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         // Update the links
         $this->links = $otel;
         $this->totalRecordedLinks = count($otel);
+    }
+
+    private function updateSpanEvents()
+    {
+        // Important: Span events are supposed immutable ???????????????
+        $datadogSpanEvents = $this->span->events;
+
+        $otel = [];
+        foreach ($datadogSpanEvents as $datadogSpanEvent) {
+            // Check if the event relationship exists
+            $event = ObjectKVStore::get($datadogSpanEvent, "event");
+            if ($event === null) {
+                // Create the event
+                $event = new Event(
+                    $datadogSpanEvent->name,
+                    $datadogSpanEvent->timeUnixNano,
+                    Attributes::create($datadogSpanEvent->attributes ?? [])
+                );
+
+                // Save the event
+                ObjectKVStore::put($datadogSpanEvent, "event", $event);
+            }
+            $otel[] = $event;
+        }
+
+        // Update the events
+        $this->events = $otel;
     }
 }
