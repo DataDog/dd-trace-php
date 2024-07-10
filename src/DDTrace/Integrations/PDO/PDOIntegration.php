@@ -45,6 +45,7 @@ class PDOIntegration extends Integration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
+            Integration::handleOrphan($span);
             $span->name = $span->resource = 'PDO.__construct';
             $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
             ObjectKVStore::put($this, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
@@ -58,6 +59,7 @@ class PDOIntegration extends Integration
             list($query) = $hook->args;
 
             $span = $hook->span();
+            Integration::handleOrphan($span);
             $span->name = 'PDO.exec';
             $span->resource = Integration::toString($query);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
@@ -103,6 +105,7 @@ class PDOIntegration extends Integration
             list($query) = $hook->args;
 
             $span = $hook->span();
+            Integration::handleOrphan($span);
             $span->name = 'PDO.prepare';
             $span->resource = Integration::toString($query);
             PDOIntegration::setCommonSpanInfo($this, $span);
@@ -114,6 +117,7 @@ class PDOIntegration extends Integration
 
         // public bool PDO::commit ( void )
         \DDTrace\trace_method('PDO', 'commit', function (SpanData $span) {
+            Integration::handleOrphan($span);
             $span->name = $span->resource = 'PDO.commit';
             PDOIntegration::setCommonSpanInfo($this, $span);
         });
@@ -123,6 +127,7 @@ class PDOIntegration extends Integration
             'PDOStatement',
             'execute',
             function (SpanData $span, array $args, $retval) use ($integration) {
+                Integration::handleOrphan($span);
                 $span->name = 'PDOStatement.execute';
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
