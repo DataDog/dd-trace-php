@@ -15,6 +15,7 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
+use Symfony\Component\Messenger\Stamp\SentStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
@@ -62,7 +63,7 @@ class SymfonyMessengerIntegration extends Integration
            'Symfony\Component\Messenger\Transport\TransportInterface',
            'send',
            function (SpanData $span, array $args) use ($integration) {
-               $integration->setSpanAttributes($span, 'symfony.messenger.send', \get_class($this), $args[0]);
+               $integration->setSpanAttributes($span, 'symfony.messenger.send', null, $args[0]);
            }
         );
 
@@ -116,10 +117,9 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
             'callHandler',
             function ($This, $scope, $args) use ($integration) {
-                install_hook($args[0], function (HookData $hook) use ($integration) {
-                    $span = $hook->span();
-                    $integration->setSpanAttributes($span, 'symfony.messenger.handle', \get_class($this), false, false, 'process');
-                    $span->meta['messaging.symfony.message'] = \get_class($hook->args[1]);
+                $message = $args[1];
+                install_hook($args[0], function (HookData $hook) use ($integration, $message) {
+                    $integration->setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
                     remove_hook($hook->id);
                 });
             }
@@ -157,24 +157,28 @@ class SymfonyMessengerIntegration extends Integration
         SpanData $span,
         string $name,
         $resource = null,
-        $envelope = null,
+        $envelopeOrMessage = null,
         $transportName = null,
         $operation = null
     ) {
-        $messageName = \is_object($envelope) ? \get_class($envelope) : null;
-
-        if ($envelope instanceof Envelope) {
-            $consumedByWorkerStamp = $envelope->last(ConsumedByWorkerStamp::class);
-            $receivedStamp = $envelope->last(ReceivedStamp::class);
-
-            $messageName = \get_class($envelope->getMessage());
-            $transportName = $receivedStamp ? $receivedStamp->getTransportName() : $transportName;
-
-            if ($operation !== 'receive' && ($consumedByWorkerStamp || $receivedStamp)) {
-                $operation = 'process';
+        if ($envelopeOrMessage instanceof Envelope) {
+            $span->meta = \array_merge($span->meta, $this->resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation));
+        } else {
+            if ($envelopeOrMessage) {
+                $message = \get_class($envelopeOrMessage);
+                $resource = $resource ?? $message;
+                $span->meta['messaging.symfony.message'] = $message;
             }
 
-            $span->meta = \array_merge($span->meta, $this->resolveMetadataFromEnvelope($envelope));
+            if ($resource) {
+                $span->resource = $resource;
+            }
+            if ($transportName) {
+                $span->meta[Tag::MQ_DESTINATION] = $transportName;
+            }
+            if ($operation) {
+                $span->meta[Tag::MQ_OPERATION] = $operation;
+            }
         }
 
         $span->name = $name;
@@ -184,29 +188,24 @@ class SymfonyMessengerIntegration extends Integration
         $span->meta[Tag::MQ_SYSTEM] = 'symfony';
         $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';
         $span->meta[Tag::COMPONENT] = SymfonyMessengerIntegration::NAME;
-
-        if ($operation) {
-            $span->meta[Tag::MQ_OPERATION] = $operation;
-        }
-
-        if (empty($resource)) {
-            $span->resource = empty($transportName) ? $messageName : "$messageName -> $transportName";
-        } else {
-            $span->resource = $resource;
-        }
     }
 
-    public function resolveMetadataFromEnvelope(Envelope $envelope): array
+    public function resolveMetadataFromEnvelope(SpanData $span, Envelope $envelope, $resource = null, $transportName = null, $operation = null): array
     {
         $busStamp = $envelope->last(BusNameStamp::class);
+        $consumedByWorkerStamp = $envelope->last(ConsumedByWorkerStamp::class);
         $delayStamp = $envelope->last(DelayStamp::class);
         $handledStamp = $envelope->last(HandledStamp::class);
         $receivedStamp = $envelope->last(ReceivedStamp::class);
         $redeliveryStamp = $envelope->last(RedeliveryStamp::class);
+        $sentStamp = $envelope->last(SentStamp::class);
         $transportMessageIdStamp = $envelope->last(TransportMessageIdStamp::class);
 
         $messageName = \get_class($envelope->getMessage());
-        $transportName = $receivedStamp ? $receivedStamp->getTransportName() : null;
+        $transportName = $sentStamp
+            ? $sentStamp->getSenderAlias()
+            : ($receivedStamp ? $receivedStamp->getTransportName() : $transportName);
+        $senderClass = $sentStamp ? $sentStamp->getSenderClass() : null;
         $transportMessageId = $transportMessageIdStamp ? $transportMessageIdStamp->getId() : null;
 
         // AWS SQS
@@ -220,18 +219,35 @@ class SymfonyMessengerIntegration extends Integration
             $stamps[$stampFqcn] = \count($instances);
         }
 
+        if ($operation !== 'receive' && ($consumedByWorkerStamp || $receivedStamp)) {
+            $operation = 'process';
+        }
+
         $metadata = [
             'messaging.symfony.bus' => $busStamp ? $busStamp->getBusName() : null,
-            'messaging.symfony.message' => $messageName,
-            'messaging.symfony.transport' => $transportName,
-            'messaging.symfony.handler' => $handledStamp ? $handledStamp->getHandlerName() : null,
             'messaging.symfony.delay' => $delayStamp ? $delayStamp->getDelay() : null,
-            'messaging.symfony.retry_count' => $redeliveryStamp ? $redeliveryStamp->getRetryCount() : null,
+            'messaging.symfony.handler' => $handledStamp ? $handledStamp->getHandlerName() : null,
+            'messaging.symfony.message' => $messageName,
             'messaging.symfony.redelivered_at' => $redeliveryStamp ? $redeliveryStamp->getRedeliveredAt()->format('Y-m-d\TH:i:sP') : null,
+            'messaging.symfony.retry_count' => $redeliveryStamp ? $redeliveryStamp->getRetryCount() : null,
+            'messaging.symfony.sender' => $senderClass,
             'messaging.symfony.stamps' => $stamps,
+            'messaging.symfony.transport' => $transportName,
             Tag::MQ_DESTINATION => $transportName,
             Tag::MQ_MESSAGE_ID => $transportMessageId,
+            Tag::MQ_OPERATION => $operation,
         ];
+
+        if (empty($resource)) {
+            $span->resource = empty($transportName)
+                ? $messageName
+                : (($operation === 'receive' || $receivedStamp)
+                    ? "$transportName -> $messageName"
+                    : "$messageName -> $transportName"
+                );
+        } else {
+            $span->resource = $resource;
+        }
 
         return \array_filter($metadata);
     }
