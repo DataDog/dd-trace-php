@@ -95,11 +95,11 @@ final class SpanBuilder implements API\SpanBuilderInterface
         return $this;
     }
 
-    public function addEvent(string $name, int $timeUnixNano = null, iterable $attributes = []): SpanBuilderInterface
+    public function addEvent(string $name, int $timestamp = null, iterable $attributes = []): SpanBuilderInterface
     {
         $this->events[] = new Event(
             $name, 
-            $timeUnixNano == null ? microtime(true) * 1e9 : $timeUnixNano,
+            $timestamp == null ? microtime(true) * 1e9 : $timestamp,
             $this->tracerSharedState
                 ->getSpanLimits()
                 ->getLinkAttributesFactory()
@@ -174,6 +174,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 $this->spanKind,
                 Attributes::create($this->attributes),
                 $this->links,
+                $this->events
             );
 
         $span = $span ?? \DDTrace\start_trace_span($this->startEpochNanos);
@@ -222,8 +223,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->attributes,
             $this->links,
             $this->totalNumberOfLinksAdded,
-            true,
-            $this->events,
+            $this->events
         );
     }
 

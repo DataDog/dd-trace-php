@@ -510,11 +510,11 @@ static zend_class_entry *register_class_DDTrace_SpanEvent(zend_class_entry *clas
 	zend_declare_typed_property(class_entry, property_name_name, &property_name_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
 	zend_string_release(property_name_name);
 
-	zval property_timeUnixNano_default_value;
-	ZVAL_UNDEF(&property_timeUnixNano_default_value);
-	zend_string *property_timeUnixNano_name = zend_string_init("timeUnixNano", sizeof("timeUnixNano") - 1, 1);
-	zend_declare_typed_property(class_entry, property_timeUnixNano_name, &property_timeUnixNano_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release(property_timeUnixNano_name);
+	zval property_timestamp_default_value;
+	ZVAL_UNDEF(&property_timestamp_default_value);
+	zend_string *property_timestamp_name = zend_string_init("timestamp", sizeof("timestamp") - 1, 1);
+	zend_declare_typed_property(class_entry, property_timestamp_name, &property_timestamp_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_timestamp_name);
 
 	zval property_attributes_default_value;
 	ZVAL_UNDEF(&property_attributes_default_value);

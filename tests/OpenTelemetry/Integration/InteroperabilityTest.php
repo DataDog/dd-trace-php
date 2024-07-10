@@ -1159,7 +1159,7 @@ final class InteroperabilityTest extends BaseTestCase
 
             $spanEvent = new SpanEvent();
             $spanEvent->name = "event-name";
-            $spanEvent->timeUnixNano = 1720037568765201300;
+            $spanEvent->timestamp = 1720037568765201300;
             $spanEvent->attributes = [
                 'arg1' => 'value1',
             ];
@@ -1196,7 +1196,7 @@ final class InteroperabilityTest extends BaseTestCase
             $activeSpan = active_span();
             $spanEvent = $activeSpan->events[0];
             $this->assertSame("event-name", $spanEvent->name);
-            $this->assertSame(1720037568765201300, (int)$spanEvent->timeUnixNano);
+            $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
             $this->assertSame(['arg1' => 'value1'], $spanEvent->attributes);
 
             $otelSpan->end();

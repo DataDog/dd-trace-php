@@ -78,8 +78,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         ResourceInfo $resource,
         array $links = [],
         int $totalRecordedLinks = 0,
-        bool $isRemapped = true,
         array $events = [],
+        bool $isRemapped = true
     ) {
         $this->span = $span;
         $this->context = $context;
@@ -127,7 +127,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
                 $spanEvent = new SpanEvent();
                 $spanEvent->name = $event->getName();
-                $spanEvent->timeUnixNano = $event->getTimeUnixNano();
+                $spanEvent->timestamp = $event->getEpochNanos();
                 $spanEvent->attributes = $event->getAttributes()->toArray();
 
                 // Save the event
@@ -160,8 +160,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         array $attributes,
         array $links,
         int $totalRecordedLinks,
-        bool $isRemapped = true, // Answers the question "Was the span created using the OTel API?"
-        array $events
+        array $events,
+        bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
         self::_setAttributes($span, $attributes);
 
@@ -181,8 +181,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $resource,
             $links,
             $totalRecordedLinks,
-            $isRemapped,
-            $events
+            $events,
+            $isRemapped
         );
 
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);
@@ -515,7 +515,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 // Create the event
                 $event = new Event(
                     $datadogSpanEvent->name,
-                    (int)$datadogSpanEvent->timeUnixNano,
+                    (int)$datadogSpanEvent->timestamp,
                     Attributes::create($datadogSpanEvent->attributes ?? [])
                 );
 

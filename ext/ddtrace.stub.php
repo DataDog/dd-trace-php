@@ -24,6 +24,8 @@ namespace DDTrace {
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
     class SpanEvent implements \JsonSerializable {
+        public function __construct(string $name, int $timestamp = null, array $attributes = []) {}
+
         /**
          * @var string The event name
          */
@@ -32,7 +34,7 @@ namespace DDTrace {
         /**
          * @var int The event start time in nanoseconds, if not provided set the current Unix timestamp
          */
-        public int $timeUnixNano;
+        public int $timestamp;
 
         /**
          * @var string[] $attributes
