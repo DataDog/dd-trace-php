@@ -32,6 +32,13 @@ class SymfonyIntegration extends Integration
         return false;
     }
 
+    public function isSymfonyMessengerCommand()
+    {
+        $consoleCommand = $_SERVER['argv'][1] ?? '';
+
+        return $consoleCommand === 'messenger:consume';
+    }
+
     /**
      * Load the integration
      *
@@ -40,6 +47,11 @@ class SymfonyIntegration extends Integration
     public function init(): int
     {
         $integration = $this;
+
+        if (dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER') && $this->isSymfonyMessengerCommand()) {
+            ini_set("datadog.trace.auto_flush_enabled", 1);
+            ini_set("datadog.trace.generate_root_span", 0);
+        }
 
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Kernel',
