@@ -8,9 +8,9 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use Symfony\Component\Messenger\Bridge\AmazonSqs\Transport\AmazonSqsReceivedStamp;
-use Symfony\Component\Messenger\Bridge\Amqp\Transport\AmqpReceivedStamp;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\BusNameStamp;
+use Symfony\Component\Messenger\Stamp\ConsumedByWorkerStamp;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
@@ -113,6 +113,7 @@ class SymfonyMessengerIntegration extends Integration
             ]
         );
 
+        // Symfony Messenger 6.2+
         hook_method(
             'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
             'callHandler',
@@ -139,7 +140,7 @@ class SymfonyMessengerIntegration extends Integration
                 ]
             );
 
-            // Since Symfony 6.2
+            // Symfony Messenger 6.2+
             trace_method(
                 'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
                 'handle',
@@ -162,35 +163,20 @@ class SymfonyMessengerIntegration extends Integration
         $operation = null
     ) {
         if ($envelopeOrMessage instanceof Envelope) {
-            $span->meta = \array_merge($span->meta, $this->resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation));
+            $this->resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation);
         } else {
-            if ($envelopeOrMessage) {
-                $message = \get_class($envelopeOrMessage);
-                $resource = $resource ?? $message;
-                $span->meta['messaging.symfony.message'] = $message;
-            }
-
-            if ($resource) {
-                $span->resource = $resource;
-            }
-            if ($transportName) {
-                $span->meta[Tag::MQ_DESTINATION] = $transportName;
-            }
-            if ($operation) {
-                $span->meta[Tag::MQ_OPERATION] = $operation;
-            }
+            $this->tryResolveMetadataFromMessage($span, $envelopeOrMessage, $resource, $transportName, $operation);
         }
 
         $span->name = $name;
         $span->service = \ddtrace_config_app_name('symfony');
         $span->type = 'queue';
-        $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::MQ_SYSTEM] = 'symfony';
         $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';
         $span->meta[Tag::COMPONENT] = SymfonyMessengerIntegration::NAME;
     }
 
-    public function resolveMetadataFromEnvelope(SpanData $span, Envelope $envelope, $resource = null, $transportName = null, $operation = null): array
+    public function resolveMetadataFromEnvelope(SpanData $span, Envelope $envelope, $resource = null, $transportName = null, $operation = null)
     {
         $busStamp = $envelope->last(BusNameStamp::class);
         $consumedByWorkerStamp = $envelope->last(ConsumedByWorkerStamp::class);
@@ -231,11 +217,13 @@ class SymfonyMessengerIntegration extends Integration
             'messaging.symfony.redelivered_at' => $redeliveryStamp ? $redeliveryStamp->getRedeliveredAt()->format('Y-m-d\TH:i:sP') : null,
             'messaging.symfony.retry_count' => $redeliveryStamp ? $redeliveryStamp->getRetryCount() : null,
             'messaging.symfony.sender' => $senderClass,
-            'messaging.symfony.stamps' => $stamps,
-            'messaging.symfony.transport' => $transportName,
             Tag::MQ_DESTINATION => $transportName,
             Tag::MQ_MESSAGE_ID => $transportMessageId,
             Tag::MQ_OPERATION => $operation,
+        ];
+
+        $metrics = [
+            'messaging.symfony.stamps' => $stamps,
         ];
 
         if (empty($resource)) {
@@ -248,7 +236,38 @@ class SymfonyMessengerIntegration extends Integration
         } else {
             $span->resource = $resource;
         }
+        $span->meta[Tag::SPAN_KIND] = $this->determineSpanKind($operation);
+        $span->meta = \array_merge($span->meta, \array_filter($metadata));
+        $span->metrics = \array_merge($span->metrics, \array_filter($metrics));
+    }
 
-        return \array_filter($metadata);
+    public function tryResolveMetadataFromMessage(SpanData $span, $message, $resource, $transportName, $operation) {
+        if ($message) {
+            $messageName = \get_class($message);
+            $resource = $resource ?? $messageName;
+            $span->meta['messaging.symfony.message'] = $messageName;
+        }
+
+        if ($resource) {
+            $span->resource = $resource;
+        }
+        if ($transportName) {
+            $span->meta[Tag::MQ_DESTINATION] = $transportName;
+        }
+        if ($operation) {
+            $span->meta[Tag::MQ_OPERATION] = $operation;
+            $span->meta[Tag::SPAN_KIND] = $this->determineSpanKind($operation);
+        }
+    }
+
+    public function determineSpanKind($operation) {
+        switch ($operation) {
+            case 'receive':
+                return Tag::SPAN_KIND_VALUE_CONSUMER;
+            case 'send':
+                return Tag::SPAN_KIND_VALUE_PRODUCER;
+            default:
+                return Tag::SPAN_KIND_VALUE_INTERNAL;
+        }
     }
 }
