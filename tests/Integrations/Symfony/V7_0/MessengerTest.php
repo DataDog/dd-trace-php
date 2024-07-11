@@ -40,6 +40,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_CLI_ENABLED' => '1',
             'DD_SERVICE' => 'symfony_messenger_test',
             'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
         ]);
     }
 
@@ -55,6 +56,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_SERVICE' => 'symfony_messenger_test',
             'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
+            'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         // Filter out the orphans
@@ -83,6 +85,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_SERVICE' => 'symfony_messenger_test',
             'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
+            'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         // Filter out the orphans

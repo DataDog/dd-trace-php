@@ -5,11 +5,11 @@
     "resource": "async -> App\\Message\\LuckyNumberNotification",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 16713177018789818694,
+    "parent_id": 6221013494095423052,
     "type": "queue",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "668fe8a200000000",
+      "_dd.p.tid": "668fefa600000000",
       "component": "symfonymessenger",
       "messaging.destination": "async",
       "messaging.destination_kind": "queue",
@@ -18,7 +18,7 @@
       "messaging.symfony.bus": "messenger.bus.default",
       "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
       "messaging.system": "symfony",
-      "runtime-id": "a3773e3b-d826-44bf-969c-0bd0326f8553",
+      "runtime-id": "a0d45d07-403c-409a-9f53-586798cb16c7",
       "span.kind": "consumer"
     },
     "metrics": {
@@ -71,22 +71,256 @@
        }
      },
         {
-          "name": "symfony.messenger.handle",
+          "name": "symfony.messenger.middleware",
           "service": "symfony_messenger_test",
-          "resource": "App\\MessageHandler\\LuckyNumberNotificationHandler",
+          "resource": "Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware",
           "trace_id": 0,
           "span_id": 7,
           "parent_id": 3,
           "type": "queue",
           "meta": {
             "component": "symfonymessenger",
+            "messaging.destination": "async",
             "messaging.destination_kind": "queue",
+            "messaging.message_id": "1",
             "messaging.operation": "process",
+            "messaging.symfony.bus": "messenger.bus.default",
             "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
             "messaging.system": "symfony",
             "span.kind": "internal"
+          },
+          "metrics": {
+            "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
           }
         },
+           {
+             "name": "symfony.messenger.middleware",
+             "service": "symfony_messenger_test",
+             "resource": "Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware",
+             "trace_id": 0,
+             "span_id": 8,
+             "parent_id": 7,
+             "type": "queue",
+             "meta": {
+               "component": "symfonymessenger",
+               "messaging.destination": "async",
+               "messaging.destination_kind": "queue",
+               "messaging.message_id": "1",
+               "messaging.operation": "process",
+               "messaging.symfony.bus": "messenger.bus.default",
+               "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+               "messaging.system": "symfony",
+               "span.kind": "internal"
+             },
+             "metrics": {
+               "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+               "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+               "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+               "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+               "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+               "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+               "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+             }
+           },
+              {
+                "name": "symfony.messenger.middleware",
+                "service": "symfony_messenger_test",
+                "resource": "Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware",
+                "trace_id": 0,
+                "span_id": 9,
+                "parent_id": 8,
+                "type": "queue",
+                "meta": {
+                  "component": "symfonymessenger",
+                  "messaging.destination": "async",
+                  "messaging.destination_kind": "queue",
+                  "messaging.message_id": "1",
+                  "messaging.operation": "process",
+                  "messaging.symfony.bus": "messenger.bus.default",
+                  "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                  "messaging.system": "symfony",
+                  "span.kind": "internal"
+                },
+                "metrics": {
+                  "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+                }
+              },
+                 {
+                   "name": "symfony.messenger.middleware",
+                   "service": "symfony_messenger_test",
+                   "resource": "Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware",
+                   "trace_id": 0,
+                   "span_id": 10,
+                   "parent_id": 9,
+                   "type": "queue",
+                   "meta": {
+                     "component": "symfonymessenger",
+                     "messaging.destination": "async",
+                     "messaging.destination_kind": "queue",
+                     "messaging.message_id": "1",
+                     "messaging.operation": "process",
+                     "messaging.symfony.bus": "messenger.bus.default",
+                     "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                     "messaging.system": "symfony",
+                     "span.kind": "internal"
+                   },
+                   "metrics": {
+                     "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+                     "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+                     "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+                     "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+                     "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+                     "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+                     "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+                   }
+                 },
+                    {
+                      "name": "symfony.messenger.middleware",
+                      "service": "symfony_messenger_test",
+                      "resource": "Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware",
+                      "trace_id": 0,
+                      "span_id": 11,
+                      "parent_id": 10,
+                      "type": "queue",
+                      "meta": {
+                        "component": "symfonymessenger",
+                        "messaging.destination": "async",
+                        "messaging.destination_kind": "queue",
+                        "messaging.message_id": "1",
+                        "messaging.operation": "process",
+                        "messaging.symfony.bus": "messenger.bus.default",
+                        "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                        "messaging.system": "symfony",
+                        "span.kind": "internal"
+                      },
+                      "metrics": {
+                        "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+                      }
+                    },
+                       {
+                         "name": "symfony.messenger.middleware",
+                         "service": "symfony_messenger_test",
+                         "resource": "Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware",
+                         "trace_id": 0,
+                         "span_id": 12,
+                         "parent_id": 11,
+                         "type": "queue",
+                         "meta": {
+                           "component": "symfonymessenger",
+                           "messaging.destination": "async",
+                           "messaging.destination_kind": "queue",
+                           "messaging.message_id": "1",
+                           "messaging.operation": "process",
+                           "messaging.symfony.bus": "messenger.bus.default",
+                           "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                           "messaging.system": "symfony",
+                           "span.kind": "internal"
+                         },
+                         "metrics": {
+                           "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+                         }
+                       },
+                          {
+                            "name": "symfony.messenger.middleware",
+                            "service": "symfony_messenger_test",
+                            "resource": "Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware",
+                            "trace_id": 0,
+                            "span_id": 13,
+                            "parent_id": 12,
+                            "type": "queue",
+                            "meta": {
+                              "component": "symfonymessenger",
+                              "messaging.destination": "async",
+                              "messaging.destination_kind": "queue",
+                              "messaging.message_id": "1",
+                              "messaging.operation": "process",
+                              "messaging.symfony.bus": "messenger.bus.default",
+                              "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                              "messaging.system": "symfony",
+                              "span.kind": "internal"
+                            },
+                            "metrics": {
+                              "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+                            }
+                          },
+                             {
+                               "name": "symfony.messenger.handle",
+                               "service": "symfony_messenger_test",
+                               "resource": "App\\MessageHandler\\LuckyNumberNotificationHandler",
+                               "trace_id": 0,
+                               "span_id": 14,
+                               "parent_id": 13,
+                               "type": "queue",
+                               "meta": {
+                                 "component": "symfonymessenger",
+                                 "messaging.destination_kind": "queue",
+                                 "messaging.operation": "process",
+                                 "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                                 "messaging.system": "symfony",
+                                 "span.kind": "internal"
+                               }
+                             },
+                             {
+                               "name": "symfony.messenger.middleware",
+                               "service": "symfony_messenger_test",
+                               "resource": "Symfony\\Component\\Messenger\\Middleware\\StackMiddleware",
+                               "trace_id": 0,
+                               "span_id": 15,
+                               "parent_id": 13,
+                               "type": "queue",
+                               "meta": {
+                                 "component": "symfonymessenger",
+                                 "messaging.destination": "async",
+                                 "messaging.destination_kind": "queue",
+                                 "messaging.message_id": "1",
+                                 "messaging.operation": "process",
+                                 "messaging.symfony.bus": "messenger.bus.default",
+                                 "messaging.symfony.handler": "App\\MessageHandler\\LuckyNumberNotificationHandler::__invoke",
+                                 "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                                 "messaging.system": "symfony",
+                                 "span.kind": "internal"
+                               },
+                               "metrics": {
+                                 "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\HandledStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
+                               }
+                             },
      {
        "name": "symfony.Symfony\\Component\\Messenger\\Event\\WorkerMessageHandledEvent",
        "service": "symfony_messenger_test",
