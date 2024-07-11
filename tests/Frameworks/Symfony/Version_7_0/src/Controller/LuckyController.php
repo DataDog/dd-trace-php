@@ -18,4 +18,12 @@ class LuckyController
 
         return new Response("$number");
     }
+
+    #[Route('/lucky/fail', 'lucky_fail')]
+    public function fail(MessageBusInterface $bus): Response
+    {
+        $bus->dispatch(new LuckyNumberNotification(101));
+
+        return new Response("101");
+    }
 }

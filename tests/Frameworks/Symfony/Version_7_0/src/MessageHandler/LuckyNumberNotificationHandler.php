@@ -10,6 +10,10 @@ final class LuckyNumberNotificationHandler
 {
     public function __invoke(LuckyNumberNotification $message)
     {
-        echo 'Received number: ' . $message->content . "\n";
+        if ($message->content > 100 || $message->content < 0) {
+            throw new \OutOfBoundsException("Number is out of bounds");
+        }
+
+        echo "Received number: {$message->content}\n";
     }
 }

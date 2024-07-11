@@ -33,8 +33,12 @@ class SymfonyMessengerIntegration extends Integration
         trace_method(
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
-            function (SpanData $span, array $args) use ($integration) {
+            function (SpanData $span, array $args, $retval, $exception) use ($integration) {
                 $integration->setSpanAttributes($span, 'symfony.messenger.dispatch', null, $args[0], null, 'send');
+                if ($exception) {
+                    // Worker::handleMessage() will catch the exception. We need to manually attach it to the root span.
+                    \DDTrace\root_span()->exception = $exception;
+                }
             }
         );
 
@@ -96,11 +100,11 @@ class SymfonyMessengerIntegration extends Integration
                         }
                     }
                 },
-                'posthook' => function (SpanData $span, array $args, $returnValue, $exception = null) use ($integration) {
-                    if ($exception !== null) {
+                'posthook' => function (SpanData $span) use ($integration) {
+                    if ($span->exception !== null) {
                         // Used by Logs Correlation to track the origin of an exception
                         ObjectKVStore::put(
-                            $exception,
+                            $span->exception,
                             'exception_trace_identifiers',
                             [
                                 'trace_id' => \DDTrace\logs_correlation_trace_id(),
@@ -211,11 +215,9 @@ class SymfonyMessengerIntegration extends Integration
 
         $metadata = [
             'messaging.symfony.bus' => $busStamp ? $busStamp->getBusName() : null,
-            'messaging.symfony.delay' => $delayStamp ? $delayStamp->getDelay() : null,
             'messaging.symfony.handler' => $handledStamp ? $handledStamp->getHandlerName() : null,
             'messaging.symfony.message' => $messageName,
             'messaging.symfony.redelivered_at' => $redeliveryStamp ? $redeliveryStamp->getRedeliveredAt()->format('Y-m-d\TH:i:sP') : null,
-            'messaging.symfony.retry_count' => $redeliveryStamp ? $redeliveryStamp->getRetryCount() : null,
             'messaging.symfony.sender' => $senderClass,
             Tag::MQ_DESTINATION => $transportName,
             Tag::MQ_MESSAGE_ID => $transportMessageId,
@@ -223,6 +225,8 @@ class SymfonyMessengerIntegration extends Integration
         ];
 
         $metrics = [
+            'messaging.symfony.delay' => $delayStamp ? $delayStamp->getDelay() : null,
+            'messaging.symfony.retry_count' => $redeliveryStamp ? $redeliveryStamp->getRetryCount() : null,
             'messaging.symfony.stamps' => $stamps,
         ];
 
