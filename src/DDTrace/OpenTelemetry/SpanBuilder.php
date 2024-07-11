@@ -17,6 +17,7 @@ use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
+use Throwable;
 
 final class SpanBuilder implements API\SpanBuilderInterface
 {
@@ -97,17 +98,44 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     public function addEvent(string $name, int $timestamp = null, iterable $attributes = []): SpanBuilderInterface
     {
-        $this->events[] = new Event(
-            $name, 
-            $timestamp == null ? microtime(true) * 1e9 : $timestamp,
-            $this->tracerSharedState
-                ->getSpanLimits()
-                ->getLinkAttributesFactory()
-                ->builder($attributes)
-                ->build(),
-        );
+        $attributesArray = Attributes::create($attributes);
+        $nanoTimestamp = ($timestamp !== null && $timestamp < 1e9) ? $timestamp * 1000 : ($timestamp ?? (int)(microtime(true) * 1e9)); // Convert microseconds to nanoseconds if needed
+        $this->events[] = new Event($name, $nanoTimestamp, Attributes::create($attributes));
+        return $this;
+    }
+
+    public function recordException(Throwable $exception, iterable $attributes = []): SpanBuilderInterface
+    {
+        // Set error metadata
+        $this->setAttribute(Tag::ERROR_MSG, $exception->getMessage());
+        $this->setAttribute(Tag::ERROR_TYPE, get_class($exception));
+        $this->setAttribute(Tag::ERROR_STACK, $exception->getTraceAsString());
+
+        // Standardized exception attributes
+        $exceptionAttributes = [
+            'exception.message' => $exception->getMessage(),
+            'exception.type' => get_class($exception),
+            'exception.stacktrace' => $exception->getTraceAsString(),
+            'exception.escaped' => false
+        ];
+
+        // Merge additional attributes
+        $allAttributes = array_merge($exceptionAttributes, iterator_to_array($attributes));
+
+        // Update span metadata based on exception attributes
+        $this->updateSpanMeta($allAttributes);
+
+        // Record the exception event
+        $this->addEvent('exception', null, $allAttributes);
 
         return $this;
+    }
+
+    private function updateSpanMeta(array $attributes): void
+    {
+        $this->setAttribute(Tag::ERROR_MSG, $attributes['exception.message'] ?? null);
+        $this->setAttribute(Tag::ERROR_TYPE, $attributes['exception.type'] ?? null);
+        $this->setAttribute(Tag::ERROR_STACK, $attributes['exception.stacktrace'] ?? null);
     }
 
     /** @inheritDoc */

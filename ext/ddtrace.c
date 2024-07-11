@@ -661,18 +661,21 @@ PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
 
     zend_string *name = zend_string_init("name", sizeof("name") - 1, 0);
     zend_string *timestamp = zend_string_init("time_unix_nano", sizeof("time_unix_nano") - 1, 0);
-    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
 
     Z_TRY_ADDREF(event->property_name);
     zend_hash_add(array, name, &event->property_name);
     Z_TRY_ADDREF(event->property_timestamp);
     zend_hash_add(array, timestamp, &event->property_timestamp);
-    Z_TRY_ADDREF(event->property_attributes);
-    zend_hash_add(array, attributes, &event->property_attributes);
 
     zend_string_release(name);
     zend_string_release(timestamp);
-    zend_string_release(attributes);
+
+    if (Z_TYPE(event->property_attributes) != IS_NULL && Z_ARRVAL(event->property_attributes)->nNumOfElements > 0) {
+        zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+        Z_TRY_ADDREF(event->property_attributes);
+        zend_hash_add(array, attributes, &event->property_attributes);
+        zend_string_release(attributes);
+    }
 
     RETURN_ARR(array);
 }

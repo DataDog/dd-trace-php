@@ -1206,4 +1206,79 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertCount(1, $traces[0]);
         $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\"}}]", $traces[0][0]['meta']['events']);
     }
+
+    public function testOtelAddEventMetaSerialization()
+    {
+        $eventTwoNanoTimestamp = (int)(microtime(true) * 1e9);
+
+        $traces = $this->isolateTracer(function () use ($eventTwoNanoTimestamp) {
+            $otelSpan = self::getTracer()->spanBuilder("operation")
+                ->addEvent("first_event")
+                ->addEvent("second_event", $eventTwoNanoTimestamp, ['string_val' => 'value'])
+                ->addEvent("third_event", 1, [
+                    'int_val' => 1,
+                    'string_val' => '2',
+                    'int_array' => [3, 4],
+                    'string_array' => ['5', '6']
+                ])
+                ->startSpan();
+
+            $otelSpan->end();
+        });
+
+        $events = json_decode($traces[0][0]['meta']['events'], true);
+        $this->assertCount(3, $events);
+
+        $event1 = $events[0];
+        $this->assertSame('first_event', $event1['name']);
+        $this->assertArrayNotHasKey('attributes', $event1);
+
+        $event2 = $events[1];
+        $this->assertSame('second_event', $event2['name']);
+        $this->assertSame(intdiv($eventTwoNanoTimestamp, 10000), intdiv((int)$event2['time_unix_nano'], 10000)); // reduce the precision tested
+        $this->assertSame('value', $event2['attributes']['string_val']);
+
+        $event3 = $events[2];
+        $this->assertSame('third_event', $event3['name']);
+        $this->assertSame(1000, (int)$event3['time_unix_nano']);
+        $this->assertSame(1, $event3['attributes']['int_val']);
+        $this->assertSame('2', $event3['attributes']['string_val']);
+        $this->assertSame(3, $event3['attributes']['int_array'][0]);
+        $this->assertSame(4, $event3['attributes']['int_array'][1]);
+        $this->assertSame('5', $event3['attributes']['string_array'][0]);
+        $this->assertSame('6', $event3['attributes']['string_array'][1]);
+    }
+
+    public function testOtelRecordExceptionAttributesSerialization()
+    {
+        $traces = $this->isolateTracer(function () {
+            $otelSpan = self::getTracer()->spanBuilder("operation")
+                ->recordException(new \Exception("woof1"), [
+                    "string_val" => "value",
+                    "exception.stacktrace" => "stacktrace1"
+                ])
+                ->addEvent("non_exception_event", null, ["exception.stacktrace" => "non-error"])
+                ->recordException(new \Exception("woof3"), ["exception.message" => "message override"])
+                ->startSpan();
+
+            $otelSpan->end();
+        });
+
+        $events = json_decode($traces[0][0]['meta']['events'], true);
+        $this->assertCount(3, $events);
+    
+        $event1 = $events[0];
+        $this->assertSame('value', $event1['attributes']['string_val']);
+        $this->assertSame('woof1', $event1['attributes']['exception.message']);
+        $this->assertSame('stacktrace1', $event1['attributes']['exception.stacktrace']);
+    
+        $event2 = $events[1];
+        $this->assertSame('non-error', $event2['attributes']['exception.stacktrace']);
+    
+        $event3 = $events[2];
+        $this->assertSame('message override', $event3['attributes']['exception.message']);
+    
+        $errorMessage = $traces[0][0]['meta']['error.message'] ?? $traces[0][0]['error.msg'];
+        $this->assertSame('message override', $errorMessage);
+    }
 }
