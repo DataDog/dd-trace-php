@@ -5,24 +5,32 @@ services:
   vc14-base:
     image: datadog/dd-trace-ci:windows-base-vc14
     build:
+      platforms:
+        - windows/amd64
       context: .
       dockerfile: vc14.Dockerfile
 
   vc15-base:
     image: datadog/dd-trace-ci:windows-base-vc15
     build:
+      platforms:
+        - windows/amd64
       context: .
       dockerfile: vc15.Dockerfile
 
   vs16-base:
     image: datadog/dd-trace-ci:windows-base-vs16
     build:
+      platforms:
+        - windows/amd64
       context: .
       dockerfile: vs16.Dockerfile
 
   vc14:
     image: datadog/dd-trace-ci:windows-vc14
     build:
+      platforms:
+        - windows/amd64
       context: .
       dockerfile: basetools.Dockerfile
       args:
@@ -32,6 +40,8 @@ services:
   vc15:
     image: datadog/dd-trace-ci:windows-vc15
     build:
+      platforms:
+        - windows/amd64
       context: .
       dockerfile: basetools.Dockerfile
       args:
@@ -41,6 +51,8 @@ services:
   vs16:
     image: datadog/dd-trace-ci:windows-vs16
     build:
+      platforms:
+        - windows/amd64
       context: .
       dockerfile: basetools.Dockerfile
       args:
@@ -50,6 +62,8 @@ services:
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "8.3.9"
@@ -60,6 +74,8 @@ services:
   php-8.2:
     image: datadog/dd-trace-ci:php-8.2_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "8.2.21"
@@ -70,6 +86,8 @@ services:
   php-8.1:
     image: datadog/dd-trace-ci:php-8.1_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "8.1.29"
@@ -80,6 +98,8 @@ services:
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "8.0.28"
@@ -90,6 +110,8 @@ services:
   php-7.4:
     image: datadog/dd-trace-ci:php-7.4_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "7.4.33"
@@ -100,6 +122,8 @@ services:
   php-7.3:
     image: datadog/dd-trace-ci:php-7.3_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "7.3.33"
@@ -110,6 +134,8 @@ services:
   php-7.2:
     image: datadog/dd-trace-ci:php-7.2_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "7.2.34"
@@ -120,6 +146,8 @@ services:
   php-7.1:
     image: datadog/dd-trace-ci:php-7.1_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "7.1.33"
@@ -130,6 +158,8 @@ services:
   php-7.0:
     image: datadog/dd-trace-ci:php-7.0_windows
     build:
+      platforms:
+        - windows/amd64
       context: .
       args:
         phpVersion: "7.0.33"
