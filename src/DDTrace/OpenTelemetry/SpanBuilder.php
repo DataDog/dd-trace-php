@@ -106,36 +106,26 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     public function recordException(Throwable $exception, iterable $attributes = []): SpanBuilderInterface
     {
-        // Set error metadata
-        $this->setAttribute(Tag::ERROR_MSG, $exception->getMessage());
-        $this->setAttribute(Tag::ERROR_TYPE, get_class($exception));
-        $this->setAttribute(Tag::ERROR_STACK, $exception->getTraceAsString());
-
         // Standardized exception attributes
         $exceptionAttributes = [
-            'exception.message' => $exception->getMessage(),
-            'exception.type' => get_class($exception),
-            'exception.stacktrace' => $exception->getTraceAsString(),
+            'exception.message' => $attributes['exception.message'] ?? $exception->getMessage(),
+            'exception.type' => $attributes['exception.type'] ?? get_class($exception),
+            'exception.stacktrace' => $attributes['exception.stacktrace'] ?? $exception->getTraceAsString(),
             'exception.escaped' => false
         ];
 
+        // Update span metadata based on exception attributes
+        $this->setAttribute(Tag::ERROR_MSG, $exceptionAttributes['exception.message']);
+        $this->setAttribute(Tag::ERROR_TYPE, $exceptionAttributes['exception.type']);
+        $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
+
         // Merge additional attributes
         $allAttributes = array_merge($exceptionAttributes, iterator_to_array($attributes));
-
-        // Update span metadata based on exception attributes
-        $this->updateSpanMeta($allAttributes);
 
         // Record the exception event
         $this->addEvent('exception', null, $allAttributes);
 
         return $this;
-    }
-
-    private function updateSpanMeta(array $attributes): void
-    {
-        $this->setAttribute(Tag::ERROR_MSG, $attributes['exception.message'] ?? null);
-        $this->setAttribute(Tag::ERROR_TYPE, $attributes['exception.type'] ?? null);
-        $this->setAttribute(Tag::ERROR_STACK, $attributes['exception.stacktrace'] ?? null);
     }
 
     /** @inheritDoc */

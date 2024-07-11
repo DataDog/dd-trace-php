@@ -359,12 +359,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanInterface
     {
-        if (!$this->hasEnded()) {
-            $attributesArray = Attributes::create($attributes);
-            $nanoTimestamp = ($timestamp !== null && $timestamp < 1e9) ? $timestamp * 1000 : ($timestamp ?? (int)(microtime(true) * 1e9)); // Convert microseconds to nanoseconds if needed
-            $this->events[] = new SpanEvent($name, $nanoTimestamp, $attributesArray);
-        }
-
+        // no-op
         return $this;
     }
 
@@ -374,24 +369,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
         if (!$this->hasEnded()) {
-            // Set error metadata
             $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
             $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
             $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
-
-            // Standardized exception attributes
-            $exceptionAttributes = [
-                'exception.message' => $exception->getMessage(),
-                'exception.type' => get_class($exception),
-                'exception.stacktrace' => $exception->getTraceAsString(),
-                'exception.escaped' => false
-            ];
-
-            // Merge additional attributes
-            $allAttributes = array_merge($exceptionAttributes, iterator_to_array($attributes));
-
-            // Record the exception event
-            $this->addEvent('exception', $allAttributes);
         }
 
         return $this;
