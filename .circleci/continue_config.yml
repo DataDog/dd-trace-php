@@ -3059,6 +3059,7 @@ jobs:
             mkdir -p modules
             cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
             ./bin/test.sh
+            ./bin/check_glibc_version.sh
 
   "test_loader_alpine":
     working_directory: ~/datadog

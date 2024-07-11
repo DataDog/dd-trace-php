@@ -17,7 +17,7 @@ if [[ ! -f run-tests.php ]]; then
 fi
 
 if [[ -z "${DD_LOADER_PACKAGE_PATH:-}" ]]; then
-    DEFAULT="/home/circleci/app/dd-library-php"
+    DEFAULT="/home/circleci/app/dd-library-php-ssi"
     echo "Note: env var 'DD_LOADER_PACKAGE_PATH' is required but not defined, using the default value (${DEFAULT})"
     export DD_LOADER_PACKAGE_PATH="${DEFAULT}"
 fi
