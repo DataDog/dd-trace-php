@@ -151,7 +151,7 @@ trait CommonTests {
         assertThat appsecJson, matchesJson(expJson, false, true)
     }
 
-    Span test_blocking(Span span) {
+    Span assert_blocked_span(Span span) {
         assert span.metrics."_dd.appsec.enabled" == 1.0d
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
@@ -164,7 +164,7 @@ trait CommonTests {
     void 'test blocking'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/phpinfo.php')
-                .header('X-Forwarded-For', ip).GET().build()
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
             assert re.body().contains('blocked')
@@ -172,7 +172,7 @@ trait CommonTests {
 
         Span span = trace.first()
 
-        this.test_blocking(span)
+        this.assert_blocked_span(span)
     }
 
     @Test
@@ -184,7 +184,7 @@ trait CommonTests {
         }
 
         Span span = trace.first()
-        test_blocking(span)
+        assert_blocked_span(span)
 
         InputStream stream = new ByteArrayInputStream( span.meta_struct."_dd.stack".decodeBase64() )
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(stream)
