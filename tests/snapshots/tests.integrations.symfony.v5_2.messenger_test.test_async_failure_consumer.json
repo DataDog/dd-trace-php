@@ -1,0 +1,383 @@
+[[
+  {
+    "name": "symfony.messenger.consume",
+    "service": "symfony_messenger_test",
+    "resource": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport -> App\\Message\\LuckyNumberNotification",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 14140221716544900859,
+    "type": "queue",
+    "error": 1,
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "6691376e00000000",
+      "component": "symfonymessenger",
+      "error.message": "Uncaught Symfony\\Component\\Messenger\\Exception\\UnrecoverableMessageHandlingException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/src/MessageHandler/LuckyNumberNotificationHandler.php:14",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php(63): App\\MessageHandler\\LuckyNumberNotificationHandler->__invoke()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#18 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#19 {main}\n\nNext Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80\nStack trace:\n#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+      "error.type": "Symfony\\Component\\Messenger\\Exception\\UnrecoverableMessageHandlingException",
+      "messaging.destination": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
+      "messaging.destination_kind": "queue",
+      "messaging.message_id": "1",
+      "messaging.operation": "receive",
+      "messaging.symfony.bus": "messenger.bus.default",
+      "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+      "messaging.system": "symfony",
+      "runtime-id": "ca3de809-8107-43d9-ab8c-e9e11c6c41d6",
+      "span.kind": "consumer"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "symfony.Symfony\\Component\\Messenger\\Event\\WorkerMessageReceivedEvent",
+       "service": "symfony_messenger_test",
+       "resource": "symfony.Symfony\\Component\\Messenger\\Event\\WorkerMessageReceivedEvent",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "symfony"
+       }
+     },
+     {
+       "name": "symfony.messenger.dispatch",
+       "service": "symfony_messenger_test",
+       "resource": "App\\Message\\LuckyNumberNotification -> async",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "queue",
+       "error": 1,
+       "meta": {
+         "component": "symfonymessenger",
+         "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+         "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+         "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+         "messaging.destination": "async",
+         "messaging.destination_kind": "queue",
+         "messaging.message_id": "1",
+         "messaging.operation": "send",
+         "messaging.symfony.bus": "messenger.bus.default",
+         "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+         "messaging.system": "symfony",
+         "span.kind": "producer"
+       }
+     },
+        {
+          "name": "symfony.messenger.middleware",
+          "service": "symfony_messenger_test",
+          "resource": "Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware",
+          "trace_id": 0,
+          "span_id": 7,
+          "parent_id": 3,
+          "type": "queue",
+          "error": 1,
+          "meta": {
+            "component": "symfonymessenger",
+            "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+            "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+            "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+            "messaging.destination": "async",
+            "messaging.destination_kind": "queue",
+            "messaging.message_id": "1",
+            "messaging.operation": "process",
+            "messaging.symfony.bus": "messenger.bus.default",
+            "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+            "messaging.system": "symfony"
+          }
+        },
+           {
+             "name": "symfony.messenger.middleware",
+             "service": "symfony_messenger_test",
+             "resource": "Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware",
+             "trace_id": 0,
+             "span_id": 9,
+             "parent_id": 7,
+             "type": "queue",
+             "error": 1,
+             "meta": {
+               "component": "symfonymessenger",
+               "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+               "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+               "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+               "messaging.destination": "async",
+               "messaging.destination_kind": "queue",
+               "messaging.message_id": "1",
+               "messaging.operation": "process",
+               "messaging.symfony.bus": "messenger.bus.default",
+               "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+               "messaging.system": "symfony"
+             }
+           },
+              {
+                "name": "symfony.messenger.middleware",
+                "service": "symfony_messenger_test",
+                "resource": "Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware",
+                "trace_id": 0,
+                "span_id": 12,
+                "parent_id": 9,
+                "type": "queue",
+                "error": 1,
+                "meta": {
+                  "component": "symfonymessenger",
+                  "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+                  "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+                  "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+                  "messaging.destination": "async",
+                  "messaging.destination_kind": "queue",
+                  "messaging.message_id": "1",
+                  "messaging.operation": "process",
+                  "messaging.symfony.bus": "messenger.bus.default",
+                  "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                  "messaging.system": "symfony"
+                }
+              },
+                 {
+                   "name": "symfony.messenger.middleware",
+                   "service": "symfony_messenger_test",
+                   "resource": "Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware",
+                   "trace_id": 0,
+                   "span_id": 13,
+                   "parent_id": 12,
+                   "type": "queue",
+                   "error": 1,
+                   "meta": {
+                     "component": "symfonymessenger",
+                     "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+                     "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+                     "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+                     "messaging.destination": "async",
+                     "messaging.destination_kind": "queue",
+                     "messaging.message_id": "1",
+                     "messaging.operation": "process",
+                     "messaging.symfony.bus": "messenger.bus.default",
+                     "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                     "messaging.system": "symfony"
+                   }
+                 },
+                    {
+                      "name": "symfony.messenger.middleware",
+                      "service": "symfony_messenger_test",
+                      "resource": "Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware",
+                      "trace_id": 0,
+                      "span_id": 14,
+                      "parent_id": 13,
+                      "type": "queue",
+                      "error": 1,
+                      "meta": {
+                        "component": "symfonymessenger",
+                        "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+                        "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+                        "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+                        "messaging.destination": "async",
+                        "messaging.destination_kind": "queue",
+                        "messaging.message_id": "1",
+                        "messaging.operation": "process",
+                        "messaging.symfony.bus": "messenger.bus.default",
+                        "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                        "messaging.system": "symfony"
+                      }
+                    },
+                       {
+                         "name": "symfony.messenger.middleware",
+                         "service": "symfony_messenger_test",
+                         "resource": "Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware",
+                         "trace_id": 0,
+                         "span_id": 15,
+                         "parent_id": 14,
+                         "type": "queue",
+                         "error": 1,
+                         "meta": {
+                           "component": "symfonymessenger",
+                           "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+                           "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+                           "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+                           "messaging.destination": "async",
+                           "messaging.destination_kind": "queue",
+                           "messaging.message_id": "1",
+                           "messaging.operation": "process",
+                           "messaging.symfony.bus": "messenger.bus.default",
+                           "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                           "messaging.system": "symfony"
+                         }
+                       },
+                          {
+                            "name": "symfony.messenger.middleware",
+                            "service": "symfony_messenger_test",
+                            "resource": "Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware",
+                            "trace_id": 0,
+                            "span_id": 16,
+                            "parent_id": 15,
+                            "type": "queue",
+                            "error": 1,
+                            "meta": {
+                              "component": "symfonymessenger",
+                              "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\HandlerFailedException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php:80",
+                              "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#18 {main}",
+                              "error.type": "Symfony\\Component\\Messenger\\Exception\\HandlerFailedException",
+                              "messaging.destination": "async",
+                              "messaging.destination_kind": "queue",
+                              "messaging.message_id": "1",
+                              "messaging.operation": "process",
+                              "messaging.symfony.bus": "messenger.bus.default",
+                              "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                              "messaging.system": "symfony"
+                            }
+                          },
+                             {
+                               "name": "symfony.messenger.handle",
+                               "service": "symfony_messenger_test",
+                               "resource": "App\\MessageHandler\\LuckyNumberNotificationHandler",
+                               "trace_id": 0,
+                               "span_id": 17,
+                               "parent_id": 16,
+                               "type": "queue",
+                               "error": 1,
+                               "meta": {
+                                 "component": "symfonymessenger",
+                                 "error.message": "Thrown Symfony\\Component\\Messenger\\Exception\\UnrecoverableMessageHandlingException: Number is out of bounds in /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/src/MessageHandler/LuckyNumberNotificationHandler.php:14",
+                                 "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/HandleMessageMiddleware.php(63): App\\MessageHandler\\LuckyNumberNotificationHandler->__invoke()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/SendMessageMiddleware.php(74): Symfony\\Component\\Messenger\\Middleware\\HandleMessageMiddleware->handle()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/FailedMessageProcessingMiddleware.php(34): Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/DispatchAfterCurrentBusMiddleware.php(68): Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/RejectRedeliveredMessageMiddleware.php(48): Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/AddBusNameStampMiddleware.php(37): Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Middleware/TraceableMiddleware.php(43): Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware->handle()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/MessageBus.php(77): Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware->handle()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/RoutableMessageBus.php(54): Symfony\\Component\\Messenger\\MessageBus->dispatch()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(114): Symfony\\Component\\Messenger\\RoutableMessageBus->dispatch()\n#10 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Worker.php(77): Symfony\\Component\\Messenger\\Worker->handleMessage()\n#11 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/messenger/Command/ConsumeMessagesCommand.php(198): Symfony\\Component\\Messenger\\Worker->run()\n#12 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Command/Command.php(256): Symfony\\Component\\Messenger\\Command\\ConsumeMessagesCommand->execute()\n#13 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(989): Symfony\\Component\\Console\\Command\\Command->run()\n#14 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(96): Symfony\\Component\\Console\\Application->doRunCommand()\n#15 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(290): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRunCommand()\n#16 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/framework-bundle/Console/Application.php(82): Symfony\\Component\\Console\\Application->doRun()\n#17 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/vendor/symfony/console/Application.php(166): Symfony\\Bundle\\FrameworkBundle\\Console\\Application->doRun()\n#18 /home/circleci/app/tests/Frameworks/Symfony/Version_5_2/bin/console(43): Symfony\\Component\\Console\\Application->run()\n#19 {main}",
+                                 "error.type": "Symfony\\Component\\Messenger\\Exception\\UnrecoverableMessageHandlingException",
+                                 "messaging.destination_kind": "queue",
+                                 "messaging.operation": "process",
+                                 "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                                 "messaging.system": "symfony"
+                               }
+                             },
+     {
+       "name": "symfony.Symfony\\Component\\Messenger\\Event\\WorkerMessageFailedEvent",
+       "service": "symfony_messenger_test",
+       "resource": "symfony.Symfony\\Component\\Messenger\\Event\\WorkerMessageFailedEvent",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "symfony"
+       }
+     },
+        {
+          "name": "symfony.messenger.send",
+          "service": "symfony_messenger_test",
+          "resource": "App\\Message\\LuckyNumberNotification -> async",
+          "trace_id": 0,
+          "span_id": 8,
+          "parent_id": 4,
+          "type": "queue",
+          "meta": {
+            "component": "symfonymessenger",
+            "messaging.destination": "async",
+            "messaging.destination_kind": "queue",
+            "messaging.message_id": "2",
+            "messaging.operation": "send",
+            "messaging.symfony.bus": "messenger.bus.default",
+            "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+            "messaging.symfony.redelivered_at": "2024-07-12T14:02:23+00:00",
+            "messaging.system": "symfony",
+            "span.kind": "producer"
+          },
+          "metrics": {
+            "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\DelayStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ErrorDetailsStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\RedeliveryStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentToFailureTransportStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 2
+          }
+        },
+           {
+             "name": "PDO.prepare",
+             "service": "pdo",
+             "resource": "INSERT INTO messenger_messages (body, headers, queue_name, created_at, available_at) VALUES(?, ?, ?, ?, ?)",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 8,
+             "type": "sql",
+             "meta": {
+               "_dd.base_service": "symfony_messenger_test",
+               "component": "pdo",
+               "db.charset": "utf8mb4",
+               "db.engine": "mysql",
+               "db.name": "test",
+               "db.system": "mysql",
+               "db.user": "test",
+               "out.host": "mysql_integration",
+               "out.port": "3306",
+               "span.kind": "client"
+             }
+           },
+           {
+             "name": "PDOStatement.execute",
+             "service": "pdo",
+             "resource": "INSERT INTO messenger_messages (body, headers, queue_name, created_at, available_at) VALUES(?, ?, ?, ?, ?)",
+             "trace_id": 0,
+             "span_id": 11,
+             "parent_id": 8,
+             "type": "sql",
+             "meta": {
+               "_dd.base_service": "symfony_messenger_test",
+               "component": "pdo",
+               "db.charset": "utf8mb4",
+               "db.engine": "mysql",
+               "db.name": "test",
+               "db.system": "mysql",
+               "db.user": "test",
+               "out.host": "mysql_integration",
+               "out.port": "3306",
+               "span.kind": "client"
+             },
+             "metrics": {
+               "db.row_count": 1
+             }
+           },
+     {
+       "name": "PDO.prepare",
+       "service": "pdo",
+       "resource": "DELETE FROM messenger_messages WHERE id = ?",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "_dd.base_service": "symfony_messenger_test",
+         "component": "pdo",
+         "db.charset": "utf8mb4",
+         "db.engine": "mysql",
+         "db.name": "test",
+         "db.system": "mysql",
+         "db.user": "test",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "PDOStatement.execute",
+       "service": "pdo",
+       "resource": "DELETE FROM messenger_messages WHERE id = ?",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "_dd.base_service": "symfony_messenger_test",
+         "component": "pdo",
+         "db.charset": "utf8mb4",
+         "db.engine": "mysql",
+         "db.name": "test",
+         "db.system": "mysql",
+         "db.user": "test",
+         "out.host": "mysql_integration",
+         "out.port": "3306",
+         "span.kind": "client"
+       },
+       "metrics": {
+         "db.row_count": 1
+       }
+     }]]

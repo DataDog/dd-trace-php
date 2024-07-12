@@ -1,12 +1,14 @@
 framework:
   messenger:
     # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
-    # failure_transport: failed
+    failure_transport: failed
 
     transports:
       # https://symfony.com/doc/current/messenger.html#transport-configuration
       async:
         dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+        retry_strategy:
+          max_retries: 0
       failed: 'doctrine://default?queue_name=failed'
       # sync: 'sync://'
 
@@ -14,11 +16,3 @@ framework:
       # Route your messages to the transports
       # 'App\Message\YourMessage': async
       'App\Message\LuckyNumberNotification': async
-
-# when@test:
-#    framework:
-#        messenger:
-#            transports:
-#                # replace with your transport name here (e.g., my_transport: 'in-memory://')
-#                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
-#                async: 'in-memory://'

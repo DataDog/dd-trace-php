@@ -9,6 +9,8 @@ use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use Symfony\Component\Messenger\Bridge\AmazonSqs\Transport\AmazonSqsReceivedStamp;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Handler\HandlerDescriptor;
+use Symfony\Component\Messenger\Handler\HandlersLocatorInterface;
 use Symfony\Component\Messenger\Stamp\BusNameStamp;
 use Symfony\Component\Messenger\Stamp\ConsumedByWorkerStamp;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -17,6 +19,7 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Stamp\SentStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
+use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 use function DDTrace\hook_method;
 use function DDTrace\install_hook;
 use function DDTrace\remove_hook;
@@ -67,7 +70,7 @@ class SymfonyMessengerIntegration extends Integration
            'Symfony\Component\Messenger\Transport\TransportInterface',
            'send',
            function (SpanData $span, array $args, $envelope) use ($integration) {
-               $integration->setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, null, true);
+               $integration->setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, 'send', true);
            }
         );
 
@@ -78,8 +81,11 @@ class SymfonyMessengerIntegration extends Integration
                 'prehook' => function (SpanData $span, array $args) use ($integration) {
                     /** @var \Symfony\Component\Messenger\Envelope $envelope */
                     $envelope = $args[0];
-                    /** @var string $transportName */
+                    /** @var string|ReceiverInterface $transportName */
                     $transportName = $args[1];
+                    if (\is_object($transportName)) {
+                        $transportName = \get_class($transportName);
+                    }
 
                     $integration->setSpanAttributes(
                         $span,
@@ -117,18 +123,52 @@ class SymfonyMessengerIntegration extends Integration
             ]
         );
 
-        // Symfony Messenger 6.2+
-        hook_method(
-            'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
-            'callHandler',
-            function ($This, $scope, $args) use ($integration) {
-                $message = $args[1];
-                install_hook($args[0], function (HookData $hook) use ($integration, $message) {
-                    $integration->setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
-                    remove_hook($hook->id);
-                });
-            }
-        );
+        $callHandlerExists = \method_exists('Symfony\Component\Messenger\Middleware\HandleMessageMiddleware', 'callHandler');
+        if ($callHandlerExists) {
+            // Symfony Messenger 6.2+
+            hook_method(
+                'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
+                'callHandler',
+                function ($This, $scope, $args) use ($integration) {
+                    $message = $args[1];
+                    install_hook($args[0], function (HookData $hook) use ($integration, $message) {
+                        $integration->setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
+                        remove_hook($hook->id);
+                    });
+                }
+            );
+        } else {
+            hook_method(
+                'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
+                '__construct',
+                function ($This, $scope, $args) {
+                    /** @var HandlersLocatorInterface $handlersLocator */
+                    $handlersLocator = $args[0];
+                    ObjectKVStore::put($This, 'handlersLocator', $handlersLocator);
+                }
+            );
+
+            hook_method(
+                'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
+                'handle',
+                function ($This, $scope, $args) use ($integration) {
+                    $envelope = $args[0];
+                    $handlersLocator = ObjectKVStore::get($This, 'handlersLocator');
+                    $message = $envelope->getMessage();
+                    foreach ($handlersLocator->getHandlers($envelope) as $handlerDescriptor) {
+                        if ($integration->messageHasAlreadyBeenHandled($envelope, $handlerDescriptor)) {
+                            continue;
+                        }
+
+                        $handler = $handlerDescriptor->getHandler();
+                        install_hook($handler, function (HookData $hook) use ($integration, $message) {
+                            $integration->setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
+                            remove_hook($hook->id);
+                        });
+                    }
+                }
+            );
+        }
 
         if (dd_trace_env_config('DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES')) {
             $handleFn = function (SpanData $span, array $args) use ($integration) {
@@ -156,6 +196,16 @@ class SymfonyMessengerIntegration extends Integration
         }
 
         return Integration::LOADED;
+    }
+
+    public function messageHasAlreadyBeenHandled(Envelope $envelope, HandlerDescriptor $handlerDescriptor): bool
+    {
+        $some = array_filter($envelope
+            ->all(HandledStamp::class), function (HandledStamp $stamp) use ($handlerDescriptor) {
+            return $stamp->getHandlerName() === $handlerDescriptor->getName();
+        });
+
+        return \count($some) > 0;
     }
 
     public function setSpanAttributes(
@@ -219,7 +269,7 @@ class SymfonyMessengerIntegration extends Integration
             }
         }
 
-        if ($operation !== 'receive' && ($consumedByWorkerStamp || $receivedStamp)) {
+        if ($operation !== 'receive' && $operation !== 'send' && ($consumedByWorkerStamp || $receivedStamp)) {
             $operation = 'process';
         }
 
@@ -244,7 +294,7 @@ class SymfonyMessengerIntegration extends Integration
         if (empty($resource)) {
             $span->resource = empty($transportName)
                 ? $messageName
-                : (($operation === 'receive' || $receivedStamp)
+                : (($operation === 'receive' || ($operation !== 'send' && $receivedStamp))
                     ? "$transportName -> $messageName"
                     : "$messageName -> $transportName"
                 );
