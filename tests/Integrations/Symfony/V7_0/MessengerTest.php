@@ -18,9 +18,9 @@ class MessengerTest extends WebFrameworkTestCase
         'metrics.php.compilation.total_time_ms',
         'meta.error.stack',
         'meta._dd.p.tid',
-        'messaging.message_id',
-        'messaging.symfony.delay',
-        'messaging.symfony.redelivered_at',
+        'meta.messaging.message_id',
+        'meta.messaging.symfony.redelivered_at',
+        'metrics.messaging.symfony.delay',
     ];
 
     protected static function getAppIndexScript()
