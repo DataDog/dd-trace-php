@@ -16,7 +16,9 @@
         "symfony/flex": "^1.17.1",
         "symfony/form": "6.2.*",
         "symfony/framework-bundle": "6.2.*",
+        "symfony/messenger": "^6.2",
         "symfony/monolog-bundle": "^3.8",
+        "symfony/redis-messenger": "^6.2",
         "symfony/security-bundle": "6.2.*",
         "symfony/twig-bundle": "6.2.*",
         "symfony/validator": "6.2.*",
@@ -60,6 +62,10 @@
         },
         "post-install-cmd": [
             "@auto-scripts"
+        ],
+        "pre-update-cmd": [
+            "sudo pecl uninstall redis",
+            "printf 'no' | sudo pecl install -f redis-6.0.2"
         ],
         "post-update-cmd": [
             "@auto-scripts"

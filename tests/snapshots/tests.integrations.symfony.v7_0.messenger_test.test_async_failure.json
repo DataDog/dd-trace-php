@@ -5,16 +5,16 @@
     "resource": "lucky_fail",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 183744291134975234,
+    "parent_id": 723823315130923321,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "668fefc100000000",
+      "_dd.p.tid": "66911e4300000000",
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/lucky/fail",
-      "runtime-id": "b5909885-60e2-493c-abcc-6a56cd0a2a23",
+      "runtime-id": "4e8fa85f-fd71-4937-893f-f0263fae7590",
       "span.kind": "server",
       "symfony.route.action": "App\\Controller\\LuckyController@fail",
       "symfony.route.name": "lucky_fail"
@@ -111,16 +111,20 @@
               {
                 "name": "symfony.messenger.dispatch",
                 "service": "symfony_messenger_test",
-                "resource": "App\\Message\\LuckyNumberNotification",
+                "resource": "App\\Message\\LuckyNumberNotification -> async",
                 "trace_id": 0,
                 "span_id": 12,
                 "parent_id": 9,
                 "type": "queue",
                 "meta": {
                   "component": "symfonymessenger",
+                  "messaging.destination": "async",
                   "messaging.destination_kind": "queue",
+                  "messaging.message_id": "2",
                   "messaging.operation": "send",
+                  "messaging.symfony.bus": "messenger.bus.default",
                   "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                  "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
                   "messaging.system": "symfony",
                   "span.kind": "producer"
                 }
@@ -137,8 +141,7 @@
                      "component": "symfonymessenger",
                      "messaging.destination_kind": "queue",
                      "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                     "messaging.system": "symfony",
-                     "span.kind": "internal"
+                     "messaging.system": "symfony"
                    }
                  },
                     {
@@ -153,8 +156,7 @@
                         "component": "symfonymessenger",
                         "messaging.destination_kind": "queue",
                         "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                        "messaging.system": "symfony",
-                        "span.kind": "internal"
+                        "messaging.system": "symfony"
                       }
                     },
                        {
@@ -170,11 +172,7 @@
                            "messaging.destination_kind": "queue",
                            "messaging.symfony.bus": "messenger.bus.default",
                            "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                           "messaging.system": "symfony",
-                           "span.kind": "internal"
-                         },
-                         "metrics": {
-                           "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0
+                           "messaging.system": "symfony"
                          }
                        },
                           {
@@ -190,11 +188,7 @@
                               "messaging.destination_kind": "queue",
                               "messaging.symfony.bus": "messenger.bus.default",
                               "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                              "messaging.system": "symfony",
-                              "span.kind": "internal"
-                            },
-                            "metrics": {
-                              "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0
+                              "messaging.system": "symfony"
                             }
                           },
                              {
@@ -210,11 +204,7 @@
                                  "messaging.destination_kind": "queue",
                                  "messaging.symfony.bus": "messenger.bus.default",
                                  "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                                 "messaging.system": "symfony",
-                                 "span.kind": "internal"
-                               },
-                               "metrics": {
-                                 "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0
+                                 "messaging.system": "symfony"
                                }
                              },
                                 {
@@ -230,11 +220,7 @@
                                     "messaging.destination_kind": "queue",
                                     "messaging.symfony.bus": "messenger.bus.default",
                                     "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                                    "messaging.system": "symfony",
-                                    "span.kind": "internal"
-                                  },
-                                  "metrics": {
-                                    "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0
+                                    "messaging.system": "symfony"
                                   }
                                 },
                                    {
@@ -261,15 +247,17 @@
                                        "component": "symfonymessenger",
                                        "messaging.destination": "async",
                                        "messaging.destination_kind": "queue",
+                                       "messaging.message_id": "2",
                                        "messaging.symfony.bus": "messenger.bus.default",
                                        "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                                        "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
-                                       "messaging.system": "symfony",
-                                       "span.kind": "internal"
+                                       "messaging.system": "symfony"
                                      },
                                      "metrics": {
+                                       "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1.0,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
-                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
                                      }
                                    },
                                       {

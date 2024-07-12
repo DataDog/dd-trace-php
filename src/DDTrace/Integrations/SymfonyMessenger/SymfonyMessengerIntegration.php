@@ -34,7 +34,7 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
             function (SpanData $span, array $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'symfony.messenger.dispatch', null, $args[0], null, 'send');
+                $integration->setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, 'send');
                 if ($exception) {
                     // Worker::handleMessage() will catch the exception. We need to manually attach it to the root span.
                     \DDTrace\root_span()->exception = $exception;
@@ -66,8 +66,8 @@ class SymfonyMessengerIntegration extends Integration
         trace_method(
            'Symfony\Component\Messenger\Transport\TransportInterface',
            'send',
-           function (SpanData $span, array $args) use ($integration) {
-               $integration->setSpanAttributes($span, 'symfony.messenger.send', null, $args[0]);
+           function (SpanData $span, array $args, $envelope) use ($integration) {
+               $integration->setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, null, true);
            }
         );
 
@@ -164,10 +164,11 @@ class SymfonyMessengerIntegration extends Integration
         $resource = null,
         $envelopeOrMessage = null,
         $transportName = null,
-        $operation = null
+        $operation = null,
+        bool $addStampsInformation = false
     ) {
         if ($envelopeOrMessage instanceof Envelope) {
-            $this->resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation);
+            $this->resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation, $addStampsInformation);
         } else {
             $this->tryResolveMetadataFromMessage($span, $envelopeOrMessage, $resource, $transportName, $operation);
         }
@@ -180,8 +181,14 @@ class SymfonyMessengerIntegration extends Integration
         $span->meta[Tag::COMPONENT] = SymfonyMessengerIntegration::NAME;
     }
 
-    public function resolveMetadataFromEnvelope(SpanData $span, Envelope $envelope, $resource = null, $transportName = null, $operation = null)
-    {
+    public function resolveMetadataFromEnvelope(
+        SpanData $span,
+        Envelope $envelope,
+        $resource = null,
+        $transportName = null,
+        $operation = null,
+        bool $addStampsInformation = false
+    ) {
         $busStamp = $envelope->last(BusNameStamp::class);
         $consumedByWorkerStamp = $envelope->last(ConsumedByWorkerStamp::class);
         $delayStamp = $envelope->last(DelayStamp::class);
@@ -198,15 +205,18 @@ class SymfonyMessengerIntegration extends Integration
         $senderClass = $sentStamp ? $sentStamp->getSenderClass() : null;
         $transportMessageId = $transportMessageIdStamp ? $transportMessageIdStamp->getId() : null;
 
-        // AWS SQS
-        if (\class_exists(AmazonSqsReceivedStamp::class)) {
-            $amazonSqsReceivedStamp = $envelope->last(AmazonSqsReceivedStamp::class);
-            $transportMessageId = $amazonSqsReceivedStamp ? $amazonSqsReceivedStamp->getId() : null;
+        // amazon-sqs-messenger doesn't add TransportMessageIdStamp to the envelope
+        if (\class_exists(AmazonSqsReceivedStamp::class)
+            && ($amazonSqsReceivedStamp = $envelope->last(AmazonSqsReceivedStamp::class))
+        ) {
+            $transportMessageId = $amazonSqsReceivedStamp->getId();
         }
 
         $stamps = [];
-        foreach ($envelope->all() as $stampFqcn => $instances) {
-            $stamps[$stampFqcn] = \count($instances);
+        if ($addStampsInformation) {
+            foreach ($envelope->all() as $stampFqcn => $instances) {
+                $stamps[$stampFqcn] = \count($instances);
+            }
         }
 
         if ($operation !== 'receive' && ($consumedByWorkerStamp || $receivedStamp)) {
@@ -222,6 +232,7 @@ class SymfonyMessengerIntegration extends Integration
             Tag::MQ_DESTINATION => $transportName,
             Tag::MQ_MESSAGE_ID => $transportMessageId,
             Tag::MQ_OPERATION => $operation,
+            Tag::SPAN_KIND => $this->determineSpanKind($operation),
         ];
 
         $metrics = [
@@ -240,7 +251,6 @@ class SymfonyMessengerIntegration extends Integration
         } else {
             $span->resource = $resource;
         }
-        $span->meta[Tag::SPAN_KIND] = $this->determineSpanKind($operation);
         $span->meta = \array_merge($span->meta, \array_filter($metadata));
         $span->metrics = \array_merge($span->metrics, \array_filter($metrics));
     }
@@ -260,7 +270,11 @@ class SymfonyMessengerIntegration extends Integration
         }
         if ($operation) {
             $span->meta[Tag::MQ_OPERATION] = $operation;
-            $span->meta[Tag::SPAN_KIND] = $this->determineSpanKind($operation);
+        }
+
+        $spanKind = $this->determineSpanKind($operation);
+        if ($spanKind) {
+            $span->meta[Tag::SPAN_KIND] = $spanKind;
         }
     }
 
@@ -271,7 +285,7 @@ class SymfonyMessengerIntegration extends Integration
             case 'send':
                 return Tag::SPAN_KIND_VALUE_PRODUCER;
             default:
-                return Tag::SPAN_KIND_VALUE_INTERNAL;
+                return null; // Internal operation is implicit
         }
     }
 }

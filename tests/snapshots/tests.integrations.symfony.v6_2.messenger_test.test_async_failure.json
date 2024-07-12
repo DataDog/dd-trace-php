@@ -2,22 +2,22 @@
   {
     "name": "symfony.request",
     "service": "symfony_messenger_test",
-    "resource": "lucky_number",
+    "resource": "lucky_fail",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 10707457669181212433,
+    "parent_id": 13921072818998445898,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "66911e2d00000000",
+      "_dd.p.tid": "669127fc00000000",
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/lucky/number",
-      "runtime-id": "4e8fa85f-fd71-4937-893f-f0263fae7590",
+      "http.url": "http://localhost:9999/lucky/fail",
+      "runtime-id": "b669a55c-6ad0-4422-93a9-f53dd35019f9",
       "span.kind": "server",
-      "symfony.route.action": "App\\Controller\\LuckyController@number",
-      "symfony.route.name": "lucky_number"
+      "symfony.route.action": "App\\Controller\\LuckyController@fail",
+      "symfony.route.name": "lucky_fail"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -99,7 +99,7 @@
            {
              "name": "symfony.controller",
              "service": "symfony_messenger_test",
-             "resource": "App\\Controller\\LuckyController::number",
+             "resource": "App\\Controller\\LuckyController::fail",
              "trace_id": 0,
              "span_id": 9,
              "parent_id": 5,
@@ -120,11 +120,11 @@
                   "component": "symfonymessenger",
                   "messaging.destination": "async",
                   "messaging.destination_kind": "queue",
-                  "messaging.message_id": "1",
+                  "messaging.message_id": "1720788989151-0",
                   "messaging.operation": "send",
                   "messaging.symfony.bus": "messenger.bus.default",
                   "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                  "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
+                  "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Redis\\Transport\\RedisTransport",
                   "messaging.system": "symfony",
                   "span.kind": "producer"
                 }
@@ -247,10 +247,10 @@
                                        "component": "symfonymessenger",
                                        "messaging.destination": "async",
                                        "messaging.destination_kind": "queue",
-                                       "messaging.message_id": "1",
+                                       "messaging.message_id": "1720788989151-0",
                                        "messaging.symfony.bus": "messenger.bus.default",
                                        "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
-                                       "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
+                                       "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Redis\\Transport\\RedisTransport",
                                        "messaging.system": "symfony"
                                      },
                                      "metrics": {
@@ -260,93 +260,6 @@
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
                                      }
                                    },
-                                      {
-                                        "name": "PDO.__construct",
-                                        "service": "pdo",
-                                        "resource": "PDO.__construct",
-                                        "trace_id": 0,
-                                        "span_id": 21,
-                                        "parent_id": 20,
-                                        "type": "sql",
-                                        "meta": {
-                                          "_dd.base_service": "symfony_messenger_test",
-                                          "component": "pdo",
-                                          "db.charset": "utf8mb4",
-                                          "db.engine": "mysql",
-                                          "db.name": "test",
-                                          "db.system": "mysql",
-                                          "db.user": "test",
-                                          "out.host": "mysql_integration",
-                                          "out.port": "3306",
-                                          "span.kind": "client"
-                                        }
-                                      },
-                                      {
-                                        "name": "PDO.prepare",
-                                        "service": "pdo",
-                                        "resource": "INSERT INTO messenger_messages (body, headers, queue_name, created_at, available_at) VALUES(?, ?, ?, ?, ?)",
-                                        "trace_id": 0,
-                                        "span_id": 22,
-                                        "parent_id": 20,
-                                        "type": "sql",
-                                        "meta": {
-                                          "_dd.base_service": "symfony_messenger_test",
-                                          "component": "pdo",
-                                          "db.charset": "utf8mb4",
-                                          "db.engine": "mysql",
-                                          "db.name": "test",
-                                          "db.system": "mysql",
-                                          "db.user": "test",
-                                          "out.host": "mysql_integration",
-                                          "out.port": "3306",
-                                          "span.kind": "client"
-                                        }
-                                      },
-                                      {
-                                        "name": "PDOStatement.execute",
-                                        "service": "pdo",
-                                        "resource": "INSERT INTO messenger_messages (body, headers, queue_name, created_at, available_at) VALUES(?, ?, ?, ?, ?)",
-                                        "trace_id": 0,
-                                        "span_id": 23,
-                                        "parent_id": 20,
-                                        "type": "sql",
-                                        "meta": {
-                                          "_dd.base_service": "symfony_messenger_test",
-                                          "component": "pdo",
-                                          "db.charset": "utf8mb4",
-                                          "db.engine": "mysql",
-                                          "db.name": "test",
-                                          "db.system": "mysql",
-                                          "db.user": "test",
-                                          "out.host": "mysql_integration",
-                                          "out.port": "3306",
-                                          "span.kind": "client"
-                                        },
-                                        "metrics": {
-                                          "db.row_count": 1.0
-                                        }
-                                      },
-                                      {
-                                        "name": "PDO.commit",
-                                        "service": "pdo",
-                                        "resource": "PDO.commit",
-                                        "trace_id": 0,
-                                        "span_id": 24,
-                                        "parent_id": 20,
-                                        "type": "sql",
-                                        "meta": {
-                                          "_dd.base_service": "symfony_messenger_test",
-                                          "component": "pdo",
-                                          "db.charset": "utf8mb4",
-                                          "db.engine": "mysql",
-                                          "db.name": "test",
-                                          "db.system": "mysql",
-                                          "db.user": "test",
-                                          "out.host": "mysql_integration",
-                                          "out.port": "3306",
-                                          "span.kind": "client"
-                                        }
-                                      },
            {
              "name": "symfony.kernel.response",
              "service": "symfony_messenger_test",

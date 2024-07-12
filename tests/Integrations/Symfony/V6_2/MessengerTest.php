@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V7_0;
+namespace DDTrace\Tests\Integrations\Symfony\V6_2;
 
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
@@ -13,7 +13,7 @@ class MessengerTest extends WebFrameworkTestCase
     const FIELDS_TO_IGNORE = [
         'metrics.php.compilation.total_time_ms',
         'meta.error.stack',
-        'meta._dd.p.tid',
+        'meta._dd..tid',
         'meta.messaging.message_id',
         'meta.messaging.symfony.redelivered_at',
         'metrics.messaging.symfony.delay',
@@ -21,12 +21,12 @@ class MessengerTest extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_7_0/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/public/index.php';
     }
 
     protected static function getConsoleScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_7_0/bin/console';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/bin/console';
     }
 
     protected static function getEnvs()
@@ -37,6 +37,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_SERVICE' => 'symfony_messenger_test',
             'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
+            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
         ]);
     }
 
@@ -54,6 +55,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         // Filter out the orphans
@@ -61,12 +63,10 @@ class MessengerTest extends WebFrameworkTestCase
             return $trace[0]['metrics']['_sampling_priority_v1'] !== 0;
         }));
 
-        echo json_encode($consumerTrace, JSON_PRETTY_PRINT) . PHP_EOL;
-
         $this->snapshotFromTraces(
             $consumerTrace,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v7_0.messenger_test.test_async_success_consumer'
+            'tests.integrations.symfony.v6_2.messenger_test.test_async_success_consumer'
         );
     }
 
@@ -83,6 +83,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_SERVICE' => 'symfony_messenger_test',
             'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
+            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         // Filter out the orphans
@@ -93,7 +94,7 @@ class MessengerTest extends WebFrameworkTestCase
         $this->snapshotFromTraces(
             $consumerTrace,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v7_0.messenger_test.test_async_failure_consumer'
+            'tests.integrations.symfony.v6_2.messenger_test.test_async_failure_consumer'
         );
     }
 }
