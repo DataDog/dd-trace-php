@@ -108,9 +108,50 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh libzip https://libzip.org/download/libzip-1.7.3.tar.gz; \
     cd "${SRC_DIR}/libzip"; \
     mkdir build && cd build; \
-    cmake .. && make -j $(nproc) && make install;
+    cmake .. && make -j $(nproc) && make install; \
+    cd - && rm -fr build
 
-ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
+# PHP 8.4 requires OpenSSL >= 1.1.1
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh openssl https://openssl.org/source/old/1.1.1/openssl-1.1.1w.tar.gz; \
+    cd "${SRC_DIR}/openssl"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl shared zlib; \
+    make -j $(nproc) && make install; \
+    echo "export PATH=/usr/local/openssl/bin:\$PATH" > /etc/profile.d/openssl.sh; \
+    echo "export LD_LIBRARY_PATH=/usr/local/openssl/lib:\$LD_LIBRARY_PATH" >> /etc/profile.d/openssl.sh; \
+    source /etc/profile.d/openssl.sh; \
+    openssl version; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires zlib >= 1.2.11
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh zlib https://zlib.net/fossils/zlib-1.2.11.tar.gz; \
+    cd "${SRC_DIR}/zlib"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure --prefix=/usr/local/zlib; \
+    make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires curl >= 7.61.0
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh curl https://curl.se/download/curl-7.61.1.tar.gz; \
+    cd "${SRC_DIR}/curl"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure --prefix=/usr/local/curl; \
+    make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires sqlite3 >= 3.43
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh sqlite3 https://www.sqlite.org/2024/sqlite-autoconf-3460000.tar.gz; \
+    cd "${SRC_DIR}/sqlite3"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure --prefix=/usr/local/sqlite3; \
+    make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/openssl/lib/pkgconfig:/usr/local/zlib/lib/pkgconfig:/usr/local/curl/lib/pkgconfig:/usr/local/sqlite3/lib/pkgconfig"
 
 # Caution, takes a very long time! Since we have to build one from source,
 # I picked LLVM 16, which matches Rust 1.71.

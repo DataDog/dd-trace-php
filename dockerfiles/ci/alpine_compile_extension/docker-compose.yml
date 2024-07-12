@@ -121,3 +121,16 @@ services:
         php_api: 20230831
     volumes:
       - ../../:/app
+
+  8.4-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.4
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        php_version: 8.4.0
+        php_url: https://downloads.php.net/~saki/php-8.4.0alpha1.tar.gz
+        php_sha: 200fc03de5bf34bc621a24fce061bf3ec8d4d2fc8a676ed9b3f94ad129f69eab
+        php_api: 20230901
+    volumes:
+      - ../../:/app

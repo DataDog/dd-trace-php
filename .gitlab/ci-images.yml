@@ -20,6 +20,7 @@ CentOS:
     matrix:
       - PHP_VERSION:
         - base
+        - php-8.4
         - php-8.3
         - php-8.2
         - php-8.1
@@ -46,6 +47,7 @@ Alpine Compile Extension:
     matrix:
       - PHP_VERSION:
         - base-alpine
+        - 8.4-alpine
         - 8.3-alpine
         - 8.2-alpine
         - 8.1-alpine
@@ -72,6 +74,7 @@ Ubuntu Bookworm:
     matrix:
       - PHP_VERSION:
         - base
+        - php-8.4
         - php-8.3
         - php-8.2
         - php-8.1
@@ -100,6 +103,7 @@ Ubuntu Buster:
     matrix:
       - PHP_VERSION:
         - base
+        - php-8.4
         - php-8.3
         - php-8.2
         - php-8.1
