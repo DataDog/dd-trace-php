@@ -289,9 +289,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DDTrace_Integration_init arginfo_dd_trace_dd_get_memory_limit
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_SpanEvent_jsonSerialize, 0, 0, IS_MIXED, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_hook_function);
@@ -364,7 +361,6 @@ ZEND_FUNCTION(DDTrace_trace_function);
 ZEND_FUNCTION(DDTrace_trace_method);
 ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
-ZEND_METHOD(DDTrace_SpanEvent, jsonSerialize);
 ZEND_METHOD(DDTrace_SpanLink, jsonSerialize);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
 ZEND_METHOD(DDTrace_SpanData, getDuration);
@@ -454,11 +450,6 @@ static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 	ZEND_FE_END
 };
 
-static const zend_function_entry class_DDTrace_SpanEvent_methods[] = {
-	ZEND_ME(DDTrace_SpanEvent, jsonSerialize, arginfo_class_DDTrace_SpanEvent_jsonSerialize, ZEND_ACC_PUBLIC)
-	ZEND_FE_END
-};
-
 static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getDuration, arginfo_class_DDTrace_SpanData_getDuration, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
@@ -494,35 +485,6 @@ static void register_ddtrace_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_REJECT", PRIORITY_SAMPLING_USER_REJECT, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNKNOWN", DDTRACE_PRIORITY_SAMPLING_UNKNOWN, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNSET", DDTRACE_PRIORITY_SAMPLING_UNSET, CONST_PERSISTENT);
-}
-
-static zend_class_entry *register_class_DDTrace_SpanEvent(zend_class_entry *class_entry_JsonSerializable)
-{
-	zend_class_entry ce, *class_entry;
-
-	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanEvent", class_DDTrace_SpanEvent_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
-	zend_class_implements(class_entry, 1, class_entry_JsonSerializable);
-
-	zval property_name_default_value;
-	ZVAL_UNDEF(&property_name_default_value);
-	zend_string *property_name_name = zend_string_init("name", sizeof("name") - 1, 1);
-	zend_declare_typed_property(class_entry, property_name_name, &property_name_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
-	zend_string_release(property_name_name);
-
-	zval property_timestamp_default_value;
-	ZVAL_UNDEF(&property_timestamp_default_value);
-	zend_string *property_timestamp_name = zend_string_init("timestamp", sizeof("timestamp") - 1, 1);
-	zend_declare_typed_property(class_entry, property_timestamp_name, &property_timestamp_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release(property_timestamp_name);
-
-	zval property_attributes_default_value;
-	ZVAL_UNDEF(&property_attributes_default_value);
-	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, 1);
-	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
-	zend_string_release(property_attributes_name);
-
-	return class_entry;
 }
 
 static zend_class_entry *register_class_DDTrace_SpanLink(zend_class_entry *class_entry_JsonSerializable)
@@ -645,12 +607,6 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_links_name = zend_string_init("links", sizeof("links") - 1, 1);
 	zend_declare_typed_property(class_entry, property_links_name, &property_links_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_links_name);
-
-	zval property_events_default_value;
-	ZVAL_EMPTY_ARRAY(&property_events_default_value);
-	zend_string *property_events_name = zend_string_init("events", sizeof("events") - 1, 1);
-	zend_declare_typed_property(class_entry, property_events_name, &property_events_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
-	zend_string_release(property_events_name);
 
 	zval property_peerServiceSources_default_value;
 	ZVAL_EMPTY_ARRAY(&property_peerServiceSources_default_value);

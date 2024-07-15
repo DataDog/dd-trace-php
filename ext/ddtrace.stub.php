@@ -24,7 +24,7 @@ namespace DDTrace {
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
     class SpanEvent implements \JsonSerializable {
-        public function __construct(string $name, int $timestamp = null, array $attributes = []) {}
+        public function __construct(string $name, ?int $timestamp = null, array $attributes = []) {}
 
         /**
          * @var string The event name
@@ -40,6 +40,11 @@ namespace DDTrace {
          * @var string[] $attributes
          */
         public array $attributes;
+
+        /**
+         * @return mixed
+         */
+        public function jsonSerialize(): mixed {}
     }
 
     class SpanLink implements \JsonSerializable {
