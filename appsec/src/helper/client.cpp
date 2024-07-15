@@ -425,6 +425,8 @@ bool client::handle_command(network::request_shutdown::request &command)
                 "extract-schema", parameter::as_boolean(true));
             command.data.add(
                 "waf.context.processor", std::move(context_processor));
+        } else {
+            SPDLOG_DEBUG("Sampler did not pick this request");
         }
     }
 

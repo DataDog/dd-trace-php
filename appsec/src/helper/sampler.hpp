@@ -13,6 +13,8 @@
 #include <mutex>
 #include <optional>
 
+#include "std_logging.hpp"
+
 namespace dds {
 static const double min_rate = 0.0001;
 class sampler {
@@ -33,6 +35,7 @@ public:
     public:
         explicit scope(std::atomic<bool> &concurrent) : concurrent_(&concurrent)
         {
+            SPDLOG_DEBUG("Scope initiated");
             concurrent_->store(true, std::memory_order_relaxed);
         }
 
@@ -55,6 +58,7 @@ public:
         {
             if (concurrent_ != nullptr) {
                 concurrent_->store(false, std::memory_order_relaxed);
+                SPDLOG_DEBUG("Scope released");
             }
         }
 
