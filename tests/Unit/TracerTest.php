@@ -167,8 +167,6 @@ final class TracerTest extends BaseTestCase
         $tracer->startRootSpan(self::OPERATION_NAME, [
             'child_of' => $distributedTracingContext,
         ]);
-        // We need to flush as priority sampling is lazily evaluated at inject time or flush time.
-        $tracer->flush();
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
 
         self::putenv('DD_TRACE_GENERATE_ROOT_SPAN');
