@@ -1030,6 +1030,17 @@ static void dd_register_fatal_error_ce(void) {
 
 zend_class_entry *ddtrace_ce_integration;
 zend_class_entry *ddtrace_ce_git_metadata;
+zend_object_handlers ddtrace_git_metadata_handlers;
+
+static zend_object *ddtrace_git_metadata_create(zend_class_entry *class_type) {
+    zend_object *object = zend_objects_new(class_type);
+    object->handlers = &ddtrace_git_metadata_handlers;
+    return object;
+}
+
+static void ddtrace_free_obj_wrapper(zend_object *object) {
+    zend_object_std_dtor(object);
+}
 
 static bool dd_is_compatible_sapi() {
     switch (ddtrace_active_sapi) {
@@ -1154,6 +1165,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
     ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
+    ddtrace_ce_git_metadata->create_object = ddtrace_git_metadata_create;
+    memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
+    ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
 
     ddtrace_engine_hooks_minit();
 
