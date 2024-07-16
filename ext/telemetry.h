@@ -2,7 +2,11 @@
 #define DDTRACE_TELEMETRY_H
 
 #include <components-rs/telemetry.h>
-#include "ddtrace.h"
+#include <php.h>
+
+#include "components-rs/common.h"
+#include "ddtrace_export.h"
+#include "span.h"
 
 typedef struct _trace_api_metrics {
     int requests;
@@ -26,5 +30,9 @@ void ddtrace_telemetry_finalize(void);
 void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar);
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span);
 void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics);
+
+// public API
+DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns);
+DDTRACE_PUBLIC bool ddtrace_metric_add_point(zend_string *name, double value, zend_string *tags);
 
 #endif // DDTRACE_TELEMETRY_H

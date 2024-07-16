@@ -90,6 +90,9 @@ template <typename T> struct base_response_generic : public base_response {
     }
 };
 
+using telemetry_metrics =
+    std::unordered_map<std::string, std::tuple<double, std::string>>;
+
 struct client_init {
     static constexpr const char *name = "client_init";
     struct request : base_request {
@@ -129,8 +132,10 @@ struct client_init {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
+        std::map<std::string_view, std::vector<std::pair<double, std::string>>>
+            tel_metrics;
 
-        MSGPACK_DEFINE(status, version, errors, meta, metrics);
+        MSGPACK_DEFINE(status, version, errors, meta, metrics, tel_metrics);
     };
 };
 
@@ -285,8 +290,11 @@ struct request_shutdown {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
+        std::map<std::string_view, std::vector<std::pair<double, std::string>>>
+            tel_metrics;
 
-        MSGPACK_DEFINE(actions, triggers, force_keep, meta, metrics);
+        MSGPACK_DEFINE(
+            actions, triggers, force_keep, meta, metrics, tel_metrics);
     };
 };
 

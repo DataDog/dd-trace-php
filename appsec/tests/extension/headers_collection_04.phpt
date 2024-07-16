@@ -73,60 +73,61 @@ $commands = $helper->get_commands();
 $tags = $commands[0]['payload'][0][0]['meta'];
 
 $headers = array_filter($tags, function ($key) { return strpos($key, "http.request.headers.") === 0;}, ARRAY_FILTER_USE_KEY);
+ksort($headers);
 var_dump($headers);
 
 $helper->finished_with_commands();
 ?>
 --EXPECTF--
 array(25) {
-  ["http.request.headers.akamai-user-risk"]=>
-  string(13) "akamaiuserisk"
-  ["http.request.headers.x-forwarded"]=>
-  string(9) "for="foo""
-  ["http.request.headers.x-cluster-client-ip"]=>
-  string(7) "7.7.7.9"
-  ["http.request.headers.cf-ray"]=>
-  string(5) "cfray"
-  ["http.request.headers.user-agent"]=>
-  string(13) "my user agent"
   ["http.request.headers.accept"]=>
   string(3) "*/*"
-  ["http.request.headers.host"]=>
-  string(11) "myhost:8888"
-  ["http.request.headers.forwarded"]=>
-  string(9) "for="foo""
-  ["http.request.headers.content-encoding"]=>
-  string(5) "utf-8"
-  ["http.request.headers.x-forwarded-for"]=>
-  string(16) "7.7.7.6,10.0.0.1"
-  ["http.request.headers.cloudfront-viewer-ja3-fingerprint"]=>
-  string(16) "cloudfrontviewer"
-  ["http.request.headers.accept-language"]=>
-  string(5) "pt-PT"
-  ["http.request.headers.x-appgw-trace-id"]=>
-  string(12) "appgvtraceid"
-  ["http.request.headers.x-sigsci-tags"]=>
-  string(10) "sigscitags"
-  ["http.request.headers.true-client-ip"]=>
-  string(8) "7.7.7.11"
   ["http.request.headers.accept-encoding"]=>
   string(4) "gzip"
-  ["http.request.headers.x-sigsci-requestid"]=>
-  string(15) "sigscirequestid"
-  ["http.request.headers.x-client-ip"]=>
-  string(7) "7.7.7.7"
-  ["http.request.headers.content-type"]=>
-  string(10) "text/plain"
-  ["http.request.headers.x-real-ip"]=>
-  string(7) "7.7.7.8"
-  ["http.request.headers.forwarded-for"]=>
-  string(17) "7.7.7.10,10.0.0.1"
-  ["http.request.headers.x-amzn-trace-id"]=>
-  string(13) "amazontraceid"
-  ["http.request.headers.x-cloud-trace-context"]=>
-  string(17) "cloudtracecontext"
-  ["http.request.headers.via"]=>
-  string(12) "HTTP/1.1 GWA"
+  ["http.request.headers.accept-language"]=>
+  string(5) "pt-PT"
+  ["http.request.headers.akamai-user-risk"]=>
+  string(13) "akamaiuserisk"
+  ["http.request.headers.cf-ray"]=>
+  string(5) "cfray"
+  ["http.request.headers.cloudfront-viewer-ja3-fingerprint"]=>
+  string(16) "cloudfrontviewer"
+  ["http.request.headers.content-encoding"]=>
+  string(5) "utf-8"
   ["http.request.headers.content-length"]=>
   string(1) "0"
+  ["http.request.headers.content-type"]=>
+  string(10) "text/plain"
+  ["http.request.headers.forwarded"]=>
+  string(9) "for="foo""
+  ["http.request.headers.forwarded-for"]=>
+  string(17) "7.7.7.10,10.0.0.1"
+  ["http.request.headers.host"]=>
+  string(11) "myhost:8888"
+  ["http.request.headers.true-client-ip"]=>
+  string(8) "7.7.7.11"
+  ["http.request.headers.user-agent"]=>
+  string(13) "my user agent"
+  ["http.request.headers.via"]=>
+  string(12) "HTTP/1.1 GWA"
+  ["http.request.headers.x-amzn-trace-id"]=>
+  string(13) "amazontraceid"
+  ["http.request.headers.x-appgw-trace-id"]=>
+  string(12) "appgvtraceid"
+  ["http.request.headers.x-client-ip"]=>
+  string(7) "7.7.7.7"
+  ["http.request.headers.x-cloud-trace-context"]=>
+  string(17) "cloudtracecontext"
+  ["http.request.headers.x-cluster-client-ip"]=>
+  string(7) "7.7.7.9"
+  ["http.request.headers.x-forwarded"]=>
+  string(9) "for="foo""
+  ["http.request.headers.x-forwarded-for"]=>
+  string(16) "7.7.7.6,10.0.0.1"
+  ["http.request.headers.x-real-ip"]=>
+  string(7) "7.7.7.8"
+  ["http.request.headers.x-sigsci-requestid"]=>
+  string(15) "sigscirequestid"
+  ["http.request.headers.x-sigsci-tags"]=>
+  string(10) "sigscitags"
 }

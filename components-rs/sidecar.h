@@ -151,6 +151,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
                                                 uint64_t flush_interval_milliseconds,
+                                                uint64_t telemetry_heartbeat_interval_millis,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,

@@ -11,6 +11,8 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 zend_long dd_composer_hook_id;
 ddog_QueueId dd_bgs_queued_id;
 
+static void dd_commit_metrics(void);
+
 ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
     if (DDTRACE_G(telemetry_buffer)) {
         return DDTRACE_G(telemetry_buffer);
@@ -48,9 +50,12 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
     }
 
     ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
 
     // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
     ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
@@ -112,7 +117,7 @@ void ddtrace_telemetry_finalize(void) {
 
     // Telemetry metrics
     ddog_CharSlice metric_name = DDOG_CHARSLICE_C("spans_created");
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     zend_string *integration_name;
     zval *metric_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
@@ -122,7 +127,7 @@ void ddtrace_telemetry_finalize(void) {
     } ZEND_HASH_FOREACH_END();
 
     metric_name = DDOG_CHARSLICE_C("logs_created");
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_NAMESPACE_GENERAL);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_GENERAL);
     static struct {
         ddog_CharSlice level;
         ddog_CharSlice tags;
@@ -139,6 +144,8 @@ void ddtrace_telemetry_finalize(void) {
             ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)count, log_levels[i].tags);
         }
     }
+
+    dd_commit_metrics();
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
 
@@ -239,4 +246,35 @@ void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
     }
 
     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
+}
+
+ZEND_TLS ddog_SidecarActionsBuffer *metrics_buffer;
+
+DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns)
+{
+    if (!metrics_buffer) {
+        metrics_buffer = ddog_sidecar_telemetry_buffer_alloc();
+    }
+
+    ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
+    ddog_sidecar_telemetry_register_metric_buffer(metrics_buffer, metric_name, type, ns);
+}
+
+DDTRACE_PUBLIC bool ddtrace_metric_add_point(zend_string *name, double value, zend_string *tags) {
+    if (!metrics_buffer) {
+        metrics_buffer = ddog_sidecar_telemetry_buffer_alloc();
+    }
+    ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
+    ddog_CharSlice tags_slice = dd_zend_string_to_CharSlice(tags);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(metrics_buffer, metric_name, value, tags_slice);
+    return true;
+}
+
+static void dd_commit_metrics() {
+    if (!metrics_buffer) {
+        return;
+    }
+    ddog_sidecar_telemetry_buffer_flush(
+        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), metrics_buffer);
+    metrics_buffer = NULL;
 }

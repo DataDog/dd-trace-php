@@ -74,32 +74,33 @@ $commands = $helper->get_commands();
 $tags = $commands[0]['payload'][0][0]['meta'];
 
 $headers = array_filter($tags, function ($key) { return strpos($key, "http.request.headers.") === 0;}, ARRAY_FILTER_USE_KEY);
+ksort($headers);
 var_dump($headers);
 
 $helper->finished_with_commands();
 ?>
 --EXPECTF--
 array(11) {
+  ["http.request.headers.accept"]=>
+  string(3) "*/*"
   ["http.request.headers.akamai-user-risk"]=>
   string(13) "akamaiuserisk"
   ["http.request.headers.cf-ray"]=>
   string(5) "cfray"
-  ["http.request.headers.user-agent"]=>
-  string(13) "my user agent"
-  ["http.request.headers.accept"]=>
-  string(3) "*/*"
   ["http.request.headers.cloudfront-viewer-ja3-fingerprint"]=>
   string(16) "cloudfrontviewer"
-  ["http.request.headers.x-appgw-trace-id"]=>
-  string(12) "appgvtraceid"
-  ["http.request.headers.x-sigsci-tags"]=>
-  string(10) "sigscitags"
-  ["http.request.headers.x-sigsci-requestid"]=>
-  string(15) "sigscirequestid"
   ["http.request.headers.content-type"]=>
   string(10) "text/plain"
+  ["http.request.headers.user-agent"]=>
+  string(13) "my user agent"
   ["http.request.headers.x-amzn-trace-id"]=>
   string(13) "amazontraceid"
+  ["http.request.headers.x-appgw-trace-id"]=>
+  string(12) "appgvtraceid"
   ["http.request.headers.x-cloud-trace-context"]=>
   string(17) "cloudtracecontext"
+  ["http.request.headers.x-sigsci-requestid"]=>
+  string(15) "sigscirequestid"
+  ["http.request.headers.x-sigsci-tags"]=>
+  string(10) "sigscitags"
 }

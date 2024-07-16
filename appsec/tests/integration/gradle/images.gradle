@@ -13,6 +13,8 @@ def phpVersions = [
         '8.3': '8.3.0',
 ]
 
+def arch = System.getProperty('os.arch')
+
 def imageUpToDate = { inputs, String image ->
     return {
         long volumeTime = creationDateOf(image)
@@ -163,12 +165,21 @@ task buildAll {
 }
 
 def buildPushTask = { String tag, requirement ->
-    def task = tasks.register("pushImage-${tag}", Exec) {
+    tasks.register("pushImage-${tag}", Exec) {
         String image = "$repo:$tag"
+        String pushedImage = image + "-$arch"
         description = "Push image $image"
 
+        doLast {
+            def proc = ['docker', 'tag', image, pushedImage].execute()
+                proc.waitForOrKill(5_000)
+                if (proc.exitValue() != 0) {
+                    throw new GradleException("Failed to tag image $image with arch")
+                }
+        }
+
         dependsOn requirement
-        commandLine 'docker', 'push', image
+        commandLine 'docker', 'push', pushedImage
     }
 }
 def allPushTasks = [
@@ -191,9 +202,34 @@ tasks.register('pushAll') {
     dependsOn allPushTasks
 }
 
+def buildMultiArchTask = { String tag ->
+    tasks.register("pushImage-${tag}-multiarch", Exec) {
+        String image = "$repo:$tag"
+        commandLine 'docker', 'buildx', 'imagetools', 'create',
+                '-t', image, "$image-aarch64", "$image-amd64"
+    }
+}
+def allMultiArchTasks = [
+        *testMatrix.collect { spec ->
+            buildMultiArchTask("php-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildMultiArchTask("apache2-mod-php-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildMultiArchTask("apache2-fpm-php-${spec[0]}-${spec[1]}")
+        },
+        *testMatrix.collect { spec ->
+            buildMultiArchTask("nginx-fpm-php-${spec[0]}-${spec[1]}")
+        }
+]
+tasks.register('pushMultiArch') {
+    dependsOn allMultiArchTasks
+}
+
 task saveCaches(type: Exec) {
     description = "Save the docker caches"
-    outputs.file "${project.buildDir}/php-appsec-volume-caches.tar.gz"
+    outputs.file "${project.buildDir}/php-appsec-volume-caches-${arch}.tar.gz"
     commandLine 'docker', 'run', '--rm',
             '-e', "UUID=${uuid}",
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
@@ -201,7 +237,7 @@ task saveCaches(type: Exec) {
             '-v', "${project.buildDir}:/build",
             'busybox',
             'sh', '-c',
-            'tar -czf /build/php-appsec-volume-caches.tar.gz \
+            """tar -czf /build/php-appsec-volume-caches-${arch}.tar.gz \
               -C /caches php-tracer-cargo-cache php-appsec-hunter-cache && \
-              chown \$UUID /build/php-appsec-volume-caches.tar.gz'
+              chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }

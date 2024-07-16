@@ -176,6 +176,12 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_SIDECAR,
 } ddog_MetricNamespace;
 
+typedef enum ddog_MetricType {
+  DDOG_METRIC_TYPE_GAUGE,
+  DDOG_METRIC_TYPE_COUNT,
+  DDOG_METRIC_TYPE_DISTRIBUTION,
+} ddog_MetricType;
+
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -199,12 +205,6 @@ typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_WARN,
   DDOG_LOG_LEVEL_DEBUG,
 } ddog_LogLevel;
-
-typedef enum ddog_MetricType {
-  DDOG_METRIC_TYPE_GAUGE,
-  DDOG_METRIC_TYPE_COUNT,
-  DDOG_METRIC_TYPE_DISTRIBUTION,
-} ddog_MetricType;
 
 typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,

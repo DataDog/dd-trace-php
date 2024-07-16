@@ -24,7 +24,6 @@ if [[ -f /appsec/ddappsec.so && -d /project ]]; then
     echo datadog.appsec.helper_extra_args=--log_level info
     echo datadog.appsec.helper_path=/appsec/ddappsec-helper
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log
-    echo datadog.appsec.rules=/etc/recommended.json
     echo datadog.appsec.log_file=/tmp/logs/appsec.log
     echo datadog.appsec.log_level=debug
   } >> /etc/php/php.ini

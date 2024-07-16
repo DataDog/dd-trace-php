@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 	apache2-dev \
 	libsqlite3-dev \
   gdb \
+  rust-gdb \
   vim \
   && rm -rf /var/lib/apt/lists/*
 ADD build_dev_php.sh /build/php/

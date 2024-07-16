@@ -1,0 +1,4 @@
+set verbose off
+set confirm off
+handle SIGPIPE nostop print pass
+catch throw

@@ -9,6 +9,7 @@
 #include "config.hpp"
 #include "engine_ruleset.hpp"
 #include "engine_settings.hpp"
+#include "metrics.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
@@ -69,8 +70,7 @@ public:
 
         std::optional<result> publish(parameter &&param);
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
-            std::map<std::string_view, double> &metrics);
+        void get_metrics(metrics::TelemetrySubmitter &msubmitter);
 
     protected:
         std::vector<parameter> prev_published_params_;
@@ -86,8 +86,7 @@ public:
     virtual ~engine() = default;
 
     static engine::ptr from_settings(const dds::engine_settings &eng_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+        metrics::TelemetrySubmitter &msubmitter);
 
     static auto create(
         uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
@@ -100,9 +99,8 @@ public:
 
     // Update is not thread-safe, although only one remote config client should
     // be able to update it so in practice it should not be a problem.
-    virtual void update(engine_ruleset &ruleset,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+    virtual void update(
+        engine_ruleset &ruleset, metrics::TelemetrySubmitter &submit_metric);
 
 protected:
     explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})
@@ -110,6 +108,7 @@ protected:
     {}
 
     std::shared_ptr<shared_state> common_;
+    std::shared_ptr<metrics::TelemetrySubmitter> msubmitter_;
     rate_limiter<dds::timer> limiter_;
 };
 

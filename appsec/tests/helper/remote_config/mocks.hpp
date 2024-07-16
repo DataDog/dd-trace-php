@@ -7,8 +7,10 @@
 #pragma once
 
 #include "../common.hpp"
+#include "../tel_subm_mock.hpp"
 #include "base64.h"
 #include "engine.hpp"
+#include "metrics.hpp"
 #include "remote_config/client.hpp"
 #include "remote_config/config.hpp"
 #include "service_identifier.hpp"
@@ -22,9 +24,7 @@ public:
         action_map &&actions = {})
         : dds::engine(trace_rate_limit)
     {}
-    MOCK_METHOD(void, update,
-        (engine_ruleset &, (std::map<std::string, std::string> &),
-            (std::map<std::string_view, double> &)),
+    MOCK_METHOD(void, update, (engine_ruleset &, metrics::TelemetrySubmitter &),
         (override));
 
     static auto create() { return std::shared_ptr<engine>(new engine()); }

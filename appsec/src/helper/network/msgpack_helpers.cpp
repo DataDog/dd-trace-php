@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "msgpack_helpers.hpp"
 
+// NOLINTNEXTLINE(modernize-concat-nested-namespaces)
 namespace msgpack {
 MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
 namespace adaptor {

@@ -190,6 +190,7 @@ ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport
 
 void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                    ddog_CharSlice metric_name,
+                                                   enum ddog_MetricType metric_type,
                                                    enum ddog_MetricNamespace namespace_);
 
 void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,

@@ -7,6 +7,7 @@
 
 #include "../action.hpp"
 #include "../engine_settings.hpp"
+#include "../metrics.hpp"
 #include "../parameter.hpp"
 #include "../parameter_view.hpp"
 #include <memory>
@@ -34,9 +35,8 @@ public:
         virtual void call(parameter_view &data, event &event) = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual void get_meta_and_metrics(
-            std::map<std::string, std::string> &meta,
-            std::map<std::string_view, double> &metrics) = 0;
+        virtual void submit_metrics(
+            metrics::TelemetrySubmitter &msubmitter) = 0;
     };
 
     subscriber() = default;
@@ -50,9 +50,8 @@ public:
     virtual std::string_view get_name() = 0;
     virtual std::unordered_set<std::string> get_subscriptions() = 0;
     virtual listener::ptr get_listener() = 0;
-    virtual subscriber::ptr update(parameter &rule,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics) = 0;
+    virtual subscriber::ptr update(
+        parameter &rule, metrics::TelemetrySubmitter &submit_metric) = 0;
 };
 
 } // namespace dds

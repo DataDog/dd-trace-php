@@ -3,14 +3,17 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
 #include "common.hpp"
+#include "ddwaf.h"
 #include "engine_settings.hpp"
 #include "json_helper.hpp"
+#include "metrics.hpp"
+#include "tel_subm_mock.hpp"
 #include <rapidjson/document.h>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 #include <subscriber/waf.hpp>
-#include <tags.hpp>
 #include <utils.hpp>
 
 const std::string waf_rule =
@@ -41,36 +44,38 @@ TEST(WafTest, InitWithInvalidRules)
     engine_settings cs;
     cs.rules_file = create_sample_rules_invalid();
     auto ruleset = engine_ruleset::from_path(cs.rules_file);
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    mock::tel_submitter submitm{};
 
-    subscriber::ptr wi{
-        waf::instance::from_settings(cs, ruleset, meta, metrics)};
+    EXPECT_CALL(submitm, submit_legacy_meta(metrics::waf_version,
+                             std::string{ddwaf_get_version()}));
+    std::string rules_errors;
+    EXPECT_CALL(submitm, submit_legacy_meta(metrics::event_rules_errors, _))
+        .WillOnce(SaveArg<1>(&rules_errors));
 
-    EXPECT_EQ(meta.size(), 2);
-    EXPECT_STREQ(meta[std::string(tag::waf_version)].c_str(), "1.18.0");
+    EXPECT_CALL(
+        submitm, submit_legacy_metric(metrics::event_rules_loaded, 1.0));
+    EXPECT_CALL(
+        submitm, submit_legacy_metric(metrics::event_rules_failed, 4.0));
+
+    EXPECT_CALL(submitm, submit_metric("waf.init"sv, 1, _));
+
+    subscriber::ptr wi{waf::instance::from_settings(cs, ruleset, submitm)};
+
+    Mock::VerifyAndClearExpectations(&submitm);
 
     rapidjson::Document doc;
-    doc.Parse(meta[std::string(tag::event_rules_errors)]);
+    doc.Parse(rules_errors);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
     EXPECT_TRUE(doc.HasMember("unknown matcher: squash"));
     EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
-
-    EXPECT_EQ(metrics.size(), 2);
-    // For small enough integers this comparison should work, otherwise replace
-    // with EXPECT_NEAR.
-    EXPECT_EQ(metrics[tag::event_rules_loaded], 1.0);
-    EXPECT_EQ(metrics[tag::event_rules_failed], 4.0);
 }
 
 TEST(WafTest, RunWithInvalidParam)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    NiceMock<mock::tel_submitter> submitm{};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, submitm)};
     auto ctx = wi->get_listener();
     parameter_view pv;
     dds::event e;
@@ -79,10 +84,9 @@ TEST(WafTest, RunWithInvalidParam)
 
 TEST(WafTest, RunWithTimeout)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    NiceMock<mock::tel_submitter> submitm{};
 
-    subscriber::ptr wi(waf::instance::from_string(waf_rule, meta, metrics, 0));
+    subscriber::ptr wi(waf::instance::from_string(waf_rule, submitm, 0));
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -96,10 +100,8 @@ TEST(WafTest, RunWithTimeout)
 
 TEST(WafTest, ValidRunGood)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    NiceMock<mock::tel_submitter> submitm{};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -109,17 +111,24 @@ TEST(WafTest, ValidRunGood)
     dds::event e;
     ctx->call(pv, e);
 
-    ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-    EXPECT_GT(metrics[tag::waf_duration], 0.0);
+    EXPECT_CALL(submitm,
+        submit_legacy_meta(metrics::event_rules_version, std::string{"1.2.3"}));
+    double duration;
+    EXPECT_CALL(submitm, submit_legacy_metric(metrics::waf_duration, _))
+        .WillOnce(SaveArg<1>(&duration));
+    EXPECT_CALL(
+        submitm, submit_metric("waf.requests"sv, 1,
+                     std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version()));
+    ctx->submit_metrics(submitm);
+    EXPECT_GT(duration, 0.0);
+    Mock::VerifyAndClearExpectations(&submitm);
 }
 
 TEST(WafTest, ValidRunMonitor)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    NiceMock<mock::tel_submitter> submitm{};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -138,17 +147,26 @@ TEST(WafTest, ValidRunMonitor)
     }
 
     EXPECT_TRUE(e.actions.empty());
-    ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-    EXPECT_GT(metrics[tag::waf_duration], 0.0);
+
+    EXPECT_CALL(submitm,
+        submit_legacy_meta(metrics::event_rules_version, std::string{"1.2.3"}));
+    EXPECT_CALL(submitm, submit_legacy_metric(metrics::waf_duration, _));
+    EXPECT_CALL(
+        submitm, submit_metric("waf.requests"sv, 1,
+                     std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + ",rule_triggered:true"));
+    EXPECT_CALL(
+        submitm, submit_legacy_meta_copy_key(
+                     std::string{"_dd.appsec.s.arg2"}, std::string{"[8]"}));
+    ctx->submit_metrics(submitm);
+    Mock::VerifyAndClearExpectations(&submitm);
 }
 
 TEST(WafTest, ValidRunMonitorObfuscated)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    NiceMock<mock::tel_submitter> submitm{};
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics,
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, submitm,
         waf::instance::default_waf_timeout_us, "password"sv, "string 3"sv)};
     auto ctx = wi->get_listener();
 
@@ -171,26 +189,18 @@ TEST(WafTest, ValidRunMonitorObfuscated)
         "<Redacted>");
     EXPECT_STREQ(doc["rule_matches"][1]["parameters"][0]["value"].GetString(),
         "<Redacted>");
-
-    EXPECT_TRUE(e.actions.empty());
-
-    ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-    EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
 TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    NiceMock<mock::tel_submitter> submitm{};
 
     engine_settings cs;
     cs.rules_file = create_sample_rules_ok();
     cs.obfuscator_key_regex = "password";
     auto ruleset = engine_ruleset::from_path(cs.rules_file);
 
-    subscriber::ptr wi{
-        waf::instance::from_settings(cs, ruleset, meta, metrics)};
+    subscriber::ptr wi{waf::instance::from_settings(cs, ruleset, submitm)};
 
     auto ctx = wi->get_listener();
 
@@ -212,19 +222,13 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
 
     EXPECT_STREQ(doc["rule_matches"][0]["parameters"][0]["value"].GetString(),
         "<Redacted>");
-
-    ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-    EXPECT_GT(metrics[tag::waf_duration], 0.0);
 }
 
 TEST(WafTest, UpdateRuleData)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    NiceMock<mock::tel_submitter> submitm{};
 
-    subscriber::ptr wi{
-        waf::instance::from_string(waf_rule_with_data, meta, metrics)};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule_with_data, submitm)};
     ASSERT_TRUE(wi);
 
     auto addresses = wi->get_subscriptions();
@@ -245,7 +249,7 @@ TEST(WafTest, UpdateRuleData)
     auto param = json_to_parameter(
         R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
 
-    wi = wi->update(param, meta, metrics);
+    wi = wi->update(param, submitm);
     ASSERT_TRUE(wi);
 
     addresses = wi->get_subscriptions();
@@ -275,15 +279,14 @@ TEST(WafTest, UpdateRuleData)
         EXPECT_EQ(e.actions.size(), 1);
         EXPECT_EQ(e.actions.begin()->type, dds::action_type::block);
     }
+
+    Mock::VerifyAndClearExpectations(&submitm);
 }
 
 TEST(WafTest, UpdateInvalid)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    subscriber::ptr wi{
-        waf::instance::from_string(waf_rule_with_data, meta, metrics)};
+    NiceMock<mock::tel_submitter> submitm{};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule_with_data, submitm)};
     ASSERT_TRUE(wi);
 
     {
@@ -299,15 +302,18 @@ TEST(WafTest, UpdateInvalid)
 
     auto param = json_to_parameter(R"({})");
 
-    ASSERT_THROW(wi->update(param, meta, metrics), invalid_object);
+    EXPECT_CALL(submitm,
+        submit_metric("waf.updates"sv, 1,
+            std::string{"success:false,event_rules_version:,waf_version:"} +
+                ddwaf_get_version()));
+    ASSERT_THROW(wi->update(param, submitm), invalid_object);
 }
 
 TEST(WafTest, SchemasAreAdded)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    NiceMock<mock::tel_submitter> submitm{};
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    subscriber::ptr wi{waf::instance::from_string(waf_rule, submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map(), sub_p = parameter::map();
@@ -325,15 +331,23 @@ TEST(WafTest, SchemasAreAdded)
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
-    ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_FALSE(meta.empty());
-    EXPECT_STREQ(meta["_dd.appsec.s.arg2"].c_str(), "[8]");
+    EXPECT_CALL(
+        submitm, submit_metric("waf.requests"sv, 1,
+                     std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + ",rule_triggered:true"));
+    EXPECT_CALL(
+        submitm, submit_legacy_meta("_dd.appsec.event_rules.version", "1.2.3"));
+    EXPECT_CALL(submitm, submit_legacy_metric("_dd.appsec.waf.duration"sv, _));
+    EXPECT_CALL(
+        submitm, submit_legacy_meta_copy_key(
+                     std::string{"_dd.appsec.s.arg2"}, std::string{"[8]"}));
+    ctx->submit_metrics(submitm);
+    Mock::VerifyAndClearExpectations(&submitm);
 }
 
 TEST(WafTest, ActionsAreSentAndParsed)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    NiceMock<mock::tel_submitter> submitm{};
 
     auto p = parameter::map();
     p.add("http.client_ip", parameter::string("192.168.1.1"sv));
@@ -344,7 +358,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"block_request","parameters":{"status_code":123,"grpc_status_code":321,"type":"json","custom_param":"foo"}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
         subscriber::ptr wi{
-            waf::instance::from_string(rules_with_actions, meta, metrics)};
+            waf::instance::from_string(rules_with_actions, submitm)};
         ASSERT_TRUE(wi);
 
         auto addresses = wi->get_subscriptions();
@@ -383,7 +397,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"block_request","parameters":{}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
         subscriber::ptr wi{
-            waf::instance::from_string(rules_with_actions, meta, metrics)};
+            waf::instance::from_string(rules_with_actions, submitm)};
         ASSERT_TRUE(wi);
 
         auto addresses = wi->get_subscriptions();
@@ -422,7 +436,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"custom_type","parameters":{"some":"parameter"}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
         subscriber::ptr wi{
-            waf::instance::from_string(rules_with_actions, meta, metrics)};
+            waf::instance::from_string(rules_with_actions, submitm)};
         ASSERT_TRUE(wi);
 
         auto addresses = wi->get_subscriptions();
@@ -456,7 +470,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}], "rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
         subscriber::ptr wi{
-            waf::instance::from_string(rules_with_actions, meta, metrics)};
+            waf::instance::from_string(rules_with_actions, submitm)};
         ASSERT_TRUE(wi);
 
         auto addresses = wi->get_subscriptions();

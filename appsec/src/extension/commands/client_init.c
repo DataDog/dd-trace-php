@@ -257,6 +257,13 @@ static void _process_meta_and_metrics(
 
     mpack_node_t metrics = mpack_node_array_at(root, 4);
     dd_command_process_metrics(metrics, span);
+
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    if (mpack_node_array_length(root) >= 6) {
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        mpack_node_t tel_metrics = mpack_node_array_at(root, 5);
+        dd_command_process_telemetry_metrics(tel_metrics);
+    }
 }
 
 static dd_result _check_helper_version(mpack_node_t root)
