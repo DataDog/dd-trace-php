@@ -5,16 +5,16 @@
     "resource": "lucky_number",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 14595114391775792182,
+    "parent_id": 10088477474525139052,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "669136ab00000000",
+      "_dd.p.tid": "6696287200000000",
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/lucky/number",
-      "runtime-id": "ce0a09de-b08e-42e4-82a5-8c054f49123f",
+      "runtime-id": "1705ac20-fbbf-4e9f-b538-5524ce6a6530",
       "span.kind": "server",
       "symfony.route.action": "App\\Controller\\LuckyController@number",
       "symfony.route.name": "lucky_number"
@@ -121,12 +121,16 @@
                   "messaging.destination": "async",
                   "messaging.destination_kind": "queue",
                   "messaging.message_id": "1",
-                  "messaging.operation": "send",
                   "messaging.symfony.bus": "messenger.bus.default",
                   "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                   "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
-                  "messaging.system": "symfony",
-                  "span.kind": "producer"
+                  "messaging.system": "symfony"
+                },
+                "metrics": {
+                  "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
                 }
               },
                  {

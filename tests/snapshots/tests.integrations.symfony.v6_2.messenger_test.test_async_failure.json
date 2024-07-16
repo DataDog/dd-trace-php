@@ -5,16 +5,16 @@
     "resource": "lucky_fail",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 13921072818998445898,
+    "parent_id": 1267013910886896887,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "669127fc00000000",
+      "_dd.p.tid": "66962d5c00000000",
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost:9999/lucky/fail",
-      "runtime-id": "b669a55c-6ad0-4422-93a9-f53dd35019f9",
+      "runtime-id": "14484ba5-1a23-44f5-bced-0066bf1199d3",
       "span.kind": "server",
       "symfony.route.action": "App\\Controller\\LuckyController@fail",
       "symfony.route.name": "lucky_fail"
@@ -120,13 +120,17 @@
                   "component": "symfonymessenger",
                   "messaging.destination": "async",
                   "messaging.destination_kind": "queue",
-                  "messaging.message_id": "1720788989151-0",
-                  "messaging.operation": "send",
+                  "messaging.message_id": "1721118049539-0",
                   "messaging.symfony.bus": "messenger.bus.default",
                   "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                   "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Redis\\Transport\\RedisTransport",
-                  "messaging.system": "symfony",
-                  "span.kind": "producer"
+                  "messaging.system": "symfony"
+                },
+                "metrics": {
+                  "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
                 }
               },
                  {
@@ -247,11 +251,13 @@
                                        "component": "symfonymessenger",
                                        "messaging.destination": "async",
                                        "messaging.destination_kind": "queue",
-                                       "messaging.message_id": "1720788989151-0",
+                                       "messaging.message_id": "1721118049539-0",
+                                       "messaging.operation": "send",
                                        "messaging.symfony.bus": "messenger.bus.default",
                                        "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
                                        "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Redis\\Transport\\RedisTransport",
-                                       "messaging.system": "symfony"
+                                       "messaging.system": "symfony",
+                                       "span.kind": "producer"
                                      },
                                      "metrics": {
                                        "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1.0,

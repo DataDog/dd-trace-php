@@ -33,11 +33,17 @@ class SymfonyMessengerIntegration extends Integration
     {
         $integration = $this;
 
+        // Check if \Symfony\Component\Messenger\Event\WorkerStartedEvent class exists
+        if (!\class_exists(\Symfony\Component\Messenger\Event\WorkerStartedEvent::class)) {
+            // Only exists in Symfony Messenger 4.4+
+            return Integration::NOT_LOADED;
+        }
+
         trace_method(
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
             function (SpanData $span, array $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, 'send');
+                $integration->setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, null, true);
                 if ($exception) {
                     // Worker::handleMessage() will catch the exception. We need to manually attach it to the root span.
                     \DDTrace\root_span()->exception = $exception;
@@ -294,7 +300,7 @@ class SymfonyMessengerIntegration extends Integration
         if (empty($resource)) {
             $span->resource = empty($transportName)
                 ? $messageName
-                : (($operation === 'receive' || ($operation !== 'send' && $receivedStamp))
+                : (($operation === 'receive' || $receivedStamp)
                     ? "$transportName -> $messageName"
                     : "$messageName -> $transportName"
                 );
