@@ -33,7 +33,6 @@ class SymfonyMessengerIntegration extends Integration
     {
         $integration = $this;
 
-        // Check if \Symfony\Component\Messenger\Event\WorkerStartedEvent class exists
         if (!\class_exists(\Symfony\Component\Messenger\Event\WorkerStartedEvent::class)) {
             // Only exists in Symfony Messenger 4.4+
             return Integration::NOT_LOADED;
