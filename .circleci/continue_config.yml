@@ -3584,7 +3584,7 @@ jobs:
             docker-compose --version
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          command: git clone https://github.com/DataDog/system-tests.git  --branch estringana/enable-schema-extraction-php
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
@@ -4708,7 +4708,7 @@ workflows:
             ./build.sh php
           run: |
             cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh APPSEC_API_SECURITY
 
       - system_tests:
           requires: [ 'package extension' ]
