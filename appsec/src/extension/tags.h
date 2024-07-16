@@ -4,11 +4,11 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
-#include "attributes.h"
 #include "configuration.h"
 #include <php.h>
 #include <stdbool.h>
 #include <zend.h>
+#include "attributes.h"
 
 #define DD_TAG_DATA_MAX_LEN (1024UL * 1024UL)
 

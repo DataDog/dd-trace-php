@@ -4,7 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "logging.h"
-#include "attributes.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -18,6 +18,9 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <time.h>
+
+#include "attributes.h"
+
 #ifdef __linux__
 #    include <sys/syscall.h>
 #endif
@@ -564,8 +567,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(fdclose, 0, 1, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "mlog", PHP_FN(datadog_appsec_testing_mlog), mlog, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "fdclose", PHP_FN(datadog_appsec_testing_fdclose), fdclose, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "mlog", PHP_FN(datadog_appsec_testing_mlog), mlog, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "fdclose", PHP_FN(datadog_appsec_testing_fdclose), fdclose, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
