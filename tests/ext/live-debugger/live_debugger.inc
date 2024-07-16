@@ -41,6 +41,8 @@ function put_live_debugger_file($json) {
 
 class DebuggerLogReplayer {
     private $rr;
+    private $outstandingLogs = [];
+    private $outstandingDiagnostics = [];
 
     public function __construct() {
         require_once __DIR__ . '/../includes/request_replayer.inc';
@@ -61,13 +63,21 @@ class DebuggerLogReplayer {
 
     public function replayDebuggerData()
     {
+        if ($this->outstandingLogs) {
+            return array_shift($this->outstandingLogs);
+        }
+    
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
         $allLogs = json_decode(file_get_contents($this->rr->endpoint . '/replay'), true);
         if ($allLogs) {
             $allLogs = array_values(array_filter($allLogs, function ($v) { return strpos($v["uri"], '/debugger/v1/input') === 0; }));
         }
-        return $allLogs ? $allLogs[0] : [];
+        if ($allLogs) {
+            $this->outstandingLogs = $allLogs;
+            return array_shift($this->outstandingLogs);
+        }
+        return [];
     }
 
     public function waitForDiagnosticsDataAndReplay()
@@ -84,13 +94,21 @@ class DebuggerLogReplayer {
 
     public function replayDiagnosticsData()
     {
+        if ($this->outstandingDiagnostics) {
+            return array_shift($this->outstandingDiagnostics);
+        }
+    
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
-        $allLogs = json_decode(file_get_contents($this->rr->endpoint . '/replay'), true);
-        if ($allLogs) {
-            $allLogs = array_values(array_filter($allLogs, function ($v) { return strpos($v["uri"], '/debugger/v1/diagnostics') === 0; }));
+        $allDiagnostics = json_decode(file_get_contents($this->rr->endpoint . '/replay'), true);
+        if ($allDiagnostics) {
+            $allDiagnostics = array_values(array_filter($allDiagnostics, function ($v) { return strpos($v["uri"], '/debugger/v1/diagnostics') === 0; }));
         }
-        return $allLogs ? $allLogs[0] : [];
+        if ($allDiagnostics) {
+            $this->outstandingDiagnostics = $allDiagnostics;
+            return array_shift($this->outstandingDiagnostics);
+        }
+        return [];
     }
 }
 

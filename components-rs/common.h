@@ -364,7 +364,8 @@ typedef struct ddog_ProbeTarget {
   ddog_CharSlice method_name;
   ddog_CharSlice source_file;
   struct ddog_Option_CharSlice signature;
-  struct ddog_CharSliceVec lines;
+  const uint32_t *lines;
+  uint32_t lines_count;
   enum ddog_InBodyLocation in_body_location;
 } ddog_ProbeTarget;
 

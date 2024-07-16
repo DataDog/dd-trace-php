@@ -75,7 +75,7 @@ pub struct LiveDebuggerCallbacks {
 #[derive(Default)]
 pub struct LiveDebuggerState {
     pub spans_map: HashMap<String, i64>,
-    pub active: HashMap<String, (LiveDebuggingData, MaybeShmLimiter)>,
+    pub active: HashMap<String, Box<(LiveDebuggingData, MaybeShmLimiter)>>,
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
     pub deny_dfa: Option<Regex>,
@@ -181,10 +181,10 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             RemoteConfigUpdate::None => break,
             RemoteConfigUpdate::Add { value, limiter_index } => match value.data {
                 RemoteConfigData::LiveDebugger(debugger) => {
-                    let val = (debugger, MaybeShmLimiter::open(limiter_index));
+                    let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
                     let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
                     let entry = remote_config.live_debugger.active.entry(value.config_id);
-                    let (debugger, limiter) = match entry {
+                    let (debugger, limiter) = &mut **match entry {
                         Entry::Occupied(mut e) => {
                             e.insert(val);
                             e.into_mut()
@@ -205,8 +205,8 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             },
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
-                    if let Some((config, _)) = remote_config.live_debugger.active.remove(&path.config_id) {
-                        remove_config(remote_config, &config);
+                    if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id) {
+                        remove_config(remote_config, &boxed.0);
                     }
                 },
                 RemoteConfigProduct::ApmTracing => {
@@ -307,8 +307,12 @@ pub extern "C" fn ddog_type_can_be_instrumented(remote_config: &RemoteConfigStat
 
 #[no_mangle]
 pub extern "C" fn ddog_global_log_probe_limiter_inc(remote_config: &RemoteConfigState) -> bool {
-    if let Some((LiveDebuggingData::ServiceConfiguration(config), limiter)) = remote_config.live_debugger.active.get(&remote_config.live_debugger.config_id) {
-        limiter.inc(config.sampling_snapshots_per_second)
+    if let Some(boxed) = remote_config.live_debugger.active.get(&remote_config.live_debugger.config_id) {
+        if let (LiveDebuggingData::ServiceConfiguration(config), limiter) = &**boxed {
+            limiter.inc(config.sampling_snapshots_per_second)
+        } else {
+            true
+        }
     } else {
         true
     }
@@ -356,7 +360,8 @@ pub unsafe extern "C" fn ddog_setup_remote_config(update_config: DynamicConfigUp
 #[no_mangle]
 pub extern "C" fn ddog_rinit_remote_config(remote_config: &mut RemoteConfigState) {
     let active = mem::take(&mut remote_config.live_debugger.active);
-    for (_, (debugger, limiter)) in &active {
+    for (_, boxed) in &active {
+        let (debugger, limiter) = &**boxed;
         apply_config(remote_config, debugger, limiter);
     }
     remote_config.live_debugger.active = active;

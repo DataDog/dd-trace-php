@@ -292,6 +292,13 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
         return NULL;
     }
 }
+
+#define ZVAL_DEINDIRECT(z) do { \
+        if (Z_TYPE_P(z) == IS_INDIRECT) { \
+            (z) = Z_INDIRECT_P(z); \
+        } \
+    } while (0)
+
 #endif
 
 #if PHP_VERSION_ID < 70400

@@ -223,6 +223,10 @@ static bool dd_span_probe_begin(zend_ulong invocation, zend_execute_data *execut
     ZVAL_STRING(&dyn->span->property_name, "dd.dynamic.span");
     zval_ptr_dtor(&garbage);
 
+    zval probe_id;
+    ZVAL_STR_COPY(&probe_id, def->probe_id);
+    zend_hash_str_update(ddtrace_property_array(&dyn->span->property_meta), ZEND_STRL("debugger.probeid"), &probe_id);
+
     return true;
 }
 
@@ -338,6 +342,7 @@ typedef struct {
     bool rejected;
     ddog_DebuggerPayload *payload;
     zend_string *service;
+    zend_arena *capture_arena;
 } dd_log_probe_dyn;
 
 static bool dd_log_probe_eval_condition(dd_log_probe_def *def, zend_execute_data *execute_data, zval *retval) {
@@ -423,6 +428,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
     dd_log_probe_ensure_payload(dyn, def, &result_msg);
 
     if (def->parent.probe.probe.log.capture_snapshot) {
+        DDTRACE_G(debugger_capture_arena) = dyn->capture_arena ? dyn->capture_arena : zend_arena_create(65536);
         ddog_DebuggerCapture *capture = ddog_snapshot_exit(dyn->payload);
         dd_log_probe_capture_snapshot(capture, def, execute_data);
         const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
@@ -431,6 +437,11 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("@return"), capture_value);
     }
     ddtrace_sidecar_send_debugger_datum(dyn->payload);
+    if (DDTRACE_G(debugger_capture_arena)) {
+        zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
+        DDTRACE_G(debugger_capture_arena) = NULL;
+    }
+    zend_string_release(result);
     zend_string_release(dyn->service);
 }
 
@@ -446,12 +457,16 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
 
     dyn->payload = NULL;
     dyn->rejected = def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY && !dd_log_probe_eval_condition(def, execute_data, &retval);
+    dyn->capture_arena = NULL;
 
     if (!dyn->rejected && def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY) {
         dd_log_probe_ensure_payload(dyn, def, NULL);
         if (def->parent.probe.probe.log.capture_snapshot) {
             ddog_DebuggerCapture *capture = ddog_snapshot_entry(dyn->payload);
+            DDTRACE_G(debugger_capture_arena) = zend_arena_create(65536);
             dd_log_probe_capture_snapshot(capture, def, execute_data);
+            dyn->capture_arena = DDTRACE_G(debugger_capture_arena);
+            DDTRACE_G(debugger_capture_arena) = NULL;
         }
     }
 
@@ -696,17 +711,23 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
     struct eval_ctx *eval_ctx = ctx;
     zend_execute_data *execute_data = eval_ctx->frame;
 
-    if (EX(func) && ZEND_USER_CODE(EX(func)->type)) {
-#if PHP_VERSION_ID < 70100
-        if (!EX(symbol_table)) {
-#else
-        if (!(EX_CALL_INFO() & ZEND_CALL_HAS_SYMBOL_TABLE)) {
-#endif
-            zend_rebuild_symbol_table();
-        }
-        zval *zvp = zend_hash_str_find_ind(EX(symbol_table), name->ptr, name->len);
-        if (zvp) {
-            return zvp;
+    if (EX(func)) {
+        if (ZEND_USER_CODE(EX(func)->type)) {
+            zend_execute_data *current_execute_data = EG(current_execute_data);
+            EG(current_execute_data) = execute_data;
+            zval *zvp = zend_hash_str_find_ind(zend_rebuild_symbol_table(), name->ptr, name->len);
+            EG(current_execute_data) = current_execute_data;
+            if (zvp) {
+                return zvp;
+            }
+        } else {
+            int call_args = MIN(EX_NUM_ARGS(), EX(func)->common.num_args);
+            for (int i = 0; i < call_args; ++i) {
+                const char *argname = EX(func)->internal_function.arg_info[i].name;
+                if (zend_binary_strcmp(argname, strlen(argname), name->ptr, name->len) == 0) {
+                    return EX_VAR_NUM(i);
+                }
+            }
         }
     }
 
@@ -1128,6 +1149,7 @@ static void dd_stringify_zval(const zval *zv, smart_str *str, const ddog_Capture
                 if (ddog_snapshot_redacted_name(name)) {
                     smart_str_appends(str, "{redacted}");
                 } else {
+                    ZVAL_DEINDIRECT(val);
                     dd_stringify_zval(val, str, config, remaining_nesting - 1);
                 }
             } ZEND_HASH_FOREACH_END();
@@ -1202,7 +1224,7 @@ static bool dd_eval_instanceof(void *ctx, const void *zvp, const ddog_CharSlice 
     UNUSED(ctx);
     const zval *zv = zvp;
     ZVAL_DEREF(zv);
-    if (Z_TYPE_P(zv)) {
+    if (Z_TYPE_P(zv) == IS_OBJECT) {
         if (zend_binary_strcasecmp(ZEND_STRL("object"), class->ptr, class->len) == 0) {
             return true;
         }
@@ -1244,11 +1266,11 @@ ddog_LiveDebuggerSetup ddtrace_live_debugger_setup = {
 };
 
 void ddtrace_live_debugger_minit(void) {
-    zval *value;
-    ZEND_HASH_FOREACH_VAL(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS(), value) {
-        ddog_snapshot_add_redacted_name(dd_zend_string_to_CharSlice(Z_STR_P(value)));
+    zend_string *value;
+    ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS(), value) {
+        ddog_snapshot_add_redacted_name(dd_zend_string_to_CharSlice(value));
     } ZEND_HASH_FOREACH_END();
-    ZEND_HASH_FOREACH_VAL(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES(), value) {
-        ddog_snapshot_add_redacted_type(dd_zend_string_to_CharSlice(Z_STR_P(value)));
+    ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES(), value) {
+        ddog_snapshot_add_redacted_type(dd_zend_string_to_CharSlice(value));
     } ZEND_HASH_FOREACH_END();
 }

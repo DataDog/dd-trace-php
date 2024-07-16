@@ -352,7 +352,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
     if (!value->not_captured_reason.len) {
         value->value = (ddog_CharSlice) {.ptr = ZSTR_VAL(str), .len = ZSTR_LEN(str)};
         if (value->value.len > config->max_length) {
-            char *integer = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), 20);
+            char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 20);
             int len = sprintf(integer, "%" PRIuPTR, value->value.len);
             value->size = (ddog_CharSlice) {.ptr = integer, .len = len};
             value->value.len = config->max_length;
@@ -364,7 +364,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
 static void ddtrace_capture_long_value(zend_long num, struct ddog_CaptureValue *value) {
     value->type = DDOG_CHARSLICE_C("int");
     if (!value->not_captured_reason.len) {
-        char *integer = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), 20);
+        char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 20);
         int len = sprintf(integer, ZEND_LONG_FMT, num);
         value->value = (ddog_CharSlice) {.ptr = integer, .len = len};
     }
@@ -394,7 +394,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
         case IS_DOUBLE: {
             value->type = DDOG_CHARSLICE_C("float");
             if (!value->not_captured_reason.len) {
-                char *num = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), 20);
+                char *num = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 20);
                 php_gcvt(Z_DVAL_P(zv), (int) EG(precision), '.', 'E', num);
                 value->value = (ddog_CharSlice) {.ptr = num, .len = strlen(num)};
             }
@@ -496,7 +496,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                 } else if (ZSTR_VAL(key)[1] == '*') { // skip \0*\0
                     fieldname = (ddog_CharSlice) {.ptr = ZSTR_VAL(key) + 3, .len = ZSTR_LEN(key) - 3};
                 } else {
-                    char *name = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), ZSTR_LEN(key));
+                    char *name = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), ZSTR_LEN(key));
                     int classname_len = strlen(ZSTR_VAL(key) + 1);
                     memcpy(name, ZSTR_VAL(key) + 1, classname_len);
                     name[classname_len++] = ':';
@@ -505,6 +505,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                     fieldname = (ddog_CharSlice) {.ptr = name, .len = ZSTR_LEN(key)};
                 }
                 ddtrace_snapshot_redacted_name(&value_capture, fieldname);
+                ZVAL_DEINDIRECT(val);
                 ddtrace_create_capture_value(val, &value_capture, config, remaining_nesting - 1);
                 ddog_capture_value_add_field(value, fieldname, value_capture);
             } ZEND_HASH_FOREACH_END();
@@ -536,7 +537,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
 #define uuid_len 36
 
 static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, int frame_num, zval *locals, zend_string *service_name, const ddog_CaptureConfiguration *capture_config, uint64_t time, void *context, add_tag_fn_t add_meta) {
-        char *snapshot_id = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), uuid_len);
+        char *snapshot_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
         ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])snapshot_id);
 
         char msg[40];
@@ -576,13 +577,13 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
     zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
     zval *locals = zai_exception_read_property(exception, key_locals);
 
-    if (!DDTRACE_G(exception_debugger_arena)) {
-        DDTRACE_G(exception_debugger_arena) = zend_arena_create(65536);
+    if (!DDTRACE_G(debugger_capture_arena)) {
+        DDTRACE_G(debugger_capture_arena) = zend_arena_create(65536);
     }
 
     const ddog_CaptureConfiguration capture_config = ddog_capture_defaults();
 
-    char *exception_id = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), uuid_len);
+    char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])exception_id);
 
     add_meta(context, DDTRACE_STRING_LITERAL("error.debug_info_captured"), DDTRACE_STRING_LITERAL("true"));
@@ -630,7 +631,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
                         arg_name = (ddog_CharSlice) {.ptr = name, .len = strlen(name)};
                     }
                 } else {
-                    char *integer = zend_arena_alloc(&DDTRACE_G(exception_debugger_arena), 23);
+                    char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 23);
                     int len = sprintf(integer, "arg" ZEND_LONG_FMT, idx);
                     arg_name = (ddog_CharSlice){ .ptr = integer, .len = len };
                 }

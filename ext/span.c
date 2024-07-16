@@ -757,9 +757,9 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
 
         if (ddtrace_exception_debugging_is_active()) {
             ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));
-            if (DDTRACE_G(exception_debugger_arena)) {
-                zend_arena_destroy(DDTRACE_G(exception_debugger_arena));
-                DDTRACE_G(exception_debugger_arena) = NULL;
+            if (DDTRACE_G(debugger_capture_arena)) {
+                zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
+                DDTRACE_G(debugger_capture_arena) = NULL;
             }
         }
     }

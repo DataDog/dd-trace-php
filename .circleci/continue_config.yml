@@ -820,6 +820,7 @@ jobs:
     executor:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
+    resource_class: medium
     steps:
       - restore_cache:
           keys:
@@ -1806,6 +1807,7 @@ jobs:
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>
+    resource_class: medium
     steps:
       - restore_cache:
           keys:
@@ -5259,7 +5261,7 @@ workflows:
 
       - integration:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
-          resource_class: medium+
+          resource_class: large
           matrix:
             parameters:
               php_major_minor:

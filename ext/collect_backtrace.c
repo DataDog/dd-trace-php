@@ -413,7 +413,7 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
         }
 
         func = call->func;
-        if (!fake_frame && func->common.function_name) {
+        if (!fake_frame && func && func->common.function_name) {
             ZVAL_STR_COPY(&tmp, func->common.function_name);
             _zend_hash_append_ex(stack_frame, ZSTR_KNOWN(ZEND_STR_FUNCTION), &tmp, 1);
 

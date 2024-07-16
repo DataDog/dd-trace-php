@@ -42,17 +42,25 @@ delayed();
 var_dump(Delayed::foo());
 
 $dlr = new DebuggerLogReplayer;
-$log = $dlr->waitForDiagnosticsDataAndReplay();
+$ordered = [];
+$events = 0;
+$time = time();
+do {
+    $log = $dlr->waitForDiagnosticsDataAndReplay();
+    foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
+        $diagnostic = $payload["debugger"]["diagnostics"];
+        $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
+        ++$events;
+    }
+} while ($events < 5 && $time > time() - 10);
+ksort($ordered);
+foreach ($ordered as &$value) {
+    ksort($value);
+}
 var_dump($log["uri"]);
 var_dump($log["files"]["event"]["name"]);
-$ordered = [];
-foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
-    $diagnostic = $payload["debugger"]["diagnostics"];
-    $ordered[$diagnostic["probeId"]][] = $diagnostic["status"];
-}
-ksort($ordered);
 foreach ($ordered as $id => $statuses) {
-    print "$id: " . implode(", ", $statuses) . "\n";
+    print "$id: " . implode(", ", array_merge(...$statuses)) . "\n";
 }
 
 ?>
