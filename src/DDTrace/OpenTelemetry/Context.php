@@ -192,7 +192,7 @@ final class Context implements ContextInterface
         // Check for span events
         $events = [];
         foreach ($currentSpan->events as $spanEvent) {
-            $events[] = new SDK\Event($spanEvent->name, (int)$spanEvent->timestamp, Attributes::create($spanEvent->attributes ?? []));
+            $events[] = new SDK\Event($spanEvent->name, (int)$spanEvent->timestamp, Attributes::create((array)$spanEvent->attributes));
         }
 
         $OTelCurrentSpan = SDK\Span::startSpan(

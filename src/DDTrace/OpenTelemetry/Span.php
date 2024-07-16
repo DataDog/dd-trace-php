@@ -102,7 +102,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $span->name = $this->operationNameConvention = Convention::defaultOperationName($span);
         }
 
-        // Set the span links
+        // Set the span links and events
         if ($isRemapped) {
             // At initialization time (now), only set the links if the span was created using the OTel API
             // Otherwise, the links were already set in DD's OpenTelemetry\Context\Context
@@ -125,11 +125,12 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             foreach ($events as $event) {
                 /** @var EventInterface $event */
 
-                $spanEvent = new SpanEvent();
-                $spanEvent->name = $event->getName();
-                $spanEvent->timestamp = $event->getEpochNanos();
-                $spanEvent->attributes = $event->getAttributes()->toArray();
-
+                $spanEvent = new SpanEvent(
+                    $event->getName(), 
+                    $event->getAttributes()->toArray(),
+                    $event->getEpochNanos()
+                );
+     
                 // Save the event
                 ObjectKVStore::put($spanEvent, "event", $event);
                 $span->events[] = $spanEvent;
@@ -516,7 +517,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $event = new Event(
                     $datadogSpanEvent->name,
                     (int)$datadogSpanEvent->timestamp,
-                    Attributes::create($datadogSpanEvent->attributes ?? [])
+                    Attributes::create((array)$datadogSpanEvent->attributes ?? [])
                 );
 
                 // Save the event

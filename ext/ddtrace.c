@@ -617,6 +617,69 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 #endif
 }
 
+/* DDTrace\SpanEvent */
+zend_class_entry *ddtrace_ce_span_event;
+
+PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
+    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    zend_array *array = zend_new_array(3);
+
+    zend_string *name = zend_string_init("name", sizeof("name") - 1, 0);
+    zend_string *timestamp = zend_string_init("time_unix_nano", sizeof("time_unix_nano") - 1, 0);
+
+    Z_TRY_ADDREF(event->property_name);
+    zend_hash_add(array, name, &event->property_name);
+    Z_TRY_ADDREF(event->property_timestamp);
+    zend_hash_add(array, timestamp, &event->property_timestamp);
+
+    zend_string_release(name);
+    zend_string_release(timestamp);
+
+    if (Z_TYPE(event->property_attributes) != IS_NULL && Z_ARRVAL(event->property_attributes)->nNumOfElements > 0) {
+        zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+        Z_TRY_ADDREF(event->property_attributes);
+        zend_hash_add(array, attributes, &event->property_attributes);
+        zend_string_release(attributes);
+    }
+
+    RETURN_ARR(array);
+}
+
+PHP_METHOD(DDTrace_SpanEvent, __construct) {
+    (void)return_value;  // Suppress unused parameter warning
+
+    zend_string *name;
+    zval *attributes = NULL;
+    zend_long timestamp = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STR(name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(attributes, 1, 0)
+        Z_PARAM_LONG(timestamp)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    ZVAL_STR_COPY(&event->property_name, name);
+
+    // Convert the Unix timestamp to nanoseconds
+    if (timestamp == 0) {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ZVAL_LONG(&event->property_timestamp, ts.tv_sec * 1e9 + ts.tv_nsec);
+    } else {
+        ZVAL_LONG(&event->property_timestamp, timestamp * 1e9);
+    }
+
+    if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {
+        ZVAL_DUP(&event->property_attributes, attributes);
+    } else {
+        array_init(&event->property_attributes);
+    }
+}
+
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
 
@@ -647,35 +710,6 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
     zend_string_release(trace_state);
     zend_string_release(attributes);
     zend_string_release(dropped_attributes_count);
-
-    RETURN_ARR(array);
-}
-
-/* DDTrace\SpanEvent */
-zend_class_entry *ddtrace_ce_span_event;
-
-PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
-    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
-
-    zend_array *array = zend_new_array(3);
-
-    zend_string *name = zend_string_init("name", sizeof("name") - 1, 0);
-    zend_string *timestamp = zend_string_init("time_unix_nano", sizeof("time_unix_nano") - 1, 0);
-
-    Z_TRY_ADDREF(event->property_name);
-    zend_hash_add(array, name, &event->property_name);
-    Z_TRY_ADDREF(event->property_timestamp);
-    zend_hash_add(array, timestamp, &event->property_timestamp);
-
-    zend_string_release(name);
-    zend_string_release(timestamp);
-
-    if (Z_TYPE(event->property_attributes) != IS_NULL && Z_ARRVAL(event->property_attributes)->nNumOfElements > 0) {
-        zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
-        Z_TRY_ADDREF(event->property_attributes);
-        zend_hash_add(array, attributes, &event->property_attributes);
-        zend_string_release(attributes);
-    }
 
     RETURN_ARR(array);
 }

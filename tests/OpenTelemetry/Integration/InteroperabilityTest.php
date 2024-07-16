@@ -1157,12 +1157,11 @@ final class InteroperabilityTest extends BaseTestCase
             $span = start_span();
             $span->name = "dd.span";
 
-            $spanEvent = new SpanEvent();
-            $spanEvent->name = "event-name";
-            $spanEvent->timestamp = 1720037568765201300;
-            $spanEvent->attributes = [
-                'arg1' => 'value1',
-            ];
+            $spanEvent = new SpanEvent(
+                "event-name", 
+                [ 'arg1' => 'value1' ], 
+                1720037568765201300
+            );
             $span->events[] = $spanEvent;
 
             /** @var en $OTelSpan */
@@ -1190,14 +1189,14 @@ final class InteroperabilityTest extends BaseTestCase
 
         $traces = $this->isolateTracer(function () use ($sampledSpanContext) {
             $otelSpan = self::getTracer()->spanBuilder("otel.span")
-                ->addEvent("event-name", 1720037568765201300, ['arg1' => 'value1'])
+                ->addEvent("event-name", ['arg1' => 'value1'], 1720037568765201300)
                 ->startSpan();
 
             $activeSpan = active_span();
             $spanEvent = $activeSpan->events[0];
             $this->assertSame("event-name", $spanEvent->name);
-            $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
             $this->assertSame(['arg1' => 'value1'], $spanEvent->attributes);
+            $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
 
             $otelSpan->end();
         });
@@ -1209,18 +1208,19 @@ final class InteroperabilityTest extends BaseTestCase
 
     public function testOtelAddEventMetaSerialization()
     {
-        $eventTwoNanoTimestamp = (int)(microtime(true) * 1e9);
-
-        $traces = $this->isolateTracer(function () use ($eventTwoNanoTimestamp) {
+        $eventTwoMicroTimestamp = (int)microtime(true);
+        $eventTwoNanoTimestamp = $eventTwoMicroTimestamp * 1000;
+        
+        $traces = $this->isolateTracer(function () use ($eventTwoMicroTimestamp, $eventTwoNanoTimestamp) {
             $otelSpan = self::getTracer()->spanBuilder("operation")
                 ->addEvent("first_event")
-                ->addEvent("second_event", $eventTwoNanoTimestamp, ['string_val' => 'value'])
-                ->addEvent("third_event", 1, [
+                ->addEvent("second_event", ['string_val' => 'value'], $eventTwoMicroTimestamp)
+                ->addEvent("third_event", [
                     'int_val' => 1,
                     'string_val' => '2',
                     'int_array' => [3, 4],
                     'string_array' => ['5', '6']
-                ])
+                ], 1)
                 ->startSpan();
 
             $otelSpan->end();
@@ -1235,7 +1235,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         $event2 = $events[1];
         $this->assertSame('second_event', $event2['name']);
-        $this->assertSame(intdiv($eventTwoNanoTimestamp, 10000), intdiv((int)$event2['time_unix_nano'], 10000)); // reduce the precision tested
+        $this->assertSame(intdiv($eventTwoNanoTimestamp, 1000), intdiv((int)$event2['time_unix_nano'], 1000));
         $this->assertSame('value', $event2['attributes']['string_val']);
 
         $event3 = $events[2];
@@ -1257,7 +1257,7 @@ final class InteroperabilityTest extends BaseTestCase
                     "string_val" => "value",
                     "exception.stacktrace" => "stacktrace1"
                 ])
-                ->addEvent("non_exception_event", null, ["exception.stacktrace" => "non-error"])
+                ->addEvent("non_exception_event", ["exception.stacktrace" => "non-error"])
                 ->recordException(new \Exception("woof3"), ["exception.message" => "message override"])
                 ->startSpan();
 

@@ -96,11 +96,19 @@ final class SpanBuilder implements API\SpanBuilderInterface
         return $this;
     }
 
-    public function addEvent(string $name, int $timestamp = null, iterable $attributes = []): SpanBuilderInterface
+    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanBuilderInterface
     {
-        $attributesArray = Attributes::create($attributes);
-        $nanoTimestamp = ($timestamp !== null && $timestamp < 1e9) ? $timestamp * 1000 : ($timestamp ?? (int)(microtime(true) * 1e9)); // Convert microseconds to nanoseconds if needed
-        $this->events[] = new Event($name, $nanoTimestamp, Attributes::create($attributes));
+        $nanoTimestamp = $timestamp ?? (int)microtime(true);
+        $this->events[] = new Event(
+            $name, 
+            $nanoTimestamp,
+            $this->tracerSharedState
+                ->getSpanLimits()
+                ->getEventAttributesFactory()
+                ->builder($attributes)
+                ->build(),
+        );
+             
         return $this;
     }
 
@@ -123,7 +131,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $allAttributes = array_merge($exceptionAttributes, iterator_to_array($attributes));
 
         // Record the exception event
-        $this->addEvent('exception', null, $allAttributes);
+        $this->addEvent('exception', $allAttributes);
 
         return $this;
     }
