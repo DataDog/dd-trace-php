@@ -1,5 +1,6 @@
 stages:
   - build
+  - shared-pipeline # OCI packaging
   - deploy
   - benchmarks
   - ci-build
@@ -14,6 +15,7 @@ variables:
 
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/one-pipeline.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
 
@@ -41,8 +43,25 @@ build:
       - 'upstream.env'
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
+download_artifacts:
+  extends: .ci_authenticated_job
+  stage: build
+  image: registry.ddbuild.io/images/ci_docker_base
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - |
+      source .gitlab/download-circleci_artifact.sh
+
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
+  artifacts:
+    paths:
+      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
+      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
+
 deploy_to_reliability_env:
   stage: deploy
+  needs: [ build ]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
       when: always
@@ -68,17 +87,18 @@ tracer-base-image:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
   stage: deploy
+  needs: [ build ]
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
 
     #Dev X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh dev   
+    - ./tooling/ci/download-binary-php.sh dev
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
- 
+
     #Prod X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod   
+    - ./tooling/ci/download-binary-php.sh prod
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest

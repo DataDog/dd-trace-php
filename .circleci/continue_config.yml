@@ -3014,10 +3014,10 @@ jobs:
             ./configure
             make clean
             make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror"
-            cp modules/dd_library_loader.so modules/dd_library_loader-$(uname -m)-<< parameters.os >>.so
+            cp modules/dd_library_loader.so ../dd_library_loader-$(uname -m)-<< parameters.os >>.so
       - persist_to_workspace:
           root: '.'
-          paths: [ './loader/modules/dd_library_loader-*.so' ]
+          paths: [ './dd_library_loader-*.so' ]
       - store_artifacts:
           path: ./loader/modules/dd_library_loader.so
 
@@ -3052,14 +3052,16 @@ jobs:
             set -xeuo pipefail
 
             arch=$(uname -m)
-            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-*-${arch}-linux-gnu.tar.gz")
-            rm -rf dd-library-php
+            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-ssi-*-${arch}-linux.tar.gz")
+            rm -rf dd-library-php-ssi
             tar -xzf ${package}
-            export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php
+            export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
 
             cd loader
-            cp modules/dd_library_loader-$(uname -m)-linux-gnu.so modules/dd_library_loader.so
+            mkdir -p modules
+            cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
             ./bin/test.sh
+            ./bin/check_glibc_version.sh
 
   "test_loader_alpine":
     working_directory: ~/datadog
@@ -3090,13 +3092,14 @@ jobs:
             apk add --no-cache curl-dev << parameters.alpine_packages >>
 
             arch=$(uname -m)
-            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-*-${arch}-linux-musl.tar.gz")
-            rm -rf dd-library-php
+            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-ssi-*-${arch}-linux.tar.gz")
+            rm -rf dd-library-php-ssi
             tar -xzf ${package}
-            export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php
+            export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
 
             cd loader
-            cp modules/dd_library_loader-$(uname -m)-linux-musl.so modules/dd_library_loader.so
+            mkdir -p modules
+            cp ../dd-library-php-ssi/linux-musl/loader/dd_library_loader.so modules/
             ./bin/test.sh
 
   compile_rust_centos:
@@ -3555,8 +3558,7 @@ jobs:
 
   system_tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:2024.05.1
     parameters:
       build:
         type: string
@@ -3572,10 +3574,10 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
 
       - run:
-          name: Install python 3.9
+          name: Install python 3.12
           command: |
             sudo apt-get update
-            sudo apt-get install python3.9-venv
+            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
 
       - run:
           name: versions
@@ -4242,6 +4244,11 @@ workflows:
             - "Profiler PHP v8.2 - aarch64-unknown-linux-gnu"
             - "Profiler PHP v8.3 - aarch64-unknown-linux-gnu"
 
+            - "Compile Loader Linux x86_64"
+            - "Compile Loader Linux aarch64"
+            - "Compile Loader Alpine x86_64"
+            - "Compile Loader Alpine aarch64"
+
             - compile_appsec_extension_centos
             - compile_appsec_extension_alpine
             - compile_appsec_helper
@@ -4749,7 +4756,6 @@ workflows:
       - "test_loader_linux":
           requires:
             - "package extension"
-            - "Compile Loader Linux x86_64"
           name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "medium"
@@ -4768,7 +4774,6 @@ workflows:
       - "test_loader_linux":
           requires:
             - "package extension"
-            - "Compile Loader Linux x86_64"
           name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "medium"
@@ -4788,7 +4793,6 @@ workflows:
       - "test_loader_linux":
           requires:
             - "package extension"
-            - "Compile Loader Linux aarch64"
           name: "[Linux/aarch64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "arm.medium"
@@ -4806,7 +4810,6 @@ workflows:
       - "test_loader_linux":
           requires:
             - "package extension"
-            - "Compile Loader Linux aarch64"
           name: "[Linux/aarch64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "arm.medium"
@@ -4826,7 +4829,6 @@ workflows:
       - "test_loader_alpine":
           requires:
             - "package extension"
-            - "Compile Loader Alpine x86_64"
           name: "[Alpine/x86_64] Loader PHP Alpine << matrix.alpine_version >>"
           docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "medium"
@@ -4841,7 +4843,6 @@ workflows:
       - "test_loader_alpine":
           requires:
             - "package extension"
-            - "Compile Loader Alpine aarch64"
           name: "[Alpine/aarch64] Loader PHP Alpine << matrix.alpine_version >>"
           docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "arm.medium"

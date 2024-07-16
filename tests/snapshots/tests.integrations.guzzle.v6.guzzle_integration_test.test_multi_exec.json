@@ -8,12 +8,11 @@
     "parent_id": 0,
     "type": "cli",
     "meta": {
-      "_dd.p.dm": "0",
-      "_dd.p.tid": "659fe8be00000000",
-      "runtime-id": "9f02132a-1f6b-4093-b130-2a483fa07e64"
+      "_dd.p.dm": "-4",
+      "_dd.p.tid": "66953a5a00000000",
+      "runtime-id": "ffadbfb6-1cfa-4c80-937d-baadb2a3eebf"
     },
     "metrics": {
-      "_dd.agent_psr": 1,
       "_sampling_priority_v1": 1
     }
   },
