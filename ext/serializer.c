@@ -865,15 +865,6 @@ zend_string *ddtrace_active_service_name(void) {
     return ddtrace_default_service_name();
 }
 
-bool is_opcache_preload(void) {
-    // These are all set to NULL during accel_finish_startup_preload
-    if (sapi_module.activate || sapi_module.deactivate || sapi_module.register_server_variables || sapi_module.getenv) {
-        return false;
-    }
-
-    return true;
-}
-
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
@@ -989,7 +980,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
         }
 
-        if (get_DD_TRACE_GIT_METADATA_ENABLED() && !is_opcache_preload()) {
+        if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
             ddtrace_inject_git_metadata(&span->property_git_metadata);
         }
     }
