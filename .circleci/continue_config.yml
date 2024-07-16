@@ -4223,6 +4223,7 @@ workflows:
             - "Compile x86_64 PHP 81 nts + zts + debug"
             - "Compile x86_64 PHP 82 nts + zts + debug"
             - "Compile x86_64 PHP 83 nts + zts + debug"
+            - "Compile x86_64 PHP 84 nts + zts + debug"
           name: "Link x86_64 PHP"
           docker_image: "datadog/dd-trace-ci:centos-7"
       - link_extension:
@@ -4237,6 +4238,7 @@ workflows:
             - "Compile aarch64 PHP 81 nts + zts + debug"
             - "Compile aarch64 PHP 82 nts + zts + debug"
             - "Compile aarch64 PHP 83 nts + zts + debug"
+            - "Compile aarch64 PHP 84 nts + zts + debug"
           name: "Link aarch64 PHP"
           docker_image: "datadog/dd-trace-ci:centos-7"
           resource_class: "arm.xlarge"
@@ -4259,6 +4261,7 @@ workflows:
             - "Compile Windows PHP 81 nts + zts"
             - "Compile Windows PHP 82 nts + zts"
             - "Compile Windows PHP 83 nts + zts"
+            - "Compile Windows PHP 84 nts + zts"
             - "Build PECL"
 
             - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
@@ -4391,6 +4394,8 @@ workflows:
             - "Compile aarch64 PHP 82 debug-zts-asan"
             - "Compile x86_64 PHP 83 debug-zts-asan"
             - "Compile aarch64 PHP 83 debug-zts-asan"
+            - "Compile x86_64 PHP 84 debug-zts-asan"
+            - "Compile aarch64 PHP 84 debug-zts-asan"
 
       - "x-profiling phpt tests on Alpine":
           requires: [ 'package extension' ]
@@ -4576,6 +4581,7 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=1
                 - PHP_MAJOR=8 PHP_MINOR=2
                 - PHP_MAJOR=8 PHP_MINOR=3
+                - PHP_MAJOR=8 PHP_MINOR=4
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
