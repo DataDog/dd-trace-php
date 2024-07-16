@@ -57,7 +57,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto s = service(
             engine, service_config, nullptr, {true, all_requests_are_picked});
 
-        EXPECT_TRUE(s.get_schema_sampler()->get().has_value());
+        EXPECT_TRUE(s.get_schema_sampler()->get());
     }
 
     { // Constructor. It does not pick based on rate
@@ -65,7 +65,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto s = service(
             engine, service_config, nullptr, {true, no_request_is_picked});
 
-        EXPECT_FALSE(s.get_schema_sampler()->get().has_value());
+        EXPECT_FALSE(s.get_schema_sampler()->get());
     }
 
     { // Constructor. It does not pick if disabled
@@ -74,7 +74,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto s = service(engine, service_config, nullptr,
             {schema_extraction_disabled, all_requests_are_picked});
 
-        EXPECT_FALSE(s.get_schema_sampler()->get().has_value());
+        EXPECT_FALSE(s.get_schema_sampler()->get());
     }
 
     { // Static constructor. It picks based on rate
@@ -83,7 +83,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto service = service::from_settings(
             service_identifier(sid), engine_settings, {}, meta, metrics, false);
 
-        EXPECT_TRUE(service->get_schema_sampler()->get().has_value());
+        EXPECT_TRUE(service->get_schema_sampler()->get());
     }
 
     { // Static constructor.  It does not pick based on rate
@@ -92,7 +92,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto service = service::from_settings(
             service_identifier(sid), engine_settings, {}, meta, metrics, false);
 
-        EXPECT_FALSE(service->get_schema_sampler()->get().has_value());
+        EXPECT_FALSE(service->get_schema_sampler()->get());
     }
 
     { // Static constructor. It does not pick if disabled
@@ -101,7 +101,7 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
         auto service = service::from_settings(
             service_identifier(sid), engine_settings, {}, meta, metrics, false);
 
-        EXPECT_FALSE(service->get_schema_sampler()->get().has_value());
+        EXPECT_FALSE(service->get_schema_sampler()->get());
     }
 }
 

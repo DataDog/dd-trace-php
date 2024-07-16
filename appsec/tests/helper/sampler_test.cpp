@@ -25,8 +25,7 @@ std::atomic<int> picked = 0;
 void count_picked(dds::sampler &sampler, int iterations)
 {
     for (int i = 0; i < iterations; i++) {
-        auto is_pick = sampler.get();
-        if (is_pick != std::nullopt) {
+        if (sampler.get()) {
             picked++;
         }
     }
@@ -200,27 +199,5 @@ TEST(SamplerTest, TestOverflow)
     s.set_request(UINT_MAX);
     s.get();
     EXPECT_EQ(1, s.get_request());
-}
-
-TEST(ScopeTest, TestConcurrent)
-{
-    std::atomic<bool> concurrent = false;
-    {
-        auto s = sampler::scope(std::ref(concurrent));
-        EXPECT_TRUE(concurrent);
-    }
-    EXPECT_FALSE(concurrent);
-}
-
-TEST(ScopeTest, TestItDoesNotPickTokenUntilScopeReleased)
-{
-    sampler sampler(0.9999);
-    auto is_pick = sampler.get();
-    EXPECT_TRUE(is_pick != std::nullopt);
-    is_pick = sampler.get();
-    EXPECT_FALSE(is_pick != std::nullopt);
-    is_pick.reset();
-    is_pick = sampler.get();
-    EXPECT_TRUE(is_pick != std::nullopt);
 }
 } // namespace dds
