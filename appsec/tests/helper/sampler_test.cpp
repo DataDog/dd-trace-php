@@ -214,7 +214,7 @@ TEST(ScopeTest, TestConcurrent)
 
 TEST(ScopeTest, TestItDoesNotPickTokenUntilScopeReleased)
 {
-    sampler sampler(1);
+    sampler sampler(0.9999);
     auto is_pick = sampler.get();
     EXPECT_TRUE(is_pick != std::nullopt);
     is_pick = sampler.get();

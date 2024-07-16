@@ -64,9 +64,13 @@ public:
 
     std::optional<scope> get()
     {
-        const std::lock_guard<std::mutex> lock_guard(mtx_);
-
         std::optional<scope> result = std::nullopt;
+        if (sample_rate_ == 1) {
+            std::atomic<bool> concurrent;
+            return {scope{concurrent}};
+        }
+
+        const std::lock_guard<std::mutex> lock_guard(mtx_);
 
         if (!concurrent_ && floor(request_ * sample_rate_) !=
                                 floor((request_ + 1) * sample_rate_)) {
