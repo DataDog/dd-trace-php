@@ -297,15 +297,17 @@ class SymfonyMessengerIntegration extends Integration
         ];
 
         if (empty($resource)) {
-            $span->resource = empty($transportName)
-                ? $messageName
-                : (($operation === 'receive' || $receivedStamp)
-                    ? "$transportName -> $messageName"
-                    : "$messageName -> $transportName"
-                );
-        } else {
-            $span->resource = $resource;
+            if (empty($transportName)) {
+                $resource = $messageName;
+            } elseif ($operation === 'send') {
+                $resource = "$messageName -> $transportName";
+            } elseif ($operation === 'receive' || $receivedStamp) {
+                $resource = "$transportName -> $messageName";
+            } else {
+                $resource = "$messageName -> $transportName";
+            }
         }
+        $span->resource = $resource;
         $span->meta = \array_merge($span->meta, \array_filter($metadata));
         $span->metrics = \array_merge($span->metrics, \array_filter($metrics));
     }

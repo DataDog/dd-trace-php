@@ -112,7 +112,7 @@ trait TracerTestTrait
         curl_close($curl);
 
         // Output the response for debugging purposes
-        // echo $response;
+        echo $response;
     }
 
     /**

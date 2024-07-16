@@ -43,6 +43,10 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncSuccess()
     {
+        if (\version_compare(\PHP_VERSION, '8.3.0', '>=')) {
+            $this->markTestSkipped("This test agent doesn't behave properly with PHP 8.3");
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky number', '/lucky/number');
             $this->call($spec);
@@ -71,6 +75,10 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncFailure()
     {
+        if (\version_compare(\PHP_VERSION, '8.3.0', '>=')) {
+            $this->markTestSkipped("This test agent doesn't behave properly with PHP 8.3");
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky fail', '/lucky/fail');
             $this->call($spec);
