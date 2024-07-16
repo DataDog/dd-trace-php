@@ -6,6 +6,10 @@ IFS=$'\n\t'
 release_version=$1
 packages_build_dir=$2
 
+# This string will be used in the OCI tag
+# '+' char is not allowed
+release_version_sanitized=${release_version/+/-}
+
 tmp_folder=/tmp/bundle
 tmp_folder_final=$tmp_folder/final
 
@@ -57,7 +61,7 @@ for architecture in "${architectures[@]}"; do
     done;
 
     cp -r ./src ${trace}/
-    echo "$release_version" > ${root}/version
+    echo "$release_version_sanitized" > ${root}/version
 
     ########################
     # Final archives
