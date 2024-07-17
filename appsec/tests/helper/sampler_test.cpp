@@ -15,7 +15,7 @@ class sampler : public dds::sampler {
 public:
     sampler(double sample_rate) : dds::sampler(sample_rate) {}
     void set_request(unsigned int i) { request_ = i; }
-    auto get_request() { return request_; }
+    unsigned int get_request() { return request_; }
 };
 
 } // namespace mock
@@ -25,7 +25,7 @@ std::atomic<int> picked = 0;
 void count_picked(dds::sampler &sampler, int iterations)
 {
     for (int i = 0; i < iterations; i++) {
-        if (sampler.get()) {
+        if (sampler.picked()) {
             picked++;
         }
     }
@@ -197,7 +197,7 @@ TEST(SamplerTest, TestOverflow)
 {
     mock::sampler s(0);
     s.set_request(UINT_MAX);
-    s.get();
-    EXPECT_EQ(1, s.get_request());
+    s.picked();
+    EXPECT_EQ(0, s.get_request());
 }
 } // namespace dds

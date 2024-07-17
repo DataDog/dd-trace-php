@@ -28,31 +28,19 @@ public:
         // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     }
 
-    bool get()
+    bool picked()
     {
-        bool result = false;
         if (sample_rate_ == 1) {
             return true;
         }
 
-        const std::lock_guard<std::mutex> lock_guard(mtx_);
-
-        if (floor(request_ * sample_rate_) !=
-            floor((request_ + 1) * sample_rate_)) {
-            result = true;
-        }
-
-        if (request_ < std::numeric_limits<unsigned>::max()) {
-            request_++;
-        } else {
-            request_ = 1;
-        }
-
-        return result;
+        auto old_request = request_.fetch_add(1, std::memory_order_relaxed);
+        return floor(old_request * sample_rate_) !=
+               floor((request_)*sample_rate_);
     }
 
 protected:
-    unsigned request_{1};
+    std::atomic<unsigned> request_{0};
     double sample_rate_;
     std::mutex mtx_;
 };

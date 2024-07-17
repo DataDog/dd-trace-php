@@ -416,7 +416,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
     auto sampler = service_->get_schema_sampler();
-    if (sampler && sampler->get()) {
+    if (sampler && sampler->picked()) {
         parameter context_processor = parameter::map();
         context_processor.add("extract-schema", parameter::as_boolean(true));
         command.data.add("waf.context.processor", std::move(context_processor));
