@@ -2,7 +2,6 @@
 The sidecar trace flusher sender informs about changes to the agent sample rate
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
-<?php if ((getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) || getenv("TEST_PHP_JUNIT")) die('skip: valgrind reports sendmsg(msg.msg_control) points to uninitialised byte(s), but it is unproblematic and outside our control in rust code'); ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AGENT_HOST=request-replayer

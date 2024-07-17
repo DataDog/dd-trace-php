@@ -53,7 +53,7 @@ enum ddtrace_sampling_rules_format {
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1
 
-#if defined(_WIN32)
+#if PHP_VERSION_ID >= 80300 || defined(_WIN32)
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
 #else
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT false
@@ -184,6 +184,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_VERSION, "", .ini_change = ddtrace_alter_dd_version,                                     \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_version)                               \
     CONFIG(STRING, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT) \
+    CONFIG(BOOL, DD_TRACE_MEMCACHED_OBFUSCATION, "true")                                                       \
     CONFIG(BOOL, DD_TRACE_CLIENT_IP_ENABLED, "false")                                                          \
     CONFIG(CUSTOM(STRING), DD_TRACE_CLIENT_IP_HEADER, "", .parser = ddtrace_parse_client_ip_header_config)     \
     CONFIG(BOOL, DD_TRACE_FORKED_PROCESS, "true")                                                              \

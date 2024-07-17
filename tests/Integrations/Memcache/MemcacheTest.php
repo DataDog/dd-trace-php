@@ -37,6 +37,7 @@ final class MemcacheTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_MEMCACHED_OBFUSCATION',
         ];
     }
 
@@ -49,6 +50,22 @@ final class MemcacheTest extends IntegrationTestCase
             SpanAssertion::build('Memcache.add', 'memcache', 'memcached', 'add')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcache.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
+                    'memcache.command' => 'add',
+                    Tag::SPAN_KIND => 'client',
+                ]))
+        ]);
+    }
+
+    public function testAddNoObfuscation()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_MEMCACHED_OBFUSCATION=false']);
+        $traces = $this->isolateTracer(function () {
+            $this->client->add('key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcache.add', 'memcache', 'memcached', 'add')
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcache.query' => 'add ' . 'key',
                     'memcache.command' => 'add',
                     Tag::SPAN_KIND => 'client',
                 ]))

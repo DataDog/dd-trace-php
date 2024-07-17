@@ -27,24 +27,48 @@ namespace dds::waf {
 
 namespace {
 
-dds::subscriber::event format_waf_result(ddwaf_result &res)
+action_type parse_action_type_string(const std::string &action)
 {
-    dds::subscriber::event output;
+    if (action == "block_request") {
+        return action_type::block;
+    }
+
+    if (action == "redirect_request") {
+        return action_type::redirect;
+    }
+
+    if (action == "generate_stack") {
+        return action_type::stack_trace;
+    }
+
+    if (action == "generate_schema") {
+        return action_type::extract_schema;
+    }
+
+    return action_type::invalid;
+}
+
+void format_waf_result(ddwaf_result &res, event &event)
+{
     try {
         const parameter_view actions{res.actions};
         for (const auto &action : actions) {
-            output.actions.emplace(std::string{action});
+            dds::action a{
+                parse_action_type_string(std::string(action.key())), {}};
+            for (const auto &parameter : action) {
+                a.parameters.emplace(parameter.key(), parameter);
+            }
+            event.actions.emplace_back(std::move(a));
         }
 
         const parameter_view events{res.events};
-        for (const auto &event : events) {
-            output.data.emplace_back(std::move(parameter_to_json(event)));
+        for (const auto &event_pv : events) {
+            event.data.emplace_back(std::move(parameter_to_json(event_pv)));
         }
 
     } catch (const std::exception &e) {
         SPDLOG_ERROR("failed to parse WAF output: {}", e.what());
     }
-    return output;
 }
 
 DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
@@ -175,8 +199,7 @@ instance::listener::~listener()
     }
 }
 
-std::optional<subscriber::event> instance::listener::call(
-    dds::parameter_view &data)
+void instance::listener::call(dds::parameter_view &data, event &event)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
@@ -195,6 +218,10 @@ std::optional<subscriber::event> instance::listener::call(
         DD_STDLOG(DD_STDLOG_AFTER_WAF,
             parameter_to_json(parameter_view{res.events}),
             res.total_runtime / millis);
+        SPDLOG_DEBUG("Waf response: code {} - actions {} - derivatives {}",
+            code, parameter_to_json(parameter_view{res.actions}),
+            parameter_to_json(parameter_view{res.derivatives}));
+
     } else {
         run_waf();
     }
@@ -213,7 +240,7 @@ std::optional<subscriber::event> instance::listener::call(
 
     switch (code) {
     case DDWAF_MATCH:
-        return format_waf_result(res);
+        return format_waf_result(res, event);
     case DDWAF_ERR_INTERNAL:
         throw internal_error();
     case DDWAF_ERR_INVALID_OBJECT:
@@ -228,8 +255,6 @@ std::optional<subscriber::event> instance::listener::call(
     default:
         break;
     }
-
-    return std::nullopt;
 }
 
 void instance::listener::get_meta_and_metrics(

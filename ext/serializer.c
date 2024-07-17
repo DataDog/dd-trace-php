@@ -852,6 +852,18 @@ zend_string *ddtrace_default_service_name(void) {
     }
 }
 
+zend_string *ddtrace_active_service_name(void) {
+    ddtrace_span_data *span = ddtrace_active_span();
+    if (span) {
+        return ddtrace_convert_to_str(&span->property_service);
+    }
+    zend_string *ini_service = get_DD_SERVICE();
+    if (ZSTR_LEN(ini_service)) {
+        return zend_string_copy(ini_service);
+    }
+    return ddtrace_default_service_name();
+}
+
 void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
@@ -958,7 +970,9 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
             ZVAL_LONG(&span->property_propagated_sampling_priority, DDTRACE_G(propagated_priority_sampling));
         }
-        ZVAL_LONG(&span->property_sampling_priority, DDTRACE_G(default_priority_sampling));
+        if (DDTRACE_G(default_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+            ddtrace_set_priority_sampling_on_span(span, DDTRACE_G(default_priority_sampling), DD_MECHANISM_MANUAL);
+        }
 
         ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
         if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
@@ -1504,12 +1518,22 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
-    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code
+    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions >= 1.21.0
     zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
     if (http_response_status_code) {
         Z_TRY_ADDREF_P(http_response_status_code);
         zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_response_status_code);
         zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
+    }
+
+    // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions < 1.21.0
+    zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
+    if (http_status_code) {
+        Z_TRY_ADDREF_P(http_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), http_status_code);
+        zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
     }
 
     // SpanData::$name defaults to fully qualified called name (set at span close)

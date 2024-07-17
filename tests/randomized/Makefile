@@ -23,13 +23,15 @@ publish.centos: \
 	publish.centos.7.4 \
 	publish.centos.8.0 \
 	publish.centos.8.1 \
-	publish.centos.8.2
+	publish.centos.8.2 \
+	publish.centos.8.3
 
 publish.buster: \
 	publish.buster.7.4 \
 	publish.buster.8.0 \
 	publish.buster.8.1 \
-	publish.buster.8.2
+	publish.buster.8.2 \
+	publish.buster.8.3
 
 publish.centos.%:
 	docker buildx bake --push centos-$(*)
@@ -45,13 +47,15 @@ pull.centos: \
 	pull.centos.7.4 \
 	pull.centos.8.0 \
 	pull.centos.8.1 \
-	pull.centos.8.2
+	pull.centos.8.2 \
+	pull.centos.8.3
 
 pull.buster: \
 	pull.buster.7.4 \
 	pull.buster.8.0 \
 	pull.buster.8.1 \
-	pull.buster.8.2
+	pull.buster.8.2 \
+	pull.buster.8.3
 
 pull.centos.%:
 	@docker pull $(DOCKER_IMAGE_PREFIX)centos-$(*)-$(DOCKER_IMAGE_VERSION)

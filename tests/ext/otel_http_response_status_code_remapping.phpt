@@ -1,5 +1,5 @@
 --TEST--
-Remap http.response.status_code to http.status_code
+Remap http.response.status_code to http.status_code - OTel HTTP Semantic Convention >= 1.21.0
 --FILE--
 <?php
 

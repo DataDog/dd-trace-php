@@ -1,0 +1,7 @@
+{
+   <sendmsg in rust has unitialized bytes>
+   Memcheck:Param
+   sendmsg(msg.msg_control)
+   fun:sendmsg
+   fun:*send_with_fd*
+}

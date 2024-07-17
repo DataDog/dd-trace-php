@@ -458,6 +458,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             zend_function *orig_func = *(zend_function**)(execute_data->func + 1);
             efree(execute_data->func);
             execute_data->func = orig_func;
+            execute_data->opline = orig_func->op_array.opcodes + orig_func->op_array.last - 1;
         } else {
             // TODO: not supported yet (JIT support appearing problematic)
         }

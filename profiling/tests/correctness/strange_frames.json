@@ -1,4 +1,5 @@
 {
+  "scale_by_duration": true,
   "test_name": "php_strange_frames",
   "stacks": [
     {
