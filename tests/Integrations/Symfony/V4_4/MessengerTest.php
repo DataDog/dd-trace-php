@@ -43,10 +43,6 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncSuccess()
     {
-        if (\version_compare(\PHP_VERSION, '7.3.0', '<')) {
-            $this->markTestSkipped("The number of spans received is different in PHP 7.2");
-        }
-
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky number', '/lucky/number');
             $this->call($spec);
@@ -75,10 +71,6 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncFailure()
     {
-        if (\version_compare(\PHP_VERSION, '7.3.0', '<')) {
-            $this->markTestSkipped("The number of spans received is different in PHP 7.2");
-        }
-
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky fail', '/lucky/fail');
             $this->call($spec);

@@ -5,11 +5,11 @@
     "resource": "Symfony\\Component\\Messenger\\Transport\\Doctrine\\DoctrineTransport -> App\\Message\\LuckyNumberNotification",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1077157647483151590,
+    "parent_id": 9153271162721253303,
     "type": "queue",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "669634e800000000",
+      "_dd.p.tid": "6697868300000000",
       "component": "symfonymessenger",
       "messaging.destination": "Symfony\\Component\\Messenger\\Transport\\Doctrine\\DoctrineTransport",
       "messaging.destination_kind": "queue",
@@ -18,7 +18,7 @@
       "messaging.symfony.bus": "messenger.bus.default",
       "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
       "messaging.system": "symfony",
-      "runtime-id": "d4751c9b-7e71-4d6a-be6f-9a95f752056d",
+      "runtime-id": "8242009e-441e-484d-b32b-0ababcffc2ae",
       "span.kind": "consumer"
     },
     "metrics": {
