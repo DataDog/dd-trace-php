@@ -15,7 +15,7 @@ class sampler : public dds::sampler {
 public:
     sampler(double sample_rate) : dds::sampler(sample_rate) {}
     void set_request(unsigned int i) { request_ = i; }
-    auto get_request() { return request_; }
+    unsigned int get_request() { return request_; }
 };
 
 } // namespace mock
@@ -25,8 +25,7 @@ std::atomic<int> picked = 0;
 void count_picked(dds::sampler &sampler, int iterations)
 {
     for (int i = 0; i < iterations; i++) {
-        auto is_pick = sampler.get();
-        if (is_pick != std::nullopt) {
+        if (sampler.picked()) {
             picked++;
         }
     }
@@ -198,29 +197,7 @@ TEST(SamplerTest, TestOverflow)
 {
     mock::sampler s(0);
     s.set_request(UINT_MAX);
-    s.get();
-    EXPECT_EQ(1, s.get_request());
-}
-
-TEST(ScopeTest, TestConcurrent)
-{
-    std::atomic<bool> concurrent = false;
-    {
-        auto s = sampler::scope(std::ref(concurrent));
-        EXPECT_TRUE(concurrent);
-    }
-    EXPECT_FALSE(concurrent);
-}
-
-TEST(ScopeTest, TestItDoesNotPickTokenUntilScopeReleased)
-{
-    sampler sampler(1);
-    auto is_pick = sampler.get();
-    EXPECT_TRUE(is_pick != std::nullopt);
-    is_pick = sampler.get();
-    EXPECT_FALSE(is_pick != std::nullopt);
-    is_pick.reset();
-    is_pick = sampler.get();
-    EXPECT_TRUE(is_pick != std::nullopt);
+    s.picked();
+    EXPECT_EQ(0, s.get_request());
 }
 } // namespace dds
