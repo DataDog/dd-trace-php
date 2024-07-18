@@ -12,7 +12,7 @@ variables:
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
-
+  SYSTEM_TESTS_LIBRARY: nodejs
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/one-pipeline.yml
@@ -102,3 +102,9 @@ tracer-base-image:
     - ./tooling/ci/download-binary-php.sh prod
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
+
+onboarding_tests_installer:
+  parallel:
+    matrix:
+      - ONBOARDING_FILTER_WEBLOG: [test-app-nodejs,test-app-nodejs-container]
+        SCENARIO: SIMPLE_INSTALLER_AUTO_INJECTION
