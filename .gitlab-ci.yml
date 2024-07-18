@@ -106,5 +106,5 @@ tracer-base-image:
 onboarding_tests_installer:
   parallel:
     matrix:
-      - ONBOARDING_FILTER_WEBLOG: [test-app-nodejs,test-app-nodejs-container]
+      - ONBOARDING_FILTER_WEBLOG: [test-app-php,test-app-php-container-83]
         SCENARIO: SIMPLE_INSTALLER_AUTO_INJECTION
