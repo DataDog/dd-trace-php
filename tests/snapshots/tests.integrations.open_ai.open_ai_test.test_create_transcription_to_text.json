@@ -2,7 +2,7 @@
   {
     "name": "openai.request",
     "service": "openai-test",
-    "resource": "createTranscription/whisper-1",
+    "resource": "createTranscription",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 0,

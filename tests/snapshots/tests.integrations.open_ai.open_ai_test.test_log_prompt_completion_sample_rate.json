@@ -2,7 +2,7 @@
   {
     "name": "openai.request",
     "service": "openai-test",
-    "resource": "createCompletion/da-vince",
+    "resource": "createCompletion",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 0,

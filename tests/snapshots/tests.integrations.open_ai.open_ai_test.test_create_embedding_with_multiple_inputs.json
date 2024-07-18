@@ -2,7 +2,7 @@
   {
     "name": "openai.request",
     "service": "openai-test",
-    "resource": "createEmbedding/text-similarity-babbage-001",
+    "resource": "createEmbedding",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 0,
@@ -29,9 +29,9 @@
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
-      "openai.response.data.0.embedding-length": 3,
-      "openai.response.data.1.embedding-length": 3,
-      "openai.response.data.num-embeddings": 2,
+      "openai.response.embeddings.0.embedding_length": 3,
+      "openai.response.embeddings.1.embedding_length": 3,
+      "openai.response.embeddings_count": 2,
       "openai.response.id": 42,
       "openai.response.usage.prompt_tokens": 8,
       "openai.response.usage.total_tokens": 8

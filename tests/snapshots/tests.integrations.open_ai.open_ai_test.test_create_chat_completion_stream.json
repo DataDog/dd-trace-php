@@ -2,7 +2,7 @@
   {
     "name": "openai.request",
     "service": "openai-test",
-    "resource": "createChatCompletion/gpt-3.5-turbo",
+    "resource": "createChatCompletion",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 0,

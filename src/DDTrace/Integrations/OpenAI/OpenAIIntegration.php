@@ -138,12 +138,12 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        foreach ($targets as [$class, $method, $methodName, $httpMethod, $endpoint]) {
+        foreach ($targets as [$class, $method, $operationID, $httpMethod, $endpoint]) {
             \DDTrace\trace_method(
                 $class,
                 $method,
                 [
-                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName, $integration) {
+                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($operationID, $integration) {
                         $integration->setServiceName($span);
                         $clientData = ObjectKVStore::get($this, 'client_data');
                         if (\is_null($clientData)) {
@@ -154,7 +154,7 @@ class OpenAIIntegration extends Integration
                         /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
                         OpenAIIntegration::handleRequest(
                             span: $span,
-                            methodName: $methodName,
+                            operationID: $operationID,
                             args: $args,
                             basePath: $clientData['baseUri'],
                             apiKey: $clientData['apiKey'],
@@ -176,12 +176,12 @@ class OpenAIIntegration extends Integration
             );
         }
 
-        foreach ($streamedTargets as [$class, $method, $methodName, $httpMethod, $endpoint]) {
+        foreach ($streamedTargets as [$class, $method, $operationID, $httpMethod, $endpoint]) {
             \DDTrace\trace_method(
                 $class,
                 $method,
                 [
-                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($methodName, $integration) {
+                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($operationID, $integration) {
                         $integration->setServiceName($span);
                         $clientData = ObjectKVStore::get($this, 'client_data');
                         if (\is_null($clientData)) {
@@ -192,7 +192,7 @@ class OpenAIIntegration extends Integration
                         /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
                         OpenAIIntegration::handleRequest(
                             span: $span,
-                            methodName: $methodName,
+                            operationID: $operationID,
                             args: $args,
                             basePath: $clientData['baseUri'],
                             apiKey: $clientData['apiKey'],
@@ -230,11 +230,11 @@ class OpenAIIntegration extends Integration
     }
 
     public static function normalizeRequestPayload(
-        string $methodName,
+        string $operationID,
         array  $args
     ): array
     {
-        switch ($methodName) {
+        switch ($operationID) {
             case 'listModels':
             case 'listFiles':
             case 'listFineTunes':
@@ -243,7 +243,7 @@ class OpenAIIntegration extends Integration
 
             case 'retrieveModel': // public function retrieve(string $model): RetrieveResponse
                 return [
-                    'id' => $args[0],
+                    'model' => $args[0],
                 ];
 
             case 'createFile': // public function upload(array $parameters): CreateResponse
@@ -318,17 +318,17 @@ class OpenAIIntegration extends Integration
 
     public static function handleRequest(
         SpanData $span,
-        string   $methodName,
+        string   $operationID,
         array    $args,
         string   $basePath,
         string   $apiKey,
         bool     $streamed = false,
     )
     {
-        $payload = self::normalizeRequestPayload($methodName, $args);
+        $payload = self::normalizeRequestPayload($operationID, $args);
 
         $span->name = 'openai.request';
-        $span->resource = isset($payload['model']) ? $methodName . '/' . $payload['model'] : $methodName;
+        $span->resource = $operationID;
         $span->type = Type::OPENAI;
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
         $span->meta['openai.user.api_key'] = $apiKey;
@@ -395,7 +395,7 @@ class OpenAIIntegration extends Integration
             $tags['openai.request.streamed'] = 1;
         }
 
-        switch ($methodName) {
+        switch ($operationID) {
             case 'createFineTune':
                 $tags = self::createFineTuneRequestExtraction($payload);
                 break;
@@ -420,10 +420,6 @@ class OpenAIIntegration extends Integration
                 $tags = self::commonCreateAudioRequestExtraction($payload);
                 break;
 
-            case 'retrieveModel':
-                $tags = self::retrieveModelRequestExtraction($payload);
-                break;
-
             case 'listFineTuneEvents':
             case 'retrieveFineTune':
             case 'deleteModel':
@@ -444,9 +440,9 @@ class OpenAIIntegration extends Integration
         string          $endpoint,
     )
     {
-        $methodName = \explode('/', $span->resource)[0];
+        $operationID = \explode('/', $span->resource)[0];
 
-        if ($methodName === 'downloadFile') {
+        if ($operationID === 'downloadFile') {
             $response = ['bytes' => \strlen($response)];
         }
 
@@ -469,7 +465,7 @@ class OpenAIIntegration extends Integration
             'openai.response.object' => $response['object'] ?? null,
         ];
 
-        switch ($methodName) {
+        switch ($operationID) {
             case 'createModeration':
                 $tags += self::createModerationResponseExtraction($response);
                 break;
@@ -492,10 +488,6 @@ class OpenAIIntegration extends Integration
             case 'createFile':
             case 'retrieveFile':
                 $tags += self::createRetrieveFileResponseExtraction($response);
-                break;
-
-            case 'deleteFile':
-                $tags += self::deleteFileResponseExtraction($response);
                 break;
 
             case 'downloadFile':
@@ -541,7 +533,7 @@ class OpenAIIntegration extends Integration
         self::sendLog(
             logger: $logger,
             span: $span,
-            methodName: $methodName,
+            operationID: $operationID,
             error: $span->exception ? true : false
         );
 
@@ -550,7 +542,7 @@ class OpenAIIntegration extends Integration
 
     public static function getLogTags(
         SpanData $span,
-        string   $methodName
+        string   $operationID
     ): array
     {
         $tags = [
@@ -564,7 +556,7 @@ class OpenAIIntegration extends Integration
             'openai.user.api_key' => $span->meta['openai.user.api_key'] ?? null,
         ];
 
-        switch ($methodName) {
+        switch ($operationID) {
             case 'createCompletion':
                 $tags += [
                     'choices.0.finish_reason' => $span->meta['openai.response.choices.0.finish_reason'] ?? null,
@@ -573,6 +565,7 @@ class OpenAIIntegration extends Integration
             case 'createChatCompletion':
                 $tags += [
                     'messages.0.content' => $span->meta['openai.request.message.0.content'] ?? null,
+                    'completion.0.finish_reason' => $span->meta['openai.response.choices.0.finish_reason'] ?? null,
                 ];
                 break;
             case 'createImage':
@@ -594,7 +587,7 @@ class OpenAIIntegration extends Integration
         }
 
         if (self::shouldSample(\dd_trace_env_config('DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE'))) {
-            switch ($methodName) {
+            switch ($operationID) {
                 case 'createCompletion':
                 case 'createTranscription':
                 case 'createTranslation':
@@ -625,7 +618,7 @@ class OpenAIIntegration extends Integration
     public static function sendLog(
         ?DatadogLogger $logger,
         SpanData       $span,
-        string         $methodName,
+        string         $operationID,
         bool           $error = false
     )
     {
@@ -642,11 +635,11 @@ class OpenAIIntegration extends Integration
 
         $tags = self::getLogTags(
             span: $span,
-            methodName: $methodName
+            operationID: $operationID
         );
 
         $logMethod = $error ? 'error' : 'info';
-        $logMessage = "sampled $methodName";
+        $logMessage = "sampled $operationID";
         $logger->$logMethod($logMessage, $tags);
     }
 
@@ -676,7 +669,6 @@ class OpenAIIntegration extends Integration
             'service' => $span->service,
             'version' => $span->version,
             'openai.request.model' => $span->meta['openai.request.model'] ?? null,
-            'model' => $span->meta['openai.request.model'] ?? null,
             'openai.organization.id' => $span->meta['openai.organization.id'] ?? null,
             'openai.organization.name' => $span->meta['openai.organization.name'] ?? null,
             'openai.user.api_key' => $span->meta['openai.user.api_key'] ?? null,
@@ -824,13 +816,6 @@ class OpenAIIntegration extends Integration
         ];
     }
 
-    public static function retrieveModelRequestExtraction(array $payload): array
-    {
-        return [
-            'openai.request.id' => $payload['id'] ?? null,
-        ];
-    }
-
     public static function commonLookupFineTuneRequestExtraction(array $payload): array
     {
         return [
@@ -841,9 +826,7 @@ class OpenAIIntegration extends Integration
 
     public static function createModerationResponseExtraction(array $payload): array
     {
-        $tags = [
-            'openai.response.id' => $payload['id'] ?? null,
-        ];
+        $tags = [];
 
         if (empty($payload['results'])) {
             return $tags;
@@ -911,9 +894,9 @@ class OpenAIIntegration extends Integration
             return $tags;
         }
 
-        $tags['openai.response.data.num-embeddings'] = \count($data);
+        $tags['openai.response.embeddings_count'] = \count($data);
         foreach ($data as $idx => $embedding) {
-            $tags["openai.response.data.$idx.embedding-length"] = \count($embedding['embedding']);
+            $tags["openai.response.embeddings.$idx.embedding_length"] = \count($embedding['embedding']);
         }
 
         return $tags;
@@ -927,13 +910,6 @@ class OpenAIIntegration extends Integration
             'openai.response.bytes' => $payload['bytes'] ?? null,
             'openai.response.status' => $payload['status'] ?? null,
             'openai.response.status_details' => $payload['status_details'] ?? null,
-        ];
-    }
-
-    public static function deleteFileResponseExtraction(array $payload): array
-    {
-        return [
-            'openai.response.id' => $payload['id'] ?? null,
         ];
     }
 
@@ -1056,7 +1032,7 @@ class OpenAIIntegration extends Integration
     {
         $responseArray = self::readAndStoreStreamedResponse($span, $response);
 
-        $methodName = \explode('/', $span->resource)[0];
+        $operationID = \explode('/', $span->resource)[0];
 
         $tags = [
             'openai.request.endpoint' => $endpoint,
@@ -1066,7 +1042,7 @@ class OpenAIIntegration extends Integration
             'openai.response.id' => $headers['x-request-id'] ?? null, // Common creation value, numeric epoch
         ];
 
-        switch ($methodName) {
+        switch ($operationID) {
             case 'createCompletion':
                 $tags += self::commonStreamedCreateResponseExtraction($span, $responseArray);
                 break;
@@ -1088,7 +1064,7 @@ class OpenAIIntegration extends Integration
         self::sendLog(
             logger: $logger,
             span: $span,
-            methodName: $methodName,
+            operationID: $operationID,
             error: (bool)$span->exception
         );
 

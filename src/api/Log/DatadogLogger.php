@@ -5,7 +5,7 @@ namespace DDTrace\Log;
 /**
  * JSON logger that writes to a stream, with simple logs correlation support.
  * Heavily inspired from Monolog's StreamHandler.
- * @internal
+ * @internal This logger is internal and can be removed without prior notice
  */
 final class DatadogLogger
 {
@@ -150,10 +150,9 @@ final class DatadogLogger
 
         $record = [
             'message' => $message,
-            'context' => $context,
             'status' => $level,
             'timestamp' => $date->format('Y-m-d\TH:i:s.uP'),
-        ];
+        ] + $context;
 
         return json_encode(array_merge($record, self::handleLogInjection()), self::DEFAULT_JSON_FLAGS) . PHP_EOL;
     }
