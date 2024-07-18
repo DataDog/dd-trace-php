@@ -34,7 +34,6 @@ class DatadogLoggerTest extends BaseTestCase
         $output = file_get_contents("/tmp/php-error.log");
         $record = json_decode($output, true);
         $this->assertSame("oui", $record["message"]);
-        $this->assertEmpty($record["context"]);
         $this->assertSame("info", $record["status"]);
         $this->assertRegularExpression("/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}\+\d{2}:\d{2}/", $record["timestamp"]);
     }
@@ -45,7 +44,10 @@ class DatadogLoggerTest extends BaseTestCase
         $output = file_get_contents("/tmp/php-error.log");
         $record = json_decode($output, true);
         $this->assertSame("oui", $record["message"]);
-        $this->assertSame(["foo" => "string", "bar" => 42, "baz" => true, "qux" => null], $record["context"]);
+        $this->assertSame("string", $record["foo"]);
+        $this->assertSame(42, $record["bar"]);
+        $this->assertSame(true, $record["baz"]);
+        $this->assertSame(null, $record["qux"]);
         $this->assertSame("alert", $record["status"]);
         $this->assertRegularExpression("/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}\+\d{2}:\d{2}/", $record["timestamp"]);
     }
