@@ -86,9 +86,20 @@ static void ddtrace_sigsegv_handler(int sig) {
     _Exit(128 + sig);
 }
 
+static bool ddtrace_crashtracker_check_result(ddog_prof_CrashtrackerResult result, const char *msg) {
+    if (result.tag != DDOG_PROF_CRASHTRACKER_RESULT_OK) {
+        ddog_CharSlice error_msg = ddog_Error_message(&result.err);
+        LOG(ERROR, "%s : %.*s", msg, (int) error_msg.len, error_msg.ptr);
+        ddog_Error_drop(&result.err);
+        return false;
+    }
+
+    return true;
+}
+
 static void ddtrace_init_crashtracker() {
     ddog_prof_CrashtrackerConfiguration config = {
-        .endpoint = ddog_Endpoint_file(DDOG_CHARSLICE_C("file:///tmp/crashtracker")),
+        .endpoint = ddog_Endpoint_file(DDOG_CHARSLICE_C("/tmp/crashtracker")),
         .timeout_secs = 5,
     };
 
@@ -100,11 +111,13 @@ static void ddtrace_init_crashtracker() {
         .tags = &tags
     };
 
-    // FIXME: check return
-    ddog_prof_Crashtracker_init_with_unix_socket(
-        config,
-        DDOG_CHARSLICE_C("/tmp/ct.socket"),
-        metadata
+    ddtrace_crashtracker_check_result(
+        ddog_prof_Crashtracker_init_with_unix_socket(
+            config,
+            DDOG_CHARSLICE_C("/tmp/ct.socket"),
+            metadata
+        ),
+        "Cannot initialize CrashTracker"
     );
 }
 
