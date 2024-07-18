@@ -138,28 +138,31 @@ class OpenAIIntegration extends Integration
             }
         );
 
+        $handleRequestPrehook = fn ($streamed, $operationID) => function (\DDTrace\SpanData $span, $args) use ($operationID, $integration, $streamed) {
+            $integration->setServiceName($span);
+            $clientData = ObjectKVStore::get($this, 'client_data');
+            if (\is_null($clientData)) {
+                $transporter = ObjectKVStore::get($this, 'transporter');
+                $clientData = ObjectKVStore::get($transporter, 'client_data');
+                ObjectKVStore::put($this, 'client_data', $clientData);
+            }
+            /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
+            OpenAIIntegration::handleRequest(
+                span: $span,
+                operationID: $operationID,
+                args: $args,
+                basePath: $clientData['baseUri'],
+                apiKey: $clientData['apiKey'],
+                streamed: $streamed
+            );
+        };
+
         foreach ($targets as [$class, $method, $operationID, $httpMethod, $endpoint]) {
             \DDTrace\trace_method(
                 $class,
                 $method,
                 [
-                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($operationID, $integration) {
-                        $integration->setServiceName($span);
-                        $clientData = ObjectKVStore::get($this, 'client_data');
-                        if (\is_null($clientData)) {
-                            $transporter = ObjectKVStore::get($this, 'transporter');
-                            $clientData = ObjectKVStore::get($transporter, 'client_data');
-                            ObjectKVStore::put($this, 'client_data', $clientData);
-                        }
-                        /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
-                        OpenAIIntegration::handleRequest(
-                            span: $span,
-                            operationID: $operationID,
-                            args: $args,
-                            basePath: $clientData['baseUri'],
-                            apiKey: $clientData['apiKey'],
-                        );
-                    },
+                    'prehook' => $handleRequestPrehook(false, $operationID),
                     'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
@@ -181,24 +184,7 @@ class OpenAIIntegration extends Integration
                 $class,
                 $method,
                 [
-                    'prehook' => function (\DDTrace\SpanData $span, $args) use ($operationID, $integration) {
-                        $integration->setServiceName($span);
-                        $clientData = ObjectKVStore::get($this, 'client_data');
-                        if (\is_null($clientData)) {
-                            $transporter = ObjectKVStore::get($this, 'transporter');
-                            $clientData = ObjectKVStore::get($transporter, 'client_data');
-                            ObjectKVStore::put($this, 'client_data', $clientData);
-                        }
-                        /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
-                        OpenAIIntegration::handleRequest(
-                            span: $span,
-                            operationID: $operationID,
-                            args: $args,
-                            basePath: $clientData['baseUri'],
-                            apiKey: $clientData['apiKey'],
-                            streamed: true
-                        );
-                    },
+                    'prehook' => $handleRequestPrehook(true, $operationID),
                     'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
                         OpenAIIntegration::handleStreamedResponse(
