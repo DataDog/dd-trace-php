@@ -214,7 +214,7 @@ final class DatadogLogger
         if (null !== $dir && !is_dir($dir)) {
             $this->errorMessage = null;
             set_error_handler([$this, 'customErrorHandler']);
-            $status = mkdir($dir, 0777, true);
+            $status = mkdir($dir, 0666, true);
             restore_error_handler();
             if (false === $status && !is_dir($dir) && strpos((string) $this->errorMessage, 'File exists') === false) {
                 return;
