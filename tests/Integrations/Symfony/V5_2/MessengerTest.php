@@ -43,6 +43,10 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncSuccess()
     {
+        if (\PHP_VERSION_ID >= 80300) {
+            $this->markTestSkipped('This test is skipped in PHP 8.3 because of an header incompatibility with the test-agent');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky number', '/lucky/number');
             $this->call($spec);
@@ -71,6 +75,10 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncFailure()
     {
+        if (\PHP_VERSION_ID >= 80300) {
+            $this->markTestSkipped('This test is skipped in PHP 8.3 because of an header incompatibility with the test-agent');
+        }
+
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky fail', '/lucky/fail');
             $this->call($spec);
