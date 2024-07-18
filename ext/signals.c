@@ -18,6 +18,10 @@
 #include "ext/version.h"
 #include <components/log/log.h>
 
+#include <components-rs/common.h>
+#include <components-rs/ddtrace.h>
+#include <components-rs/profiling.h>
+
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
 #define DDTRACE_HAVE_BACKTRACE 1
 #else
@@ -82,6 +86,28 @@ static void ddtrace_sigsegv_handler(int sig) {
     _Exit(128 + sig);
 }
 
+static void ddtrace_init_crashtracker() {
+    ddog_prof_CrashtrackerConfiguration config = {
+        .endpoint = ddog_Endpoint_file(DDOG_CHARSLICE_C("file:///tmp/crashtracker")),
+        .timeout_secs = 5,
+    };
+
+    ddog_Vec_Tag tags = ddog_Vec_Tag_new();
+    const ddog_prof_CrashtrackerMetadata metadata = {
+        .profiling_library_name = DDOG_CHARSLICE_C("dd-trace-php"),
+        .profiling_library_version = DDOG_CHARSLICE_C("42"),
+        .family = DDOG_CHARSLICE_C("php"),
+        .tags = &tags
+    };
+
+    // FIXME: check return
+    ddog_prof_Crashtracker_init_with_unix_socket(
+        config,
+        DDOG_CHARSLICE_C("/tmp/ct.socket"),
+        metadata
+    );
+}
+
 void ddtrace_signals_first_rinit(void) {
     bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
 
@@ -107,6 +133,8 @@ void ddtrace_signals_first_rinit(void) {
                 sigaction(SIGSEGV, &ddtrace_sigaction, NULL);
             }
         }
+
+        ddtrace_init_crashtracker();
     }
 }
 
