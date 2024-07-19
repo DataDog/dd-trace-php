@@ -411,6 +411,11 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
 
+/**
+ * Default value for the timeout field in milliseconds.
+ */
+#define ddog_prof_Endpoint_DEFAULT_TIMEOUT 3000
+
 typedef enum ddog_prof_DemangleOptions {
   DDOG_PROF_DEMANGLE_OPTIONS_COMPLETE,
   DDOG_PROF_DEMANGLE_OPTIONS_NAME_ONLY,
@@ -760,6 +765,22 @@ typedef struct ddog_prof_Exporter_NewResult {
     };
   };
 } ddog_prof_Exporter_NewResult;
+
+typedef enum ddog_prof_Option_Error_Tag {
+  DDOG_PROF_OPTION_ERROR_SOME_ERROR,
+  DDOG_PROF_OPTION_ERROR_NONE_ERROR,
+} ddog_prof_Option_Error_Tag;
+
+typedef struct ddog_prof_Option_Error {
+  ddog_prof_Option_Error_Tag tag;
+  union {
+    struct {
+      struct ddog_Error some;
+    };
+  };
+} ddog_prof_Option_Error;
+
+typedef struct ddog_prof_Option_Error ddog_prof_MaybeError;
 
 typedef enum ddog_prof_Exporter_Request_BuildResult_Tag {
   DDOG_PROF_EXPORTER_REQUEST_BUILD_RESULT_OK,

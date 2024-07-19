@@ -358,6 +358,15 @@ struct ddog_prof_Exporter_NewResult ddog_prof_Exporter_new(ddog_CharSlice profil
                                                            struct ddog_prof_Endpoint endpoint);
 
 /**
+ * Sets the value for the exporter's timeout.
+ * # Arguments
+ * * `exporter` - ProfileExporter instance.
+ * * `timeout_ms` - timeout in milliseconds.
+ */
+ddog_prof_MaybeError ddog_prof_Exporter_set_timeout(struct ddog_prof_Exporter *exporter,
+                                                    uint64_t timeout_ms);
+
+/**
  * # Safety
  * The `exporter` may be null, but if non-null the pointer must point to a
  * valid `ddog_prof_Exporter_Request` object made by the Rust Global
@@ -392,8 +401,7 @@ struct ddog_prof_Exporter_Request_BuildResult ddog_prof_Exporter_Request_build(s
                                                                                const struct ddog_Vec_Tag *optional_additional_tags,
                                                                                const struct ddog_prof_ProfiledEndpointsStats *optional_endpoints_stats,
                                                                                const ddog_CharSlice *optional_internal_metadata_json,
-                                                                               const ddog_CharSlice *optional_info_json,
-                                                                               uint64_t timeout_ms);
+                                                                               const ddog_CharSlice *optional_info_json);
 
 /**
  * # Safety
