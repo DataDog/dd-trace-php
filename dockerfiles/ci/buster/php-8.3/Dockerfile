@@ -2,7 +2,7 @@ FROM datadog/dd-trace-ci:buster AS base
 
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
-ENV LSAN_OPTIONS="suppressions=/home/circleci/suppr.txt,print_suppressions=0"
+ENV LSAN_OPTIONS="suppressions=/home/circleci/suppr.txt,print_suppressions=0,use_tls=0"
 
 COPY php-8.3/suppr.txt /home/circleci/suppr.txt
 
