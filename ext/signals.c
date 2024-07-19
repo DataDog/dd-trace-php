@@ -15,6 +15,8 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
+#include "sidecar.h"
+#include "auto_flush.h"
 #include "ext/version.h"
 #include <components/log/log.h>
 
@@ -98,15 +100,33 @@ static bool ddtrace_crashtracker_check_result(ddog_prof_CrashtrackerResult resul
 }
 
 static void ddtrace_init_crashtracker() {
+    ddog_prof_Endpoint agent_endpoint;
+
+    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
+        agent_endpoint = ddog_prof_Endpoint_agentless(DDOG_CHARSLICE_C("datadoghq.com"), dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+    } else {
+        char *agent_url = ddtrace_agent_url();
+        size_t url_len = strlen(agent_url);
+
+        if (url_len > (sizeof("file://") - 1) && strncmp(agent_url, "file://", (sizeof("file://") - 1)) == 0) {
+            char *tmp = agent_url + sizeof("file://") - 1;
+            agent_endpoint = ddog_Endpoint_file((ddog_CharSlice) {.ptr = tmp, .len = strlen(tmp)});
+        } else {
+            agent_endpoint = ddog_prof_Endpoint_agent((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        }
+
+        // free(agent_url);
+    }
+
     ddog_prof_CrashtrackerConfiguration config = {
-        .endpoint = ddog_Endpoint_file(DDOG_CHARSLICE_C("/tmp/crashtracker")),
+        .endpoint = agent_endpoint,
         .timeout_secs = 5,
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
     const ddog_prof_CrashtrackerMetadata metadata = {
-        .profiling_library_name = DDOG_CHARSLICE_C("dd-trace-php"),
-        .profiling_library_version = DDOG_CHARSLICE_C("42"),
+        .profiling_library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),
+        .profiling_library_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
         .family = DDOG_CHARSLICE_C("php"),
         .tags = &tags
     };
@@ -114,7 +134,7 @@ static void ddtrace_init_crashtracker() {
     ddtrace_crashtracker_check_result(
         ddog_prof_Crashtracker_init_with_unix_socket(
             config,
-            DDOG_CHARSLICE_C("/tmp/ct.socket"),
+            ddog_sidecar_get_crashtracker_unix_socket_path(),
             metadata
         ),
         "Cannot initialize CrashTracker"

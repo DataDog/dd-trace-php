@@ -248,4 +248,9 @@ ddog_MaybeError ddog_sidecar_set_test_session_token(struct ddog_SidecarTransport
 void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                             struct ddog_SidecarTransport *(*factory)(void));
 
+/**
+ * Return the path of the crashtracker unix domain socket.
+ */
+ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
+
 #endif /* DDOG_SIDECAR_H */
