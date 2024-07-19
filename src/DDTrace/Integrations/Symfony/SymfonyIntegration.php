@@ -30,11 +30,6 @@ class SymfonyIntegration extends Integration
         return false;
     }
 
-    public function isSymfonyMessengerCommand($commandName)
-    {
-        return $commandName === 'messenger:consume';
-    }
-
     /**
      * Load the integration
      *
