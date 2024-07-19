@@ -6,7 +6,8 @@
             "DDTrace\\Tests\\": "./"
         },
         "files": [
-            "Appsec/Mock.php"
+            "Appsec/Mock.php",
+            "OpenAI/autoload.php"
         ]
     },
     "require-dev": {
@@ -16,7 +17,8 @@
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
-        "g1a/composer-test-scenarios": "~3.0"
+        "g1a/composer-test-scenarios": "~3.0",
+        "ext-sockets": "*"
     },
     "config": {
         "allow-plugins": {
@@ -113,6 +115,16 @@
             "monolog3": {
                 "require": {
                     "monolog/monolog": "~3.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "openai": {
+                "require": {
+                    "openai-php/client": "@stable",
+                    "guzzlehttp/guzzle": "^7.8.1",
+                    "guzzlehttp/psr7": "^2.6.2"
                 },
                 "scenario-options": {
                     "create-lockfile": false

@@ -195,9 +195,11 @@ bool add_git_info(zend_string *commit_sha, zend_string *repository_url) {
 
 zend_string* get_directory_from_path_translated() {
     const char *path_translated = SG(request_info).path_translated;
-    const char *last_slash = find_last_dir_separator(path_translated);
-    if (last_slash) {
-        return zend_string_init(path_translated, last_slash - path_translated, 1);
+    if (path_translated) {
+        const char *last_slash = find_last_dir_separator(path_translated);
+        if (last_slash) {
+            return zend_string_init(path_translated, last_slash - path_translated, 1);
+        }
     }
     return zend_string_init(ZEND_STRL("."), 1);
 }
