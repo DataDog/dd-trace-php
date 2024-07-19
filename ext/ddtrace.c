@@ -1034,6 +1034,7 @@ zend_object_handlers ddtrace_git_metadata_handlers;
 
 static zend_object *ddtrace_git_metadata_create(zend_class_entry *class_type) {
     zend_object *object = zend_objects_new(class_type);
+    object_properties_init(object, class_type);
     object->handlers = &ddtrace_git_metadata_handlers;
     return object;
 }
