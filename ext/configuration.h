@@ -170,6 +170,7 @@ enum ddtrace_sampling_rules_format {
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, DD_CFG_EXPSTR(DD_TRACE_AGENT_FLUSH_INTERVAL_VAL),               \
            .ini_change = zai_config_system_ini_change)                                                         \
+    CONFIG(INT, DD_TELEMETRY_HEARTBEAT_INTERVAL, "60", .ini_change = zai_config_system_ini_change)             \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
@@ -204,12 +205,15 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level,                \
            .env_config_fallback = ddtrace_conf_otel_log_level)                                                 \
     CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
-    CONFIG(STRING, DD_OPENAI_SERVICE, "")                                                               \
+    CONFIG(BOOL, DD_TRACE_GIT_METADATA_ENABLED, "true")                                                        \
+    CONFIG(STRING, DD_GIT_COMMIT_SHA, "")                                                                      \
+    CONFIG(STRING, DD_GIT_REPOSITORY_URL, "")                                                                  \
+    CONFIG(STRING, DD_OPENAI_SERVICE, "")                                                                      \
     CONFIG(BOOL, DD_OPENAI_METRICS_ENABLED, "true")                                                            \
-    CONFIG(BOOL, DD_OPENAI_LOGS_ENABLED, "false")                                                               \
-    CONFIG(INT, DD_OPENAI_SPAN_CHAR_LIMIT, "128")                                                               \
-    CONFIG(DOUBLE, DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE, "1.0")                                         \
-    CONFIG(DOUBLE, DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE, "0.1")                                          \
+    CONFIG(BOOL, DD_OPENAI_LOGS_ENABLED, "false")                                                              \
+    CONFIG(INT, DD_OPENAI_SPAN_CHAR_LIMIT, "128")                                                              \
+    CONFIG(DOUBLE, DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE, "1.0")                                        \
+    CONFIG(DOUBLE, DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE, "0.1")                                         \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

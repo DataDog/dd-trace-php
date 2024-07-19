@@ -31,6 +31,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "git.h"
 #include "ip_extraction.h"
 #include <components/log/log.h>
 #include "priority_sampling/priority_sampling.h"
@@ -980,6 +981,10 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
             zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
         }
+
+        if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+            ddtrace_inject_git_metadata(&span->property_git_metadata);
+        }
     }
 
     zval pid;
@@ -1319,6 +1324,19 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
         // Restore the exception
         EG(exception) = current_exception;
+    }
+
+    zval *git_metadata = &span->root->property_git_metadata;
+    if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
+        ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
+        if (is_root_span) {
+            if (Z_TYPE(metadata->property_commit) == IS_STRING) {
+                add_assoc_str(meta, "_dd.git.commit.sha", ddtrace_convert_to_str(&metadata->property_commit));
+            }
+            if (Z_TYPE(metadata->property_repository) == IS_STRING) {
+                add_assoc_str(meta, "_dd.git.repository_url", ddtrace_convert_to_str(&metadata->property_repository));
+            }
+        }
     }
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
