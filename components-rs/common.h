@@ -39,6 +39,11 @@
 #  define DDOG_CHECK_RETURN
 #endif
 
+/**
+ * Default value for the timeout field in milliseconds.
+ */
+#define ddog_Endpoint_DEFAULT_TIMEOUT 3000
+
 typedef struct ddog_Endpoint ddog_Endpoint;
 
 typedef struct ddog_Tag ddog_Tag;
@@ -322,6 +327,8 @@ DDOG_CHECK_RETURN
 struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
                                                        ddog_CharSlice site,
                                                        struct ddog_Endpoint **endpoint);
+
+void ddog_endpoint_set_timeout(struct ddog_Endpoint *endpoint, uint64_t millis);
 
 void ddog_endpoint_drop(struct ddog_Endpoint*);
 
