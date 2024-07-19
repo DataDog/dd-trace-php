@@ -56,7 +56,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
-        ], [], ['messenger:consume', 'async', '--limit=1']);
+        ], [], ['mess:cons', 'async', '--limit=1']);
 
         // Filter out the orphans
         $consumerTrace = \array_values(\array_filter($consumerTraces, function ($trace) {
