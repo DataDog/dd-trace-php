@@ -732,6 +732,23 @@ typedef struct ddog_prof_StringWrapperResult {
   };
 } ddog_prof_StringWrapperResult;
 
+typedef enum ddog_prof_CrashtrackerUsizeResult_Tag {
+  DDOG_PROF_CRASHTRACKER_USIZE_RESULT_OK,
+  DDOG_PROF_CRASHTRACKER_USIZE_RESULT_ERR,
+} ddog_prof_CrashtrackerUsizeResult_Tag;
+
+typedef struct ddog_prof_CrashtrackerUsizeResult {
+  ddog_prof_CrashtrackerUsizeResult_Tag tag;
+  union {
+    struct {
+      uintptr_t ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_prof_CrashtrackerUsizeResult;
+
 typedef struct ddog_prof_Exporter_File {
   ddog_CharSlice name;
   ddog_ByteSlice file;
