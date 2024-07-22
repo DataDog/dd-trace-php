@@ -1,2 +1,5 @@
 leak:timer_create
+# some glibc symbols which leak in glibc itself thanks to use_tls=0
 leak:add_to_global
+leak:_dl_map_object_deps
+leak:__res_context_send
