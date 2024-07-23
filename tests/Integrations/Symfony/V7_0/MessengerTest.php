@@ -57,12 +57,11 @@ class MessengerTest extends WebFrameworkTestCase
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         // Filter out the orphans
-        $consumerTrace = \array_values(\array_filter($consumerTraces, function ($trace) {
-            return $trace[0]['metrics']['_sampling_priority_v1'] !== 0;
-        }));
+        $consumerTrace = [\array_filter($consumerTraces, function ($trace) {
+            return !isset($trace['metrics']['_sampling_priority_v1']) || $trace['metrics']['_sampling_priority_v1'] !== 0;
+        })];
 
         echo json_encode($consumerTrace, JSON_PRETTY_PRINT) . PHP_EOL;
-
         $this->snapshotFromTraces(
             $consumerTrace,
             self::FIELDS_TO_IGNORE,
@@ -86,9 +85,9 @@ class MessengerTest extends WebFrameworkTestCase
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         // Filter out the orphans
-        $consumerTrace = \array_values(\array_filter($consumerTraces, function ($trace) {
-            return $trace[0]['metrics']['_sampling_priority_v1'] !== 0;
-        }));
+        $consumerTrace = [\array_filter($consumerTraces, function ($trace) {
+            return !isset($trace['metrics']['_sampling_priority_v1']) || $trace['metrics']['_sampling_priority_v1'] !== 0;
+        })];
 
         $this->snapshotFromTraces(
             $consumerTrace,
