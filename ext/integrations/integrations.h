@@ -20,6 +20,7 @@
     INTEGRATION(DRUPAL, "drupal")                           \
     INTEGRATION(ELASTICSEARCH, "elasticsearch")             \
     INTEGRATION(ELOQUENT, "eloquent")                       \
+    INTEGRATION(FILESYSTEM, "filesystem")                   \
     INTEGRATION(FRANKENPHP, "frankenphp")                   \
     INTEGRATION(GUZZLE, "guzzle")                           \
     INTEGRATION(LAMINAS, "laminas")                         \
