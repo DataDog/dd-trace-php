@@ -435,19 +435,18 @@ $(PACKAGES_BUILD_DIR):
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: $(PACKAGES_BUILD_DIR)
-	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)
-	rm -rf /tmp/$(PACKAGES_BUILD_DIR)/*
-	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
+	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)
+	rm -rf /tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
+	fpm -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
+	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
+
+$(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
-		$(VERSION) \
-		$(PACKAGES_BUILD_DIR)
-	bash ./tooling/bin/generate-ssi-package.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
 
@@ -457,10 +456,20 @@ build_pecl_package:
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
 dbgsym.tar.gz:
-	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
+	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
 
-packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
-	tar --exclude='dd-library-php-ssi-*' -zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
+installer_packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
+	tar --use-compress-program=pigz --exclude='dd-library-php-ssi-*' -cf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
+
+ssi_packages: $(PACKAGES_BUILD_DIR)
+	bash ./tooling/bin/generate-ssi-package.sh \
+		$(VERSION) \
+		$(PACKAGES_BUILD_DIR)
+
+calculate_package_sha256_sums: $(PACKAGES_BUILD_DIR)/datadog-setup.php installer_packages
+	(cd build/packages && find . -type f -exec sha256sum {} + > ../../package_sha256sums)
+
+packages: $(PACKAGES_BUILD_DIR)/datadog-setup.php ssi_packages installer_packages
 
 # Generates the src/bridge/_generated_*.php files.
 generate:

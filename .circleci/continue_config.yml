@@ -100,22 +100,6 @@ aliases:
     attach_workspace:
       at: ~/datadog
 
-  - &STEP_APPEND_BUILD_ID
-    run:
-      name: Append build id to version number
-      command: |
-        githash="${CIRCLE_SHA1?}"
-        if [[ "x$CIRCLE_BRANCH" == "x" ]] ; then
-          echo "The environment variable CIRCLE_BRANCH was not set or was empty."
-          exit 1
-        fi
-        if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
-          echo "Release branch detected; not adding git sha1 to version number."
-        else
-          echo -n "+$githash" >>VERSION
-          echo "Appended +$githash to version number."
-        fi
-
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -352,6 +336,52 @@ commands:
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
       - <<: *STEP_EXT_INSTALL
+
+  append_build_id:
+    parameters:
+      shell:
+        type: string
+        default: /bin/bash -eo pipefail
+    steps:
+      - run:
+          name: Append build id to version number
+          shell: << parameters.shell >>
+          command: |
+            githash="${CIRCLE_SHA1?}"
+            if [[ "x$CIRCLE_BRANCH" == "x" ]] ; then
+              echo "The environment variable CIRCLE_BRANCH was not set or was empty."
+              exit 1
+            fi
+            if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
+              echo "Release branch detected; not adding git sha1 to version number."
+            else
+              echo -n "+$githash" >>VERSION
+              echo "Appended +$githash to version number."
+            fi
+
+
+  fetch_job_artifact:
+    parameters:
+      job:
+        type: string
+      artifact:
+        type: string
+      directory:
+        type: string
+        default: "."
+    steps:
+      - run:
+          name: "Get artifact << parameters.artifact >> from job << parameters.job >>"
+          command: |
+            set +x
+            cd << parameters.directory >>
+            if [[ '<< parameters.job >>' != "${LAST_ARTIFACTS_JOB:-}" ]]; then 
+              job_id=$(curl -X GET "https://circleci.com/api/v2/workflow/$CIRCLE_WORKFLOW_ID/job" -H "Accept: application/json" | grep -Eo '\{[^}]*"<< parameters.job >>"[^}]*' | grep -Eo '"job_number":[^,]+' | tail -c +14)
+              export LAST_ARTIFACTS_RESULT=$(curl -X GET "https://circleci.com/api/v2/project/github/DataDog/dd-trace-php/$job_id/artifacts" -H "Accept: application/json")
+              export LAST_ARTIFACTS_JOB='<< parameters.job >>'
+            fi
+            artifact_url=$(echo "$LAST_ARTIFACTS_RESULT" | grep -Eo '\{[^}]*"<< parameters.artifact >>"[^}]*' | grep -Eo '"url":"[^"]+' | tail -c +8)
+            curl -LO "$artifact_url"
 
   copy_valgrind_rc:
     parameters:
@@ -935,7 +965,12 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'datadog-setup.php'
       - run:
           command: |
             docker run --rm -v $(pwd):/root -i ubuntu:jammy bash -s \<<COMMANDS
@@ -943,7 +978,7 @@ jobs:
             apt-get update -y
             DEBIAN_FRONTEND=noninteractive apt-get install -y php8.1 php8.1-dom php-pear
             cd /root
-            php ./build/packages/datadog-setup.php --php-bin all --file $(ls build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
+            php datadog-setup.php --php-bin all --file $(ls dd-library-php-*-x86_64-linux-gnu.tar.gz)
             rm /etc/php/8.1/cli/conf.d/10-opcache.ini
             sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
             DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" \$(find tests/ext -type d)
@@ -1921,16 +1956,19 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: |-
+            datadog-php-tracer_[^"]+'"$(if [ $(uname -m) = "aarch64" ]; then echo arm64; else echo amd64; fi)"'.deb
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
           name: Install .deb from artifacts
           command: |
-            sudo dpkg -i ./build/packages/*$(if [ $(uname -m) = "aarch64" ]; then echo aarch64; else echo amd64; fi)*.deb
+            sudo dpkg -i *$(if [ $(uname -m) = "aarch64" ]; then echo arm64; else echo amd64; fi)*.deb
             php --ri=ddtrace
       - run:
           name: Run phpt tests against shippable package
@@ -1967,7 +2005,12 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: |-
+            datadog-php-tracer_[^"]+'"$(if [ $(uname -m) = "aarch64" ]; then echo arm64; else echo amd64; fi)"'.deb
+          directory: build/packages
       - setup_remote_docker
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
@@ -2002,11 +2045,35 @@ jobs:
       - run:
           name: Install git
           command: apk add git
+      - run:
+          name: Install curl
+          command: apk add curl
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - when:
+          condition:
+            equal: [php_installer, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'dd-library-php-[^"]+x86_64-linux-musl.tar.gz'
+                directory: build/packages
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'datadog-setup.php'
+                directory: build/packages
+      - when:
+          condition:
+            equal: [native_package, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: |-
+                  datadog-php-tracer_[^"]+'"$(uname -m)"'.apk
+                directory: build/packages
       - run:
           name: Validate alpine package
           command: ./dockerfiles/verify_packages/verify.sh
@@ -2051,7 +2118,28 @@ jobs:
             yum update -y
             yum install -y git
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - when:
+          condition:
+            equal: [php_installer, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
+                directory: build/packages
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'datadog-setup.php'
+                directory: build/packages
+      - when:
+          condition:
+            equal: [native_package, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: |-
+                  datadog-php-tracer-[^"]+'"$(uname -m)"'.rpm
+                directory: build/packages
       - run:
           name: Validate centos package
           command: << parameters.configuration >> ./dockerfiles/verify_packages/verify.sh
@@ -2076,7 +2164,28 @@ jobs:
             yum update -y
             yum install -y git
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - when:
+          condition:
+            equal: [php_installer, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
+                directory: build/packages
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'datadog-setup.php'
+                directory: build/packages
+      - when:
+          condition:
+            equal: [native_package, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: |-
+                  datadog-php-tracer-[^"]+'"$(uname -m)"'.rpm
+                directory: build/packages
       - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
@@ -2122,8 +2231,33 @@ jobs:
           command: |
             apt-get update
             apt-get install -y git
+      - run:
+          name: Install curl
+          command: |
+            apt-get install -y curl
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - when:
+          condition:
+            equal: [php_installer, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
+                directory: build/packages
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: 'datadog-setup.php'
+                directory: build/packages
+      - when:
+          condition:
+            equal: [native_package, << parameters.install_type >>]
+          steps:
+            - fetch_job_artifact:
+                job: "package extension"
+                artifact: |-
+                  datadog-php-tracer_[^"]+'"$(if [ $(uname -m) = "aarch64" ]; then echo arm64; else echo amd64; fi)"'.deb
+                directory: build/packages
       - run:
           name: Validate debian package
           command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
@@ -2147,7 +2281,12 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y git
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: |-
+            datadog-php-tracer-[^"]+'"$(uname -m)"'.tar.gz
+          directory: build/packages
       - setup_docker:
           docker_image: debian:bullseye
       - run:
@@ -2167,11 +2306,19 @@ jobs:
       - run:
           name: Install git
           command: apk add git
+      - run:
+          name: Install curl
+          command: apk add curl
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p build/packages
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: |-
+            datadog-php-tracer_[^"]+'"$(uname -m)"'.apk
+          directory: build/packages
       - run:
           name: Test
           command: ./dockerfiles/verify_packages/verify_no_ext_json.sh
@@ -2202,10 +2349,31 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - run:
           name: Let testing images to write to build/packages dir
-          command: chmod a+w build/packages
+          command: mkdir -p build/packages && chmod a+w build/packages
+
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
+          directory: build/packages
+
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'dd-library-php-[^"]+x86_64-linux-musl.tar.gz'
+          directory: build/packages
+
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'datadog-php-tracer-[^"]+x86_64.tar.gz'
+          directory: build/packages
+
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: "datadog-setup.php"
+          directory: build/packages
+
       - run:
           name: Run tests
           command: make -C dockerfiles/verify_packages test_installer
@@ -2223,6 +2391,9 @@ jobs:
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
+      parent_job:
+        type: string
+        default: "package extension"
     steps: &randomized_tests_steps
       - run:
           name: Ensure enough memory via swapfile
@@ -2235,7 +2406,6 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
       - run:
           command: ls -al
       - run:
@@ -2244,6 +2414,10 @@ jobs:
       - run:
           name: "Increase virtual memory limit for elasticsearch"
           command: sudo sysctl -w vm.max_map_count=262144
+      - fetch_job_artifact:
+          job: "<< parameters.parent_job >>"
+          artifact: |-
+            dd-library-php-[^"]+'"$(uname -m)"'-linux-gnu.tar.gz
       - run:
           name: Copy tracer package
           command: make -C tests/randomized library.local
@@ -2273,6 +2447,9 @@ jobs:
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
+      parent_job:
+        type: string
+        default: "package extension"
     steps: *randomized_tests_steps
 
   randomized_tests_asan:
@@ -2286,6 +2463,9 @@ jobs:
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
+      parent_job:
+        type: string
+        default: "package extension zts-debug-asan"
     steps: *randomized_tests_steps
 
   randomized_tests_arm_asan:
@@ -2299,6 +2479,9 @@ jobs:
       batch:
         # Batch is only used to run a number of these jobs in parallel via a testing matrix.
         type: integer
+      parent_job:
+        type: string
+        default: "package extension zts-debug-asan"
     steps: *randomized_tests_steps
 
   pecl_build:
@@ -2732,7 +2915,7 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine
       - run:
@@ -2760,7 +2943,7 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
       - run: mkdir -p extensions_$(uname -m) standalone_$(uname -m)
@@ -2803,7 +2986,7 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - run: mkdir -p extensions_$(uname -m)
@@ -2890,7 +3073,7 @@ jobs:
           name: Restore Cargo Package Cache
           keys:
             - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
-      - <<: *STEP_APPEND_BUILD_ID
+      - append_build_id
       - build_profiler:
           prefix: datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
       - persist_to_workspace:
@@ -2997,7 +3180,7 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - run:
@@ -3046,7 +3229,10 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: |-
+            dd-library-php-ssi-[^"]+'"$(uname -m)"'-linux.tar.gz
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - switch_php:
@@ -3056,10 +3242,8 @@ jobs:
           command: |
             set -xeuo pipefail
 
-            arch=$(uname -m)
-            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-ssi-*-${arch}-linux.tar.gz")
             rm -rf dd-library-php-ssi
-            tar -xzf ${package}
+            tar -xzf dd-library-php-ssi-*-linux.tar.gz
             export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
 
             cd loader
@@ -3086,7 +3270,10 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: |-
+            dd-library-php-ssi-[^"]+'"$(uname -m)"'-linux.tar.gz
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - run:
@@ -3096,10 +3283,8 @@ jobs:
 
             apk add --no-cache curl-dev << parameters.alpine_packages >>
 
-            arch=$(uname -m)
-            package=$(find ./build/packages -maxdepth 1 -name "dd-library-php-ssi-*-${arch}-linux.tar.gz")
             rm -rf dd-library-php-ssi
-            tar -xzf ${package}
+            tar -xzf dd-library-php-ssi-*-linux.tar.gz
             export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
 
             cd loader
@@ -3119,7 +3304,7 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:centos-7
       - run:
@@ -3158,7 +3343,7 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - run: mkdir -p extensions_$(uname -m) standalone_$(uname -m)
@@ -3241,6 +3426,8 @@ jobs:
         type: string
     steps:
       - checkout
+      - append_build_id:
+          shell: bash.exe
       - run:
           name: Pull submodules
           shell: powershell.exe
@@ -3261,10 +3448,15 @@ jobs:
           command: |
             docker exec php powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release\php_ddtrace.dll extensions_windows_x86_64\php_ddtrace-<< parameters.so_suffix >>.dll; move x64\Release\php_ddtrace.pdb extensions_windows_x86_64_debugsymbols\php_ddtrace-<< parameters.so_suffix >>.pdb"
       - run:
+          name: Reuse libdatadog build
+          shell: powershell.exe
+          command: |
+            docker exec php powershell.exe "mkdir app\x64\Release_TS; mv app\x64\Release\target app\x64\Release_TS\target"
+      - run:
           name: Build zts
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe "cd app; switch-php zts; nmake clean; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_windows_x86_64\php_ddtrace-<< parameters.so_suffix >>-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_windows_x86_64_debugsymbols\php_ddtrace-<< parameters.so_suffix >>-zts.pdb"
+            docker exec php powershell.exe "cd app; switch-php zts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_windows_x86_64\php_ddtrace-<< parameters.so_suffix >>-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_windows_x86_64_debugsymbols\php_ddtrace-<< parameters.so_suffix >>-zts.pdb"
       - persist_to_workspace:
           root: '.'
           paths: [ './extensions_windows_x86_64', './extensions_windows_x86_64_debugsymbols' ]
@@ -3280,7 +3472,7 @@ jobs:
     <<: *BARE_DOCKER_MACHINE
     steps:
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: "datadog/dd-trace-ci:php-<< parameters.php_version >>_centos-7"
       - run: mkdir -p appsec_$(uname -m)
@@ -3334,7 +3526,7 @@ jobs:
     <<: *BARE_DOCKER_MACHINE
     steps:
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_version >>"
       - run: mkdir -p appsec_$(uname -m)
@@ -3378,7 +3570,7 @@ jobs:
     <<: *BARE_DOCKER_MACHINE
     steps:
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - append_build_id
       - setup_docker:
           docker_image: "datadog/libddwaf:toolchain"
       - run: mkdir -p appsec_$(uname -m)
@@ -3427,7 +3619,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_APPEND_BUILD_ID
+      - append_build_id
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
@@ -3442,43 +3634,26 @@ jobs:
 
   "package extension":
     working_directory: ~/datadog
-    # The `Dockerfile` to this image is located at https://github.com/DataDog/docker-library/blob/master/dd-trace-php/Dockerfile_fpm
-    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
+    docker: [ image: 'datadog/dd-trace-ci:php_fpm_packaging' ]
     parameters:
       asan_build:
         type: boolean
         default: false
+    resource_class: xlarge
     steps:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
-      - unless:
-          condition: << parameters.asan_build >>
-          steps:
-            - run:
-                name: Package Profiler
-                command: |
-                  # The layout matches what the dd-prof-php releases had to minimize
-                  # transition work.
-                  for triplet in x86_64-unknown-linux-gnu x86_64-alpine-linux-musl aarch64-unknown-linux-gnu aarch64-alpine-linux-musl; do
-                    # Add licensing. TODO: generate rust libs to third-party CSV.
-                    cp -v profiling/LICENSE* profiling/NOTICE "datadog-profiling/${triplet}/"
-                    mkdir -vp "datadog-profiling/${triplet}/bin"
-                    # Add undocumented installer currently used by relenv
-                    cp -v profiling/datadog-profiling-install.sh "datadog-profiling/${triplet}/bin/"
-                  done
-                  find
-                  tar -czf "datadog-profiling.tar.gz" "datadog-profiling/"
       - run:
           name: Build packages
           command: |
             <<# parameters.asan_build >>export DDTRACE_MAKE_PACKAGES_ASAN=1<</ parameters.asan_build >>
-            make packages
+            make -j9 calculate_package_sha256_sums packages
       - run:
           name: Display sha256sums
-          command: cd build/packages && find . -type f -exec sha256sum {} + && cd -
+          command: cat package_sha256sums
       - run:
           name: Spot-check shape of library name
           command: |
@@ -3503,9 +3678,6 @@ jobs:
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - store_artifacts: { path: 'pecl', destination: '/pecl' }
-      - persist_to_workspace:
-          root: '.'
-          paths: ['./build/packages', 'dockerfiles/verify_packages']
 
   "x-profiling phpt tests on Alpine":
     working_directory: ~/datadog
@@ -3519,17 +3691,23 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install curl
+          command: apk add curl
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'dd-library-php-[^"]+x86_64-linux-musl.tar.gz'
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'datadog-setup.php'
       - run:
           name: Run cross-product profiling phpt tests
           command: |
               set -eu
               apk update
               apk add autoconf coreutils gcc make
-              cd ./build/packages
               installable_bundle=$(find . -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
               php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
-              cd -
               # run phpize just to get run-tests.php
               phpize
               php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
@@ -3576,7 +3754,6 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
-      - <<: *STEP_ATTACH_WORKSPACE
 
       - run:
           name: Install python 3.12
@@ -3592,13 +3769,17 @@ jobs:
       - run:
           name: Clone System Tests repo
           command: git clone https://github.com/DataDog/system-tests.git
-      - run:
-          name: Copy .tar.gz file to system test binaries folder
-          command: |
-            ls -la build/packages
-            installable_bundle=$(find build/packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz' | xargs)
-            echo using $installable_bundle
-            cp $installable_bundle build/packages/datadog-setup.php system-tests/binaries/
+
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
+          directory: system-tests/binaries
+
+      - fetch_job_artifact:
+          job: "package extension"
+          artifact: "datadog-setup.php"
+          directory: system-tests/binaries
+
       - run:
           name: Build
           command: << parameters.build >>
@@ -3877,7 +4058,6 @@ workflows:
           resource_class: "arm.medium"
 
       - compile_appsec_extension_centos:
-          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_version:
@@ -3895,7 +4075,6 @@ workflows:
                 - "arm.medium"
 
       - compile_appsec_extension_alpine:
-          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_version:
@@ -3913,7 +4092,6 @@ workflows:
                 - "arm.medium"
 
       - compile_appsec_helper:
-          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               resource_class:
@@ -3921,7 +4099,6 @@ workflows:
                 - "arm.medium"
 
       - compile_alpine:
-          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
@@ -3937,7 +4114,6 @@ workflows:
           resource_class: "medium"
           name: "Compile alpine x86_64 PHP << matrix.php_major_minor >>"
       - compile_alpine:
-          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
@@ -3953,7 +4129,6 @@ workflows:
           resource_class: "arm.medium"
           name: "Compile alpine aarch64 PHP << matrix.php_major_minor >>"
       - compile_rust_alpine:
-          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               resource_class:
@@ -3992,14 +4167,12 @@ workflows:
           name: "Link aarch64 alpine"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 70 nts + zts + debug"
           php_version: "7.0"
           docker_image: "datadog/dd-trace-ci:php-7.0_centos-7"
           so_suffix: "20151012"
           persist_ldflags: true
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 70 nts + zts + debug"
           php_version: "7.0"
           docker_image: "datadog/dd-trace-ci:php-7.0_centos-7"
@@ -4007,46 +4180,39 @@ workflows:
           persist_ldflags: true
           resource_class: "arm.medium"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 71 nts + zts + debug"
           php_version: "7.1"
           docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
           so_suffix: "20160303"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 71 nts + zts + debug"
           php_version: "7.1"
           docker_image: "datadog/dd-trace-ci:php-7.1_centos-7"
           so_suffix: "20160303"
           resource_class: "arm.medium"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 72 nts + zts + debug"
           php_version: "7.2"
           docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
           so_suffix: "20170718"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 72 nts + zts + debug"
           php_version: "7.2"
           docker_image: "datadog/dd-trace-ci:php-7.2_centos-7"
           so_suffix: "20170718"
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 72 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-7.2_windows"
           php_version: "7.2"
           so_suffix: "20170718"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 73 nts + zts + debug"
           php_version: "7.3"
           docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
           so_suffix: "20180731"
           catch_warnings: false # On debug builds: unused parameter '__zend_filename'
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 73 nts + zts + debug"
           php_version: "7.3"
           docker_image: "datadog/dd-trace-ci:php-7.3_centos-7"
@@ -4054,112 +4220,94 @@ workflows:
           catch_warnings: false # On debug builds: unused parameter '__zend_filename'
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 73 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-7.3_windows"
           php_version: "7.3"
           so_suffix: "20180731"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 74 nts + zts + debug"
           php_version: "7.4"
           docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
           so_suffix: "20190902"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 74 nts + zts + debug"
           php_version: "7.4"
           docker_image: "datadog/dd-trace-ci:php-7.4_centos-7"
           so_suffix: "20190902"
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 74 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-7.4_windows"
           php_version: "7.4"
           so_suffix: "20190902"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 80 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
           php_version: "8.0"
           so_suffix: "20200930"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 80 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.0_centos-7"
           php_version: "8.0"
           so_suffix: "20200930"
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 80 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-8.0_windows"
           php_version: "8.0"
           so_suffix: "20200930"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 81 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
           php_version: "8.1"
           so_suffix: "20210902"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 81 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.1_centos-7"
           php_version: "8.1"
           so_suffix: "20210902"
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 81 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-8.1_windows"
           php_version: "8.1"
           so_suffix: "20210902"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 82 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.2_centos-7"
           php_version: "8.2"
           so_suffix: "20220829"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 82 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.2_centos-7"
           php_version: "8.2"
           so_suffix: "20220829"
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 82 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-8.2_windows"
           php_version: "8.2"
           so_suffix: "20220829"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 83 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
           php_version: "8.3"
           so_suffix: "20230831"
       - compile_extension_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 83 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
           php_version: "8.3"
           so_suffix: "20230831"
           resource_class: "arm.medium"
       - compile_extension_windows:
-          requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 83 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-8.3_windows"
           php_version: "8.3"
           so_suffix: "20230831"
 
       - compile_rust_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 rust"
       - compile_rust_centos:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 rust"
           resource_class: "arm.large"
 
@@ -4259,56 +4407,46 @@ workflows:
             - compile_appsec_helper
 
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 74 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           so_suffix: "20190902"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 74 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           so_suffix: "20190902"
           resource_class: "arm.medium"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 80 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           so_suffix: "20200930"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 80 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           so_suffix: "20200930"
           resource_class: "arm.medium"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 81 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           so_suffix: "20210902"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 81 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           so_suffix: "20210902"
           resource_class: "arm.medium"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 82 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           so_suffix: "20220829"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 82 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           so_suffix: "20220829"
           resource_class: "arm.medium"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 83 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           so_suffix: "20230831"
       - compile_extension_asan:
-          requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 83 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           so_suffix: "20230831"
@@ -4318,6 +4456,7 @@ workflows:
           name: "package extension zts-debug-asan"
           asan_build: true
           requires:
+            - "Prepare Code"
             - "Compile x86_64 PHP 74 debug-zts-asan"
             - "Compile aarch64 PHP 74 debug-zts-asan"
             - "Compile x86_64 PHP 80 debug-zts-asan"
@@ -4731,28 +4870,24 @@ workflows:
             TEST_LIBRARY=php ./run.sh PARAMETRIC
 
       - "compile_loader":
-          requires: [ 'Prepare Code' ]
           name: "Compile Loader Linux x86_64"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           resource_class: "medium"
           os: "linux-gnu"
 
       - "compile_loader":
-          requires: [ 'Prepare Code' ]
           name: "Compile Loader Linux aarch64"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           resource_class: "arm.medium"
           os: "linux-gnu"
 
       - "compile_loader":
-          requires: [ 'Prepare Code' ]
           name: "Compile Loader Alpine x86_64"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
           resource_class: "medium"
           os: "linux-musl"
 
       - "compile_loader":
-          requires: [ 'Prepare Code' ]
           name: "Compile Loader Alpine aarch64"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
           resource_class: "arm.medium"
