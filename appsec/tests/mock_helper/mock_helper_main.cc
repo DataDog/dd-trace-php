@@ -17,11 +17,11 @@
 #define RAPIDJSON_NO_SIZETYPEDEFINE
 namespace rapidjson {
 using SizeType = std::uint32_t;
-}
+} // namespace rapidjson
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
-#include <rapidjson/writer.h>
 #include <rapidjson/rapidjson.h>
+#include <rapidjson/writer.h>
 
 #include <spdlog/spdlog.h>
 
@@ -39,13 +39,12 @@ using SizeType = std::uint32_t;
 #include <unistd.h>
 #include <vector>
 
-#include "mock_helper_main.hpp"
 #include "mock_dd_agent.hpp"
+#include "mock_helper_main.hpp"
 #include <mpack.h>
 
 namespace po = boost::program_options;
 namespace asio = boost::asio;
-namespace ip = asio::ip;
 namespace local = asio::local;
 namespace posix = asio::posix;
 using boost::system::error_code;
@@ -60,7 +59,7 @@ MsgpackToJson::MsgpackToJson(const char *buffer, size_t size)
 void MsgpackToJson::convert()
 {
     mpack_tree_parse(&tree_);
-    mpack_error_t err = mpack_tree_error(&tree_);
+    const mpack_error_t err = mpack_tree_error(&tree_);
     if (err != mpack_ok) {
         throw std::runtime_error{std::string{"Error parsing msgpack: "} +
                                  mpack_error_to_string(err)};
@@ -69,9 +68,11 @@ void MsgpackToJson::convert()
     mpack_node_t root = mpack_tree_root(&tree_);
     write(root);
 }
+
+// NOLINTNEXTLINE(misc-no-recursion)
 void MsgpackToJson::write(mpack_node_t &node)
 {
-    mpack_type_t type = mpack_node_type(node);
+    const mpack_type_t type = mpack_node_type(node);
     switch (type) {
     case mpack_type_nil:
         writer_.Null();
@@ -108,10 +109,10 @@ void MsgpackToJson::write(mpack_node_t &node)
         writer_.StartObject();
         auto len = mpack_node_map_count(node);
         for (decltype(len) i = 0; i < len; i++) {
-            mpack_node_t key = mpack_node_map_key_at(node, i);
+            mpack_node_t const key = mpack_node_map_key_at(node, i);
             mpack_node_t value = mpack_node_map_value_at(node, i);
 
-            mpack_type_t key_type = mpack_node_type(key);
+            mpack_type_t const key_type = mpack_node_type(key);
             if (key_type != mpack_type_str) {
                 throw std::runtime_error{
                     "saw nonstring map key in msgpack message"};
@@ -138,9 +139,9 @@ EchoPipe::EchoPipe() : stream_{try_fds()}
     }
 }
 void EchoPipe::write(
-    const asio::const_buffer data, asio::yield_context yield)
+    asio::const_buffer buff, asio::yield_context yield)
 {
-    std::array<asio::const_buffer, 2> buffers{data, {"", 1}};
+    std::array<asio::const_buffer, 2> buffers{buff, {"", 1}};
     SPDLOG_INFO("Writing to echo pipe {} + 1 bytes", buffers[0].size());
     SPDLOG_DEBUG("Content: {}",
         std::string_view{
@@ -171,20 +172,20 @@ std::optional<posix::stream_descriptor> EchoPipe::try_single_fd(int fd)
 {
     struct ::stat statbuf = {0};
     if (fstat(fd, &statbuf) == -1) {
-        error_code ec = {errno, boost::system::system_category()};
+        error_code const ec = {errno, boost::system::system_category()};
         SPDLOG_INFO("fstat() failed for fd {}: {}", fd, ec.message());
         return std::nullopt;
     }
-    if (!(statbuf.st_mode & (S_IFIFO | S_IFCHR))) {
+    if ((statbuf.st_mode & (S_IFIFO | S_IFCHR)) == 0) {
         SPDLOG_INFO(
             "File descriptor {0}  is not a FIFO or character device: {1:o}", fd,
             statbuf.st_mode & S_IFMT);
         return std::nullopt;
     }
 
-    int new_fd = ::dup(fd);
+    const int new_fd = ::dup(fd); // NOLINT(android-cloexec-dup)
     if (new_fd == -1) {
-        error_code ec = {errno, boost::system::system_category()};
+        error_code const ec = {errno, boost::system::system_category()};
         SPDLOG_INFO("Call to dup of fd {} failed: {}", fd, ec.message());
         return std::nullopt;
     }
@@ -200,11 +201,11 @@ struct OwningBuffer {
     OwningBuffer(const char *buf, std::size_t len) : buf_{buf}, len_{len} {}
     OwningBuffer(const OwningBuffer &) = delete;
     const OwningBuffer &operator=(const OwningBuffer &) = delete;
-    OwningBuffer(OwningBuffer &&oth) : OwningBuffer{}
+    OwningBuffer(OwningBuffer &&oth)  noexcept : OwningBuffer{}
     {
         *this = std::move(oth);
     }
-    const OwningBuffer &operator=(OwningBuffer &&oth)
+    OwningBuffer &operator=(OwningBuffer &&oth) noexcept
     {
         std::free(const_cast<char *>(buf_));
         buf_ = oth.buf_;
@@ -231,6 +232,7 @@ class MpackWriter {
         std::free(data_);
     }
 
+    // NOLINTNEXTLINE(misc-no-recursion)
     MpackWriter &operator<<(const rapidjson::Value &val)
     {
         if (val.IsInt() || val.IsInt64()) {
@@ -420,22 +422,22 @@ class Client {
     {
         JsonToMsgpack json_to_msgpack{doc};
         json_to_msgpack.convert();
-        if (json_to_msgpack.delay()) {
+        if (json_to_msgpack.delay() != 0U) {
             SPDLOG_INFO("Will wait {} seconds before sending response",
                 json_to_msgpack.delay());
             asio::steady_timer timer{iocontext};
             timer.expires_after(std::chrono::seconds{json_to_msgpack.delay()});
             timer.async_wait(yield);
         }
-        OwningBuffer buf = json_to_msgpack.move_buffer();
+        OwningBuffer const buf = json_to_msgpack.move_buffer();
 
-        Header h;
+        Header h{};
         memcpy(&h.marker, "dds", 4);
         h.size = buf.len_;
         SPDLOG_INFO("Writing response; size {} (header) + {} (body)",
             sizeof(h), buf.len_);
 
-        std::array buffers = {
+        std::array const buffers = {
             asio::const_buffer(reinterpret_cast<char *>(&h), sizeof(h)),
             asio::const_buffer(buf.buf_, buf.len_),
         };
@@ -516,7 +518,7 @@ class Dispatcher {
         socklen_t len = sizeof(addr);
         if (::getsockname(fd, reinterpret_cast<sockaddr *>(&addr), &len) ==
             -1) {
-            error_code ec = {errno, boost::system::system_category()};
+            error_code const ec = {errno, boost::system::system_category()};
             SPDLOG_INFO("Call to getsockname failed on socket {}: {}", fd,
                 ec.message());
             return std::nullopt;
@@ -608,12 +610,18 @@ static void _fatal_signal_handler(int signum) {
 
 int main(int argc, char *argv[])
 {
-    ::signal(SIGSEGV, _fatal_signal_handler);
-    ::signal(SIGABRT, _fatal_signal_handler);
-
     auto console = spdlog::stderr_logger_mt("console");
     spdlog::set_default_logger(console);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e][%l] %v at %s:%!");
+
+    auto prev = ::signal(SIGSEGV, _fatal_signal_handler);
+    if (prev == SIG_ERR) { // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
+        SPDLOG_CRITICAL("Could not set signal handler for SIGSEGV");
+    }
+    prev = ::signal(SIGABRT, _fatal_signal_handler);
+    if (prev == SIG_ERR) { // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
+        SPDLOG_CRITICAL("Could not set signal handler for SIGABRT");
+    }
 
     po::options_description opt_desc{"Allowed options"};
     // clang-format off
@@ -641,11 +649,11 @@ int main(int argc, char *argv[])
     }
     po::notify(opt_vm);
 
-    if (opt_vm.count("help")) {
+    if (opt_vm.count("help") != 0U) {
         std::cerr << opt_desc << "\n";
         return 1;
     }
-    if (!opt_vm.count("response")) {
+    if (opt_vm.count("response") == 0U) {
         std::cerr << "At least one response is required\n";
         return 1;
     }
@@ -673,15 +681,15 @@ int main(int argc, char *argv[])
     });
 
     std::optional<SignallingLock> signal_lock;
-    if (opt_vm.count("lock")) {
+    if (opt_vm.count("lock") != 0U) {
         signal_lock.emplace(opt_vm["lock"].as<std::string>());
         spawn(iocontext,
             [&signal_lock](auto yield) { signal_lock->lock(yield); });
     }
 
     asio::signal_set signals{iocontext, SIGINT, SIGTERM};
-    signals.async_wait([](const error_code &err, int signal) {
-        SPDLOG_INFO("Got signal {}; exiting", signal);
+    signals.async_wait([](const error_code & /*err*/, int signal) {
+        SPDLOG_INFO("Got signal {}; exiting", signal); // NOLINT
         iocontext.stop();
     });
 
