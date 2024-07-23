@@ -55,9 +55,13 @@ src/%/.finger: %-$(LLVM_VERSION).src.tar.xz
 		CC=$(GCC_TOOL_PREFIX)gcc \
 		AR=$(GCC_TOOL_PREFIX)ar \
 		RANLIB=$(GCC_TOOL_PREFIX)ranlib \
-			../../src/musl/configure --prefix=$(MUSL_SYSROOT) && \
+		../../src/musl/configure --prefix=$(MUSL_SYSROOT) && \
 		$(MAKE) -j $(shell nproc) && \
 		$(MAKE) install && \
+		popd && \
+		pushd $(MUSL_SYSROOT)/include && \
+		patch -p0 < /build/locale.h.diff && \
+		patch -p0 < /build/alltypes.h.diff && \
 		popd && \
 		touch $@
 
