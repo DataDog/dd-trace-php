@@ -16,6 +16,7 @@
     INTEGRATION(CAKEPHP, "cakephp")             \
     INTEGRATION(CODEIGNITER, "codeigniter")     \
     INTEGRATION(EXEC, "exec")                   \
+    INTEGRATION(FILESYSTEM, "filesystem")       \
     INTEGRATION(CURL, "curl")                   \
     INTEGRATION(DRUPAL, "drupal")               \
     INTEGRATION(ELASTICSEARCH, "elasticsearch") \
