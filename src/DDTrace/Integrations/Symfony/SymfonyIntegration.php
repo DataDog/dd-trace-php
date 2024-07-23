@@ -275,7 +275,7 @@ class SymfonyIntegration extends Integration
                     }
 
                     $span->name = 'symfony.console.command.run';
-                    $span->resource = $$commandName ?: $span->name;
+                    $span->resource = $commandName ?: $span->name;
                     $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                     $span->type = Type::CLI;
                     $span->meta['symfony.console.command.class'] = \get_class($this);
