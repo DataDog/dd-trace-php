@@ -245,6 +245,15 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "proc_open",
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "file_get_contents",
+                                           "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "file_put_contents",
+                                           "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "fopen", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "readfile", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "stat", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "lstat", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_multi_exec",
