@@ -3380,23 +3380,19 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
-          docker_image: "datadog/libddwaf:toolchain"
+          docker_image: "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain@sha256:afbb4503fd930729e884e18074b227b2ea182dd2895e580635ca119250aa0fe2"
       - run: mkdir -p appsec_$(uname -m)
-      - run:
-          name: Create clang symlinks
-          command: |
-            ln -s /usr/bin/clang++-16 /usr/bin/clang++
-            ln -s /usr/bin/clang-16 /usr/bin/clang
-            ln -s /usr/bin/clang-cpp-16 /usr/bin/clang-cpp
       - run:
           name: Build
           command: |
             git config --global --add safe.directory $(pwd)/appsec/third_party/libddwaf
             mkdir -p appsec/build ; cd appsec/build
-            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_TOOLCHAIN_FILE=$(pwd)/../cmake/Toolchain.$(uname -m).cmake
+            cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF \
+              -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \
+              -DCMAKE_TOOLCHAIN_FILE=/sysroot/$(arch)-none-linux-musl/Toolchain.cmake
             make -j $(nproc)
-            objcopy --compress-debug-sections ddappsec-helper
-            cp -v ddappsec-helper ../../appsec_$(uname -m)/ddappsec-helper
+            objcopy --compress-debug-sections libddappsec-helper.so
+            cp -v libddappsec-helper.so ../../appsec_$(uname -m)/libddappsec-helper.so
       - run:
           name: Test
           command: |

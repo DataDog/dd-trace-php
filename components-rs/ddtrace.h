@@ -155,6 +155,12 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
+ddog_MaybeError ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
+                                           ddog_CharSlice socket_file_path,
+                                           ddog_CharSlice lock_file_path,
+                                           ddog_CharSlice log_file_path,
+                                           ddog_CharSlice log_level);
+
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

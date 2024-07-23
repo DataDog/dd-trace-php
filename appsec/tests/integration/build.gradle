@@ -318,7 +318,7 @@ def buildAppSecTask = { String version, String variant ->
             ],
             outputs: [
                     volume: 'php-appsec',
-                    files: ['ddappsec.so', 'ddappsec-helper'],
+                    files: ['ddappsec.so', 'libddappsec-helper.so'],
             ],
             command: [
                     '-e', '-c',
@@ -332,7 +332,7 @@ def buildAppSecTask = { String version, String variant ->
                               -DCMAKE_TOOLCHAIN_FILE=/build/Toolchain.cmake \\
                               -DDD_APPSEC_TESTING=ON /project/appsec
                     make -j extension ddappsec-helper && \\
-                        touch ddappsec.so ddappsec-helper
+                        touch ddappsec.so libddappsec-helper.so
                 '''
             ]
     )

@@ -33,7 +33,7 @@ const int version = 11;
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
 net::awaitable<std::string> execute_request(const std::string &host,
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
     const std::string &port, const http::request<http::string_body> &request)
 {
     std::string result;

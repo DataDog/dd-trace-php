@@ -11,7 +11,7 @@ TARGET_ARCH := $(shell arch)
 TARGET := $(TARGET_ARCH)-none-linux-musl
 
 
-install: .libcxx-installed .libcxxabi-installed
+install: $(MUSL_SYSROOT)/lib/libglibc_compat.a .libcxx-installed .libcxxabi-installed
 clean:
 	rm -rf src/ build/ *.tar.xz *.tar.gz \
 		.compiler-rt-installed .gcc-toolchain-installed .libcxxabi-installed \
@@ -21,6 +21,13 @@ clean:
 CC_TOOLCHAIN := /usr
 GCC_TOOL_PREFIX := /usr/bin/
 GCC_TOOLCHAIN_SYSROOT := /
+
+$(MUSL_SYSROOT)/lib/libglibc_compat.a: glibc_compat.c .musl-installed
+	mkdir -p $(MUSL_SYSROOT)/lib
+	clang --sysroot $(MUSL_SYSROOT) -fpie -O2 -fno-omit-frame-pointer \
+		-ggdb3 -c glibc_compat.c -o /tmp/glibc_compat.o && \
+		ar rcs $@ /tmp/glibc_compat.o && \
+		rm /tmp/glibc_compat.o
 
 .gcc-toolchain-installed:
 	cp -v /lib/$(TARGET_ARCH)-linux-gnu/libgcc_s.so.1 /usr/lib/gcc/$(TARGET_ARCH)-linux-gnu/10/libgcc_s.so.1
@@ -152,14 +159,3 @@ COMMON_CMAKE_OPTIONS := -DCMAKE_BUILD_TYPE=$(RELTYPE) \
 		$(MAKE) -j $(shell nproc) && $(MAKE) install && \
 		popd && \
 		touch $@
-
-libddwaf:
-	mkdir -p build/libddwaf && \
-		pushd build/libddwaf && \
-		cmake -DCMAKE_BUILD_TYPE=$(RELTYPE) -DCMAKE_TOOLCHAIN_FILE="$(realpath .)/Toolchain.cmake" \
-			-DCMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE=PRE_TEST \
-			-DLIBDDWAF_TEST_COVERAGE=OFF \
-			../../src/libddwaf && \
-		make -j && make -j testPowerWAF && patchelf --remove-needed libc.so libddwaf.so && make package
-
-.PHONY: libddwaf
