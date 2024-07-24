@@ -1,0 +1,5 @@
+openai.request.duration:1130875|d|#env:test,service:openai-test,version:1.0,env:test,service:openai-test,version:1.0,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/images/generations
+openai.ratelimit.requests:3000|g|#env:test,service:openai-test,version:1.0,env:test,service:openai-test,version:1.0,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/images/generations
+openai.ratelimit.tokens:250000|g|#env:test,service:openai-test,version:1.0,env:test,service:openai-test,version:1.0,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/images/generations
+openai.ratelimit.remaining.requests:2999|g|#env:test,service:openai-test,version:1.0,env:test,service:openai-test,version:1.0,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/images/generations
+openai.ratelimit.remaining.tokens:249989|g|#env:test,service:openai-test,version:1.0,env:test,service:openai-test,version:1.0,openai.organization.name:org-1234,openai.user.api_key:sk-...9d5d,openai.request.endpoint:/v1/images/generations

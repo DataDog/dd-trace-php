@@ -30,7 +30,7 @@ $format = <<<EOS
         {
             "name": "library_entrypoint.abort",
             "tags": [
-                "reason:incompatible_runtime"
+                "reason:eol_runtime"
             ]
         },
         {

@@ -152,6 +152,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/engine_api.c \
     ext/engine_hooks.c \
     ext/excluded_modules.c \
+    ext/git.c \
     ext/handlers_api.c \
     ext/handlers_exception.c \
     ext/handlers_internal.c \
@@ -295,6 +296,18 @@ EOT
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/tracer_tag_propagation])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
+
+  dnl Avoid cleaning rust artifacts with make clean (cargo is really good at detecting changes - and rust files are not dependent on php environment).
+  dnl However, for users who really want to clean, there's always make distclean, which will flatly remove the whole target/ directory.
+  AC_DEFUN([DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP], [
+    pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
+      popdef([PHP_GEN_GLOBAL_MAKEFILE])
+      PHP_GEN_GLOBAL_MAKEFILE
+      sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/^distclean:/a\'$'\n\t''rm -rf target/' -e '/.*\.a /{s/| xargs rm -f/! -path ".\/target\/*" | xargs rm -f/'$'\n}' Makefile
+      DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
+    ])
+  ])
+  DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
 
   cat <<'EOT' >> Makefile.fragments
 ./modules/ddtrace.a: $(shared_objects_ddtrace) $(DDTRACE_SHARED_DEPENDENCIES)

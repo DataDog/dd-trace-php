@@ -521,6 +521,7 @@ commands:
                   -e DD_AGENT_HOST=127.0.0.1 \
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
+                  -e ASAN_OPTIONS=abort_on_error=1 \
                   -e CIRCLE_SHA1 \
                   -e CIRCLE_BRANCH \
                   -e CODECOV_TOKEN \
@@ -894,6 +895,10 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -941,7 +946,7 @@ jobs:
             php ./build/packages/datadog-setup.php --php-bin all --file $(ls build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
             rm /etc/php/8.1/cli/conf.d/10-opcache.ini
             sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
-            pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" \$(find tests/ext -type d)
+            DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" \$(find tests/ext -type d)
             COMMANDS
 
   test_arm:
@@ -1043,7 +1048,7 @@ jobs:
           name: Set test environment variables
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1'
+            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0'
       - run:
           name: Run extension tests
           shell: powershell.exe
@@ -1720,6 +1725,7 @@ jobs:
             export DD_TRACE_STARTUP_LOGS=0
             export DD_TRACE_WARN_CALL_STACK_DEPTH=0
             export DD_TRACE_WARN_LEGACY_DD_TRACE=0
+            export DD_TRACE_GIT_METADATA_ENABLED=0
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
@@ -2351,6 +2357,7 @@ jobs:
             HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
             DD_TRACE_CLI_ENABLED=1 \
+            DD_TRACE_GIT_METADATA_ENABLED=0 \
             pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d datadog.trace.sources_path=" -p datadog_trace
       - run:
           name: Gather .diff files for artifacts
@@ -3059,6 +3066,7 @@ jobs:
             mkdir -p modules
             cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
             ./bin/test.sh
+            ./bin/check_glibc_version.sh
 
   "test_loader_alpine":
     working_directory: ~/datadog
@@ -3555,8 +3563,7 @@ jobs:
 
   system_tests:
     machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2004:current
+      image: ubuntu-2404:2024.05.1
     parameters:
       build:
         type: string
@@ -3572,10 +3579,10 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
 
       - run:
-          name: Install python 3.9
+          name: Install python 3.12
           command: |
             sudo apt-get update
-            sudo apt-get install python3.9-venv
+            sudo apt-get install -y python3.12-full python3.12-dev python3.12-venv
 
       - run:
           name: versions

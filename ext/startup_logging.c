@@ -374,6 +374,11 @@ void ddtrace_startup_logging_first_rinit(void) {
         log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
             "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
             "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+
+        if (get_DD_OPENAI_LOGS_ENABLED()) {
+            log("Note that DD_OPENAI_LOGS_ENABLED=1 may be changed or removed in any release.");
+        }
+
         smart_str_free(&buf);
 
         zend_hash_destroy(ht);
