@@ -26,6 +26,7 @@ class MockDatadogAgent implements Startable {
         this.httpServer.put('v0.4/traces', tracesHandler)
         this.httpServer.get('info', InfoHandler.instance)
         this.httpServer.post('/telemetry/proxy/api/v2/apmtelemetry', TelemetryHandler.instance)
+        this.httpServer.post('v0.7/config', ConfigV07Handler.instance)
         this.httpServer.error(404, ctx -> {
             log.info("Unmatched request: ${ctx.method()} ${ctx.path()}")
         })

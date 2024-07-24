@@ -214,6 +214,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withFileSystemBind(wwwDir, '/test-resources', BindMode.READ_ONLY)
         withFileSystemBind('src/test/waf/recommended.json',
                 '/etc/recommended.json', BindMode.READ_ONLY)
+        withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
