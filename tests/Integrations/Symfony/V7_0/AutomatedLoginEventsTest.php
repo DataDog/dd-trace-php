@@ -2,7 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V7_0;
 
-class AutomatedLoginEventsTest extends \DDTrace\Tests\Integrations\Symfony\V6_2\AutomatedLoginEventsTest
+use DDTrace\Tests\Integrations\Symfony\AutomatedLoginEventsTestSuite;
+
+/**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
     protected static function getAppIndexScript()
     {
