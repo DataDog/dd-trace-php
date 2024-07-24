@@ -590,6 +590,23 @@ typedef struct ddog_prof_CrashtrackerMetadata {
   const struct ddog_Vec_Tag *tags;
 } ddog_prof_CrashtrackerMetadata;
 
+typedef enum ddog_prof_CrashtrackerUsizeResult_Tag {
+  DDOG_PROF_CRASHTRACKER_USIZE_RESULT_OK,
+  DDOG_PROF_CRASHTRACKER_USIZE_RESULT_ERR,
+} ddog_prof_CrashtrackerUsizeResult_Tag;
+
+typedef struct ddog_prof_CrashtrackerUsizeResult {
+  ddog_prof_CrashtrackerUsizeResult_Tag tag;
+  union {
+    struct {
+      uintptr_t ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_prof_CrashtrackerUsizeResult;
+
 /**
  * Represents a CrashInfo. Do not access its member for any reason, only use
  * the C API functions on this struct.
@@ -712,9 +729,6 @@ typedef struct ddog_prof_StringWrapper {
   struct ddog_Vec_U8 message;
 } ddog_prof_StringWrapper;
 
-/**
- * Returned by [ddog_prof_Profile_new].
- */
 typedef enum ddog_prof_StringWrapperResult_Tag {
   DDOG_PROF_STRING_WRAPPER_RESULT_OK,
   DDOG_PROF_STRING_WRAPPER_RESULT_ERR,
@@ -731,23 +745,6 @@ typedef struct ddog_prof_StringWrapperResult {
     };
   };
 } ddog_prof_StringWrapperResult;
-
-typedef enum ddog_prof_CrashtrackerUsizeResult_Tag {
-  DDOG_PROF_CRASHTRACKER_USIZE_RESULT_OK,
-  DDOG_PROF_CRASHTRACKER_USIZE_RESULT_ERR,
-} ddog_prof_CrashtrackerUsizeResult_Tag;
-
-typedef struct ddog_prof_CrashtrackerUsizeResult {
-  ddog_prof_CrashtrackerUsizeResult_Tag tag;
-  union {
-    struct {
-      uintptr_t ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_prof_CrashtrackerUsizeResult;
 
 typedef struct ddog_prof_Exporter_File {
   ddog_CharSlice name;

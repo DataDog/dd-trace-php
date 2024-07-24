@@ -14,7 +14,7 @@ ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
-datadog-profiling-ffi = { path = "../libdatadog/profiling-ffi" }
+datadog-profiling-ffi = { path = "../libdatadog/profiling-ffi", features = ["crashtracker-collector"] }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
