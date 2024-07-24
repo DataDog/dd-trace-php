@@ -43,10 +43,6 @@ class MessengerTest extends WebFrameworkTestCase
 
     public function testAsyncSuccess()
     {
-        if (\PHP_VERSION_ID >= 80300) {
-            $this->markTestSkipped('This test is skipped in PHP 8.3 because of an header incompatibility with the test-agent');
-        }
-
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky number', '/lucky/number');
             $this->call($spec);
@@ -61,24 +57,16 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_DEBUG' => 'true',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
-        // Filter out the orphans
-        $consumerTrace = [\array_filter($consumerTraces, function ($trace) {
-            return !isset($trace['metrics']['_sampling_priority_v1']) || $trace['metrics']['_sampling_priority_v1'] !== 0;
-        })];
-
         $this->snapshotFromTraces(
-            $consumerTrace,
+            $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v5_2.messenger_test.test_async_success_consumer'
+            'tests.integrations.symfony.v5_2.messenger_test.test_async_success_consumer',
+            true
         );
     }
 
     public function testAsyncFailure()
     {
-        if (\PHP_VERSION_ID >= 80300) {
-            $this->markTestSkipped('This test is skipped in PHP 8.3 because of an header incompatibility with the test-agent');
-        }
-
         $this->tracesFromWebRequestSnapshot(function () {
             $spec = GetSpec::create('Lucky fail', '/lucky/fail');
             $this->call($spec);
@@ -92,15 +80,12 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
-        // Filter out the orphans
-        $consumerTrace = [\array_filter($consumerTraces, function ($trace) {
-            return !isset($trace['metrics']['_sampling_priority_v1']) || $trace['metrics']['_sampling_priority_v1'] !== 0;
-        })];
 
         $this->snapshotFromTraces(
-            $consumerTrace,
+            $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v5_2.messenger_test.test_async_failure_consumer'
+            'tests.integrations.symfony.v5_2.messenger_test.test_async_failure_consumer',
+            true
         );
     }
 }

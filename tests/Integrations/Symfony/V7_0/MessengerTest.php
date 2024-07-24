@@ -56,16 +56,11 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_DEBUG' => 'true',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
-        // Filter out the orphans
-        $consumerTrace = [\array_filter($consumerTraces, function ($trace) {
-            return !isset($trace['metrics']['_sampling_priority_v1']) || $trace['metrics']['_sampling_priority_v1'] !== 0;
-        })];
-
-        echo json_encode($consumerTrace, JSON_PRETTY_PRINT) . PHP_EOL;
         $this->snapshotFromTraces(
-            $consumerTrace,
+            $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v7_0.messenger_test.test_async_success_consumer'
+            'tests.integrations.symfony.v7_0.messenger_test.test_async_success_consumer',
+            true
         );
     }
 
@@ -84,15 +79,11 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
-        // Filter out the orphans
-        $consumerTrace = [\array_filter($consumerTraces, function ($trace) {
-            return !isset($trace['metrics']['_sampling_priority_v1']) || $trace['metrics']['_sampling_priority_v1'] !== 0;
-        })];
-
         $this->snapshotFromTraces(
-            $consumerTrace,
+            $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v7_0.messenger_test.test_async_failure_consumer'
+            'tests.integrations.symfony.v7_0.messenger_test.test_async_failure_consumer',
+            true
         );
     }
 }

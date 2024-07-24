@@ -370,13 +370,40 @@ trait SnapshotTestTrait
     public function snapshotFromTraces(
         $traces,
         $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
-        $tokenSubstitute = null
+        $tokenSubstitute = null,
+        $ignoreSampledAway = false
     ) {
         $token = $tokenSubstitute ?: $this->generateToken();
         $this->startSnapshotSession($token);
 
+        if ($ignoreSampledAway) {
+            $traces = $this->ignoreSampledTraces($traces);
+        }
+
         $this->sendTracesToTestAgent($traces);
 
         $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, \count($traces));
+    }
+
+    protected function ignoreSampledTraces($traces) {
+        $filteredSpans = [];
+        $sampledTraceIDs = [];
+        foreach ($traces as $trace) {
+            foreach ($trace as $span) {
+                if (isset($span['metrics']['_sampling_priority_v1']) && $span['metrics']['_sampling_priority_v1'] === 0) {
+                    $sampledTraceIDs[$span['trace_id']] = true;
+                }
+            }
+        }
+
+        foreach ($traces as $trace) {
+            foreach ($trace as $span) {
+                if (!isset($sampledTraceIDs[$span['trace_id']])) {
+                    $filteredSpans[] = $span;
+                }
+            }
+        }
+
+        return [$filteredSpans];
     }
 }
