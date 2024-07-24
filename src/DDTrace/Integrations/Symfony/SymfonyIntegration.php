@@ -261,6 +261,7 @@ class SymfonyIntegration extends Integration
                     if (\dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
                         && $commandName === 'messenger:consume'
                     ) {
+                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
                         \dd_trace_close_all_spans_and_flush();
                         ini_set("datadog.trace.auto_flush_enabled", 1);
                         ini_set("datadog.trace.generate_root_span", 0);
