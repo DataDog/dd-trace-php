@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -111,7 +112,10 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server) {
-                if ($server->worker_pid !== $server->master_pid) {
+                Logger::get()->debug('Worker start');
+                Logger::get()->debug(json_encode($server));
+                if ($server->mode !== SWOOLE_BASE || ($server->worker_pid !== $server->master_pid)) {
+                    // While not in base mode, swoole will always perform swoole_fork_exec
                     handle_fork();
                 }
             }
@@ -120,12 +124,14 @@ class SwooleIntegration extends Integration
 
     public function instrumentWorkerStop(callable $callback, SwooleIntegration $integration, Server $server)
     {
-
         \DDTrace\install_hook(
             $callback,
             null,
             function (HookData $hook) use ($integration, $server) {
-                if ($server->worker_pid !== $server->master_pid) {
+                Logger::get()->debug('Worker stop');
+                Logger::get()->debug(json_encode($server));
+                if ($server->mode !== SWOOLE_BASE || ($server->worker_pid !== $server->master_pid)) {
+                    // While not in base mode, swoole will always perform swoole_fork_exec
                     handle_fork();
                 }
             }
