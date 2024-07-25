@@ -3,7 +3,9 @@
 require __DIR__ . '/../../vendor/autoload.php';
 
 $http = new Swoole\Http\Server("0.0.0.0", 9999);
-
+$http->set([
+    'worker_num' => 2
+]);
 $http->on('request', function ($request, $response) {
     $requestUri = $request->server['request_uri'];
 

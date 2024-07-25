@@ -108,29 +108,26 @@ class SwooleIntegration extends Integration
 
     public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
     {
-        if ($server->mode === SWOOLE_BASE) {
-            return;
-        }
-
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server) {
-                handle_fork();
+                if ($server->worker_pid !== $server->master_pid) {
+                    handle_fork();
+                }
             }
         );
     }
 
     public function instrumentWorkerStop(callable $callback, SwooleIntegration $integration, Server $server)
     {
-        if ($server->mode === SWOOLE_BASE) {
-            return;
-        }
 
         \DDTrace\install_hook(
             $callback,
             null,
             function (HookData $hook) use ($integration, $server) {
-                handle_fork();
+                if ($server->worker_pid !== $server->master_pid) {
+                    handle_fork();
+                }
             }
         );
     }
