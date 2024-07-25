@@ -13,7 +13,7 @@ static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *
         ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
         ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("tracers.otel.env.invalid"), DDOG_METRIC_NAMESPACE_TRACERS);
         ddog_CharSlice tags;
-        tags.len = asprintf((char **)&tags.ptr, "config.opentelemetry:%s,config.datadog:%s", otel_cfg, dd_cfg);
+        tags.len = asprintf((char **)&tags.ptr, "config_opentelemetry:%s,config_datadog:%s", otel_cfg, dd_cfg);
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("tracers.otel.env.invalid"), 1, tags);
         free((char *)tags.ptr);
     }
@@ -127,7 +127,7 @@ bool ddtrace_conf_otel_sample_rate(zai_env_buffer buf, bool pre_rinit) {
     } else {
         LOG_ONCE(WARN, "OTEL_TRACES_SAMPLER has invalid value: %s", buf.ptr);
     }
-    report_otel_cfg_telemetry_invalid("OTEL_TRACES_SAMPLER", "trace.sample_rate", pre_rinit);
+    report_otel_cfg_telemetry_invalid("otel_traces_sampler", "dd_trace_sample_rate", pre_rinit);
     return false;
 }
 
@@ -138,7 +138,7 @@ bool ddtrace_conf_otel_traces_exporter(zai_env_buffer buf, bool pre_rinit) {
             return true;
         }
         LOG_ONCE(WARN, "OTEL_TRACES_EXPORTER has invalid value: %s", buf.ptr);
-        report_otel_cfg_telemetry_invalid("OTEL_TRACES_EXPORTER", "trace.enabled", pre_rinit);
+        report_otel_cfg_telemetry_invalid("otel_traces_exporter", "dd_trace_enabled", pre_rinit);
     }
     return false;
 }
@@ -150,7 +150,7 @@ bool ddtrace_conf_otel_metrics_exporter(zai_env_buffer buf, bool pre_rinit) {
             return true;
         }
         LOG_ONCE(WARN, "OTEL_METRICS_EXPORTER has invalid value: %s", buf.ptr);
-        report_otel_cfg_telemetry_invalid("OTEL_METRICS_EXPORTER", "integration_metrics_enabled", pre_rinit);
+        report_otel_cfg_telemetry_invalid("otel_metrics_exporter", "dd_integration_metrics_enabled", pre_rinit);
     }
     return false;
 }
