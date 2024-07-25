@@ -173,10 +173,16 @@ struct ddtrace_span_link {
 };
 
 struct ddtrace_span_event {
-        zval property_name;
-        zval property_attributes;
-        zval property_timestamp;
-}
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_name;
+            zval property_attributes;
+            zval property_timestamp;
+        };
+    };
+};
 
 struct ddtrace_git_metadata {
     union {

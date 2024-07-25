@@ -651,7 +651,7 @@ PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
 }
 
 PHP_METHOD(DDTrace_SpanEvent, __construct) {
-    (void)return_value;  // Suppress unused parameter warning
+    UNUSED(return_value);
 
     zend_string *name;
     zval *attributes = NULL;
@@ -668,13 +668,13 @@ PHP_METHOD(DDTrace_SpanEvent, __construct) {
 
     ZVAL_STR_COPY(&event->property_name, name);
 
-    // Convert the Unix timestamp to nanoseconds
+    // Use the provided timestamp or the current time in nanoseconds
     if (timestamp == 0) {
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
         ZVAL_LONG(&event->property_timestamp, ts.tv_sec * 1e9 + ts.tv_nsec);
     } else {
-        ZVAL_LONG(&event->property_timestamp, timestamp * 1e9);
+        ZVAL_LONG(&event->property_timestamp, timestamp);
     }
 
     if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {

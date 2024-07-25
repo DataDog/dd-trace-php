@@ -98,10 +98,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanBuilderInterface
     {
-        $nanoTimestamp = $timestamp ?? (int)microtime(true);
         $this->events[] = new Event(
             $name, 
-            $nanoTimestamp,
+            $timestamp ?? (int)(microtime(true) * 1e9),
             $this->tracerSharedState
                 ->getSpanLimits()
                 ->getEventAttributesFactory()

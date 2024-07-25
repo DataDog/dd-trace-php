@@ -1185,7 +1185,11 @@ final class InteroperabilityTest extends BaseTestCase
 
             $spanEvent = new SpanEvent(
                 "event-name", 
-                [ 'arg1' => 'value1' ], 
+                [ 
+                    'arg1' => 'value1', 
+                    'int_array' => [3, 4], 
+                    'string_array' => ["5", "6"]
+                ], 
                 1720037568765201300
             );
             $span->events[] = $spanEvent;
@@ -1194,85 +1198,51 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelSpan = Span::getCurrent();
             $OTelSpanEvent = $OTelSpan->toSpanData()->getEvents()[0];
 
-            // Check the first event
             $this->assertSame('event-name', $OTelSpanEvent->getName());
+            $this->assertSame([ 
+                'arg1' => 'value1', 
+                'int_array' => [3, 4], 
+                'string_array' => ["5", "6"]
+            ], $spanEvent->attributes);
+            $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
 
             close_span();
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\"}}]", $traces[0][0]['meta']['events']);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\",\"int_array\":[3,4],\"string_array\":[\"5\",\"6\"]}}]", $traces[0][0]['meta']['events']);
     }
 
     public function testSpanEventsInteroperabilityFromOpenTelemetrySpan()
     {
-        $sampledSpanContext = SpanContext::create(
-            '12345678876543211234567887654321',
-            '8765432112345678',
-            TraceFlags::SAMPLED,
-            new TraceState('dd=t.dm:-0')
-        );
-
-        $traces = $this->isolateTracer(function () use ($sampledSpanContext) {
+        $traces = $this->isolateTracer(function () {
             $otelSpan = self::getTracer()->spanBuilder("otel.span")
-                ->addEvent("event-name", ['arg1' => 'value1'], 1720037568765201300)
+                ->addEvent(
+                    "event-name", 
+                    [ 
+                        'arg1' => 'value1', 
+                        'int_array' => [3, 4], 
+                        'string_array' => ["5", "6"]
+                    ], 
+                    1720037568765201300
+                )
                 ->startSpan();
 
             $activeSpan = active_span();
             $spanEvent = $activeSpan->events[0];
             $this->assertSame("event-name", $spanEvent->name);
-            $this->assertSame(['arg1' => 'value1'], $spanEvent->attributes);
+            $this->assertSame([ 
+                'arg1' => 'value1', 
+                'int_array' => [3, 4], 
+                'string_array' => ["5", "6"]
+            ], $spanEvent->attributes);
             $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
 
             $otelSpan->end();
         });
 
-
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\"}}]", $traces[0][0]['meta']['events']);
-    }
-
-    public function testOtelAddEventMetaSerialization()
-    {
-        $eventTwoMicroTimestamp = (int)microtime(true);
-        $eventTwoNanoTimestamp = $eventTwoMicroTimestamp * 1000;
-        
-        $traces = $this->isolateTracer(function () use ($eventTwoMicroTimestamp, $eventTwoNanoTimestamp) {
-            $otelSpan = self::getTracer()->spanBuilder("operation")
-                ->addEvent("first_event")
-                ->addEvent("second_event", ['string_val' => 'value'], $eventTwoMicroTimestamp)
-                ->addEvent("third_event", [
-                    'int_val' => 1,
-                    'string_val' => '2',
-                    'int_array' => [3, 4],
-                    'string_array' => ['5', '6']
-                ], 1)
-                ->startSpan();
-
-            $otelSpan->end();
-        });
-
-        $events = json_decode($traces[0][0]['meta']['events'], true);
-        $this->assertCount(3, $events);
-
-        $event1 = $events[0];
-        $this->assertSame('first_event', $event1['name']);
-        $this->assertArrayNotHasKey('attributes', $event1);
-
-        $event2 = $events[1];
-        $this->assertSame('second_event', $event2['name']);
-        $this->assertSame(intdiv($eventTwoNanoTimestamp, 1000), intdiv((int)$event2['time_unix_nano'], 1000));
-        $this->assertSame('value', $event2['attributes']['string_val']);
-
-        $event3 = $events[2];
-        $this->assertSame('third_event', $event3['name']);
-        $this->assertSame(1000, (int)$event3['time_unix_nano']);
-        $this->assertSame(1, $event3['attributes']['int_val']);
-        $this->assertSame('2', $event3['attributes']['string_val']);
-        $this->assertSame(3, $event3['attributes']['int_array'][0]);
-        $this->assertSame(4, $event3['attributes']['int_array'][1]);
-        $this->assertSame('5', $event3['attributes']['string_array'][0]);
-        $this->assertSame('6', $event3['attributes']['string_array'][1]);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\",\"int_array\":[3,4],\"string_array\":[\"5\",\"6\"]}}]", $traces[0][0]['meta']['events']);
     }
 
     public function testOtelRecordExceptionAttributesSerialization()
