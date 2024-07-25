@@ -890,8 +890,12 @@ function safe_copy_extension($source, $destination)
     }
 
     $tmpName = $destination . '.tmp';
-    copy($source, $tmpName);
-    rename($tmpName, $destination);
+    if (!copy($source, $tmpName)) {
+        print_error_and_exit("Cannot copy '$source' to '$tmpName'");
+    }
+    if (!rename($tmpName, $destination)) {
+        print_error_and_exit("Cannot rename '$tmpName' to '$destination'");
+    }
     echo "Copied '$source' to '$destination'\n";
 }
 
