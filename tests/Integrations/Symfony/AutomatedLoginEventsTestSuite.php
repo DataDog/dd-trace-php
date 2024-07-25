@@ -6,21 +6,34 @@ use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 use datadog\appsec\AppsecStatus;
 
-class AutomatedLoginEventsTestSuite extends AppsecTestCase
+abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 {
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->connection()->exec("DELETE from user where email LIKE 'test-user%'");
+        $this->deleteUsers();
         AppsecStatus::getInstance()->setDefaults();
+    }
+
+    public function deleteUsers()
+    {
+        $this->connection()->exec("DELETE from user where email LIKE 'test-user%'");
+    }
+
+    public function getUser($email)
+    {
+        return $this->connection()->query("SELECT * FROM user where email='".$email."'")->fetchAll();
+    }
+
+    public function createUser($email) {
+         $this->connection()->exec('insert into user (roles, email, password) VALUES ("", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
     }
 
     public function testUserLoginSuccessEvent()
     {
         $email = 'test-user@email.com';
         $password = 'test';
-        //Password is password
-        $this->connection()->exec('insert into user (roles, email, password) VALUES ("", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
+        $this->createUser($email);
 
          $spec = PostSpec::create('request', '/login', [
                         'Content-Type: application/x-www-form-urlencoded'
@@ -53,17 +66,21 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
          $this->assertTrue($events[0]['automated']);
     }
 
+    public function getSignUpPayload($email, $password) {
+        return "registration_form[email]=$email&registration_form[plainPassword]=$password&registration_form[agreeTerms]=1";
+    }
+
     public function testUserSignUp()
     {
        $email = 'test-user@email.com';
        $password = 'some password';
        $spec = PostSpec::create('Signup', '/register', [
                        'Content-Type: application/x-www-form-urlencoded'
-                   ], "registration_form[email]=$email&registration_form[plainPassword]=$password&registration_form[agreeTerms]=1");
+                   ], $this->getSignUpPayload($email, $password));
 
        $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
 
-       $users = $this->connection()->query("SELECT * FROM user where email='".$email."'")->fetchAll();
+       $users = $this->getUser($email);
 
         $this->assertEquals(1, count($users));
 

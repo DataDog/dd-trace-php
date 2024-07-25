@@ -9,6 +9,12 @@ use DDTrace\Tests\Integrations\Symfony\AutomatedLoginEventsTestSuite;
  */
 class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
+
+    public function createUser($email) {
+         $this->connection()->exec('insert into user (roles, email, password) VALUES ("{}", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
+    }
+
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/public/index.php';

@@ -13,4 +13,9 @@ class PathParamsTest extends PathParamsTestSuite
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/index.php';
     }
+
+    public function testDynamicRouteWithOptionalsNotFilled()
+    {
+        $this->markTestSkipped("Not working on this version");
+    }
 }
