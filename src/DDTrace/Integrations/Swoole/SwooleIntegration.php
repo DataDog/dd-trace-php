@@ -111,6 +111,7 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server) {
+                handle_fork();
             }
         );
     }
