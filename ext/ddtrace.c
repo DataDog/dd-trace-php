@@ -412,7 +412,8 @@ static void dd_activate_once(void) {
                 bgs_service = ddtrace_default_service_name();
             }
         }
-        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
+        zend_module_entry *appsec_module = zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1);
+        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || appsec_module)
 #endif
         {
             bool modules_activated = PG(modules_activated);
