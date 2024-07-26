@@ -35,10 +35,8 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server, $scheme) {
-                if ($server->mode !== SWOOLE_BASE || $server->setting["worker_num"] > 1) {
-                    handle_fork();
-                }
-
+                Logger::get()->debug('Request start');
+                Logger::get()->debug(json_encode($server));
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
@@ -111,6 +109,18 @@ class SwooleIntegration extends Integration
         );
     }
 
+    public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
+    {
+        \DDTrace\install_hook(
+            $callback,
+            function (HookData $hook) use ($integration, $server) {
+                Logger::get()->debug('Worker start');
+                Logger::get()->debug(json_encode($server));
+                handle_fork();
+            }
+        );
+    }
+
     public function init(): int
     {
         if (version_compare(swoole_version(), '5.0.2', '<')) {
@@ -124,6 +134,15 @@ class SwooleIntegration extends Integration
 
         \DDTrace\hook_method(
             'Swoole\Http\Server',
+            '__construct',
+            null,
+            function ($server) use ($integration) {
+                $server->on('workerstart', function () { });
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Swoole\Http\Server',
             'on',
             null,
             function ($server, $scope, $args, $retval) use ($integration) {
@@ -134,8 +153,13 @@ class SwooleIntegration extends Integration
                 list($eventName, $callback) = $args;
 
                 $eventName = strtolower($eventName);
-                if ($eventName == 'request') {
-                    $integration->instrumentRequestStart($callback, $integration, $server);
+                switch ($eventName) {
+                    case 'request':
+                        $integration->instrumentRequestStart($callback, $integration, $server);
+                        break;
+                    case 'workerstart':
+                        $integration->instrumentWorkerStart($callback, $integration, $server);
+                        break;
                 }
 
             }
