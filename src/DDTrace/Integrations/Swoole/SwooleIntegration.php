@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -35,8 +34,6 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server, $scheme) {
-                Logger::get()->debug('Request start');
-                Logger::get()->debug(json_encode($server));
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
@@ -114,9 +111,6 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server) {
-                Logger::get()->debug('Worker start');
-                Logger::get()->debug(json_encode($server));
-                handle_fork();
             }
         );
     }
