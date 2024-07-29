@@ -431,9 +431,9 @@ static void _command_process_stack_trace_parameters(mpack_node_t root)
             zend_string *id = NULL;
             size_t id_len = mpack_node_strlen(value);
             id = zend_string_init(mpack_node_str(value), id_len, 0);
-            report_backtrace(id);
+            dd_report_exploit_backtrace(id);
             zend_string_release(id);
-            --expected_nodes;
+            break;
         }
     }
 }

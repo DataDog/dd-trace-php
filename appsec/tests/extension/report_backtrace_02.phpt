@@ -10,11 +10,11 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-use function datadog\appsec\testing\{report_backtrace, root_span_get_meta_struct};
+use function datadog\appsec\testing\{report_exploit_backtrace, root_span_get_meta_struct};
 
 function two($param01, $param02)
 {
-    report_backtrace($param01);
+    report_exploit_backtrace($param01);
 }
 
 function one($param01)

@@ -62,7 +62,7 @@ static void dd_trace_load_symbols(void)
     if (_ddtrace_close_all_spans_and_flush == NULL && !testing) {
         mlog(dd_log_error,
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            "Failed to load ddtrace _close_all_spans_and_flush: %s", dlerror());
+            "Failed to load ddtrace_close_all_spans_and_flush: %s", dlerror());
     }
 
     _ddtrace_get_root_span = dlsym(handle, "ddtrace_get_root_span");
@@ -291,27 +291,6 @@ zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
 {
     return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
-}
-
-void add_entry_to_meta_struct(zend_string *nonnull key, zval *nonnull value)
-{
-    zend_object *span = dd_trace_get_active_root_span();
-    if (!span) {
-        return;
-    }
-    zval *meta_struct = dd_trace_span_get_meta_struct(span);
-    if (!meta_struct) {
-        if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
-        }
-        zval_ptr_dtor(value);
-        return;
-    }
-
-    if (zend_hash_add(Z_ARRVAL_P(meta_struct), key, value) == NULL) {
-        zval_ptr_dtor(value);
-        return;
-    }
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

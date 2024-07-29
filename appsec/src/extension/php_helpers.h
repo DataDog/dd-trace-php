@@ -48,3 +48,4 @@ zend_string *nullable dd_php_get_string_elem(
     const zend_array *nullable arr, zend_string *nonnull zstr);
 zend_string *nullable dd_php_get_string_elem_cstr(
     const zend_array *nullable arr, const char *nonnull name, size_t len);
+zval *dd_hash_find_or_new(HashTable *ht, zend_string *key);

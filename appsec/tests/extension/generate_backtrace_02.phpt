@@ -1,9 +1,9 @@
 --TEST--
-Generate backtrace is not generated when disabled
+Number of frames can be configured with DD_APPSEC_MAX_STACK_TRACE_DEPTH
 --INI--
 extension=ddtrace.so
 --ENV--
-DD_APPSEC_STACK_TRACE_ENABLED=false
+DD_APPSEC_MAX_STACK_TRACE_DEPTH=1
 --FILE--
 <?php
 
@@ -23,5 +23,23 @@ one("foo");
 
 ?>
 --EXPECTF--
-array(0) {
+array(3) {
+  ["language"]=>
+  string(3) "php"
+  ["id"]=>
+  string(7) "some id"
+  ["frames"]=>
+  array(1) {
+    [0]=>
+    array(4) {
+      ["line"]=>
+      int(15)
+      ["function"]=>
+      string(3) "one"
+      ["file"]=>
+      string(25) "generate_backtrace_02.php"
+      ["id"]=>
+      int(1)
+    }
+  }
 }

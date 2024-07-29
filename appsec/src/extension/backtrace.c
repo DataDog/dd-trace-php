@@ -25,7 +25,8 @@ static zend_string *_frame_file;
 static zend_string *_id_key;
 
 bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    zval *php_backtrace_frame, zval *datadog_backtrace_frame, zend_ulong index)
+    zval *nonnull php_backtrace_frame, zval *nonnull datadog_backtrace_frame,
+    zend_ulong index)
 {
     if (Z_TYPE_P(php_backtrace_frame) != IS_ARRAY) {
         return false;
@@ -61,7 +62,7 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
 
 void php_backtrace_to_datadog_backtrace(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    zval *php_backtrace, zval *datadog_backtrace)
+    zval *nonnull php_backtrace, zval *nonnull datadog_backtrace)
 {
     if (Z_TYPE_P(php_backtrace) != IS_ARRAY) {
         return;
@@ -72,7 +73,8 @@ void php_backtrace_to_datadog_backtrace(
 
     unsigned int top = frames_on_stack;
     unsigned int bottom = 0;
-    if (get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() < frames_on_stack) {
+    if (get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() != 0 &&
+        get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() < frames_on_stack) {
         top = (unsigned int)round(
             (double)get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() *
             STACK_DEFAULT_TOP_PERCENTAGE);
@@ -121,11 +123,11 @@ void php_backtrace_to_datadog_backtrace(
     }
 }
 
-void generate_backtrace(zend_string *id, zval *dd_backtrace)
+void dd_generate_backtrace(zend_string *nullable id, zval *nonnull dd_backtrace)
 {
     array_init(dd_backtrace);
 
-    if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED() || !id) {
+    if (!id) {
         return;
     }
 
@@ -153,23 +155,20 @@ static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)
         RETURN_FALSE;
     }
 
-    generate_backtrace(id, return_value);
+    dd_generate_backtrace(id, return_value);
 }
 
-zval *dd_hash_find_or_new(HashTable *ht, zend_string *key)
+bool dd_report_exploit_backtrace(zend_string *nullable id)
 {
-    zval *result = zend_hash_find(ht, key);
-
-    if (!result) {
-        zval new_zv;
-        result = zend_hash_add(ht, key, &new_zv);
+    if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
+        return false;
     }
 
-    return result;
-}
+    if (!id) {
+        mlog(dd_log_warning,
+            "Backtrace can not be generated because id is missing");
+    }
 
-bool report_backtrace(zend_string *id)
-{
     zend_object *span = dd_trace_get_active_root_span();
     if (!span) {
         if (!get_global_DD_APPSEC_TESTING()) {
@@ -200,32 +199,34 @@ bool report_backtrace(zend_string *id)
         array_init(exploit);
     }
 
-    if (zend_array_count(Z_ARR_P(exploit)) ==
-        get_global_DD_APPSEC_MAX_STACK_TRACES()) {
+    unsigned int limit = get_global_DD_APPSEC_MAX_STACK_TRACES();
+    if (limit != 0 && zend_array_count(Z_ARR_P(exploit)) == limit) {
+        mlog(dd_log_debug,
+            "Stacktrace not generated due to limit "
+            "D_APPSEC_MAX_STACK_TRACES(%d) has been reached",
+            limit);
         return false;
     }
 
     zval backtrace;
-    generate_backtrace(id, &backtrace);
+    dd_generate_backtrace(id, &backtrace);
 
     if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) ==
         NULL) {
         return false;
     }
 
-    zend_hash_add(Z_ARRVAL_P(meta_struct), _dd_stack_key, dd_stack);
-
     return true;
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_report_backtrace)
+static PHP_FUNCTION(datadog_appsec_testing_report_exploit_backtrace)
 {
     zend_string *id = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &id) != SUCCESS) {
         RETURN_FALSE;
     }
 
-    if (report_backtrace(id)) {
+    if (dd_report_exploit_backtrace(id)) {
         RETURN_TRUE;
     }
 
@@ -245,7 +246,7 @@ ZEND_END_ARG_INFO()
 // clang-format off
 static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "generate_backtrace", PHP_FN(datadog_appsec_testing_generate_backtrace), void_ret_array_arginfo,0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "report_backtrace", PHP_FN(datadog_appsec_testing_report_backtrace), void_ret_bool_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "report_exploit_backtrace", PHP_FN(datadog_appsec_testing_report_exploit_backtrace), void_ret_bool_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on
@@ -261,19 +262,15 @@ static void _register_testing_objects()
 
 void dd_backtrace_startup()
 {
-    _frames_key = zend_string_init_interned("frames", sizeof("frames") - 1, 1);
-    _language_key =
-        zend_string_init_interned("language", sizeof("language") - 1, 1);
-    _php_value = zend_string_init_interned("php", sizeof("php") - 1, 1);
-    _exploit_key =
-        zend_string_init_interned("exploit", sizeof("exploit") - 1, 1);
-    _dd_stack_key =
-        zend_string_init_interned("_dd.stack", sizeof("_dd.stack") - 1, 1);
-    _frame_line = zend_string_init_interned("line", sizeof("line") - 1, 1);
-    _frame_function =
-        zend_string_init_interned("function", sizeof("function") - 1, 1);
-    _frame_file = zend_string_init_interned("file", sizeof("file") - 1, 1);
-    _id_key = zend_string_init_interned("id", sizeof("id") - 1, 1);
+    _frames_key = zend_string_init_interned(LSTRARG("frames"), 1);
+    _language_key = zend_string_init_interned(LSTRARG("language"), 1);
+    _php_value = zend_string_init_interned(LSTRARG("php"), 1);
+    _exploit_key = zend_string_init_interned(LSTRARG("exploit"), 1);
+    _dd_stack_key = zend_string_init_interned(LSTRARG("_dd.stack"), 1);
+    _frame_line = zend_string_init_interned(LSTRARG("line"), 1);
+    _frame_function = zend_string_init_interned(LSTRARG("function"), 1);
+    _frame_file = zend_string_init_interned(LSTRARG("file"), 1);
+    _id_key = zend_string_init_interned(LSTRARG("id"), 1);
 #ifdef TESTING
     _register_testing_objects();
 #endif

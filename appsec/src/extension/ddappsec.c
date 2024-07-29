@@ -6,7 +6,6 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
 #include <ext/standard/info.h>
-#include <ext/standard/php_var.h>
 #include <php.h>
 
 // for open(2)

@@ -9,11 +9,13 @@
 #include <SAPI.h>
 #include <Zend/zend_builtin_functions.h>
 #include <php.h>
-
 #include <stdbool.h>
 
+#include "attributes.h"
+
 void dd_backtrace_startup();
-void generate_backtrace(zend_string *id, zval *dd_backtrace);
-bool report_backtrace(zend_string *id);
+void dd_generate_backtrace(
+    zend_string *nullable id, zval *nonnull dd_backtrace);
+bool dd_report_exploit_backtrace(zend_string *nullable id);
 
 #endif // BACKTRACE_H

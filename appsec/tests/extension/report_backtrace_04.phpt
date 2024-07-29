@@ -1,27 +1,21 @@
 --TEST--
-Trace are reported when helper indicates so
+DD_APPSEC_MAX_STACK_TRACES can be set to unlimited with 0
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_APPSEC_MAX_STACK_TRACES=0
 --INI--
 extension=ddtrace.so
-datadog.appsec.enabled=1
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown, report_backtrace};
-use function datadog\appsec\push_address;
 include __DIR__ . '/inc/ddtrace_version.php';
-include __DIR__ . '/inc/mock_helper.php';
 
 ddtrace_version_at_least('0.79.0');
 
-$helper = Helper::createInitedRun([
-    response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_exec([[['stack_trace', ['stack_id' => '1234']]], []])),
-]);
+use function datadog\appsec\testing\{report_exploit_backtrace, root_span_get_meta_struct};
 
 function two($param01, $param02)
 {
-    push_address("irrelevant", ["some" => "params", "more" => "parameters"]);
+    report_exploit_backtrace($param01);
 }
 
 function one($param01)
@@ -29,25 +23,119 @@ function one($param01)
     two($param01, "other");
 }
 
-rinit();
-
 DDTrace\start_span();
 $root = DDTrace\active_span();
-one("foo");
 
-DDTrace\close_span(0);
-$span = dd_trace_serialize_closed_spans();
-$meta_struct = $span[0]["meta_struct"];
-foreach($meta_struct as &$m)
-{
-    $m = bin2hex($m);
-}
-var_dump($meta_struct);
-DDTrace\flush();
+
+one("foo01"); //Line 22
+one("foo02"); //Line 23
+one("foo03"); //Line 24
+
+var_dump(root_span_get_meta_struct());
 
 ?>
 --EXPECTF--
 array(1) {
   ["_dd.stack"]=>
-  &string(292) "81a76578706c6f69749183a86c616e6775616765a3706870a26964a431323334a66672616d65739284a46c696e6515a866756e6374696f6ea374776fa466696c65b77265706f72745f6261636b74726163655f30342e706870a269640084a46c696e651ca866756e6374696f6ea36f6e65a466696c65b77265706f72745f6261636b74726163655f30342e706870a2696401"
+  array(1) {
+    ["exploit"]=>
+    array(3) {
+      [0]=>
+      array(3) {
+        ["language"]=>
+        string(3) "php"
+        ["id"]=>
+        string(5) "foo01"
+        ["frames"]=>
+        array(2) {
+          [0]=>
+          array(4) {
+            ["line"]=>
+            int(15)
+            ["function"]=>
+            string(3) "two"
+            ["file"]=>
+            string(23) "report_backtrace_04.php"
+            ["id"]=>
+            int(0)
+          }
+          [1]=>
+          array(4) {
+            ["line"]=>
+            int(22)
+            ["function"]=>
+            string(3) "one"
+            ["file"]=>
+            string(23) "report_backtrace_04.php"
+            ["id"]=>
+            int(1)
+          }
+        }
+      }
+      [1]=>
+      array(3) {
+        ["language"]=>
+        string(3) "php"
+        ["id"]=>
+        string(5) "foo02"
+        ["frames"]=>
+        array(2) {
+          [0]=>
+          array(4) {
+            ["line"]=>
+            int(15)
+            ["function"]=>
+            string(3) "two"
+            ["file"]=>
+            string(23) "report_backtrace_04.php"
+            ["id"]=>
+            int(0)
+          }
+          [1]=>
+          array(4) {
+            ["line"]=>
+            int(23)
+            ["function"]=>
+            string(3) "one"
+            ["file"]=>
+            string(23) "report_backtrace_04.php"
+            ["id"]=>
+            int(1)
+          }
+        }
+      }
+      [2]=>
+      array(3) {
+        ["language"]=>
+        string(3) "php"
+        ["id"]=>
+        string(5) "foo03"
+        ["frames"]=>
+        array(2) {
+          [0]=>
+          array(4) {
+            ["line"]=>
+            int(15)
+            ["function"]=>
+            string(3) "two"
+            ["file"]=>
+            string(23) "report_backtrace_04.php"
+            ["id"]=>
+            int(0)
+          }
+          [1]=>
+          array(4) {
+            ["line"]=>
+            int(24)
+            ["function"]=>
+            string(3) "one"
+            ["file"]=>
+            string(23) "report_backtrace_04.php"
+            ["id"]=>
+            int(1)
+          }
+        }
+      }
+    }
+  }
 }
