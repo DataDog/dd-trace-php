@@ -194,8 +194,9 @@ partial class Build
             await client.Issue.Comment.Update(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                id: existingComment.Id,
-                commentUpdate: markdown);
+                existingComment.Id,
+                markdown
+            );
         }
         else
         {
@@ -203,8 +204,9 @@ partial class Build
             await client.Issue.Comment.Create(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                pullRequestNumber: prNumber,
-                newComment: markdown);
+                prNumber,
+                markdown
+            );
         }
     }
 
@@ -238,8 +240,9 @@ partial class Build
                 await client.Issue.Update(
                     owner: GitHubRepositoryOwner,
                     name: GitHubRepositoryName,
-                    pullRequestNumber: PullRequestNumber.Value,
-                    issueUpdate);
+                    PullRequestNumber.Value,
+                    issueUpdate
+                );
             }
             catch(Exception ex)
             {
