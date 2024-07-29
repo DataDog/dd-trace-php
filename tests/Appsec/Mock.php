@@ -63,7 +63,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_events VALUES ('%s')", json_encode($event)));
         }
 
-        public function getEvents()
+        public function getEvents(array $names = [], array $addresses = [])
         {
             $result = [];
 
@@ -74,7 +74,11 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             $events = $this->getDbPdo()->query("SELECT * FROM appsec_events")->fetchAll();
 
             foreach ($events as $event) {
-                $result[] = json_decode($event['event'], true);
+                $new = json_decode($event['event'], true);
+                if (empty($names) || in_array($new['eventName'], $names) &&
+                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))) {
+                    $result[] = $new;
+                }
             }
 
             return $result;
