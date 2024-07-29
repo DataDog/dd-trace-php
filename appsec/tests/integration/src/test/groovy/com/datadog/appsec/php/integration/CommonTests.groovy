@@ -193,7 +193,7 @@ trait CommonTests {
         Object exploit = stacks.first().exploit.first()
 
         assert exploit.language == "php"
-        assert exploit.id != ""
+        assert exploit.id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
         assert exploit.frames[0].file == "generate_stack.php"
         assert exploit.frames[0].function == "one"
         assert exploit.frames[0].id == 0
