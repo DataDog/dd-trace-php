@@ -102,15 +102,15 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(EXTRA_CONFIGURE_OPTIONS))
+	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 all_object_files: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, all_object_files $(BUILD_DIR)/compile_rust.sh)
-	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)")
+	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
 
 $(AR_FILE): all_object_files
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)"
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(if $(ASSUME_COMPILED),cp $(BUILD_DIR)/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so,$(MAKE) -C $(BUILD_DIR) install)
@@ -161,7 +161,7 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
-	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES); \
+	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access bash -c '$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES)'; \
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php

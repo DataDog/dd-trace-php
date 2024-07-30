@@ -103,7 +103,7 @@ aliases:
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
-      command: make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension
+      command: make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension $(if [ -f libddtrace_php.a ]; then echo EXTRA_CONFIGURE_OPTIONS=--with-ddtrace-rust-library=$(pwd)/libddtrace_php.a; fi)
 
   - &STEP_CODE_COVERAGE
     when:
@@ -250,17 +250,22 @@ aliases:
       background: true
       command: |
         echo $$ > /tmp/link_extension.pid
-        sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace.ldflags
-        gcc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
-        mkdir -p tmp/build_extension/modules
-        mv ddtrace.so tmp/build_extension/modules/
+        # If it's missing, we're building in the job
+        if [ -f ddtrace.a ]; then
+          sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace.ldflags
+          gcc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
+          mkdir -p tmp/build_extension/modules
+          mv ddtrace.so tmp/build_extension/modules/
+        fi
 
   - &STEP_AWAIT_LINK_EXTENSION
     run:
       name: Wait for extension linking
       command: |
         tail --pid=$(cat /tmp/link_extension.pid) -f /dev/null || true
-        echo "export DD_TRACE_ASSUME_COMPILED=1" >> $BASH_ENV
+        if [ -f tmp/build_extension/modules/ddtrace.so ]; then
+          echo "export DD_TRACE_ASSUME_COMPILED=1" >> $BASH_ENV
+        fi
 
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
@@ -280,7 +285,7 @@ commands:
     steps:
       - run:
           name: Checkout code
-          shell: "<<# parameters.is_windows >>bash.exe<</ parameters.is_windows >><<^ parameters.is_windows >>/bin/bash -eo pipefail<</ parameters.is_windows >>"
+          shell: "<<# parameters.is_windows >>bash.exe<</ parameters.is_windows >>"
           command: |
             git config --global gc.auto 0
     
@@ -446,6 +451,9 @@ commands:
       extra:
         type: string
         default: none
+      ramdisk:
+        type: boolean
+        default: false
     steps:
       - run:
           name: Fix mounted folder permissions mismatch on buster (user 1000 vs user 3434 in docker)
@@ -585,11 +593,12 @@ commands:
                   -e CIRCLECI \
                   -e CIRCLE_PROJECT_USERNAME \
                   -e CIRCLE_PROJECT_REPONAME \
+                  <<# parameters.ramdisk >>--tmpfs /mnt/ramdisk:uid=3434,gid=3434,exec<</ parameters.ramdisk >> \
                   -v $(pwd):/home/circleci/datadog \
                   -v /tmp/bashenv:/home/circleci/bashenv \
                   -v /rust:/rust \
                   -v /tmp/artifacts:/tmp/artifacts \
-                  $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo -v ${CARGO_TARGET_DIR}:${CARGO_TARGET_DIR} -e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}; fi) \
+                  $(if [ -n "${CARGO_TARGET_DIR:-}" ]; then echo "-e CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"; fi) \
                   $image \
                   sh -c 'echo Started; sleep 10000' 2>&1 | tee /tmp/docker.out &
               tail -F /tmp/docker.out | grep -Em1 'Started|Error response from daemon'
@@ -739,6 +748,7 @@ jobs:
           command: sudo apt update; sudo apt -y install libcurl4-nss-dev
       - update_composer_with_cache
       - <<: *STEP_AWAIT_LINK_EXTENSION
+      - <<: *STEP_EXT_INSTALL
       - run:
           name: Install phpstan
           command: |
@@ -806,7 +816,6 @@ jobs:
           command: |
             export REPORT_EXIT_STATUS=1
             export DD_TRACE_CLI_ENABLED=1
-            cd tmp/build_extension
             targetdir() {
               if [[ ${1:0:1} -eq 2 ]]; then
                 echo $1
@@ -814,9 +823,9 @@ jobs:
                 echo "3.0.0"
               fi
             }
-            php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
+            php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
-              php run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/$(targetdir << parameters.xdebug_version_two >>)
+              php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_two >>)
             fi;
       - run:
           name: Run unit tests with xdebug
@@ -1618,6 +1627,7 @@ jobs:
           extra: with_snapshots
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - <<: *STEP_LINK_EXTENSION
       - when:
           condition:
             and:
@@ -2603,7 +2613,12 @@ jobs:
         default: large
       triplet:
         type: string
+      asan:
+        type: boolean
+        default: false
     <<: *BARE_DOCKER_MACHINE
+    environment:
+      - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
       - restore_cache:
           keys:
@@ -2613,13 +2628,14 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
+            - cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - setup_docker:
           docker_image: datadog/dd-trace-ci:buster
+          ramdisk: true
       - run:
           name: Compile sidecar
           command: |
-            SHARED=1 host_os=linux-gnu ./compile_rust.sh
+            <<# parameters.asan >>COMPILE_ASAN=1<</ parameters.asan >> SHARED=1 host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/debug/libddtrace_php.a .
       - persist_to_workspace:
           root: '.'
@@ -3026,7 +3042,7 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
+            - cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine
@@ -3091,7 +3107,7 @@ jobs:
         default: unknown
       resource_class:
         type: string
-        default: medium # mostly for more RAM for ramdisk
+        default: medium
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -3129,7 +3145,7 @@ jobs:
         type: string
       resource_class:
         type: string
-        default: medium # mostly for more RAM for ramdisk
+        default: medium
     <<: *BARE_DOCKER_MACHINE
     steps:
       - git_checkout
@@ -3138,26 +3154,30 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
+            - cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - run:
           name: cargo fetch
           command: |
+            SUDO=$(! command -v sudo >/dev/null || echo "sudo") 
             # On occasion, we've observed the .package-cache being in the cache.
             # If it's there, it will cause commands to stall, waiting for the file to be released.
             if [ -e '/rust/cargo/.package-cache' ] ; then
                 echo "WARNING: .package-cache was part of the cache and shouldn't be!"
-                rm -vf '/rust/cargo/.package-cache'
+                $SUDO rm -vf '/rust/cargo/.package-cache'
             fi
 
-            cargo fetch -v --target << parameters.triplet >>
-            chmod -R 777 '/rust/cargo'
+            $SUDO mkdir /.cargo
+            $SUDO chmod 777 /.cargo
+            
+            $SUDO cargo fetch -v --target << parameters.triplet >>
+            $SUDO chmod -R 777 '/rust/cargo'
 
             # ensure the .package-cache isn't there
-            rm -vf '/rust/cargo/.package-cache'
+            $SUDO rm -vf '/rust/cargo/.package-cache'
 
       - save_cache:
           name: Save Cargo Package Cache
-          key: rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
+          key: cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
           paths:
             - /rust/cargo
 
@@ -3183,7 +3203,7 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - profiling-rust-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - append_build_id
       - build_profiler:
           prefix: datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
@@ -3213,10 +3233,11 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: << parameters.docker_image >>
+          ramdisk: true
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
+            - cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - run:
           name: cargo tests
           command: |
@@ -3420,7 +3441,7 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
+            - cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:centos-7
@@ -5127,13 +5148,20 @@ workflows:
           resource_class: "arm.medium"
 
       - compile_rust_test:
-          name: "medium: Compile rust code for testing"
-          resource_class: medium
+          name: "Compile rust code for testing"
+          resource_class: xlarge
           triplet: "x86_64-unknown-linux-gnu"
+
       - compile_rust_test:
-          name: "arm.medium: Compile rust code for testing"
-          resource_class: arm.medium
+          name: "medium: Compile ASAN rust code for testing"
+          resource_class: xlarge
+          triplet: "x86_64-unknown-linux-gnu"
+          asan: true
+      - compile_rust_test:
+          name: "arm.medium: Compile ASAN rust code for testing"
+          resource_class: arm.xlarge
           triplet: "aarch64-unknown-linux-gnu"
+          asan: true
 
       - compile_extension_test:
           name: "Compile << matrix.php_major_minor >> extension for testing"
@@ -5169,7 +5197,7 @@ workflows:
                 - arm.medium
 
       - test:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5192,7 +5220,7 @@ workflows:
                 - test_opcache
 
       - test:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           coverage: true
           codecov_flags: tracer-php
           matrix:
@@ -5204,7 +5232,7 @@ workflows:
                 - test_unit_coverage
 
       - test:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5216,7 +5244,7 @@ workflows:
                 - test_extension_ci
 
       - test:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           matrix:
             parameters:
               resource_class:
@@ -5245,13 +5273,13 @@ workflows:
 
       # sidecar is version independent
       - test_sidecar_sender:
-          requires: [ 'Prepare Code', 'medium: Compile 8.2 ZTS asan extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'medium: Compile 8.2 ZTS asan extension for testing', 'medium: Compile ASAN rust code for testing' ]
           php_major_minor: '8.2'
           switch_php_version: debug-zts-asan
           resource_class: medium
 
       - test_multi_observer:
-          requires: [ 'Prepare Code', 'medium: Compile << matrix.php_major_minor >> ZTS asan extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'medium: Compile << matrix.php_major_minor >> ZTS asan extension for testing', 'medium: Compile ASAN rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5263,7 +5291,7 @@ workflows:
                 - debug-zts-asan
 
       - coverage:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5279,7 +5307,7 @@ workflows:
               make_target:
                 - test_coverage
       - asan:
-          requires: [ 'Prepare Code', '<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing', '<< matrix.resource_class >>: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', '<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing', '<< matrix.resource_class >>: Compile ASAN rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5306,7 +5334,7 @@ workflows:
                 switch_php_version: debug-zts-asan
 
       - integration:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           resource_class: medium+
           matrix:
             parameters:
@@ -5327,7 +5355,7 @@ workflows:
                 - test_integration
 
       - integration:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           resource_class: medium+
           coverage: true
           codecov_flags: tracer-php
@@ -5341,7 +5369,7 @@ workflows:
                 - test_distributed_tracing_coverage
 
       - integration_snapshots:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           matrix:
@@ -5361,7 +5389,7 @@ workflows:
                 - test_integrations
 
       - integration_snapshots:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           coverage: true
@@ -5376,7 +5404,7 @@ workflows:
                 - test_integrations_coverage
 
       - integration:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
@@ -5403,7 +5431,7 @@ workflows:
           # and switch to a non-debug PHP build.
           # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
           # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code' ]
           with_executor: 'with_redis'
           matrix:
             parameters:
@@ -5413,12 +5441,12 @@ workflows:
                 - '8.2'
                 - '8.3'
               switch_php_version:
-                - debug
+                - nts
               make_target:
                 - test_integrations_phpredis5
 
       - integration:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
@@ -5434,57 +5462,57 @@ workflows:
                 - test_distributed_tracing_coverage
 
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 7.0 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 7.0 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 70 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.0_buster"
           xdebug_version_one: "2.7.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 7.1 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 7.1 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 71 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.1_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 72 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 7.3 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 7.3 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 73 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 74 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 80 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           xdebug_version_one: "3.0.0"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 8.1 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 8.1 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 81 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           xdebug_version_one: "3.1.0"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 8.2 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 8.2 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 82 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           xdebug_version_one: "3.2.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 83 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           xdebug_version_one: "3.3.0"
 
       - placeholder:
-          requires: [ 'Prepare Code', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile rust code for testing' ]
           name: Language tests
 
       - php_language_tests:
@@ -5538,17 +5566,17 @@ workflows:
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
           docker_image: "datadog/dd-trace-ci:php-7.0_buster"
       - internal_integrations:
-          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - static_analysis:
-          requires: [ 'Prepare Code', 'Compile 7.1 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 7.1 extension for testing', 'Compile rust code for testing' ]
           name: "Static Analysis 71"
           docker_image: datadog/dd-trace-ci:php-7.1_buster
           scenario: opentracing_beta6
       - static_analysis:
-          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'medium: Compile rust code for testing' ]
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'Compile rust code for testing' ]
           name: "Static Analysis 80"
           docker_image: datadog/dd-trace-ci:php-8.0_buster
           scenario: opentracing10

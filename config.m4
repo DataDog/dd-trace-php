@@ -1,8 +1,8 @@
 PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
   [  --enable-ddtrace   Enable Datadog tracing support])
 
-PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
-  [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
+PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
+  [  --enable-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
@@ -325,7 +325,7 @@ EOT
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | xargs )
-	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 
