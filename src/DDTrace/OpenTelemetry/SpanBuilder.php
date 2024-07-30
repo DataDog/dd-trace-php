@@ -127,7 +127,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
 
         // Merge additional attributes
-        $allAttributes = array_merge($exceptionAttributes, iterator_to_array($attributes));
+        $allAttributes = array_merge($exceptionAttributes, \is_array($attributes) ? $attributes : iterator_to_array($attributes));
 
         // Record the exception event
         $this->addEvent('exception', $allAttributes);
