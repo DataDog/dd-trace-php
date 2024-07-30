@@ -205,7 +205,7 @@
           "service": "my_service",
           "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_11_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
-          "span_id": 18,
+          "span_id": 19,
           "parent_id": 16,
           "type": "web",
           "meta": {
@@ -218,6 +218,18 @@
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
        "span_id": 17,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Foundation\\Events\\Terminating",
+       "trace_id": 0,
+       "span_id": 18,
        "parent_id": 1,
        "type": "web",
        "meta": {

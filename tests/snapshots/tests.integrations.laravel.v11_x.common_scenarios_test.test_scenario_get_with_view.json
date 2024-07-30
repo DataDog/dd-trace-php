@@ -245,7 +245,7 @@
           "service": "my_service",
           "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_11_x/resources/views/simple_view.blade.php",
           "trace_id": 0,
-          "span_id": 24,
+          "span_id": 25,
           "parent_id": 19,
           "type": "web",
           "meta": {
@@ -294,6 +294,18 @@
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
        "span_id": 23,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Foundation\\Events\\Terminating",
+       "trace_id": 0,
+       "span_id": 24,
        "parent_id": 1,
        "type": "web",
        "meta": {
