@@ -244,6 +244,24 @@ aliases:
         # Avoid intermittent DNS hangs: See https://github.com/curl/curl/issues/593#issuecomment-170146252
         echo "options single-request" | sudo tee -a /etc/resolv.conf
 
+  - &STEP_LINK_EXTENSION
+    run:
+      name: Link extension
+      background: true
+      command: |
+        echo $$ > /tmp/link_extension.pid
+        sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace.ldflags
+        gcc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
+        mkdir -p tmp/build_extension/modules
+        mv ddtrace.so tmp/build_extension/modules/
+
+  - &STEP_AWAIT_LINK_EXTENSION
+    run:
+      name: Wait for extension linking
+      command: |
+        tail --pid=$(cat /tmp/link_extension.pid) -f /dev/null || true
+        echo "export DD_TRACE_ASSUME_COMPILED=1" >> $BASH_ENV
+
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
       path: test-results
@@ -405,9 +423,8 @@ commands:
               cp .circleci/valgrind/<< parameters.valgrind_config >>_valgrind.rc /home/circleci/.valgrindrc
               cp .circleci/valgrind/valgrind_<< parameters.valgrind_config >>_suppressions.lib /home/circleci/valgrind_<< parameters.valgrind_config >>_suppressions.lib
             fi
-  prepare_extension_and_composer_with_cache:
+  update_composer_with_cache:
     steps:
-      - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
@@ -717,9 +734,11 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_LINK_EXTENSION
       - lib_curl_workaround:
           command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      - prepare_extension_and_composer_with_cache
+      - update_composer_with_cache
+      - <<: *STEP_AWAIT_LINK_EXTENSION
       - run:
           name: Install phpstan
           command: |
@@ -777,9 +796,11 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_LINK_EXTENSION
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - <<: *STEP_EXT_INSTALL
       - run:
           name: Run xdebug tests
           command: |
@@ -841,13 +862,16 @@ jobs:
           extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_LINK_EXTENSION
+      - update_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - <<: *STEP_EXT_INSTALL
       - run:
           name: Run tests
           command: |
@@ -895,11 +919,14 @@ jobs:
           extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_LINK_EXTENSION
+      - update_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - <<: *STEP_EXT_INSTALL
       - run:
           name: Run tests
           command: |
@@ -943,13 +970,16 @@ jobs:
           extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_LINK_EXTENSION
+      - update_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - <<: *STEP_EXT_INSTALL
       - run:
           name: Run tests
           command: |
@@ -1144,10 +1174,12 @@ jobs:
           extra: with_httpbin_and_request_replayer
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - <<: *STEP_LINK_EXTENSION
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - <<: *STEP_WAIT_TEST_AGENT
+      - <<: *STEP_AWAIT_LINK_EXTENSION
       - run:
           name: Run tests
           command: |
@@ -1598,7 +1630,6 @@ jobs:
             - run:
                 name: Updating composer to v2
                 command: sudo composer self-update --2 --no-interaction
-      - install_extension
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
@@ -1609,6 +1640,8 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - install_extension
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
@@ -1669,6 +1702,11 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
+      - git_checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - <<: *STEP_LINK_EXTENSION
       - when:
           condition:
             and:
@@ -1681,11 +1719,6 @@ jobs:
             - run:
                 name: Updating composer to v2
                 command: sudo composer self-update --2 --no-interaction
-      - git_checkout
-      - <<: *STEP_ATTACH_WORKSPACE
-      - switch_php:
-          php_version: << parameters.switch_php_version >>
-      - install_extension
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
@@ -1696,6 +1729,8 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - install_extension
       - when:
           condition:
             equal: [ "with_integrations", << parameters.with_executor >> ]
@@ -1703,6 +1738,7 @@ jobs:
             - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
+      - <<: *STEP_AWAIT_LINK_EXTENSION
       - run:
           name: Run tests
           command: |
@@ -1745,7 +1781,10 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_LINK_EXTENSION
+      - update_composer_with_cache
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - <<: *STEP_EXT_INSTALL
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_TEST_AGENT
@@ -1899,6 +1938,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - <<: *STEP_LINK_EXTENSION
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
@@ -1912,6 +1952,7 @@ jobs:
               echo 'ext/<< parameters.ext_name >> is enabled but should not be installed'
               exit 1
             fi
+      - <<: *STEP_AWAIT_LINK_EXTENSION
       - run:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
           command: |
@@ -2554,6 +2595,61 @@ jobs:
             find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
       - store_artifacts: { path: '/tmp/artifacts' }
+
+  compile_rust_test:
+    working_directory: ~/datadog
+    parameters:
+      resource_class:
+        type: string
+        default: large
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - git_checkout
+      - append_build_id
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:buster
+      - run:
+          name: Compile sidecar
+          command: |
+            SHARED=1 host_os=linux-gnu ./compile_rust.sh
+            cp -v ${CARGO_TARGET_DIR:-target}/debug/libddtrace_php.a .
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './libddtrace_php.a' ]
+
+  compile_extension_test:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 8.2
+        type: string
+      resource_class:
+        type: string
+        default: medium
+      switch_php_version:
+        type: string
+    <<: *BARE_DOCKER_MACHINE
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - git_checkout
+      - append_build_id
+      - setup_docker:
+          docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+      - run:
+          name: Build << parameters.switch_php_version >> extension
+          command: |
+            switch-php << parameters.switch_php_version >>
+            make -j static CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -Wno-error=return-local-addr" ECHO_ARG="-e"
+            cp -v tmp/build_extension/modules/ddtrace.a ddtrace.a
+            cp -v tmp/build_extension/ddtrace.ldflags ddtrace.ldflags
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './ddtrace.a', 'ddtrace.ldflags' ]
 
   ExtensionComponents:
     working_directory: ~/datadog
@@ -3722,7 +3818,6 @@ jobs:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
-      - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install cbindgen
           command: cargo install cbindgen
@@ -5001,8 +5096,49 @@ workflows:
 
       - "Prepare Code"
 
+      - compile_rust_test:
+          name: "<< matrix.resource_class >>: Compile rust code for testing"
+          matrix:
+            parameters:
+              resource_class:
+                - medium
+                - arm.medium
+
+      - compile_extension_test:
+          name: "Compile << matrix.php_major_minor >> extension for testing"
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              switch_php_version:
+                - nts
+
+      - compile_extension_test:
+          name: "<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing"
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+              switch_php_version:
+                - debug-zts-asan
+              resource_class:
+                - medium
+                - arm.medium
+
       - test:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5025,7 +5161,7 @@ workflows:
                 - test_opcache
 
       - test:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           coverage: true
           codecov_flags: tracer-php
           matrix:
@@ -5037,7 +5173,7 @@ workflows:
                 - test_unit_coverage
 
       - test:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5049,7 +5185,7 @@ workflows:
                 - test_extension_ci
 
       - test:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           matrix:
             parameters:
               resource_class:
@@ -5078,13 +5214,13 @@ workflows:
 
       # sidecar is version independent
       - test_sidecar_sender:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'medium: Compile 8.2 ZTS asan extension for testing', 'medium: Compile rust code for testing' ]
           php_major_minor: '8.2'
           switch_php_version: debug-zts-asan
           resource_class: medium
 
       - test_multi_observer:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'medium: Compile << matrix.php_major_minor >> ZTS asan extension for testing', 'medium: Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5096,7 +5232,7 @@ workflows:
                 - debug-zts-asan
 
       - coverage:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5112,7 +5248,7 @@ workflows:
               make_target:
                 - test_coverage
       - asan:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', '<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing', '<< matrix.resource_class >>: Compile rust code for testing' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5139,7 +5275,7 @@ workflows:
                 switch_php_version: debug-zts-asan
 
       - integration:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           resource_class: medium+
           matrix:
             parameters:
@@ -5160,7 +5296,7 @@ workflows:
                 - test_integration
 
       - integration:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           resource_class: medium+
           coverage: true
           codecov_flags: tracer-php
@@ -5174,7 +5310,7 @@ workflows:
                 - test_distributed_tracing_coverage
 
       - integration_snapshots:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           matrix:
@@ -5194,7 +5330,7 @@ workflows:
                 - test_integrations
 
       - integration_snapshots:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           coverage: true
@@ -5209,7 +5345,7 @@ workflows:
                 - test_integrations_coverage
 
       - integration:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
@@ -5236,7 +5372,7 @@ workflows:
           # and switch to a non-debug PHP build.
           # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
           # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           with_executor: 'with_redis'
           matrix:
             parameters:
@@ -5251,7 +5387,7 @@ workflows:
                 - test_integrations_phpredis5
 
       - integration:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'medium: Compile rust code for testing' ]
           resource_class: medium+
           sapi: fpm-fcgi
           disable_runner_distributed_tracing: true
@@ -5267,130 +5403,125 @@ workflows:
                 - test_distributed_tracing_coverage
 
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 7.0 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 70 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.0_buster"
           xdebug_version_one: "2.7.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 7.1 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 71 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.1_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
-      # - unit_tests: # disabled due to posisbly leaking tests
-      #     requires: [ 'Prepare Code' ]
-      #     name: "PHP 70 Unit tests-zts"
-      #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-zts-debug"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 72 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 7.3 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 73 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 74 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           xdebug_version_one: "2.9.5"
           xdebug_version_two: "2.9.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 80 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           xdebug_version_one: "3.0.0"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.1 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 81 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           xdebug_version_one: "3.1.0"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.2 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 82 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           xdebug_version_one: "3.2.2"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 83 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           xdebug_version_one: "3.3.0"
 
       - placeholder:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'medium: Compile rust code for testing' ]
           name: Language tests
 
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 8.3 extension for testing' ]
           name: "PHP 83 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.3.list
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 8.2 extension for testing' ]
           name: "PHP 82 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.2.list
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 8.1 extension for testing' ]
           name: "PHP 81 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.1.list
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 8.0 extension for testing' ]
           name: "PHP 80 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.0.list
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 7.4 extension for testing' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 7.3 extension for testing' ]
           name: "PHP 73 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.3.list
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 7.2 extension for testing' ]
           name: "PHP 72 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.2.list
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 7.1 extension for testing' ]
           name: "PHP 71 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.1.list
           docker_image: "datadog/dd-trace-ci:php-7.1_buster"
       - php_language_tests:
-          requires: [ 'Language tests' ]
+          requires: [ 'Language tests', 'Compile 7.0 extension for testing' ]
           name: "PHP 70 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
           docker_image: "datadog/dd-trace-ci:php-7.0_buster"
       - internal_integrations:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'medium: Compile rust code for testing' ]
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - static_analysis:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 7.1 extension for testing', 'medium: Compile rust code for testing' ]
           name: "Static Analysis 71"
           docker_image: datadog/dd-trace-ci:php-7.1_buster
           scenario: opentracing_beta6
       - static_analysis:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'medium: Compile rust code for testing' ]
           name: "Static Analysis 80"
           docker_image: datadog/dd-trace-ci:php-8.0_buster
           scenario: opentracing10
-      - "cbindgen up-to-date":
-          requires: [ 'Prepare Code' ]
+      - "cbindgen up-to-date"
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
 

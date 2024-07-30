@@ -26,6 +26,7 @@ ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
+ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 
 VERSION := $(shell cat VERSION)
 
@@ -102,14 +103,14 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 
 all_object_files: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 
-$(SO_FILE): all_object_files $(BUILD_DIR)/compile_rust.sh
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)"
+$(SO_FILE): $(if $(ASSUME_COMPILED),, all_object_files $(BUILD_DIR)/compile_rust.sh)
+	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)")
 
 $(AR_FILE): all_object_files
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)"
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
-	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
+	$(Q) $(SUDO) $(if $(ASSUME_COMPILED),cp $(BUILD_DIR)/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so,$(MAKE) -C $(BUILD_DIR) install)
 
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
 
@@ -169,7 +170,6 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export DD_TRACE_CLI_ENABLED=1; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
 	export DD_TRACE_GIT_METADATA_ENABLED=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	\
