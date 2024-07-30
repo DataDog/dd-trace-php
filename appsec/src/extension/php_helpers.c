@@ -116,7 +116,8 @@ zend_string *nullable dd_php_get_string_elem(
     return Z_STR_P(zresult);
 }
 
-zval *dd_hash_find_or_new(HashTable *ht, zend_string *key)
+zval *nonnull dd_hash_find_or_new(
+    HashTable *nonnull ht, zend_string *nonnull key)
 {
     zval *result = zend_hash_find(ht, key);
 

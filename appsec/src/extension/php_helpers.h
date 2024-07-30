@@ -1,12 +1,12 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <php.h>
 #include "attributes.h"
+#include <php.h>
 
 #ifdef ZTS
 #    define THREAD_LOCAL_ON_ZTS __thread
@@ -41,11 +41,11 @@ dd_php_array_type dd_php_determine_array_type(const zend_array *nonnull);
 
 zval *nullable dd_php_get_autoglobal(
     int track_var, const char *nonnull name, size_t len);
-const zend_array *nonnull dd_get_superglob_or_equiv(
-    const char *nonnull name, size_t name_len, int track,
-    zend_array *nullable equiv);
+const zend_array *nonnull dd_get_superglob_or_equiv(const char *nonnull name,
+    size_t name_len, int track, zend_array *nullable equiv);
 zend_string *nullable dd_php_get_string_elem(
     const zend_array *nullable arr, zend_string *nonnull zstr);
 zend_string *nullable dd_php_get_string_elem_cstr(
     const zend_array *nullable arr, const char *nonnull name, size_t len);
-zval *dd_hash_find_or_new(HashTable *ht, zend_string *key);
+zval *nonnull dd_hash_find_or_new(
+    HashTable *nonnull ht, zend_string *nonnull key);
