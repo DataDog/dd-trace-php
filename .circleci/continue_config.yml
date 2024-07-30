@@ -248,61 +248,70 @@ aliases:
     store_test_results:
       path: test-results
 
-  - &STEP_CHECKOUT
-    run:
-      name: Checkout code
-      command: |
-        git config --global gc.auto 0
-
-        export CIRCLE_REPOSITORY_URL="${CIRCLE_REPOSITORY_URL/git@github.com:/https://github.com/}"
-
-        if [ -e "$HOME/datadog/.git" ] ; then
-          echo 'Fetching into existing repository'
-          existing_repo='true'
-          cd "$HOME/datadog"
-          git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
-
-          echo 'Fetching from remote repository'
-          retry_count=3
-          if [ -n "$CIRCLE_TAG" ]; then
-            for i in $(seq 1 $retry_count); do
-              git fetch --force --no-recurse-submodules --tags origin && break || sleep 1
-            done
-          elif [ -z "$CIRCLE_PR_NUMBER" ]; then
-            for i in $(seq 1 $retry_count); do
-              git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH" && break || sleep 1
-            done
-          fi
-        else
-          echo 'Cloning git repository'
-          existing_repo='false'
-          mkdir -p "$HOME/datadog"
-          cd "$HOME/datadog"
-          git clone --no-checkout "$CIRCLE_REPOSITORY_URL" .
-        fi
-
-        if [ -n "$CIRCLE_TAG" ]; then
-          echo 'Checking out tag'
-          git checkout --force "$CIRCLE_TAG"
-          git reset --hard "$CIRCLE_SHA1"
-        else
-          echo 'Checking out branch'
-          if [ -n "$CIRCLE_PR_NUMBER" ]; then
-            git fetch --force origin "+refs/pull/${CIRCLE_PR_NUMBER}/head:refs/remotes/origin/$CIRCLE_BRANCH"
-          fi
-          git checkout --force -B "$CIRCLE_BRANCH" "$CIRCLE_SHA1"
-          git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
-        fi
-
-        echo 'Updating submodules'
-        git submodule update --init --recursive
-
   - &BARE_DOCKER_MACHINE
     resource_class: << parameters.resource_class >>
     machine:
       image: ubuntu-2004:current
 
 commands:
+  git_checkout:
+    parameters:
+      is_windows:
+        type: boolean
+        default: false
+    steps:
+      - run:
+          name: Checkout code
+          shell: "<<# parameters.is_windows >>bash.exe<</ parameters.is_windows >><<^ parameters.is_windows >>/bin/bash -eo pipefail<</ parameters.is_windows >>"
+          command: |
+            git config --global gc.auto 0
+    
+            export CIRCLE_REPOSITORY_URL="${CIRCLE_REPOSITORY_URL/git@github.com:/https://github.com/}"
+    
+            APP_DIR="$HOME/datadog"
+            if [ -e "$APP_DIR/.git" ] ; then
+              echo 'Fetching into existing repository'
+              existing_repo='true'
+              cd "$APP_DIR"
+              git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
+    
+              echo 'Fetching from remote repository'
+              retry_count=3
+              if [ -n "$CIRCLE_TAG" ]; then
+                for i in $(seq 1 $retry_count); do
+                  git fetch --force --no-recurse-submodules --tags origin && break || sleep 1
+                done
+              elif [ -z "$CIRCLE_PR_NUMBER" ]; then
+                for i in $(seq 1 $retry_count); do
+                  git fetch --force --no-recurse-submodules origin "+refs/heads/$CIRCLE_BRANCH:refs/remotes/origin/$CIRCLE_BRANCH" && break || sleep 1
+                done
+              fi
+            else
+              echo 'Cloning git repository'
+              existing_repo='false'
+              mkdir -p "$APP_DIR"
+              cd "$APP_DIR"
+              git clone --no-checkout "$CIRCLE_REPOSITORY_URL" .
+            fi
+    
+            if [ -n "$CIRCLE_TAG" ]; then
+              echo 'Checking out tag'
+              git checkout --force "$CIRCLE_TAG"
+              git reset --hard "$CIRCLE_SHA1"
+            else
+              echo 'Checking out branch'
+              if [ -n "$CIRCLE_PR_NUMBER" ]; then
+                git fetch --force origin "+refs/pull/${CIRCLE_PR_NUMBER}/head:refs/remotes/origin/$CIRCLE_BRANCH"
+              fi
+              git checkout --force -B "$CIRCLE_BRANCH" "$CIRCLE_SHA1"
+              git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
+            fi
+    
+            echo 'Updating submodules'
+            # we don't need appsec submodules on windows
+            <<# parameters.is_windows >>git submodule update --init libdatadog<</ parameters.is_windows >>
+            <<^ parameters.is_windows >>git submodule update --init --recursive<</ parameters.is_windows >>
+
   lib_curl_workaround:
     parameters:
       command:
@@ -706,7 +715,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
           command: sudo apt update; sudo apt -y install libcurl4-nss-dev
@@ -734,7 +743,7 @@ jobs:
           command: |
             apt-get update
             apt-get install -y git
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Start Supervisor
@@ -766,7 +775,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_EXPORT_CI_ENV
@@ -821,7 +830,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Set core pattern
@@ -875,7 +884,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Set core pattern
@@ -923,7 +932,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Set core pattern
@@ -964,7 +973,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - fetch_job_artifact:
           job: "package extension"
           artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
@@ -1006,7 +1015,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install php
@@ -1051,6 +1060,7 @@ jobs:
           path: /tmp/artifacts
 
   test_windows:
+    working_directory: ~/datadog
     resource_class: 'windows.medium'
     machine:
       image: 'windows-server-2019-vs2019:2022.08.1'
@@ -1059,12 +1069,7 @@ jobs:
       docker_image:
         type: string
     steps:
-      - checkout
-      - run:
-          name: Pull submodules
-          shell: powershell.exe
-          command: |
-            git submodule update --init --recursive
+      - git_checkout: { is_windows: true }
       - run:
           name: Setup docker container
           shell: powershell.exe
@@ -1132,7 +1137,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
@@ -1185,7 +1190,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
@@ -1230,7 +1235,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Hunter Cache"
@@ -1271,7 +1276,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Integration tests
@@ -1287,7 +1292,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
@@ -1322,7 +1327,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
@@ -1388,7 +1393,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
@@ -1426,7 +1431,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
@@ -1466,7 +1471,7 @@ jobs:
     working_directory: ~/datadog
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - restore_cache:
           name: "Restore Cache"
@@ -1574,7 +1579,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
@@ -1676,7 +1681,7 @@ jobs:
             - run:
                 name: Updating composer to v2
                 command: sudo composer self-update --2 --no-interaction
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
@@ -1738,7 +1743,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -1827,7 +1832,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
@@ -1890,7 +1895,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
@@ -1955,7 +1960,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - fetch_job_artifact:
@@ -2004,7 +2009,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - fetch_job_artifact:
           job: "package extension"
@@ -2051,7 +2056,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - when:
           condition:
@@ -2117,7 +2122,7 @@ jobs:
             sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
             yum update -y
             yum install -y git
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - when:
           condition:
@@ -2163,7 +2168,7 @@ jobs:
           command: |
             yum update -y
             yum install -y git
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - when:
           condition:
@@ -2235,7 +2240,7 @@ jobs:
           name: Install curl
           command: |
             apt-get install -y curl
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - when:
           condition:
@@ -2280,7 +2285,7 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get install -y git
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - fetch_job_artifact:
           job: "package extension"
@@ -2312,7 +2317,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run: mkdir -p build/packages
       - fetch_job_artifact:
           job: "package extension"
@@ -2333,7 +2338,7 @@ jobs:
       docker_image:
         type: string
     steps:
-      - checkout
+      - git_checkout: { is_windows: true }
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Build nts
@@ -2348,7 +2353,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - run:
           name: Let testing images to write to build/packages dir
@@ -2405,7 +2410,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run:
           command: ls -al
       - run:
@@ -2493,7 +2498,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Make PECL build
@@ -2521,7 +2526,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install from PECL build
@@ -2565,7 +2570,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install cmake << parameters.cmake_version >>
@@ -2679,7 +2684,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install cmake << parameters.cmake_version >>
@@ -2827,7 +2832,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Switch PHP to nts
@@ -2914,7 +2919,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine
@@ -2942,7 +2947,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
@@ -2985,7 +2990,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -3020,7 +3025,7 @@ jobs:
         default: medium # mostly for more RAM for ramdisk
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - restore_cache:
@@ -3066,7 +3071,7 @@ jobs:
     environment:
       - CARGO_TARGET_DIR: /mnt/ramdisk/cargo
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - setup_docker:
           docker_image: << parameters.docker_image >>
       - restore_cache:
@@ -3098,7 +3103,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -3179,7 +3184,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -3228,7 +3233,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - fetch_job_artifact:
           job: "package extension"
           artifact: |-
@@ -3269,7 +3274,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - fetch_job_artifact:
           job: "package extension"
           artifact: |-
@@ -3303,7 +3308,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:centos-7
@@ -3342,7 +3347,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -3392,7 +3397,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
           docker_image: << parameters.docker_image >>
@@ -3412,6 +3417,7 @@ jobs:
           paths: [ './extensions_*' ]
 
   compile_extension_windows:
+    working_directory: ~/datadog
     resource_class: 'windows.medium'
     machine:
       image: 'windows-server-2019-vs2019:2022.08.1'
@@ -3425,14 +3431,9 @@ jobs:
       php_version:
         type: string
     steps:
-      - checkout
+      - git_checkout: { is_windows: true }
       - append_build_id:
           shell: bash.exe
-      - run:
-          name: Pull submodules
-          shell: powershell.exe
-          command: |
-            git submodule update --init --recursive
       - run:
           name: Setup docker container
           shell: powershell.exe
@@ -3471,7 +3472,7 @@ jobs:
         type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: "datadog/dd-trace-ci:php-<< parameters.php_version >>_centos-7"
@@ -3525,7 +3526,7 @@ jobs:
         type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_version >>"
@@ -3569,7 +3570,7 @@ jobs:
         default: medium
     <<: *BARE_DOCKER_MACHINE
     steps:
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - append_build_id
       - setup_docker:
           docker_image: "datadog/libddwaf:toolchain"
@@ -3613,7 +3614,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
             - source-v1-{{ .Branch }}-
             - source-v1-
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - save_cache:
           key: source-v1-{{ .Branch }}-{{ .Revision }}
           paths:
@@ -3644,7 +3645,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Build packages
@@ -3690,7 +3691,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - run:
           name: Install curl
           command: apk add curl
@@ -3720,7 +3721,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Install cbindgen
@@ -3753,7 +3754,7 @@ jobs:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
-      - <<: *STEP_CHECKOUT
+      - git_checkout
 
       - run:
           name: Install python 3.12
