@@ -1738,7 +1738,6 @@ jobs:
             - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
-      - <<: *STEP_AWAIT_LINK_EXTENSION
       - run:
           name: Run tests
           command: |
@@ -2602,6 +2601,8 @@ jobs:
       resource_class:
         type: string
         default: large
+      triplet:
+        type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
@@ -2609,6 +2610,10 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - append_build_id
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - setup_docker:
           docker_image: datadog/dd-trace-ci:buster
       - run:
@@ -2644,7 +2649,7 @@ jobs:
           name: Build << parameters.switch_php_version >> extension
           command: |
             switch-php << parameters.switch_php_version >>
-            make -j static CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -Wno-error=return-local-addr" ECHO_ARG="-e"
+            make -j static
             cp -v tmp/build_extension/modules/ddtrace.a ddtrace.a
             cp -v tmp/build_extension/ddtrace.ldflags ddtrace.ldflags
       - persist_to_workspace:
@@ -3010,12 +3015,18 @@ jobs:
       resource_class:
         type: string
         default: large
+      triplet:
+        type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-compile-extension-alpine
@@ -3127,11 +3138,10 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - run:
           name: cargo fetch
           command: |
-            cd profiling
             # On occasion, we've observed the .package-cache being in the cache.
             # If it's there, it will cause commands to stall, waiting for the file to be released.
             if [ -e '/rust/cargo/.package-cache' ] ; then
@@ -3147,7 +3157,7 @@ jobs:
 
       - save_cache:
           name: Save Cargo Package Cache
-          key: profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+          key: rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
           paths:
             - /rust/cargo
 
@@ -3173,7 +3183,7 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - profiling-rust-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
       - append_build_id
       - build_profiler:
           prefix: datadog-profiling/<< parameters.triplet >>/lib/php/<< parameters.abi_no >>
@@ -3206,7 +3216,7 @@ jobs:
       - restore_cache:
           name: Restore Cargo Package Cache
           keys:
-            - profiling-cargo-cache-<< parameters.triplet >>-{{ checksum "profiling/Cargo.toml" }}
+            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - run:
           name: cargo tests
           command: |
@@ -3399,12 +3409,18 @@ jobs:
       resource_class:
         type: string
         default: large
+      triplet:
+        type: string
     <<: *BARE_DOCKER_MACHINE
     steps:
       - restore_cache:
           keys:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
+      - restore_cache:
+          name: Restore Cargo Package Cache
+          keys:
+            - rust-cargo-cache-<< parameters.triplet >>-{{ checksum "Cargo.lock" }}
       - append_build_id
       - setup_docker:
           docker_image: datadog/dd-trace-ci:centos-7
@@ -4225,14 +4241,16 @@ workflows:
           resource_class: "arm.medium"
           name: "Compile alpine aarch64 PHP << matrix.php_major_minor >>"
       - compile_rust_alpine:
-          matrix:
-            parameters:
-              resource_class:
-                - "medium"
-                - "arm.medium"
+          name: "Compile alpine x86_64 rust"
+          resource_class: medium
+          triplet: "x86_64-alpine-linux-musl"
+      - compile_rust_alpine:
+          name: "Compile alpine aarch64 rust"
+          resource_class: arm.medium
+          triplet: "aarch64-alpine-linux-musl"
       - link_extension:
           requires:
-            - compile_rust_alpine
+            - "Compile alpine x86_64 rust"
             - "Compile alpine x86_64 PHP 7.0"
             - "Compile alpine x86_64 PHP 7.1"
             - "Compile alpine x86_64 PHP 7.2"
@@ -4248,7 +4266,7 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - link_extension:
           requires:
-            - compile_rust_alpine
+            - "Compile alpine aarch64 rust"
             - "Compile alpine aarch64 PHP 7.0"
             - "Compile alpine aarch64 PHP 7.1"
             - "Compile alpine aarch64 PHP 7.2"
@@ -4403,9 +4421,11 @@ workflows:
 
       - compile_rust_centos:
           name: "Compile x86_64 rust"
+          triplet: "x86_64-unknown-linux-gnu"
       - compile_rust_centos:
           name: "Compile aarch64 rust"
           resource_class: "arm.large"
+          triplet: "aarch64-unknown-linux-gnu"
 
       - link_extension:
           requires:
@@ -5096,13 +5116,24 @@ workflows:
 
       - "Prepare Code"
 
+      - "cache cargo deps":
+          name: "cache cargo deps - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:buster"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cache cargo deps":
+          name: "cache cargo deps - aarch64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:buster"
+          triplet: "aarch64-unknown-linux-gnu"
+          resource_class: "arm.medium"
+
       - compile_rust_test:
-          name: "<< matrix.resource_class >>: Compile rust code for testing"
-          matrix:
-            parameters:
-              resource_class:
-                - medium
-                - arm.medium
+          name: "medium: Compile rust code for testing"
+          resource_class: medium
+          triplet: "x86_64-unknown-linux-gnu"
+      - compile_rust_test:
+          name: "arm.medium: Compile rust code for testing"
+          resource_class: arm.medium
+          triplet: "aarch64-unknown-linux-gnu"
 
       - compile_extension_test:
           name: "Compile << matrix.php_major_minor >> extension for testing"
@@ -5119,7 +5150,7 @@ workflows:
                 - "8.2"
                 - "8.3"
               switch_php_version:
-                - nts
+                - debug
 
       - compile_extension_test:
           name: "<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing"
@@ -5382,7 +5413,7 @@ workflows:
                 - '8.2'
                 - '8.3'
               switch_php_version:
-                - nts
+                - debug
               make_target:
                 - test_integrations_phpredis5
 
