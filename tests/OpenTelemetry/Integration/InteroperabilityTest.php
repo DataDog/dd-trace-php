@@ -1217,16 +1217,16 @@ final class InteroperabilityTest extends BaseTestCase
     {
         $traces = $this->isolateTracer(function () {
             $otelSpan = self::getTracer()->spanBuilder("otel.span")
-                ->addEvent(
-                    "event-name", 
-                    [ 
-                        'arg1' => 'value1', 
-                        'int_array' => [3, 4], 
-                        'string_array' => ["5", "6"]
-                    ], 
-                    1720037568765201300
-                )
                 ->startSpan();
+            $otelSpan->addEvent(
+                "event-name", 
+                [ 
+                    'arg1' => 'value1', 
+                    'int_array' => [3, 4], 
+                    'string_array' => ["5", "6"]
+                ], 
+                1720037568765201300
+            );
 
             $activeSpan = active_span();
             $spanEvent = $activeSpan->events[0];

@@ -44,6 +44,9 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     private array $links;
 
+    /** @readonly */
+    private int $totalRecordedLinks;
+
     /**
      * @readonly
      *
@@ -51,9 +54,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     private array $events;
 
-
-    /** @readonly */
-    private int $totalRecordedLinks;
+     /** @readonly */
+    private int $totalRecordedEvents;
 
     /** @readonly */
     private int $kind;
@@ -239,6 +241,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->events,
             Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
             0,
+            $this->totalRecordedEvents,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
             $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
             $this->hasEnded()
@@ -281,7 +284,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     public function getTotalRecordedEvents(): int
     {
-        return 0;
+        return $this->totalRecordedEvents;
     }
 
     /**
@@ -360,7 +363,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanInterface
     {
-        // no-op
+        if (!$this->hasEnded()) {
+            $this->span->events[] = new SpanEvent(
+                $name, 
+                $attributes,
+                $timestamp ?? (int)(microtime(true) * 1e9)
+            );
+        }
+
         return $this;
     }
 
@@ -507,6 +517,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private function updateSpanEvents()
     {
         $datadogSpanEvents = $this->span->events;
+        $this->span->meta["events"] = count($this->events);
 
         $otel = [];
         foreach ($datadogSpanEvents as $datadogSpanEvent) {
@@ -528,5 +539,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         // Update the events
         $this->events = $otel;
+        $this->getTotalRecordedEvents = count($otel);
     }
 }
