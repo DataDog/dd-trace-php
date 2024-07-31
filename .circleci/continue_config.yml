@@ -1896,8 +1896,7 @@ jobs:
                 command: sudo composer self-update --2 --no-interaction
       - switch_php:
           php_version: << parameters.switch_php_version >>
-      - install_extension:
-          lib_curl_command: << parameters.lib_curl_command >>
+      - <<: *STEP_LINK_EXTENSION
       - run:
           name: Install required packages
           command: sudo apt update && sudo apt install -y jq
@@ -1906,6 +1905,9 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_AWAIT_LINK_EXTENSION
+      - install_extension:
+          lib_curl_command: << parameters.lib_curl_command >>
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
@@ -4862,119 +4864,6 @@ workflows:
           name: "PHP 83 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
 
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 web tests with apache (+ opcache)"
-          resource_class: medium+
-          sapi: apache2handler
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
-          php_major_minor: "7.2"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
-          php_major_minor: "7.2"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
-          php_major_minor: "7.3"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 web tests with apache (+ opcache)"
-          resource_class: medium+
-          sapi: apache2handler
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
-          php_major_minor: "7.4"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
-          php_major_minor: "7.4"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 web tests with apache (+ opcache)"
-          resource_class: medium+
-          sapi: apache2handler
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          php_major_minor: "8.0"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          php_major_minor: "8.0"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 81 web tests with apache (+ opcache)"
-          resource_class: medium+
-          sapi: apache2handler
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
-          php_major_minor: "8.1"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 81 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
-          php_major_minor: "8.1"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 82 web tests with apache (+ opcache)"
-          resource_class: medium+
-          sapi: apache2handler
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.2_buster"
-          php_major_minor: "8.2"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 82 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.2_buster"
-          php_major_minor: "8.2"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 83 web tests with apache (+ opcache)"
-          resource_class: medium+
-          sapi: apache2handler
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
-          php_major_minor: "8.3"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 83 web tests with nginx + FastCGI"
-          resource_class: medium+
-          sapi: cgi-fcgi
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
-          php_major_minor: "8.3"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
-          resource_class: medium+
-          sapi: fpm-fcgi
-          integration_testsuite: "test_web_custom"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
-          php_major_minor: "7.4"
-
       - min_install_tests:
           requires: [ 'package extension' ]
           name: "PHP min install tests"
@@ -5445,6 +5334,103 @@ workflows:
               make_target:
                 - test_integrations_phpredis5
 
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 72 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+          php_major_minor: "7.2"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 72 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
+          php_major_minor: "7.2"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 7.3 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 73 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
+          php_major_minor: "7.3"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 74 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 74 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 80 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          php_major_minor: "8.0"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.0 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 80 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          php_major_minor: "8.0"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.1 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 81 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.1_buster"
+          php_major_minor: "8.1"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.2 extension for testing', 'Compile rust code for testing']
+          name: "PHP 82 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.2_buster"
+          php_major_minor: "8.2"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 83 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
+          php_major_minor: "8.3"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 83 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.3_buster"
+          php_major_minor: "8.3"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
+          resource_class: medium+
+          sapi: fpm-fcgi
+          integration_testsuite: "test_web_custom"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
+          php_major_minor: "7.4"
+
       - integration:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           resource_class: medium+
@@ -5511,57 +5497,53 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           xdebug_version_one: "3.3.0"
 
-      - placeholder:
-          requires: [ 'Prepare Code', 'Compile rust code for testing' ]
-          name: Language tests
-
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 8.3 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 8.3 extension for testing' ]
           name: "PHP 83 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.3.list
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 8.2 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 8.2 extension for testing' ]
           name: "PHP 82 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.2.list
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 8.1 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 8.1 extension for testing' ]
           name: "PHP 81 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.1.list
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 8.0 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 8.0 extension for testing' ]
           name: "PHP 80 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/8.0.list
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 7.4 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 7.4 extension for testing' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           parallel_workers: true
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 7.3 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 7.3 extension for testing' ]
           name: "PHP 73 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.3.list
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 7.2 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 7.2 extension for testing' ]
           name: "PHP 72 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.2.list
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 7.1 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 7.1 extension for testing' ]
           name: "PHP 71 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.1.list
           docker_image: "datadog/dd-trace-ci:php-7.1_buster"
       - php_language_tests:
-          requires: [ 'Language tests', 'Compile 7.0 extension for testing' ]
+          requires: [ 'Compile rust code for testing', 'Compile 7.0 extension for testing' ]
           name: "PHP 70 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
           docker_image: "datadog/dd-trace-ci:php-7.0_buster"
