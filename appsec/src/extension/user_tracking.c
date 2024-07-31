@@ -205,9 +205,13 @@ zend_string *nullable dd_user_id_anonymize(zend_string *nonnull user_id)
 
 #if PHP_VERSION_ID < 80000
     context = emalloc(ops->context_size);
-    ops->hash_init(context);
 #else
     context = php_hash_alloc_context(ops);
+#endif
+
+#if PHP_VERSION_ID <= 80000
+    ops->hash_init(context);
+#else
     ops->hash_init(context, NULL);
 #endif
 
