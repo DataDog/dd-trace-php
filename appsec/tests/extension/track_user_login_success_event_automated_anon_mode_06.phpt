@@ -4,7 +4,7 @@ Metadata is discarded in
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=safe
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
@@ -30,6 +30,6 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => 1234
-    [_dd.appsec.events.users.login.success.auto.mode] => safe
+    [_dd.appsec.events.users.login.success.auto.mode] => anon
     [appsec.events.users.login.success.track] => true
 )

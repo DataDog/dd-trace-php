@@ -27,5 +27,5 @@ Array
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.track] => true
     [appsec.events.users.login.success.value] => something-from-sdk
-    [_dd.appsec.events.users.login.success.auto.mode] => safe
+    [_dd.appsec.events.users.login.success.auto.mode] => anon
 )

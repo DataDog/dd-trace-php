@@ -1,9 +1,10 @@
 --TEST--
-When values are set with automated event and with sdk, SDK takes priority
+Safe mode allows uuid v1
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
@@ -12,8 +13,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_signup_event("1234", ["value" => "something-from-automated"], true); //Automated
-track_user_signup_event("Admin", ["value" => "something-from-sdk"]); //Sdk
+track_user_signup_event("85e37758-0b85-11ee-be56-0242ac120002", [], true);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -23,9 +23,7 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => Admin
+    [usr.id] => 85e37758-0b85-11ee-be56-0242ac120002
     [_dd.appsec.events.users.signup.auto.mode] => anon
     [appsec.events.users.signup.track] => true
-    [_dd.appsec.events.users.signup.sdk] => true
-    [appsec.events.users.signup.value] => something-from-sdk
 )

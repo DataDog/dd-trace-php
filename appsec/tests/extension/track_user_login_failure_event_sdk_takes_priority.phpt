@@ -28,5 +28,5 @@ Array
     [_dd.appsec.events.users.login.failure.sdk] => true
     [appsec.events.users.login.failure.usr.exists] => true
     [appsec.events.users.login.failure.value] => something-from-sdk
-    [_dd.appsec.events.users.login.failure.auto.mode] => safe
+    [_dd.appsec.events.users.login.failure.auto.mode] => anon
 )
