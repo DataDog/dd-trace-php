@@ -25,7 +25,6 @@ Array
     [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => 1234
     [appsec.events.users.login.failure.track] => true
-    [_dd.appsec.events.users.login.failure.auto.mode] => ident
+    [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.usr.exists] => true
-    [appsec.events.users.login.failure.email] => some@email.com
 )

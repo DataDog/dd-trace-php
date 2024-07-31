@@ -23,6 +23,6 @@ Array
 (
     [runtime-id] => %s
     [appsec.events.users.login.failure.track] => true
-    [_dd.appsec.events.users.login.failure.auto.mode] => anon
+    [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.usr.exists] => false
 )

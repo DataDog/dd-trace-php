@@ -24,7 +24,6 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => sensitiveId
-    [_dd.appsec.events.users.login.success.auto.mode] => ident
+    [_dd.appsec.events.users.login.success.auto.mode] => identification
     [appsec.events.users.login.success.track] => true
-    [appsec.events.users.login.success.email] => some@email.com
 )

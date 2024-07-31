@@ -50,7 +50,7 @@ class Laravel8xTests {
 
         Span span = trace.first()
         assert span.meta."appsec.events.users.login.failure.track" == "true"
-        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "safe"
+        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "identification"
         assert span.meta."appsec.events.users.login.failure.usr.exists" == "false"
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
@@ -66,7 +66,7 @@ class Laravel8xTests {
         //ciuser@example.com user id is 1
         Span span = trace.first()
         assert span.meta."usr.id" == "1"
-        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == "safe"
+        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == "identification"
         assert span.meta."appsec.events.users.login.success.track" == "true"
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
@@ -81,7 +81,7 @@ class Laravel8xTests {
 
         Span span = trace.first()
         assert span.meta."usr.id" == "2"
-        assert span.meta."_dd.appsec.events.users.signup.auto.mode" == "safe"
+        assert span.meta."_dd.appsec.events.users.signup.auto.mode" == "identification"
         assert span.meta."appsec.events.users.signup.track" == "true"
         assert span.metrics._sampling_priority_v1 == 2.0d
     }

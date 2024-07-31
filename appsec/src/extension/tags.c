@@ -338,8 +338,10 @@ void dd_tags_add_tags(
         }
 
         _add_basic_ancillary_tags(span, server,
-            _user_event_triggered && dd_get_user_collection_mode() == user_mode_ident ? 
-                &_relevant_headers : &_relevant_basic_headers);
+            _user_event_triggered &&
+                    dd_get_user_collection_mode() == user_mode_ident
+                ? &_relevant_headers
+                : &_relevant_basic_headers);
         return;
     }
 
@@ -901,11 +903,13 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
 
     if (automated) {
         user_collection_mode mode = dd_get_user_collection_mode();
-        if (mode == user_mode_disabled || !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
+        if (mode == user_mode_disabled ||
+            !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
             return;
         }
 
         if (mode == user_mode_anon) {
+            // Anonymize the user ID and ensure it isn't copied twice
             user_id = dd_user_id_anonymize(user_id);
             if (user_id == NULL) {
                 mlog(dd_log_debug, "Failed to anonymize user ID");
@@ -913,10 +917,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
             }
 
             copy_user_id = false;
-
-            if (metadata != NULL && zend_array_count(metadata) > 0) {
-                metadata = NULL;
-            }
         }
     } else {
         if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
@@ -937,6 +937,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     }
 
     if (automated) {
+        // In automated mode, metadata must no longer be sent
+
         // _dd.appsec.events.users.signup.auto.mode =
         // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
         if (dd_get_user_collection_mode() != user_mode_disabled) {
@@ -947,10 +949,11 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
         // _dd.appsec.events.users.signup.sdk = true
         _add_new_zstr_to_meta(
             meta_ht, _dd_signup_event_sdk, _true_zstr, true, override);
-    }
 
-    // appsec.events.users.signup.<key> = <value>
-    _add_custom_event_metadata(meta_ht, _dd_signup_event, metadata, override);
+        // appsec.events.users.signup.<key> = <value>
+        _add_custom_event_metadata(
+            meta_ht, _dd_signup_event, metadata, override);
+    }
 
     // appsec.events.users.login.success.track = true
     _add_custom_event_keyval(
@@ -980,7 +983,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     }
     if (automated) {
         user_collection_mode mode = dd_get_user_collection_mode();
-        if (mode == user_mode_disabled || !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
+        if (mode == user_mode_disabled ||
+            !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
             return;
         }
 
@@ -992,10 +996,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
             }
 
             copy_user_id = false;
-
-            if (metadata != NULL && zend_array_count(metadata) > 0) {
-                metadata = NULL;
-            }
         }
     } else {
         if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
@@ -1022,6 +1022,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     }
 
     if (automated) {
+        // In automated mode, metadata must no longer be sent
+
         // _dd.appsec.events.users.login.success.auto.mode =
         // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
         if (dd_get_user_collection_mode() != user_mode_disabled) {
@@ -1032,15 +1034,15 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         // _dd.appsec.events.users.login.success.sdk = true
         _add_new_zstr_to_meta(
             meta_ht, _dd_login_success_event_sdk, _true_zstr, true, override);
+
+        // appsec.events.users.login.success.<key> = <value>
+        _add_custom_event_metadata(
+            meta_ht, _dd_login_success_event, metadata, override);
     }
 
     // appsec.events.users.login.success.track = true
     _add_custom_event_keyval(meta_ht, _dd_login_success_event, _track_zstr,
         _true_zstr, true, override);
-
-    // appsec.events.users.login.success.<key> = <value>
-    _add_custom_event_metadata(
-        meta_ht, _dd_login_success_event, metadata, override);
 
     dd_tags_set_sampling_priority();
 }
@@ -1068,7 +1070,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     zend_bool copy_user_id = true;
     if (automated) {
         user_collection_mode mode = dd_get_user_collection_mode();
-        if (mode == user_mode_disabled || !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
+        if (mode == user_mode_disabled ||
+            !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
             return;
         }
 
@@ -1108,6 +1111,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
         _true_zstr, true, override);
 
     if (automated) {
+        // In automated mode, metadata must no longer be sent
+
         // _dd.appsec.events.users.login.failure.auto.mode =
         // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
         if (dd_get_user_collection_mode() != user_mode_disabled) {
@@ -1118,15 +1123,15 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
         // _dd.appsec.events.users.login.success.sdk = true
         _add_new_zstr_to_meta(
             meta_ht, _dd_login_failure_event_sdk, _true_zstr, true, override);
+
+        // appsec.events.users.login.failure.<key> = <value>
+        _add_custom_event_metadata(
+            meta_ht, _dd_login_failure_event, metadata, override);
     }
 
     // appsec.events.users.login.failure.usr.exists = <exists>
     _add_custom_event_keyval(meta_ht, _dd_login_failure_event, _usr_exists_zstr,
         exists ? _true_zstr : _false_zstr, true, override);
-
-    // appsec.events.users.login.failure.<key> = <value>
-    _add_custom_event_metadata(
-        meta_ht, _dd_login_failure_event, metadata, override);
 
     dd_tags_set_sampling_priority();
 }

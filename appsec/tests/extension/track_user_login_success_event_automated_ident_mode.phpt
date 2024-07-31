@@ -1,5 +1,5 @@
 --TEST--
-Track automated user login success event with anon mode and verify the tags in the root span
+Track automated user login success event with ident mode and verify the tags in the root span
 --INI--
 extension=ddtrace.so
 --ENV--
@@ -24,7 +24,6 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => 1234
-    [_dd.appsec.events.users.login.success.auto.mode] => ident
+    [_dd.appsec.events.users.login.success.auto.mode] => identification
     [appsec.events.users.login.success.track] => true
-    [appsec.events.users.login.success.email] => some@email.com
 )

@@ -1,5 +1,5 @@
 --TEST--
-Track automated user signup event with anon mode and verify the tags in the root span
+Track automated user signup event, verify that an invalid mode disables collection
 --INI--
 extension=ddtrace.so
 --ENV--
@@ -29,6 +29,4 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [_dd.appsec.events.users.signup.auto.mode] => anon
-    [appsec.events.users.signup.track] => true
 )

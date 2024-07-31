@@ -30,7 +30,8 @@ static zend_string *_sha256_algo_zstr;
 static void (*_ddtrace_set_user)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 #if PHP_VERSION_ID < 80000
-typedef const php_hash_ops * (*hash_fetch_ops_t)(const char *algo, size_t algo_len);
+typedef const php_hash_ops *(*hash_fetch_ops_t)(
+    const char *algo, size_t algo_len);
 static hash_fetch_ops_t _hash_fetch_ops;
 #endif
 
@@ -59,10 +60,10 @@ static PHP_FUNCTION(set_user_wrapper)
 
 void dd_user_tracking_startup(void)
 {
-    _user_mode_ident_zstr =
-        zend_string_init_interned(LSTRARG("ident"), 1 /* persistent */);
+    _user_mode_ident_zstr = zend_string_init_interned(
+        LSTRARG("identification"), 1 /* persistent */);
     _user_mode_anon_zstr =
-        zend_string_init_interned(LSTRARG("anon"), 1 /* persistent */);
+        zend_string_init_interned(LSTRARG("anonymization"), 1 /* persistent */);
     _user_mode_disabled_zstr =
         zend_string_init_interned(LSTRARG("disabled"), 1 /* persistent */);
     _sha256_algo_zstr =
@@ -162,11 +163,17 @@ bool dd_parse_user_collection_mode(
     }
 
     size_t len = strlen((const char *)value.ptr);
-    if (dd_string_equals_lc(value.ptr, len, ZEND_STRL("ident")) || dd_string_equals_lc(value.ptr, len, ZEND_STRL("extended"))) {
+    if (dd_string_equals_lc(value.ptr, len, ZEND_STRL("ident")) ||
+        dd_string_equals_lc(value.ptr, len, ZEND_STRL("identification")) ||
+        dd_string_equals_lc(value.ptr, len, ZEND_STRL("extended"))) {
         _user_mode = user_mode_ident;
-    } else if (dd_string_equals_lc(value.ptr, len, ZEND_STRL("anon")) || dd_string_equals_lc(value.ptr, len, ZEND_STRL("safe"))) {
+    } else if (dd_string_equals_lc(value.ptr, len, ZEND_STRL("anon")) ||
+               dd_string_equals_lc(
+                   value.ptr, len, ZEND_STRL("anonymization")) ||
+               dd_string_equals_lc(value.ptr, len, ZEND_STRL("safe"))) {
         _user_mode = user_mode_anon;
-    } else { // If the value is disabled or an unknown value, we disable user ID collection
+    } else { // If the value is disabled or an unknown value, we disable user ID
+             // collection
         _user_mode = user_mode_disabled;
     }
 
@@ -186,7 +193,8 @@ zend_string *nullable dd_user_id_anonymize(zend_string *nonnull user_id)
         return NULL;
     }
 
-    ops = _hash_fetch_ops(ZSTR_VAL(_sha256_algo_zstr), ZSTR_LEN(_sha256_algo_zstr));
+    ops = _hash_fetch_ops(
+        ZSTR_VAL(_sha256_algo_zstr), ZSTR_LEN(_sha256_algo_zstr));
 #else
     ops = php_hash_fetch_ops(_sha256_algo_zstr);
 #endif
@@ -203,32 +211,33 @@ zend_string *nullable dd_user_id_anonymize(zend_string *nonnull user_id)
     ops->hash_init(context, NULL);
 #endif
 
-    ops->hash_update(context, (unsigned char *)ZSTR_VAL(user_id), ZSTR_LEN(user_id));
+    ops->hash_update(
+        context, (unsigned char *)ZSTR_VAL(user_id), ZSTR_LEN(user_id));
 
     digest = zend_string_alloc(ops->digest_size, 0);
-    ops->hash_final((unsigned char *) ZSTR_VAL(digest), context);
+    ops->hash_final((unsigned char *)ZSTR_VAL(digest), context);
     efree(context);
 
 #define ANON_PREFIX "anon_"
-    // Anonymized IDs start with anon_ followed by the 128 most-significant bits of the sha256
-    zend_string *anon_user_id = zend_string_safe_alloc(LSTRLEN(ANON_PREFIX) + ops->digest_size, 1, 0, 0);
+    // Anonymized IDs start with anon_ followed by the 128 most-significant bits
+    // of the sha256
+    zend_string *anon_user_id = zend_string_safe_alloc(
+        LSTRLEN(ANON_PREFIX) + ops->digest_size, 1, 0, 0);
 
     // Copy prefix
     memcpy(ZSTR_VAL(anon_user_id), LSTRARG(ANON_PREFIX));
 
     char *digest_begin = ZSTR_VAL(anon_user_id) + LSTRLEN(ANON_PREFIX);
-    php_hash_bin2hex(digest_begin, (unsigned char *) ZSTR_VAL(digest), ops->digest_size / 2);
+    php_hash_bin2hex(
+        digest_begin, (unsigned char *)ZSTR_VAL(digest), ops->digest_size / 2);
     digest_begin[ops->digest_size] = 0;
 
-    zend_string_release_ex(digest, 0);
+    zend_string_release(digest);
 
     return anon_user_id;
 }
 
-user_collection_mode dd_get_user_collection_mode()
-{
-    return _user_mode;
-}
+user_collection_mode dd_get_user_collection_mode() { return _user_mode; }
 
 zend_string *nonnull dd_get_user_collection_mode_zstr()
 {
@@ -242,5 +251,3 @@ zend_string *nonnull dd_get_user_collection_mode_zstr()
 
     return _user_mode_disabled_zstr;
 }
-
-
