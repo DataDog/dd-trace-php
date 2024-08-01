@@ -338,10 +338,8 @@ void dd_tags_add_tags(
         }
 
         _add_basic_ancillary_tags(span, server,
-            _user_event_triggered &&
-                    dd_get_user_collection_mode() == user_mode_ident
-                ? &_relevant_headers
-                : &_relevant_basic_headers);
+            _user_event_triggered ? &_relevant_headers
+                                  : &_relevant_basic_headers);
         return;
     }
 
