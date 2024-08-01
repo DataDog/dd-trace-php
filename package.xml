@@ -52,6 +52,12 @@
         <email>flo@dotbox.org</email>
         <active>yes</active>
     </lead>
+    <lead>
+        <name>Luc Vieillescazes</name>
+        <user>iamluc</user>
+        <email>luc@vieillescazes.net</email>
+        <active>yes</active>
+    </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
     <date>${date}</date>
@@ -68,28 +74,53 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+This release adds beta support for PHP Single Step Instrumentation, allowing the instrumentation
+of your PHP applications without the manual installation of the dd-trace-php extension.
+
+Read https://docs.datadoghq.com/tracing/trace_collection/automatic_instrumentation/single-step-apm/ for
+more details.
+
 ## Tracer
 
 ### Added
-- Implement OTel config remapping #2691
-- Remap OTel to DD status code #2695
+- Add span field meta_struct #2673
+- Add config to disable obfuscation in memcached queries #2725
+- Add PDO spans to orphans removal #2743
+- Make generators replaceable #2718
+- Source Code Integration #2731
+- OpenAI Integration #2685
+- Add support for Single Step Instrumentation #2684 #2723
 
 ### Fixed
-- Apply some fixes with sidecar trace sender #2680, #2686, #2689, #2698, #2700
-- Don't treat Symfony 2 differently from other versions #2693
-- Ensure DDTRACE_G(active_stack) is always NULL when the root span is being pushed #2701
+- Fix PHP binary detection in package post-install script #2707
+- Handle OTel HTTP semantic conventions < 1.21.0 #2717
+- Respect the active service/env/version for metric tags #2742
+- Fix post bailout hook execution in 8.3 unoptimized builds #2737
+- Fix env&version tags leaking in metrics #2745
+- Fix global priority sampling #2728
+- Fix crash in OpenTelemetry Span::getCurrent() when accessing span link #2767
 
 ### Internal
-- Switch 2 logs to logev to avoid useless work #2679
-- shrink size of Rust artifacts #2696
+- Compile sidecar and extension separately, to link them together later #2741
+- Sync with libdatadog for telemetry flush data intval #2757
 
 ## Profiling
 
-### Added
-- Add `thread id` label on every sample #2692
+### Internal
+- Keep string cache data alive longer #2668
+- Extract func is_internal() #2736
+- Less unsafe code #2739
+- Refactor fork handling #2747
+
+## Application Security Management
+
+### Fixed
+- Refactor the sampler to fix errors #2761
 
 ### Internal
-- Reduce memory usage by upgrading libdatadog to v10 #2697
+- Upgrade helper to use WAF 1.18.0 #2660
+- Add more logs around schema extraction #2755
+
 ]]></notes>
     <contents>
         <dir name="/">

@@ -40,11 +40,11 @@ download_circleci_artifact() {
     PIPELINE_NUMBER=$(json_extract "${PIPELINES}" ".items[0].number")
 
     WORKFLOWS=$(call_api "https://circleci.com/api/v2/pipeline/${PIPELINE_ID}/workflow")
-    WORKFLOW_ID=$(json_extract "${WORKFLOWS}" ".items[] | select(.name == \"${WORKFLOW_NAME}\") | .id")
+    WORKFLOW_ID=$(json_extract "${WORKFLOWS}" "first(.items[] | select(.name == \"${WORKFLOW_NAME}\")) | .id")
 
     JOB_NUMBER=""
     for i in {0..120}; do
-        JOBS=$(call_api https://circleci.com/api/v2/workflow/${WORKFLOW_ID}/job)
+        JOBS=$(call_api "https://circleci.com/api/v2/workflow/${WORKFLOW_ID}/job")
         JOB=$(json_extract "${JOBS}" ".items[] | select(.name == \"${JOB_NAME}\")")
 
         JOB_STATUS=$(json_extract "${JOB}" ".status")

@@ -26,6 +26,7 @@ ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
+ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 
 VERSION := $(shell cat VERSION)
 
@@ -97,19 +98,22 @@ all: $(BUILD_DIR)/configure $(SO_FILE)
 $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
 	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
+$(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
+	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
+
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(EXTRA_CONFIGURE_OPTIONS))
+	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 all_object_files: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 
-$(SO_FILE): all_object_files $(BUILD_DIR)/compile_rust.sh
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)" LDFLAGS="$(LDFLAGS)$(if $(ASAN), -fsanitize=address)"
+$(SO_FILE): $(if $(ASSUME_COMPILED),, all_object_files $(BUILD_DIR)/compile_rust.sh)
+	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
 
 $(AR_FILE): all_object_files
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all CFLAGS="$(CFLAGS)$(if $(ASAN), -fsanitize=address)"
+	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
-	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
+	$(Q) $(SUDO) $(if $(ASSUME_COMPILED),cp $(BUILD_DIR)/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so,$(MAKE) -C $(BUILD_DIR) install)
 
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
 
@@ -125,51 +129,51 @@ install_ini: $(INI_FILE)
 
 install_all: install install_ini
 
-run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/configure
+run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
 
-test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
 
-test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	DD_TRACE_CLI_ENABLED=0 DD_TRACE_DEBUG=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
 	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault|Assertion ' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
 	)
 
-test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
-test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES)
+test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
-test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
 
-test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
+test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
+	sed -i 's/stream_socket_accept($$listenSock, 5)/stream_socket_accept($$listenSock, 20)/' $(BUILD_DIR)/run-tests.php; \
 	export DD_TRACE_CLI_ENABLED=1; \
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
-	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES); \
+	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access bash -c '$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) -d pcre.jit=0 $(INIT_HOOK_TEST_FILES)'; \
 	)
 
-test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
+test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
 
-test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
+test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export DD_TRACE_CLI_ENABLED=1; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
 	export DD_TRACE_GIT_METADATA_ENABLED=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	\
@@ -435,19 +439,18 @@ $(PACKAGES_BUILD_DIR):
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: $(PACKAGES_BUILD_DIR)
-	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)
-	rm -rf /tmp/$(PACKAGES_BUILD_DIR)/*
-	fpm -p /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-	tar zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
+	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)
+	rm -rf /tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
+	fpm -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
+	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
+
+$(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
-		$(VERSION) \
-		$(PACKAGES_BUILD_DIR)
-	bash ./tooling/bin/generate-ssi-package.sh \
 		$(VERSION) \
 		$(PACKAGES_BUILD_DIR)
 
@@ -457,10 +460,20 @@ build_pecl_package:
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
 dbgsym.tar.gz:
-	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
+	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
 
-packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
-	tar --exclude='dd-library-php-ssi-*' -zcf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
+installer_packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
+	tar --use-compress-program=pigz --exclude='dd-library-php-ssi-*' -cf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
+
+ssi_packages: $(PACKAGES_BUILD_DIR)
+	bash ./tooling/bin/generate-ssi-package.sh \
+		$(VERSION) \
+		$(PACKAGES_BUILD_DIR)
+
+calculate_package_sha256_sums: $(PACKAGES_BUILD_DIR)/datadog-setup.php installer_packages
+	(cd build/packages && find . -type f -exec sha256sum {} + > ../../package_sha256sums)
+
+packages: $(PACKAGES_BUILD_DIR)/datadog-setup.php ssi_packages installer_packages
 
 # Generates the src/bridge/_generated_*.php files.
 generate:
@@ -1005,7 +1018,7 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 83 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 83 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 84 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 84 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage

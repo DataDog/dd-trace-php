@@ -5,7 +5,7 @@
     "resource": "GET /parameterized/paramValue",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 7077300158957851981,
+    "parent_id": 7077300158957851980,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",

@@ -186,7 +186,7 @@ final class Context implements ContextInterface
                 API\TraceFlags::DEFAULT,
                 new API\TraceState($spanLink->traceState ?? null),
             );
-            $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes));
+            $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes ?? []));
         }
 
         $OTelCurrentSpan = SDK\Span::startSpan(

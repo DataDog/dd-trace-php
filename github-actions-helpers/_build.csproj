@@ -15,6 +15,7 @@
     <ItemGroup>
         <PackageReference Include="Nuke.Common" Version="7.0.2" />
         <PackageReference Include="Octokit.GraphQL" Version="0.1.8-beta" />
+        <PackageReference Include="Octokit" Version="13.0.1" />
     </ItemGroup>
 
 </Project>
