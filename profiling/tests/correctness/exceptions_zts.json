@@ -6,7 +6,7 @@
       "profile-type": "exception-samples",
       "stack-content": [
         {
-          "regular_expression": "<\\?php|{closure}",
+          "regular_expression": "<\\?php|{closure(:.*/exceptions_zts\\.php:\\d+)*}",
           "percent": 100,
           "labels": [
             {
