@@ -1,10 +1,10 @@
 --TEST--
-Track automated user sign up event with anonymization mode and verify the tags in the root span
+Track automated user sign up event with anonymization mode, configured through the deprecated variable
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon
+DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=safe
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;

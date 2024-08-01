@@ -1,5 +1,5 @@
 --TEST--
-Latest sdk values take priority on ident mode
+Latest sdk values take priority on identification mode
 --INI--
 extension=ddtrace.so
 --ENV--

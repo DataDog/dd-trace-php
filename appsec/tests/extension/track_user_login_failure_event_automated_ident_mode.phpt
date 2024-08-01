@@ -1,5 +1,5 @@
 --TEST--
-Track automated user login failure with ident mode mode event and verify the tags in the root span
+Track automated user login failure event with identification mode and verify the tags in the root span
 --INI--
 extension=ddtrace.so
 --ENV--

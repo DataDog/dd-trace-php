@@ -1,5 +1,5 @@
 --TEST--
-Verify on ident mode sensitive ids are not discarded
+Verify on identification mode sensitive ids are not discarded
 --INI--
 extension=ddtrace.so
 --ENV--

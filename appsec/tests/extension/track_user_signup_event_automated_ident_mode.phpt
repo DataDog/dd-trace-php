@@ -1,5 +1,5 @@
 --TEST--
-Verify on ident mode sensitive ids are not discarded
+Track automated user sign up event with identification mode and verify the tags in the root span
 --INI--
 extension=ddtrace.so
 --ENV--

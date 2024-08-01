@@ -1,5 +1,5 @@
 --TEST--
-All headers are collected when track_user_login_failure_event is triggered by automation and ident mode is set
+All headers are collected when track_user_login_failure_event is triggered by automation and identification mode is set
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log

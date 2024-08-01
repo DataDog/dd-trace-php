@@ -1,5 +1,5 @@
 --TEST--
-Track automated user login success event with anon mode and verify the tags in the root span
+Track automated user login success event with anonymization mode and verify the tags in the root span
 --INI--
 extension=ddtrace.so
 --ENV--

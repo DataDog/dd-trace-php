@@ -1,10 +1,10 @@
 --TEST--
-Track automated user login success event with identification mode and verify the tags in the root span
+Track automated user login success event with identification mode, using the full name as configuration
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=identification
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;

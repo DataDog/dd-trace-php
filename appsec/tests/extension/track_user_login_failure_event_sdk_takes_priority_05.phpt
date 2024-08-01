@@ -1,5 +1,5 @@
 --TEST--
-When values are set with automated event and with sdk, SDK takes priority on ident mode
+When values are set with automated event and with sdk, SDK takes priority on identification mode
 --INI--
 extension=ddtrace.so
 --ENV--
