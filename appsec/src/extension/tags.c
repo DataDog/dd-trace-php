@@ -894,11 +894,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
         return;
     }
 
-    zval *nullable meta = _root_span_get_meta();
-    if (!meta) {
-        return;
-    }
-
     if (automated) {
         user_collection_mode mode = dd_get_user_collection_mode();
         if (mode == user_mode_disabled ||
@@ -921,6 +916,14 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
             mlog(dd_log_warning, "Unexpected empty user id");
             return;
         }
+    }
+
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        if (!copy_user_id) {
+            zend_string_release(user_id);
+        }
+        return;
     }
 
     _user_event_triggered = true;
@@ -1004,6 +1007,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
 
     zval *nullable meta = _root_span_get_meta();
     if (!meta) {
+        if (!copy_user_id) {
+            zend_string_release(user_id);
+        }
         return;
     }
 
@@ -1090,6 +1096,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
 
     zval *nullable meta = _root_span_get_meta();
     if (!meta) {
+        if (!copy_user_id) {
+            zend_string_release(user_id);
+        }
         return;
     }
 
