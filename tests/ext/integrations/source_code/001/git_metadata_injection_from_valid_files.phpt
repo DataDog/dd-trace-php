@@ -1,5 +1,5 @@
 --TEST--
-Basic Git Metadata Injection from invalid .git files (Repository URL & Commit Sha)
+Basic Git Metadata Injection from valid .git files (Repository URL & Commit Sha)
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_GIT_METADATA_ENABLED=1
@@ -10,11 +10,11 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: The pecl run-tests path is n
 --FILE--
 <?php
 
-require __DIR__ . '/../../includes/git_functions.inc';
+require __DIR__ . '/../../../includes/git_functions.inc';
 
 ini_set('datadog.trace.git_metadata_enabled', 1);
 
-generateInvalidFakeGitFolder(__DIR__);
+generateFullFakeGitFolder(__DIR__);
 
 function makeRequest() {
     /** @var \DDTrace\RootSpanData $rootSpan */
@@ -25,15 +25,19 @@ function makeRequest() {
     \DDTrace\close_span();
 
     $closedSpans = dd_trace_serialize_closed_spans();
+
     $rootMeta = $closedSpans[0]['meta'];
-    var_dump($rootMeta);
+    echo $rootMeta['_dd.git.repository_url'] . PHP_EOL;
+    echo $rootMeta['_dd.git.commit.sha'] . PHP_EOL;
 
     \DDTrace\start_span();
     \DDTrace\close_span();
 
     $closedRoot = dd_trace_serialize_closed_spans();
     $rootMeta2 = $closedRoot[0]['meta'];
-    var_dump($rootMeta2);
+
+    echo $rootMeta2['_dd.git.repository_url'] . PHP_EOL;
+    echo $rootMeta2['_dd.git.commit.sha'] . PHP_EOL;
 }
 
 makeRequest();
@@ -52,43 +56,11 @@ function rm_rf($dir) {
 rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
-array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-}
-array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-}
-array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-}
-array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-}
+https://github.com/user/repo_new
+123456
+https://github.com/user/repo_new
+123456
+https://github.com/user/repo_new
+123456
+https://github.com/user/repo_new
+123456

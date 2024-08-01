@@ -267,6 +267,14 @@ aliases:
           echo "export DD_TRACE_ASSUME_COMPILED=1" >> $BASH_ENV
         fi
 
+  - &STEP_SUBSTITUTE_SNAPSHOT_DIR
+    run:
+      name: Replace /home/circleci/app by /home/circleci/datadog in snapshot results
+      command: |
+        for f in $(find tests/snapshots -type f); do
+          sed -i 's/\/home\/circleci\/app\//\/home\/circleci\/datadog\//g' $f
+        done
+
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
       path: test-results
@@ -1647,7 +1655,7 @@ jobs:
                   - equal: [ "8.0", << parameters.php_major_minor >> ]
                   - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
-                equal: [ "test_composer", << parameters.make_target >> ]
+                  equal: [ "test_composer", << parameters.make_target >> ]
           steps:
             - run:
                 name: Updating composer to v2
@@ -1662,6 +1670,7 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension
       - <<: *STEP_WAIT_MYSQL
@@ -1736,7 +1745,7 @@ jobs:
                 - equal: [ "8.0", << parameters.php_major_minor >> ]
                 - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
-                equal: [ "test_composer", << parameters.make_target >> ]
+                  equal: [ "test_composer", << parameters.make_target >> ]
           steps:
             - run:
                 name: Updating composer to v2
@@ -1751,6 +1760,7 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension
       - when:

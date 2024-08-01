@@ -66,9 +66,10 @@ final class RoadrunnerServer implements Sapi
                 $this->target = "amd64";
         }
 
+        if (GLOBAL_AUTO_PREPEND_FILE) {
+            $this->inis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
+        }
         if (getenv('PHPUNIT_COVERAGE')) {
-            $inis['auto_prepend_file'] = __DIR__ . '/../../save_code_coverage.php';
-
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $inis['zend_extension'] = $xdebugExtension;

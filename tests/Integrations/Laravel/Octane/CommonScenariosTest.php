@@ -105,7 +105,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'App\Http\Controllers\CommonSpecsController@simple simple_route'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'simple',
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
@@ -172,7 +172,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'App\Http\Controllers\CommonSpecsController@simple_view unnamed_route'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'simple_view',
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
@@ -256,7 +256,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'App\Http\Controllers\CommonSpecsController@error unnamed_route'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'error',
                 Tag::HTTP_STATUS_CODE => '500',
                 Tag::SPAN_KIND => 'server',
@@ -322,7 +322,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'GET /does_not_exist'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/does_not_exist?key=value&<redacted>',
                 Tag::HTTP_STATUS_CODE => '404',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'laravel',

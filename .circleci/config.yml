@@ -10,8 +10,78 @@ workflows:
   setup-workflows:
     jobs:
       - path-filtering/filter:
+          pre-steps:
+            - checkout
+            - run:
+                name: Generate custom steps for test_web and test_integrations
+                command: |
+                  START=$(grep -Pzom1 '\A(.*+\n)+?\s++integration_snapshots:(.*+\n)+?(?=(\s++)- run.*\n(\3.*+\n)*?\s++name: Run tests)' .circleci/continue_config.yml)
+                  END=$(grep -Pzom1 'integration_snapshots:[^\0]+?(\s+)- run:(\1.+)+?name: Run tests[^\0]+?\K(?=\1\S)(.*\n)++' .circleci/continue_config.yml)
+                  
+                  command=$(grep -Pzo 'integration_snapshots:[^\0]+?(\s+)- run:(\1.+)+?name: Run tests\K[^\0]+?(?=\1\S)' .circleci/continue_config.yml)
+                  command=${command//$'\n'/$'\n      '}
+                  
+                  {
+                  echo "$START"
+
+                  for type in WEB INTEGRATIONS; do
+                  eval "$(grep -Pzo 'TEST_'"${type}"'_[0-9]+[^\0]+?\n(?![\t#])' Makefile | grep -avE '^#' | sed -e 's/\s*:= */=(/g' -e 's/\x0/)\n/g' -e 's/\s*\\//g')"
+                  PHP_VERSIONS=($(grep -Po "(?<=TEST_${type}_)[0-9]+" Makefile))
+                  ALL_TASKS=($(grep -Pzo 'TEST_'"${type}"'_[0-9]+[^\0]+?\n(?![\t#])' Makefile | grep -avE '^#' | grep -a '\t' | sed -e 's/\t//g' -e 's/\s*\\//g' | sort | uniq))
+
+                  parallel_index=0
+                  for task in "${ALL_TASKS[@]}"; do
+                  targeted_command=${command/\<< parameters.make_target >>/$task}
+                  targeted_command=${targeted_command/$'|\n'/$'|\n                  echo $$ >/tmp/background-$task.pid; trap \'rv=$?; [ $rv -eq 0 ] || touch /tmp/background-error; exit $rv\' INT TERM EXIT; export TEST_PARALELISM_INDEX='"$((++parallel_index))"$'\n'}
+                  cat \<<EOT
+                        - when:
+                            condition:
+                              and:
+                                - or:
+                  $(for php_version in "${PHP_VERSIONS[@]}"; do
+                    test_var="TEST_${type}_$php_version[@]"
+                    if [[ " ${!test_var} " == *" $task "* ]]; then
+                      echo "                - equal: [ '${php_version:0:-1}.${php_version: -1}', \<< parameters.php_major_minor >> ]"
+                    fi
+                  done)
+                                - equal: [ "test_${type,,}", \<< parameters.make_target >> ]
+                            steps:
+                              - run:
+                                  background: true
+                                  name: Run $task$targeted_command
+                  EOT
+                  done
+                  done
+
+                  cat \<<EOT
+                        - when:
+                            condition:
+                              or:
+                                - equal: [ "test_web", \<< parameters.make_target >> ]
+                                - equal: [ "test_integrations", \<< parameters.make_target >> ]
+                            steps:
+                              - run:
+                                  name: Await all tests
+                                  command: |
+                                    for f in \$(echo /tmp/background-*); do
+                                      tail --pid=\$(cat \$f) -f /dev/null || true
+                                    done
+                                    ! [ -f /tmp/background-error ]
+                        - when:
+                            condition:
+                              not:
+                                or:
+                                  - equal: [ "test_web", \<< parameters.make_target >> ]
+                                  - equal: [ "test_integrations", \<< parameters.make_target >> ]
+                            steps:
+                              - run:
+                                  name: Run tests${command}
+                  EOT
+                  echo "$END"
+                  } > ../continue_config.yml
+
           base-revision: master
-          config-path: .circleci/continue_config.yml
+          config-path: ../continue_config.yml
           # <path regular expression> <pipeline parameter>  <value>
           mapping: |
             components/.*  components-c  true

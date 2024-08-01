@@ -805,9 +805,13 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
     headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Content-Type: application/msgpack");
 
-    char buffer[64];
+    char buffer[130];
     int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
     if (bytes_written > ((int)sizeof(DD_TRACE_COUNT_HEADER)) - 1 && bytes_written < ((int)sizeof buffer)) {
+        headers = curl_slist_append(headers, buffer);
+    }
+    if (*ddtrace_coms_globals.test_session_token) {
+        sprintf(buffer, "x-datadog-test-session-token: %s", ddtrace_coms_globals.test_session_token);
         headers = curl_slist_append(headers, buffer);
     }
 
@@ -1387,6 +1391,16 @@ bool ddtrace_in_writer_thread(void) {
     }
 
     return (pthread_self() == writer->thread->self);
+}
+
+void ddtrace_coms_set_test_session_token(const char *token, size_t token_len) {
+    if (token_len > 99) {
+        token_len = 99;
+    }
+    // We don't care too much about incorrectness caused by race-conditions here: it's just testing code
+    // And it won't ever crash as the 100th byte is always 0.
+    memcpy(ddtrace_coms_globals.test_session_token, token, token_len);
+    ddtrace_coms_globals.test_session_token[token_len] = 0;
 }
 
 /* for testing {{{ */

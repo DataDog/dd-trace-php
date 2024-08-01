@@ -5,6 +5,7 @@
 #include "ip_extraction.h"
 #include "logging.h"
 #include "json/json.h"
+#include "sidecar.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
 

@@ -36,21 +36,15 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 
         public function init()
         {
-            $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000))");
+            $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000), token varchar(100))");
         }
-
-        public function destroy()
-        {
-            $this->getDbPdo()->exec("DROP TABLE appsec_events");
-        }
-
 
         public function setDefaults()
         {
             if (!$this->initiated()) {
                 return;
             }
-            $this->getDbPdo()->exec("DELETE FROM appsec_events");
+            $this->getDbPdo()->exec("DELETE FROM appsec_events WHERE token = '" . ini_get("datadog.trace.agent_test_session_token") . "'");
         }
 
         public function addEvent(array $event, $eventName)
@@ -60,7 +54,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             }
 
             $event['eventName'] = $eventName;
-            $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_events VALUES ('%s')", json_encode($event)));
+            $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_events VALUES ('%s', '%s')", json_encode($event), ini_get("datadog.trace.agent_test_session_token")));
         }
 
         public function getEvents(array $names = [], array $addresses = [])
@@ -71,7 +65,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
                 return $result;
             }
 
-            $events = $this->getDbPdo()->query("SELECT * FROM appsec_events")->fetchAll();
+            $events = $this->getDbPdo()->query("SELECT * FROM appsec_events WHERE token = '" . ini_get("datadog.trace.agent_test_session_token") . "'")->fetchAll();
 
             foreach ($events as $event) {
                 $new = json_decode($event['event'], true);

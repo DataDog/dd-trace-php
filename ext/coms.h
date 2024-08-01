@@ -45,6 +45,8 @@ typedef struct ddtrace_coms_state_t {
     /* Whether to send fallback telemetry. */
     bool bgs_fallback_telemetry;
     char initial_service_name[100];
+    
+    char test_session_token[100];
 } ddtrace_coms_state_t;
 
 inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) { return atomic_load(&stack->refcount) == 0; }
@@ -61,6 +63,7 @@ void ddtrace_coms_mshutdown(void);
 void ddtrace_coms_curl_shutdown(void);
 void ddtrace_coms_rshutdown(void);
 uint32_t ddtrace_coms_next_group_id(void);
+void ddtrace_coms_set_test_session_token(const char *token, size_t token_len);
 
 bool ddtrace_coms_init_and_start_writer(void);
 bool ddtrace_coms_trigger_writer_flush(void);

@@ -37,7 +37,7 @@ for ($i = 0; $i < 100; ++$i) {
             }
         }
         $found = array_filter($batches, function ($json) {
-            return $json["request_type"] == "app-started" || $json["request_type"] == "app-closing";
+            return ($json["request_type"] == "app-started" && $json["application"] != "background_sender-php-service") || $json["request_type"] == "app-closing";
         });
         if (count($found) == 2) {
             foreach ($found as $json) {

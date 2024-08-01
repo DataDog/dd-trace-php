@@ -45,7 +45,7 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
 
     public static function ddTearDownAfterClass()
     {
-        AppsecStatus::getInstance()->destroy();
+        AppsecStatus::getInstance()->setDefaults();
         parent::ddTearDownAfterClass();
     }
 

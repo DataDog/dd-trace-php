@@ -30,7 +30,7 @@ for ($i = 0; $i < 100; ++$i) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
-                if ($json["request_type"] == "app-started") {
+                if ($json && $json["request_type"] == "app-started" && $json["application"]["service_name"] != "background_sender-php-service") {
                     $cfg = $json["payload"]["configuration"];
                     print_r(array_values(array_filter($cfg, function($c) {
                         return $c["origin"] == "EnvVar" && $c["name"] != "trace.sources_path" && $c["name"] != "trace.sidecar_trace_sender";

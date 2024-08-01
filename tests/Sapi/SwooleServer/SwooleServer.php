@@ -43,9 +43,10 @@ final class SwooleServer implements Sapi
 
     public function start()
     {
+        if (GLOBAL_AUTO_PREPEND_FILE) {
+            $this->inis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
+        }
         if (getenv('PHPUNIT_COVERAGE')) {
-            $this->inis['auto_prepend_file'] = __DIR__ . '/../../save_code_coverage.php';
-
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $this->inis['zend_extension'] = $xdebugExtension;

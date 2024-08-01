@@ -15,7 +15,7 @@
       "http.method": "GET",
       "http.route": "parameterized/(:any)",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/parameterized/paramValue",
+      "http.url": "http://localhost/parameterized/paramValue",
       "runtime-id": "26ab24e6-051f-4e1f-9adf-3d609bef6946",
       "span.kind": "server"
     },
