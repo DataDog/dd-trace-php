@@ -3380,7 +3380,7 @@ jobs:
       - <<: *STEP_CHECKOUT
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_docker:
-          docker_image: "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain@sha256:afbb4503fd930729e884e18074b227b2ea182dd2895e580635ca119250aa0fe2"
+          docker_image: "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain"
       - run: mkdir -p appsec_$(uname -m)
       - run:
           name: Build
