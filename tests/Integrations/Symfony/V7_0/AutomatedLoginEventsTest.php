@@ -2,10 +2,19 @@
 
 namespace DDTrace\Tests\Integrations\Symfony\V7_0;
 
-class AutomatedLoginEventsTest extends \DDTrace\Tests\Integrations\Symfony\V6_2\AutomatedLoginEventsTest
+use DDTrace\Tests\Integrations\Symfony\AutomatedLoginEventsTestSuite;
+
+/**
+ * @group appsec
+ */
+class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_7_0/public/index.php';
+    }
+
+    public function createUser($email) {
+         $this->connection()->exec('insert into user (roles, email, password) VALUES ("{}", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
     }
 }

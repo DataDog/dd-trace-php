@@ -92,8 +92,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.1.26
-        php_sha: d954cecfc3d294c2fccbe2b1a6bef784ce0d6c5d44a9e28f8a527e092825f2cb
+        php_version: 8.1.29
+        php_sha: 8b2609bf1d3173aa38269a9af21532c65f730aadd3051f9aae011eea9e246de5
         php_api: 20210902
     volumes:
       - ../../:/app
@@ -104,8 +104,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.2.13
-        php_sha: 6a194038f5a9e46d8f70a9d59c072c3b08d6edbdd8e304096e24ccf2225bcf1b
+        php_version: 8.2.21
+        php_sha: 0c6323699309a4d2e71057f01bc071b199f240973c349287b667a3ab36a496c6
         php_api: 20220829
     volumes:
       - ../../:/app
@@ -116,9 +116,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.3.0
-        php_url: https://www.php.net/distributions/php-8.3.0.tar.gz
-        php_sha: "557ae14650f1d1984d3213e3fcd8d93a5f11418b3f8026d3a2d5022251163951"
+        php_version: 8.3.9
+        php_sha: f484dec6ee005c83f899af02fc021e1bc3b1d7b3f143ca062ef66b0fcee96566
         php_api: 20230831
     volumes:
       - ../../:/app

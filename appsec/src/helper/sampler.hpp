@@ -9,9 +9,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
-#include <iostream>
 #include <mutex>
-#include <optional>
 
 namespace dds {
 static const double min_rate = 0.0001;
@@ -29,63 +27,21 @@ public:
         }
         // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     }
-    class scope {
-    public:
-        explicit scope(std::atomic<bool> &concurrent) : concurrent_(&concurrent)
-        {
-            concurrent_->store(true, std::memory_order_relaxed);
-        }
 
-        scope(const scope &) = delete;
-        scope &operator=(const scope &) = delete;
-        scope(scope &&oth) noexcept
-        {
-            concurrent_ = oth.concurrent_;
-            oth.concurrent_ = nullptr;
-        }
-        scope &operator=(scope &&oth)
-        {
-            concurrent_ = oth.concurrent_;
-            oth.concurrent_ = nullptr;
-
-            return *this;
-        }
-
-        ~scope()
-        {
-            if (concurrent_ != nullptr) {
-                concurrent_->store(false, std::memory_order_relaxed);
-            }
-        }
-
-    protected:
-        std::atomic<bool> *concurrent_;
-    };
-
-    std::optional<scope> get()
+    bool picked()
     {
-        const std::lock_guard<std::mutex> lock_guard(mtx_);
-
-        std::optional<scope> result = std::nullopt;
-
-        if (!concurrent_ && floor(request_ * sample_rate_) !=
-                                floor((request_ + 1) * sample_rate_)) {
-            result = {scope{concurrent_}};
+        if (sample_rate_ == 1) {
+            return true;
         }
 
-        if (request_ < std::numeric_limits<unsigned>::max()) {
-            request_++;
-        } else {
-            request_ = 1;
-        }
-
-        return result;
+        auto old_request = request_.fetch_add(1, std::memory_order_relaxed);
+        return floor(old_request * sample_rate_) !=
+               floor((request_)*sample_rate_);
     }
 
 protected:
-    unsigned request_{1};
+    std::atomic<unsigned> request_{0};
     double sample_rate_;
-    std::atomic<bool> concurrent_{false};
     std::mutex mtx_;
 };
 } // namespace dds

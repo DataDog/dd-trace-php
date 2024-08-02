@@ -81,6 +81,7 @@
 #include "handlers_fiber.h"
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
+#include "git.h"
 
 // On PHP 7 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
 #if PHP_VERSION_ID < 80000
@@ -530,6 +531,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
     zai_hook_ginit();
+    zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, (dtor_func_t)ddtrace_git_metadata_dtor, 1);
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
@@ -608,6 +610,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
+
+    zend_hash_destroy(&ddtrace_globals->git_metadata);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -1025,6 +1029,19 @@ static void dd_register_fatal_error_ce(void) {
 }
 
 zend_class_entry *ddtrace_ce_integration;
+zend_class_entry *ddtrace_ce_git_metadata;
+zend_object_handlers ddtrace_git_metadata_handlers;
+
+static zend_object *ddtrace_git_metadata_create(zend_class_entry *class_type) {
+    zend_object *object = zend_objects_new(class_type);
+    object_properties_init(object, class_type);
+    object->handlers = &ddtrace_git_metadata_handlers;
+    return object;
+}
+
+static void ddtrace_free_obj_wrapper(zend_object *object) {
+    zend_object_std_dtor(object);
+}
 
 static bool dd_is_compatible_sapi() {
     switch (ddtrace_active_sapi) {
@@ -1148,6 +1165,11 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
+    ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
+    ddtrace_ce_git_metadata->create_object = ddtrace_git_metadata_create;
+    memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
+    ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
 
     ddtrace_engine_hooks_minit();
 
@@ -1441,6 +1463,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         zend_string_release(DDTRACE_G(last_flushed_root_env_name));
         DDTRACE_G(last_flushed_root_env_name) = NULL;
     }
+
+    ddtrace_clean_git_object();
 
     return SUCCESS;
 }

@@ -69,6 +69,7 @@ benchmarks-tracer:
 
 download_circle_ci_release:
   stage: benchmarks
+  needs: []
   rules:
     - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
       when: always

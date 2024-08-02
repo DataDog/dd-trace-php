@@ -73,7 +73,7 @@ final class SwooleServer implements Sapi
     public function stop()
     {
         error_log("[swoole-server] Stopping...");
-        $this->process->stop(0);
+        $this->process->stop(0, SIGTERM);
     }
 
     public function isFastCgi()

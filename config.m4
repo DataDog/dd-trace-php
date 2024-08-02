@@ -1,8 +1,8 @@
 PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
   [  --enable-ddtrace   Enable Datadog tracing support])
 
-PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
-  [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
+PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
+  [  --enable-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
@@ -152,6 +152,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/engine_api.c \
     ext/engine_hooks.c \
     ext/excluded_modules.c \
+    ext/git.c \
     ext/handlers_api.c \
     ext/handlers_exception.c \
     ext/handlers_internal.c \
@@ -296,6 +297,18 @@ EOT
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/integrations])
   PHP_ADD_INCLUDE([$ext_builddir/ext/integrations])
 
+  dnl Avoid cleaning rust artifacts with make clean (cargo is really good at detecting changes - and rust files are not dependent on php environment).
+  dnl However, for users who really want to clean, there's always make distclean, which will flatly remove the whole target/ directory.
+  AC_DEFUN([DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP], [
+    pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
+      popdef([PHP_GEN_GLOBAL_MAKEFILE])
+      PHP_GEN_GLOBAL_MAKEFILE
+      sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/^distclean:/a\'$'\n\t''rm -rf target/' -e '/.*\.a /{s/| xargs rm -f/! -path ".\/target\/*" | xargs rm -f/'$'\n}' Makefile
+      DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
+    ])
+  ])
+  DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
+
   cat <<'EOT' >> Makefile.fragments
 ./modules/ddtrace.a: $(shared_objects_ddtrace) $(DDTRACE_SHARED_DEPENDENCIES)
 	$(LIBTOOL) --mode=link $(CC) -static $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -avoid-version -prefer-pic -module $(shared_objects_ddtrace)
@@ -312,7 +325,7 @@ EOT
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | xargs )
-	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 

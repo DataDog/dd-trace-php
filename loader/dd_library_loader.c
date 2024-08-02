@@ -122,13 +122,27 @@ void ddloader_logf(log_level level, const char *format, ...) {
 }
 
 static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...) {
+    switch (reason) {
+        case REASON_ERROR:
+            LOG(ERROR, "Error during instrumentation of application. Aborting.");
+            break;
+        case REASON_EOL_RUNTIME:
+            LOG(ERROR, "Aborting application instrumentation due to an incompatible runtime (end-of-life)");
+            break;
+        case REASON_INCOMPATIBLE_RUNTIME:
+            LOG(ERROR, "Aborting application instrumentation due to an incompatible runtime");
+            break;
+        default:
+            break;
+    }
+
     va_list va;
     va_start(va, format);
     ddloader_logv(reason == REASON_COMPLETE ? INFO : ERROR, format, va);
     va_end(va);
 
     if (!telemetry_forwarder_path) {
-        LOG(INFO, "Telemetry disabled: environment variable 'DD_TELEMETRY_FORWARDER_PATH' is not set.")
+        LOG(INFO, "Telemetry disabled: environment variable 'DD_TELEMETRY_FORWARDER_PATH' is not set")
         return;
     }
     if (access(telemetry_forwarder_path, X_OK)) {
@@ -151,12 +165,18 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
         case REASON_ERROR:
             points =
                 "\
-                {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:error\"]},\
-                {\"name\": \"library_entrypoint.error\"}, \"tags\": [\"error_type:unknown\"]}\
+                {\"name\": \"library_entrypoint.error\"}, \"tags\": [\"error_type:NA\"]}\
             ";
             break;
 
         case REASON_EOL_RUNTIME:
+            points =
+                "\
+                {\"name\": \"library_entrypoint.abort\", \"tags\": [\"reason:eol_runtime\"]},\
+                {\"name\": \"library_entrypoint.abort.runtime\"}\
+            ";
+            break;
+
         case REASON_INCOMPATIBLE_RUNTIME:
             points =
                 "\
@@ -483,10 +503,51 @@ static inline void ddloader_configure() {
     package_path = getenv("DD_LOADER_PACKAGE_PATH");
 }
 
+static bool ddloader_libc_check() {
+    bool is_musl;
+    const char *error = dlerror();
+    // gnu_get_libc_version is available since glibc 2.1
+    char *(*get_libc_version)(void) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
+    error = dlerror();
+    if (error == NULL && get_libc_version != NULL) {
+        is_musl = false;
+    } else {
+        is_musl = true;
+    }
+
+#if defined(__MUSL__)
+    if (!is_musl) {
+        return false;
+    }
+#else
+    if (is_musl) {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 static int ddloader_api_no_check(int api_no) {
+    if (!ddloader_libc_check()) {
+        return SUCCESS;
+    }
+
     ddloader_configure();
 
     switch (api_no) {
+        case 220040412:
+            runtime_version = "5.0";
+            break;
+        case 220051025:
+            runtime_version = "5.1";
+            break;
+        case 220060519:
+            runtime_version = "5.2";
+            break;
+        case 220090626:
+            runtime_version = "5.3";
+            break;
         case 220100525:
             runtime_version = "5.4";
             break;
@@ -521,13 +582,13 @@ static int ddloader_api_no_check(int api_no) {
         default:
             if (!force_load || api_no < 320151012) {
                 telemetry_reason reason = api_no < 320151012 ? REASON_EOL_RUNTIME : REASON_INCOMPATIBLE_RUNTIME;
-                TELEMETRY(reason, "Found incompatible runtime (api no: %d)", api_no);
+                TELEMETRY(reason, "Found incompatible runtime (api no: %d). Supported runtimes: PHP 7.0 to 8.3", api_no);
 
                 // If we return FAILURE, this Zend extension would be unload, BUT it would produce an error
                 // similar to "The Zend Engine API version 220100525 which is installed, is newer."
                 return SUCCESS;
             }
-            LOG(WARN, "The api no (%d) is not supported, continuing anyway", api_no);
+            LOG(WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
             injection_forced = true;
             break;
     }
@@ -541,7 +602,7 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) {
     // Guardrail
-    if (!php_api_no) {
+    if (!ddloader_libc_check() || !php_api_no) {
         return SUCCESS;
     }
 

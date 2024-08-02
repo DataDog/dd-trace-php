@@ -49,6 +49,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V10_X\
                SpanAssertion::exists('laravel.event.handle'),
                SpanAssertion::exists('laravel.event.handle'),
                SpanAssertion::exists('laravel.event.handle'),
+               SpanAssertion::exists('laravel.event.handle'),
            ]),
        ]);
     }
@@ -91,6 +92,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V10_X\
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
+                SpanAssertion::exists('laravel.event.handle'),
             ])->setError(),
         ]);
     }
@@ -112,6 +114,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V10_X\
                    'laravel.provider.load',
                    'Illuminate\Foundation\ProviderRepository::load'
                ),
+               SpanAssertion::exists('laravel.event.handle'),
                SpanAssertion::exists('laravel.event.handle'),
                SpanAssertion::exists('laravel.event.handle'),
                SpanAssertion::exists('laravel.event.handle'),

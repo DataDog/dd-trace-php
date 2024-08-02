@@ -57,6 +57,14 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 
 # Specific tests
 
+## `ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt`
+
+Disabled on versions: `8.2`, `8.3`.
+
+Allocates > 5GB of Ram on a CircleCI medium instance (limit 4GB) but uses
+`/proc/meminfo` to check if enough memory is available in the `SKIP` section.
+See https://github.com/php/php-src/pull/14895 and https://github.com/DataDog/dd-trace-php/pull/2752#issuecomment-2219813169
+
 ## `sapi/cli/tests/bug80092.phpt`
 
 Temporarily disabled due to a too strict of a check for the precise php -v output.
