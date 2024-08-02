@@ -422,9 +422,8 @@ static void _command_process_redirect_parameters(mpack_node_t root)
 }
 static void _command_process_stack_trace_parameters(mpack_node_t root)
 {
-    int expected_nodes = 1;
     size_t count = mpack_node_map_count(root);
-    for (size_t i = 0; i < count && expected_nodes > 0; i++) {
+    for (size_t i = 0; i < count; i++) {
         mpack_node_t key = mpack_node_map_key_at(root, i);
         mpack_node_t value = mpack_node_map_value_at(root, i);
         if (dd_mpack_node_lstr_eq(key, "stack_id")) {

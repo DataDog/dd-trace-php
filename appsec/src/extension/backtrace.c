@@ -13,6 +13,7 @@
 
 static const int NO_LIMIT = 0;
 static const double STACK_DEFAULT_TOP_PERCENTAGE = 0.25;
+static const char *QUALIFIED_NAME_SEPARATOR = "::";
 
 static zend_string *_frames_key;
 static zend_string *_language_key;
@@ -36,26 +37,65 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
     zval *function =
         zend_hash_str_find(frame, "function", sizeof("function") - 1);
     zval *file = zend_hash_str_find(frame, "file", sizeof("file") - 1);
+    zval *class = zend_hash_str_find(frame, "class", sizeof("class") - 1);
     zval id;
     ZVAL_LONG(&id, index);
-
 #ifdef TESTING
-    // In order to be able to test full path encoded everywhere lets set
-    // only the file name without path
-    char *file_name = strrchr(Z_STRVAL_P(file), '/');
-    Z_TRY_DELREF_P(file);
-    ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
+    if (file) {
+        // In order to be able to test full path encoded everywhere lets set
+        // only the file name without path
+        char *file_name = strrchr(Z_STRVAL_P(file), '/');
+        Z_TRY_DELREF_P(file);
+        ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
+    }
 #endif
+
+    if (!function) {
+        return false;
+    }
+
+    // Remove tracer integration php code frames
+    if (strncmp(Z_STRVAL_P(function), LSTRARG("DDTrace")) == 0) {
+        return false;
+    }
 
     array_init(datadog_backtrace_frame);
     HashTable *datadog_backtrace_frame_ht = Z_ARRVAL_P(datadog_backtrace_frame);
-    zend_hash_add(datadog_backtrace_frame_ht, _frame_line, line);
-    zend_hash_add(datadog_backtrace_frame_ht, _frame_function, function);
-    zend_hash_add(datadog_backtrace_frame_ht, _frame_file, file);
-    zend_hash_add(datadog_backtrace_frame_ht, _id_key, &id);
+    if (line) {
+        zend_hash_add(datadog_backtrace_frame_ht, _frame_line, line);
+    }
 
-    Z_TRY_ADDREF_P(function);
-    Z_TRY_ADDREF_P(file);
+    int qualified_name_size = Z_STRLEN_P(function);
+    int qualified_name_separator_len = strlen(QUALIFIED_NAME_SEPARATOR);
+    qualified_name_size +=
+        class ? Z_STRLEN_P(class) + qualified_name_separator_len : 0;
+    char *qualified_name = safe_emalloc(qualified_name_size, 1, 1);
+    int position = 0;
+
+    if (class) {
+        memcpy(qualified_name, Z_STRVAL_P(class), Z_STRLEN_P(class));
+        position = Z_STRLEN_P(class);
+        memcpy(&qualified_name[position], QUALIFIED_NAME_SEPARATOR,
+            qualified_name_separator_len);
+        position += 2;
+    }
+
+    memcpy(
+        &qualified_name[position], Z_STRVAL_P(function), Z_STRLEN_P(function));
+
+    qualified_name[qualified_name_size] = '\0';
+
+    zval zv_qualified_name;
+    ZVAL_STRING(&zv_qualified_name, qualified_name);
+    zend_hash_add(
+        datadog_backtrace_frame_ht, _frame_function, &zv_qualified_name);
+    efree(qualified_name);
+
+    if (file) {
+        zend_hash_add(datadog_backtrace_frame_ht, _frame_file, file);
+        Z_TRY_ADDREF_P(file);
+    }
+    zend_hash_add(datadog_backtrace_frame_ht, _id_key, &id);
 
     return true;
 }
@@ -96,7 +136,6 @@ void php_backtrace_to_datadog_backtrace(
                     tmp, &new_frame, index)) {
                 continue;
             }
-
             zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
             if (--top == 0) {
                 break;
