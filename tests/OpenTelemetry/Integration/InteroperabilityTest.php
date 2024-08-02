@@ -1253,9 +1253,10 @@ final class InteroperabilityTest extends BaseTestCase
                     "string_val" => "value",
                     "exception.stacktrace" => "stacktrace1"
                 ])
-                ->addEvent("non_exception_event", ["exception.stacktrace" => "non-error"])
-                ->recordException(new \Exception("woof3"), ["exception.message" => "message override"])
                 ->startSpan();
+
+            $otelSpan->addEvent("non_exception_event", ["exception.stacktrace" => "non-error"]);
+            $otelSpan->recordException(new \Exception("woof3"), ["exception.message" => "message override"]);
 
             $otelSpan->end();
         });

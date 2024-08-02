@@ -54,6 +54,26 @@ namespace DDTrace {
         public function jsonSerialize(): mixed {}
     }
 
+    class ExceptionSpanEvent extends SpanEvent {
+        /**
+         * ExceptionSpanEvent constructor.
+         *
+         * @param \Throwable $exception exception to record.
+         * @param array $attributes Optional attributes for the event.
+         */
+        public function __construct(\Throwable $exception, array $attributes = []) {}
+        
+        /**
+         * @var \Throwable
+         */
+        private \Throwable $exception;
+
+        /**
+         * @var string[] $attributes
+         */
+        public array $attributes;
+    }
+
     class SpanLink implements \JsonSerializable {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field

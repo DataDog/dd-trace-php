@@ -684,6 +684,76 @@ PHP_METHOD(DDTrace_SpanEvent, __construct) {
     }
 }
 
+/* DDTrace\ExceptionSpanEvent */
+zend_class_entry *ddtrace_ce_exception_span_event;
+
+PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
+{
+    UNUSED(return_value);
+
+    zval *exception;
+    zval *attributes = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_OBJECT_OF_CLASS(exception, zend_ce_throwable)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(attributes, 1, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    // Prepare parameters for parent constructor
+    zval parent_construct_params[2];
+
+    // First parameter: name (fixed string "exception")
+    zend_string *name = zend_string_init("exception", sizeof("exception") - 1, 0);
+    ZVAL_STR(&parent_construct_params[0], name);
+
+    // Second parameter: attributes
+    if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {
+        ZVAL_DUP(&parent_construct_params[1], attributes);
+    } else {
+        array_init(&parent_construct_params[1]);
+    }
+
+    // Call the parent constructor with the prepared parameters
+    zval parent_construct_retval;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    zend_class_entry *parent_ce = Z_OBJCE_P(ZEND_THIS)->parent;
+    zend_function *parent_constructor = zend_hash_str_find_ptr(
+        &parent_ce->function_table, ZEND_CONSTRUCTOR_FUNC_NAME, sizeof(ZEND_CONSTRUCTOR_FUNC_NAME) - 1);
+
+    if (parent_constructor) {
+        // Initialize the function call info structure
+        ZVAL_UNDEF(&parent_construct_retval);
+
+        fci.size = sizeof(fci);
+        fci.object = Z_OBJ_P(ZEND_THIS);
+        fci.retval = &parent_construct_retval;
+        fci.param_count = 2;
+        fci.params = parent_construct_params;
+        fci.named_params = NULL; // Ensure named_params is set to NULL
+        ZVAL_UNDEF(&fci.function_name);
+
+        fci_cache.function_handler = parent_constructor;
+        fci_cache.called_scope = parent_ce;
+        fci_cache.object = Z_OBJ_P(ZEND_THIS);
+
+        if (zend_call_function(&fci, &fci_cache) != SUCCESS) {
+            zend_throw_exception(NULL, "Failed to call parent::__construct", 0);
+        }
+
+        // Cleanup
+        zval_ptr_dtor(&parent_construct_retval);
+    } else {
+        zend_throw_exception(NULL, "Parent constructor not found", 0);
+    }
+
+    // Clean up
+    zend_string_release(name);
+    zval_ptr_dtor(&parent_construct_params[1]);
+}
+
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
 
@@ -1229,6 +1299,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
     ddtrace_ce_span_event = register_class_DDTrace_SpanEvent(php_json_serializable_ce);
+    ddtrace_ce_exception_span_event = register_class_DDTrace_ExceptionSpanEvent(ddtrace_ce_span_event);
     ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
     ddtrace_ce_git_metadata->create_object = ddtrace_git_metadata_create;
     memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));

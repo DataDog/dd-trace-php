@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e3fd4369773ae2fc96a5ad2a4315037d48ee2ccd */
+ * Stub hash: d3d3a85efaaea296775704c9ab8682b232035fa1 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -280,6 +280,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_SpanEvent_jsonSerialize, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_ExceptionSpanEvent___construct, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, attributes, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
 #define arginfo_class_DDTrace_SpanLink_jsonSerialize arginfo_class_DDTrace_SpanEvent_jsonSerialize
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanLink_fromHeaders, 0, 1, DDTrace\\SpanLink, 0)
@@ -371,6 +376,7 @@ ZEND_FUNCTION(dd_untrace);
 ZEND_FUNCTION(dd_trace_synchronous_flush);
 ZEND_METHOD(DDTrace_SpanEvent, __construct);
 ZEND_METHOD(DDTrace_SpanEvent, jsonSerialize);
+ZEND_METHOD(DDTrace_ExceptionSpanEvent, __construct);
 ZEND_METHOD(DDTrace_SpanLink, jsonSerialize);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders);
 ZEND_METHOD(DDTrace_SpanData, getDuration);
@@ -460,6 +466,11 @@ static const zend_function_entry class_DDTrace_SpanEvent_methods[] = {
 	ZEND_FE_END
 };
 
+static const zend_function_entry class_DDTrace_ExceptionSpanEvent_methods[] = {
+	ZEND_ME(DDTrace_ExceptionSpanEvent, __construct, arginfo_class_DDTrace_ExceptionSpanEvent___construct, ZEND_ACC_PUBLIC)
+	ZEND_FE_END
+};
+
 static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 	ZEND_ME(DDTrace_SpanLink, jsonSerialize, arginfo_class_DDTrace_SpanLink_jsonSerialize, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanLink, fromHeaders, arginfo_class_DDTrace_SpanLink_fromHeaders, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
@@ -532,6 +543,29 @@ static zend_class_entry *register_class_DDTrace_SpanEvent(zend_class_entry *clas
 	zend_string *property_timestamp_name = zend_string_init("timestamp", sizeof("timestamp") - 1, 1);
 	zend_declare_typed_property(class_entry, property_timestamp_name, &property_timestamp_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release(property_timestamp_name);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_ExceptionSpanEvent(zend_class_entry *class_entry_DDTrace_SpanEvent)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "ExceptionSpanEvent", class_DDTrace_ExceptionSpanEvent_methods);
+	class_entry = zend_register_internal_class_ex(&ce, class_entry_DDTrace_SpanEvent);
+
+	zval property_exception_default_value;
+	ZVAL_UNDEF(&property_exception_default_value);
+	zend_string *property_exception_name = zend_string_init("exception", sizeof("exception") - 1, 1);
+	zend_string *property_exception_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
+	zend_declare_typed_property(class_entry, property_exception_name, &property_exception_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_exception_class_Throwable, 0, 0));
+	zend_string_release(property_exception_name);
+
+	zval property_attributes_default_value;
+	ZVAL_UNDEF(&property_attributes_default_value);
+	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, 1);
+	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_attributes_name);
 
 	return class_entry;
 }

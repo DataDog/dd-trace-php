@@ -7,6 +7,7 @@ namespace OpenTelemetry\SDK\Trace;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
 use DDTrace\SpanEvent;
+use DDTrace\ExceptionSpanEvent;
 use DDTrace\Tag;
 use DDTrace\OpenTelemetry\Convention;
 use DDTrace\Util\ObjectKVStore;
@@ -380,9 +381,26 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
         if (!$this->hasEnded()) {
-            $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
-            $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
-            $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
+            // Standardized exception attributes
+            $exceptionAttributes = [
+                'exception.message' => $attributes['exception.message'] ?? $exception->getMessage(),
+                'exception.type' => $attributes['exception.type'] ?? get_class($exception),
+                'exception.stacktrace' => $attributes['exception.stacktrace'] ?? $exception->getTraceAsString(),
+                'exception.escaped' => false
+            ];
+
+            // Update span metadata based on exception attributes
+            $this->setAttribute(Tag::ERROR_MSG, $exceptionAttributes['exception.message']);
+            $this->setAttribute(Tag::ERROR_TYPE, $exceptionAttributes['exception.type']);
+            $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
+
+            // Merge additional attributes
+            $allAttributes = array_merge($exceptionAttributes, \is_array($attributes) ? $attributes : iterator_to_array($attributes));
+
+            $this->span->events[] = new ExceptionSpanEvent(
+                $exception,
+                $allAttributes
+            );
         }
 
         return $this;

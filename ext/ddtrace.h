@@ -24,6 +24,7 @@ extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
 extern zend_class_entry *ddtrace_ce_span_link;
 extern zend_class_entry *ddtrace_ce_span_event;
+extern zend_class_entry *ddtrace_ce_exception_span_event;
 extern zend_class_entry *ddtrace_ce_integration;
 extern zend_class_entry *ddtrace_ce_git_metadata;
 
@@ -33,6 +34,7 @@ typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
 typedef struct ddtrace_span_event ddtrace_span_event;
+typedef struct ddtrace_exception_span_event ddtrace_exception_span_event;
 typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
 extern datadog_php_sapi ddtrace_active_sapi;
