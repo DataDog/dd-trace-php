@@ -6,9 +6,9 @@
 #ifndef DD_HELPER_MGR_H
 #define DD_HELPER_MGR_H
 
-#include "attributes.h"
 #include "dddefs.h"
 #include "network.h"
+#include "attributes.h"
 
 void dd_helper_startup(void);
 void dd_helper_shutdown(void);

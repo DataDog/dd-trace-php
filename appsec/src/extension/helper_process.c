@@ -27,6 +27,7 @@
 #include <zend_types.h>
 
 #define HELPER_PROCESS_C_INCLUDES
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -967,11 +968,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_array_arginfo, 0, 0, IS_ARRAY, 
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "set_helper_path", PHP_FN(datadog_appsec_testing_set_helper_path), set_string_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "set_helper_extra_args", PHP_FN(datadog_appsec_testing_set_helper_extra_args), set_string_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "get_helper_argv", PHP_FN(datadog_appsec_testing_get_helper_argv), void_ret_array_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "is_connected_to_helper", PHP_FN(datadog_appsec_testing_is_connected_to_helper), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "backoff_status", PHP_FN(datadog_appsec_testing_backoff_status), void_ret_array_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "set_helper_path", PHP_FN(datadog_appsec_testing_set_helper_path), set_string_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "set_helper_extra_args", PHP_FN(datadog_appsec_testing_set_helper_extra_args), set_string_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "get_helper_argv", PHP_FN(datadog_appsec_testing_get_helper_argv), void_ret_array_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "is_connected_to_helper", PHP_FN(datadog_appsec_testing_is_connected_to_helper), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "backoff_status", PHP_FN(datadog_appsec_testing_backoff_status), void_ret_array_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

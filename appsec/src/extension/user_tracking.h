@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "attributes.h"
 #include <zend.h>
+#include "attributes.h"
 
 void dd_user_tracking_startup(void);
 void dd_user_tracking_shutdown(void);

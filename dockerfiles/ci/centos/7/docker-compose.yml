@@ -109,3 +109,14 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.3.9.tar.gz
         phpSha256Hash: "f484dec6ee005c83f899af02fc021e1bc3b1d7b3f143ca062ef66b0fcee96566"
     image: 'datadog/dd-trace-ci:php-8.3_centos-7'
+
+  php-8.4:
+    build:
+      context: .
+      dockerfile: php.Dockerfile
+      x-bake: *bake
+      args:
+        phpVersion: "8.4"
+        phpTarGzUrl: https://downloads.php.net/~saki/php-8.4.0alpha1.tar.gz
+        phpSha256Hash: "200fc03de5bf34bc621a24fce061bf3ec8d4d2fc8a676ed9b3f94ad129f69eab"
+    image: 'datadog/dd-trace-ci:php-8.4_centos-7'

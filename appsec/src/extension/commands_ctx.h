@@ -1,7 +1,7 @@
 #pragma once
 
-#include "attributes.h"
 #include <php.h>
+#include "attributes.h"
 
 struct req_info {
     const char *nullable command_name; // for logging
