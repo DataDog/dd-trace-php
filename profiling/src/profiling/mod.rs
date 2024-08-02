@@ -34,7 +34,7 @@ use std::intrinsics::transmute;
 use std::mem::forget;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -519,15 +519,34 @@ const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
+static PROFILER_INIT: Mutex<()> = Mutex::new(());
+
 impl Profiler {
+    /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
     pub fn init(system_settings: &mut SystemSettings) {
-        let profiler = unsafe { PROFILER.get() };
-        if profiler.is_none() {
+        // Safety: there could be a race in which another thread already initializes `PROFILER`,
+        // this is guarded by the `PROFILER_INIT` mutex next.
+        if unsafe { PROFILER.get() }.is_some() {
+            return;
+        }
+
+        // Waiting point for all threads but one.
+        let _lock = PROFILER_INIT.lock().unwrap();
+
+        // For one thread (presumably the first) this will evaluate to true, all other threads will
+        // evaluate this to false and skip initialization. Future calls to this method will trigger
+        // the guard clause above.
+        // Safety: only one thread will ever call `PROFILER::get()` while the OnceCell is not
+        // initialized. Other threads that saw an uninitialized `PROFILER` but came to late to
+        // acquire `PROFILER_INIT` mutex will get `Some` and not do anything with the OnceCell.
+        if unsafe { PROFILER.get() }.is_none() {
             let _ = unsafe { PROFILER.set(Profiler::new(system_settings)) };
         }
     }
 
     pub fn get() -> Option<&'static Profiler> {
+        // Safety: Besides the `InterruptManager`, which guards adding new vm_interrupts with a
+        // mutex, non of the public functions do mutations to global data
         unsafe { PROFILER.get() }
     }
 
@@ -681,6 +700,8 @@ impl Profiler {
     /// Completes the shutdown process; to start it, call [Profiler::stop]
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
+    ///
+    /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
     pub fn shutdown(timeout: Duration) {
         if let Some(profiler) = unsafe { PROFILER.take() } {
             profiler.join_collector_and_uploader(timeout);
