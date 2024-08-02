@@ -30,8 +30,9 @@ dependencies {
 
     implementation platform('org.testcontainers:testcontainers-bom:1.19.8')
     implementation "org.testcontainers:junit-jupiter"
-    implementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
     implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
+    implementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+    implementation 'org.junit.jupiter:junit-jupiter-params:5.9.2'
 }
 
 test {
