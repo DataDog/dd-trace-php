@@ -27,10 +27,10 @@ foo();
 <file '.+'>(\n  <!-- init DDTrace\\install_hook\(\) -->\n  <DDTrace\\install_hook>\n  <\/DDTrace\\install_hook>)?
   <!-- init foo\(\) -->
   <foo>
-    <!-- init \{closure}\(\) -->
-    <\{closure}>
+    <!-- init \{closure(:.+:\d)*}\(\) -->
+    <\{closure(:.+:\d)*}>
 Removing hook(\n      <!-- init DDTrace\\remove_hook\(\) -->\n      <DDTrace\\remove_hook>\n      <\/DDTrace\\remove_hook>)?
-    <\/\{closure}>
+    <\/\{closure(:.+:\d)*}>
 Called
   <\/foo>
 <\/file '.+'>
