@@ -6,6 +6,7 @@
 #include "logging.h"
 #include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
+#include <components-rs/sidecar.h>
 #include "sidecar.h"
 #include "telemetry.h"
 #include "serializer.h"
@@ -87,9 +88,33 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
     return sidecar_transport;
 }
 
+static void maybe_enable_appsec() {
+    // this must be done in ddtrace rather than ddappsec because
+    // the sidecar is launched by ddtrace before ddappsec has a chance
+    // to run its first rinit
+
+#if defined(__linux__) || defined(__APPLE__)
+    if (get_global_DD_APPSEC_TESTING()) {
+        return;
+    }
+    zend_module_entry *appsec_module = zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1);
+    if (!appsec_module) {
+        return;
+    }
+    void *handle = dlsym(appsec_module->handle, "dd_appsec_maybe_enable_helper");
+    if (!handle) {
+        return;
+    }
+    void (*dd_appsec_maybe_enable_helper)(typeof(&ddog_sidecar_enable_appsec) enable_appsec) = handle;
+    dd_appsec_maybe_enable_helper(ddog_sidecar_enable_appsec);
+#endif
+}
+
 void ddtrace_sidecar_setup(void) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
+
+    maybe_enable_appsec();
 
     ddtrace_sidecar = dd_sidecar_connection_factory();
     if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong

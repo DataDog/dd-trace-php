@@ -24,6 +24,7 @@ set_target_properties(extension PROPERTIES
 target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -D_GNU_SOURCE)
 
 target_link_libraries(extension PRIVATE mpack PhpConfig zai)
+target_include_directories(extension PRIVATE ..)
 
 macro(target_linker_flag_conditional target) # flags as argv
     try_compile(LINKER_HAS_FLAG "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check.c"
