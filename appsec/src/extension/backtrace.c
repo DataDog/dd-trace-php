@@ -55,7 +55,7 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
     }
 
     // Remove tracer integration php code frames
-    if (strncmp(Z_STRVAL_P(function), LSTRARG("DDTrace")) == 0) {
+    if (strncmp(Z_STRVAL_P(function), "DDTrace", sizeof("DDTrace") - 1) == 0) {
         return false;
     }
 
