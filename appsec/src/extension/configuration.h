@@ -45,11 +45,13 @@ extern bool runtime_config_first_init;
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
     SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                                                     \
+    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/libddappsec-helper.so"))                                                       \
     SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32")                                                                                \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACES, "2")                                                                                      \
     CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)                                    \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
+    SYSCFG(STRING, DD_APPSEC_HELPER_LOG_LEVEL, "info")                                                                                \
     CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                 \
     CONFIG(STRING, DD_SERVICE, "")                                                                                                    \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
