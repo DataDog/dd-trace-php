@@ -1247,7 +1247,10 @@ final class InteroperabilityTest extends BaseTestCase
 
     public function testOtelRecordExceptionAttributesSerialization()
     {
-        $traces = $this->isolateTracer(function () {
+
+        $lastException = new \Exception("woof3");
+
+        $traces = $this->isolateTracer(function () use ($lastException)  {
             $otelSpan = self::getTracer()->spanBuilder("operation")
                 ->recordException(new \Exception("woof1"), [
                     "string_val" => "value",
@@ -1256,7 +1259,9 @@ final class InteroperabilityTest extends BaseTestCase
                 ->startSpan();
 
             $otelSpan->addEvent("non_exception_event", ["exception.stacktrace" => "non-error"]);
-            $otelSpan->recordException(new \Exception("woof3"), ["exception.message" => "message override"]);
+
+
+            $otelSpan->recordException($lastException, ["exception.message" => "message override"]);
 
             $otelSpan->end();
         });
@@ -1274,8 +1279,11 @@ final class InteroperabilityTest extends BaseTestCase
     
         $event3 = $events[2];
         $this->assertSame('message override', $event3['attributes']['exception.message']);
-    
-        $errorMessage = $traces[0][0]['meta']['error.message'] ?? $traces[0][0]['error.msg'];
-        $this->assertSame('message override', $errorMessage);
+
+        $this->assertSame(\DDTrace\get_sanitized_exception_trace($lastException), $traces[0][0]['meta']['error.stack']);
+
+        $this->assertArrayNotHasKey('error.message', $traces[0][0]['meta']);
+        $this->assertArrayNotHasKey('error.type', $traces[0][0]['meta']);
+        $this->assertArrayNotHasKey('error', $traces[0][0]);
     }
 }

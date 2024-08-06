@@ -117,13 +117,10 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $exceptionAttributes = [
             'exception.message' => $attributes['exception.message'] ?? $exception->getMessage(),
             'exception.type' => $attributes['exception.type'] ?? get_class($exception),
-            'exception.stacktrace' => $attributes['exception.stacktrace'] ?? $exception->getTraceAsString(),
-            'exception.escaped' => false
+            'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($exception),
         ];
 
         // Update span metadata based on exception attributes
-        $this->setAttribute(Tag::ERROR_MSG, $exceptionAttributes['exception.message']);
-        $this->setAttribute(Tag::ERROR_TYPE, $exceptionAttributes['exception.type']);
         $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
 
         // Merge additional attributes

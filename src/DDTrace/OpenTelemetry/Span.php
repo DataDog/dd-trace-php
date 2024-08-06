@@ -242,7 +242,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $this->events,
             Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
             0,
-            $this->totalRecordedEvents,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
             $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
             $this->hasEnded()
@@ -385,13 +384,10 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $exceptionAttributes = [
                 'exception.message' => $attributes['exception.message'] ?? $exception->getMessage(),
                 'exception.type' => $attributes['exception.type'] ?? get_class($exception),
-                'exception.stacktrace' => $attributes['exception.stacktrace'] ?? $exception->getTraceAsString(),
-                'exception.escaped' => false
+                'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($exception),
             ];
 
             // Update span metadata based on exception attributes
-            $this->setAttribute(Tag::ERROR_MSG, $exceptionAttributes['exception.message']);
-            $this->setAttribute(Tag::ERROR_TYPE, $exceptionAttributes['exception.type']);
             $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
 
             // Merge additional attributes
@@ -557,6 +553,6 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
         // Update the events
         $this->events = $otel;
-        $this->getTotalRecordedEvents = count($otel);
+        $this->totalRecordedEvents = count($otel);
     }
 }
