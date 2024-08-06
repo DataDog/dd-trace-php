@@ -175,7 +175,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return dd_error;
         }
         if (res != dd_success && res != dd_should_block &&
-            res != dd_should_redirect) {
+            res != dd_should_redirect && res != dd_should_record) {
             mlog(dd_log_warning, "Processing for command %.*s failed: %s",
                 NAME_L, dd_result_to_string(res));
             return res;

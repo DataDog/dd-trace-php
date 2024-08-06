@@ -6,6 +6,13 @@
 #include "php_compat.h"
 
 #if PHP_VERSION_ID < 70300
+static zend_string _zend_empty_string_st = {
+    .gc.refcount = 1,
+    .gc.u.v.type = IS_STRING,
+    .gc.u.v.flags = IS_STR_PERSISTENT | IS_STR_INTERNED,
+};
+zend_string *zend_empty_string = &_zend_empty_string_st;
+
 zend_bool zend_ini_parse_bool(zend_string *str)
 {
     if ((ZSTR_LEN(str) == 4 && strcasecmp(ZSTR_VAL(str), "true") == 0) ||

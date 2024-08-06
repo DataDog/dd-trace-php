@@ -126,7 +126,7 @@ VALUES
 	(3,'blogname','Datadog','yes'),
 	(4,'blogdescription','Just another WordPress site','yes'),
 	(5,'users_can_register','1','yes'),
-	(6,'admin_email','sammyk@datadoghq.com','yes'),
+	(6,'admin_email','test@datadoghq.com','yes'),
 	(7,'start_of_week','1','yes'),
 	(8,'use_balanceTags','0','yes'),
 	(9,'use_smilies','1','yes'),
@@ -460,7 +460,7 @@ LOCK TABLES `wp_usermeta` WRITE;
 
 INSERT INTO `wp_usermeta` (`umeta_id`, `user_id`, `meta_key`, `meta_value`)
 VALUES
-	(1,1,'nickname','SammyK'),
+	(1,1,'nickname','test'),
 	(2,1,'first_name',''),
 	(3,1,'last_name',''),
 	(4,1,'description',''),
@@ -509,7 +509,7 @@ LOCK TABLES `wp_users` WRITE;
 
 INSERT INTO `wp_users` (`ID`, `user_login`, `user_pass`, `user_nicename`, `user_email`, `user_url`, `user_registered`, `user_activation_key`, `user_status`, `display_name`)
 VALUES
-	(1,'SammyK','$P$BbkLmKT86fImcoVbK.fbWh0K5PTh/9.','sammyk','sammyk@datadoghq.com','','2019-09-16 21:10:55','',0,'Datadog');
+	(1,'test','$P$BbkLmKT86fImcoVbK.fbWh0K5PTh/9.','test','test@datadoghq.com','','2019-09-16 21:10:55','',0,'Datadog');
 
 /*!40000 ALTER TABLE `wp_users` ENABLE KEYS */;
 UNLOCK TABLES;

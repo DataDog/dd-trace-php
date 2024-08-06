@@ -11,15 +11,19 @@
 #include <boost/asio/spawn.hpp>
 
 class HttpServerDispatcher {
+public:
     static constexpr int backlog = 1;
 
-  public:
     HttpServerDispatcher(EchoPipe &echo_pipe, asio::ip::port_type port);
+    HttpServerDispatcher(const HttpServerDispatcher&) = delete;
+    HttpServerDispatcher& operator=(const HttpServerDispatcher&) = delete;
+    HttpServerDispatcher(HttpServerDispatcher&&) = delete;
+    HttpServerDispatcher& operator=(HttpServerDispatcher&&) = delete;
     ~HttpServerDispatcher();
 
     void start();
 
-    void run_loop(boost::asio::yield_context yield);
+    void run_loop(const boost::asio::yield_context& yield);
 
   private:
     EchoPipe &echo_pipe_;

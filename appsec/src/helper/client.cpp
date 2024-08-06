@@ -88,6 +88,7 @@ bool handle_message(client &client, const network::base_broker &broker,
         auto msg = broker.recv(initial_timeout);
         return maybe_exec_cmd_M<Ms...>(client, msg);
     } catch (const unexpected_command &e) {
+        SPDLOG_DEBUG("Unexpected command: {}", e.what());
         send_error = true;
         if (!ignore_unexpected_messages) {
             result = false;

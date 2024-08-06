@@ -1,0 +1,29 @@
+From 18221cceb06860395120b56cca7e270539b74073 Mon Sep 17 00:00:00 2001
+From: Pawel Chojnacki <pawel.chcki@gmail.com>
+Date: Wed, 30 Jan 2019 16:35:50 +0100
+Subject: [PATCH] Add guard against modifying LongLink entry and leave entries
+ above 80 chars alone
+
+---
+ lib/fpm/package/apk.rb | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/lib/fpm/package/apk.rb b/lib/fpm/package/apk.rb
+index dd69067..bc9ff50 100644
+--- a/lib/fpm/package/apk.rb
++++ b/lib/fpm/package/apk.rb
+@@ -435,6 +435,12 @@ class FPM::Package::APK< FPM::Package
+   # This takes an unchanged directory name and "paxifies" it.
+   def add_paxstring(ret)
+
++    # Check if this is special Tar filename to mark that the next entry file name will be longer than 100 characters.
++    return ret if ret.match? "././@LongLink"
++
++    # adding PaxHeaders prefix to entries over 80 characters is impossible without creating extra entries
++    return ret if ret.length > 80
++
+     pax_slash = ret.rindex('/')
+     if(pax_slash == nil)
+       pax_slash = 0
+--
+2.18.0

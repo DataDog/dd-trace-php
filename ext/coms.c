@@ -863,6 +863,10 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
             // We can ignore that for now as we don't do TLS traffic to the agent currently
             curl_easy_setopt(writer->curl, CURLOPT_NOSIGNAL, 1);
 
+            if (response.s) {
+                smart_str_free_ex(&response, true);
+            }
+
             continue;
         } else {
             if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {

@@ -74,15 +74,15 @@ cd build
 cmake ..
 make -j
 ```
-This will produce the extension, `ddappsec.so` and the helper process `ddappsec-helper`.
+This will produce the extension, `ddappsec.so` and the helper library `libddappsec-helper.so`.
 
 Alternatively, to build the extension but not the helper, you can disable the helper build on the cmake step:
 ```
-cmake .. -DDD_APPSEC_BUILD_HELPER=OFF 
+cmake .. -DDD_APPSEC_BUILD_HELPER=OFF
 ```
 Similarly, to build the helper but not the extension:
 ```
-cmake .. DDD_APPSEC_BUILD_EXTENSION=OFF 
+cmake .. DDD_APPSEC_BUILD_EXTENSION=OFF
 ```
 
 #### Testing the extension

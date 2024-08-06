@@ -4,11 +4,18 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "http_api.hpp"
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/co_spawn.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/this_coro.hpp>
+#include <boost/asio/use_awaitable.hpp>
 #include <boost/beast/core.hpp>
+#include <boost/beast/core/stream_traits.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
+#include <exception>
+#include <future>
 #include <optional>
 #include <spdlog/spdlog.h>
 #include <string>
@@ -18,29 +25,37 @@ namespace http = beast::http;   // from <boost/beast/http.hpp>
 namespace net = boost::asio;    // from <boost/asio.hpp>
 using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
-static const int version = 11;
+namespace {
+constexpr auto timeout =
+    std::chrono::duration_cast<net::steady_timer::duration>(
+        std::chrono::seconds{60});
+const int version = 11;
 
-std::string execute_request(const std::string &host, const std::string &port,
-    const http::request<http::string_body> &request)
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
+net::awaitable<std::string> execute_request(const std::string &host,
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
+    const std::string &port, const http::request<http::string_body> &request)
 {
     std::string result;
 
     try {
-        // The io_context is required for all I/O
-        net::io_context ioc;
+        auto exec = co_await net::this_coro::executor;
 
         // These objects perform our I/O
-        tcp::resolver resolver(ioc);
-        beast::tcp_stream stream(ioc);
+        tcp::resolver resolver(exec);
+        beast::tcp_stream stream(exec);
 
         // Look up the domain name
-        auto const results = resolver.resolve(host, port);
+        auto const results =
+            co_await resolver.async_resolve(host, port, net::use_awaitable);
 
         // Make the connection on the IP address we get from a lookup
-        stream.connect(results);
+        beast::get_lowest_layer(stream).expires_after(timeout);
+        co_await stream.async_connect(
+            results.begin(), results.end(), net::use_awaitable);
 
         // Send the HTTP request to the remote host
-        http::write(stream, request);
+        co_await http::async_write(stream, request, net::use_awaitable);
 
         // This buffer is used for reading and must be persisted
         beast::flat_buffer buffer;
@@ -49,7 +64,7 @@ std::string execute_request(const std::string &host, const std::string &port,
         http::response<http::dynamic_body> res;
 
         // Receive the HTTP response
-        http::read(stream, buffer, res);
+        co_await http::async_read(stream, buffer, res, net::use_awaitable);
 
         // Write the message to standard out
         result = boost::beast::buffers_to_string(res.body().data());
@@ -75,8 +90,33 @@ std::string execute_request(const std::string &host, const std::string &port,
             "Connection error - " + err + " - " + e.what());
     }
 
-    return result;
+    co_return result;
 }
+
+std::string execute_request_sync(const std::string &host,
+    const std::string &port, const http::request<http::string_body> &req)
+{
+
+    net::io_context ioc;
+    net::awaitable<std::string> client_coroutine =
+        execute_request(host, port, req);
+
+    std::promise<std::string> promise;
+    auto fut = promise.get_future();
+
+    net::co_spawn(ioc, std::move(client_coroutine),
+        [&](const std::exception_ptr &eptr, std::string body) {
+            if (eptr) {
+                promise.set_exception(eptr);
+            } else {
+                promise.set_value(std::move(body));
+            }
+        });
+
+    ioc.run();
+    return fut.get();
+}
+} // namespace
 
 std::string dds::remote_config::http_api::get_info() const
 {
@@ -84,7 +124,7 @@ std::string dds::remote_config::http_api::get_info() const
     req.set(http::field::host, host_);
     req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
-    return execute_request(host_, port_, req);
+    return execute_request_sync(host_, port_, req);
 }
 
 std::string dds::remote_config::http_api::get_configs(
@@ -103,5 +143,5 @@ std::string dds::remote_config::http_api::get_configs(
     req.body() = std::move(request);
     req.keep_alive(true);
 
-    return execute_request(host_, port_, req);
+    return execute_request_sync(host_, port_, req);
 };

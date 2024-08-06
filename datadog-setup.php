@@ -468,7 +468,7 @@ function install($options)
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecBin = "{$tmpArchiveAppsecRoot}/bin";
+    $tmpArchiveAppsecLib = "{$tmpArchiveAppsecRoot}/lib";
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
@@ -533,8 +533,8 @@ function install($options)
     // Appsec helper and rules
     if (file_exists($tmpArchiveAppsecRoot)) {
         execute_or_exit(
-            "Cannot copy files from '$tmpArchiveAppsecBin' to '$installDir'",
-            (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -rf ") . escapeshellarg("$tmpArchiveAppsecBin") . ' ' . escapeshellarg($installDir)
+            "Cannot copy files from '$tmpArchiveAppsecLib' to '$installDir'",
+            (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -rf ") . escapeshellarg("$tmpArchiveAppsecLib") . ' ' . escapeshellarg($installDir)
         );
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
@@ -617,7 +617,7 @@ function install($options)
             $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
-        $appSecHelperPath = $installDir . '/bin/ddappsec-helper';
+        $appSecHelperPath = $installDir . '/lib/libddappsec-helper.so';
 
         if (isset($options[OPT_PHP_INI])) {
             $iniFilePaths = $options[OPT_PHP_INI];
@@ -2274,22 +2274,9 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'commented' => false,
             'description' => [
                 'If ddappsec.helper_launch is enabled, this setting determines which binary',
-                'the extension should try to execute.',
+                'the extension should try to load in the sidecar.',
                 'Only relevant if ddappsec.helper_launch is enabled.',
                 'This ini setting is configured by the installer',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_extra_args',
-            'default' => '',
-            'commented' => true,
-            'description' => [
-                'Additional arguments that should be used when attempting to launch the helper',
-                'process. The extension always passes \'--lock_path - --socket_path fd:<int>\'',
-                'The arguments should be space separated. Both single and double quotes can',
-                'be used should an argument contain spaces. The backslash (\) can be used to',
-                'escape spaces, quotes, and the backslash itself.',
-                'Only relevant if ddappsec.helper_launch is enabled',
             ],
         ],
         [
@@ -2317,11 +2304,17 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/dev/null',
             'commented' => true,
             'description' => [
-                'The location of the log file of the helper. This default to /dev/null (the log',
-                'messages will be discarded). This file is opened by the extension just before',
-                'launching the daemon and the file descriptor is passed to the helper as its',
-                'stderr, to which it will write its messages; this setting is therefore only',
-                'relevant if ddappsec.helper_launch is enabled',
+                'The location of the log file of the helper. This defaults to /dev/null ',
+                '(the log messages will be discarded).',
+            ],
+        ],
+        [
+            'name' => 'datadog.appsec.helper_log_level',
+            'default' => 'info',
+            'commented' => true,
+            'description' => [
+				'The verbosity of the logging of the appsec helper loaded in the sidecar. ',
+				'Valid values are trace, debug, info, warn, err, critical and off',
             ],
         ],
         [

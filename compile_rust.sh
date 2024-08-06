@@ -15,4 +15,11 @@ case "${host_os}" in
     ;;
 esac
 
+set -x
+
+if test -n "$COMPILE_ASAN"; then
+  export LDFLAGS="-fsanitize=address"
+  export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
+fi
+
 SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" build $(test "${PROFILE:-debug}" = "debug" || echo --profile "$PROFILE") "$@"
