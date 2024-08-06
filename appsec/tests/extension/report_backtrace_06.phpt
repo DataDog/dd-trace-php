@@ -9,9 +9,6 @@ extension=ddtrace.so
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
 
-ddtrace_version_at_least('0.79.0');
-
-
 use function datadog\appsec\testing\report_exploit_backtrace;
 
 function two($param01, $param02)

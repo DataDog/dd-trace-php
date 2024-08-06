@@ -29,8 +29,6 @@ namespace Some\NameSpace {
 namespace {
     include __DIR__ . '/inc/ddtrace_version.php';
 
-    ddtrace_version_at_least('0.79.0');
-
     DDTrace\start_span();
     $root = DDTrace\active_span();
 
@@ -71,7 +69,7 @@ array(3) {
     [2]=>
     array(4) {
       ["line"]=>
-      int(31)
+      int(29)
       ["function"]=>
       string(23) "Some\NameSpace\Foo::one"
       ["file"]=>

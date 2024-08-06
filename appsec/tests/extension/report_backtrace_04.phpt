@@ -9,8 +9,6 @@ extension=ddtrace.so
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
 
-ddtrace_version_at_least('0.79.0');
-
 use function datadog\appsec\testing\{report_exploit_backtrace, root_span_get_meta_struct};
 
 function two($param01, $param02)
@@ -51,7 +49,7 @@ array(1) {
           [0]=>
           array(4) {
             ["line"]=>
-            int(15)
+            int(13)
             ["function"]=>
             string(3) "two"
             ["file"]=>
@@ -62,7 +60,7 @@ array(1) {
           [1]=>
           array(4) {
             ["line"]=>
-            int(22)
+            int(20)
             ["function"]=>
             string(3) "one"
             ["file"]=>
@@ -83,7 +81,7 @@ array(1) {
           [0]=>
           array(4) {
             ["line"]=>
-            int(15)
+            int(13)
             ["function"]=>
             string(3) "two"
             ["file"]=>
@@ -94,7 +92,7 @@ array(1) {
           [1]=>
           array(4) {
             ["line"]=>
-            int(23)
+            int(21)
             ["function"]=>
             string(3) "one"
             ["file"]=>
@@ -115,7 +113,7 @@ array(1) {
           [0]=>
           array(4) {
             ["line"]=>
-            int(15)
+            int(13)
             ["function"]=>
             string(3) "two"
             ["file"]=>
@@ -126,7 +124,7 @@ array(1) {
           [1]=>
           array(4) {
             ["line"]=>
-            int(24)
+            int(22)
             ["function"]=>
             string(3) "one"
             ["file"]=>

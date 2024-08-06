@@ -12,8 +12,8 @@
 #include "string_helpers.h"
 
 static const int NO_LIMIT = 0;
-static const double STACK_DEFAULT_TOP_PERCENTAGE = 0.25;
-static const char *QUALIFIED_NAME_SEPARATOR = "::";
+static const double STACK_DEFAULT_TOP_RATE = 0.25;
+static const char QUALIFIED_NAME_SEPARATOR[] = "::";
 
 static zend_string *_frames_key;
 static zend_string *_language_key;
@@ -24,20 +24,24 @@ static zend_string *_frame_line;
 static zend_string *_frame_function;
 static zend_string *_frame_file;
 static zend_string *_id_key;
+static zend_string *_line_field;
+static zend_string *_function_field;
+static zend_string *_file_field;
+static zend_string *_class_field;
 
-bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static bool
+php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     zval *nonnull php_backtrace_frame, zval *nonnull datadog_backtrace_frame,
-    zend_ulong index)
+    zend_long index)
 {
     if (Z_TYPE_P(php_backtrace_frame) != IS_ARRAY) {
         return false;
     }
     HashTable *frame = Z_ARRVAL_P(php_backtrace_frame);
-    zval *line = zend_hash_str_find(frame, "line", sizeof("line") - 1);
-    zval *function =
-        zend_hash_str_find(frame, "function", sizeof("function") - 1);
-    zval *file = zend_hash_str_find(frame, "file", sizeof("file") - 1);
-    zval *class = zend_hash_str_find(frame, "class", sizeof("class") - 1);
+    zval *line = zend_hash_find(frame, _line_field);
+    zval *function = zend_hash_find(frame, _function_field);
+    zval *file = zend_hash_find(frame, _file_field);
+    zval *class = zend_hash_find(frame, _class_field);
     zval id;
     ZVAL_LONG(&id, index);
 #ifdef TESTING
@@ -66,17 +70,18 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
     }
 
     int qualified_name_size = Z_STRLEN_P(function);
-    int qualified_name_separator_len = strlen(QUALIFIED_NAME_SEPARATOR);
     qualified_name_size +=
-        class ? Z_STRLEN_P(class) + qualified_name_separator_len : 0;
-    char *qualified_name = safe_emalloc(qualified_name_size, 1, 1);
+        class ? Z_STRLEN_P(class) + sizeof(QUALIFIED_NAME_SEPARATOR) - 1 : 0;
+    zend_string *qualified_name_zstr =
+        zend_string_alloc(qualified_name_size, 0);
+    char *qualified_name = ZSTR_VAL(qualified_name_zstr);
     int position = 0;
 
     if (class) {
         memcpy(qualified_name, Z_STRVAL_P(class), Z_STRLEN_P(class));
         position = Z_STRLEN_P(class);
         memcpy(&qualified_name[position], QUALIFIED_NAME_SEPARATOR,
-            qualified_name_separator_len);
+            sizeof(QUALIFIED_NAME_SEPARATOR) - 1);
         position += 2;
     }
 
@@ -86,10 +91,9 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
     qualified_name[qualified_name_size] = '\0';
 
     zval zv_qualified_name;
-    ZVAL_STRING(&zv_qualified_name, qualified_name);
+    ZVAL_STR(&zv_qualified_name, qualified_name_zstr);
     zend_hash_add(
         datadog_backtrace_frame_ht, _frame_function, &zv_qualified_name);
-    efree(qualified_name);
 
     if (file) {
         zend_hash_add(datadog_backtrace_frame_ht, _frame_file, file);
@@ -100,7 +104,7 @@ bool php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-
     return true;
 }
 
-void php_backtrace_to_datadog_backtrace(
+static void php_backtrace_to_datadog_backtrace(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     zval *nonnull php_backtrace, zval *nonnull datadog_backtrace)
 {
@@ -109,15 +113,15 @@ void php_backtrace_to_datadog_backtrace(
     }
 
     HashTable *php_backtrace_ht = Z_ARRVAL_P(php_backtrace);
-    unsigned int frames_on_stack = zend_array_count(php_backtrace_ht);
+    uint32_t frames_on_stack = zend_array_count(php_backtrace_ht);
 
-    unsigned int top = frames_on_stack;
-    unsigned int bottom = 0;
+    uint32_t top = frames_on_stack;
+    uint32_t bottom = 0;
     if (get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() != 0 &&
-        get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() < frames_on_stack) {
-        top = (unsigned int)round(
+        frames_on_stack > get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH()) {
+        top = (uint32_t)round(
             (double)get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() *
-            STACK_DEFAULT_TOP_PERCENTAGE);
+            STACK_DEFAULT_TOP_RATE);
         bottom = get_global_DD_APPSEC_MAX_STACK_TRACE_DEPTH() - top;
     }
 
@@ -125,18 +129,18 @@ void php_backtrace_to_datadog_backtrace(
 
     HashTable *datadog_backtrace_ht = Z_ARRVAL_P(datadog_backtrace);
 
-    zval *tmp;
+    zval *php_frame;
     zend_ulong index;
     if (top > 0) {
-        ZEND_HASH_FOREACH_NUM_KEY_VAL(php_backtrace_ht, index, tmp)
+        ZEND_HASH_FOREACH_NUM_KEY_VAL(php_backtrace_ht, index, php_frame)
         {
             zval new_frame;
 
-            if (!php_backtrace_frame_to_datadog_backtrace_frame(
-                    tmp, &new_frame, index)) {
-                continue;
+            if (php_backtrace_frame_to_datadog_backtrace_frame(
+                    php_frame, &new_frame, index)) {
+                zend_hash_next_index_insert_new(
+                    datadog_backtrace_ht, &new_frame);
             }
-            zend_hash_next_index_insert_new(datadog_backtrace_ht, &new_frame);
             if (--top == 0) {
                 break;
             }
@@ -148,11 +152,11 @@ void php_backtrace_to_datadog_backtrace(
         unsigned int position = frames_on_stack - bottom;
         DD_FOREACH_FROM(php_backtrace_ht, 0, position, index)
         {
-            tmp = _z;
+            php_frame = _z;
             zval new_frame;
 
             if (!php_backtrace_frame_to_datadog_backtrace_frame(
-                    tmp, &new_frame, index)) {
+                    php_frame, &new_frame, index)) {
                 continue;
             }
 
@@ -224,25 +228,36 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         return false;
     }
 
-    if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
+    if (Z_TYPE_P(meta_struct) == IS_NULL) {
         array_init(meta_struct);
+    } else if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
+        return false;
     }
 
-    zval *dd_stack = dd_hash_find_or_new(Z_ARR_P(meta_struct), _dd_stack_key);
-    if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
+    zval *dd_stack = zend_hash_find(Z_ARR_P(meta_struct), _dd_stack_key);
+    zval *exploit = NULL;
+    if (!dd_stack || Z_TYPE_P(dd_stack) == IS_NULL) {
+        dd_stack = zend_hash_add_new(
+            Z_ARR_P(meta_struct), _dd_stack_key, &EG(uninitialized_zval));
         array_init(dd_stack);
+        exploit = zend_hash_add_new(
+            Z_ARR_P(dd_stack), _exploit_key, &EG(uninitialized_zval));
+        array_init(exploit);
+    } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
+        return false;
+    } else {
+        exploit = zend_hash_find(Z_ARR_P(dd_stack), _exploit_key);
     }
 
-    zval *exploit = dd_hash_find_or_new(Z_ARR_P(dd_stack), _exploit_key);
     if (Z_TYPE_P(exploit) != IS_ARRAY) {
-        array_init(exploit);
+        return false;
     }
 
     unsigned int limit = get_global_DD_APPSEC_MAX_STACK_TRACES();
     if (limit != 0 && zend_array_count(Z_ARR_P(exploit)) == limit) {
         mlog(dd_log_debug,
             "Stacktrace not generated due to limit "
-            "D_APPSEC_MAX_STACK_TRACES(%d) has been reached",
+            "DD_APPSEC_MAX_STACK_TRACES(%u) has been reached",
             limit);
         return false;
     }
@@ -310,6 +325,10 @@ void dd_backtrace_startup()
     _frame_function = zend_string_init_interned(LSTRARG("function"), 1);
     _frame_file = zend_string_init_interned(LSTRARG("file"), 1);
     _id_key = zend_string_init_interned(LSTRARG("id"), 1);
+    _line_field = zend_string_init_interned(LSTRARG("line"), 1);
+    _file_field = zend_string_init_interned(LSTRARG("file"), 1);
+    _function_field = zend_string_init_interned(LSTRARG("function"), 1);
+    _class_field = zend_string_init_interned(LSTRARG("class"), 1);
 #ifdef TESTING
     _register_testing_objects();
 #endif

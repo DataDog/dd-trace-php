@@ -26,8 +26,6 @@ namespace DDTrace {
 namespace {
     include __DIR__ . '/inc/ddtrace_version.php';
 
-    ddtrace_version_at_least('0.79.0');
-
     function two($param01, $param02)
     {
         var_dump(ltrim("     Verify the wrapped function works"));
@@ -58,7 +56,7 @@ array(3) {
     [0]=>
     array(4) {
       ["line"]=>
-      int(26)
+      int(24)
       ["function"]=>
       string(5) "ltrim"
       ["file"]=>
@@ -69,7 +67,7 @@ array(3) {
     [1]=>
     array(4) {
       ["line"]=>
-      int(31)
+      int(29)
       ["function"]=>
       string(3) "two"
       ["file"]=>
@@ -80,7 +78,7 @@ array(3) {
     [2]=>
     array(4) {
       ["line"]=>
-      int(39)
+      int(37)
       ["function"]=>
       string(3) "one"
       ["file"]=>
