@@ -721,9 +721,12 @@ PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
     zval exceptionAttributes;
     array_init(&exceptionAttributes);
 
+    // Define a zval to hold the return value of zend_read_property
+    zval rv;
+
     // Get exception message, type, and stack trace directly
-    add_assoc_zval_ex(&exceptionAttributes, ZEND_STRL("exception.message"),
-                      zend_read_property(Z_OBJCE_P(exception), Z_OBJ_P(exception), ZEND_STRL("message"), 1, NULL));
+    zval *message = zend_read_property(Z_OBJCE_P(exception), Z_OBJ_P(exception), ZEND_STRL("message"), 1, &rv);
+    add_assoc_zval_ex(&exceptionAttributes, ZEND_STRL("exception.message"), message);
     add_assoc_str(&exceptionAttributes, "exception.type", zend_string_copy(Z_OBJCE_P(exception)->name));
 
     // Get the exception stack trace using zai_get_trace_without_args_from_exception_skip_frames
