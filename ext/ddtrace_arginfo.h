@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d3d3a85efaaea296775704c9ab8682b232035fa1 */
+ * Stub hash: bf1354f2d893b4b64a9bac73811ccf30d6b6704a */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -560,12 +560,6 @@ static zend_class_entry *register_class_DDTrace_ExceptionSpanEvent(zend_class_en
 	zend_string *property_exception_class_Throwable = zend_string_init("Throwable", sizeof("Throwable")-1, 1);
 	zend_declare_typed_property(class_entry, property_exception_name, &property_exception_default_value, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_exception_class_Throwable, 0, 0));
 	zend_string_release(property_exception_name);
-
-	zval property_attributes_default_value;
-	ZVAL_UNDEF(&property_attributes_default_value);
-	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, 1);
-	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
-	zend_string_release(property_attributes_name);
 
 	return class_entry;
 }
