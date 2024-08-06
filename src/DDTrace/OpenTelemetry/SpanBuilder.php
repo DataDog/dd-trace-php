@@ -120,7 +120,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($exception),
         ];
 
-        // Update span metadata based on exception attributes
+        // Update span metadata based on exception stack
         $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
 
         // Merge additional attributes

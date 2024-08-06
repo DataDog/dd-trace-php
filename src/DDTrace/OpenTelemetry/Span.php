@@ -380,22 +380,12 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
         if (!$this->hasEnded()) {
-            // Standardized exception attributes
-            $exceptionAttributes = [
-                'exception.message' => $attributes['exception.message'] ?? $exception->getMessage(),
-                'exception.type' => $attributes['exception.type'] ?? get_class($exception),
-                'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($exception),
-            ];
-
-            // Update span metadata based on exception attributes
-            $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
-
-            // Merge additional attributes
-            $allAttributes = array_merge($exceptionAttributes, \is_array($attributes) ? $attributes : iterator_to_array($attributes));
+            // Update span metadata based on exception stack
+            $this->setAttribute(Tag::ERROR_STACK, \DDTrace\get_sanitized_exception_trace($exception));
 
             $this->span->events[] = new ExceptionSpanEvent(
                 $exception,
-                $allAttributes
+                $attributes
             );
         }
 

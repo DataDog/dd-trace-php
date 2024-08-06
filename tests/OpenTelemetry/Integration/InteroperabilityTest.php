@@ -1247,7 +1247,6 @@ final class InteroperabilityTest extends BaseTestCase
 
     public function testOtelRecordExceptionAttributesSerialization()
     {
-
         $lastException = new \Exception("woof3");
 
         $traces = $this->isolateTracer(function () use ($lastException)  {
@@ -1259,8 +1258,6 @@ final class InteroperabilityTest extends BaseTestCase
                 ->startSpan();
 
             $otelSpan->addEvent("non_exception_event", ["exception.stacktrace" => "non-error"]);
-
-
             $otelSpan->recordException($lastException, ["exception.message" => "message override"]);
 
             $otelSpan->end();

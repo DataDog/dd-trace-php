@@ -66,7 +66,7 @@ namespace DDTrace {
         /**
          * @var \Throwable
          */
-        private \Throwable $exception;
+        public \Throwable $exception;
     }
 
     class SpanLink implements \JsonSerializable {
