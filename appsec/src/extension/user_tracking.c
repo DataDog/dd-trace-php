@@ -70,17 +70,11 @@ void dd_user_tracking_startup(void)
         zend_string_init_interned(LSTRARG("sha256"), 1 /* persistent */);
 
 #if PHP_VERSION_ID < 80000
-    void *handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
-    if (handle == NULL) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
-    } else {
-        _hash_fetch_ops = (hash_fetch_ops_t)dlsym(handle, "php_hash_fetch_ops");
-        if (!_hash_fetch_ops) {
-            mlog(dd_log_warning, "Failed to load php_hash_fetch_ops: %s",
-                dlerror()); // NOLINT(concurrency-mt-unsafe)
-        }
-        dlclose(handle);
+    _hash_fetch_ops =
+        (hash_fetch_ops_t)dlsym(RTLD_DEFAULT, "php_hash_fetch_ops");
+    if (!_hash_fetch_ops) {
+        mlog(dd_log_warning, "Failed to load php_hash_fetch_ops: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 #endif
 
@@ -162,18 +156,23 @@ bool dd_parse_user_collection_mode(
         return false;
     }
 
-    size_t len = strlen((const char *)value.ptr);
-    if (dd_string_equals_lc(value.ptr, len, ZEND_STRL("ident")) ||
-        dd_string_equals_lc(value.ptr, len, ZEND_STRL("identification")) ||
-        dd_string_equals_lc(value.ptr, len, ZEND_STRL("extended"))) {
+    if (dd_string_equals_lc(value.ptr, value.len, ZEND_STRL("ident")) ||
+        dd_string_equals_lc(
+            value.ptr, value.len, ZEND_STRL("identification")) ||
+        dd_string_equals_lc(value.ptr, value.len, ZEND_STRL("extended"))) {
         _user_mode = user_mode_ident;
-    } else if (dd_string_equals_lc(value.ptr, len, ZEND_STRL("anon")) ||
+    } else if (dd_string_equals_lc(value.ptr, value.len, ZEND_STRL("anon")) ||
                dd_string_equals_lc(
-                   value.ptr, len, ZEND_STRL("anonymization")) ||
-               dd_string_equals_lc(value.ptr, len, ZEND_STRL("safe"))) {
+                   value.ptr, value.len, ZEND_STRL("anonymization")) ||
+               dd_string_equals_lc(value.ptr, value.len, ZEND_STRL("safe"))) {
         _user_mode = user_mode_anon;
     } else { // If the value is disabled or an unknown value, we disable user ID
              // collection
+
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog_g(dd_log_warning, "Unknown user collection mode: %.*s",
+                (int)value.len, value.ptr);
+        }
         _user_mode = user_mode_disabled;
     }
 
