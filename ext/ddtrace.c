@@ -621,13 +621,13 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 #endif
 }
 
-static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name, zval *attributes, zend_long timestamp)
+static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name, zend_long timestamp)
 {
-    zval garbage_name, garbage_attributes;
+    zval garbage_name, garbage_timestamp;
 
     // Copy current values to temporary zval variables
     ZVAL_COPY_VALUE(&garbage_name, &event->property_name);
-    ZVAL_COPY_VALUE(&garbage_attributes, &event->property_attributes);
+    ZVAL_COPY_VALUE(&garbage_timestamp, &event->property_timestamp);
 
     // Update event properties
     ZVAL_STR_COPY(&event->property_name, name);
@@ -640,15 +640,9 @@ static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name
     }
     ZVAL_LONG(&event->property_timestamp, timestamp);
 
-    if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {
-        ZVAL_COPY(&event->property_attributes, attributes);
-    } else {
-        array_init(&event->property_attributes);
-    }
-
     // Free the copied values after replacement
     zval_ptr_dtor(&garbage_name);
-    zval_ptr_dtor(&garbage_attributes);
+    zval_ptr_dtor(&garbage_timestamp);
 }
 
 /* DDTrace\SpanEvent */
@@ -657,27 +651,71 @@ zend_class_entry *ddtrace_ce_span_event;
 PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
     ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
 
-    zend_array *array = zend_new_array(3);
+    zval array;
+    array_init(&array);
 
     zend_string *name = zend_string_init("name", sizeof("name") - 1, 0);
     zend_string *timestamp = zend_string_init("time_unix_nano", sizeof("time_unix_nano") - 1, 0);
 
     Z_TRY_ADDREF(event->property_name);
-    zend_hash_add(array, name, &event->property_name);
+    add_assoc_zval(&array, ZSTR_VAL(name), &event->property_name);
     Z_TRY_ADDREF(event->property_timestamp);
-    zend_hash_add(array, timestamp, &event->property_timestamp);
+    add_assoc_zval(&array, ZSTR_VAL(timestamp), &event->property_timestamp);
 
     zend_string_release(name);
     zend_string_release(timestamp);
 
-    if (Z_TYPE(event->property_attributes) == IS_ARRAY && Z_ARRVAL(event->property_attributes)->nNumOfElements > 0) {
-        zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
-        Z_TRY_ADDREF(event->property_attributes);
-        zend_hash_add(array, attributes, &event->property_attributes);
-        zend_string_release(attributes);
+    // Handle attributes dynamically
+    zval *attributes = &event->property_attributes;
+    zval combinedAttributes;
+    array_init(&combinedAttributes);
+
+    if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {
+        zend_hash_copy(Z_ARRVAL(combinedAttributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref);
     }
 
-    RETURN_ARR(array);
+    // Handle exception attributes dynamically if an exception property exists
+    ddtrace_exception_span_event *exception_event = (ddtrace_exception_span_event*)event;
+    zval *exception = &exception_event->property_exception;
+    if (exception && Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
+        zval exceptionAttributes;
+        array_init(&exceptionAttributes);
+
+        // Define a zval to hold the return value of zend_read_property
+        zval rv;
+
+        // Get exception message, type, and stack trace directly
+        zval *message = zend_read_property(Z_OBJCE_P(exception), Z_OBJ_P(exception), ZEND_STRL("message"), 1, &rv);
+        if (Z_TYPE_P(message) != IS_NULL) {
+            add_assoc_zval_ex(&exceptionAttributes, ZEND_STRL("exception.message"), message);
+            Z_ADDREF_P(message);
+        }
+        add_assoc_str(&exceptionAttributes, "exception.type", zend_string_copy(Z_OBJCE_P(exception)->name));
+
+        // Get the exception stack trace using zai_get_trace_without_args_from_exception_skip_frames
+        zend_string *stacktrace = zai_get_trace_without_args_from_exception_skip_frames(Z_OBJ_P(exception), 0);
+        if (stacktrace) {
+            add_assoc_str(&exceptionAttributes, "exception.stacktrace", stacktrace);
+        }
+
+        // Merge the exception attributes into the combined attributes
+        zend_hash_merge(Z_ARRVAL(combinedAttributes), Z_ARRVAL(exceptionAttributes), (copy_ctor_func_t)zval_add_ref, 1);
+        zval_ptr_dtor(&exceptionAttributes);
+    }
+
+    if (zend_hash_num_elements(Z_ARRVAL(combinedAttributes)) > 0) {
+        zval combinedAttributesZval;
+        ZVAL_ARR(&combinedAttributesZval, Z_ARRVAL(combinedAttributes));
+        Z_ADDREF(combinedAttributesZval); // Ensure combinedAttributesZval reference count is incremented
+        zend_string *attr_key = zend_string_init("attributes", sizeof("attributes") - 1, 0);
+        add_assoc_zval(&array, ZSTR_VAL(attr_key), &combinedAttributesZval);
+        zend_string_release(attr_key);
+        zval_ptr_dtor(&combinedAttributesZval); // Decrement reference count since add_assoc_zval increments it
+    } else {
+        zval_ptr_dtor(&combinedAttributes); // Clean up if no elements
+    }
+
+    RETURN_ZVAL(&array, 1, 1); // Return the array
 }
 
 PHP_METHOD(DDTrace_SpanEvent, __construct)
@@ -698,7 +736,12 @@ PHP_METHOD(DDTrace_SpanEvent, __construct)
     ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
 
     // Use the static function to set properties and handle cleanup
-    dd_span_event_construct(event, name, attributes, timestamp);
+    dd_span_event_construct(event, name, timestamp);
+
+    // Store attributes directly in the object properties
+    if (attributes) {
+        zend_update_property(ddtrace_ce_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
+    }
 }
 
 /* DDTrace\ExceptionSpanEvent */
@@ -717,44 +760,20 @@ PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
         Z_PARAM_ARRAY_EX(attributes, 1, 0)
     ZEND_PARSE_PARAMETERS_END();
 
-    // Standardized exception attributes
-    zval exceptionAttributes;
-    array_init(&exceptionAttributes);
-
-    // Define a zval to hold the return value of zend_read_property
-    zval rv;
-
-    // Get exception message, type, and stack trace directly
-    zval *message = zend_read_property(Z_OBJCE_P(exception), Z_OBJ_P(exception), ZEND_STRL("message"), 1, &rv);
-    add_assoc_zval_ex(&exceptionAttributes, ZEND_STRL("exception.message"), message);
-    add_assoc_str(&exceptionAttributes, "exception.type", zend_string_copy(Z_OBJCE_P(exception)->name));
-
-    // Get the exception stack trace using zai_get_trace_without_args_from_exception_skip_frames
-    zend_string *stacktrace = zai_get_trace_without_args_from_exception_skip_frames(Z_OBJ_P(exception), 0);
-    add_assoc_str(&exceptionAttributes, "exception.stacktrace", stacktrace);
-
-    // Merge additional attributes, with provided attributes overriding standardized attributes
-    zval allAttributes;
-    array_init(&allAttributes);
-
-    if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {
-        zend_hash_copy(Z_ARRVAL(allAttributes), Z_ARRVAL_P(&exceptionAttributes), (copy_ctor_func_t)zval_add_ref);
-        zend_hash_merge(Z_ARRVAL(allAttributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref, 1);
-    } else {
-        zend_hash_copy(Z_ARRVAL(allAttributes), Z_ARRVAL_P(&exceptionAttributes), (copy_ctor_func_t)zval_add_ref);
-    }
-
-    zval_ptr_dtor(&exceptionAttributes);
-
     zend_string *name = zend_string_init("exception", sizeof("exception") - 1, 0);
 
-    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+    ddtrace_exception_span_event *event = (ddtrace_exception_span_event*)Z_OBJ_P(ZEND_THIS);
 
     // Use the static function to set properties and handle cleanup
-    dd_span_event_construct(event, name, &allAttributes, 0);
+    dd_span_event_construct((ddtrace_span_event *)event, name, 0);
+
+    // Store exception and attributes directly in the object properties
+    zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("exception"), exception);
+    if (attributes) {
+        zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
+    }
 
     zend_string_release(name);
-    zval_ptr_dtor(&allAttributes);
 }
 
 /* DDTrace\SpanLink */

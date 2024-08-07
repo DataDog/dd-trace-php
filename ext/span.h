@@ -184,6 +184,17 @@ struct ddtrace_span_event {
     };
 };
 
+struct ddtrace_exception_span_event {
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_exception;
+            zval property_attributes;
+        };
+    };
+};
+
 struct ddtrace_git_metadata {
     union {
         zend_object std;
