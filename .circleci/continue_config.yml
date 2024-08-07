@@ -5331,27 +5331,6 @@ workflows:
               make_target:
                 - test_distributed_tracing
 
-      - integration:
-          # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that
-          # only shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
-          # Since we run tests using php debug builds, we have to run test_integrations_phpredis5 in a separate runner
-          # and switch to a non-debug PHP build.
-          # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
-          # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
-          requires: [ 'Prepare Code' ]
-          with_executor: 'with_redis'
-          matrix:
-            parameters:
-              php_major_minor:
-                - '8.0'
-                - '8.1'
-                - '8.2'
-                - '8.3'
-              switch_php_version:
-                - nts
-              make_target:
-                - test_integrations_phpredis5
-
       - integration_tests:
           requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 72 web tests with apache (+ opcache)"

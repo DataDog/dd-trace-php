@@ -222,7 +222,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             function ($execute) use (&$found) {
                 $found = json_decode($execute(GetSpec::create(
                     __FUNCTION__,
-                    '/guzzle_in_distributed_web_request.php',
+                    '/guzzle_in_distributed_web_request.php?version=' . basename(dirname(str_replace("\\", "/", static::class))),
                     [
                     'x-datadog-sampling-priority: ' . PrioritySampling::AUTO_KEEP,
                     ]
@@ -384,7 +384,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     {
         $traces = $this->inWebServer(
             function ($execute) {
-                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php'));
+                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php?version=' . basename(dirname(str_replace("\\", "/", static::class)))));
             },
             __DIR__ . '/guzzle_in_web_request.php',
             [

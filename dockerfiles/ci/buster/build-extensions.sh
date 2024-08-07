@@ -5,6 +5,7 @@ set -eux
 SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0; fi)
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 PHP_ZTS=$(php -r 'echo PHP_ZTS;')
+EXTENSION_DIR=$(php-config --extension-dir)
 
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
@@ -81,14 +82,14 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   phpize
   ./configure
   make
-  mv ./modules/*.so $(php-config --extension-dir)
+  mv ./modules/*.so $EXTENSION_DIR
   make clean
 
   for curlVer in ${CURL_VERSIONS}; do
     PKG_CONFIG_PATH=/opt/curl/${curlVer}/lib/pkgconfig/
     ./configure
     make
-    mv ./modules/curl.so $(php-config --extension-dir)/curl-${curlVer}.so
+    mv ./modules/curl.so $EXTENSION_DIR/curl-${curlVer}.so
     make clean
   done
   phpize --clean
@@ -114,8 +115,6 @@ else
   yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
-  # Redis 6.0.0 dropped support for PHP 7.1 and below
-  pecl install redis$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -5.3.7; fi); echo "extension=redis.so" >> ${iniDir}/redis.ini;
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
@@ -125,9 +124,28 @@ else
   done
   echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
 
-  # ext-parallel needs PHP 8
+  # ext-parallel and ext-swoole need PHP 8
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_ZTS -eq 1 ]]; then
     pecl install parallel;
     echo "extension=parallel" >> ${iniDir}/parallel.ini;
+
+    pecl install swoole-5.1.2; # we don't install swoole here
+  fi
+
+  # We don't install any redis.so to inis, but allow selection at runtime.
+  if [[ $PHP_VERSION_ID -lt 80 ]]; then
+    pecl install redis-3.1.6
+    mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-3.1.6.so
+    pecl install redis-4.3.0
+    mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-4.3.0.so
+  fi
+  pecl install redis-5.3.7
+
+  # Redis 6.0.0 dropped support for PHP 7.1 and below
+  if [[ $PHP_VERSION_ID -gt 71 ]]; then
+    mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
+    pecl install redis
+  else
+    ln -s $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
   fi
 fi

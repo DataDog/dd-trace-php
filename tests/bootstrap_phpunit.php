@@ -2,17 +2,7 @@
 
 error_reporting(E_ALL);
 
-if (getenv('DD_AUTOLOAD_NO_COMPILE') == 'true' && (false !== getenv('CI') || false !== getenv('CIRCLECI'))) {
-    throw new Exception('Tests must run using the _generated.php script in CI');
-}
-
-// Setting an environment variable to signal we are in a tests run
-putenv('DD_TEST_EXECUTION=1');
-
-if (function_exists("dd_trace_env_config") && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-    // Only explicit flushes with sidecar
-    putenv("DD_TRACE_AGENT_FLUSH_INTERVAL=3000000");
-}
+require __DIR__ . '/bootstrap_common.php';
 
 $phpunitVersionParts = class_exists('\PHPUnit\Runner\Version')
     ? explode('.', \PHPUnit\Runner\Version::id())
@@ -49,3 +39,30 @@ if (!defined('GLOBAL_PORT_OFFSET')) {
     define('GLOBAL_AUTO_PREPEND_FILE', getenv('PHPUNIT_COVERAGE') ? __DIR__ . '/save_code_coverage.php' : "");
 }
 update_test_agent_session_token('phpunit-' . GLOBAL_PORT_OFFSET);
+
+// ensure the integration-specific autoloader is loaded
+$hook = function ($object, $scope, $args) {
+    $path = dirname($args[0]);
+    if (strpos($path, "vendor")) {
+        return; // No nested vendor
+    }
+    while (strlen($path) > strlen(__DIR__)) {
+        if (file_exists("$path/vendor/autoload.php")) {
+            putenv("COMPOSER_ROOT_VERSION=1.0.0"); // silence composer
+            \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath = "$path/vendor/autoload.php";
+            require_once \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath;
+            return;
+        } elseif (file_exists("$path/composer.json")) {
+            \DDTrace\Testing\trigger_error("Found $path/composer.json, but seems not installed", E_USER_ERROR);
+        }
+        $path = dirname($path);
+    }
+};
+if (class_exists('PHPUnit\Runner\StandardTestSuiteLoader')) {
+    \DDTrace\hook_method('PHPUnit\Util\FileLoader', 'load', $hook);
+    \DDTrace\hook_method('PHPUnit\Runner\StandardTestSuiteLoader', 'load', $hook);
+} elseif (method_exists('PHPUnit\Runner\TestSuiteLoader', 'loadSuiteClassFile')) {
+    \DDTrace\hook_method('PHPUnit\Runner\TestSuiteLoader', 'loadSuiteClassFile', $hook);
+} else {
+    \DDTrace\hook_method('PHPUnit\Runner\TestSuiteLoader', 'load', $hook);
+}

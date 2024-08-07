@@ -1,0 +1,7 @@
+{
+    "require": {
+        "open-telemetry/sdk": "@stable",
+        "open-telemetry/extension-propagator-b3": "@stable",
+        "open-telemetry/opentelemetry-logger-monolog": "@stable"
+    }
+}

@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\AMQP;
+namespace DDTrace\Tests\Integrations\AMQP\V2;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -9,7 +9,7 @@ use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 
-final class AMQPTest extends IntegrationTestCase
+class AMQPTest extends IntegrationTestCase
 {
     /**
      * @return AMQPStreamConnection
@@ -880,23 +880,25 @@ final class AMQPTest extends IntegrationTestCase
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
         $sendTraces = $this->inCli(
-            __DIR__ . '/scripts/send.php',
+            __DIR__ . '/../scripts/send.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
                 'DD_TRACE_CLI_ENABLED' => 'true',
-            ]
+            ],
+            [],
+            self::$autoloadPath
         );
 
         list($receiveTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/receive.php',
+            __DIR__ . '/../scripts/receive.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_CLI_ENABLED' => 'true',
             ],
             [],
-            '',
+            self::$autoloadPath,
             true
         );
 
@@ -924,24 +926,26 @@ final class AMQPTest extends IntegrationTestCase
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
         $sendTraces = $this->inCli(
-            __DIR__ . '/scripts/send.php',
+            __DIR__ . '/../scripts/send.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_DISTRIBUTED_TRACING' => 'false'
-            ]
+            ],
+            [],
+            self::$autoloadPath
         );
 
         list($receiveTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/receive.php',
+            __DIR__ . '/../scripts/receive.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_CLI_ENABLED' => 'true'
             ],
             [],
-            '',
+            self::$autoloadPath,
             true
         );
 
