@@ -51,4 +51,4 @@ var_dump($span['meta']['events']);
 ?>
 --EXPECTF--
 Caught exception: Exception in method
-string(509) "[{"name":"exception","time_unix_nano":%d,"attributes":{"exception.message":"override message","exception.type":"Exception","exception.stacktrace":"#0 \/home\/circleci\/app\/tmp\/build_extension\/tests\/ext\/request-replayer\/dd_trace_exception_span_event.php(10): ExceptionClass->{closure}()\n#1 \/home\/circleci\/app\/tmp\/build_extension\/tests\/ext\/request-replayer\/dd_trace_exception_span_event.php(28): ExceptionClass->exceptionMethod()\n#2 {main}","custom.attribute":"custom value"}}]"
+string(%d) "[{"name":"exception","time_unix_nano":%d,"attributes":{"exception.message":"override message","exception.type":"Exception","exception.stacktrace":"#0 %s(%d): ExceptionClass->{closure}()\n#1 %s(%d): ExceptionClass->exceptionMethod()\n#2 {main}","custom.attribute":"custom value"}}]"
