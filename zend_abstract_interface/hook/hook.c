@@ -1081,7 +1081,15 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
                     zend_class_entry *ce = NULL;
                     zend_function *origin_func = zai_hook_lookup_function((zai_str)ZAI_STR_FROM_ZSTR(hook->scope), (zai_str)ZAI_STR_FROM_ZSTR(hook->function), &ce);
                     zai_hook_table_find(&zai_hook_resolved, zai_hook_install_address(origin_func), (void**)&hooks);
+#if PHP_VERSION_ID >= 80000
+                    zai_hook_last_observer = NULL;
                     zai_hook_remove_abstract_recursive(hooks, ce, hook->function, (zend_ulong)-hook->id);
+                    if (zai_hook_last_observer) {
+                        zai_hook_last_observer(ex, rv);
+                    }
+#else
+                    zai_hook_remove_abstract_recursive(hooks, ce, hook->function, (zend_ulong)-hook->id);
+#endif
                     address = zai_hook_install_address(hooks->resolved);
                 }
                 zend_hash_index_del(&hooks->hooks, (zend_ulong) -hook->id);
