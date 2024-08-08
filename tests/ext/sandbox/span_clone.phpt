@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (20) {
+object(DDTrace\RootSpanData)#%d (21) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -57,6 +57,9 @@ object(DDTrace\RootSpanData)#%d (20) {
   ["links"]=>
   array(0) {
   }
+  ["events"]=>
+  array(0) {
+  }
   ["peerServiceSources"]=>
   array(0) {
   }
@@ -87,7 +90,7 @@ object(DDTrace\RootSpanData)#%d (20) {
   ["gitMetadata"]=>
   NULL
 }
-object(DDTrace\RootSpanData)#%d (20) {
+object(DDTrace\RootSpanData)#%d (21) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -120,6 +123,9 @@ object(DDTrace\RootSpanData)#%d (20) {
   ["links"]=>
   array(0) {
   }
+  ["events"]=>
+  array(0) {
+  }
   ["peerServiceSources"]=>
   array(0) {
   }
@@ -135,7 +141,7 @@ object(DDTrace\RootSpanData)#%d (20) {
       NULL
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (20) {
+    object(DDTrace\RootSpanData)#%d (21) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -166,6 +172,9 @@ object(DDTrace\RootSpanData)#%d (20) {
       ["id"]=>
       string(%d) "%s"
       ["links"]=>
+      array(0) {
+      }
+      ["events"]=>
       array(0) {
       }
       ["peerServiceSources"]=>
