@@ -8,7 +8,7 @@ extension=ddtrace.so
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
 
-use function datadog\appsec\testing\report_exploit_backtrace;
+use function datadog\appsec\testing\{report_exploit_backtrace, decode_msgpack};
 
 function two($param01, $param02)
 {
@@ -26,16 +26,45 @@ one("foo");
 DDTrace\close_span(0);
 $span = dd_trace_serialize_closed_spans();
 $meta_struct = $span[0]["meta_struct"];
-foreach($meta_struct as &$m)
-{
-    $m = bin2hex($m);
-}
-var_dump($meta_struct);
+var_dump(decode_msgpack($meta_struct["_dd.stack"]));
 DDTrace\flush();
 ?>
 --EXPECTF--
 bool(true)
 array(1) {
-  ["_dd.stack"]=>
-  &string(%d) "81a76578706c6f69749183a86c616e6775616765a3706870a26964a7736f6d65206964a66672616d65739284a46c696e650da866756e6374696f6ea374776fa466696c65b77265706f72745f6261636b74726163655f30312e706870a269640084a46c696e6512a866756e6374696f6ea36f6e65a466696c65b77265706f72745f6261636b74726163655f30312e706870a2696401"
+  ["exploit"]=>
+  array(1) {
+    [0]=>
+    array(3) {
+      ["language"]=>
+      string(3) "php"
+      ["id"]=>
+      string(7) "some id"
+      ["frames"]=>
+      array(2) {
+        [0]=>
+        array(4) {
+          ["line"]=>
+          int(13)
+          ["function"]=>
+          string(3) "two"
+          ["file"]=>
+          string(23) "report_backtrace_01.php"
+          ["id"]=>
+          int(0)
+        }
+        [1]=>
+        array(4) {
+          ["line"]=>
+          int(18)
+          ["function"]=>
+          string(3) "one"
+          ["file"]=>
+          string(23) "report_backtrace_01.php"
+          ["id"]=>
+          int(1)
+        }
+      }
+    }
+  }
 }

@@ -42,6 +42,7 @@
 #include "string_helpers.h"
 #include "tags.h"
 #include "user_tracking.h"
+#include "msgpack_helpers.h"
 
 #include <json/json.h>
 
@@ -220,6 +221,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_ip_extraction_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
+    dd_msgpack_helpers_startup();
 
     return SUCCESS;
 }
