@@ -46,7 +46,7 @@ typedef struct ddtrace_coms_state_t {
     bool bgs_fallback_telemetry;
     char initial_service_name[100];
     
-    char test_session_token[100];
+    char test_session_token[255];
 } ddtrace_coms_state_t;
 
 inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) { return atomic_load(&stack->refcount) == 0; }

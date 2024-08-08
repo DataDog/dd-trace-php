@@ -54,6 +54,11 @@ final class RoadrunnerServer implements Sapi
         $this->version = $version;
         $this->workerFile = $workerFile;
 
+        $token = ini_get('datadog.trace.agent_test_session_token');
+        if ($token != "") {
+            $envs["DD_TRACE_AGENT_TEST_SESSION_TOKEN"] = $token;
+        }
+
         $logPath = dirname($workerFile) . '/' . self::ERROR_LOG;
 
         switch (php_uname('m')) {
@@ -66,9 +71,6 @@ final class RoadrunnerServer implements Sapi
                 $this->target = "amd64";
         }
 
-        if (GLOBAL_AUTO_PREPEND_FILE) {
-            $this->inis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
-        }
         if (getenv('PHPUNIT_COVERAGE')) {
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);

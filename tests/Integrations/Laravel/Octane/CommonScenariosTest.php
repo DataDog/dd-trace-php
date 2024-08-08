@@ -9,8 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    public static $iniPath;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Octane/artisan';
@@ -23,11 +21,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public static function ddSetUpBeforeClass()
     {
-        $iniFiles = php_ini_scanned_files();
-        $iniFile = explode(',', $iniFiles)[0];
-        $iniDir = dirname($iniFile);
-        self::$iniPath = $iniDir . '/swoole.ini';
-
         $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
 
         $currentDir = getcwd();
@@ -40,7 +33,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             $swooleIni = str_replace('datadog.autoload_no_compile=true', 'datadog.autoload_no_compile=false', $swooleIni);
         }
 
-        file_put_contents(self::$iniPath, $swooleIni);
+        file_put_contents(dirname(self::getAppIndexScript()) . "/swoole.ini", $swooleIni);
 
         parent::ddSetUpBeforeClass();
     }
@@ -48,7 +41,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
-        unlink(self::$iniPath);
     }
 
     protected static function getEnvs()
@@ -56,7 +48,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'swoole_test_app',
             'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_TRACE_DEBUG' => 'true'
+            'DD_TRACE_DEBUG' => 'true',
+            'PHP_INI_SCAN_DIR' => ':' . dirname(self::getAppIndexScript()),
         ]);
     }
 

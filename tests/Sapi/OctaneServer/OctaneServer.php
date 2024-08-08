@@ -57,14 +57,15 @@ final class OctaneServer implements Sapi
 
     public function start()
     {
-        if (GLOBAL_AUTO_PREPEND_FILE) {
-            $this->inis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
-        }
         if (getenv('PHPUNIT_COVERAGE')) {
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $this->inis['zend_extension'] = $xdebugExtension;
             $this->inis['xdebug.mode'] = 'coverage';
+        }
+        $token = ini_get('datadog.trace.agent_test_session_token');
+        if ($token != "") {
+            $this->envs["DD_TRACE_AGENT_TEST_SESSION_TOKEN"] = $token;
         }
 
         $cmd = sprintf(
@@ -95,7 +96,7 @@ final class OctaneServer implements Sapi
         $this->process->stop(0);
 
         $cmd = sprintf(
-            PHP_BINARY . ' %s octane:stop',
+            PHP_BINARY . ' -d extension=swoole %s octane:stop',
             $this->artisanFile
         );
         $process = new Process($cmd);

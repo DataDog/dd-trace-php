@@ -4,15 +4,12 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class InternalExceptionsTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
+    public static $database = "laravel8";
 
     protected static function getAppIndexScript()
     {

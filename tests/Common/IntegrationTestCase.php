@@ -16,6 +16,9 @@ abstract class IntegrationTestCase extends BaseTestCase
     private $errorReportingBefore;
     public static $autoloadPath = null;
 
+    public static $database = "test";
+    private static $createdDatabases = ["test" => true];
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
@@ -48,6 +51,12 @@ abstract class IntegrationTestCase extends BaseTestCase
         }
 
         file_put_contents($artifactsDir . "/composer_versions.csv", $csv, FILE_APPEND);
+
+        if (isset(static::$database) && !isset(self::$createdDatabases[static::$database])) {
+            $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS " . static::$database);
+            self::$createdDatabases[static::$database] = true;
+        }
     }
 
     public static function ddTearDownAfterClass()
@@ -59,6 +68,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     protected function ddSetUp()
     {
         $this->errorReportingBefore = error_reporting();
+        $this->resetTracer(); // Needs reset so we can remove root span
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         parent::ddSetUp();
     }

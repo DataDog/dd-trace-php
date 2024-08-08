@@ -10,6 +10,8 @@ use Exception;
 
 class PHPRedisClusterTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "redis";
+
     const CONNECTION_1 = 'CONNECTION_1';
     const CONNECTION_1_AS_ARG = 'CONNECTION_1_AS_ARG';
     const A_STRING = 'A_STRING';

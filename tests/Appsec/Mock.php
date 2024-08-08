@@ -6,6 +6,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
     class AppsecStatus {
 
         private static $instance = null;
+        private $connection;
 
         protected function __construct() {
         }
@@ -21,7 +22,12 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 
         protected function getDbPdo()
         {
-            return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+            if (!isset($this->connection)) {
+                $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+                $pdo->exec("CREATE DATABASE IF NOT EXISTS test");
+                $this->connection = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+            }
+            return $this->connection;
         }
 
         /**

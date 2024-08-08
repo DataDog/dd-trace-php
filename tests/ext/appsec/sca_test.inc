@@ -22,12 +22,15 @@ for ($i = 0; $i < 100; ++$i) {
             if ($l) {
                 $json = json_decode($l, true);
                 if ($json) {
+                    if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
+                        continue;
+                    }
                     array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
                 }
             }
         }
         $found = array_filter($batches, function ($json) {
-            if ($json["request_type"] !== "app-started" || $json["application"]["service_name"] == "background_sender-php-service") {
+            if ($json["request_type"] !== "app-started") {
                 return false;
             }
             foreach($json["payload"]["configuration"] as $configuration) {

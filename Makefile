@@ -1034,13 +1034,19 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php -d extension=redis-5.3.7 $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
 define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7 $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
 endef
 
+define run_composer_with_lock
+	rm $1/composer.lock-php* 2>/dev/null || true
+	$(call run_composer_with_retry,$1,)
+	find $1/vendor* \( -name Tests -prune -o -name tests -prune \) -exec rm -rf '{}' \;
+	touch $1/composer.lock-php$(PHP_MAJOR_MINOR)
+endef
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
 dev:
@@ -1056,7 +1062,7 @@ clean_test:
 	find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
 
 composer_tests_update:
-	$(COMPOSER) --working-dir=$(TESTS_ROOT) update
+	$(call run_composer_with_lock,$(TESTS_ROOT))
 
 global_test_run_dependencies: install_all $(TESTS_ROOT)/./composer.lock-php$(PHP_MAJOR_MINOR)
 
@@ -1142,9 +1148,9 @@ test_integrations_coverage:
 	PHPUNIT_COVERAGE=1 $(MAKE) test_integrations
 
 test_integrations_amqp2: global_test_run_dependencies tests/Integrations/AMQP/V2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/AMQP)
+	$(call run_tests_debug,tests/Integrations/AMQP/V2)
 test_integrations_amqp35: global_test_run_dependencies tests/Integrations/AMQP/V3_5/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/AMQP)
+	$(call run_tests_debug,tests/Integrations/AMQP/V3_5)
 test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/Predis/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_curl: global_test_run_dependencies
@@ -1188,16 +1194,16 @@ test_integrations_pcntl: global_test_run_dependencies
 test_integrations_pdo: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PDO)
 test_integrations_phpredis3: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=redis-3.1.6)
+	$(eval TEST_EXTRA_INI=-d extension=redis-3.1.6.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V3)
 	$(eval TEST_EXTRA_INI=)
 test_integrations_phpredis4: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=redis-4.3.0)
+	$(eval TEST_EXTRA_INI=-d extension=redis-4.3.0.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V4)
 	$(eval TEST_EXTRA_INI=)
 test_integrations_phpredis5: global_test_run_dependencies
 	$(eval TEST_EXTRA_ENV=DD_IGNORE_ARGINFO_ZPP_CHECK=1)
-	$(eval TEST_EXTRA_INI=-d extension=redis-5.3.7)
+	$(eval TEST_EXTRA_INI=-d extension=redis-5.3.7.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V5)
 	$(eval TEST_EXTRA_INI=)
 	$(eval TEST_EXTRA_ENV=)
@@ -1210,9 +1216,7 @@ test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Road
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 test_integrations_swoole_5: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=swoole)
 	$(call run_tests_debug,--testsuite=swoole-test)
-	$(eval TEST_EXTRA_INI=)
 test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
 test_web_cakephp_310: global_test_run_dependencies tests/Frameworks/CakePHP/Version_3_10/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1225,11 +1229,11 @@ test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_codeigniter_31: global_test_run_dependencies tests/Frameworks/CodeIgniter/Version_3_1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=codeigniter-31-test)
-test_web_drupal_89: global_test_run_dependencies tests/Frameworks/Drupal/Version_8_9/core/composer.lock tests/Frameworks/Drupal/Version_8_9/composer.lock
+test_web_drupal_89: global_test_run_dependencies tests/Frameworks/Drupal/Version_8_9/core/composer.lock-php tests/Frameworks/Drupal/Version_8_9/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V8_9)
-test_web_drupal_95: global_test_run_dependencies tests/Frameworks/Drupal/Version_9_5/core/composer.lock tests/Frameworks/Drupal/Version_9_5/composer.lock
+test_web_drupal_95: global_test_run_dependencies tests/Frameworks/Drupal/Version_9_5/core/composer.lock-php tests/Frameworks/Drupal/Version_9_5/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V9_5)
-test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Version_10_1/core/composer.lock tests/Frameworks/Drupal/Version_10_1/composer.lock
+test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Version_10_1/core/composer.lock-php tests/Frameworks/Drupal/Version_10_1/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
 test_web_laminas_rest_19: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Version_1_9/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
@@ -1253,9 +1257,7 @@ test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Vers
 test_web_laravel_11x: global_test_run_dependencies tests/Frameworks/Laravel/Version_11_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-11x-test)
 test_web_laravel_octane: global_test_run_dependencies tests/Frameworks/Laravel/Octane/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(eval TEST_EXTRA_INI=-d extension=swoole)
 	$(call run_tests_debug,--testsuite=laravel-octane-test)
-	$(eval TEST_EXTRA_INI=)
 test_web_lumen_52: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)
 test_web_lumen_56: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_6/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1338,13 +1340,12 @@ test_web_zend_1_21: global_test_run_dependencies
 test_web_custom: global_test_run_dependencies tests/Frameworks/Custom/Version_Autoloaded/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
 
-tests/Frameworks/Drupal/%/composer.lock: tests/Frameworks/Drupal/%/composer.json
+tests/Frameworks/Drupal/%/composer.lock-php: tests/Frameworks/Drupal/%/composer.json
 	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs)
+	touch tests/Frameworks/Drupal/$(*)/composer.lock-php
 
 tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json
-	rm tests/$(*)/composer.lock-php* 2>/dev/null || true
-	$(call run_composer_with_retry,tests/$*,)
-	touch tests/$(*)/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_composer_with_lock,tests/$(*))
 
 merge_coverage_reports:
 	php -d memory_limit=-1 $(PHPCOV) merge --clover reports/coverage.xml reports/cov
