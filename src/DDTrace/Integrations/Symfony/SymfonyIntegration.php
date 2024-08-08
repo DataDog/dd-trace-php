@@ -9,10 +9,8 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
-use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
-use function DDTrace\install_hook;
 
 class SymfonyIntegration extends Integration
 {
@@ -258,6 +256,18 @@ class SymfonyIntegration extends Integration
                         return false;
                     }
 
+                    $commandName = $this->getName();
+
+                    if (\dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
+                        && $commandName === 'messenger:consume'
+                    ) {
+                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                        \dd_trace_close_all_spans_and_flush();
+                        ini_set("datadog.trace.auto_flush_enabled", 1);
+                        ini_set("datadog.trace.generate_root_span", 0);
+                        return false;
+                    }
+
                     $namespace = \get_class($this);
                     if (strpos($namespace, DrupalIntegration::NAME) !== false) {
                         $integration->frameworkPrefix = DrupalIntegration::NAME;
@@ -266,7 +276,7 @@ class SymfonyIntegration extends Integration
                     }
 
                     $span->name = 'symfony.console.command.run';
-                    $span->resource = $this->getName() ?: $span->name;
+                    $span->resource = $commandName ?: $span->name;
                     $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                     $span->type = Type::CLI;
                     $span->meta['symfony.console.command.class'] = \get_class($this);

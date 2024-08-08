@@ -9,45 +9,46 @@
 #define DD_TRACE_INTEGRATION_LOADED 1
 #define DD_TRACE_INTEGRATION_NOT_AVAILABLE 2
 
-#define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 16  // "symfonymessenger" FTW!
 
-#define DD_INTEGRATIONS                          \
-    INTEGRATION(AMQP, "amqp")                   \
-    INTEGRATION(CAKEPHP, "cakephp")             \
-    INTEGRATION(CODEIGNITER, "codeigniter")     \
-    INTEGRATION(EXEC, "exec")                   \
-    INTEGRATION(CURL, "curl")                   \
-    INTEGRATION(DRUPAL, "drupal")               \
-    INTEGRATION(ELASTICSEARCH, "elasticsearch") \
-    INTEGRATION(ELOQUENT, "eloquent")           \
-    INTEGRATION(FRANKENPHP, "frankenphp")       \
-    INTEGRATION(GUZZLE, "guzzle")               \
-    INTEGRATION(LAMINAS, "laminas")             \
-    INTEGRATION(LARAVEL, "laravel")             \
-    INTEGRATION(LARAVELQUEUE, "laravelqueue")   \
-    INTEGRATION(LOGS, "logs", "false", DD_LOGS_INJECTION) \
-    INTEGRATION(LUMEN, "lumen")                 \
-    INTEGRATION(MAGENTO, "magento")             \
-    INTEGRATION(MEMCACHE, "memcache")           \
-    INTEGRATION(MEMCACHED, "memcached")         \
-    INTEGRATION(MONGO, "mongo")                 \
-    INTEGRATION(MONGODB, "mongodb")             \
-    INTEGRATION(MYSQLI, "mysqli")               \
-    INTEGRATION(NETTE, "nette")                 \
-    INTEGRATION(OPENAI, "openai")               \
-    INTEGRATION(PCNTL, "pcntl")                 \
-    INTEGRATION(PDO, "pdo")                     \
-    INTEGRATION(PHPREDIS, "phpredis")           \
-    INTEGRATION(PREDIS, "predis")               \
-    INTEGRATION(PSR18, "psr18")                 \
-    INTEGRATION(ROADRUNNER, "roadrunner")       \
-    INTEGRATION(SQLSRV, "sqlsrv")               \
-    INTEGRATION(SLIM, "slim")                   \
-    INTEGRATION(SWOOLE, "swoole")               \
-    INTEGRATION(SYMFONY, "symfony")             \
-    INTEGRATION(WEB, "web")                     \
-    INTEGRATION(WORDPRESS, "wordpress")         \
-    INTEGRATION(YII, "yii")                     \
+#define DD_INTEGRATIONS                                      \
+    INTEGRATION(AMQP, "amqp")                               \
+    INTEGRATION(CAKEPHP, "cakephp")                         \
+    INTEGRATION(CODEIGNITER, "codeigniter")                 \
+    INTEGRATION(EXEC, "exec")                               \
+    INTEGRATION(CURL, "curl")                               \
+    INTEGRATION(DRUPAL, "drupal")                           \
+    INTEGRATION(ELASTICSEARCH, "elasticsearch")             \
+    INTEGRATION(ELOQUENT, "eloquent")                       \
+    INTEGRATION(FRANKENPHP, "frankenphp")                   \
+    INTEGRATION(GUZZLE, "guzzle")                           \
+    INTEGRATION(LAMINAS, "laminas")                         \
+    INTEGRATION(LARAVEL, "laravel")                         \
+    INTEGRATION(LARAVELQUEUE, "laravelqueue")               \
+    INTEGRATION(LOGS, "logs", "false", DD_LOGS_INJECTION)   \
+    INTEGRATION(LUMEN, "lumen")                             \
+    INTEGRATION(MAGENTO, "magento")                         \
+    INTEGRATION(MEMCACHE, "memcache")                       \
+    INTEGRATION(MEMCACHED, "memcached")                     \
+    INTEGRATION(MONGO, "mongo")                             \
+    INTEGRATION(MONGODB, "mongodb")                         \
+    INTEGRATION(MYSQLI, "mysqli")                           \
+    INTEGRATION(NETTE, "nette")                             \
+    INTEGRATION(OPENAI, "openai")                           \
+    INTEGRATION(PCNTL, "pcntl")                             \
+    INTEGRATION(PDO, "pdo")                                 \
+    INTEGRATION(PHPREDIS, "phpredis")                       \
+    INTEGRATION(PREDIS, "predis")                           \
+    INTEGRATION(PSR18, "psr18")                             \
+    INTEGRATION(ROADRUNNER, "roadrunner")                   \
+    INTEGRATION(SQLSRV, "sqlsrv")                           \
+    INTEGRATION(SLIM, "slim")                               \
+    INTEGRATION(SWOOLE, "swoole")                           \
+    INTEGRATION(SYMFONY, "symfony")                         \
+    INTEGRATION(SYMFONYMESSENGER, "symfonymessenger")       \
+    INTEGRATION(WEB, "web")                                 \
+    INTEGRATION(WORDPRESS, "wordpress")                     \
+    INTEGRATION(YII, "yii")                                 \
     INTEGRATION(ZENDFRAMEWORK, "zendframework")
 
 #define INTEGRATION(id, ...) DDTRACE_INTEGRATION_##id,
