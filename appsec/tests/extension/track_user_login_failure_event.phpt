@@ -37,10 +37,10 @@ Array
     [appsec.events.users.login.failure.usr.id] => Admin
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
-    [appsec.events.users.login.failure.usr.exists] => false
     [appsec.events.users.login.failure.value] => something
     [appsec.events.users.login.failure.metadata] => some other metadata
     [appsec.events.users.login.failure.email] => noneofyour@business.com
+    [appsec.events.users.login.failure.usr.exists] => false
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

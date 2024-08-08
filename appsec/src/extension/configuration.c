@@ -12,7 +12,7 @@
 #include "ip_extraction.h"
 #include "logging.h"
 #include "php_objects.h"
-#include "tags.h"
+#include "user_tracking.h"
 #include "zai_string/string.h"
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */

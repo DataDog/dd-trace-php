@@ -26,7 +26,7 @@ Array
     [appsec.events.users.login.failure.usr.id] => Admin
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
-    [appsec.events.users.login.failure.usr.exists] => true
     [appsec.events.users.login.failure.value] => something-from-sdk
-    [_dd.appsec.events.users.login.failure.auto.mode] => safe
+    [appsec.events.users.login.failure.usr.exists] => true
+    [_dd.appsec.events.users.login.failure.auto.mode] => identification
 )

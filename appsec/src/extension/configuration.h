@@ -60,7 +60,9 @@ extern bool runtime_config_first_init;
     CONFIG(INT, DD_APPSEC_MAX_BODY_BUFF_SIZE, "524288")                                                                               \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                                            \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true")                                                                                            \
-    CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \
+    CALIAS(CUSTOM(STRING), DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE, "ident",                              \
+           CALIASES("DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING"), .parser = dd_parse_user_collection_mode)                  \
+    CONFIG(BOOL, DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED, "true")                                                            \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
     CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1", .ini_change = zai_config_system_ini_change)                            \

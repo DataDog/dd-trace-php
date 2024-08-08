@@ -1,12 +1,12 @@
 --TEST--
-All headers are collected when track_user_login_success_event is triggered by automation and extended mode is set
+All headers are collected when track_user_login_success_event is triggered by automation and identification mode is set
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=extended
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident
 HTTP_X_FORWARDED_FOR=7.7.7.7
 DD_TRACE_CLIENT_IP_HEADER_DISABLED=true
 HTTP_X_FORWARDED_FOR=7.7.7.6,10.0.0.1
