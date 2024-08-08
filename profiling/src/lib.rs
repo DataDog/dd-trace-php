@@ -41,15 +41,11 @@ use std::ffi::CStr;
 use std::ops::Deref;
 use std::os::raw::c_int;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, Once};
+use std::sync::{Arc, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::zend::datadog_sapi_globals_request_info;
-
-/// The global profiler. Profiler gets made during the first rinit after an
-/// minit, and is destroyed on mshutdown.
-static PROFILER: Mutex<Option<Profiler>> = Mutex::new(None);
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -508,18 +504,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    // reminder: this cannot be done in minit because of Apache forking model
-    {
-        /* It would be nice if this could be cheaper. OnceCell would be cheaper
-         * but it doesn't quite fit the model, as going back to uninitialized
-         * requires either a &mut or .take(), and neither works for us (unless
-         * we go for unsafe, which is what we are trying to avoid).
-         */
-        let mut profiler = PROFILER.lock().unwrap();
-        if profiler.is_none() {
-            *profiler = Some(Profiler::new(system_settings))
-        }
-    };
+    Profiler::init(system_settings);
 
     if system_settings.profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
@@ -556,7 +541,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 return;
             }
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if let Some(profiler) = Profiler::get() {
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
                     engine_ptr: locals.vm_interrupt_addr,
@@ -612,7 +597,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         // wall-time is not expected to ever be disabled, except in testing,
         // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if let Some(profiler) = Profiler::get() {
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count,
                     engine_ptr: locals.vm_interrupt_addr,
@@ -822,10 +807,7 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
 
-    let mut profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.as_mut() {
-        profiler.stop(Duration::from_secs(1));
-    }
+    Profiler::stop(Duration::from_secs(1));
 
     ZendResult::Success
 }
@@ -859,10 +841,7 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
 
-    let mut profiler = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler.take() {
-        profiler.shutdown(Duration::from_secs(2));
-    }
+    Profiler::shutdown(Duration::from_secs(2));
 
     // SAFETY: calling in shutdown before zai config is shutdown, and after
     // all configuration is done being accessed. Well... in the happy-path,
@@ -891,7 +870,7 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
                 return;
             }
 
-            if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+            if let Some(profiler) = Profiler::get() {
                 let message = LocalRootSpanResourceMessage {
                     local_root_span_id,
                     resource: resource.into_owned(),
