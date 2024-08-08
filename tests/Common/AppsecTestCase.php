@@ -10,6 +10,8 @@ use datadog\appsec\AppsecStatus;
  */
 abstract class AppsecTestCase extends WebFrameworkTestCase
 {
+    private static $connection;
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
@@ -19,7 +21,10 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        if (!isset(self::$connection)) {
+            self::$connection = new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
+        }
+        return self::$connection;
     }
 
     protected function databaseDump()

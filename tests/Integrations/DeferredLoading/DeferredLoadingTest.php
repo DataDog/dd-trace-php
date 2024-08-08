@@ -14,6 +14,13 @@ final class DeferredLoadingTest extends WebFrameworkTestCase
         return __DIR__ . '/index.php';
     }
 
+    protected static function getInis()
+    {
+        return array_merge(parent::getInis(), [
+            'extension' => 'redis.so',
+        ]);
+    }
+
     public function testCanDeferLoadMultipleIntegrations()
     {
         $traces = $this->tracesFromWebRequest(function () {

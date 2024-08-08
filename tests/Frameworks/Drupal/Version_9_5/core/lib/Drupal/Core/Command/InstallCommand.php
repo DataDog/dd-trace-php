@@ -143,7 +143,7 @@ class InstallCommand extends Command {
         'install_settings_form' => [
             'driver' => 'mysql',
             'mysql' => [
-                'database' => 'test',
+                'database' => 'drupal95',
                 'username' => 'test',
                 'password' => 'test',
                 'host' => 'mysql_integration',

@@ -38,6 +38,8 @@ function array_filter_recursive(callable $keep_fn, array $input)
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "elasticsearch";
+
     const HOST2 = 'elasticsearch2_integration';
     const HOST7 = 'elasticsearch7_integration';
 

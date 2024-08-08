@@ -11,6 +11,8 @@ use PhpAmqpLib\Message\AMQPMessage;
 
 class AMQPTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "amqp";
+
     /**
      * @return AMQPStreamConnection
      */

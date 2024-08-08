@@ -11,6 +11,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class QueueTestNotDistributed extends WebFrameworkTestCase
 {
+    public static $database = "laravel8";
+
     use TracerTestTrait;
     use SpanAssertionTrait;
 
@@ -91,7 +93,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql_integration;dbname=laravel8', 'test', 'test');
     }
 
     protected function getCommonTags(

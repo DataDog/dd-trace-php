@@ -9,6 +9,8 @@ use DDTrace\Tests\Integrations\Symfony\PathParamsTestSuite;
  */
 class PathParamsTest extends PathParamsTestSuite
 {
+    public static $database = "symfony52";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_5_2/public/index.php';

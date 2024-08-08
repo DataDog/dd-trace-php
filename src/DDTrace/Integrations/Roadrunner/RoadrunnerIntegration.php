@@ -111,7 +111,7 @@ class RoadrunnerIntegration extends Integration
     }
 
     private static function getHost(array $parsed_url) {
-        $port = $parsed_url['port'];
+        $port = $parsed_url['port'] ?? 80;
         $scheme = $parsed_url['scheme'];
         if ($scheme === 'https') {
             if ($port === 443) {

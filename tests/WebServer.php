@@ -154,6 +154,7 @@ final class WebServer
         } elseif ($this->isSwoole) {
             $this->sapi = new SwooleServer(
                 $this->indexFile,
+                $this->port,
                 $this->envs,
                 $this->inis
             );

@@ -1,6 +1,6 @@
 <?php
 
-$pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+$pdo = new \PDO('mysql:host=mysql_integration;dbname=drupal89', 'test', 'test');
 
 $pdo->query('DROP TABLE IF EXISTS cache_bootstrap');
 $pdo->query('DROP TABLE IF EXISTS cache_config');

@@ -13,7 +13,7 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
         - agent-socket:/var/run/datadog
         - .cargo-registry:/rust/cargo/registry
-      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec', '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - agent
         - ddagent_integration
@@ -115,6 +115,8 @@ services:
     command: --default-authentication-plugin=mysql_native_password --sql-mode="NO_ENGINE_SUBSTITUTION"
     ports:
       - "3306:3306"
+    volumes:
+      - ./dockerfiles/services/mysql:/docker-entrypoint-initdb.d
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test

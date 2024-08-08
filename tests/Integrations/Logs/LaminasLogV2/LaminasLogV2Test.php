@@ -23,7 +23,7 @@ class LaminasLogV2Test extends BaseLogsTest
     protected function getLogger($jsonFormatter = false)
     {
         $logger = new Logger();
-        $writer = new Stream('/tmp/test.log');
+        $writer = new Stream(static::logFile());
 
         if ($jsonFormatter) {
             $writer->setFormatter(new Json());

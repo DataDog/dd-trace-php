@@ -11,7 +11,7 @@ class SQLSRVTest extends IntegrationTestCase
 {
     private static $host = 'sqlsrv_integration';
     private static $port = '1433';
-    private static $database = 'master';
+    private static $db = 'master';
     private static $user = 'sa';
     private static $password = 'Password12!';
 
@@ -445,7 +445,7 @@ class SQLSRVTest extends IntegrationTestCase
             self::$host . ', ' . self::$port,
             [
                 'PWD' => self::$password,
-                'Database' => self::$database,
+                'Database' => self::$db,
                 'UID' => self::$user,
                 'TrustServerCertificate' => true
             ]
@@ -484,7 +484,7 @@ class SQLSRVTest extends IntegrationTestCase
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => SQLSRVIntegration::NAME,
             Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
-            Tag::DB_INSTANCE => self::$database,
+            Tag::DB_INSTANCE => self::$db,
             Tag::DB_USER => self::$user,
             Tag::TARGET_HOST => self::$host,
             Tag::TARGET_PORT => self::$port,

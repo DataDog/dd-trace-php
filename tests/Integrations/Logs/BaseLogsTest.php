@@ -8,15 +8,20 @@ use function DDTrace\start_span;
 
 class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
 {
+    protected static function logFile()
+    {
+        return "/tmp/test-" . substr(static::class, strrpos(static::class, '\\') + 1) . '.log';
+    }
+
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        shell_exec('rm -f /tmp/test.log');
+        shell_exec('rm -f ' . static::logFile());
     }
 
     protected function getTestFileContents(): string
     {
-        $filename = '/tmp/test.log';
+        $filename = static::logFile();
         $handle = fopen($filename, 'r');
         $contents = fread($handle, filesize($filename));
         fclose($handle);

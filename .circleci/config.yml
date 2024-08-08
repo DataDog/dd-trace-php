@@ -29,10 +29,9 @@ workflows:
                   PHP_VERSIONS=($(grep -Po "(?<=TEST_${type}_)[0-9]+" Makefile))
                   ALL_TASKS=($(grep -Pzo 'TEST_'"${type}"'_[0-9]+[^\0]+?\n(?![\t#])' Makefile | grep -avE '^#' | grep -a '\t' | sed -e 's/\t//g' -e 's/\s*\\//g' | sort | uniq))
 
-                  parallel_index=0
                   for task in "${ALL_TASKS[@]}"; do
                   targeted_command=${command/\<< parameters.make_target >>/$task}
-                  targeted_command=${targeted_command/$'|\n'/$'|\n                  echo $$ >/tmp/background-$task.pid; trap \'rv=$?; [ $rv -eq 0 ] || touch /tmp/background-error; exit $rv\' INT TERM EXIT; export TEST_PARALELISM_INDEX='"$((++parallel_index))"$'\n'}
+                  targeted_command=${targeted_command/$'|\n'/$'|\n                  echo $$ >/tmp/background-'$task$'.pid; trap \'rv=$?; [ $rv -eq 0 ] || touch /tmp/background-error; exit $rv\' INT TERM EXIT\n'}
                   cat \<<EOT
                         - when:
                             condition:
@@ -63,6 +62,7 @@ workflows:
                               - run:
                                   name: Await all tests
                                   command: |
+                                    sleep 10 # wait for all background tasks to have launched
                                     for f in \$(echo /tmp/background-*); do
                                       tail --pid=\$(cat \$f) -f /dev/null || true
                                     done

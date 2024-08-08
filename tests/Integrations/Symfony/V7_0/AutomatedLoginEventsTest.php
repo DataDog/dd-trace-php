@@ -9,6 +9,8 @@ use DDTrace\Tests\Integrations\Symfony\AutomatedLoginEventsTestSuite;
  */
 class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
+    public static $database = "symfony70";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_7_0/public/index.php';

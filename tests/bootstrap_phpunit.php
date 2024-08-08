@@ -15,6 +15,8 @@ if (PHPUNIT_MAJOR >= 8) {
     require __DIR__ . '/Common/MultiPHPUnitVersionAdapter_untyped.php';
 }
 
+require_once __DIR__ . '/Appsec/Mock.php';
+
 function update_test_agent_session_token($token) {
     if (defined('GLOBAL_AUTO_PREPEND_RSRC')) {
         ini_set("datadog.trace.agent_test_session_token", $token);

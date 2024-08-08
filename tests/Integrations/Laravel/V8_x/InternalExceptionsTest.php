@@ -11,6 +11,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class InternalExceptionsTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel8";
+
     use TracerTestTrait;
     use SpanAssertionTrait;
 

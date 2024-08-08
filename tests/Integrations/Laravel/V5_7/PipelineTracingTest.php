@@ -11,6 +11,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class PipelineTracingTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel57";
+
     use TracerTestTrait;
     use SpanAssertionTrait;
 

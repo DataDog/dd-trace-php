@@ -24,6 +24,7 @@
 	},
 	"scripts": {
 		"post-install-cmd": [
+            "php -r \"(new PDO('mysql:host=mysql_integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel42');\"",
 			"php artisan clear-compiled",
 			"php artisan optimize",
 			"php artisan migrate --force"

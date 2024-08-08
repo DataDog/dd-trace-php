@@ -124,11 +124,14 @@ else
   done
   echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
 
-  # ext-parallel and ext-swoole need PHP 8
+  # ext-parallel needs PHP 8 ZTS
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_ZTS -eq 1 ]]; then
     pecl install parallel;
     echo "extension=parallel" >> ${iniDir}/parallel.ini;
+  fi
 
+  # ext-swoole needs PHP 8
+  if [[ $PHP_VERSION_ID -ge 80 ]]; then
     pecl install swoole-5.1.2; # we don't install swoole here
   fi
 

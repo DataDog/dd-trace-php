@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Artisan;
 
 class QueueTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel8";
+
     use TracerTestTrait;
     use SpanAssertionTrait;
     use SnapshotTestTrait;
@@ -349,7 +351,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql_integration;dbname=laravel8', 'test', 'test');
     }
 
     protected function spanEventJobProcessing()

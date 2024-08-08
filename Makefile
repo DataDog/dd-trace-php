@@ -1210,9 +1210,7 @@ test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Road
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 test_integrations_swoole_5: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=swoole)
 	$(call run_tests_debug,--testsuite=swoole-test)
-	$(eval TEST_EXTRA_INI=)
 test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
 test_web_cakephp_310: global_test_run_dependencies tests/Frameworks/CakePHP/Version_3_10/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1253,9 +1251,7 @@ test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Vers
 test_web_laravel_11x: global_test_run_dependencies tests/Frameworks/Laravel/Version_11_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-11x-test)
 test_web_laravel_octane: global_test_run_dependencies tests/Frameworks/Laravel/Octane/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(eval TEST_EXTRA_INI=-d extension=swoole)
 	$(call run_tests_debug,--testsuite=laravel-octane-test)
-	$(eval TEST_EXTRA_INI=)
 test_web_lumen_52: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)
 test_web_lumen_56: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_6/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1344,6 +1340,7 @@ tests/Frameworks/Drupal/%/composer.lock: tests/Frameworks/Drupal/%/composer.json
 tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json
 	rm tests/$(*)/composer.lock-php* 2>/dev/null || true
 	$(call run_composer_with_retry,tests/$*,)
+	find tests/$(*)/vendor \( -name Tests -prune -o -name tests -prune \) -exec rm -rf '{}' \;
 	touch tests/$(*)/composer.lock-php$(PHP_MAJOR_MINOR)
 
 merge_coverage_reports:

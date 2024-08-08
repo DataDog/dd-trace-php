@@ -11,6 +11,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class QueueTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel58";
+
     use TracerTestTrait;
     use SpanAssertionTrait;
 
@@ -234,7 +236,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
     }
 
     protected function spanEventJobProcessing()
