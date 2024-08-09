@@ -717,7 +717,11 @@ PHP_METHOD(DDTrace_SpanEvent, __construct)
 
     // Store attributes directly in the object properties
     if (attributes) {
+#if PHP_VERSION_ID >= 80000
         zend_update_property(ddtrace_ce_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
+#else
+        zend_update_property(ddtrace_ce_span_event, ZEND_THIS, ZEND_STRL("attributes"), attributes);
+#endif
     }
 }
 
@@ -744,18 +748,15 @@ PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
     // Use the static function to set properties and handle cleanup
     dd_span_event_construct(&event->span_event, name, 0);
 
-    // Store exception and attributes directly in the object properties
+    if (attributes) {
 #if PHP_VERSION_ID >= 80000
-    zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("exception"), exception);
-    if (attributes) {
+        zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("exception"), exception);
         zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
-    }
 #else
-    zend_update_property(ddtrace_ce_exception_span_event, ZEND_THIS, ZEND_STRL("exception"), exception);
-    if (attributes) {
+        zend_update_property(ddtrace_ce_exception_span_event, ZEND_THIS, ZEND_STRL("exception"), exception);
         zend_update_property(ddtrace_ce_exception_span_event, ZEND_THIS, ZEND_STRL("attributes"), attributes);
-    }
 #endif
+    }
     zend_string_release(name);
 }
 
