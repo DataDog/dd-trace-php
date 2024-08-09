@@ -1,10 +1,10 @@
 --TEST--
-Latest sdk values take priority on extended mode
+Latest sdk values take priority on identification mode
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=extended
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
@@ -28,8 +28,8 @@ Array
     [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => Other
     [appsec.events.users.login.failure.track] => true
-    [_dd.appsec.events.users.login.failure.auto.mode] => extended
+    [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.usr.exists] => true
-    [appsec.events.users.login.failure.value] => something-from-sdk-2
     [_dd.appsec.events.users.login.failure.sdk] => true
+    [appsec.events.users.login.failure.value] => something-from-sdk-2
 )

@@ -5,7 +5,6 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 #include "attributes.h"
-#include "configuration.h"
 #include <php.h>
 #include <stdbool.h>
 #include <zend.h>
@@ -27,5 +26,4 @@ void dd_tags_set_event_user_id(zend_string *nonnull zstr);
 // does not increase the refcount on zstr
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr);
 
-bool dd_parse_automated_user_events_tracking(
-    zai_str value, zval *nonnull decoded_value, bool persistent);
+

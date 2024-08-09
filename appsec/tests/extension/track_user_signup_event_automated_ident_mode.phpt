@@ -1,10 +1,10 @@
 --TEST--
-Verify on extended mode sensitive ids are not discarded
+Track automated user sign up event with identification mode and verify the tags in the root span
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=extended
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
@@ -24,7 +24,6 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => sensitiveId
-    [_dd.appsec.events.users.signup.auto.mode] => extended
-    [appsec.events.users.signup.email] => some@email.com
+    [_dd.appsec.events.users.signup.auto.mode] => identification
     [appsec.events.users.signup.track] => true
 )

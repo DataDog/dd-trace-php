@@ -376,7 +376,7 @@ commands:
         default: /bin/bash -eo pipefail
     steps:
       - run:
-          name: Append build id to version number
+          name: Append build id to version number and bump it
           shell: << parameters.shell >>
           command: |
             githash="${CIRCLE_SHA1?}"
@@ -387,8 +387,20 @@ commands:
             if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
               echo "Release branch detected; not adding git sha1 to version number."
             else
-              echo -n "+$githash" >>VERSION
-              echo "Appended +$githash to version number."
+              version=$(cat VERSION)
+              # if we have e.g. a beta suffix, just strip it
+              if [[ $version == *-* ]]; then
+                version=${version%-*}
+              else
+                # otherwise increment minor version
+                parts=($(echo -n "$version" | tr '.' '\n'))
+                parts[1]=$((parts[1]+1))
+                parts[2]=0
+                version=$(export IFS=.; (echo "${parts[*]}"))
+              fi
+              version="$version+$githash"
+              echo -n "$version" > VERSION
+              echo "Set version number to $version."
             fi
 
 

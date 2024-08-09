@@ -1,5 +1,5 @@
 --TEST--
-Metadata is discarded on automated safe mode
+Metadata is kept on automated (default) identification mode
 --INI--
 extension=ddtrace.so
 --ENV--
@@ -24,6 +24,6 @@ Array
     [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => 1234
     [appsec.events.users.login.failure.track] => true
-    [_dd.appsec.events.users.login.failure.auto.mode] => safe
+    [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.usr.exists] => true
 )
