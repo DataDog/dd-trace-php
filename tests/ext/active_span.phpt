@@ -62,7 +62,8 @@ object(DDTrace\RootSpanData)#%d (21) {
   array(0) {
   }
   ["events"]=>
-  NULL
+  array(0) {
+  }
   ["peerServiceSources"]=>
   array(0) {
   }
