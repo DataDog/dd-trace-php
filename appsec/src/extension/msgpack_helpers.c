@@ -10,6 +10,7 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "php_helpers.h"
+#include "php_objects.h"
 
 static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv);
 
@@ -262,3 +263,120 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
     w->buffer = NULL;
     w->context = NULL;
 }
+
+static void parse_element(mpack_reader_t *reader, int depth, zval *output)
+{
+    if (depth >= 32) { // critical check!
+        mpack_reader_flag_error(reader, mpack_error_too_big);
+        mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
+        return;
+    }
+
+    mpack_tag_t tag = mpack_read_tag(reader);
+    if (mpack_reader_error(reader) != mpack_ok) {
+        return;
+    }
+
+    switch (mpack_tag_type(&tag)) {
+    case mpack_type_nil:
+        ZVAL_NULL(output);
+        break;
+    case mpack_type_bool:
+        ZVAL_BOOL(output, mpack_tag_bool_value(&tag));
+        break;
+    case mpack_type_int:
+        ZVAL_LONG(output, mpack_tag_int_value(&tag));
+        break;
+    case mpack_type_uint:
+        ZVAL_LONG(output, mpack_tag_int_value(&tag));
+        break;
+
+    case mpack_type_str: {
+        uint32_t length = mpack_tag_str_length(&tag);
+        const char *data = mpack_read_bytes_inplace(reader, length);
+        ZVAL_STRINGL(output, data, length);
+        mpack_done_str(reader);
+        break;
+    }
+    case mpack_type_array: {
+        uint32_t count = mpack_tag_array_count(&tag);
+        array_init(output);
+        while (count-- > 0) {
+            zval new;
+            parse_element(reader, depth + 1, &new);
+            if (mpack_reader_error(reader) != mpack_ok) { // critical check!
+                zval_dtor(&new);
+                mlog(
+                    dd_log_error, "decode_msgpack error: error decoding array");
+                break;
+            }
+            zend_hash_next_index_insert(Z_ARRVAL_P(output), &new);
+        }
+        mpack_done_array(reader);
+        break;
+    }
+    case mpack_type_map: {
+        uint32_t count = mpack_tag_map_count(&tag);
+        array_init(output);
+        while (count-- > 0) {
+            zval key, value;
+            parse_element(reader, depth + 1, &key);
+            parse_element(reader, depth + 1, &value);
+            if (mpack_reader_error(reader) != mpack_ok) { // critical check!
+                zval_dtor(&key);
+                mlog(dd_log_error, "decode_msgpack error: error decoding map");
+                break;
+            }
+            zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
+            zval_dtor(&key);
+        }
+        mpack_done_map(reader);
+        break;
+    }
+    default:
+        mlog(dd_log_error, "decode_msgpack error: type %s not implemented.\n",
+            mpack_type_to_string(mpack_tag_type(&tag)));
+        return;
+    }
+}
+
+static bool parse_messagepack(const char *data, size_t length, zval *output)
+{
+    mpack_reader_t reader;
+    mpack_reader_init_data(&reader, data, length);
+    parse_element(&reader, 0, output);
+    return mpack_ok == mpack_reader_destroy(&reader);
+}
+
+static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
+{
+    zend_string *encoded = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &encoded) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    parse_messagepack(ZSTR_VAL(encoded), ZSTR_LEN(encoded), return_value);
+}
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    zval_ret_string_arginfo, 0, 1, IS_ARRAY, 0)
+ZEND_ARG_TYPE_INFO(0, id, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+// clang-format off
+static const zend_function_entry testing_functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), zval_ret_string_arginfo, 0)
+    PHP_FE_END
+};
+// clang-format on
+
+static void _register_testing_objects()
+{
+    if (!get_global_DD_APPSEC_TESTING()) {
+        return;
+    }
+
+    dd_phpobj_reg_funcs(testing_functions);
+}
+
+void dd_msgpack_helpers_startup() { _register_testing_objects(); }
