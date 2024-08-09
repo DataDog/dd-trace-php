@@ -44,14 +44,16 @@ php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easil
     zval *class = zend_hash_find(frame, _class_field);
     zval id;
     ZVAL_LONG(&id, index);
-#ifdef TESTING
     if (file) {
         // In order to be able to test full path encoded everywhere lets set
         // only the file name without path
+        SEPARATE_STRING(file);
+        zend_string *old_file = Z_STR_P(file);
         char *file_name = strrchr(Z_STRVAL_P(file), '/');
-        Z_TRY_DELREF_P(file);
         ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
+        zend_string_release(old_file);
     }
+#ifdef TESTING
 #endif
 
     if (!function) {
