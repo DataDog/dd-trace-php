@@ -32,7 +32,7 @@ static zend_string *_class_field;
 static bool
 php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     zval *nonnull php_backtrace_frame, zval *nonnull datadog_backtrace_frame,
-    zend_long index)
+    zend_ulong index)
 {
     if (Z_TYPE_P(php_backtrace_frame) != IS_ARRAY) {
         return false;
@@ -69,7 +69,7 @@ php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easil
         zend_hash_add(datadog_backtrace_frame_ht, _frame_line, line);
     }
 
-    int qualified_name_size = Z_STRLEN_P(function);
+    zend_ulong qualified_name_size = Z_STRLEN_P(function);
     qualified_name_size +=
         class ? Z_STRLEN_P(class) + sizeof(QUALIFIED_NAME_SEPARATOR) - 1 : 0;
     zend_string *qualified_name_zstr =

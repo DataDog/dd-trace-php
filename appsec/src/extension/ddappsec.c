@@ -33,6 +33,7 @@
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
+#include "msgpack_helpers.h"
 #include "network.h"
 #include "php_compat.h"
 #include "php_helpers.h"
@@ -42,7 +43,6 @@
 #include "string_helpers.h"
 #include "tags.h"
 #include "user_tracking.h"
-#include "msgpack_helpers.h"
 
 #include <json/json.h>
 
