@@ -55,6 +55,7 @@ typedef union ddtrace_span_properties {
             zval property_id;
         };
         zval property_links;
+        zval property_events;
         zval property_peer_service_sources;
         union {
             union ddtrace_span_properties *parent;
@@ -169,6 +170,23 @@ struct ddtrace_span_link {
             zval property_dropped_attributes_count;
         };
     };
+};
+
+struct ddtrace_span_event {
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_name;
+            zval property_attributes;
+            zval property_timestamp;
+        };
+    };
+};
+
+struct ddtrace_exception_span_event {
+    ddtrace_span_event span_event;
+    zval property_exception;
 };
 
 struct ddtrace_git_metadata {

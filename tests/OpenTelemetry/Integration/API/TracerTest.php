@@ -433,12 +433,7 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertSame('exception message', $span['meta'][Tag::ERROR_MSG]);
-        $this->assertSame('RuntimeException', $span['meta'][Tag::ERROR_TYPE]);
         $this->assertNotEmpty($span['meta'][Tag::ERROR_STACK]);
-        $this->assertEquals(1, $span['error']);
-
-        $this->markTestIncomplete("Span Events aren't yet supported");
     }
 
     public function testSpanNameUpdate()
