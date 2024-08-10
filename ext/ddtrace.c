@@ -621,13 +621,14 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 #endif
 }
 
-static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name, zend_long timestamp)
+static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name, zend_long timestamp, zval *attributes)
 {
-    zval garbage_name, garbage_timestamp;
+    zval garbage_name, garbage_timestamp, garbage_attributes;
 
     // Copy current values to temporary zval variables
     ZVAL_COPY_VALUE(&garbage_name, &event->property_name);
     ZVAL_COPY_VALUE(&garbage_timestamp, &event->property_timestamp);
+    ZVAL_COPY_VALUE(&garbage_attributes, &event->property_attributes);
 
     // Update event properties
     ZVAL_STR_COPY(&event->property_name, name);
@@ -640,9 +641,17 @@ static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name
     }
     ZVAL_LONG(&event->property_timestamp, timestamp);
 
+    // Initialize attributes
+    if (attributes) {
+        ZVAL_COPY(&event->property_attributes, attributes);
+    } else {
+        array_init(&event->property_attributes);
+    }
+
     // Free the copied values after replacement
     zval_ptr_dtor(&garbage_name);
     zval_ptr_dtor(&garbage_timestamp);
+    zval_ptr_dtor(&garbage_attributes);
 }
 
 /* DDTrace\SpanEvent */
@@ -682,7 +691,7 @@ PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
         }
     }
 
-    if (attributes && Z_TYPE_P(attributes) == IS_ARRAY) {
+    if (Z_TYPE_P(attributes) == IS_ARRAY) {
         zend_hash_copy(Z_ARRVAL(combined_attributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref);
     }
 
@@ -713,9 +722,8 @@ PHP_METHOD(DDTrace_SpanEvent, __construct)
     ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
 
     // Use the static function to set properties and handle cleanup
-    dd_span_event_construct(event, name, timestamp);
+    dd_span_event_construct(event, name, timestamp, attributes);
 
-    // Store attributes directly in the object properties
     if (attributes) {
 #if PHP_VERSION_ID >= 80000
         zend_update_property(ddtrace_ce_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
@@ -746,7 +754,7 @@ PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
     ddtrace_exception_span_event *event = (ddtrace_exception_span_event*)Z_OBJ_P(ZEND_THIS);
 
     // Use the static function to set properties and handle cleanup
-    dd_span_event_construct(&event->span_event, name, 0);
+    dd_span_event_construct(&event->span_event, name, 0, attributes);
 
     if (attributes) {
 #if PHP_VERSION_ID >= 80000

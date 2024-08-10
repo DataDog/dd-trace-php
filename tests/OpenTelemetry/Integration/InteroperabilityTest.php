@@ -4,6 +4,7 @@ namespace DDTrace\Tests\OpenTelemetry\Integration;
 
 use DDTrace\SpanLink;
 use DDTrace\SpanEvent;
+use DDTrace\ExceptionSpanEvent;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -1195,16 +1196,16 @@ final class InteroperabilityTest extends BaseTestCase
             $span->events[] = $spanEvent;
 
             /** @var en $OTelSpan */
-            $OTelSpan = Span::getCurrent();
-            $OTelSpanEvent = $OTelSpan->toSpanData()->getEvents()[0];
+            $otelSpan = Span::getCurrent();
+            $otelSpanEvent = $otelSpan->toSpanData()->getEvents()[0];
 
-            $this->assertSame('event-name', $OTelSpanEvent->getName());
+            $this->assertSame('event-name', $otelSpanEvent->getName());
             $this->assertSame([ 
                 'arg1' => 'value1', 
                 'int_array' => [3, 4], 
                 'string_array' => ["5", "6"]
-            ], $spanEvent->attributes);
-            $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
+            ], $otelSpanEvent->getAttributes()->toArray());
+            $this->assertSame(1720037568765201300, (int)$otelSpanEvent->getEpochNanos());
 
             close_span();
         });
@@ -1282,5 +1283,43 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertArrayNotHasKey('error.message', $traces[0][0]['meta']);
         $this->assertArrayNotHasKey('error.type', $traces[0][0]['meta']);
         $this->assertArrayNotHasKey('error', $traces[0][0]);
+    }
+
+    public function testExceptionSpanEvents()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = start_span();
+            $span->name = "dd.span";
+
+            $spanEvent = new ExceptionSpanEvent(
+                new \Exception("Test exception message"),
+                [ 
+                    'arg1' => 'value1', 
+                    'exception.stacktrace' => 'Stacktrace Override'
+                ]
+            );
+
+            $span->events[] = $spanEvent;
+
+            /** @var Span $otelSpan */
+            $otelSpan = Span::getCurrent();
+            $otelSpanEvent = $otelSpan->toSpanData()->getEvents()[0];
+
+            $this->assertSame('exception', $otelSpanEvent->getName());
+            $this->assertSame([ 
+                'exception.message' => 'Test exception message',
+                'exception.type' => 'Exception',
+                'exception.stacktrace' => 'Stacktrace Override',
+                'arg1' => 'value1'
+            ], $otelSpanEvent->getAttributes()->toArray());
+
+            close_span();
+        });
+        $event = json_decode($traces[0][0]['meta']['events'], true)[0];
+
+        $this->assertSame('Test exception message', $event['attributes']['exception.message']);
+        $this->assertSame('Exception', $event['attributes']['exception.type']);
+        $this->assertSame('Stacktrace Override', $event['attributes']['exception.stacktrace']);
+        $this->assertSame('value1', $event['attributes']['arg1']);
     }
 }

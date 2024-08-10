@@ -522,17 +522,24 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     {
         $datadogSpanEvents = $this->span->events;
         $this->span->meta["events"] = count($this->events);
-
+    
         $otel = [];
         foreach ($datadogSpanEvents as $datadogSpanEvent) {
-            // Check if the event relationship exists
+            $exceptionAttributes = [];
             $event = ObjectKVStore::get($datadogSpanEvent, "event");
             if ($event === null) {
-                // Create the event
+                if ($datadogSpanEvent instanceof ExceptionSpanEvent) {
+                    // Standardized exception attributes
+                    $exceptionAttributes = [
+                        'exception.message' => $attributes['exception.message'] ?? $datadogSpanEvent->exception->getMessage(),
+                        'exception.type' => $attributes['exception.type'] ?? get_class($datadogSpanEvent->exception),
+                        'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($datadogSpanEvent->exception)
+                    ];
+                }
                 $event = new Event(
                     $datadogSpanEvent->name,
                     (int)$datadogSpanEvent->timestamp,
-                    Attributes::create((array)$datadogSpanEvent->attributes ?? [])
+                    Attributes::create(array_merge($exceptionAttributes, \is_array($datadogSpanEvent->attributes) ? $datadogSpanEvent->attributes : iterator_to_array($datadogSpanEvent->attributes)))                
                 );
 
                 // Save the event
@@ -540,7 +547,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             }
             $otel[] = $event;
         }
-
+    
         // Update the events
         $this->events = $otel;
         $this->totalRecordedEvents = count($otel);
