@@ -12,6 +12,8 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 
+static const int MAX_DEPTH = 32;
+
 static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv);
 
 void dd_mpack_write_nullable_cstr(
@@ -264,9 +266,11 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
     w->context = NULL;
 }
 
-static void parse_element(mpack_reader_t *reader, int depth, zval *output)
+// NOLINTNEXTLINE(misc-no-recursion)
+static void parse_element(
+    mpack_reader_t *nonnull reader, int depth, zval *nonnull output)
 {
-    if (depth >= 32) { // critical check!
+    if (depth >= MAX_DEPTH) { // critical check!
         mpack_reader_flag_error(reader, mpack_error_too_big);
         mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
         return;
@@ -319,7 +323,8 @@ static void parse_element(mpack_reader_t *reader, int depth, zval *output)
         uint32_t count = mpack_tag_map_count(&tag);
         array_init(output);
         while (count-- > 0) {
-            zval key, value;
+            zval key;
+            zval value;
             parse_element(reader, depth + 1, &key);
             parse_element(reader, depth + 1, &value);
             if (mpack_reader_error(reader) != mpack_ok) { // critical check!
@@ -340,7 +345,8 @@ static void parse_element(mpack_reader_t *reader, int depth, zval *output)
     }
 }
 
-static bool parse_messagepack(const char *data, size_t length, zval *output)
+static bool parse_messagepack(
+    const char *nonnull data, size_t length, zval *nonnull output)
 {
     mpack_reader_t reader;
     mpack_reader_init_data(&reader, data, length);

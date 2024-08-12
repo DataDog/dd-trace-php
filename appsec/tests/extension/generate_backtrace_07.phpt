@@ -6,7 +6,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 extension=ddtrace.so
 --FILE--
 <?php
-namespace Some\NameSpace {
+namespace Some\Package {
     use function datadog\appsec\testing\generate_backtrace;
 
     class Foo {
@@ -32,7 +32,7 @@ namespace {
     DDTrace\start_span();
     $root = DDTrace\active_span();
 
-    $class = new Some\NameSpace\Foo();
+    $class = new Some\Package\Foo();
     $class->one("foo01");
 }
 ?>
@@ -49,7 +49,7 @@ array(3) {
       ["line"]=>
       int(12)
       ["function"]=>
-      string(25) "Some\NameSpace\Foo::three"
+      string(23) "Some\Package\Foo::three"
       ["file"]=>
       string(25) "generate_backtrace_07.php"
       ["id"]=>
@@ -60,7 +60,7 @@ array(3) {
       ["line"]=>
       int(17)
       ["function"]=>
-      string(23) "Some\NameSpace\Foo::two"
+      string(21) "Some\Package\Foo::two"
       ["file"]=>
       string(25) "generate_backtrace_07.php"
       ["id"]=>
@@ -71,7 +71,7 @@ array(3) {
       ["line"]=>
       int(29)
       ["function"]=>
-      string(23) "Some\NameSpace\Foo::one"
+      string(21) "Some\Package\Foo::one"
       ["file"]=>
       string(25) "generate_backtrace_07.php"
       ["id"]=>
