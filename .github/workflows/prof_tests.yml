@@ -46,12 +46,16 @@ jobs:
         with:
           submodules: true
 
-      # - name: Restore Cargo Package Cache
-      #   id: cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: target
-      #     key: cargo-cache-${{ matrix.triplet }}-${{ hashFiles('Cargo.lock') }}
+      - name: Bake me into the image
+        run: |
+          apk add --no-cache tar
+
+      - name: Restore Cargo Package Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: cargo-cache-${{ matrix.triplet }}-${{ hashFiles('Cargo.lock') }}
 
       - name: Run cargo tests
         run: |
