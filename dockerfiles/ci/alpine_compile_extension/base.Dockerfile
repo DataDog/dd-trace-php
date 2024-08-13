@@ -21,15 +21,13 @@ RUN set -eux; \
         libsodium-dev \
         libxml2-dev \
         gnu-libiconv-dev \
-        oniguruma-dev
+        oniguruma-dev \
+        tar
 
 # Profiling deps
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
-RUN apk add --no-cache llvm16-libs clang16-dev lld llvm16
-RUN apk add --no-cache rust-stdlib
-RUN apk add --no-cache cargo
-RUN apk add --no-cache clang git protoc unzip
+RUN apk add --no-cache llvm16-libs clang16-dev lld llvm16 rust-stdlib cargo clang git protoc unzip
 
 CMD ["bash"]
