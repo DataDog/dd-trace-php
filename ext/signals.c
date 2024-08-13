@@ -22,7 +22,7 @@
 
 #include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
-#include <components-rs/profiling.h>
+#include <components-rs/crashtracker.h>
 
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
 #define DDTRACE_HAVE_BACKTRACE 1
@@ -88,8 +88,8 @@ static void ddtrace_sigsegv_handler(int sig) {
     _Exit(128 + sig);
 }
 
-static bool ddtrace_crashtracker_check_result(ddog_prof_CrashtrackerResult result, const char *msg) {
-    if (result.tag != DDOG_PROF_CRASHTRACKER_RESULT_OK) {
+static bool ddtrace_crashtracker_check_result(ddog_crasht_Result result, const char *msg) {
+    if (result.tag != DDOG_CRASHT_RESULT_OK) {
         ddog_CharSlice error_msg = ddog_Error_message(&result.err);
         LOG(ERROR, "%s : %.*s", msg, (int) error_msg.len, error_msg.ptr);
         ddog_Error_drop(&result.err);
@@ -100,39 +100,31 @@ static bool ddtrace_crashtracker_check_result(ddog_prof_CrashtrackerResult resul
 }
 
 static void ddtrace_init_crashtracker() {
-    ddog_prof_Endpoint agent_endpoint;
+    ddog_Endpoint *agent_endpoint;
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        agent_endpoint = ddog_prof_Endpoint_agentless(DDOG_CHARSLICE_C("datadoghq.com"), dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+        agent_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
     } else {
         char *agent_url = ddtrace_agent_url();
-        size_t url_len = strlen(agent_url);
-
-        if (url_len > (sizeof("file://") - 1) && strncmp(agent_url, "file://", (sizeof("file://") - 1)) == 0) {
-            char *tmp = agent_url + sizeof("file://") - 1;
-            agent_endpoint = ddog_Endpoint_file((ddog_CharSlice) {.ptr = tmp, .len = strlen(tmp)});
-        } else {
-            agent_endpoint = ddog_prof_Endpoint_agent((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
-        }
-
-        // free(agent_url);
+        agent_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        free(agent_url);
     }
 
-    ddog_prof_CrashtrackerConfiguration config = {
+    ddog_crasht_Config config = {
         .endpoint = agent_endpoint,
         .timeout_secs = 5,
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
-    const ddog_prof_CrashtrackerMetadata metadata = {
-        .profiling_library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),
-        .profiling_library_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
+    const ddog_crasht_Metadata metadata = {
+        .library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),
+        .library_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
         .family = DDOG_CHARSLICE_C("php"),
         .tags = &tags
     };
 
     ddtrace_crashtracker_check_result(
-        ddog_prof_Crashtracker_init_with_unix_socket(
+        ddog_crasht_init_with_unix_socket(
             config,
             ddog_sidecar_get_crashtracker_unix_socket_path(),
             metadata

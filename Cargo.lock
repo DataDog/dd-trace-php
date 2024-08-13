@@ -561,15 +561,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blazesym-c"
-version = "0.1.0-alpha.1"
-source = "git+https://github.com/libbpf/blazesym.git?rev=v0.2.0-rc.0#2f393f66a448f46ea71889e81a8866799762463d"
-dependencies = [
- "blazesym",
- "memoffset 0.9.1",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1260,44 +1251,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "data-pipeline"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "bytes",
- "datadog-trace-normalization",
- "datadog-trace-protobuf",
- "datadog-trace-utils",
- "ddcommon 0.0.1",
- "futures",
- "hyper 0.14.28",
- "log",
- "rmp-serde",
- "tokio",
-]
-
-[[package]]
-name = "data-pipeline-ffi"
-version = "0.0.1"
-dependencies = [
- "build_common",
- "bytes",
- "data-pipeline",
- "ddcommon-ffi",
- "libc 0.2.154",
-]
-
-[[package]]
-name = "datadog-alloc"
-version = "0.0.1"
-dependencies = [
- "allocator-api2",
- "bolero",
- "libc 0.2.154",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "datadog-alloc"
 version = "10.0.0"
 source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
@@ -1416,8 +1369,8 @@ dependencies = [
  "criterion",
  "criterion-perf-events",
  "crossbeam-channel",
- "datadog-alloc 10.0.0",
- "datadog-profiling 10.0.0",
+ "datadog-alloc",
+ "datadog-profiling",
  "ddcommon 10.0.0",
  "env_logger 0.11.3",
  "indexmap 2.2.6",
@@ -1435,43 +1388,6 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "bitmaps",
- "bolero",
- "bolero-generator",
- "byteorder",
- "bytes",
- "chrono",
- "criterion",
- "datadog-alloc 0.0.1",
- "ddcommon 0.0.1",
- "derivative",
- "futures",
- "futures-core",
- "futures-util",
- "hashbrown 0.14.3",
- "http 0.2.11",
- "http-body 0.4.6",
- "hyper 0.14.28",
- "hyper-multipart-rfc7578",
- "indexmap 2.2.6",
- "libc 0.2.154",
- "lz4_flex",
- "mime",
- "mime_guess",
- "percent-encoding",
- "prost 0.12.3",
- "rustc-hash",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util 0.7.10",
-]
-
-[[package]]
-name = "datadog-profiling"
 version = "10.0.0"
 source = "git+https://github.com/DataDog/libdatadog?tag=v10.0.0#b62562978bb8788ad2c84ca9390bfc28370d7d40"
 dependencies = [
@@ -1480,7 +1396,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "chrono",
- "datadog-alloc 10.0.0",
+ "datadog-alloc",
  "ddcommon 10.0.0",
  "derivative",
  "futures",
@@ -1502,28 +1418,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tokio-util 0.7.10",
-]
-
-[[package]]
-name = "datadog-profiling-ffi"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "build_common",
- "data-pipeline-ffi",
- "datadog-crashtracker-ffi",
- "datadog-profiling 0.0.1",
- "ddcommon 0.0.1",
- "ddcommon-ffi",
- "ddtelemetry-ffi",
- "futures",
- "hyper 0.14.28",
- "libc 0.2.154",
- "serde_json",
- "symbolic-common",
- "symbolic-demangle",
- "symbolizer-ffi",
  "tokio-util 0.7.10",
 ]
 
@@ -1806,7 +1700,7 @@ dependencies = [
  "anyhow",
  "cbindgen",
  "const-str",
- "datadog-profiling-ffi",
+ "datadog-crashtracker-ffi",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
  "ddcommon 0.0.1",
@@ -3169,15 +3063,6 @@ name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
-name = "memoffset"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
 ]
@@ -4881,14 +4766,6 @@ dependencies = [
  "msvc-demangler",
  "rustc-demangle",
  "symbolic-common",
-]
-
-[[package]]
-name = "symbolizer-ffi"
-version = "0.0.1"
-dependencies = [
- "blazesym-c",
- "build_common",
 ]
 
 [[package]]
