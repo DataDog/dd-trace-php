@@ -1789,7 +1789,7 @@ function add_missing_ini_settings($iniFilePath, $settings, $replacements)
             // right extension setting is available.
             $settingRegex = '(' . preg_quote($setting['name']) . '\s?=\s?';
             if ($setting['name'] === 'extension' || $setting['name'] == 'zend_extension') {
-                $settingRegex .= preg_quote($setting['default']);
+                $settingRegex .= ".*".preg_quote($setting['default']);
             }
             $settingRegex .= ')';
 
