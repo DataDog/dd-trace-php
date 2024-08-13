@@ -27,6 +27,7 @@ fn main() {
     let vernum = php_config_vernum();
     let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
+    let good_closure_invoke = cfg_good_closure_invoke(vernum);
     let fibers = cfg_fibers(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
     let trigger_time_sample = cfg_trigger_time_sample();
@@ -37,6 +38,7 @@ fn main() {
         post_startup_cb,
         preload,
         run_time_cache,
+        good_closure_invoke,
         fibers,
         trigger_time_sample,
         vernum,
@@ -83,11 +85,13 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
+#[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_config_includes: &str,
     post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
+    good_closure_invoke: bool,
     fibers: bool,
     trigger_time_sample: bool,
     vernum: u64,
@@ -132,6 +136,7 @@ fn build_zend_php_ffis(
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
+    let good_closure_invoke = if good_closure_invoke { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
@@ -146,6 +151,7 @@ fn build_zend_php_ffis(
         .files(files.into_iter().chain(zai_c_files))
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
+        .define("CFG_GOOD_CLOSURE_INVOKE", good_closure_invoke)
         .define("CFG_FIBERS", fibers)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
@@ -308,6 +314,15 @@ fn cfg_php_major_version(vernum: u64) {
     // was best way I could think of to address php 7 vs php 8 code paths
     // despite this misuse of the feature.
     println!("cargo:rustc-cfg=php{major_version}");
+}
+
+fn cfg_good_closure_invoke(vernum: u64) -> bool {
+    if vernum >= 80300 {
+        println!("cargo:rustc-cfg=php_good_closure_invoke");
+        true
+    } else {
+        false
+    }
 }
 
 fn cfg_fibers(vernum: u64) -> bool {

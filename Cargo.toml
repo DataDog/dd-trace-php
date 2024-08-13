@@ -14,7 +14,7 @@ debug = 2 # full debug info
 
 [profile.release]
 codegen-units = 1
-debug = "line-tables-only"
+debug = 2 #todo: revert back
 incremental = false
 lto = "fat"
 
