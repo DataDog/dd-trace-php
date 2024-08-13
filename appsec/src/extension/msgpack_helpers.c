@@ -330,7 +330,7 @@ static void parse_element(
             if (mpack_reader_error(reader) != mpack_ok) { // critical check!
                 zval_dtor(&key);
                 mlog(dd_log_error, "decode_msgpack error: error decoding map");
-                break;
+                return;
             }
             zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
             zval_dtor(&key);
