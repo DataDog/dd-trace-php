@@ -1,0 +1,65 @@
+--TEST--
+Send crashtracker report when segmentation fault signal is raised and config enables it
+--SKIPIF--
+<?php
+if (!extension_loaded('posix')) die('skip: posix extension required');
+if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: intentionally causes segfaults");
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support XFAIL");
+if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents("/etc/os-release"))) die("skip Unsupported LIBC");
+?>
+--ENV--
+DD_LOG_BACKTRACE=1
+DD_TRACE_SIDECAR_TRACE_SENDER=1
+--INI--
+datadog.trace.agent_url="file://{PWD}/crashtracker_segfault_agent.out"
+--FILE--
+<?php
+
+usleep(5000); // Let time to the sidecar to open the crashtracker socket
+
+$php = getenv('TEST_PHP_EXECUTABLE');
+$args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
+$cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
+system($cmd);
+
+usleep(5000); // Let time for the crash report to be uploaded
+
+echo file_get_contents(__DIR__."/crashtracker_segfault_agent.out");
+
+?>
+--EXPECTF--
+%A
+  "counters": {
+%A
+  },
+  "files": {
+    "/proc/self/maps": [
+%A
+    ]
+  },
+  "incomplete": false,
+  "metadata": {
+    "library_name": "dd-trace-php",
+    "library_version": "%s",
+    "family": "php",
+    "tags": [
+      "service:Standard input code"
+    ]
+  },
+  "os_info": {
+%A
+  },
+  "proc_info": {
+    "pid": %d
+  },
+  "siginfo": {
+    "signum": 11,
+    "signame": "SIGSEGV"
+  },
+  "timestamp": "%s",
+  "uuid": "%s"
+%A
+--CLEAN--
+<?php
+
+@unlink(__DIR__ . '/crashtracker_segfault_agent.out');
