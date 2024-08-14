@@ -267,18 +267,18 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static void parse_element(
+static bool parse_element(
     mpack_reader_t *nonnull reader, int depth, zval *nonnull output)
 {
     if (depth >= MAX_DEPTH) { // critical check!
         mpack_reader_flag_error(reader, mpack_error_too_big);
         mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
-        return;
+        return false;
     }
 
     mpack_tag_t tag = mpack_read_tag(reader);
     if (mpack_reader_error(reader) != mpack_ok) {
-        return;
+        return false;
     }
 
     switch (mpack_tag_type(&tag)) {
@@ -309,10 +309,10 @@ static void parse_element(
             zval new;
             parse_element(reader, depth + 1, &new);
             if (mpack_reader_error(reader) != mpack_ok) { // critical check!
-                zval_dtor(&new);
+                //                zval_dtor(&new);
                 mlog(
                     dd_log_error, "decode_msgpack error: error decoding array");
-                break;
+                return false;
             }
             zend_hash_next_index_insert(Z_ARRVAL_P(output), &new);
         }
@@ -325,13 +325,15 @@ static void parse_element(
         while (count-- > 0) {
             zval key;
             zval value;
-            parse_element(reader, depth + 1, &key);
-            parse_element(reader, depth + 1, &value);
-            if (mpack_reader_error(reader) != mpack_ok) { // critical check!
-                zval_dtor(&key);
+            if (!parse_element(reader, depth + 1, &key) ||
+                Z_TYPE(key) != IS_STRING ||
+                !parse_element(reader, depth + 1, &value) ||
+                mpack_reader_error(reader) != mpack_ok) { // critical check!
                 mlog(dd_log_error, "decode_msgpack error: error decoding map");
-                return;
+                return false;
             }
+            // Ignore clang because key is a string here
+            // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
             zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
             zval_dtor(&key);
         }
@@ -341,8 +343,10 @@ static void parse_element(
     default:
         mlog(dd_log_error, "decode_msgpack error: type %s not implemented.\n",
             mpack_type_to_string(mpack_tag_type(&tag)));
-        return;
+        return false;
     }
+
+    return true;
 }
 
 static bool parse_messagepack(
