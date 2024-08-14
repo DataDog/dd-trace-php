@@ -66,6 +66,19 @@ benchmarks-tracer:
   variables:
     SCENARIO: "tracer"
 
+benchmarks-appsec:
+  extends: .microbenchmarks
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - appsec/src/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+  variables:
+    SCENARIO: "appsec"
+
 
 download_circle_ci_release:
   stage: benchmarks

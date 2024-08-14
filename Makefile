@@ -3,8 +3,10 @@ PROJECT_ROOT := ${PWD}
 TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
 ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
 SHELL = /bin/bash
+APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
 BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
@@ -17,6 +19,7 @@ TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
+SO_APPSEC_FILE = $(BUILD_DIR)/modules/ddappsec.so
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
 LDFLAGS ?=
@@ -106,6 +109,10 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
+$(SO_APPSEC_FILE):
+	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
+	cd $(BUILD_DIR_APPSEC);make extension
+
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
 
@@ -115,17 +122,23 @@ $(AR_FILE): $(ALL_OBJECT_FILES)
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(if $(ASSUME_COMPILED),cp $(BUILD_DIR)/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so,$(MAKE) -C $(BUILD_DIR) install)
 
+$(PHP_EXTENSION_DIR)/ddappsec.so: $(SO_APPSEC_FILE)
+	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
+
+install_appsec: install $(PHP_EXTENSION_DIR)/ddappsec.so
 
 set_static_option:
 	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)
 
 static: set_static_option $(AR_FILE)
 
-$(INI_FILE):
-	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
+install_ini:
+	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $(INI_FILE)
 
-install_ini: $(INI_FILE)
+install_ini_appsec: install_ini
+	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
 
 install_all: install install_ini
 
