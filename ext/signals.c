@@ -100,15 +100,8 @@ static bool ddtrace_crashtracker_check_result(ddog_crasht_Result result, const c
 }
 
 static void ddtrace_init_crashtracker() {
-    ddog_Endpoint *agent_endpoint;
-
-    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        agent_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
-    } else {
-        char *agent_url = ddtrace_agent_url();
-        agent_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
-        free(agent_url);
-    }
+    ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
+    ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
 
     ddog_crasht_Config config = {
         .endpoint = agent_endpoint,
@@ -116,6 +109,8 @@ static void ddtrace_init_crashtracker() {
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
+    ddtrace_sidecar_push_tags(&tags, NULL);
+
     const ddog_crasht_Metadata metadata = {
         .library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),
         .library_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
@@ -126,11 +121,14 @@ static void ddtrace_init_crashtracker() {
     ddtrace_crashtracker_check_result(
         ddog_crasht_init_with_unix_socket(
             config,
-            ddog_sidecar_get_crashtracker_unix_socket_path(),
+            socket_path,
             metadata
         ),
         "Cannot initialize CrashTracker"
     );
+
+    ddog_endpoint_drop(agent_endpoint);
+    ddog_Vec_Tag_drop(tags);
 }
 
 void ddtrace_signals_first_rinit(void) {

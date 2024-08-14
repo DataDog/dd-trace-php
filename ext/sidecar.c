@@ -22,14 +22,7 @@ static uint8_t dd_sidecar_formatted_session_id[36];
 // Set the globals that stay unchanged in case of fork
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
     ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
-
-    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
-    } else {
-        char *agent_url = ddtrace_agent_url();
-        ddtrace_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
-        free(agent_url);
-    }
+    ddtrace_endpoint = ddtrace_sidecar_agent_endpoint();
 
     if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
         ddog_endpoint_set_test_token(ddtrace_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
@@ -163,7 +156,21 @@ void ddtrace_reset_sidecar_globals(void) {
     }
 }
 
-static inline void ddtrace_sidecar_dogstatsd_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value) {
+ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void) {
+    ddog_Endpoint *agent_endpoint;
+
+    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
+        agent_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+    } else {
+        char *agent_url = ddtrace_agent_url();
+        agent_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        free(agent_url);
+    }
+
+    return agent_endpoint;
+}
+
+static inline void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value) {
     ddog_Vec_Tag_PushResult tag_result = ddog_Vec_Tag_push(vec, key, value);
     if (tag_result.tag == DDOG_VEC_TAG_PUSH_RESULT_ERR) {
         zend_string *msg = dd_CharSlice_to_zend_string(ddog_Error_message(&tag_result.err));
@@ -173,7 +180,7 @@ static inline void ddtrace_sidecar_dogstatsd_push_tag(ddog_Vec_Tag *vec, ddog_Ch
     }
 }
 
-static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
+void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     // Global tags (https://github.com/DataDog/php-datadogstatsd/blob/0efdd1c38f6d3dd407efbb899ad1fd2e5cd18085/src/DogStatsd.php#L113-L125)
     ddtrace_span_data *span = ddtrace_active_span();
     zend_string *env;
@@ -183,12 +190,12 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
         env = zend_string_copy(get_DD_ENV());
     }
     if (ZSTR_LEN(env) > 0) {
-        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("env"), dd_zend_string_to_CharSlice(env));
+        ddtrace_sidecar_push_tag(vec, DDOG_CHARSLICE_C("env"), dd_zend_string_to_CharSlice(env));
     }
     zend_string_release(env);
     zend_string *service = ddtrace_active_service_name();
     if (ZSTR_LEN(service) > 0) {
-        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("service"), dd_zend_string_to_CharSlice(service));
+        ddtrace_sidecar_push_tag(vec, DDOG_CHARSLICE_C("service"), dd_zend_string_to_CharSlice(service));
     }
     zend_string_release(service);
     zend_string *version;
@@ -198,7 +205,7 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
         version = zend_string_copy(get_DD_VERSION());
     }
     if (ZSTR_LEN(version) > 0) {
-        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("version"), dd_zend_string_to_CharSlice(version));
+        ddtrace_sidecar_push_tag(vec, DDOG_CHARSLICE_C("version"), dd_zend_string_to_CharSlice(version));
     }
     zend_string_release(version);
 
@@ -219,7 +226,7 @@ static void ddtrace_sidecar_dogstatsd_push_tags(ddog_Vec_Tag *vec, zval *tags) {
         }
         zval value_str;
         ddtrace_convert_to_string(&value_str, tag_val);
-        ddtrace_sidecar_dogstatsd_push_tag(vec, dd_zend_string_to_CharSlice(key), dd_zend_string_to_CharSlice(Z_STR(value_str)));
+        ddtrace_sidecar_push_tag(vec, dd_zend_string_to_CharSlice(key), dd_zend_string_to_CharSlice(Z_STR(value_str)));
         zend_string_release(Z_STR(value_str));
     }
     ZEND_HASH_FOREACH_END();
@@ -231,7 +238,7 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
-    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddtrace_sidecar_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }
@@ -242,7 +249,7 @@ void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, z
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
-    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddtrace_sidecar_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_distribution(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }
@@ -253,7 +260,7 @@ void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
-    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddtrace_sidecar_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }
@@ -264,7 +271,7 @@ void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
-    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddtrace_sidecar_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_histogram(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }
@@ -275,7 +282,7 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
-    ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
+    ddtrace_sidecar_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_set(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
 }
