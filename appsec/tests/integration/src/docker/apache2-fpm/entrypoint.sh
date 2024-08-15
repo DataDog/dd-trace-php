@@ -3,7 +3,13 @@
 set -x
 
 mkdir -p /tmp/logs/apache2
-LOGS_PHP=(/tmp/logs/appsec.log /tmp/logs/helper.log /tmp/logs/php_error.log /tmp/logs/php_fpm_error.log)
+LOGS_PHP=(
+  /tmp/logs/appsec.log
+  /tmp/logs/helper.log
+  /tmp/logs/php_error.log
+  /tmp/logs/php_fpm_error.log
+  /tmp/logs/sidecar.log
+)
 touch "${LOGS_PHP[@]}"
 chown www-data:www-data "${LOGS_PHP[@]}"
 

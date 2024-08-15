@@ -22,6 +22,9 @@ if(DD_APPSEC_BUILD_HELPER)
     file(GLOB_RECURSE CPPBASE64_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cpp-base64/base64.cpp)
     add_library(cpp-base64 STATIC ${CPPBASE64_C_SOURCES})
     target_include_directories(cpp-base64 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/cpp-base64)
+    set_target_properties(cpp-base64 PROPERTIES
+        POSITION_INDEPENDENT_CODE 1
+        C_VISIBILITY_PRESET hidden)
 endif()
 
 if(DD_APPSEC_BUILD_EXTENSION)
@@ -44,6 +47,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
     GIT_TAG eb3220622e73a4889eee355ffa37972b3cac3df5)
 FetchContent_MakeAvailable(spdlog)
+set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 set(ZLIB_VERSION v1.3)
 FetchContent_Declare(

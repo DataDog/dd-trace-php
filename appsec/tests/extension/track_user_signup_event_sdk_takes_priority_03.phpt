@@ -26,7 +26,7 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => OtherUser
-    [_dd.appsec.events.users.signup.auto.mode] => safe
+    [_dd.appsec.events.users.signup.auto.mode] => identification
     [appsec.events.users.signup.track] => true
     [_dd.appsec.events.users.signup.sdk] => true
     [appsec.events.users.signup.value] => something-from-sdk-2

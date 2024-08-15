@@ -6,6 +6,10 @@
 #pragma once
 
 #include <boost/lexical_cast.hpp>
+#include <chrono>
+#include <optional>
+#include <spdlog/spdlog.h>
+#include <string_view>
 #include <unordered_map>
 
 namespace dds::config {
@@ -13,25 +17,43 @@ namespace dds::config {
 //       Perhaps make this a "singleton"
 class config {
 public:
-    config() = default;
-    config(int argc, char *argv[]); // NOLINT
+    explicit config(
+        const std::function<std::optional<std::string_view>(std::string_view)>
+            &fn);
 
-    template <typename T> T get(std::string_view key) const
+    [[nodiscard]] std::string_view socket_file_path() const
     {
-        return boost::lexical_cast<T>(kv_.at(key));
+        return kv_.at(env_socket_file_path);
+    }
+
+    [[nodiscard]] std::string_view lock_file_path() const
+    {
+        return kv_.at(env_lock_file_path);
+    }
+
+    [[nodiscard]] std::string_view log_file_path() const
+    {
+        return kv_.at(env_log_file_path);
+    }
+
+    [[nodiscard]] spdlog::level::level_enum log_level() const
+    {
+        return spdlog::level::from_str(std::string{kv_.at(env_log_level)});
     }
 
 protected:
     static const std::unordered_map<std::string_view, std::string_view>
         defaults;
     std::unordered_map<std::string_view, std::string_view> kv_{defaults};
+
+    static constexpr std::string_view env_socket_file_path =
+        "_DD_SIDECAR_APPSEC_SOCKET_FILE_PATH";
+    static constexpr std::string_view env_lock_file_path =
+        "_DD_SIDECAR_APPSEC_LOCK_FILE_PATH";
+    static constexpr std::string_view env_log_file_path =
+        "_DD_SIDECAR_APPSEC_LOG_FILE_PATH";
+    static constexpr std::string_view env_log_level =
+        "_DD_SIDECAR_APPSEC_LOG_LEVEL";
 };
-
-template <> bool config::get<bool>(std::string_view key) const;
-
-template <> std::string config::get<std::string>(std::string_view key) const;
-
-template <>
-std::string_view config::get<std::string_view>(std::string_view key) const;
 
 } // namespace dds::config

@@ -21,6 +21,7 @@ using namespace std::chrono_literals;
 namespace dds::network::local {
 
 acceptor::acceptor(const std::string_view &sv)
+    // NOLINTNEXTLINE(android-cloexec-socket)
     : sock_(::socket(AF_UNIX, SOCK_STREAM, 0))
 {
     if (sock_ == -1) {
@@ -35,20 +36,34 @@ acceptor::acceptor(const std::string_view &sv)
     strcpy(static_cast<char *>(addr.sun_path), sv.data()); // NOLINT
 
     // Remove the existing socket
-    ::unlink(static_cast<char *>(addr.sun_path));
+    int res = ::unlink(static_cast<char *>(addr.sun_path));
+    if (res == -1 && errno != ENOENT) {
+        SPDLOG_ERROR("Failed to unlink {}: errno {}", addr.sun_path, errno);
+        throw std::system_error(errno, std::generic_category());
+    }
+    SPDLOG_DEBUG("Unlinked {}", addr.sun_path);
 
-    socklen_t const len = sv.size() + sizeof(addr.sun_family);
-    // NOLINTNEXTLINE
-    auto res = ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr), len);
+    res =
+        // NOLINTNEXTLINE
+        ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
     if (res == -1) {
+        SPDLOG_ERROR(
+            "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
         throw std::system_error(errno, std::generic_category());
     }
 
-    ::chmod(sv.data(), 0777); // NOLINT
+    res = ::chmod(sv.data(), 0777); // NOLINT
+    if (res == -1) {
+        SPDLOG_ERROR(
+            "Failed to chmod socket {}: errno {}", addr.sun_path, errno);
+        throw std::system_error(errno, std::generic_category());
+    }
+
     static constexpr int backlog = 50;
     if (::listen(sock_, backlog) == -1) {
         throw std::system_error(errno, std::generic_category());
     }
+    SPDLOG_INFO("Started listening on {}", sv);
 }
 
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)
@@ -78,7 +93,7 @@ socket::ptr acceptor::accept()
         throw std::system_error(errno, std::generic_category());
     }
 
-    SPDLOG_DEBUG("New socket: {}", s);
+    SPDLOG_DEBUG("accept() returned a new socket: {}", s);
     return std::make_unique<socket>(s);
 }
 

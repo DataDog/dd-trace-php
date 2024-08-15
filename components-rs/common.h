@@ -104,6 +104,20 @@ typedef struct ddog_Option_Error {
 
 typedef struct ddog_Option_Error ddog_MaybeError;
 
+typedef enum ddog_Option_U32_Tag {
+  DDOG_OPTION_U32_SOME_U32,
+  DDOG_OPTION_U32_NONE_U32,
+} ddog_Option_U32_Tag;
+
+typedef struct ddog_Option_U32 {
+  ddog_Option_U32_Tag tag;
+  union {
+    struct {
+      uint32_t some;
+    };
+  };
+} ddog_Option_U32;
+
 /**
  * A wrapper for returning owned strings from FFI
  */
@@ -321,6 +335,8 @@ void ddog_MaybeError_drop(ddog_MaybeError);
 
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_url(ddog_CharSlice url);
 
+DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_filename(ddog_CharSlice filename);
+
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_api_key(ddog_CharSlice api_key);
 
 DDOG_CHECK_RETURN
@@ -331,6 +347,10 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
 void ddog_endpoint_set_timeout(struct ddog_Endpoint *endpoint, uint64_t millis);
 
 void ddog_endpoint_drop(struct ddog_Endpoint*);
+
+struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
+
+struct ddog_Option_U32 ddog_Option_U32_none(void);
 
 /**
  * # Safety
