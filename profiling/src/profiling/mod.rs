@@ -5,7 +5,6 @@ mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-use once_cell::sync::OnceCell;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
 use uploader::*;
@@ -27,6 +26,7 @@ use datadog_profiling::api::{
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
+use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -34,7 +34,7 @@ use std::intrinsics::transmute;
 use std::mem::forget;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -519,34 +519,19 @@ const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
-static PROFILER_INIT: Mutex<()> = Mutex::new(());
-
 impl Profiler {
     /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
     pub fn init(system_settings: &mut SystemSettings) {
-        // Safety: there could be a race in which another thread already initializes `PROFILER`,
-        // this is guarded by the `PROFILER_INIT` mutex next.
-        if unsafe { PROFILER.get() }.is_some() {
-            return;
-        }
-
-        // Waiting point for all threads but one.
-        let _lock = PROFILER_INIT.lock().unwrap();
-
-        // For one thread (presumably the first) this will evaluate to true, all other threads will
-        // evaluate this to false and skip initialization. Future calls to this method will trigger
-        // the guard clause above.
-        // Safety: only one thread will ever call `PROFILER::get()` while the OnceCell is not
-        // initialized. Other threads that saw an uninitialized `PROFILER` but came to late to
-        // acquire `PROFILER_INIT` mutex will get `Some` and not do anything with the OnceCell.
-        if unsafe { PROFILER.get() }.is_none() {
-            let _ = unsafe { PROFILER.set(Profiler::new(system_settings)) };
-        }
+        // SAFETY: the `get_or_init` access is a thread-safe API, and the
+        // PROFILER is not being mutated outside single-threaded phases such
+        // as minit/mshutdown.
+        unsafe { PROFILER.get_or_init(|| Profiler::new(system_settings)) };
     }
 
     pub fn get() -> Option<&'static Profiler> {
-        // Safety: Besides the `InterruptManager`, which guards adding new vm_interrupts with a
-        // mutex, non of the public functions do mutations to global data
+        // SAFETY: the `get` access is a thread-safe API, and the PROFILER is
+        // not being mutated outside single-threaded phases such as minit and
+        // mshutdown.
         unsafe { PROFILER.get() }
     }
 
@@ -664,6 +649,9 @@ impl Profiler {
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
     pub fn stop(timeout: Duration) {
+        // SAFETY: the `get_mut` access is a thread-safe API, and the PROFILER
+        // is not being mutated outside single-threaded phases such as minit
+        // and mshutdown.
         if let Some(profiler) = unsafe { PROFILER.get_mut() } {
             profiler.join_and_drop_sender(timeout);
         }
@@ -703,6 +691,9 @@ impl Profiler {
     ///
     /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
     pub fn shutdown(timeout: Duration) {
+        // SAFETY: the `take` access is a thread-safe API, and the PROFILER is
+        // not being mutated outside single-threaded phases such  as minit and
+        // mshutdown.
         if let Some(profiler) = unsafe { PROFILER.take() } {
             profiler.join_collector_and_uploader(timeout);
         }
