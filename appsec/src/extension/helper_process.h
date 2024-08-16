@@ -6,9 +6,16 @@
 #ifndef DD_HELPER_MGR_H
 #define DD_HELPER_MGR_H
 
+#include <components-rs/ddtrace.h>
+
+#include "attributes.h"
 #include "dddefs.h"
 #include "network.h"
-#include "attributes.h"
+
+typedef typeof(&ddog_sidecar_enable_appsec) sidecar_enable_appsec_t;
+
+__attribute__((visibility("default")))
+void dd_appsec_maybe_enable_helper(sidecar_enable_appsec_t nonnull enable_appsec);
 
 void dd_helper_startup(void);
 void dd_helper_shutdown(void);

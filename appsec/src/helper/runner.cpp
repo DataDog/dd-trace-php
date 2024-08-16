@@ -17,9 +17,9 @@ namespace dds {
 namespace {
 network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
 {
-    auto value{cfg.get<std::string_view>("socket_path")};
-    if (value.size() >= 4 && value.substr(0, 3) == "fd:") {
-        auto rest{value.substr(3)};
+    std::string_view const sock_path{cfg.socket_file_path()};
+    if (sock_path.size() >= 4 && sock_path.substr(0, 3) == "fd:") {
+        auto rest{sock_path.substr(3)};
         int const fd = std::stoi(std::string{rest}); // can throw
         struct stat statbuf {};
         int const res = fstat(fd, &statbuf);
@@ -30,19 +30,18 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
         return std::make_unique<network::local::acceptor>(fd);
     }
 
-    return std::make_unique<network::local::acceptor>(value);
+    return std::make_unique<network::local::acceptor>(sock_path);
 }
 } // namespace
 
-runner::runner(const config::config &cfg)
-    : runner(cfg, acceptor_from_config(cfg))
+runner::runner(const config::config &cfg, std::atomic<bool> &interrupted)
+    : runner{cfg, acceptor_from_config(cfg), interrupted}
 {}
 
-runner::runner(
-    const config::config &cfg, network::base_acceptor::ptr &&acceptor)
+runner::runner(const config::config &cfg,
+    network::base_acceptor::ptr &&acceptor, std::atomic<bool> &interrupted)
     : cfg_(cfg), service_manager_{std::make_shared<service_manager>()},
-      acceptor_(std::move(acceptor)),
-      idle_timeout_(cfg.get<unsigned>("runner_idle_timeout"))
+      acceptor_(std::move(acceptor)), interrupted_{interrupted}
 {
     try {
         acceptor_->set_accept_timeout(1min);
@@ -56,26 +55,12 @@ void runner::run()
 {
     try {
         auto last_not_idle = std::chrono::steady_clock::now();
-        SPDLOG_INFO("Running");
-        while (running_) {
+        SPDLOG_INFO("Runner running");
+        while (!interrupted()) {
             network::base_socket::ptr socket;
             try {
                 socket = acceptor_->accept();
             } catch (const timeout_error &e) {
-                // If there are clients running, we don't
-                if (worker_pool_.worker_count() > 0) {
-                    // We are not idle, update
-                    last_not_idle = std::chrono::steady_clock::now();
-                    continue;
-                }
-
-                auto elapsed = std::chrono::steady_clock::now() - last_not_idle;
-                if (elapsed >= idle_timeout_) {
-                    SPDLOG_INFO("Runner idle for {} minutes, exiting",
-                        idle_timeout_.count());
-                    break;
-                }
-
                 continue;
             }
 
@@ -84,7 +69,7 @@ void runner::run()
                 break;
             }
 
-            if (!running_) {
+            if (interrupted()) {
                 break;
             }
 
@@ -101,6 +86,10 @@ void runner::run()
     } catch (const std::exception &e) {
         SPDLOG_ERROR("exception: {}", e.what());
     }
+
+    SPDLOG_INFO("Runner exiting, stopping pool");
+    worker_pool_.stop();
+    SPDLOG_INFO("Pool stopped");
 }
 
 } // namespace dds

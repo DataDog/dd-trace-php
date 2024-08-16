@@ -100,7 +100,8 @@ void client_handler::poll()
 {
     try {
         rc_client_->poll();
-    } catch (dds::remote_config::network_exception & /** e */) {
+    } catch (const std::exception &e) {
+        SPDLOG_WARN("Error polling remote config: {}", e.what());
         handle_error();
     }
 }
@@ -114,7 +115,9 @@ void client_handler::discover()
             interval_ = poll_interval_;
             return;
         }
-    } catch (dds::remote_config::network_exception & /** e */) {}
+    } catch (const std::exception &e) {
+        SPDLOG_WARN("Error discovering remote config: {}", e.what());
+    }
     handle_error();
 }
 

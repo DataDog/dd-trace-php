@@ -6,9 +6,9 @@ RUN ln -s /bin/sed /usr/bin/sed
 RUN mkdir /build
 ADD . /build/
 
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-x86_64.tar.gz && \
-    grep -F "cmake-3.28.0-linux-x86_64.tar.gz" ./build/CHECKSUMS | sha512sum --check && \
-    tar --strip-components=1 -C /usr/local -xvzf cmake-3.28.0-linux-x86_64.tar.gz && \
-    rm cmake-3.28.0-linux-x86_64.tar.gz
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \
+    grep -F "cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz" ./build/CHECKSUMS | sha512sum --check && \
+    tar --strip-components=1 -C /usr/local -xvzf cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \
+    rm cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz
 
 RUN cd /build && make install && make clean

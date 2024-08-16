@@ -30,8 +30,8 @@ Array
     [appsec.events.users.login.failure.usr.id] => Admin
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
-    [appsec.events.users.login.failure.usr.exists] => true
     [appsec.events.users.login.failure.value] => something
     [appsec.events.users.login.failure.metadata] => some other metadata
     [appsec.events.users.login.failure.email] => noneofyour@business.com
+    [appsec.events.users.login.failure.usr.exists] => true
 )

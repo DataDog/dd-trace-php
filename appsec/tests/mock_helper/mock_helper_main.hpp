@@ -5,13 +5,13 @@
 // Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include <optional>
 #include <type_traits>
 #include <vector>
-#include <optional>
 
-#include <rapidjson/writer.h>
-#include <boost/asio/spawn.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
+#include <boost/asio/spawn.hpp>
+#include <rapidjson/writer.h>
 #include <spdlog/spdlog.h>
 
 #include <mpack.h>
@@ -26,20 +26,21 @@ class EchoPipe { // lifetime: till the end of the program
   public:
     EchoPipe();
 
-    void write(const asio::const_buffer buff, asio::yield_context yield);
+    void write(asio::const_buffer buff, asio::yield_context yield);
 
     template <typename Callable> void add_close_cb(Callable &&cb)
     {
-        spawn(iocontext, [this, cb = std::move(cb)](auto yield) {
+        spawn(
+            iocontext, [this, cb = std::forward<decltype(cb)>(cb)](auto yield) {
 #ifdef __linux__
-            auto wait_type = posix::stream_descriptor::wait_error;
+                auto wait_type = posix::stream_descriptor::wait_error;
 #else
             auto wait_type = posix::stream_descriptor::wait_read;
 #endif
-            stream_.async_wait(wait_type, yield);
-            SPDLOG_INFO("The echo pipe was closed");
-            cb();
-        });
+                stream_.async_wait(wait_type, yield);
+                SPDLOG_INFO("The echo pipe was closed"); // NOLINT
+                cb();
+            });
     }
 
   private:
@@ -59,9 +60,13 @@ class MsgpackToJson {
     template <typename T,
         typename = std::enable_if_t<sizeof(T) == 1 || std::is_void_v<T>, void>>
     MsgpackToJson(const T *buffer, size_t size)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         : MsgpackToJson{reinterpret_cast<const char *>(buffer), size} {}
 
     MsgpackToJson(const MsgpackToJson &) = delete;
+    MsgpackToJson(MsgpackToJson &&) = delete;
+    MsgpackToJson &operator=(const MsgpackToJson &) = delete;
+    MsgpackToJson &operator=(MsgpackToJson &&) = delete;
 
     ~MsgpackToJson() { mpack_tree_destroy(&tree_); }
 
@@ -73,14 +78,14 @@ class MsgpackToJson {
 
     asio::const_buffer asio_buffer() {
         const char *str = buffer_.GetString();
-        size_t len = buffer_.GetLength();
+        const size_t len = buffer_.GetLength();
         return {str, len};
     }
 
   private:
     void write(mpack_node_t &node);
 
-    mpack_tree_t tree_;
+    mpack_tree_t tree_{};
     rapidjson::StringBuffer buffer_;
     writer_t writer_{buffer_};
 };

@@ -242,9 +242,13 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
-
 static void _rinit_once() { dd_config_first_rinit(); }
+
+void dd_appsec_rinit_once()
+{
+    static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
+    pthread_once(&_rinit_once_control, _rinit_once);
+}
 
 // NOLINTNEXTLINE
 static PHP_RINIT_FUNCTION(ddappsec)
@@ -255,7 +259,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
     // Safety precaution
     DDAPPSEC_G(during_request_shutdown) = false;
 
-    pthread_once(&_rinit_once_control, _rinit_once);
+    dd_appsec_rinit_once();
     zai_config_rinit();
     _check_enabled();
 
