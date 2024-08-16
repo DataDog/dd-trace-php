@@ -22,8 +22,8 @@ services:
       args:
         <<: *build-base
         phpVersion: "8.4"
-        phpTarGzUrl: https://downloads.php.net/~saki/php-8.4.0alpha1.tar.gz
-        phpSha256Hash: "200fc03de5bf34bc621a24fce061bf3ec8d4d2fc8a676ed9b3f94ad129f69eab"
+        phpTarGzUrl: https://downloads.php.net/~calvinb/php-8.4.0beta3.tar.gz
+        phpSha256Hash: "a2466aca468a4dd1bde15dd604e80bb80a8d44982fbec0c1acaed52f06980240"
 
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_bookworm-$BOOKWORM_NEXT_VERSION
