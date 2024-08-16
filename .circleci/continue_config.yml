@@ -3867,7 +3867,8 @@ jobs:
       - git_checkout
       - run:
           name: Install cbindgen
-          command: cargo install cbindgen
+          # cbindgen 0.27 requires Rust 1.74+
+          command: cargo install cbindgen@0.26.0
       - run:
           name: Regenerate cbindgen headers and
           command: |
