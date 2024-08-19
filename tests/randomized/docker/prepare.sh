@@ -25,7 +25,11 @@ php -v
 echo "Starting PHP-FPM"
 mkdir -p /var/log/php-fpm/
 chmod a+w /var/log/php-fpm/
-php-fpm -D -d datadog.trace.log_file=/results/dd_php_error.log
+if ldd $(which php) 2>/dev/null | grep -q libasan; then
+  php-fpm -D -d datadog.trace.log_file=/results/dd_php_error.log
+else
+  nohup strace -ttfs 200 bash -c 'php-fpm -F -d datadog.trace.log_file=/results/dd_php_error.log 2>&3' 0<&- 3>&2 2>/results/php-fpm.strace >/dev/null &
+fi
 sleep 1
 
 # Start nginx
