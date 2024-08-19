@@ -87,9 +87,9 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
 
                                     // FIXME: what are the correct values??
                                     NULL,
-                                    DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
+                                    NULL,
                                     0,
-                                    DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ACTIVATION,
+                                    NULL,
                                     0
                                     );
 
