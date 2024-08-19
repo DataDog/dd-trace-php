@@ -9,6 +9,7 @@
 
 #include "logging.h"
 #include "msgpack_helpers.h"
+#include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
 
@@ -369,13 +370,13 @@ static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    zval_ret_string_arginfo, 0, 1, IS_ARRAY, 0)
-ZEND_ARG_TYPE_INFO(0, id, IS_STRING, 0)
+    void_ret_array_arginfo, 0, 1, IS_ARRAY, 0)
+ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), zval_ret_string_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), void_ret_array_arginfo, 0)
     PHP_FE_END
 };
 // clang-format on
