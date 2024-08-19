@@ -630,7 +630,6 @@ static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name
     ZVAL_COPY_VALUE(&garbage_timestamp, &event->property_timestamp);
     ZVAL_COPY_VALUE(&garbage_attributes, &event->property_attributes);
 
-    // Update event properties
     ZVAL_STR_COPY(&event->property_name, name);
 
     // Use the provided timestamp or the current time in nanoseconds
@@ -723,14 +722,6 @@ PHP_METHOD(DDTrace_SpanEvent, __construct)
 
     // Use the static function to set properties and handle cleanup
     dd_span_event_construct(event, name, timestamp, attributes);
-
-    if (attributes) {
-#if PHP_VERSION_ID >= 80000
-        zend_update_property(ddtrace_ce_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
-#else
-        zend_update_property(ddtrace_ce_span_event, ZEND_THIS, ZEND_STRL("attributes"), attributes);
-#endif
-    }
 }
 
 /* DDTrace\ExceptionSpanEvent */
@@ -749,23 +740,17 @@ PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
         Z_PARAM_ARRAY_EX(attributes, 1, 0)
     ZEND_PARSE_PARAMETERS_END();
 
-    zend_string *name = zend_string_init("exception", sizeof("exception") - 1, 0);
-
     ddtrace_exception_span_event *event = (ddtrace_exception_span_event*)Z_OBJ_P(ZEND_THIS);
 
     // Use the static function to set properties and handle cleanup
+    zend_string *name = zend_string_init(ZEND_STRL("exception"), 0);
     dd_span_event_construct(&event->span_event, name, 0, attributes);
-
-    if (attributes) {
-#if PHP_VERSION_ID >= 80000
-        zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("exception"), exception);
-        zend_update_property(ddtrace_ce_exception_span_event, Z_OBJ_P(ZEND_THIS), ZEND_STRL("attributes"), attributes);
-#else
-        zend_update_property(ddtrace_ce_exception_span_event, ZEND_THIS, ZEND_STRL("exception"), exception);
-        zend_update_property(ddtrace_ce_exception_span_event, ZEND_THIS, ZEND_STRL("attributes"), attributes);
-#endif
-    }
     zend_string_release(name);
+
+    zval garbage;
+    ZVAL_COPY_VALUE(&garbage, &event->property_exception);
+    ZVAL_COPY(&event->property_exception, exception);
+    zval_ptr_dtor(&garbage);
 }
 
 /* DDTrace\SpanLink */
