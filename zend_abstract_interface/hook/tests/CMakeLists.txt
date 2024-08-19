@@ -4,6 +4,9 @@ add_executable(hooks
 )
 
 target_link_libraries(hooks PUBLIC catch2_main Tea::Tea Zai::Symbols Zai::Hook)
+if(PhpConfig_VERNUM GREATER_EQUAL "80000")
+  target_link_libraries(hooks PUBLIC Zai::JitUtils)
+endif()
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/stubs
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
