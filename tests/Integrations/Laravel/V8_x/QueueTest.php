@@ -2,22 +2,14 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
-use DDTrace\Log\Logger;
 use DDTrace\Tag;
-use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\SpanChecker;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use Illuminate\Support\Facades\Artisan;
 
 class QueueTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
-    use SnapshotTestTrait;
+    public static $database = "laravel8";
 
     protected static function getAppIndexScript()
     {
@@ -349,7 +341,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql_integration;dbname=laravel8', 'test', 'test');
     }
 
     protected function spanEventJobProcessing()

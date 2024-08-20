@@ -7,6 +7,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
+    public static $database = "drupal89";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Drupal/Version_8_9/index.php';
@@ -23,7 +25,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
         $cacheTables = $pdo->query("SHOW TABLES LIKE 'cache%'");
         while ($table = $cacheTables->fetchColumn()) {
             //fwrite(STDERR, "Truncating table $table" . PHP_EOL);

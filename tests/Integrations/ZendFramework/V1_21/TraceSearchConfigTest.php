@@ -40,7 +40,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'zf1.action' => 'index',
                         'zf1.route_name' => 'default',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost/simple',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'zendframework',

@@ -514,6 +514,8 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
 
 void ddog_endpoint_set_timeout(struct ddog_Endpoint *endpoint, uint64_t millis);
 
+void ddog_endpoint_set_test_token(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
+
 void ddog_endpoint_drop(struct ddog_Endpoint*);
 
 struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);

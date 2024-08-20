@@ -1,0 +1,5 @@
+{
+    "require": {
+        "laminas/laminas-log": "~2.0"
+    }
+}

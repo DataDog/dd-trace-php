@@ -40,7 +40,7 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                     'GET /site/index'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/site/index',
+                    Tag::HTTP_URL => 'http://localhost/site/index',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/site/index',
                     Tag::HTTP_ROUTE => '/site/index',

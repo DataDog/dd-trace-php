@@ -46,7 +46,11 @@ class RequestReplayer
     {
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
-        $allRequests = json_decode(file_get_contents($this->endpoint . '/replay'), true);
+        $allRequests = json_decode(file_get_contents($this->endpoint . '/replay', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
         if ($allRequests && $ignoreTelemetry) {
             $allRequests = array_values(array_filter($allRequests, function ($v) { return $v["uri"] != '/telemetry/proxy/api/v2/apmtelemetry'; }));
         }
@@ -78,7 +82,10 @@ class RequestReplayer
             "http" => [
                 "method" => "POST",
                 "content" => json_encode($array),
-                "header" => "Content-Type: application/json"
+                "header" => [
+                    "Content-Type: application/json",
+                    "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+                ]
             ],
         ]));
     }

@@ -4,15 +4,12 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class InternalExceptionsTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
+    public static $database = "laravel8";
 
     protected static function getAppIndexScript()
     {
@@ -46,7 +43,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'not-implemented',
                         'laravel.route.action' => 'App\Http\Controllers\InternalErrorController@notImplemented',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/not-implemented',
+                        'http.url' => 'http://localhost/not-implemented',
                         'http.status_code' => '501',
                         'http.route' => 'not-implemented',
                         TAG::SPAN_KIND => 'server',
@@ -106,7 +103,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'unauthorized',
                         'laravel.route.action' => 'App\Http\Controllers\InternalErrorController@unauthorized',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/unauthorized',
+                        'http.url' => 'http://localhost/unauthorized',
                         'http.status_code' => '403',
                         'http.route' => 'unauthorized',
                         TAG::SPAN_KIND => 'server',

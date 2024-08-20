@@ -318,9 +318,12 @@ trait SnapshotTestTrait
 
         $token = $this->generateToken();
         $this->startSnapshotSession($token);
+        $originalToken = ini_get("datadog.trace.agent_test_session_token");
+        update_test_agent_session_token($token);
 
         $fn($tracer);
 
+        update_test_agent_session_token($originalToken);
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
 
@@ -343,6 +346,8 @@ trait SnapshotTestTrait
 
         $token = $this->generateToken();
         $this->startSnapshotSession($token, $snapshotMetrics, $logsFile);
+        $originalToken = ini_get("datadog.trace.agent_test_session_token");
+        update_test_agent_session_token($token);
 
         $this->resetTracer($tracer, $config);
 
@@ -352,13 +357,14 @@ trait SnapshotTestTrait
         }
         $fn($tracer);
 
-        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
-        self::putEnv('DD_TRACE_AGENT_RETRIES');
-
         $traces = $this->flushAndGetTraces($tracer);
         if (!empty($traces)) {
             $this->sendTracesToTestAgent($traces);
         }
+
+        update_test_agent_session_token($originalToken);
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+        self::putEnv('DD_TRACE_AGENT_RETRIES');
 
         $this->stopAndCompareSnapshotSession(
             $token,

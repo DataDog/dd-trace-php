@@ -1,6 +1,6 @@
 {
     "$schema":"vendor/phpbench/phpbench/phpbench.schema.json",
-    "runner.bootstrap": "./bootstrap_utils.php",
+    "runner.bootstrap": "./bootstrap_phpbench.php",
     "runner.path": "Benchmarks",
     "runner.file_pattern": "*Bench.php",
     "runner.php_env": {

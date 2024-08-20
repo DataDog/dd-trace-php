@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "([^/]+)(?:/([0-9]+))?/?$",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/simple?key=value&<redacted>",
+      "http.url": "http://localhost/simple?key=value&<redacted>",
       "runtime-id": "8fdcf6ef-7cd9-4910-b426-c7c9809f3dd4",
       "span.kind": "server"
     },

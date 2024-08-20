@@ -10,6 +10,9 @@
 #include "sidecar.h"
 #include "telemetry.h"
 #include "serializer.h"
+#ifndef _WIN32
+#include "coms.h"
+#endif
 
 ddog_SidecarTransport *ddtrace_sidecar;
 ddog_Endpoint *ddtrace_endpoint;
@@ -20,12 +23,16 @@ static uint8_t dd_sidecar_formatted_session_id[36];
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
     ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
 
-   if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
+    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
         ddtrace_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
     } else {
         char *agent_url = ddtrace_agent_url();
         ddtrace_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
         free(agent_url);
+    }
+
+    if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+        ddog_endpoint_set_test_token(ddtrace_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 }
 
@@ -51,6 +58,10 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
         char *dogstatsd_url = ddtrace_dogstatsd_url();
         dogstatsd_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = dogstatsd_url, .len = strlen(dogstatsd_url)});
         free(dogstatsd_url);
+    }
+
+    if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+        ddog_endpoint_set_test_token(dogstatsd_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 
 #ifdef _WIN32
@@ -263,4 +274,16 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
     ddtrace_sidecar_dogstatsd_push_tags(&vec, tags);
     ddog_sidecar_dogstatsd_set(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
     ddog_Vec_Tag_drop(vec);
+}
+
+bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value) {
+    UNUSED(old_value);
+    if (ddtrace_sidecar) {
+        ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+        ddog_sidecar_set_test_session_token(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
+    }
+#ifndef _WIN32
+    ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
+#endif
+    return true;
 }

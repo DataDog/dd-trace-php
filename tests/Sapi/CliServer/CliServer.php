@@ -58,8 +58,6 @@ final class CliServer implements Sapi
     public function start()
     {
         if (getenv('PHPUNIT_COVERAGE')) {
-            $this->inis['auto_prepend_file'] = __DIR__ . '/../../save_code_coverage.php';
-
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $this->inis['zend_extension'] = $xdebugExtension;
