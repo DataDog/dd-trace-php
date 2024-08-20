@@ -282,6 +282,12 @@ trait SnapshotTestTrait
         $expectedMetrics = $this->filterMetrics($expectedMetrics, $fieldsToIgnore);
         $receivedMetrics = $this->filterMetrics($receivedMetrics, $fieldsToIgnore);
 
+        $alg = function ($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        };
+        usort($expectedMetrics, $alg);
+        usort($receivedMetrics, $alg);
+
         TestCase::assertEquals($expectedMetrics, $receivedMetrics, "Metrics don't match");
     }
 
