@@ -30,7 +30,7 @@ use clocks::*;
 use core::ptr;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
-use libc::c_char;
+use libc::{c_char, c_void};
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -128,6 +128,8 @@ extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
 }
 
+static mut FOO: i32 = 0;
+
 /// The function `get_module` is what makes this a PHP module. Please do not
 /// call this directly; only let it be called by the engine. Generally it is
 /// only called once, but if someone accidentally loads the module twice then
@@ -160,11 +162,28 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         version: PROFILER_VERSION.as_ptr(),
         post_deactivate_func: Some(prshutdown),
         deps: DEPS.as_ptr(),
+        #[cfg(php_zts)]
+        globals_ctor: Some(ginit),
+        #[cfg(php_zts)]
+        globals_dtor: Some(gshutdown),
+        #[cfg(php_zts)]
+        globals_size: 1,
+        #[cfg(php_zts)]
+        globals_id_ptr: unsafe { &mut FOO },
         ..Default::default()
     });
 
     // SAFETY: well, it's at least as safe as what every single C extension does.
     unsafe { &mut *ptr::addr_of_mut!(MODULE) }
+}
+
+unsafe extern "C" fn ginit(foo: *mut c_void) {
+    #[cfg(feature = "timeline")]
+    timeline::timeline_ginit();
+}
+unsafe extern "C" fn gshutdown(foo: *mut c_void) {
+    #[cfg(feature = "timeline")]
+    timeline::timeline_gshutdown();
 }
 
 /* Important note on the PHP lifecycle:

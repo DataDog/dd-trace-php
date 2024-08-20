@@ -978,6 +978,40 @@ impl Profiler {
 
     /// This function can be called to collect any fatal errors
     #[cfg(feature = "timeline")]
+    pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
+        let mut labels = Profiler::common_labels(1);
+
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
+        });
+
+        let n_labels = labels.len();
+
+        match self.prepare_and_send_message(
+            vec![ZendFrame {
+                function: format!("[{event}]").into(),
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                timeline: 1,
+                ..Default::default()
+            },
+            labels,
+            now,
+        ) {
+            Ok(_) => {
+                trace!("Sent event '{event}' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send event '{event}' with {n_labels} labels to profiler: {err}")
+            }
+        }
+    }
+
+    /// This function can be called to collect any fatal errors
+    #[cfg(feature = "timeline")]
     pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
         let mut labels = Profiler::common_labels(2);
 

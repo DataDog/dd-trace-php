@@ -6,7 +6,7 @@ use crate::zend::{
 use crate::REQUEST_LOCALS;
 use libc::c_char;
 use log::{error, trace};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::ffi::CStr;
 use std::ptr;
 use std::time::Instant;
@@ -30,6 +30,7 @@ static mut FRANKENPHP_HANDLE_REQUEST_HANDLER: InternalFunctionHandler = None;
 
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
+    static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
 enum State {
@@ -156,7 +157,7 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     }
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+    if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
         profiler.collect_fatal(
             now,
@@ -258,6 +259,34 @@ pub unsafe fn timeline_rinit() {
             }
         });
     });
+
+    IS_NEW_THREAD.with(|cell| {
+        if cell.get() == false {
+            return;
+        }
+        cell.set(false);
+        REQUEST_LOCALS.with(|cell| {
+            let is_timeline_enabled = cell
+                .try_borrow()
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
+                .unwrap_or(false);
+
+            if !is_timeline_enabled {
+                return;
+            }
+
+            if let Some(profiler) = Profiler::get() {
+                profiler.collect_thread_start_end(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    "thread_start",
+                );
+            }
+        });
+    });
 }
 
 /// This function is run during the P-RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
@@ -316,6 +345,37 @@ pub(crate) unsafe fn timeline_mshutdown() {
                 );
             }
         });
+    });
+    timeline_gshutdown();
+}
+
+pub(crate) fn timeline_ginit() {
+    IS_NEW_THREAD.with(|cell| {
+        cell.set(true);
+    });
+}
+
+pub(crate) fn timeline_gshutdown() {
+    REQUEST_LOCALS.with(|cell| {
+        let is_timeline_enabled = cell
+            .try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false);
+
+        if !is_timeline_enabled {
+            return;
+        }
+
+        if let Some(profiler) = Profiler::get() {
+            profiler.collect_thread_start_end(
+                // Safety: checked for `is_err()` above
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as i64,
+                "thread_end",
+            );
+        }
     });
 }
 
