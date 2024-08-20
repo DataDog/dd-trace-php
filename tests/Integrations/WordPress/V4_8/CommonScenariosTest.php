@@ -10,6 +10,8 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
+    public static $database = "wp48";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_4_8/index.php';
@@ -18,7 +20,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql_integration;dbname=wp48', 'test', 'test');
         $pdo->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_4_8/wp_2019-10-01.sql'));
     }
 

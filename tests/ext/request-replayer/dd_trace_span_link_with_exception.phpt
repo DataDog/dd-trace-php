@@ -9,6 +9,8 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+--INI--
+datadog.trace.agent_test_session_token=dd_trace_span_link_with_exception
 --FILE--
 <?php
 

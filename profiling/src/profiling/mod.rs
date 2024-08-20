@@ -684,7 +684,9 @@ impl Profiler {
                 let (wall_time, cpu_time) = CLOCKS.with(|cell| cell.borrow_mut().rotate_clocks());
 
                 let labels = Profiler::common_labels(0);
-                let mut timestamp = 0;
+                let n_labels = labels.len();
+
+                let mut timestamp = NO_TIMESTAMP;
                 #[cfg(feature = "timeline")]
                 {
                     let system_settings = self.system_settings.load(Ordering::SeqCst);
@@ -695,8 +697,6 @@ impl Profiler {
                         }
                     }
                 }
-
-                let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -790,6 +790,18 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
+                let mut timestamp = NO_TIMESTAMP;
+                #[cfg(feature = "timeline")]
+                {
+                    let system_settings = self.system_settings.load(Ordering::SeqCst);
+                    // SAFETY: system settings are stable during a request.
+                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                            timestamp = now.as_nanos() as i64;
+                        }
+                    }
+                }
+
                 match self.prepare_and_send_message(
                     frames,
                     SampleValues {
@@ -797,7 +809,7 @@ impl Profiler {
                         ..Default::default()
                     },
                     labels,
-                    NO_TIMESTAMP,
+                    timestamp,
                 ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."

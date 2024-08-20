@@ -1,0 +1,5 @@
+{
+    "require": {
+        "opentracing/opentracing": "^1.0"
+    }
+}

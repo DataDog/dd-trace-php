@@ -1574,7 +1574,7 @@ function ini_values($binary)
 
     if ($found[EXTENSION_DIR] == "") {
         $found[EXTENSION_DIR] = dirname(PHP_BINARY);
-    } elseif ($found[EXTENSION_DIR][0] != "/" && (!IS_WINDOWS || !preg_match('~^([A-Z]:|\\\\)\\\\~i', $found[EXTENSION_DIR]))) {
+    } elseif ($found[EXTENSION_DIR][0] != "/" && (!IS_WINDOWS || !preg_match('~^([A-Z]:[\\\\/]|\\\\{2})~i', $found[EXTENSION_DIR]))) {
         $found[EXTENSION_DIR] = dirname(PHP_BINARY) . '/' . $found[EXTENSION_DIR];
     }
 

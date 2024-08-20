@@ -38,6 +38,8 @@ function array_filter_recursive(callable $keep_fn, array $input)
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "elasticsearch";
+
     const HOST2 = 'elasticsearch2_integration';
     const HOST7 = 'elasticsearch7_integration';
 
@@ -104,7 +106,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -112,7 +114,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertSame('array', gettype($client->delete([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
             ])));
         });
@@ -122,7 +124,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.delete',
                 'elasticsearch',
                 'elasticsearch',
-                'delete index:my_index type:my_type'
+                'delete index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
@@ -143,7 +145,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -151,7 +153,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertTrue($client->exists([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
             ]));
         });
@@ -161,7 +163,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.exists',
                 'elasticsearch',
                 'elasticsearch',
-                'exists index:my_index type:my_type'
+                'exists index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
@@ -182,7 +184,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -193,7 +195,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('explanation', $client->explain([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
                 'body' => [
                     'query' => [
@@ -208,7 +210,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.explain',
                 'elasticsearch',
                 'elasticsearch',
-                'explain index:my_index type:my_type'
+                'explain index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
@@ -233,7 +235,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -241,7 +243,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('found', $client->get([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
             ]));
         });
@@ -251,7 +253,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.get',
                 'elasticsearch',
                 'elasticsearch',
-                'get index:my_index type:my_type'
+                'get index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
@@ -274,7 +276,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $response = $client->index([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
                 'body' => ['my' => 'body'],
             ]);
@@ -286,7 +288,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.index',
                 'elasticsearch',
                 'elasticsearch',
-                'index index:my_index type:my_type'
+                'index index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
@@ -310,10 +312,10 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     {
         $client = $this->client();
         $traces = $this->isolateLimitedTracer(function () use ($client) {
-            $client->indices()->delete(['index' => 'my_index']);
+            $client->indices()->delete(['index' => 'my_index7']);
             $client->index([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
                 'body' => ['my' => 'body'],
             ]);
@@ -321,7 +323,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
             $docs = $client->search([
                 'scroll' => '1s',
                 'size' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'body' => [
                     'query' => [
                         'match_all' => new \stdClass(),
@@ -361,16 +363,16 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testScroll()
     {
         $client = $this->client();
-        $client->indices()->delete(['index' => 'my_index']);
+        $client->indices()->delete(['index' => 'my_index7']);
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
         $client->index([
             'id' => 2,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'second'],
         ]);
@@ -381,7 +383,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $docs = $client->search([
             'scroll' => '1s',
             'size' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'body' => [
                 'query' => [
                     'match_all' => new \stdClass(),
@@ -456,14 +458,14 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
         $client->indices()->flush();
         $traces = $this->isolateTracer(function () use ($client) {
             $client->search([
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'body' => [
                     'query' => [
                         'match_all' => new \stdClass(),
@@ -477,7 +479,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.search',
                 'elasticsearch',
                 'elasticsearch',
-                'search index:' . 'my_index'
+                'search index:' . 'my_index7'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'
@@ -503,14 +505,14 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
         $client->indices()->flush();
         $traces = $this->isolateTracer(function () use ($client) {
             $client->search([
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'body' => [
                     'query' => [
                         'match_all' => new \stdClass(),
@@ -520,7 +522,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('Elasticsearch.Client.search', 'search index:my_index')
+            SpanAssertion::exists('Elasticsearch.Client.search', 'search index:my_index7')
                 ->withChildren([
                     SpanAssertion::build(
                         'Elasticsearch.Endpoint.performRequest',
@@ -528,7 +530,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                         'elasticsearch',
                         'performRequest'
                     )->withExactTags([
-                        'elasticsearch.url' => '/my_index/_search',
+                        'elasticsearch.url' => '/my_index7/_search',
                         'elasticsearch.method' => \PHP_VERSION_ID >= 70300 ? 'POST' : 'GET',
                         'elasticsearch.params' => '[]',
                         'elasticsearch.body' => '{"query":{"match_all":{}}}',
@@ -553,7 +555,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => 'my_index',
+            'index' => 'my_index7',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -561,7 +563,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('_type', $client->update([
                 'id' => 1,
-                'index' => 'my_index',
+                'index' => 'my_index7',
                 'type' => 'my_type',
                 'body' => ['doc' => ['my' => 'body']],
             ]));
@@ -572,7 +574,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.update',
                 'elasticsearch',
                 'elasticsearch',
-                'update index:my_index type:my_type'
+                'update index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch'

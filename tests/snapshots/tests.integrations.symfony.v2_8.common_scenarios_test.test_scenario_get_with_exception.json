@@ -12,12 +12,12 @@
       "_dd.p.dm": "-0",
       "_dd.p.tid": "6660700e00000000",
       "component": "symfony",
-      "error.message": "Uncaught Exception (500): An exception occurred in /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/src/AppBundle/Controller/CommonScenariosController.php:40",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3275): AppBundle\\Controller\\CommonScenariosController->errorAction()\n#1 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3234): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3388): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(2594): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/web/app.php(15): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#5 {main}",
+      "error.message": "Uncaught Exception (500): An exception occurred in /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/src/AppBundle/Controller/CommonScenariosController.php:40",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3275): AppBundle\\Controller\\CommonScenariosController->errorAction()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3234): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3388): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(2594): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/web/app.php(15): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#5 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.status_code": "500",
-      "http.url": "http://localhost:9999/app.php/error?key=value&<redacted>",
+      "http.url": "http://localhost/app.php/error?key=value&<redacted>",
       "runtime-id": "4374c14f-def1-4b62-97c0-598f46322850",
       "span.kind": "server",
       "symfony.route.action": "AppBundle\\Controller\\CommonScenariosController@errorAction",
@@ -111,8 +111,8 @@
              "error": 1,
              "meta": {
                "component": "symfony",
-               "error.message": "Thrown Exception (500): An exception occurred in /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/src/AppBundle/Controller/CommonScenariosController.php:40",
-               "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3275): AppBundle\\Controller\\CommonScenariosController->errorAction()\n#1 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3234): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#2 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3388): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#3 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(2594): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#4 /home/circleci/datadog/tests/Frameworks/Symfony/Version_2_8/web/app.php(15): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#5 {main}",
+               "error.message": "Thrown Exception (500): An exception occurred in /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/src/AppBundle/Controller/CommonScenariosController.php:40",
+               "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3275): AppBundle\\Controller\\CommonScenariosController->errorAction()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3234): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3388): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(2594): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/web/app.php(15): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#5 {main}",
                "error.type": "Exception"
              }
            },

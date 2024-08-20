@@ -15,7 +15,7 @@
       "http.method": "GET",
       "http.route": "exits",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/exits",
+      "http.url": "http://localhost/exits",
       "runtime-id": "de8ed04e-02e4-40ef-be2a-20aeeb1398ef",
       "span.kind": "server"
     },

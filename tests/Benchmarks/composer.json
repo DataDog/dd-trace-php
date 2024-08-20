@@ -1,0 +1,7 @@
+{
+    "require": {
+        "monolog/monolog": "~2.0",
+        "open-telemetry/sdk": "@stable",
+        "phpbench/phpbench": "^1.0"
+    }
+}

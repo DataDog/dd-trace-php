@@ -51,7 +51,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
@@ -93,7 +93,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simpleView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
@@ -147,7 +147,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'

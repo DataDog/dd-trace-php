@@ -13,7 +13,7 @@
       "component": "laravel",
       "http.method": "GET",
       "http.status_code": "404",
-      "http.url": "http://localhost:9999/dynamic_route/dynamic01/static/dynamic02",
+      "http.url": "http://localhost/dynamic_route/dynamic01/static/dynamic02",
       "runtime-id": "b32e6f79-c5ef-4d17-bae1-33f912b0a03d"
     },
     "metrics": {
@@ -239,7 +239,7 @@
         {
           "name": "laravel.view",
           "service": "my_service",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
           "span_id": 21,
           "parent_id": 18,

@@ -44,7 +44,7 @@ return [
             'driver' => 'mysql',
             'host' => env('DB_HOST', 'mysql_integration'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'test'),
+            'database' => env('DB_DATABASE', 'laravel58'),
             'username' => env('DB_USERNAME', 'test'),
             'password' => env('DB_PASSWORD', 'test'),
             'unix_socket' => env('DB_SOCKET', ''),

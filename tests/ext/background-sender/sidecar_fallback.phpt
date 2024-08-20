@@ -13,6 +13,8 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_SERVICE=service
+--INI--
+datadog.trace.agent_test_session_token=background-sender/sidecar_fallback
 --FILE--
 <?php
 

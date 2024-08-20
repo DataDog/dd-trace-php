@@ -435,6 +435,10 @@ static void dd_activate_once(void) {
                                get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                get_global_DD_TRACE_AGENT_STACK_BACKLOG(),
                                bgs_fallback ? ZSTR_VAL(bgs_service) : NULL);
+            zend_string *testing_token = get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN();
+            if (ZSTR_LEN(testing_token)) {
+                ddtrace_coms_set_test_session_token(ZSTR_VAL(testing_token), ZSTR_LEN(testing_token));
+            }
             if (bgs_fallback) {
                 zend_string_release(bgs_service);
             }
