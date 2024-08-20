@@ -57,7 +57,7 @@ trait SnapshotTestTrait
 
     private function startMetricsSnapshotSession()
     {
-        $this->server = new UDPServer(self::$dogstatsdAddr, self::$dogstatsdPort);
+        $this->server = new UDPServer(self::$dogstatsdAddr, self::$dogstatsdPort + GLOBAL_PORT_OFFSET);
     }
 
     /**
