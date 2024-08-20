@@ -9,6 +9,8 @@ use DDTrace\Tests\Integrations\WordPress\PathParamsTestSuite;
  */
 class PathParamsTest extends PathParamsTestSuite
 {
+    public static $database = "wp59";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_9/index.php';

@@ -90,7 +90,7 @@
  */
 $databases['default']['default'] = [
     'driver' => 'mysql',
-    'database' => 'test',
+    'database' => 'drupal89',
     'username' => 'test',
     'password' => 'test',
     'host' => 'mysql_integration',
@@ -258,7 +258,7 @@ $databases['default']['default'] = [
  */
 $databases['default']['default'] = [
     'driver' => 'mysql',
-    'database' => 'test',
+    'database' => 'drupal89',
     'username' => 'test',
     'password' => 'test',
     'host' => 'mysql_integration',

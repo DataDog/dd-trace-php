@@ -13,7 +13,7 @@
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/app.php/simple_view?key=value&<redacted>",
+      "http.url": "http://localhost/app.php/simple_view?key=value&<redacted>",
       "runtime-id": "05d2d546-7cb6-4e46-bc10-0ff5602cdf9d",
       "span.kind": "server",
       "symfony.route.action": "AppBundle\\Controller\\CommonScenariosController@simpleViewAction",

@@ -8,6 +8,8 @@ use datadog\appsec\AppsecStatus;
 
 class AutomatedLoginEventsTestSuite extends AppsecTestCase
 {
+    public static $database = "laravel8";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';

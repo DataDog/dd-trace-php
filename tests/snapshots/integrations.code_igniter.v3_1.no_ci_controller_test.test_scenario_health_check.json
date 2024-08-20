@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "health_check/ping",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/health_check/ping",
+      "http.url": "http://localhost/health_check/ping",
       "runtime-id": "ca127e85-a20d-46aa-b510-07e9077a14c9",
       "span.kind": "server"
     },

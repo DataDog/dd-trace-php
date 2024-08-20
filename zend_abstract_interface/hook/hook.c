@@ -1,6 +1,7 @@
 #include "../tsrmls_cache.h"
 #include <hook/hook.h>
 #include <hook/table.h>
+#include <jit_utils/jit_blacklist.h>
 
 
 /* {{{ */
@@ -399,6 +400,13 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
 #endif
     }
     hooks->is_generator = (resolved->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
+    if (hooks->is_generator) {
+#if ZAI_JIT_BLACKLIST_ACTIVE
+        // Generator observers may replace the EX(opline) by a custom op. The tracing JIT will not like this. Blacklist them.
+        // Note that we cannot defer the blacklisting until the observer hook is invoked as that one will not be called before ZEND_GENERATOR_CREATE.
+        zai_jit_blacklist_function_inlining(&resolved->op_array);
+#endif
+    }
 #endif
     if ((resolved->common.fn_flags & ZEND_ACC_CLOSURE) == 0)
     {

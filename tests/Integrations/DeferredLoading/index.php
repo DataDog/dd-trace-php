@@ -1,6 +1,6 @@
 <?php
 
-require __DIR__ . '/../../vendor/autoload.php';
+require __DIR__ . '/../Predis/vendor/autoload.php';
 
 // This script HAS to invoke at least two integrations via deferred integration loading mechanism.
 

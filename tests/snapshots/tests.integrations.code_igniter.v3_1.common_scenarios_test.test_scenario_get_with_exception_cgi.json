@@ -13,13 +13,13 @@
       "_dd.p.tid": "660beb1100000000",
       "app.endpoint": "Error_::index",
       "component": "codeigniter",
-      "error.message": "Uncaught Exception: datadog in /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/ddshim.php(8): require()\n#3 {main}",
+      "error.message": "Uncaught Exception: datadog in /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/ddshim.php(8): require()\n#3 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "error",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/error?key=value&<redacted>",
+      "http.url": "http://localhost/error?key=value&<redacted>",
       "runtime-id": "0caac976-2232-42e0-a186-9f73b4c27f50",
       "span.kind": "server"
     },
@@ -38,8 +38,8 @@
        "error": 1,
        "meta": {
          "component": "codeigniter",
-         "error.message": "Thrown Exception: datadog in /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
-         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/ddshim.php(8): require()\n#3 {main}",
+         "error.message": "Thrown Exception: datadog in /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
+         "error.stack": "#0 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/ddshim.php(8): require()\n#3 {main}",
          "error.type": "Exception"
        }
      }]]

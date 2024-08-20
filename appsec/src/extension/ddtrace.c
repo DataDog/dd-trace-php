@@ -248,14 +248,14 @@ static zval *_get_span_modifiable_array_property(
 {
 #if PHP_VERSION_ID >= 80000
     zval *res =
-        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_R, NULL);
+        zobj->handlers->get_property_ptr_ptr(zobj, propname, BP_VAR_IS, NULL);
 #else
     zval obj;
     ZVAL_OBJ(&obj, zobj);
     zval prop;
     ZVAL_STR(&prop, propname);
     zval *res =
-        zobj->handlers->get_property_ptr_ptr(&obj, &prop, BP_VAR_R, NULL);
+        zobj->handlers->get_property_ptr_ptr(&obj, &prop, BP_VAR_IS, NULL);
 
 #endif
 

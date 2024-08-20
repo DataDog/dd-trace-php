@@ -39,7 +39,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     'GET /homes/?/?/?'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/homes/new-york/new-york/manhattan?key=value&<redacted>',
+                    Tag::HTTP_URL => 'http://localhost/homes/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     Tag::HTTP_ROUTE => '/homes/:state/:city/:neighborhood',

@@ -1,7 +1,7 @@
 --TEST--
 Calling dd_init.php is confined to open_basedir settings
 --ENV--
-DD_TRACE_LOG_LEVEL=info,startup=off
+DD_TRACE_LOG_LEVEL=info,startup=off,datadog_sidecar=off
 --INI--
 open_basedir="{PWD}"
 datadog.trace.sources_path="{PWD}/.."

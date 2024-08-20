@@ -94,7 +94,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -128,7 +128,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
                 ])
                 ->withChildren([
@@ -168,7 +168,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
                 ])
                 ->withChildren([
@@ -208,7 +208,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -242,7 +242,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /manual-tracing')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/manual-tracing',
                     'http.status_code' => '200',
                 ])
                 ->withChildren([
@@ -276,7 +276,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-manual-tracing')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-manual-tracing',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-manual-tracing',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -304,7 +304,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-composer',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -337,7 +337,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-composer',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -372,7 +372,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /no-composer-autoload-fails')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/no-composer-autoload-fails',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/no-composer-autoload-fails',
                     'http.status_code' => '200',
                 ]),
         ]);
@@ -407,7 +407,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /composer-autoload-fails')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:6666/composer-autoload-fails',
+                    'http.url' => 'http://127.0.0.1:' . self::$webserverPort . '/composer-autoload-fails',
                     'http.status_code' => '200',
                 ]),
         ]);

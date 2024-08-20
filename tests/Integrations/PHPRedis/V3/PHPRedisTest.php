@@ -10,6 +10,8 @@ use Exception;
 
 class PHPRedisTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "redis";
+
     const A_STRING = 'A_STRING';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
     const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';

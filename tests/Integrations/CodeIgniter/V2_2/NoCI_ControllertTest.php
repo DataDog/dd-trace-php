@@ -38,7 +38,7 @@ class NoCIControllertTest extends WebFrameworkTestCase
                     'GET /health_check/ping'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/health_check/ping',
+                    Tag::HTTP_URL => 'http://localhost/health_check/ping',
                     Tag::HTTP_STATUS_CODE => '200',
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',

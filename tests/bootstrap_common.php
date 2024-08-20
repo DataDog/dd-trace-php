@@ -2,6 +2,18 @@
 
 namespace DDTrace\Tests;
 
+if (getenv('DD_AUTOLOAD_NO_COMPILE') == 'true' && (false !== getenv('CI') || false !== getenv('CIRCLECI'))) {
+    throw new Exception('Tests must run using the _generated.php script in CI');
+}
+
+// Setting an environment variable to signal we are in a tests run
+putenv('DD_TEST_EXECUTION=1');
+
+if (function_exists("dd_trace_env_config") && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+    // Only explicit flushes with sidecar
+    putenv("DD_TRACE_AGENT_FLUSH_INTERVAL=3000000");
+}
+
 function missing_ddtrace_class_fatal_autoloader($class)
 {
     // project-specific namespace prefix
@@ -36,12 +48,6 @@ function missing_ddtrace_class_fatal_autoloader($class)
     throw new \Exception("add " . $class . " to bridge/_files.php or bridge/dd_register_optional_deps_autoloader.php");
 }
 
-function prepend_test_autoloaders()
-{
-    spl_autoload_register('\DDTrace\Tests\missing_ddtrace_class_fatal_autoloader', true);
-    require_once __DIR__ . '/vendor/autoload.php';
-}
 
-prepend_test_autoloaders();
+spl_autoload_register('\DDTrace\Tests\missing_ddtrace_class_fatal_autoloader', true);
 
-require_once __DIR__ . '/bootstrap.php';

@@ -13,7 +13,7 @@
       "http.method": "GET",
       "laminas.route.name": "simple",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/simple?key=value&<redacted>",
+      "http.url": "http://localhost/simple?key=value&<redacted>",
       "http.version": "1.1",
       "laminas.route.action": "Application\\Controller\\CommonSpecsController@simple",
       "span.kind": "server"

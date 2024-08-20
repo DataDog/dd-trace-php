@@ -104,6 +104,104 @@ typedef struct ddog_Option_Error {
 
 typedef struct ddog_Option_Error ddog_MaybeError;
 
+typedef struct ddog_ArrayQueue {
+  struct ddog_ArrayQueue *inner;
+  void (*item_delete_fn)(void*);
+} ddog_ArrayQueue;
+
+typedef enum ddog_ArrayQueue_NewResult_Tag {
+  DDOG_ARRAY_QUEUE_NEW_RESULT_OK,
+  DDOG_ARRAY_QUEUE_NEW_RESULT_ERR,
+} ddog_ArrayQueue_NewResult_Tag;
+
+typedef struct ddog_ArrayQueue_NewResult {
+  ddog_ArrayQueue_NewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_ArrayQueue *ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_NewResult;
+
+/**
+ * Data structure for the result of the push() and force_push() functions.
+ * force_push() replaces the oldest element if the queue is full, while push() returns the given
+ * value if the queue is full. For push(), it's redundant to return the value since the caller
+ * already has it, but it's returned for consistency with crossbeam API and with force_push().
+ */
+typedef enum ddog_ArrayQueue_PushResult_Tag {
+  DDOG_ARRAY_QUEUE_PUSH_RESULT_OK,
+  DDOG_ARRAY_QUEUE_PUSH_RESULT_FULL,
+  DDOG_ARRAY_QUEUE_PUSH_RESULT_ERR,
+} ddog_ArrayQueue_PushResult_Tag;
+
+typedef struct ddog_ArrayQueue_PushResult {
+  ddog_ArrayQueue_PushResult_Tag tag;
+  union {
+    struct {
+      void *full;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_PushResult;
+
+typedef enum ddog_ArrayQueue_PopResult_Tag {
+  DDOG_ARRAY_QUEUE_POP_RESULT_OK,
+  DDOG_ARRAY_QUEUE_POP_RESULT_EMPTY,
+  DDOG_ARRAY_QUEUE_POP_RESULT_ERR,
+} ddog_ArrayQueue_PopResult_Tag;
+
+typedef struct ddog_ArrayQueue_PopResult {
+  ddog_ArrayQueue_PopResult_Tag tag;
+  union {
+    struct {
+      void *ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_PopResult;
+
+typedef enum ddog_ArrayQueue_BoolResult_Tag {
+  DDOG_ARRAY_QUEUE_BOOL_RESULT_OK,
+  DDOG_ARRAY_QUEUE_BOOL_RESULT_ERR,
+} ddog_ArrayQueue_BoolResult_Tag;
+
+typedef struct ddog_ArrayQueue_BoolResult {
+  ddog_ArrayQueue_BoolResult_Tag tag;
+  union {
+    struct {
+      bool ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_BoolResult;
+
+typedef enum ddog_ArrayQueue_UsizeResult_Tag {
+  DDOG_ARRAY_QUEUE_USIZE_RESULT_OK,
+  DDOG_ARRAY_QUEUE_USIZE_RESULT_ERR,
+} ddog_ArrayQueue_UsizeResult_Tag;
+
+typedef struct ddog_ArrayQueue_UsizeResult {
+  ddog_ArrayQueue_UsizeResult_Tag tag;
+  union {
+    struct {
+      uintptr_t ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_UsizeResult;
+
 typedef enum ddog_Option_U32_Tag {
   DDOG_OPTION_U32_SOME_U32,
   DDOG_OPTION_U32_NONE_U32,
@@ -333,6 +431,76 @@ ddog_CharSlice ddog_Error_message(const struct ddog_Error *error);
 
 void ddog_MaybeError_drop(ddog_MaybeError);
 
+/**
+ * Creates a new ArrayQueue with the given capacity and item_delete_fn.
+ * The item_delete_fn is called when an item is dropped from the queue.
+ */
+DDOG_CHECK_RETURN
+struct ddog_ArrayQueue_NewResult ddog_ArrayQueue_new(uintptr_t capacity,
+                                                     void (*item_delete_fn)(void*));
+
+/**
+ * Drops the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+void ddog_ArrayQueue_drop(struct ddog_ArrayQueue *queue);
+
+/**
+ * Pushes an item into the ArrayQueue. It returns the given value if the queue is full.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new. The value
+ * is null or points to a valid memory location that can be deallocated by the item_delete_fn.
+ */
+struct ddog_ArrayQueue_PushResult ddog_ArrayQueue_push(const struct ddog_ArrayQueue *queue_ptr,
+                                                       void *value);
+
+/**
+ * Pushes an element into the queue, replacing the oldest element if necessary.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new. The value
+ * is null or points to a valid memory location that can be deallocated by the item_delete_fn.
+ */
+DDOG_CHECK_RETURN
+struct ddog_ArrayQueue_PushResult ddog_ArrayQueue_force_push(const struct ddog_ArrayQueue *queue_ptr,
+                                                             void *value);
+
+/**
+ * Pops an item from the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+DDOG_CHECK_RETURN
+struct ddog_ArrayQueue_PopResult ddog_ArrayQueue_pop(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Checks if the ArrayQueue is empty.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_BoolResult ddog_ArrayQueue_is_empty(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Returns the length of the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_UsizeResult ddog_ArrayQueue_len(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Returns true if the underlying queue is full.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_BoolResult ddog_ArrayQueue_is_full(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Returns the capacity of the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_UsizeResult ddog_ArrayQueue_capacity(const struct ddog_ArrayQueue *queue_ptr);
+
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_url(ddog_CharSlice url);
 
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_filename(ddog_CharSlice filename);
@@ -345,6 +513,8 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
                                                        struct ddog_Endpoint **endpoint);
 
 void ddog_endpoint_set_timeout(struct ddog_Endpoint *endpoint, uint64_t millis);
+
+void ddog_endpoint_set_test_token(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
 
 void ddog_endpoint_drop(struct ddog_Endpoint*);
 

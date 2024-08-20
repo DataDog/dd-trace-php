@@ -7,6 +7,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
+    public static $database = "wp61";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_6_1/index.php';
@@ -15,7 +17,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql_integration;dbname=wp61', 'test', 'test');
         $pdo->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
     }
 
