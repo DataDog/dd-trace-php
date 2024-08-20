@@ -1101,7 +1101,7 @@ function check_library_prerequisite_or_exit($requiredLibrary)
  */
 function check_php_ext_prerequisite_or_exit($binary, $extName)
 {
-    $extensions = shell_exec("$binary -m");
+    $extensions = shell_exec(escapeshellarg($binary) . " -m");
 
     if (!in_array($extName, array_map("trim", explode("\n", $extensions)))) {
         print_error_and_exit("Required PHP extension '$extName' not found.\n");
