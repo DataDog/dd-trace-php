@@ -237,11 +237,13 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
     zval *dd_stack = zend_hash_find(Z_ARR_P(meta_struct), _dd_stack_key);
     zval *exploit = NULL;
     if (!dd_stack || Z_TYPE_P(dd_stack) == IS_NULL) {
+        zval new_dd_stack;
+        zval new_exploit;
         dd_stack = zend_hash_add_new(
-            Z_ARR_P(meta_struct), _dd_stack_key, &EG(uninitialized_zval));
+            Z_ARR_P(meta_struct), _dd_stack_key, &new_dd_stack);
         array_init(dd_stack);
-        exploit = zend_hash_add_new(
-            Z_ARR_P(dd_stack), _exploit_key, &EG(uninitialized_zval));
+        exploit =
+            zend_hash_add_new(Z_ARR_P(dd_stack), _exploit_key, &new_exploit);
         array_init(exploit);
     } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
         return false;
