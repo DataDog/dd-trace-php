@@ -144,9 +144,36 @@ unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
     }
 }
 
+unsafe extern "C" fn ddog_php_prof_zend_error_observer(
+    _type: i32,
+    file: *mut zend::ZendString,
+    line: u32,
+    message: *mut zend::ZendString,
+) {
+    // we are only interested in FATAL errors
+    if _type & zend::E_FATAL_ERRORS as i32 == 0 {
+        return;
+    }
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        let now = now.as_nanos() as i64;
+        profiler.collect_fatal(
+            now,
+            unsafe { zend::zai_str_from_zstr(file.as_mut()).into_string() },
+            line,
+            unsafe { zend::zai_str_from_zstr(message.as_mut()).into_string() },
+        );
+    }
+
+    return;
+}
+
 /// This functions needs to be called in MINIT of the module
 pub fn timeline_minit() {
     unsafe {
+        zend::zend_observer_error_register(Some(ddog_php_prof_zend_error_observer));
+
         // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);

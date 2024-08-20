@@ -976,6 +976,46 @@ impl Profiler {
         }
     }
 
+    /// This function can be called to collect any fatal errors
+    #[cfg(feature = "timeline")]
+    pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
+        let mut labels = Profiler::common_labels(2);
+
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str("fatal".into()),
+        });
+        labels.push(Label {
+            key: "message",
+            value: LabelValue::Str(message.into()),
+        });
+
+        let n_labels = labels.len();
+
+        match self.prepare_and_send_message(
+            vec![ZendFrame {
+                function: format!("[fatal]").into(),
+                file: Some(file),
+                line: line,
+            }],
+            SampleValues {
+                timeline: 1,
+                ..Default::default()
+            },
+            labels,
+            now,
+        ) {
+            Ok(_) => {
+                trace!("Sent event 'fatal error' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to send event 'fatal error' with {n_labels} labels to profiler: {err}"
+                )
+            }
+        }
+    }
+
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg(feature = "timeline")]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
