@@ -73,6 +73,9 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
         return NULL;
     }
 
+    const enum ddog_RemoteConfigProduct remote_config_products[0];
+    const enum ddog_RemoteConfigCapabilities remote_config_capabilities[0];
+
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddog_sidecar_session_set_config(&sidecar_transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
@@ -87,9 +90,9 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
 
                                     // Not used yet
                                     NULL,
-                                    (const enum ddog_RemoteConfigProduct[]){},
+                                    remote_config_products,
                                     0,
-                                    (const enum ddog_RemoteConfigCapabilities[]){},
+                                    remote_config_capabilities,
                                     0
                                     );
 
