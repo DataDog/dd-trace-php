@@ -38,6 +38,9 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
+const enum ddog_RemoteConfigProduct remote_config_products[1] = { DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING };
+const enum ddog_RemoteConfigCapabilities remote_config_capabilities[1] = { DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLED };
+
 ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
     // Should not happen
     if (!ddtrace_endpoint) {
@@ -72,9 +75,6 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
         ddog_endpoint_drop(dogstatsd_endpoint);
         return NULL;
     }
-
-    const enum ddog_RemoteConfigProduct remote_config_products[0];
-    const enum ddog_RemoteConfigCapabilities remote_config_capabilities[0];
 
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddog_sidecar_session_set_config(&sidecar_transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
