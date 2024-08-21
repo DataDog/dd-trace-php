@@ -223,7 +223,7 @@ void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     zend_string_release(version);
 
     if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddtrace_sidecar_dogstatsd_push_tag(vec, DDOG_CHARSLICE_C("x-datadog-test-session-token"), dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+        ddtrace_sidecar_push_tag(vec, DDOG_CHARSLICE_C("x-datadog-test-session-token"), dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 
     // Specific tags
