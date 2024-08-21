@@ -48,9 +48,13 @@ php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easil
     if (file) {
         // In order to be able to test full path encoded everywhere lets set
         // only the file name without path
-        char *file_name = strrchr(Z_STRVAL_P(file), '/');
-        Z_TRY_DELREF_P(file);
-        ZVAL_STRINGL(file, file_name + 1, strlen(file_name) - 1);
+        char *file_name = memrchr(Z_STRVAL_P(file), '/', Z_STRLEN_P(file));
+        if (file_name) {
+            zend_string *new_file = zend_string_init(file_name + 1,
+                Z_STRLEN_P(file) - (file_name + 1 - Z_STRVAL_P(file)), 0);
+            zval_ptr_dtor(file);
+            ZVAL_NEW_STR(file, new_file);
+        }
     }
 #endif
 
