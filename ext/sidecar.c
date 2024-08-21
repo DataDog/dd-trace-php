@@ -252,7 +252,8 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
-    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddtrace_ffi_try("Failed sending dogstatsd count metric",
+                    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -263,7 +264,8 @@ void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, z
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
-    ddog_sidecar_dogstatsd_distribution(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddtrace_ffi_try("Failed sending dogstatsd distribution metric",
+                    ddog_sidecar_dogstatsd_distribution(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -274,7 +276,8 @@ void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
-    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddtrace_ffi_try("Failed sending dogstatsd gauge metric",
+                    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -285,7 +288,8 @@ void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
-    ddog_sidecar_dogstatsd_histogram(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddtrace_ffi_try("Failed sending dogstatsd histogram metric",
+                    ddog_sidecar_dogstatsd_histogram(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -296,7 +300,8 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
-    ddog_sidecar_dogstatsd_set(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec);
+    ddtrace_ffi_try("Failed sending dogstatsd set metric",
+                    ddog_sidecar_dogstatsd_set(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -304,7 +309,8 @@ bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value) {
     UNUSED(old_value);
     if (ddtrace_sidecar) {
         ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
-        ddog_sidecar_set_test_session_token(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
+        ddtrace_ffi_try("Failed updating test session token",
+                        ddog_sidecar_set_test_session_token(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
     }
 #ifndef _WIN32
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
