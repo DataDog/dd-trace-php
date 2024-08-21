@@ -85,11 +85,11 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
 
-                                    // FIXME: what are the correct values??
+                                    // Not used yet
                                     NULL,
-                                    NULL,
+                                    (const enum ddog_RemoteConfigProduct[]){},
                                     0,
-                                    NULL,
+                                    (const enum ddog_RemoteConfigCapabilities[]){},
                                     0
                                     );
 
