@@ -12,9 +12,61 @@ if ('cli-server' !== PHP_SAPI) {
     exit;
 }
 
+function decodeDogStatsDMetrics($metrics)
+{
+    $metrics = array_filter($metrics);
+
+    // Format of DogStatsD metrics: metric_name:value|type|#tag1:value1,tag2:value2
+    // Parts:                      |-> 0             |-> 1|-> 2
+    $decodedMetrics = [];
+    foreach ($metrics as $metric) {
+        $parts = explode('|', $metric);
+
+        $nameAndValue = explode(':', $parts[0]);
+        $metricName = $nameAndValue[0];
+        $value = $nameAndValue[1];
+
+        $type = $parts[1];
+
+        $tags = [];
+        if (count($parts) > 2) {
+            $parts[2] = substr($parts[2], 1); // Remove leading #
+            $tags = explode(',', $parts[2]);
+            $tags = array_map(function ($tag) {
+                return explode(':', $tag);
+            }, $tags);
+            $tags = array_combine(array_column($tags, 0), array_column($tags, 1));
+        }
+        $decodedMetrics[] = [
+            'name' => $metricName,
+            'value' => $value,
+            'type' => $type,
+            'tags' => $tags,
+        ];
+    }
+    return $decodedMetrics;
+}
+
+$uri = explode("?", $_SERVER['REQUEST_URI'])[0];
+
 $temp_location = sys_get_temp_dir();
 
-if ("" != $token = ($_SERVER["HTTP_X_DATADOG_TEST_SESSION_TOKEN"] ?? "")) {
+$metricsServerPid = "$temp_location/metrics-server.pid";
+if (!file_exists($metricsServerPid)) {
+    shell_exec("nohup bash -c 'php metricsserver.php & pid=$!; echo \$pid > $metricsServerPid; wait \$pid; rm $metricsServerPid' > /dev/null 2>&1 &");
+}
+
+$token = $_SERVER["HTTP_X_DATADOG_TEST_SESSION_TOKEN"] ?? "";
+
+if ($uri === "/metrics") {
+    $decodedMetrics = decodeDogStatsDMetrics(explode("\n", trim($_GET["metrics"], "\n")));
+    if (isset($decodedMetrics[0]["tags"]["x-datadog-test-session-token"])) {
+        $token = $decodedMetrics[0]["tags"]["x-datadog-test-session-token"];
+        unset($decodedMetrics[0]["tags"]["x-datadog-test-session-token"]);
+    }
+}
+
+if ($token != "") {
     $token = str_replace("/", "-", $token);
     $temp_location .= "/token-$token";
     @mkdir($temp_location);
@@ -24,6 +76,8 @@ define('REQUEST_LATEST_DUMP_FILE', getenv('REQUEST_LATEST_DUMP_FILE') ?: ("$temp
 define('REQUEST_NEXT_RESPONSE_FILE', getenv('REQUEST_NEXT_RESPONSE_FILE') ?: ("$temp_location/response.json"));
 define('REQUEST_LOG_FILE', getenv('REQUEST_LOG_FILE') ?: ("$temp_location/requests-log.txt"));
 define('REQUEST_RC_CONFIGS_FILE', getenv('REQUEST_RC_CONFIGS_FILE') ?: ("$temp_location/rc_configs.json"));
+define('REQUEST_METRICS_FILE', getenv('REQUEST_METRICS_FILE') ?: ("$temp_location/metrics.json"));
+define('REQUEST_METRICS_LOG_FILE', getenv('REQUEST_METRICS_LOG_FILE') ?: ("$temp_location/metrics-log.txt"));
 
 function logRequest($message, $data = '')
 {
@@ -37,13 +91,13 @@ function logRequest($message, $data = '')
 }
 
 set_error_handler(function ($number, $message, $errfile, $errline) {
-    logRequest("Triggered error $number $message in $errfile on line $errline");
+    logRequest("Triggered error $number $message in $errfile on line $errline: " . (new \Exception)->getTraceAsString());
     trigger_error($message, $number);
 });
 
 $rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];
 
-switch (explode("?", $_SERVER['REQUEST_URI'])[0]) {
+switch ($uri) {
     case '/replay':
         if (!file_exists(REQUEST_LATEST_DUMP_FILE)) {
             logRequest('Cannot replay last request; request log does not exist');
@@ -55,8 +109,19 @@ switch (explode("?", $_SERVER['REQUEST_URI'])[0]) {
         unlink(REQUEST_LOG_FILE);
         logRequest('Returned last request and deleted request log', $request);
         break;
+    case '/replay-metrics':
+        if (!file_exists(REQUEST_METRICS_FILE)) {
+            logRequest('Cannot replay last request; metrics log does not exist');
+            break;
+        }
+        $request = file_get_contents(REQUEST_METRICS_FILE);
+        echo $request;
+        unlink(REQUEST_METRICS_FILE);
+        unlink(REQUEST_METRICS_LOG_FILE);
+        logRequest('Returned last metrics and deleted metrics log', $request);
+        break;
     case '/clear-dumped-data':
-        if (!file_exists(REQUEST_LATEST_DUMP_FILE) && !file_exists(REQUEST_RC_CONFIGS_FILE)) {
+        if (!file_exists(REQUEST_LATEST_DUMP_FILE) && !file_exists(REQUEST_METRICS_FILE) && !file_exists(REQUEST_RC_CONFIGS_FILE)) {
             logRequest('Cannot delete request log; request log does not exist');
             break;
         }
@@ -66,6 +131,10 @@ switch (explode("?", $_SERVER['REQUEST_URI'])[0]) {
         if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
             unlink(REQUEST_LATEST_DUMP_FILE);
             unlink(REQUEST_LOG_FILE);
+        }
+        if (file_exists(REQUEST_METRICS_FILE)) {
+            unlink(REQUEST_METRICS_FILE);
+            unlink(REQUEST_METRICS_LOG_FILE);
         }
         if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
             unlink(REQUEST_NEXT_RESPONSE_FILE);
@@ -126,6 +195,21 @@ switch (explode("?", $_SERVER['REQUEST_URI'])[0]) {
         logRequest("Returned remote config", json_encode($response, JSON_UNESCAPED_SLASHES));
         $response["targets"] = base64_encode(json_encode($response["targets"], JSON_UNESCAPED_SLASHES));
         echo json_encode($response, JSON_UNESCAPED_SLASHES);
+        break;
+    case "/metrics":
+        $_SERVER['REQUEST_URI'] = $uri;
+        logRequest('Logged new metrics', json_encode($decodedMetrics));
+        foreach ($decodedMetrics as $metric) {
+            file_put_contents(REQUEST_METRICS_LOG_FILE, json_encode($metric) . "\n", FILE_APPEND);
+
+            if (file_exists(REQUEST_METRICS_FILE)) {
+                $allMetrics = json_decode(file_get_contents(REQUEST_METRICS_FILE), true);
+            } else {
+                $allMetrics = [];
+            }
+            $allMetrics[] = $metric;
+            file_put_contents(REQUEST_METRICS_FILE, json_encode($allMetrics));
+        }
         break;
     default:
         $headers = getallheaders();
