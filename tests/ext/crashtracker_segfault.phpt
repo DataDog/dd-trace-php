@@ -16,7 +16,7 @@ datadog.trace.agent_url="file://{PWD}/crashtracker_segfault_agent.out"
 --FILE--
 <?php
 
-usleep(5000); // Let time to the sidecar to open the crashtracker socket
+usleep(100000); // Let time to the sidecar to open the crashtracker socket
 
 $php = getenv('TEST_PHP_EXECUTABLE');
 $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
