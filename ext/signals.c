@@ -157,7 +157,9 @@ void ddtrace_signals_first_rinit(void) {
             }
         }
 
-        ddtrace_init_crashtracker();
+        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+            ddtrace_init_crashtracker();
+        }
     }
 }
 
