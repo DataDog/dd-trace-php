@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "backtrace.h"
 #include "configuration.h"
+#include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "php_compat.h"
@@ -241,13 +242,11 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
     zval *dd_stack = zend_hash_find(Z_ARR_P(meta_struct), _dd_stack_key);
     zval *exploit = NULL;
     if (!dd_stack || Z_TYPE_P(dd_stack) == IS_NULL) {
-        zval new_dd_stack;
-        zval new_exploit;
         dd_stack = zend_hash_add_new(
-            Z_ARR_P(meta_struct), _dd_stack_key, &new_dd_stack);
+            Z_ARR_P(meta_struct), _dd_stack_key, &EG(uninitialized_zval));
         array_init(dd_stack);
-        exploit =
-            zend_hash_add_new(Z_ARR_P(dd_stack), _exploit_key, &new_exploit);
+        exploit = zend_hash_add_new(
+            Z_ARR_P(dd_stack), _exploit_key, &EG(uninitialized_zval));
         array_init(exploit);
     } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
         return false;
