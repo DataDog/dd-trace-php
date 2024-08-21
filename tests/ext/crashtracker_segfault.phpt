@@ -23,9 +23,14 @@ $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
 $cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
 system($cmd);
 
-usleep(5000); // Let time for the crash report to be uploaded
-
-echo file_get_contents(__DIR__."/crashtracker_segfault_agent.out");
+for ($i = 0; $i < 100; ++$i) {
+    $content = file_get_contents(__DIR__."/crashtracker_segfault_agent.out");
+    if (false != strpos($content, '"signame": "SIGSEGV"')) {
+        echo $content;
+        break;
+    }
+    usleep(5000); // Let time for the crash report to be uploaded
+}
 
 ?>
 --EXPECTF--
