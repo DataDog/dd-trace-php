@@ -13,7 +13,7 @@
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/lucky/fail",
+      "http.url": "http://localhost/lucky/fail",
       "runtime-id": "14484ba5-1a23-44f5-bced-0066bf1199d3",
       "span.kind": "server",
       "symfony.route.action": "App\\Controller\\LuckyController@fail",
