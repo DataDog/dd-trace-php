@@ -64,6 +64,11 @@
         "post-install-cmd": [
             "@auto-scripts"
         ],
+        "pre-update-cmd": [
+            "sudo pecl uninstall redis",
+            "printf 'no' | sudo pecl install -f redis-6.0.2",
+            "echo 'extension=redis-6.0.2.so' > $(php -i | grep 'Scan this dir for additional .ini files/' | awk '{print $2}')/redis.ini"
+        ],
         "post-update-cmd": [
             "@auto-scripts"
         ],
