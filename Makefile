@@ -1310,7 +1310,7 @@ test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-52-test)
 test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(eval TEST_EXTRA_INI=-d extension=redis-6.0.2.so)
+	$(eval TEST_EXTRA_INI=-d extension=redis-5.3.7.so)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
 	$(eval TEST_EXTRA_INI=)
