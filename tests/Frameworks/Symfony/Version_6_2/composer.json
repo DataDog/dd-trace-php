@@ -7,19 +7,18 @@
         "php": ">=8.0.2",
         "ext-ctype": "*",
         "ext-iconv": "*",
-        "ext-redis": "*",
         "doctrine/annotations": "^1.12",
         "doctrine/doctrine-bundle": "^2.10",
         "doctrine/doctrine-migrations-bundle": "^3.2",
         "doctrine/orm": "^2.15",
         "symfony/console": "6.2.*",
+        "symfony/doctrine-messenger": "6.2.*",
         "symfony/dotenv": "6.2.*",
         "symfony/flex": "^1.17.1",
         "symfony/form": "6.2.*",
         "symfony/framework-bundle": "6.2.*",
         "symfony/messenger": "^6.2",
         "symfony/monolog-bundle": "^3.8",
-        "symfony/redis-messenger": "^6.2",
         "symfony/security-bundle": "6.2.*",
         "symfony/twig-bundle": "6.2.*",
         "symfony/validator": "6.2.*",
@@ -63,11 +62,6 @@
         },
         "post-install-cmd": [
             "@auto-scripts"
-        ],
-        "pre-update-cmd": [
-            "sudo pecl uninstall redis",
-            "printf 'no' | sudo pecl install -f redis-6.0.2",
-            "echo 'extension=redis-6.0.2.so' > $(php -i | grep 'Scan this dir for additional .ini files/' | awk '{print $2}')/redis.ini"
         ],
         "post-update-cmd": [
             "@auto-scripts"
