@@ -343,9 +343,6 @@ commands:
             <<# parameters.is_windows >>git submodule update --init libdatadog<</ parameters.is_windows >>
             <<^ parameters.is_windows >>git submodule update --init --recursive<</ parameters.is_windows >>
 
-            # FIXME
-            sed -i 's/tokio::runtime::Builder::new_multi_thread();/tokio::runtime::Builder::new_current_thread();/g' libdatadog/sidecar/src/entry.rs
-
   lib_curl_workaround:
     parameters:
       command:
