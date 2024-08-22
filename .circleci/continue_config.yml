@@ -296,16 +296,16 @@ commands:
           shell: "<<# parameters.is_windows >>bash.exe<</ parameters.is_windows >>"
           command: |
             git config --global gc.auto 0
-    
+
             export CIRCLE_REPOSITORY_URL="${CIRCLE_REPOSITORY_URL/git@github.com:/https://github.com/}"
-    
+
             APP_DIR="$HOME/datadog"
             if [ -e "$APP_DIR/.git" ] ; then
               echo 'Fetching into existing repository'
               existing_repo='true'
               cd "$APP_DIR"
               git remote set-url origin "$CIRCLE_REPOSITORY_URL" || true
-    
+
               echo 'Fetching from remote repository'
               retry_count=3
               if [ -n "$CIRCLE_TAG" ]; then
@@ -324,7 +324,7 @@ commands:
               cd "$APP_DIR"
               git clone --no-checkout "$CIRCLE_REPOSITORY_URL" .
             fi
-    
+
             if [ -n "$CIRCLE_TAG" ]; then
               echo 'Checking out tag'
               git checkout --force "$CIRCLE_TAG"
@@ -337,7 +337,7 @@ commands:
               git checkout --force -B "$CIRCLE_BRANCH" "$CIRCLE_SHA1"
               git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
             fi
-    
+
             echo 'Updating submodules'
             # we don't need appsec submodules on windows
             <<# parameters.is_windows >>git submodule update --init libdatadog<</ parameters.is_windows >>
@@ -427,7 +427,7 @@ commands:
           command: |
             set +x
             cd << parameters.directory >>
-            if [[ '<< parameters.job >>' != "${LAST_ARTIFACTS_JOB:-}" ]]; then 
+            if [[ '<< parameters.job >>' != "${LAST_ARTIFACTS_JOB:-}" ]]; then
               job_id=$(curl -X GET "https://circleci.com/api/v2/workflow/$CIRCLE_WORKFLOW_ID/job" -H "Accept: application/json" | grep -Eo '\{[^}]*"<< parameters.job >>"[^}]*' | grep -Eo '"job_number":[^,]+' | tail -c +14)
               export LAST_ARTIFACTS_RESULT=$(curl -X GET "https://circleci.com/api/v2/project/github/DataDog/dd-trace-php/$job_id/artifacts" -H "Accept: application/json")
               export LAST_ARTIFACTS_JOB='<< parameters.job >>'
@@ -2224,55 +2224,6 @@ jobs:
           name: Validate centos package
           command: << parameters.configuration >> ./dockerfiles/verify_packages/verify.sh
 
-  verify_centos_6:
-    working_directory: ~/datadog
-    resource_class: small
-    parameters:
-      install_type:
-        type: string
-        # Possible values: php_installer, native_package
-        default: php_installer
-    machine:
-      image: ubuntu-2004:2023.04.2
-    steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-      - run:
-          name: Install git
-          command: |
-            yum update -y
-            yum install -y git
-      - git_checkout
-      - run: mkdir -p build/packages
-      - when:
-          condition:
-            equal: [php_installer, << parameters.install_type >>]
-          steps:
-            - fetch_job_artifact:
-                job: "package extension"
-                artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
-                directory: build/packages
-            - fetch_job_artifact:
-                job: "package extension"
-                artifact: 'datadog-setup.php'
-                directory: build/packages
-      - when:
-          condition:
-            equal: [native_package, << parameters.install_type >>]
-          steps:
-            - fetch_job_artifact:
-                job: "package extension"
-                artifact: |-
-                  datadog-php-tracer-[^"]+'"$(uname -m)"'.rpm
-                directory: build/packages
-      - run: mkdir -p test-results
-      - run:
-          name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> verify_centos_6
-      - store_test_results:
-          path: test-results
-
   verify_debian:
     working_directory: ~/datadog
     resource_class: small
@@ -3183,7 +3134,7 @@ jobs:
       - run:
           name: cargo fetch
           command: |
-            SUDO=$(! command -v sudo >/dev/null || echo "sudo -E") 
+            SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             # On occasion, we've observed the .package-cache being in the cache.
             # If it's there, it will cause commands to stall, waiting for the file to be released.
             if [ -e '/rust/cargo/.package-cache' ] ; then
@@ -3193,7 +3144,7 @@ jobs:
 
             $SUDO mkdir /.cargo
             $SUDO chmod 777 /.cargo
-            
+
             $SUDO cargo fetch -v --target << parameters.triplet >>
             $SUDO chmod -R 777 '/rust/cargo'
 
