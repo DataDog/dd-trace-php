@@ -112,7 +112,7 @@ trait TracerTestTrait
         curl_close($curl);
 
         // Output the response for debugging purposes
-        // echo $response;
+        //echo $response;
     }
 
     /**
@@ -261,7 +261,11 @@ trait TracerTestTrait
         ));
 
         $script = escapeshellarg($scriptPath);
-        $arguments = escapeshellarg($arguments);
+        if (\is_string($arguments)) {
+            $arguments = escapeshellarg($arguments);
+        } elseif (\is_array($arguments)) {
+            $arguments = implode(' ', array_map('escapeshellarg', $arguments));
+        }
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         if ($withOutput) {
             $ret = (string) `$commandToExecute 2>&1`;
