@@ -375,6 +375,8 @@ trait SnapshotTestTrait
     ) {
         $token = $tokenSubstitute ?: $this->generateToken();
         $this->startSnapshotSession($token);
+        $originalToken = ini_get("datadog.trace.agent_test_session_token");
+        update_test_agent_session_token($token);
 
         if ($ignoreSampledAway) {
             $traces = $this->ignoreSampledTraces($traces);
@@ -383,6 +385,7 @@ trait SnapshotTestTrait
         $this->sendTracesToTestAgent($traces);
 
         $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, \count($traces));
+        update_test_agent_session_token($originalToken);
     }
 
     protected function ignoreSampledTraces($traces) {

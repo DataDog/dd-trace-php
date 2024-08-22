@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class MessengerTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-
     const FIELDS_TO_IGNORE = [
         'metrics.php.compilation.total_time_ms',
         'meta.error.stack',
