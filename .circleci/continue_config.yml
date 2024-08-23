@@ -5465,7 +5465,7 @@ workflows:
           name: "PHP 84 web tests with apache (+ opcache)"
           resource_class: medium+
           sapi: apache2handler
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.4_buster"
           php_major_minor: "8.4"
       - integration_tests:
@@ -5473,7 +5473,7 @@ workflows:
           name: "PHP 84 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.4_buster"
           php_major_minor: "8.4"
       - integration_tests:
