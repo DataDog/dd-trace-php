@@ -23,6 +23,52 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    class SpanEvent implements \JsonSerializable {
+        /**
+         * SpanEvent constructor.
+         *
+         * @param string $name The event name.
+         * @param int|null $timestamp The event start time in nanoseconds, if not provided set the current Unix timestamp.
+         * @param array $attributes Optional attributes for the event.
+         */
+        public function __construct(string $name, array $attributes = [], ?int $timestamp = null) {}
+
+        /**
+         * @var string The event name
+         */
+        public string $name;
+
+        /**
+         * @var string[] $attributes
+         */
+        public array $attributes;
+
+        /**
+         * @var int The event start time in nanoseconds, if not provided set the current Unix timestamp
+         */
+        public int $timestamp;
+
+        /**
+         * @return mixed
+         */
+        public function jsonSerialize(): mixed {}
+    }
+
+    class ExceptionSpanEvent extends SpanEvent {
+        /**
+         * ExceptionSpanEvent constructor.
+         *
+         * @param \Throwable $exception exception to record.
+         * @param array $attributes Optional attributes for the event.
+         */
+        public function __construct(\Throwable $exception, array $attributes = []) {}
+        
+        /**
+         * @var \Throwable
+         */
+        public \Throwable $exception;
+    }
+
     class SpanLink implements \JsonSerializable {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
@@ -143,6 +189,11 @@ namespace DDTrace {
          * @var SpanLink[] $spanLinks An array of span links
          */
         public array $links = [];
+
+        /**
+         * @var SpanEvent[] $spanEvents An array of span events
+         */
+        public array $events = [];
 
         /**
          * @var string[] $peerServiceSources A sorted list of tag names used to set the `peer.service` tag. If a tag

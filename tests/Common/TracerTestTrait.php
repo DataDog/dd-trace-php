@@ -112,7 +112,7 @@ trait TracerTestTrait
         curl_close($curl);
 
         // Output the response for debugging purposes
-        // echo $response;
+        //echo $response;
     }
 
     /**
@@ -261,7 +261,11 @@ trait TracerTestTrait
         ));
 
         $script = escapeshellarg($scriptPath);
-        $arguments = escapeshellarg($arguments);
+        if (\is_string($arguments)) {
+            $arguments = escapeshellarg($arguments);
+        } elseif (\is_array($arguments)) {
+            $arguments = implode(' ', array_map('escapeshellarg', $arguments));
+        }
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         if ($withOutput) {
             $ret = (string) `$commandToExecute 2>&1`;
@@ -444,13 +448,31 @@ trait TracerTestTrait
             };
         }
 
+        return $this->retrieveAnyDumpedData($until, $throw);
+    }
+
+    /**
+     * Returns the raw response body, if any, or null otherwise.
+     */
+    public function retrieveDumpedMetrics(callable $until = null, $throw = false)
+    {
+        if (!$until) {
+            $until = function ($request) {
+                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
+            };
+        }
+
+        return $this->retrieveAnyDumpedData($until, $throw, true);
+    }
+
+    public function retrieveAnyDumpedData(callable $until, $throw, $metrics = false) {
         $allResponses = [];
 
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 50; $attemptNumber++) {
-            $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
+            $curl = curl_init(self::$agentRequestDumperUrl . '/replay' . ($metrics ? '-metrics' : ''));
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
             // Retrieving data

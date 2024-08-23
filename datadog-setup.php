@@ -1101,8 +1101,13 @@ function check_library_prerequisite_or_exit($requiredLibrary)
  */
 function check_php_ext_prerequisite_or_exit($binary, $extName)
 {
-    $extensions = shell_exec("$binary -m");
+    $extensions = shell_exec(escapeshellarg($binary) . " -m");
 
+    // See: https://github.com/DataDog/dd-trace-php/issues/2787
+    if ($extensions === null || $extensions === false || strpos($extensions, '[PHP Modules]') === false) {
+        echo "WARNING: The output of '$binary -m' could not be reliably checked. Please make sure you have the PHP extension '$extName' installed.\n";
+        return;
+    }
     if (!in_array($extName, array_map("trim", explode("\n", $extensions)))) {
         print_error_and_exit("Required PHP extension '$extName' not found.\n");
     }

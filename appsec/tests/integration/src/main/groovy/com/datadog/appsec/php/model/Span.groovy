@@ -22,4 +22,5 @@ class Span {
     String type
     Map<String, String> meta
     Map<String, Double> metrics
+    Map<String, String> meta_struct
 }

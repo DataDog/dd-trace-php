@@ -16,7 +16,7 @@ function do_retry() {
 }
 
 # Enable epel repo
-do_retry rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION}.noarch.rpm
+do_retry yum install -y epel-release
 
 # Installing pre-requisites
 do_retry yum install -y wget nginx httpd
