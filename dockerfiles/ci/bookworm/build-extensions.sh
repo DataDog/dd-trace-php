@@ -134,9 +134,9 @@ else
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
     if [[ "${VERSION}" == "-3.4.0" ]]; then
-      curl -LO https://github.com/xdebug/xdebug/archive/refs/tags/3.4.0alpha1.tar.gz;
-      tar -xvzf 3.4.0alpha1.tar.gz;
-      cd xdebug-3.4.0alpha1;
+      curl -LO https://github.com/xdebug/xdebug/archive/12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz
+      tar -xvzf 12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz;
+      cd xdebug-12adc6394adbf14f239429d72cf34faadddd19fb;
       phpize;
       ./configure;
       make && make install;
