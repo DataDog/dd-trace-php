@@ -3,6 +3,7 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+#include "compatibility.h"
 #include "backtrace.h"
 #include "configuration.h"
 #include "ddtrace.h"
@@ -305,8 +306,8 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "generate_backtrace", PHP_FN(datadog_appsec_testing_generate_backtrace), void_ret_array_arginfo,0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "report_exploit_backtrace", PHP_FN(datadog_appsec_testing_report_exploit_backtrace), void_ret_bool_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "generate_backtrace", PHP_FN(datadog_appsec_testing_generate_backtrace), void_ret_array_arginfo,0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "report_exploit_backtrace", PHP_FN(datadog_appsec_testing_report_exploit_backtrace), void_ret_bool_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
