@@ -116,7 +116,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
         void *stack_limit = EG(stack_limit);
 
         EG(stack_base) = stacktarget;
-        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset - EG(reserved_stack_size) * 2);
+        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset
+#ifdef ZEND_CHECK_STACK_LIMIT
+            - EG(reserved_stack_size) * 2
+#endif
+        );
 #endif
 
         zai_hook_finish(ex, rv, hook_data);
