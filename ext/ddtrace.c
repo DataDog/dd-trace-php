@@ -435,6 +435,10 @@ static void dd_activate_once(void) {
                                get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                get_global_DD_TRACE_AGENT_STACK_BACKLOG(),
                                bgs_fallback ? ZSTR_VAL(bgs_service) : NULL);
+            zend_string *testing_token = get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN();
+            if (ZSTR_LEN(testing_token)) {
+                ddtrace_coms_set_test_session_token(ZSTR_VAL(testing_token), ZSTR_LEN(testing_token));
+            }
             if (bgs_fallback) {
                 zend_string_release(bgs_service);
             }
@@ -621,6 +625,138 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
 #endif
 }
 
+static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name, zend_long timestamp, zval *attributes)
+{
+    zval garbage_name, garbage_timestamp, garbage_attributes;
+
+    // Copy current values to temporary zval variables
+    ZVAL_COPY_VALUE(&garbage_name, &event->property_name);
+    ZVAL_COPY_VALUE(&garbage_timestamp, &event->property_timestamp);
+    ZVAL_COPY_VALUE(&garbage_attributes, &event->property_attributes);
+
+    ZVAL_STR_COPY(&event->property_name, name);
+
+    // Use the provided timestamp or the current time in nanoseconds
+    if (timestamp == 0) {
+        struct timespec ts;
+        timespec_get(&ts, TIME_UTC);
+        timestamp = ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
+    }
+    ZVAL_LONG(&event->property_timestamp, timestamp);
+
+    // Initialize attributes
+    if (attributes) {
+        ZVAL_COPY(&event->property_attributes, attributes);
+    } else {
+        array_init(&event->property_attributes);
+    }
+
+    // Free the copied values after replacement
+    zval_ptr_dtor(&garbage_name);
+    zval_ptr_dtor(&garbage_timestamp);
+    zval_ptr_dtor(&garbage_attributes);
+}
+
+/* DDTrace\SpanEvent */
+zend_class_entry *ddtrace_ce_span_event;
+
+PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
+    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    zval array;
+    array_init(&array);
+
+    Z_TRY_ADDREF(event->property_name);
+    add_assoc_zval_ex(&array, ZEND_STRL("name"), &event->property_name);
+    Z_TRY_ADDREF(event->property_timestamp);
+    add_assoc_zval_ex(&array, ZEND_STRL("time_unix_nano"), &event->property_timestamp);
+
+    // Handle attributes dynamically
+    zval *attributes = &event->property_attributes;
+    zval combined_attributes;
+    array_init(&combined_attributes);
+
+    if (instanceof_function(event->std.ce, ddtrace_ce_exception_span_event)) {
+        // Handle exception attributes dynamically if an exception property exists
+        ddtrace_exception_span_event *exception_event = (ddtrace_exception_span_event *) event;
+        zval *exception = &exception_event->property_exception;
+        if (Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
+            // Get exception message, type, and stack trace directly
+            zend_string *message = zai_exception_message(Z_OBJ_P(exception));
+            if (ZSTR_LEN(message)) {
+                add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.message"), zend_string_copy(message));
+            }
+            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.type"), zend_string_copy(Z_OBJCE_P(exception)->name));
+
+            // Get the exception stack trace using zai_get_trace_without_args_from_exception
+            zend_string *stacktrace = zai_get_trace_without_args_from_exception(Z_OBJ_P(exception));
+            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.stacktrace"), stacktrace);
+        }
+    }
+
+    if (Z_TYPE_P(attributes) == IS_ARRAY) {
+        zend_hash_copy(Z_ARRVAL(combined_attributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref);
+    }
+
+    if (zend_hash_num_elements(Z_ARRVAL(combined_attributes)) > 0) {
+        add_assoc_zval_ex(&array, ZEND_STRL("attributes"), &combined_attributes);
+    } else {
+        zval_ptr_dtor(&combined_attributes); // Clean up if no elements
+    }
+
+    RETURN_ARR(Z_ARR(array)); // Return the array
+}
+
+PHP_METHOD(DDTrace_SpanEvent, __construct)
+{
+    UNUSED(return_value);
+
+    zend_string *name;
+    zval *attributes = NULL;
+    zend_long timestamp = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STR(name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(attributes, 1, 0)
+        Z_PARAM_LONG(timestamp)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    // Use the static function to set properties and handle cleanup
+    dd_span_event_construct(event, name, timestamp, attributes);
+}
+
+/* DDTrace\ExceptionSpanEvent */
+zend_class_entry *ddtrace_ce_exception_span_event;
+
+PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
+{
+    UNUSED(return_value);
+
+    zval *exception;
+    zval *attributes = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_OBJECT_OF_CLASS(exception, zend_ce_throwable)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(attributes, 1, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_exception_span_event *event = (ddtrace_exception_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    // Use the static function to set properties and handle cleanup
+    zend_string *name = zend_string_init(ZEND_STRL("exception"), 0);
+    dd_span_event_construct(&event->span_event, name, 0, attributes);
+    zend_string_release(name);
+
+    zval garbage;
+    ZVAL_COPY_VALUE(&garbage, &event->property_exception);
+    ZVAL_COPY(&event->property_exception, exception);
+    zval_ptr_dtor(&garbage);
+}
+
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
 
@@ -714,6 +850,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     array_init(&span->property_metrics);
     array_init(&span->property_meta_struct);
     array_init(&span->property_links);
+    array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
 #endif
     // Explicitly assign property-mapped NULLs
@@ -1165,6 +1302,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
+    ddtrace_ce_span_event = register_class_DDTrace_SpanEvent(php_json_serializable_ce);
+    ddtrace_ce_exception_span_event = register_class_DDTrace_ExceptionSpanEvent(ddtrace_ce_span_event);
     ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
     ddtrace_ce_git_metadata->create_object = ddtrace_git_metadata_create;
     memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));

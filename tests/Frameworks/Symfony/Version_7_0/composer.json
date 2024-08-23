@@ -12,10 +12,12 @@
         "doctrine/doctrine-migrations-bundle": "^3.3",
         "doctrine/orm": "^2.17",
         "symfony/console": "7.0.*",
+        "symfony/doctrine-messenger": "^7.1",
         "symfony/dotenv": "7.0.*",
         "symfony/flex": "^2",
         "symfony/form": "7.0.*",
         "symfony/framework-bundle": "7.0.*",
+        "symfony/messenger": "^7.1",
         "symfony/monolog-bundle": "^3.10",
         "symfony/runtime": "7.0.*",
         "symfony/security-bundle": "7.0.*",
@@ -67,7 +69,7 @@
         "post-autoload-dump": [
             "rm -rf var/cache/dev/*",
             "rm -rf var/cache/prod/*",
-            "@php bin/console doctrine:database:drop --force",
+            "@php bin/console doctrine:database:drop --force || true",
             "@php bin/console doctrine:database:create",
             "@php bin/console doctrine:migrations:migrate -n"
         ]

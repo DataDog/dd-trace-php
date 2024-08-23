@@ -11,7 +11,7 @@ class SQLSRVTest extends IntegrationTestCase
 {
     private static $host = 'sqlsrv_integration';
     private static $port = '1433';
-    private static $database = 'master';
+    private static $db = 'master';
     private static $user = 'sa';
     private static $password = 'Password12!';
 
@@ -397,17 +397,14 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(
-                    array_merge(self::baseTags($query), [
-                        '_dd.base_service' => 'phpunit',
-                    ])),
+                ->withExactTags(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->withExactTags(array_merge(self::baseTags($query), [
-                    '_dd.base_service' => 'phpunit',
-                ]))
+                ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
                 ])
         ], true, false);
     }
@@ -445,7 +442,7 @@ class SQLSRVTest extends IntegrationTestCase
             self::$host . ', ' . self::$port,
             [
                 'PWD' => self::$password,
-                'Database' => self::$database,
+                'Database' => self::$db,
                 'UID' => self::$user,
                 'TrustServerCertificate' => true
             ]
@@ -484,7 +481,7 @@ class SQLSRVTest extends IntegrationTestCase
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => SQLSRVIntegration::NAME,
             Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
-            Tag::DB_INSTANCE => self::$database,
+            Tag::DB_INSTANCE => self::$db,
             Tag::DB_USER => self::$user,
             Tag::TARGET_HOST => self::$host,
             Tag::TARGET_PORT => self::$port,

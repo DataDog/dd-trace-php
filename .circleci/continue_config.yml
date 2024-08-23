@@ -267,6 +267,14 @@ aliases:
           echo "export DD_TRACE_ASSUME_COMPILED=1" >> $BASH_ENV
         fi
 
+  - &STEP_SUBSTITUTE_SNAPSHOT_DIR
+    run:
+      name: Replace /home/circleci/app by /home/circleci/datadog in snapshot results
+      command: |
+        for f in $(find tests/snapshots -type f); do
+          sed -i 's/\/home\/circleci\/app\//\/home\/circleci\/datadog\//g' $f
+        done
+
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
       path: test-results
@@ -1647,7 +1655,7 @@ jobs:
                   - equal: [ "8.0", << parameters.php_major_minor >> ]
                   - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
-                equal: [ "test_composer", << parameters.make_target >> ]
+                  equal: [ "test_composer", << parameters.make_target >> ]
           steps:
             - run:
                 name: Updating composer to v2
@@ -1662,6 +1670,7 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension
       - <<: *STEP_WAIT_MYSQL
@@ -1672,7 +1681,7 @@ jobs:
           command: |
             set -euo pipefail
             <<# parameters.coverage >>unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true<</ parameters.coverage >>
-            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results-<< parameters.make_target >>.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
@@ -1736,7 +1745,7 @@ jobs:
                 - equal: [ "8.0", << parameters.php_major_minor >> ]
                 - equal: [ "8.1", << parameters.php_major_minor >> ]
               - not:
-                equal: [ "test_composer", << parameters.make_target >> ]
+                  equal: [ "test_composer", << parameters.make_target >> ]
           steps:
             - run:
                 name: Updating composer to v2
@@ -1751,6 +1760,7 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension
       - when:
@@ -1868,7 +1878,7 @@ jobs:
         type: string
       docker_image:
         type: string
-      integration_testsuite:
+      make_target:
         type: string
       lib_curl_command:
         type: string
@@ -1917,6 +1927,7 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
@@ -1924,8 +1935,8 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_WAIT_TEST_AGENT
       - run:
-          name: Run << parameters.integration_testsuite >> integration test
-          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >> RUST_DEBUG_BUILD=1
+          name: Run << parameters.make_target >> integration tests
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -2212,55 +2223,6 @@ jobs:
       - run:
           name: Validate centos package
           command: << parameters.configuration >> ./dockerfiles/verify_packages/verify.sh
-
-  verify_centos_6:
-    working_directory: ~/datadog
-    resource_class: small
-    parameters:
-      install_type:
-        type: string
-        # Possible values: php_installer, native_package
-        default: php_installer
-    machine:
-      image: ubuntu-2004:2023.04.2
-    steps:
-      - restore_cache:
-          keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-      - run:
-          name: Install git
-          command: |
-            yum update -y
-            yum install -y git
-      - git_checkout
-      - run: mkdir -p build/packages
-      - when:
-          condition:
-            equal: [php_installer, << parameters.install_type >>]
-          steps:
-            - fetch_job_artifact:
-                job: "package extension"
-                artifact: 'dd-library-php-[^"]+x86_64-linux-gnu.tar.gz'
-                directory: build/packages
-            - fetch_job_artifact:
-                job: "package extension"
-                artifact: 'datadog-setup.php'
-                directory: build/packages
-      - when:
-          condition:
-            equal: [native_package, << parameters.install_type >>]
-          steps:
-            - fetch_job_artifact:
-                job: "package extension"
-                artifact: |-
-                  datadog-php-tracer-[^"]+'"$(uname -m)"'.rpm
-                directory: build/packages
-      - run: mkdir -p test-results
-      - run:
-          name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile INSTALL_TYPE=<< parameters.install_type >> verify_centos_6
-      - store_test_results:
-          path: test-results
 
   verify_debian:
     working_directory: ~/datadog
@@ -3172,7 +3134,7 @@ jobs:
       - run:
           name: cargo fetch
           command: |
-            SUDO=$(! command -v sudo >/dev/null || echo "sudo")
+            SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             # On occasion, we've observed the .package-cache being in the cache.
             # If it's there, it will cause commands to stall, waiting for the file to be released.
             if [ -e '/rust/cargo/.package-cache' ] ; then
@@ -3867,8 +3829,7 @@ jobs:
       - git_checkout
       - run:
           name: Install cbindgen
-          # cbindgen 0.27 requires Rust 1.74+
-          command: cargo install cbindgen@0.26.0
+          command: cargo install --version "^0.26" cbindgen
       - run:
           name: Regenerate cbindgen headers and
           command: |
@@ -5411,34 +5372,12 @@ workflows:
               make_target:
                 - test_distributed_tracing
 
-      - integration:
-          # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that
-          # only shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
-          # Since we run tests using php debug builds, we have to run test_integrations_phpredis5 in a separate runner
-          # and switch to a non-debug PHP build.
-          # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
-          # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
-          requires: [ 'Prepare Code' ]
-          with_executor: 'with_redis'
-          matrix:
-            parameters:
-              php_major_minor:
-                - '8.0'
-                - '8.1'
-                - '8.2'
-                - '8.3'
-                - '8.4'
-              switch_php_version:
-                - nts
-              make_target:
-                - test_integrations_phpredis5
-
       - integration_tests:
           requires: [ 'Prepare Code', 'Compile 7.2 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 72 web tests with apache (+ opcache)"
           resource_class: medium+
           sapi: apache2handler
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
           php_major_minor: "7.2"
       - integration_tests:
@@ -5446,7 +5385,7 @@ workflows:
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster"
           php_major_minor: "7.2"
       - integration_tests:
@@ -5454,7 +5393,7 @@ workflows:
           name: "PHP 73 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster"
           php_major_minor: "7.3"
       - integration_tests:
@@ -5462,7 +5401,7 @@ workflows:
           name: "PHP 74 web tests with apache (+ opcache)"
           resource_class: medium+
           sapi: apache2handler
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           php_major_minor: "7.4"
       - integration_tests:
@@ -5470,7 +5409,7 @@ workflows:
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           php_major_minor: "7.4"
       - integration_tests:
@@ -5478,7 +5417,7 @@ workflows:
           name: "PHP 80 web tests with apache (+ opcache)"
           resource_class: medium+
           sapi: apache2handler
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           php_major_minor: "8.0"
       - integration_tests:
@@ -5486,7 +5425,7 @@ workflows:
           name: "PHP 80 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           php_major_minor: "8.0"
       - integration_tests:
@@ -5494,7 +5433,7 @@ workflows:
           name: "PHP 81 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.1_buster"
           php_major_minor: "8.1"
       - integration_tests:
@@ -5502,7 +5441,7 @@ workflows:
           name: "PHP 82 web tests with apache (+ opcache)"
           resource_class: medium+
           sapi: apache2handler
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.2_buster"
           php_major_minor: "8.2"
       - integration_tests:
@@ -5510,7 +5449,7 @@ workflows:
           name: "PHP 83 web tests with apache (+ opcache)"
           resource_class: medium+
           sapi: apache2handler
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           php_major_minor: "8.3"
       - integration_tests:
@@ -5518,7 +5457,7 @@ workflows:
           name: "PHP 83 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          make_target: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           php_major_minor: "8.3"
       - integration_tests:
@@ -5542,7 +5481,7 @@ workflows:
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
           sapi: fpm-fcgi
-          integration_testsuite: "test_web_custom"
+          make_target: "test_web_custom"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           php_major_minor: "7.4"
 

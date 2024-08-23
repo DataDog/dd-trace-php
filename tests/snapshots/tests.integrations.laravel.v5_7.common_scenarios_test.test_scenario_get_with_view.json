@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "simple_view",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/simple_view?key=value&<redacted>",
+      "http.url": "http://localhost/simple_view?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple_view",
       "laravel.route.name": "unnamed_route",
       "runtime-id": "4878b25b-9211-4ac8-8906-d7721b2fa3e5",
@@ -246,7 +246,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_5_7/resources/views/simple_view.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_5_7/resources/views/simple_view.blade.php",
           "trace_id": 0,
           "span_id": 21,
           "parent_id": 17,

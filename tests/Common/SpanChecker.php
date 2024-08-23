@@ -21,8 +21,6 @@ function array_filter_by_key($fn, array $input)
  */
 final class SpanChecker
 {
-    const DEFAULTS_ATTRIBUTES = ['_dd.p.tid'];
-
     /**
      * Asserts a flame graph with parent child relations.
      *
@@ -30,14 +28,8 @@ final class SpanChecker
      * @param SpanAssertion[] $expectedFlameGraph
      * @param bool $assertExactCount
      */
-    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true, bool $applyDefaults = true)
+    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true)
     {
-        if ($applyDefaults) {
-            foreach ($expectedFlameGraph as $spanAssertion) {
-                $spanAssertion->withExistingTagsNames(self::DEFAULTS_ATTRIBUTES);
-            }
-        }
-
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
         if ($assertExactCount && \count($actualGraph) != \count($expectedFlameGraph)) {
@@ -87,6 +79,7 @@ final class SpanChecker
             $out .= "\n";
             if (isset($span['meta'])) {
                 unset($span['meta']['_dd.p.dm']);
+                unset($span['meta']['_dd.p.tid']);
                 unset($span['meta']['http.client_ip']);
                 foreach ($span['meta'] as $k => $v) {
                     $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
@@ -337,16 +330,9 @@ final class SpanChecker
      *
      * @param $traces
      * @param SpanAssertion[] $expectedSpans
-     * @param bool $applyDefaults
      */
-    public function assertSpans($traces, $expectedSpans, $applyDefaults = true)
+    public function assertSpans($traces, $expectedSpans)
     {
-        if ($applyDefaults) {
-            foreach ($expectedSpans as $spanAssertion) {
-                $spanAssertion->withExistingTagsNames(self::DEFAULTS_ATTRIBUTES);
-            }
-        }
-
         $flattenTraces = $this->flattenTraces($traces);
         // The sandbox API pops closed spans off a stack so spans will be in reverse order
         $flattenTraces = array_reverse($flattenTraces);
@@ -481,6 +467,10 @@ final class SpanChecker
             // Ignore _dd.p.dm unless explicitly tested
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
+            }
+            // Ignore _dd.p.tid unless explicitly tested
+            if (!isset($expectedTags['_dd.p.tid'])) {
+                unset($filtered['_dd.p.tid']);
             }
             // Ignore runtime-id unless explicitly tested
             if (!isset($expectedTags['runtime-id'])) {

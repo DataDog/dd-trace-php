@@ -5,6 +5,7 @@ WORKDIR /var/www
 COPY src /var/www
 
 EXPOSE 80
+EXPOSE 80/udp
 
 RUN composer install
 

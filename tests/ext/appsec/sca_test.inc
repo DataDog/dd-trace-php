@@ -21,7 +21,10 @@ for ($i = 0; $i < 100; ++$i) {
         foreach (file(__DIR__ . '/'.$id.'-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
-                if ($json && ($json["application"]["service_name"] ?? "") != "background_sender-php-service") {
+                if ($json) {
+                    if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
+                        continue;
+                    }
                     array_push($batches, ...($json["request_type"] == "message-batch" ? $json["payload"] : [$json]));
                 }
             }

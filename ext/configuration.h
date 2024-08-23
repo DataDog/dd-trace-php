@@ -128,7 +128,10 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
     CONFIG(BOOL, DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING, "true")                                           \
+    CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING, "true")                                       \
+    CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES, "false")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
+    CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER, "true")                                          \
     CONFIG(BOOL, DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS, "false")                                         \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                      \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                    \
@@ -194,6 +197,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_INITIAL_SIZE, "131072", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
+    CONFIG(STRING, DD_TRACE_AGENT_TEST_SESSION_TOKEN, "", .ini_change = ddtrace_alter_test_session_token)      \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                     \

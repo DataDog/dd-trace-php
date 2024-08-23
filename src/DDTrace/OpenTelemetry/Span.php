@@ -6,6 +6,8 @@ namespace OpenTelemetry\SDK\Trace;
 
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
+use DDTrace\SpanEvent;
+use DDTrace\ExceptionSpanEvent;
 use DDTrace\Tag;
 use DDTrace\OpenTelemetry\Convention;
 use DDTrace\Util\ObjectKVStore;
@@ -46,6 +48,16 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /** @readonly */
     private int $totalRecordedLinks;
 
+    /**
+     * @readonly
+     *
+     * @var list<EventInterface>
+     */
+    private array $events;
+
+     /** @readonly */
+    private int $totalRecordedEvents;
+
     /** @readonly */
     private int $kind;
 
@@ -69,6 +81,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         ResourceInfo $resource,
         array $links = [],
         int $totalRecordedLinks = 0,
+        array $events = [],
         bool $isRemapped = true
     ) {
         $this->span = $span;
@@ -80,6 +93,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->resource = $resource;
         $this->links = $links;
         $this->totalRecordedLinks = $totalRecordedLinks;
+        $this->events = $events;
 
         $this->status = StatusData::unset();
 
@@ -91,7 +105,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $span->name = $this->operationNameConvention = Convention::defaultOperationName($span);
         }
 
-        // Set the span links
+        // Set the span links and events
         if ($isRemapped) {
             // At initialization time (now), only set the links if the span was created using the OTel API
             // Otherwise, the links were already set in DD's OpenTelemetry\Context\Context
@@ -109,6 +123,20 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 // Save the link
                 ObjectKVStore::put($spanLink, "link", $link);
                 $span->links[] = $spanLink;
+            }
+
+            foreach ($events as $event) {
+                /** @var EventInterface $event */
+
+                $spanEvent = new SpanEvent(
+                    $event->getName(), 
+                    $event->getAttributes()->toArray(),
+                    $event->getEpochNanos()
+                );
+     
+                // Save the event
+                ObjectKVStore::put($spanEvent, "event", $event);
+                $span->events[] = $spanEvent;
             }
         }
     }
@@ -136,6 +164,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         array $attributes,
         array $links,
         int $totalRecordedLinks,
+        array $events,
         bool $isRemapped = true // Answers the question "Was the span created using the OTel API?"
     ): self {
         self::_setAttributes($span, $attributes);
@@ -156,6 +185,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $resource,
             $links,
             $totalRecordedLinks,
+            $events,
             $isRemapped
         );
 
@@ -203,12 +233,13 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $hasEnded = $this->hasEnded();
 
         $this->updateSpanLinks();
+        $this->updateSpanEvents();
 
         return new ImmutableSpan(
             $this,
             $this->getName(),
             $this->links,
-            [], // TODO: Handle Span Events
+            $this->events,
             Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
             0,
             StatusData::create($this->status->getCode(), $this->status->getDescription()),
@@ -253,7 +284,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
 
     public function getTotalRecordedEvents(): int
     {
-        return 0;
+        return $this->totalRecordedEvents;
     }
 
     /**
@@ -332,7 +363,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanInterface
     {
-        // no-op
+        if (!$this->hasEnded()) {
+            $this->span->events[] = new SpanEvent(
+                $name, 
+                $attributes,
+                $timestamp ?? (int)(microtime(true) * 1e9)
+            );
+        }
+
         return $this;
     }
 
@@ -342,9 +380,13 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     public function recordException(Throwable $exception, iterable $attributes = []): SpanInterface
     {
         if (!$this->hasEnded()) {
-            $this->span->meta[Tag::ERROR_MSG] = $exception->getMessage();
-            $this->span->meta[Tag::ERROR_TYPE] = get_class($exception);
-            $this->span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
+            // Update span metadata based on exception stack
+            $this->setAttribute(Tag::ERROR_STACK, \DDTrace\get_sanitized_exception_trace($exception));
+
+            $this->span->events[] = new ExceptionSpanEvent(
+                $exception,
+                $attributes
+            );
         }
 
         return $this;
@@ -474,5 +516,40 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         // Update the links
         $this->links = $otel;
         $this->totalRecordedLinks = count($otel);
+    }
+
+    private function updateSpanEvents()
+    {
+        $datadogSpanEvents = $this->span->events;
+        $this->span->meta["events"] = count($this->events);
+    
+        $otel = [];
+        foreach ($datadogSpanEvents as $datadogSpanEvent) {
+            $exceptionAttributes = [];
+            $event = ObjectKVStore::get($datadogSpanEvent, "event");
+            if ($event === null) {
+                if ($datadogSpanEvent instanceof ExceptionSpanEvent) {
+                    // Standardized exception attributes
+                    $exceptionAttributes = [
+                        'exception.message' => $attributes['exception.message'] ?? $datadogSpanEvent->exception->getMessage(),
+                        'exception.type' => $attributes['exception.type'] ?? get_class($datadogSpanEvent->exception),
+                        'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($datadogSpanEvent->exception)
+                    ];
+                }
+                $event = new Event(
+                    $datadogSpanEvent->name,
+                    (int)$datadogSpanEvent->timestamp,
+                    Attributes::create(array_merge($exceptionAttributes, \is_array($datadogSpanEvent->attributes) ? $datadogSpanEvent->attributes : iterator_to_array($datadogSpanEvent->attributes)))                
+                );
+
+                // Save the event
+                ObjectKVStore::put($datadogSpanEvent, "event", $event);
+            }
+            $otel[] = $event;
+        }
+    
+        // Update the events
+        $this->events = $otel;
+        $this->totalRecordedEvents = count($otel);
     }
 }

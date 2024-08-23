@@ -1,0 +1,7 @@
+{
+    "require": {
+        "openai-php/client": "@stable",
+        "guzzlehttp/guzzle": "^7.8.1",
+        "guzzlehttp/psr7": "^2.6.2"
+    }
+}

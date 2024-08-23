@@ -230,6 +230,13 @@ ddog_MaybeError ddog_sidecar_dogstatsd_set(struct ddog_SidecarTransport **transp
                                            const struct ddog_Vec_Tag *tags);
 
 /**
+ * Sets x-datadog-test-session-token on all requests for the given session.
+ */
+ddog_MaybeError ddog_sidecar_set_test_session_token(struct ddog_SidecarTransport **transport,
+                                                    ddog_CharSlice session_id,
+                                                    ddog_CharSlice token);
+
+/**
  * This function creates a new transport using the provided callback function when the current
  * transport is closed.
  *

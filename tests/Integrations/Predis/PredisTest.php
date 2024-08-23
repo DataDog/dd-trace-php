@@ -9,6 +9,8 @@ use Predis\Configuration\Options;
 
 final class PredisTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "redis";
+
     private $host = 'redis_integration';
     private $port = '6379';
 

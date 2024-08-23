@@ -9,7 +9,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 class MysqliTest extends IntegrationTestCase
 {
     private static $host = 'mysql_integration';
-    private static $db = 'test';
+    public static $database = 'mysqlitest';
     private static $port = '3306';
     private static $user = 'test';
     private static $password = 'test';
@@ -39,7 +39,7 @@ class MysqliTest extends IntegrationTestCase
     public function testProceduralConnect()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             $mysqli->close();
         });
 
@@ -96,7 +96,7 @@ class MysqliTest extends IntegrationTestCase
     public function testConstructorConnect()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->close();
         });
 
@@ -109,7 +109,7 @@ class MysqliTest extends IntegrationTestCase
     public function testProceduralQuery()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
         });
@@ -130,7 +130,7 @@ class MysqliTest extends IntegrationTestCase
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
         });
@@ -154,7 +154,7 @@ class MysqliTest extends IntegrationTestCase
         }
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_execute_query($mysqli, 'SELECT * from tests WHERE 1 = ?', [1]);
             $mysqli->close();
         });
@@ -175,7 +175,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_execute_query($mysqli, 'SELECT * from tests WHERE 1 = ?', [1]);
             $mysqli->close();
         });
@@ -191,7 +191,7 @@ class MysqliTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_init();
-            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$db);
+            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
         });
@@ -215,7 +215,7 @@ class MysqliTest extends IntegrationTestCase
 
         $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_init();
-            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$db);
+            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
         });
@@ -236,7 +236,7 @@ class MysqliTest extends IntegrationTestCase
     public function testConstructorQuery()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -258,7 +258,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -279,7 +279,7 @@ class MysqliTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli();
-            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -304,7 +304,7 @@ class MysqliTest extends IntegrationTestCase
 
         $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli();
-            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -327,7 +327,7 @@ class MysqliTest extends IntegrationTestCase
     {
         $query = "INSERT INTO tests (id, name) VALUES (100, 'Tom')";
         $traces = $this->isolateTracer(function () use ($query) {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, $query);
             \mysqli_commit($mysqli);
             $mysqli->close();
@@ -345,7 +345,7 @@ class MysqliTest extends IntegrationTestCase
     public function testConstructorPreparedStatement()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -369,7 +369,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -393,7 +393,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_select_db($mysqli, 'information_schema');
             \mysqli_query($mysqli, 'SELECT * from columns limit 1');
             $mysqli->close();
@@ -422,7 +422,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true', 'DD_TRACE_GENERATE_ROOT_SPAN=true']);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->select_db('information_schema');
             $mysqli->query('SELECT * from columns limit 1');
             $mysqli->close();
@@ -449,7 +449,7 @@ class MysqliTest extends IntegrationTestCase
     public function testLimitedTracerConstructorQuery()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -460,7 +460,7 @@ class MysqliTest extends IntegrationTestCase
     public function testLimitedTracerProceduralCommit()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'From Test')");
             \mysqli_commit($mysqli);
             $mysqli->close();
@@ -473,7 +473,7 @@ class MysqliTest extends IntegrationTestCase
     public function testLimitedTracerConstructorPreparedStatement()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -489,7 +489,7 @@ class MysqliTest extends IntegrationTestCase
     public function testProceduralPreparedStatement()
     {
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             $stmt = \mysqli_prepare($mysqli, "INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -503,13 +503,9 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(array_merge(self::baseTags(), [
-                    '_dd.base_service' => 'phpunit',
-                ])),
+                ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
-                ->withExactTags(array_merge(self::baseTags(), [
-                    '_dd.base_service' => 'phpunit',
-                ])),
+                ->withExactTags(self::baseTags()),
         ], true, false);
     }
 
@@ -518,7 +514,7 @@ class MysqliTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
             $stmt = \mysqli_prepare($mysqli, "INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
             $name = 100;
@@ -571,7 +567,7 @@ class MysqliTest extends IntegrationTestCase
         ]);
 
         $traces = $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
         });
@@ -591,7 +587,7 @@ class MysqliTest extends IntegrationTestCase
         self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');
         self::putEnv('DD_SERVICE_MAPPING=mysqli:my-mysqli');
         $traces = $this->isolateTracer(function () {
-            new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            new \mysqli(self::$host, self::$user, self::$password, self::$database);
         });
 
         $this->assertSpans($traces, [
@@ -611,11 +607,11 @@ class MysqliTest extends IntegrationTestCase
         ];
 
         if ($expectDbName) {
-            $tags['db.name'] = 'test';
+            $tags['db.name'] = self::$database;
         }
 
         if ($expectPeerService) {
-            $tags['peer.service'] = 'test';
+            $tags['peer.service'] = self::$database;
             $tags['_dd.peer.service.source'] = 'db.name';
         }
 
@@ -625,7 +621,7 @@ class MysqliTest extends IntegrationTestCase
     private function setUpDatabase()
     {
         $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query("
                 CREATE TABLE tests (
                     id integer not null primary key,
@@ -641,7 +637,7 @@ class MysqliTest extends IntegrationTestCase
     private function clearDatabase()
     {
         $this->isolateTracer(function () {
-            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $mysqli->query("DROP TABLE IF EXISTS tests");
             $mysqli->commit();
             $mysqli->close();
@@ -661,7 +657,7 @@ class MysqliTest extends IntegrationTestCase
             $conditions[] = "$key = '$value'";
         }
         $inlineWhere = $conditions ? 'WHERE ' . implode('AND', $conditions) : '';
-        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
         $result = $mysqli->query("SELECT * FROM $table $inlineWhere");
         if (false === $result) {
             $message = mysqli_error($mysqli);

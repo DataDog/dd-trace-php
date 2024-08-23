@@ -112,7 +112,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'slim.route.name' => 'simple-route',
                         'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
@@ -140,7 +140,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
@@ -177,7 +177,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
@@ -211,7 +211,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/parameterized/paramValue',
+                        'http.url' => 'http://localhost/parameterized/paramValue',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
