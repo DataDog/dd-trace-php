@@ -4,9 +4,8 @@ Send crashtracker report when segmentation fault signal is raised and config ena
 <?php
 if (!extension_loaded('posix')) die('skip: posix extension required');
 if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: intentionally causes segfaults");
-if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support XFAIL");
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %A in EXPECTF");
 if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
-if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents("/etc/os-release"))) die("skip Unsupported LIBC");
 ?>
 --ENV--
 DD_LOG_BACKTRACE=1
