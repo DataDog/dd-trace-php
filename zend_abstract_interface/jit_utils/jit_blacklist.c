@@ -4,10 +4,18 @@
 #include <Zend/zend_types.h>
 #include <Zend/zend_ini.h>
 
-#ifndef _WIN32
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
+static void *opcache_handle;
+static void zai_jit_find_opcache_handle(void *ext) {
+    zend_extension *extension = (zend_extension *)ext;
+    if (strcmp(extension->name, "Zend OPcache") == 0) {
+        opcache_handle = extension->handle;
+    }
+}
+
+// opcache startup NULLs its handle. MINIT is executed before extension startup.
+void zai_jit_minit(void) {
+    zend_llist_apply(&zend_extensions, zai_jit_find_opcache_handle);
+}
 
 #if PHP_VERSION_ID >= 80100
 #include <Zend/Optimizer/zend_call_graph.h>
@@ -64,7 +72,6 @@ typedef struct _zend_func_info {
     void        **call_map;     /* Call info associated with init/call/send opnum */
     zend_ssa_var_info       return_info;
 } zend_func_info;
-#endif
 
 typedef struct _zend_jit_op_array_trace_extension {
     zend_func_info func_info;
@@ -89,19 +96,13 @@ typedef union _zend_op_trace_info {
 
 #define ZEND_FUNC_INFO(op_array) \
 	((zend_func_info*)((op_array)->reserved[zend_func_info_rid]))
+#endif
 
-static void *opcache_handle;
-static void zai_jit_find_opcache_handle(void *ext) {
-    zend_extension *extension = (zend_extension *)ext;
-    if (strcmp(extension->name, "Zend OPcache") == 0) {
-        opcache_handle = extension->handle;
-    }
-}
-
-// opcache startup NULLs its handle. MINIT is executed before extension startup.
-void zai_jit_minit(void) {
-    zend_llist_apply(&zend_extensions, zai_jit_find_opcache_handle);
-}
+#if PHP_VERSION_ID < 80400
+#ifndef _WIN32
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 void (*zai_jit_protect)(void), (*zai_jit_unprotect)(void);
 static void zai_jit_fetch_symbols(void) {
@@ -122,43 +123,6 @@ static void zai_jit_fetch_symbols(void) {
 
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
-}
-
-#if PHP_VERSION_ID < 80100
-static inline bool check_pointer_near(void *a, void *b) {
-    const size_t prefix_size = 0xFFFFFFFF; // 4 GB
-    return (uintptr_t)a + prefix_size - (uintptr_t)b < prefix_size * 2;
-}
-#endif
-
-int zai_get_zend_func_rid(zend_op_array *op_array) {
-#if PHP_VERSION_ID < 80100
-    if (zend_func_info_rid == -2) {
-        if (!opcache_handle) {
-            zai_jit_func_info_rid = -1;
-        } else {
-            // On PHP 8.0 we impossibly can get hold of zend_func_info_rid.
-            // We determine it on our own heuristically, assuming:
-            // a) The zend_func_info_rid is allocated in shared memory.
-            // b) The op_array data is also allocated in shared memory, and thus relatively near.
-            // c) The first matching pointer in op_array->reserved is the zend_func_info_rid.
-            // d) "Normal" memory, like the VM stack is far away
-
-            if (check_pointer_near(op_array->arg_info, EG(vm_stack))) {
-                // This function does not seem JITted
-                return -1;
-            }
-
-            for (int i = 0; i < ZEND_MAX_RESERVED_RESOURCES; ++i) {
-                if (check_pointer_near(op_array->reserved, op_array->arg_info)) {
-                    return (zend_func_info_rid = i);
-                }
-            }
-        }
-    }
-#endif
-    (void)op_array;
-    return zend_func_info_rid;
 }
 
 void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
@@ -230,4 +194,59 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #endif
         }
     }
+}
+#else
+void (*zai_jit_blacklist_function)(zend_op_array *);
+static void zai_jit_fetch_symbols(void) {
+    if (!zai_jit_blacklist_function) {
+        ZEND_ASSERT(opcache_handle); // assert the handle is there is zend_func_info_rid != -1
+
+        zai_jit_blacklist_function = (void (*)(zend_op_array *))DL_FETCH_SYMBOL(opcache_handle, "zend_jit_blacklist_function");
+        if (zai_jit_blacklist_function == NULL) {
+            zai_jit_blacklist_function = (void (*)(zend_op_array *))DL_FETCH_SYMBOL(opcache_handle, "zend_jit_blacklist_function");
+        }
+    }
+}
+
+void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
+    zai_jit_fetch_symbols();
+    zai_jit_blacklist_function(op_array);
+}
+#endif
+
+#if PHP_VERSION_ID < 80100
+static inline bool check_pointer_near(void *a, void *b) {
+	const size_t prefix_size = 0xFFFFFFFF; // 4 GB
+	return (uintptr_t)a + prefix_size - (uintptr_t)b < prefix_size * 2;
+}
+#endif
+
+int zai_get_zend_func_rid(zend_op_array *op_array) {
+#if PHP_VERSION_ID < 80100
+	if (zend_func_info_rid == -2) {
+		if (!opcache_handle) {
+			zai_jit_func_info_rid = -1;
+		} else {
+			// On PHP 8.0 we impossibly can get hold of zend_func_info_rid.
+			// We determine it on our own heuristically, assuming:
+			// a) The zend_func_info_rid is allocated in shared memory.
+			// b) The op_array data is also allocated in shared memory, and thus relatively near.
+			// c) The first matching pointer in op_array->reserved is the zend_func_info_rid.
+			// d) "Normal" memory, like the VM stack is far away
+
+			if (check_pointer_near(op_array->arg_info, EG(vm_stack))) {
+				// This function does not seem JITted
+				return -1;
+			}
+
+			for (int i = 0; i < ZEND_MAX_RESERVED_RESOURCES; ++i) {
+				if (check_pointer_near(op_array->reserved, op_array->arg_info)) {
+					return (zend_func_info_rid = i);
+				}
+			}
+		}
+	}
+#endif
+	(void)op_array;
+	return zend_func_info_rid;
 }
