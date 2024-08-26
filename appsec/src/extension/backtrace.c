@@ -3,8 +3,8 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "compatibility.h"
 #include "backtrace.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "logging.h"
@@ -64,7 +64,10 @@ php_backtrace_frame_to_datadog_backtrace_frame( // NOLINTNEXTLINE(bugprone-easil
     }
 
     // Remove tracer integration php code frames
-    if (strncmp(Z_STRVAL_P(function), "DDTrace", sizeof("DDTrace") - 1) == 0) {
+    if (STR_STARTS_WITH_CONS(
+            Z_STRVAL_P(function), Z_STRLEN_P(function), "DDTrace") ||
+        STR_STARTS_WITH_CONS(
+            Z_STRVAL_P(function), Z_STRLEN_P(function), "{closure:DDTrace")) {
         return false;
     }
 
