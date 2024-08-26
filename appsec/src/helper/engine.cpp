@@ -52,7 +52,8 @@ void engine::update(engine_ruleset &ruleset,
     std::atomic_store(&common_, new_common);
 }
 
-std::optional<engine::result> engine::context::publish(parameter &&param)
+std::optional<engine::result> engine::context::publish(
+    parameter &&param, bool rasp)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
@@ -75,7 +76,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
             it = listeners_.emplace(sub, sub->get_listener()).first;
         }
         try {
-            it->second->call(data, event_);
+            it->second->call(data, event_, rasp);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }

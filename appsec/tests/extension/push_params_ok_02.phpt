@@ -30,8 +30,10 @@ array(2) {
   [0]=>
   string(12) "request_exec"
   [1]=>
-  array(1) {
+  array(2) {
     [0]=>
+    bool(false)
+    [1]=>
     array(1) {
       ["server.request.path_params"]=>
       string(11) "some string"

@@ -19,5 +19,6 @@ constexpr std::string_view event_rules_version =
 
 constexpr std::string_view waf_version = "_dd.appsec.waf.version";
 constexpr std::string_view waf_duration = "_dd.appsec.waf.duration";
+constexpr std::string_view rasp_duration = "_dd.appsec.rasp.duration";
 
 } // namespace dds::tag

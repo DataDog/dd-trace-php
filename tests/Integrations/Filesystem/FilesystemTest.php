@@ -21,6 +21,7 @@ final class FilesystemTest extends AppsecTestCase
        $this->assertEquals(1, count($events));
        $this->assertEquals($value, $events[0]["server.io.fs.file"]);
        $this->assertEquals('push_address', $events[0]['eventName']);
+       $this->assertTrue($events[0]['rasp']);
     }
 
     public function testFileGetContents()
