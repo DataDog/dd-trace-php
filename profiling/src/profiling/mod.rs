@@ -25,11 +25,13 @@ use datadog_profiling::api::{
 };
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
+use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::mem::forget;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
@@ -55,6 +57,10 @@ pub const NO_TIMESTAMP: i64 = 0;
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
+
+/// The global profiler. Profiler gets made during the first rinit after an
+/// minit, and is destroyed on mshutdown.
+static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
 
 /// Order this array this way:
 ///  1. Always enabled types.
@@ -510,7 +516,25 @@ pub enum UploadMessage {
 #[cfg(feature = "timeline")]
 const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
+const DDPROF_TIME: &str = "ddprof_time";
+const DDPROF_UPLOAD: &str = "ddprof_upload";
+
 impl Profiler {
+    /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
+    pub fn init(system_settings: &mut SystemSettings) {
+        // SAFETY: the `get_or_init` access is a thread-safe API, and the
+        // PROFILER is not being mutated outside single-threaded phases such
+        // as minit/mshutdown.
+        unsafe { PROFILER.get_or_init(|| Profiler::new(system_settings)) };
+    }
+
+    pub fn get() -> Option<&'static Profiler> {
+        // SAFETY: the `get` access is a thread-safe API, and the PROFILER is
+        // not being mutated outside single-threaded phases such as minit and
+        // mshutdown.
+        unsafe { PROFILER.get() }
+    }
+
     pub fn new(system_settings: &mut SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
@@ -532,21 +556,19 @@ impl Profiler {
             Utc::now(),
         );
 
-        let ddprof_time = "ddprof_time";
-        let ddprof_upload = "ddprof_upload";
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
             message_sender,
             upload_sender,
-            time_collector_handle: thread_utils::spawn(ddprof_time, move || {
+            time_collector_handle: thread_utils::spawn(DDPROF_TIME, move || {
                 time_collector.run();
-                trace!("thread {ddprof_time} complete, shutting down");
+                trace!("thread {DDPROF_TIME} complete, shutting down");
             }),
-            uploader_handle: thread_utils::spawn(ddprof_upload, move || {
+            uploader_handle: thread_utils::spawn(DDPROF_UPLOAD, move || {
                 uploader.run();
-                trace!("thread {ddprof_upload} complete, shutting down");
+                trace!("thread {DDPROF_UPLOAD} complete, shutting down");
             }),
             should_join: AtomicBool::new(true),
             sample_types_filter,
@@ -576,22 +598,26 @@ impl Profiler {
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
-    pub fn fork_prepare(&self) {
-        // Send the message to the uploader first, as it has a longer worst-
+    pub fn fork_prepare(&self) -> anyhow::Result<()> {
+        // Send the message to the uploader first, as it has a longer worst
         // case time to wait.
         let uploader_result = self.upload_sender.send(UploadMessage::Pause);
         let profiler_result = self.message_sender.send(ProfilerMessage::Pause);
 
-        // todo: handle fails more gracefully, but it's tricky to sync 3
-        //       threads, any of which could have crashed or be delayed. This
-        //       could also deadlock.
         match (uploader_result, profiler_result) {
             (Ok(_), Ok(_)) => {
                 self.fork_barrier.wait();
+                Ok(())
             }
-            (_, _) => {
-                error!("failed to prepare the profiler for forking, a deadlock could occur")
+            (Err(err), Ok(_)) => {
+                anyhow::bail!("failed to prepare {DDPROF_UPLOAD} thread for forking: {err}")
             }
+            (Ok(_), Err(err)) => {
+                anyhow::bail!("failed to prepare {DDPROF_TIME} thread for forking: {err}")
+            }
+            (Err(_), Err(_)) => anyhow::bail!(
+                "failed to prepare both {DDPROF_UPLOAD} and {DDPROF_TIME} threads for forking"
+            ),
         }
     }
 
@@ -622,7 +648,16 @@ impl Profiler {
     /// Note that you must call [Profiler::shutdown] afterwards; it's two
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
-    pub fn stop(&mut self, timeout: Duration) {
+    pub fn stop(timeout: Duration) {
+        // SAFETY: the `get_mut` access is a thread-safe API, and the PROFILER
+        // is not being mutated outside single-threaded phases such as minit
+        // and mshutdown.
+        if let Some(profiler) = unsafe { PROFILER.get_mut() } {
+            profiler.join_and_drop_sender(timeout);
+        }
+    }
+
+    pub fn join_and_drop_sender(&mut self, timeout: Duration) {
         debug!("Stopping profiler.");
 
         let sent = match self
@@ -653,7 +688,18 @@ impl Profiler {
     /// Completes the shutdown process; to start it, call [Profiler::stop]
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
-    pub fn shutdown(self, timeout: Duration) {
+    ///
+    /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
+    pub fn shutdown(timeout: Duration) {
+        // SAFETY: the `take` access is a thread-safe API, and the PROFILER is
+        // not being mutated outside single-threaded phases such  as minit and
+        // mshutdown.
+        if let Some(profiler) = unsafe { PROFILER.take() } {
+            profiler.join_collector_and_uploader(timeout);
+        }
+    }
+
+    pub fn join_collector_and_uploader(self, timeout: Duration) {
         if self.should_join.load(Ordering::SeqCst) {
             thread_utils::join_timeout(
                 self.time_collector_handle,
@@ -669,6 +715,34 @@ impl Profiler {
                 timeout,
                 "Recent samples are most likely lost.",
             );
+        }
+    }
+
+    /// Throws away the profiler and moves it to uninitialized.
+    ///
+    /// In a forking situation, the currently active profiler may not be valid
+    /// because it has join handles and other state shared by other threads,
+    /// and threads are not copied when the process is forked.
+    /// Additionally, if we've hit certain other issues like not being able to
+    /// determine the return type of the pcntl_fork function, we don't know if
+    /// we're the parent or child.
+    /// So, we throw away the current profiler and forget it, which avoids
+    /// running the destructor. Yes, this will leak some memory.
+    ///
+    /// # Safety
+    /// Must be called when no other thread is using the PROFILER object. That
+    /// includes this thread in some kind of recursive manner.
+    pub unsafe fn kill() {
+        // SAFETY: see this function's safety conditions.
+        if let Some(mut profiler) = PROFILER.take() {
+            // Drop some things to reduce memory.
+            profiler.interrupt_manager = Arc::new(InterruptManager::new());
+            profiler.message_sender = crossbeam_channel::bounded(0).0;
+            profiler.upload_sender = crossbeam_channel::bounded(0).0;
+
+            // But we're not 100% sure everything is safe to drop, notably the
+            // join handles, so we leak the rest.
+            forget(profiler)
         }
     }
 
