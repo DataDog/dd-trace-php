@@ -45,8 +45,10 @@ array(2) {
   [0]=>
   string(12) "request_exec"
   [1]=>
-  array(1) {
+  array(2) {
     [0]=>
+    bool(false)
+    [1]=>
     array(3) {
       ["key 01"]=>
       string(10) "some value"
