@@ -59,7 +59,7 @@ class FilesystemIntegration extends Integration
 
             $filename = $hook->args[0];
             if (function_exists('\datadog\appsec\push_address')) {
-                \datadog\appsec\push_address("server.io.fs.file", $filename);
+                \datadog\appsec\push_address("server.io.fs.file", $filename, true);
             }
         };
     }
