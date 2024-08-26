@@ -1,0 +1,76 @@
+{
+    "version": 1,
+    "host": {
+        "linux": {
+            "x64": {
+                "supported": true,
+                "glibc": {
+                    "supported": true,
+                    "description": "From centOS 7",
+                    "min": "2.17.0"
+                },
+                "musl": {
+                    "supported": true,
+                    "description": "From alpine 3.19"
+                }
+            },
+            "arm64": {
+                "supported": true,
+                "glibc": {
+                    "supported": true,
+                    "description": "From centOS 7",
+                    "min": "2.17.0"
+                },
+                "musl": {
+                    "supported": true,
+                    "description": "From alpine 3.19"
+                }
+            },
+            "x86": {
+                "supported": false,
+                "glibc": {
+                    "supported": false
+                },
+                "musl": {
+                    "supported": false
+                }
+            }
+        },
+        "macos": {
+            "x64": {
+                "supported": false
+            },
+            "arm64": {
+                "supported": false
+            },
+            "x86": {
+                "supported": false
+            }
+        },
+        "windows": {
+            "x64": {
+                "supported": false
+            },
+            "arm64": {
+                "supported": false
+            },
+            "x86": {
+                "supported": false
+            }
+        }
+    },
+    "deny": [
+        {
+            "os": null,
+            "cmds": [
+                "**/php/5*/**",
+                "**/php5*/**",
+                "**/php5*",
+                "**/php-5*",
+                "**/php.5*"
+            ],
+            "args": [],
+            "envars": null
+        }
+    ]
+}
