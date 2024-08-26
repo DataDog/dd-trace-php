@@ -38,6 +38,7 @@ static inline void *zai_symbol_lookup_table(HashTable *table, zai_str key, bool 
     zval resultzv;
     zend_function *func;
     if (table == EG(function_table) && (func = zend_fetch_function_str(key.ptr, key.len))) {
+        ZEND_ASSERT(pointer == true);
         result = &resultzv;
         ZVAL_PTR(result, func);
     } else
@@ -55,6 +56,7 @@ static inline void *zai_symbol_lookup_table(HashTable *table, zai_str key, bool 
 
 #if PHP_VERSION_ID >= 70300
         if (table == EG(function_table) && (func = zend_fetch_function_str(key.ptr, key.len))) {
+            ZEND_ASSERT(pointer == true);
             result = &resultzv;
             ZVAL_PTR(result, func);
         } else
