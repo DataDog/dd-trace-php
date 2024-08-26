@@ -51,7 +51,8 @@ void engine::update(
     std::atomic_store_explicit(&common_, new_common, std::memory_order_release);
 }
 
-std::optional<engine::result> engine::context::publish(parameter &&param)
+std::optional<engine::result> engine::context::publish(
+    parameter &&param, bool rasp)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
@@ -82,7 +83,7 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
         }
         try {
             const auto &listener = it->second;
-            listener->call(data, event_);
+            listener->call(data, event_, rasp);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }

@@ -113,12 +113,20 @@ TEST(WafTest, ValidRunGood)
         waf::instance::from_string(waf_rule, submitm)};
     auto ctx = wi->get_listener();
 
-    auto p = parameter::map();
-    p.add("arg1", parameter::string("string 1"sv));
+    { // No rasp event
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
 
-    parameter_view pv(p);
-    dds::event e;
-    ctx->call(pv, e);
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, meta, metrics)};
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+
+        parameter_view pv(p);
+        dds::event e;
+        ctx->call(pv, e); // default to rasp=false
 
     EXPECT_CALL(submitm,
         submit_span_meta(metrics::event_rules_version, std::string{"1.2.3"}));
@@ -133,6 +141,35 @@ TEST(WafTest, ValidRunGood)
     ctx->submit_metrics(submitm);
     EXPECT_GT(duration, 0.0);
     Mock::VerifyAndClearExpectations(&submitm);
+        ctx->get_meta_and_metrics(meta, metrics);
+        EXPECT_STREQ(
+            meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
+        EXPECT_GT(metrics[tag::waf_duration], 0.0);
+        EXPECT_TRUE(metrics.find(tag::rasp_duration) == metrics.end());
+    }
+
+    { // Rasp event
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
+
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, meta, metrics)};
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+
+        parameter_view pv(p);
+        dds::event e;
+        bool is_rasp = true;
+        ctx->call(pv, e, is_rasp);
+
+        ctx->get_meta_and_metrics(meta, metrics);
+        EXPECT_STREQ(
+            meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
+        EXPECT_GT(metrics[tag::waf_duration], 0.0);
+        EXPECT_GT(metrics[tag::rasp_duration], 0.0);
+    }
 }
 
 TEST(WafTest, ValidRunMonitor)

@@ -300,13 +300,16 @@ instance::listener::~listener()
     }
 }
 
-void instance::listener::call(dds::parameter_view &data, event &event)
+void instance::listener::call(
+    dds::parameter_view &data, event &event, bool rasp)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
         code = ddwaf_run(handle_, data, nullptr, &res, waf_timeout_.count());
     };
+
+    rasp_request_ |= rasp;
 
     if (spdlog::should_log(spdlog::level::debug)) {
         DD_STDLOG(DD_STDLOG_CALLING_WAF, data.debug_str());
@@ -345,6 +348,7 @@ void instance::listener::call(dds::parameter_view &data, event &event)
             break;
         }
     }
+    rasp_runtime_ += res.total_runtime / 1000.0;
 
     const parameter_view derivatives{res.derivatives};
     for (const auto &derivative : derivatives) {
@@ -402,6 +406,10 @@ void instance::listener::submit_metrics(
     msubmitter.submit_span_meta(
         metrics::event_rules_version, std::string{ruleset_version_});
     msubmitter.submit_span_metric(metrics::waf_duration, total_runtime_);
+
+    if (rasp_request_) {
+        metrics[tag::rasp_duration] = rasp_runtime_;
+    }
 
     for (const auto &[key, value] : derivatives_) {
         std::string derivative = value;
