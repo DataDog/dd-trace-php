@@ -124,10 +124,10 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                             LOG(DEBUG, "Loaded integration %s", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_LOADED:
-                            LOG(DEBUG, "Integration %s not available. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not loaded, possibly unsupported version. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
-                            LOG(DEBUG, "Integration {name} not loaded. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration {name} not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
                             unload_hooks = false;
                             break;
                         default:
