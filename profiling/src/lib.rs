@@ -33,7 +33,7 @@ use lazy_static::lazy_static;
 use libc::c_char;
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
-use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiling::{LocalRootSpanResourceMessage, SystemProfiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -504,7 +504,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    Profiler::init(system_settings);
+    SystemProfiler::init(system_settings);
 
     if system_settings.profiling_enabled {
         REQUEST_LOCALS.with(|cell| {
@@ -541,7 +541,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 return;
             }
 
-            if let Some(profiler) = Profiler::get() {
+            if let Some(profiler) = SystemProfiler::get() {
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
                     engine_ptr: locals.vm_interrupt_addr,
@@ -597,7 +597,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         // wall-time is not expected to ever be disabled, except in testing,
         // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
-            if let Some(profiler) = Profiler::get() {
+            if let Some(profiler) = SystemProfiler::get() {
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count,
                     engine_ptr: locals.vm_interrupt_addr,
@@ -807,7 +807,7 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
 
-    Profiler::stop(Duration::from_secs(1));
+    SystemProfiler::stop(Duration::from_secs(1));
 
     ZendResult::Success
 }
@@ -841,7 +841,7 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
 
-    Profiler::shutdown(Duration::from_secs(2));
+    SystemProfiler::shutdown(Duration::from_secs(2));
 
     // SAFETY: calling in shutdown before zai config is shutdown, and after
     // all configuration is done being accessed. Well... in the happy-path,
@@ -870,7 +870,7 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
                 return;
             }
 
-            if let Some(profiler) = Profiler::get() {
+            if let Some(profiler) = SystemProfiler::get() {
                 let message = LocalRootSpanResourceMessage {
                     local_root_span_id,
                     resource: resource.into_owned(),

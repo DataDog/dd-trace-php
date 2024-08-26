@@ -2,7 +2,7 @@ use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
 };
-use crate::profiling::Profiler;
+use crate::profiling::SystemProfiler;
 use crate::{PROFILER_NAME, REQUEST_LOCALS};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
@@ -95,7 +95,7 @@ impl AllocationProfilingStats {
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = Profiler::get() {
+        if let Some(profiler) = SystemProfiler::get() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
                 profiler.collect_allocations(

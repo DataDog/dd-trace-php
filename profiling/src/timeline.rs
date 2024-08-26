@@ -1,4 +1,4 @@
-use crate::profiling::Profiler;
+use crate::profiling::SystemProfiler;
 use crate::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
@@ -81,7 +81,7 @@ fn sleeping_fn(
         return;
     }
 
-    if let Some(profiler) = Profiler::get() {
+    if let Some(profiler) = SystemProfiler::get() {
         // Safety: `unwrap` can be unchecked, as we checked for `is_err()`
         let now = unsafe { now.unwrap_unchecked().as_nanos() } as i64;
         let duration = duration.as_nanos() as i64;
@@ -218,7 +218,7 @@ pub unsafe fn timeline_rinit() {
                 return;
             }
 
-            if let Some(profiler) = Profiler::get() {
+            if let Some(profiler) = SystemProfiler::get() {
                 profiler.collect_idle(
                     // Safety: checked for `is_err()` above
                     SystemTime::now()
@@ -277,7 +277,7 @@ pub(crate) unsafe fn timeline_mshutdown() {
                 return;
             }
 
-            if let Some(profiler) = Profiler::get() {
+            if let Some(profiler) = SystemProfiler::get() {
                 profiler.collect_idle(
                     // Safety: checked for `is_err()` above
                     SystemTime::now()
@@ -341,7 +341,7 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             duration.as_nanos(),
         );
 
-        if let Some(profiler) = Profiler::get() {
+        if let Some(profiler) = SystemProfiler::get() {
             profiler.collect_compile_string(
                 // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
@@ -407,7 +407,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             duration.as_nanos(),
         );
 
-        if let Some(profiler) = Profiler::get() {
+        if let Some(profiler) = SystemProfiler::get() {
             profiler.collect_compile_file(
                 // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
@@ -477,7 +477,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             duration.as_nanos()
         );
 
-        if let Some(profiler) = Profiler::get() {
+        if let Some(profiler) = SystemProfiler::get() {
             cfg_if::cfg_if! {
                 if #[cfg(php_gc_status)] {
                     profiler.collect_garbage_collection(
