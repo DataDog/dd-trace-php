@@ -2283,8 +2283,8 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/tmp/',
             'commented' => true,
             'description' => [
-                'The directory where to place the lock file and the UNIX socket that the'
-                'extension uses communicate with the helper inside sidecar. Ultimately, '
+                'The directory where to place the lock file and the UNIX socket that the',
+                'extension uses communicate with the helper inside sidecar. Ultimately,',
                 'the paths include the version of the extension and uid/gid.',
             ],
         ],
@@ -2293,7 +2293,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/dev/null',
             'commented' => true,
             'description' => [
-                'The location of the log file of the helper. This defaults to /dev/null ',
+                'The location of the log file of the helper. This defaults to /dev/null',
                 '(the log messages will be discarded).',
             ],
         ],
