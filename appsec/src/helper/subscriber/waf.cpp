@@ -309,8 +309,6 @@ void instance::listener::call(
         code = ddwaf_run(handle_, data, nullptr, &res, waf_timeout_.count());
     };
 
-    rasp_request_ |= rasp;
-
     if (spdlog::should_log(spdlog::level::debug)) {
         DD_STDLOG(DD_STDLOG_CALLING_WAF, data.debug_str());
         run_waf();
@@ -348,7 +346,13 @@ void instance::listener::call(
             break;
         }
     }
-    rasp_runtime_ += res.total_runtime / 1000.0;
+    if (rasp) {
+        rasp_runtime_ += res.total_runtime / 1000.0;
+        rasp_calls_++;
+        if (res.timeout) {
+            rasp_timeouts_ += 1;
+        }
+    }
 
     const parameter_view derivatives{res.derivatives};
     for (const auto &derivative : derivatives) {
@@ -407,8 +411,12 @@ void instance::listener::submit_metrics(
         metrics::event_rules_version, std::string{ruleset_version_});
     msubmitter.submit_span_metric(metrics::waf_duration, total_runtime_);
 
-    if (rasp_request_) {
+    if (rasp_calls_ > 0) {
         metrics[tag::rasp_duration] = rasp_runtime_;
+        metrics[tag::rasp_rule_eval] = rasp_calls_;
+        if (rasp_timeouts_ > 0) {
+            metrics[tag::rasp_timeout] = rasp_timeouts_;
+        }
     }
 
     for (const auto &[key, value] : derivatives_) {

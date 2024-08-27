@@ -92,18 +92,42 @@ TEST(WafTest, RunWithInvalidParam)
 TEST(WafTest, RunWithTimeout)
 {
     NiceMock<mock::tel_submitter> submitm{};
+    { // No rasp
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
 
-    std::shared_ptr<subscriber> wi(
+        std::shared_ptr<subscriber> wi(
         waf::instance::from_string(waf_rule, submitm, 0));
-    auto ctx = wi->get_listener();
+        auto ctx = wi->get_listener();
 
-    auto p = parameter::map();
-    p.add("arg1", parameter::string("string 1"sv));
-    p.add("arg2", parameter::string("string 2"sv));
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 2"sv));
 
-    parameter_view pv(p);
-    dds::event e;
-    EXPECT_THROW(ctx->call(pv, e), timeout_error);
+        parameter_view pv(p);
+        dds::event e;
+        EXPECT_THROW(ctx->call(pv, e), timeout_error);
+    }
+    { // Rasp
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
+
+        subscriber::ptr wi(
+            waf::instance::from_string(waf_rule, meta, metrics, 0));
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 2"sv));
+
+        parameter_view pv(p);
+        dds::event e;
+        bool is_rasp = true;
+        EXPECT_THROW(ctx->call(pv, e, is_rasp), timeout_error);
+
+        ctx->get_meta_and_metrics(meta, metrics);
+        EXPECT_EQ(metrics[tag::rasp_timeout], 1);
+    }
 }
 
 TEST(WafTest, ValidRunGood)
