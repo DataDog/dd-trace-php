@@ -1,7 +1,7 @@
 {
-    "$schema":"vendor/phpbench/phpbench/phpbench.schema.json",
+    "$schema":"Benchmarks/vendor/phpbench/phpbench/phpbench.schema.json",
     "runner.bootstrap": "./bootstrap_phpbench.php",
-    "runner.path": "Benchmarks",
+    "runner.path": [ "Benchmarks/API", "Benchmarks/Integrations" ],
     "runner.file_pattern": "*Bench.php",
     "runner.php_env": {
         "DD_TRACE_OTEL_ENABLED": "true",
