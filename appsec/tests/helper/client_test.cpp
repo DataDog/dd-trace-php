@@ -2687,7 +2687,7 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
     }
 }
 
-TEST(ClientTest, RaspDuration)
+TEST(ClientTest, RaspCalls)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -2759,9 +2759,10 @@ TEST(ClientTest, RaspDuration)
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
 
-        EXPECT_EQ(msg_res->metrics.size(), 2);
+        EXPECT_EQ(msg_res->metrics.size(), 3);
         EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
-        EXPECT_GT(msg_res->metrics[tag::rasp_duration], 0.0);
+        EXPECT_EQ(msg_res->metrics[tag::rasp_rule_eval], 1);
+        EXPECT_GE(msg_res->metrics[tag::rasp_duration], 0.0);
     }
 }
 
