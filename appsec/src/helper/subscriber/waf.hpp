@@ -46,8 +46,9 @@ public:
         ddwaf_context handle_{};
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
-        bool rasp_request_ = false;
         double rasp_runtime_{0.0};
+        unsigned rasp_calls_{0};
+        unsigned rasp_timeouts_{0};
         std::string_view ruleset_version_;
         std::map<std::string, std::string> schemas_;
     };
