@@ -76,6 +76,8 @@
         <![CDATA[
 ## Tracer
 
+The default value for datadog.log_backtrace is now set to true, meaning that on compatible systems, a segmentation fault will cause the process's backtrace to be printed in the log.
+
 ### Added
 - Add SpanEvents support for DD and OTEL #2754
 - Symfony Messenger Integration #2749
