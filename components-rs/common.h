@@ -377,6 +377,46 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+#define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
+
+typedef enum ddog_RemoteConfigCapabilities {
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ACTIVATION = 1,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_IP_BLOCKING = 2,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_RULES = 3,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXCLUSIONS = 4,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_REQUEST_BLOCKING = 5,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RESPONSE_BLOCKING = 6,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_USER_BLOCKING = 7,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_RULES = 8,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_BLOCKING_RESPONSE = 9,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRUSTED_IPS = 10,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_API_SECURITY_SAMPLE_RATE = 11,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RATE = 12,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_LOGS_INJECTION = 13,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_HTTP_HEADER_TAGS = 14,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_CUSTOM_TAGS = 15,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_PROCESSOR_OVERRIDES = 16,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_DATA_SCANNERS = 17,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXCLUSION_DATA = 18,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLED = 19,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_DATA_STREAMS_ENABLED = 20,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SQLI = 21,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_LFI = 22,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SSRF = 23,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SHI = 24,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XXE = 25,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_RCE = 26,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_NOSQLI = 27,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XSS = 28,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RULES = 29,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_CSM_ACTIVATION = 30,
+} ddog_RemoteConfigCapabilities;
+
+typedef enum ddog_RemoteConfigProduct {
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+} ddog_RemoteConfigProduct;
+
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
@@ -388,6 +428,8 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  * allowing safe transfer and sharing of file handles across processes, and threads
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
+
+typedef struct ddog_RemoteConfigReader ddog_RemoteConfigReader;
 
 /**
  * `RuntimeMetadata` is a struct that represents the runtime metadata of a language.
@@ -410,6 +452,297 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_top_level;
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
+
+typedef enum ddog_crasht_DemangleOptions {
+  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
+  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
+} ddog_crasht_DemangleOptions;
+
+typedef enum ddog_crasht_NormalizedAddressTypes {
+  DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_NONE = 0,
+  DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_ELF,
+} ddog_crasht_NormalizedAddressTypes;
+
+/**
+ * This enum represents operations a the tracked library might be engaged in.
+ * Currently only implemented for profiling.
+ * The idea is that if a crash consistently occurs while a particular operation
+ * is ongoing, its likely related.
+ *
+ * In the future, we might also track wall-clock time of operations
+ * (or some statistical sampling thereof) using the same enum.
+ *
+ * NOTE: This enum is known to be non-exhaustive.  Feel free to add new types
+ *       as needed.
+ */
+typedef enum ddog_crasht_OpTypes {
+  DDOG_CRASHT_OP_TYPES_PROFILER_INACTIVE = 0,
+  DDOG_CRASHT_OP_TYPES_PROFILER_COLLECTING_SAMPLE,
+  DDOG_CRASHT_OP_TYPES_PROFILER_UNWINDING,
+  DDOG_CRASHT_OP_TYPES_PROFILER_SERIALIZING,
+  /**
+   * Dummy value to allow easier iteration
+   */
+  DDOG_CRASHT_OP_TYPES_SIZE,
+} ddog_crasht_OpTypes;
+
+/**
+ * Stacktrace collection occurs in the context of a crashing process.
+ * If the stack is sufficiently corruputed, it is possible (but unlikely),
+ * for stack trace collection itself to crash.
+ * We recommend fully enabling stacktrace collection, but having an environment
+ * variable to allow downgrading the collector.
+ */
+typedef enum ddog_crasht_StacktraceCollection {
+  /**
+   * Stacktrace collection occurs in the
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
+} ddog_crasht_StacktraceCollection;
+
+/**
+ * A generic result type for when a crashtracking operation may fail,
+ * but there's nothing to return in the case of success.
+ */
+typedef enum ddog_crasht_Result_Tag {
+  DDOG_CRASHT_RESULT_OK,
+  DDOG_CRASHT_RESULT_ERR,
+} ddog_crasht_Result_Tag;
+
+typedef struct ddog_crasht_Result {
+  ddog_crasht_Result_Tag tag;
+  union {
+    struct {
+      /**
+       * Do not use the value of Ok. This value only exists to overcome
+       * Rust -> C code generation.
+       */
+      bool ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_Result;
+
+typedef struct ddog_crasht_Slice_CharSlice {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const ddog_CharSlice *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_CharSlice;
+
+typedef struct ddog_crasht_Config {
+  struct ddog_crasht_Slice_CharSlice additional_files;
+  bool create_alt_stack;
+  /**
+   * The endpoint to send the crash report to (can be a file://).
+   * If None, the crashtracker will infer the agent host from env variables.
+   */
+  const struct ddog_Endpoint *endpoint;
+  enum ddog_crasht_StacktraceCollection resolve_frames;
+  uint64_t timeout_secs;
+  bool wait_for_receiver;
+} ddog_crasht_Config;
+
+typedef struct ddog_crasht_EnvVar {
+  ddog_CharSlice key;
+  ddog_CharSlice val;
+} ddog_crasht_EnvVar;
+
+typedef struct ddog_crasht_Slice_EnvVar {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const struct ddog_crasht_EnvVar *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_EnvVar;
+
+typedef struct ddog_crasht_ReceiverConfig {
+  struct ddog_crasht_Slice_CharSlice args;
+  struct ddog_crasht_Slice_EnvVar env;
+  ddog_CharSlice path_to_receiver_binary;
+  /**
+   * Optional filename to forward stderr to (useful for logging/debugging)
+   */
+  ddog_CharSlice optional_stderr_filename;
+  /**
+   * Optional filename to forward stdout to (useful for logging/debugging)
+   */
+  ddog_CharSlice optional_stdout_filename;
+} ddog_crasht_ReceiverConfig;
+
+typedef struct ddog_crasht_Metadata {
+  ddog_CharSlice library_name;
+  ddog_CharSlice library_version;
+  ddog_CharSlice family;
+  /**
+   * Should include "service", "environment", etc
+   */
+  const struct ddog_Vec_Tag *tags;
+} ddog_crasht_Metadata;
+
+typedef enum ddog_crasht_UsizeResult_Tag {
+  DDOG_CRASHT_USIZE_RESULT_OK,
+  DDOG_CRASHT_USIZE_RESULT_ERR,
+} ddog_crasht_UsizeResult_Tag;
+
+typedef struct ddog_crasht_UsizeResult {
+  ddog_crasht_UsizeResult_Tag tag;
+  union {
+    struct {
+      uintptr_t ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_UsizeResult;
+
+/**
+ * Represents a CrashInfo. Do not access its member for any reason, only use
+ * the C API functions on this struct.
+ */
+typedef struct ddog_crasht_CrashInfo {
+  struct ddog_crasht_CrashInfo *inner;
+} ddog_crasht_CrashInfo;
+
+/**
+ * Returned by [ddog_prof_Profile_new].
+ */
+typedef enum ddog_crasht_CrashInfoNewResult_Tag {
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
+} ddog_crasht_CrashInfoNewResult_Tag;
+
+typedef struct ddog_crasht_CrashInfoNewResult {
+  ddog_crasht_CrashInfoNewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_CrashInfo ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_CrashInfoNewResult;
+
+typedef struct ddog_crasht_SigInfo {
+  uint64_t signum;
+  ddog_CharSlice signame;
+} ddog_crasht_SigInfo;
+
+typedef struct ddog_crasht_StackFrameNames {
+  struct ddog_Option_U32 colno;
+  ddog_CharSlice filename;
+  struct ddog_Option_U32 lineno;
+  ddog_CharSlice name;
+} ddog_crasht_StackFrameNames;
+
+typedef struct ddog_crasht_Slice_StackFrameNames {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const struct ddog_crasht_StackFrameNames *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_StackFrameNames;
+
+typedef struct ddog_Slice_U8 {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const uint8_t *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_U8;
+
+/**
+ * Use to represent bytes -- does not need to be valid UTF-8.
+ */
+typedef struct ddog_Slice_U8 ddog_ByteSlice;
+
+typedef struct ddog_crasht_NormalizedAddress {
+  uint64_t file_offset;
+  ddog_ByteSlice build_id;
+  ddog_CharSlice path;
+  enum ddog_crasht_NormalizedAddressTypes typ;
+} ddog_crasht_NormalizedAddress;
+
+typedef struct ddog_crasht_StackFrame {
+  ddog_CharSlice build_id;
+  uintptr_t ip;
+  uintptr_t module_base_address;
+  struct ddog_crasht_Slice_StackFrameNames names;
+  struct ddog_crasht_NormalizedAddress normalized_ip;
+  uintptr_t sp;
+  uintptr_t symbol_address;
+} ddog_crasht_StackFrame;
+
+typedef struct ddog_crasht_Slice_StackFrame {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const struct ddog_crasht_StackFrame *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_StackFrame;
+
+/**
+ * Represents time since the Unix Epoch in seconds plus nanoseconds.
+ */
+typedef struct ddog_Timespec {
+  int64_t seconds;
+  uint32_t nanoseconds;
+} ddog_Timespec;
+
+/**
+ * A wrapper for returning owned strings from FFI
+ */
+typedef struct ddog_crasht_StringWrapper {
+  /**
+   * This is a String stuffed into the vec.
+   */
+  struct ddog_Vec_U8 message;
+} ddog_crasht_StringWrapper;
+
+typedef enum ddog_crasht_StringWrapperResult_Tag {
+  DDOG_CRASHT_STRING_WRAPPER_RESULT_OK,
+  DDOG_CRASHT_STRING_WRAPPER_RESULT_ERR,
+} ddog_crasht_StringWrapperResult_Tag;
+
+typedef struct ddog_crasht_StringWrapperResult {
+  ddog_crasht_StringWrapperResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_StringWrapper ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_StringWrapperResult;
 
 #ifdef __cplusplus
 extern "C" {

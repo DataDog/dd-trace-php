@@ -15,8 +15,14 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
+#include "sidecar.h"
+#include "auto_flush.h"
 #include "ext/version.h"
 #include <components/log/log.h>
+
+#include <components-rs/common.h>
+#include <components-rs/ddtrace.h>
+#include <components-rs/crashtracker.h>
 
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
 #define DDTRACE_HAVE_BACKTRACE 1
@@ -31,6 +37,7 @@
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
+static ddog_CharSlice crashtracker_socket_path = {0};
 
 #define MAX_STACK_SIZE 1024
 #define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
@@ -82,6 +89,49 @@ static void ddtrace_sigsegv_handler(int sig) {
     _Exit(128 + sig);
 }
 
+static bool ddtrace_crashtracker_check_result(ddog_crasht_Result result, const char *msg) {
+    if (result.tag != DDOG_CRASHT_RESULT_OK) {
+        ddog_CharSlice error_msg = ddog_Error_message(&result.err);
+        LOG(ERROR, "%s : %.*s", msg, (int) error_msg.len, error_msg.ptr);
+        ddog_Error_drop(&result.err);
+        return false;
+    }
+
+    return true;
+}
+
+static void ddtrace_init_crashtracker() {
+    ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
+    crashtracker_socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
+
+    ddog_crasht_Config config = {
+        .endpoint = agent_endpoint,
+        .timeout_secs = 5,
+    };
+
+    ddog_Vec_Tag tags = ddog_Vec_Tag_new();
+    ddtrace_sidecar_push_tags(&tags, NULL);
+
+    const ddog_crasht_Metadata metadata = {
+        .library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),
+        .library_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
+        .family = DDOG_CHARSLICE_C("php"),
+        .tags = &tags
+    };
+
+    ddtrace_crashtracker_check_result(
+        ddog_crasht_init_with_unix_socket(
+            config,
+            crashtracker_socket_path,
+            metadata
+        ),
+        "Cannot initialize CrashTracker"
+    );
+
+    ddog_endpoint_drop(agent_endpoint);
+    ddog_Vec_Tag_drop(tags);
+}
+
 void ddtrace_signals_first_rinit(void) {
     bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
 
@@ -107,10 +157,19 @@ void ddtrace_signals_first_rinit(void) {
                 sigaction(SIGSEGV, &ddtrace_sigaction, NULL);
             }
         }
+
+        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+            ddtrace_init_crashtracker();
+        }
     }
 }
 
-void ddtrace_signals_mshutdown(void) { free(ddtrace_altstack.ss_sp); }
+void ddtrace_signals_mshutdown(void) {
+    free(ddtrace_altstack.ss_sp);
+    if (crashtracker_socket_path.ptr) {
+        free((void *) crashtracker_socket_path.ptr);
+    }
+}
 
 #else
 void ddtrace_signals_first_rinit(void) {}

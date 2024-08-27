@@ -9,8 +9,6 @@ if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents(
 ?>
 --XFAIL--
 Code called in the segv handler is not signal safe, this will sometimes result in a segfault.
---ENV--
-DD_LOG_BACKTRACE=1
 --FILE--
 <?php
 posix_kill(posix_getpid(), 11); // boom

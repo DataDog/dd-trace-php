@@ -13,6 +13,7 @@ use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use ddcommon_ffi::CharSlice;
 use uuid::Uuid;
 
+pub use datadog_crashtracker_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use ddcommon_ffi::slice::AsBytes;
 pub use ddcommon_ffi::*;

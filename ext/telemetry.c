@@ -53,14 +53,16 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
     ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_NAMESPACE_TRACERS);
 
     // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
-    ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
+    ddtrace_ffi_try("Failed flushing background sender telemetry buffer",
+                    ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
     struct ddog_RuntimeMetadata *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
-    ddog_sidecar_telemetry_flushServiceData(
-        &sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, meta,
-        DDOG_CHARSLICE_C("background_sender-php-service"), DDOG_CHARSLICE_C("none")
-    );
+    ddtrace_ffi_try("Failed flushing background sender service data",
+                    ddog_sidecar_telemetry_flushServiceData(
+                        &sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, meta,
+                        DDOG_CHARSLICE_C("background_sender-php-service"), DDOG_CHARSLICE_C("none")
+                    ));
     ddog_sidecar_runtimeMeta_drop(meta);
 }
 
@@ -140,7 +142,8 @@ void ddtrace_telemetry_finalize(void) {
         }
     }
 
-    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer);
+    ddtrace_ffi_try("Failed flushing telemetry buffer",
+                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer));
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {
@@ -155,11 +158,13 @@ void ddtrace_telemetry_finalize(void) {
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
     struct ddog_RuntimeMetadata *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
 
-    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name, env_name);
+    ddtrace_ffi_try("Failed flushing service data",
+                    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name, env_name));
 
     ddog_sidecar_runtimeMeta_drop(meta);
 
-    ddog_sidecar_telemetry_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id));
+    ddtrace_ffi_try("Failed signaling lifecycle end",
+                    ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id)));
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
@@ -238,5 +243,6 @@ void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), (double)metrics.errors_status_code, DDOG_CHARSLICE_C("type:status_code"));
     }
 
-    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer);
+    ddtrace_ffi_try("Failed flushing background sender metrics",
+                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 }
