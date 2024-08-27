@@ -1,5 +1,5 @@
 {
-    "$schema":"vendor/phpbench/phpbench/phpbench.schema.json",
+    "$schema":"Benchmarks/vendor/phpbench/phpbench/phpbench.schema.json",
     "runner.bootstrap": "./bootstrap_phpbench.php",
     "runner.path": "Benchmarks",
     "runner.file_pattern": "*Bench.php",
