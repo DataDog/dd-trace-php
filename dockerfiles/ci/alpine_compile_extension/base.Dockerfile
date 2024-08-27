@@ -13,6 +13,7 @@ RUN set -eux; \
         g++ \
         gcc \
         make \
+        cmake \
         build-base \
         curl-dev \
         libedit-dev \
