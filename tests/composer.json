@@ -13,7 +13,6 @@
     "require-dev": {
         "assertwell/phpunit-global-state": "^0.2.2",
         "mockery/mockery": "*",
-        "phpbench/phpbench": "^1.0",
         "phpunit/phpcov": "*",
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
