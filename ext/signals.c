@@ -37,6 +37,7 @@
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
+static ddog_CharSlice crashtracker_socket_path = {0};
 
 #define MAX_STACK_SIZE 1024
 #define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
@@ -101,7 +102,7 @@ static bool ddtrace_crashtracker_check_result(ddog_crasht_Result result, const c
 
 static void ddtrace_init_crashtracker() {
     ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
-    ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
+    crashtracker_socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
 
     ddog_crasht_Config config = {
         .endpoint = agent_endpoint,
@@ -121,7 +122,7 @@ static void ddtrace_init_crashtracker() {
     ddtrace_crashtracker_check_result(
         ddog_crasht_init_with_unix_socket(
             config,
-            socket_path,
+            crashtracker_socket_path,
             metadata
         ),
         "Cannot initialize CrashTracker"
@@ -163,7 +164,12 @@ void ddtrace_signals_first_rinit(void) {
     }
 }
 
-void ddtrace_signals_mshutdown(void) { free(ddtrace_altstack.ss_sp); }
+void ddtrace_signals_mshutdown(void) {
+    free(ddtrace_altstack.ss_sp);
+    if (crashtracker_socket_path.ptr) {
+        free((void *) crashtracker_socket_path.ptr);
+    }
+}
 
 #else
 void ddtrace_signals_first_rinit(void) {}
