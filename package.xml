@@ -74,52 +74,56 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds beta support for PHP Single Step Instrumentation, allowing the instrumentation
-of your PHP applications without the manual installation of the dd-trace-php extension.
-
-Read https://docs.datadoghq.com/tracing/trace_collection/automatic_instrumentation/single-step-apm/ for
-more details.
-
 ## Tracer
 
+The default value for datadog.log_backtrace is now set to true, meaning that on compatible systems, a segmentation fault will cause the process's backtrace to be printed in the log.
+
 ### Added
-- Add span field meta_struct #2673
-- Add config to disable obfuscation in memcached queries #2725
-- Add PDO spans to orphans removal #2743
-- Make generators replaceable #2718
-- Source Code Integration #2731
-- OpenAI Integration #2685
-- Add support for Single Step Instrumentation #2684 #2723
+- Add SpanEvents support for DD and OTEL #2754
+- Symfony Messenger Integration #2749
+- Add crashtracker #2763
+
+### Changed
+- Updates the expected telemetry tags for OTel env-var mapping in line with the latest RFC #2775
 
 ### Fixed
-- Fix PHP binary detection in package post-install script #2707
-- Handle OTel HTTP semantic conventions < 1.21.0 #2717
-- Respect the active service/env/version for metric tags #2742
-- Fix post bailout hook execution in 8.3 unoptimized builds #2737
-- Fix env&version tags leaking in metrics #2745
-- Fix global priority sampling #2728
-- Fix crash in OpenTelemetry Span::getCurrent() when accessing span link #2767
+- Multiple Workers in SWOOLE_BASE mode #2778
+- Fix ini creation when `--extension-dir` is used #2789
+- Fix fatal error when reading uninit $meta on a span #2790
+- Fix JIT crash with instrumented generators #2797
+- Handle absolute paths in extension_dir containing forward slashes #2798
+- Fix setup with spaces in path to php binary #2803
+- Fix #2774: shared hooks removal caused xdebug end handler to be skipped #2780
+- Fix error message for not loaded/not available #2810
+- Implement fallback for when memfd is not available on Linux Datadog/libdatadog#591
+- Use the Windows User ID as sidecar identifier instead of the Session ID Datadog/libdatadog#558
+- Fix error check in trampoline.c Datadog/libdatadog#569
 
 ### Internal
-- Compile sidecar and extension separately, to link them together later #2741
-- Sync with libdatadog for telemetry flush data intval #2757
+- Send x-datadog-test-session-token metric and send metrics to request-replayer #2802
+- Only warn on missing `json` extension #2805
+- Fix compilation after alpine container upgrade #2811
+- Telemetry v2 schema for app-started payload requires 'configuration' Datadog/libdatadog#543
 
 ## Profiling
 
+### Added
+- Add timestamp to exception sample #2793
+
 ### Internal
-- Keep string cache data alive longer #2668
-- Extract func is_internal() #2736
-- Less unsafe code #2739
-- Refactor fork handling #2747
+- Perf: remove profiler mutex #2714
 
 ## Application Security Management
 
+### Added
+- Automated user ID collection modes #2782
+- Report backtraces #2715
+
+### Changed
+- Support loading appsec helper in sidecar Datadog/libdatadog#565
+
 ### Fixed
 - Refactor the sampler to fix errors #2761
-
-### Internal
-- Upgrade helper to use WAF 1.18.0 #2660
-- Add more logs around schema extraction #2755
 
 ]]></notes>
     <contents>
