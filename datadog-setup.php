@@ -2265,7 +2265,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => $appsecHelperPath,
             'commented' => false,
             'description' => [
-                'The path to the shared library the appsec extension loads in the sidecar.',
+                'The path to the shared library that the appsec extension loads in the sidecar.',
                 'This ini setting is configured by the installer',
             ],
         ],
@@ -2274,7 +2274,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => $appsecRulesPath,
             'commented' => true,
             'description' => [
-                'The path to the rules json file. The helper process must be able to read the',
+                'The path to the rules json file. The sidecar process must be able to read the',
                 'file. This ini setting is configured by the installer',
             ],
         ],
@@ -2283,9 +2283,9 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/tmp/',
             'commented' => true,
             'description' => [
-                'The location to the UNIX socket that extension uses to communicate with the',
-                'helper inside sidecar and to the lock file. Ultimately, the paths include'
-                'the version of the extension and pid/gid.',
+                'The directory where to place the lock file and the UNIX socket that the',
+                'extension uses communicate with the helper inside sidecar. Ultimately,',
+                'the paths include the version of the extension and uid/gid.',
             ],
         ],
         [
@@ -2293,7 +2293,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/dev/null',
             'commented' => true,
             'description' => [
-                'The location of the log file of the helper. This defaults to /dev/null ',
+                'The location of the log file of the helper. This defaults to /dev/null',
                 '(the log messages will be discarded).',
             ],
         ],
