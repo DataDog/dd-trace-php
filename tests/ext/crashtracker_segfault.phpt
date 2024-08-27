@@ -9,7 +9,6 @@ if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
 if (PHP_VERSION_ID < 70200) die("skip: TEST_PHP_EXTRA_ARGS is only available on PHP 7.2+");
 ?>
 --ENV--
-DD_LOG_BACKTRACE=1
 DD_TRACE_SIDECAR_TRACE_SENDER=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/crashtracker_segfault_agent.out"
