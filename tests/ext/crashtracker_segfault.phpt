@@ -42,13 +42,13 @@ for ($i = 0; $i < 100; ++$i) {
 %A
     ]
   },
-  "incomplete": false,
+  "incomplete": %s,
   "metadata": {
     "library_name": "dd-trace-php",
     "library_version": "%s",
     "family": "php",
     "tags": [
-      "service:Standard input code"
+%A
     ]
   },
   "os_info": {
