@@ -15,13 +15,14 @@ final class FilesystemTest extends AppsecTestCase
         return __DIR__ . '/index.php';
     }
 
-    protected function assertEvent(string $value)
+    protected function assertEvent(string $value, $traces)
     {
        $events = AppsecStatus::getInstance()->getEvents();
        $this->assertEquals(1, count($events));
        $this->assertEquals($value, $events[0]["server.io.fs.file"]);
        $this->assertEquals('push_address', $events[0]['eventName']);
        $this->assertTrue($events[0]['rasp']);
+       $this->assertGreaterThanOrEqual(0.0, $traces[0][0]['metrics']['_dd.appsec.rasp.duration_ext']);
     }
 
     public function testFileGetContents()
@@ -31,7 +32,7 @@ final class FilesystemTest extends AppsecTestCase
             TestCase::assertSame('OK', $response);
         });
 
-        $this->assertEvent('./index.php');
+        $this->assertEvent('./index.php', $traces);
     }
 
     public function testFilePutContents()
@@ -40,7 +41,7 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function=file_put_contents&path=./somefile'));
             TestCase::assertSame('OK', $response);
         });
-       $this->assertEvent('./somefile');
+       $this->assertEvent('./somefile', $traces);
     }
 
     public function testFopen()
@@ -49,7 +50,7 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function=fopen&path=./index.php'));
             TestCase::assertSame('OK', $response);
         });
-        $this->assertEvent('./index.php');
+        $this->assertEvent('./index.php', $traces);
     }
 
     public function testReadFile()
@@ -58,7 +59,7 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function=readfile&path=./dummy'));
             TestCase::assertSame("Dummy file content\nOK", $response);
         });
-        $this->assertEvent('./dummy');
+        $this->assertEvent('./dummy', $traces);
     }
 
     public function testStat()
@@ -67,7 +68,7 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function=stat&path=./dummy'));
             TestCase::assertSame("OK", $response);
         });
-        $this->assertEvent('./dummy');
+        $this->assertEvent('./dummy', $traces);
     }
 
     public function testLstat()
@@ -76,6 +77,6 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function=lstat&path=./dummy'));
             TestCase::assertSame("OK", $response);
         });
-        $this->assertEvent('./dummy');
+        $this->assertEvent('./dummy', $traces);
     }
 }

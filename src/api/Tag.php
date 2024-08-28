@@ -105,4 +105,7 @@ class Tag
     const EXEC_CMDLINE_SHELL = 'cmd.shell';
     const EXEC_TRUNCATED = 'cmd.truncated';
     const EXEC_EXIT_CODE = 'cmd.exit_code';
+
+    // Appsec
+    const APPSEC_RASP_DURATION_EXT = '_dd.appsec.rasp.duration_ext';
 }
