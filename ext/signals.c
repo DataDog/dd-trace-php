@@ -107,10 +107,25 @@ static void ddtrace_init_crashtracker() {
     ddog_crasht_Config config = {
         .endpoint = agent_endpoint,
         .timeout_secs = 5,
+        .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+        .wait_for_receiver = true
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&tags, NULL);
+
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("is_crash"), DDOG_CHARSLICE_C("true"));
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("severity"), DDOG_CHARSLICE_C("crash"));
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("library_version"), DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("language"), DDOG_CHARSLICE_C("php"));
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("runtime"), DDOG_CHARSLICE_C("php"));
+
+    uint8_t runtime_id[36];
+    ddtrace_format_runtime_id(&runtime_id);
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("runtime-id"), (ddog_CharSlice) {.ptr = (char *) runtime_id, .len = sizeof(runtime_id)});
+
+    const char *runtime_version = zend_get_module_version("Reflection");
+    ddtrace_sidecar_push_tag(&tags, DDOG_CHARSLICE_C("runtime_version"), (ddog_CharSlice) {.ptr = (char *) runtime_version, .len = strlen(runtime_version)});
 
     const ddog_crasht_Metadata metadata = {
         .library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),

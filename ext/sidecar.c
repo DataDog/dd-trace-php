@@ -183,7 +183,7 @@ ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void) {
     return agent_endpoint;
 }
 
-static inline void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value) {
+void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value) {
     ddog_Vec_Tag_PushResult tag_result = ddog_Vec_Tag_push(vec, key, value);
     if (tag_result.tag == DDOG_VEC_TAG_PUSH_RESULT_ERR) {
         zend_string *msg = dd_CharSlice_to_zend_string(ddog_Error_message(&tag_result.err));
