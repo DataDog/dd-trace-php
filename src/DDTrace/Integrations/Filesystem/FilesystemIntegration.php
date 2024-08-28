@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Filesystem;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Tag;
 
 class FilesystemIntegration extends Integration
 {
@@ -53,14 +54,22 @@ class FilesystemIntegration extends Integration
     private static function preHook($variant)
     {
         return static function (HookData $hook) use ($variant) {
+            $time_start = microtime(true);
             if (count($hook->args) == 0 || !is_string($hook->args[0])) {
                 return;
             }
+
+            if (!$hook->span()->parent) {
+                return;
+            }
+            $span = $hook->span()->parent;
 
             $filename = $hook->args[0];
             if (function_exists('\datadog\appsec\push_address')) {
                 \datadog\appsec\push_address("server.io.fs.file", $filename, true);
             }
+            $time_end = microtime(true);
+            $span->metrics[Tag::APPSEC_RASP_DURATION_EXT] = $time_end - $time_start;
         };
     }
 
