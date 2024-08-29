@@ -482,6 +482,10 @@ static PHP_FUNCTION(datadog_appsec_push_address)
         RETURN_FALSE;
     }
 
+    if (rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
+        return;
+    }
+
     zval parameters_zv;
     zend_array *parameters_arr = zend_new_array(1);
     ZVAL_ARR(&parameters_zv, parameters_arr);
