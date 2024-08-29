@@ -1028,9 +1028,9 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: format!("[fatal]").into(),
+                function: "[fatal]".into(),
                 file: Some(file),
-                line: line,
+                line,
             }],
             SampleValues {
                 timeline: 1,

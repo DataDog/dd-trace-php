@@ -85,6 +85,7 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/json/json.h",
 ];
 
+#[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_config_includes: &str,
     post_startup_cb: bool,

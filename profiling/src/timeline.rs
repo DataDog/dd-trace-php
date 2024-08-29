@@ -171,8 +171,6 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
             unsafe { zend::zai_str_from_zstr(message.as_mut()).into_string() },
         );
     }
-
-    return;
 }
 
 /// This functions needs to be called in MINIT of the module
@@ -268,7 +266,7 @@ pub unsafe fn timeline_rinit() {
 
     #[cfg(php_zts)]
     IS_NEW_THREAD.with(|cell| {
-        if cell.get() == false {
+        if !cell.get() {
             return;
         }
         cell.set(false);
