@@ -8,7 +8,6 @@ import com.datadog.appsec.php.model.Span
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitStrategy
 import org.testcontainers.containers.wait.strategy.WaitStrategyTarget
 import org.testcontainers.junit.jupiter.Container
@@ -23,7 +22,6 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static com.datadog.appsec.php.integration.TestParams.phpVersionAtLeast
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
-import static java.time.temporal.ChronoUnit.SECONDS
 import static org.hamcrest.MatcherAssert.assertThat
 
 @Testcontainers
@@ -45,7 +43,9 @@ class RoadRunnerTests {
                     phpVariant: variant,
                     www: 'roadrunner',
             ).with {
-                // we only start listening on http after run.sh has finished
+                // we only start listening on http after run.sh has finished,
+                // so mark immediately the container as ready. We instead check for liveliness
+                // in beforeAll()
                 setWaitStrategy(new WaitStrategy() {
                     @Override
                     void waitUntilReady(WaitStrategyTarget waitStrategyTarget) {
@@ -62,7 +62,14 @@ class RoadRunnerTests {
 
     @BeforeAll
     static void beforeAll() {
-        new HostPortWaitStrategy().withStartupTimeout(Duration.of(300, SECONDS) ).waitUntilReady(CONTAINER)
+        // wait until roadrunner is running
+        long deadline = System.currentTimeMillis() + 300_000
+        while (CONTAINER.execInContainer('grep', 'http server was started', '/tmp/logs/rr.log').exitCode != 0) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new RuntimeException('Roadrunner did not start on time (see output of run.sh)')
+            }
+            Thread.sleep(500)
+        }
     }
 
     @Test
