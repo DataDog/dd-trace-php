@@ -108,7 +108,7 @@ static void ddtrace_init_crashtracker() {
         .endpoint = agent_endpoint,
         .timeout_secs = 5,
         .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        .wait_for_receiver = true
+        .wait_for_receiver = false
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
@@ -160,7 +160,7 @@ void ddtrace_signals_first_rinit(void) {
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
-    if (install_handler) {
+    if (install_handler && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
         if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
             ddtrace_altstack.ss_size = stack_size;
