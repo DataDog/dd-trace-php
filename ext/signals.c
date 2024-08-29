@@ -160,7 +160,7 @@ void ddtrace_signals_first_rinit(void) {
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
-    if (install_handler) {
+    if (install_handler && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
         if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
             ddtrace_altstack.ss_size = stack_size;
@@ -173,7 +173,7 @@ void ddtrace_signals_first_rinit(void) {
             }
         }
 
-        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
+        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
             ddtrace_init_crashtracker();
         }
     }
