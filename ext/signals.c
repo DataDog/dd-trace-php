@@ -108,7 +108,7 @@ static void ddtrace_init_crashtracker() {
         .endpoint = agent_endpoint,
         .timeout_secs = 5,
         .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        .wait_for_receiver = true
+        .wait_for_receiver = false
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
