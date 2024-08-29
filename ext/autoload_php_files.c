@@ -238,9 +238,61 @@ static inline bool dd_legacy_autoload_wrapper(INTERNAL_FUNCTION_PARAMETERS) {
 
     zend_string *lower = zend_string_tolower(class_name);
     bool found = dd_perform_autoload(class_name, lower) != NULL;
+
+    if (found) {
+        zend_string_release(lower);
+        return true;
+    }
+
+    bool autoloading = EG(in_autoload) && zend_hash_exists(EG(in_autoload), lower);
     zend_string_release(lower);
 
-    return found;
+    // check whether we're actually autoloading
+    if (autoloading) {
+        if (dd_has_registered_spl_autoloader) {
+            return false;
+        }
+
+        zend_function *func =
+#if PHP_VERSION_ID >= 70300
+            zend_fetch_function(ZSTR_KNOWN(ZEND_STR_MAGIC_AUTOLOAD))
+#else
+            zend_hash_str_find_ptr(EG(function_table), ZEND_AUTOLOAD_FUNC_NAME, sizeof(ZEND_AUTOLOAD_FUNC_NAME) - 1)
+#endif
+        ;
+        if (func) {
+            zval ret;
+            zend_fcall_info fcall_info;
+            zend_fcall_info_cache fcall_cache;
+
+            fcall_info.size = sizeof(fcall_info);
+            ZVAL_STR(&fcall_info.function_name, func->common.function_name);
+            fcall_info.retval = &ret;
+            fcall_info.param_count = 1;
+            fcall_info.params = EX_VAR_NUM(0);
+            fcall_info.object = NULL;
+            fcall_info.no_separation = 1;
+#if PHP_VERSION_ID < 70100
+            fcall_info.symbol_table = NULL;
+#endif
+
+#if PHP_VERSION_ID < 70300
+            fcall_cache.initialized = 1;
+#endif
+            fcall_cache.function_handler = func;
+            fcall_cache.calling_scope = NULL;
+            fcall_cache.called_scope = NULL;
+            fcall_cache.object = NULL;
+
+            zend_call_function(&fcall_info, &fcall_cache);
+            zval_ptr_dtor(&ret);
+        }
+
+        // skip original implementation if there's no spl autoloader registered
+        return true;
+    }
+
+    return false;
 }
 
 static ZEND_NAMED_FUNCTION(dd_wrap_autoload_register_fn) {
