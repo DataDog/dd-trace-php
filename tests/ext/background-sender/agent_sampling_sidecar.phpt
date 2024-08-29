@@ -28,7 +28,7 @@ function checkUpdated($marker) {
         do {
             foreach (glob("/dev/shm/*") as $f) {
                 if (@filesize($f) < 5000) {
-                    $file = file_get_contents($f);
+                    $file = @file_get_contents($f);
                     if (@strpos($file, $marker) !== false) {
                         global $contents, $filename;
                         $filename = $f;

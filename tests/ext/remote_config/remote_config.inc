@@ -9,16 +9,33 @@ function rc_base_url() {
 }
 
 function reset_request_replayer() {
-    file_get_contents(rc_base_url() . "/clear-dumped-data");
+    file_get_contents(rc_base_url() . "/clear-dumped-data", false, stream_context_create([
+        "http" => [
+            "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+        ],
+    ]));
 }
 
 function put_rc_file($path, $contents, $service = null) {
-    $ctx = stream_context_create(['http' => ['method' => 'PUT', 'header' => 'Content-type: application/json', 'content' => $contents]]);
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'PUT',
+            "header" => [
+                "Content-Type: application/json",
+                "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+            'content' => $contents
+        ]
+    ]);
     file_get_contents(rc_base_url() . "/add-rc-config-file?path=" . rawurlencode($path) . "&service=" . rawurlencode($service ?? default_rc_service()), false, $ctx);
 }
 
 function del_rc_file($path) {
-    file_get_contents(rc_base_url() . "/del-rc-config-file?path=" . rawurlencode($path));
+    file_get_contents(rc_base_url() . "/del-rc-config-file?path=" . rawurlencode($path), false, stream_context_create([
+        "http" => [
+            "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+        ],
+    ]));
 }
 
 function default_rc_service() {

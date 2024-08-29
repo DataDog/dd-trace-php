@@ -15,6 +15,7 @@ ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = f
 datadog-dynamic-configuration = { path = "../libdatadog/dynamic-configuration" }
 datadog-live-debugger = { path = "../libdatadog/live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi" }
+datadog-ipc = { path = "../libdatadog/ipc" }
 datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }

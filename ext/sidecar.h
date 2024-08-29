@@ -1,3 +1,5 @@
+#ifndef DD_SIDECAR_H
+#define DD_SIDECAR_H
 #include <components-rs/common.h>
 #include <components/log/log.h>
 #include <zai_string/string.h>
@@ -11,6 +13,7 @@ void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);
 void ddtrace_sidecar_submit_root_span_data(void);
+void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);
 void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);
 ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void);
 
@@ -32,12 +35,12 @@ static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 
-static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
-    return zend_string_init(slice.ptr, slice.len, 0);
-}
-
 static inline ddog_CharSlice dd_zai_string_to_CharSlice(zai_string str) {
     return (ddog_CharSlice){ .len = str.len, .ptr = str.ptr };
+}
+
+static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
+    return zend_string_init(slice.ptr, slice.len, 0);
 }
 
 static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error) {
@@ -53,3 +56,5 @@ static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error)
 static inline bool ddtrace_exception_debugging_is_active(void) {
     return ddtrace_sidecar_instance_id;
 }
+
+#endif // DD_SIDECAR_H

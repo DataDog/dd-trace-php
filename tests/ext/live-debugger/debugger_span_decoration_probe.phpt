@@ -6,6 +6,8 @@ Installing a live debugger span decoration probe
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
+--INI--
+datadog.trace.agent_test_session_token=live-debugger/span_decoration_probe
 --FILE--
 <?php
 
@@ -73,6 +75,10 @@ array(4) {
   string(1) "1"
 }
 array(6) {
+  ["valid"]=>
+  string(20) "[(stdClass){var: 2}]"
+  ["_dd.di.valid.probe_id"]=>
+  string(1) "2"
   ["bare"]=>
   string(3) "raw"
   ["_dd.di.bare.probe_id"]=>
@@ -81,10 +87,6 @@ array(6) {
   string(27) "[foo => (stdClass){var: 2}]"
   ["_dd.di.arg.probe_id"]=>
   string(1) "1"
-  ["valid"]=>
-  string(20) "[(stdClass){var: 2}]"
-  ["_dd.di.valid.probe_id"]=>
-  string(1) "2"
 }
 array(2) {
   ["ret"]=>

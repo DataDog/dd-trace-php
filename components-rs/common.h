@@ -104,6 +104,118 @@ typedef struct ddog_Option_Error {
 
 typedef struct ddog_Option_Error ddog_MaybeError;
 
+typedef struct ddog_ArrayQueue {
+  struct ddog_ArrayQueue *inner;
+  void (*item_delete_fn)(void*);
+} ddog_ArrayQueue;
+
+typedef enum ddog_ArrayQueue_NewResult_Tag {
+  DDOG_ARRAY_QUEUE_NEW_RESULT_OK,
+  DDOG_ARRAY_QUEUE_NEW_RESULT_ERR,
+} ddog_ArrayQueue_NewResult_Tag;
+
+typedef struct ddog_ArrayQueue_NewResult {
+  ddog_ArrayQueue_NewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_ArrayQueue *ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_NewResult;
+
+/**
+ * Data structure for the result of the push() and force_push() functions.
+ * force_push() replaces the oldest element if the queue is full, while push() returns the given
+ * value if the queue is full. For push(), it's redundant to return the value since the caller
+ * already has it, but it's returned for consistency with crossbeam API and with force_push().
+ */
+typedef enum ddog_ArrayQueue_PushResult_Tag {
+  DDOG_ARRAY_QUEUE_PUSH_RESULT_OK,
+  DDOG_ARRAY_QUEUE_PUSH_RESULT_FULL,
+  DDOG_ARRAY_QUEUE_PUSH_RESULT_ERR,
+} ddog_ArrayQueue_PushResult_Tag;
+
+typedef struct ddog_ArrayQueue_PushResult {
+  ddog_ArrayQueue_PushResult_Tag tag;
+  union {
+    struct {
+      void *full;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_PushResult;
+
+typedef enum ddog_ArrayQueue_PopResult_Tag {
+  DDOG_ARRAY_QUEUE_POP_RESULT_OK,
+  DDOG_ARRAY_QUEUE_POP_RESULT_EMPTY,
+  DDOG_ARRAY_QUEUE_POP_RESULT_ERR,
+} ddog_ArrayQueue_PopResult_Tag;
+
+typedef struct ddog_ArrayQueue_PopResult {
+  ddog_ArrayQueue_PopResult_Tag tag;
+  union {
+    struct {
+      void *ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_PopResult;
+
+typedef enum ddog_ArrayQueue_BoolResult_Tag {
+  DDOG_ARRAY_QUEUE_BOOL_RESULT_OK,
+  DDOG_ARRAY_QUEUE_BOOL_RESULT_ERR,
+} ddog_ArrayQueue_BoolResult_Tag;
+
+typedef struct ddog_ArrayQueue_BoolResult {
+  ddog_ArrayQueue_BoolResult_Tag tag;
+  union {
+    struct {
+      bool ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_BoolResult;
+
+typedef enum ddog_ArrayQueue_UsizeResult_Tag {
+  DDOG_ARRAY_QUEUE_USIZE_RESULT_OK,
+  DDOG_ARRAY_QUEUE_USIZE_RESULT_ERR,
+} ddog_ArrayQueue_UsizeResult_Tag;
+
+typedef struct ddog_ArrayQueue_UsizeResult {
+  ddog_ArrayQueue_UsizeResult_Tag tag;
+  union {
+    struct {
+      uintptr_t ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_ArrayQueue_UsizeResult;
+
+typedef enum ddog_Option_U32_Tag {
+  DDOG_OPTION_U32_SOME_U32,
+  DDOG_OPTION_U32_NONE_U32,
+} ddog_Option_U32_Tag;
+
+typedef struct ddog_Option_U32 {
+  ddog_Option_U32_Tag tag;
+  union {
+    struct {
+      uint32_t some;
+    };
+  };
+} ddog_Option_U32;
+
 /**
  * A wrapper for returning owned strings from FFI
  */
@@ -715,6 +827,297 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
 
+typedef enum ddog_crasht_DemangleOptions {
+  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
+  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
+} ddog_crasht_DemangleOptions;
+
+typedef enum ddog_crasht_NormalizedAddressTypes {
+  DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_NONE = 0,
+  DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_ELF,
+} ddog_crasht_NormalizedAddressTypes;
+
+/**
+ * This enum represents operations a the tracked library might be engaged in.
+ * Currently only implemented for profiling.
+ * The idea is that if a crash consistently occurs while a particular operation
+ * is ongoing, its likely related.
+ *
+ * In the future, we might also track wall-clock time of operations
+ * (or some statistical sampling thereof) using the same enum.
+ *
+ * NOTE: This enum is known to be non-exhaustive.  Feel free to add new types
+ *       as needed.
+ */
+typedef enum ddog_crasht_OpTypes {
+  DDOG_CRASHT_OP_TYPES_PROFILER_INACTIVE = 0,
+  DDOG_CRASHT_OP_TYPES_PROFILER_COLLECTING_SAMPLE,
+  DDOG_CRASHT_OP_TYPES_PROFILER_UNWINDING,
+  DDOG_CRASHT_OP_TYPES_PROFILER_SERIALIZING,
+  /**
+   * Dummy value to allow easier iteration
+   */
+  DDOG_CRASHT_OP_TYPES_SIZE,
+} ddog_crasht_OpTypes;
+
+/**
+ * Stacktrace collection occurs in the context of a crashing process.
+ * If the stack is sufficiently corruputed, it is possible (but unlikely),
+ * for stack trace collection itself to crash.
+ * We recommend fully enabling stacktrace collection, but having an environment
+ * variable to allow downgrading the collector.
+ */
+typedef enum ddog_crasht_StacktraceCollection {
+  /**
+   * Stacktrace collection occurs in the
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
+} ddog_crasht_StacktraceCollection;
+
+/**
+ * A generic result type for when a crashtracking operation may fail,
+ * but there's nothing to return in the case of success.
+ */
+typedef enum ddog_crasht_Result_Tag {
+  DDOG_CRASHT_RESULT_OK,
+  DDOG_CRASHT_RESULT_ERR,
+} ddog_crasht_Result_Tag;
+
+typedef struct ddog_crasht_Result {
+  ddog_crasht_Result_Tag tag;
+  union {
+    struct {
+      /**
+       * Do not use the value of Ok. This value only exists to overcome
+       * Rust -> C code generation.
+       */
+      bool ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_Result;
+
+typedef struct ddog_crasht_Slice_CharSlice {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const ddog_CharSlice *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_CharSlice;
+
+typedef struct ddog_crasht_Config {
+  struct ddog_crasht_Slice_CharSlice additional_files;
+  bool create_alt_stack;
+  /**
+   * The endpoint to send the crash report to (can be a file://).
+   * If None, the crashtracker will infer the agent host from env variables.
+   */
+  const struct ddog_Endpoint *endpoint;
+  enum ddog_crasht_StacktraceCollection resolve_frames;
+  uint64_t timeout_secs;
+  bool wait_for_receiver;
+} ddog_crasht_Config;
+
+typedef struct ddog_crasht_EnvVar {
+  ddog_CharSlice key;
+  ddog_CharSlice val;
+} ddog_crasht_EnvVar;
+
+typedef struct ddog_crasht_Slice_EnvVar {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const struct ddog_crasht_EnvVar *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_EnvVar;
+
+typedef struct ddog_crasht_ReceiverConfig {
+  struct ddog_crasht_Slice_CharSlice args;
+  struct ddog_crasht_Slice_EnvVar env;
+  ddog_CharSlice path_to_receiver_binary;
+  /**
+   * Optional filename to forward stderr to (useful for logging/debugging)
+   */
+  ddog_CharSlice optional_stderr_filename;
+  /**
+   * Optional filename to forward stdout to (useful for logging/debugging)
+   */
+  ddog_CharSlice optional_stdout_filename;
+} ddog_crasht_ReceiverConfig;
+
+typedef struct ddog_crasht_Metadata {
+  ddog_CharSlice library_name;
+  ddog_CharSlice library_version;
+  ddog_CharSlice family;
+  /**
+   * Should include "service", "environment", etc
+   */
+  const struct ddog_Vec_Tag *tags;
+} ddog_crasht_Metadata;
+
+typedef enum ddog_crasht_UsizeResult_Tag {
+  DDOG_CRASHT_USIZE_RESULT_OK,
+  DDOG_CRASHT_USIZE_RESULT_ERR,
+} ddog_crasht_UsizeResult_Tag;
+
+typedef struct ddog_crasht_UsizeResult {
+  ddog_crasht_UsizeResult_Tag tag;
+  union {
+    struct {
+      uintptr_t ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_UsizeResult;
+
+/**
+ * Represents a CrashInfo. Do not access its member for any reason, only use
+ * the C API functions on this struct.
+ */
+typedef struct ddog_crasht_CrashInfo {
+  struct ddog_crasht_CrashInfo *inner;
+} ddog_crasht_CrashInfo;
+
+/**
+ * Returned by [ddog_prof_Profile_new].
+ */
+typedef enum ddog_crasht_CrashInfoNewResult_Tag {
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
+} ddog_crasht_CrashInfoNewResult_Tag;
+
+typedef struct ddog_crasht_CrashInfoNewResult {
+  ddog_crasht_CrashInfoNewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_CrashInfo ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_CrashInfoNewResult;
+
+typedef struct ddog_crasht_SigInfo {
+  uint64_t signum;
+  ddog_CharSlice signame;
+} ddog_crasht_SigInfo;
+
+typedef struct ddog_crasht_StackFrameNames {
+  struct ddog_Option_U32 colno;
+  ddog_CharSlice filename;
+  struct ddog_Option_U32 lineno;
+  ddog_CharSlice name;
+} ddog_crasht_StackFrameNames;
+
+typedef struct ddog_crasht_Slice_StackFrameNames {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const struct ddog_crasht_StackFrameNames *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_StackFrameNames;
+
+typedef struct ddog_Slice_U8 {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const uint8_t *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_U8;
+
+/**
+ * Use to represent bytes -- does not need to be valid UTF-8.
+ */
+typedef struct ddog_Slice_U8 ddog_ByteSlice;
+
+typedef struct ddog_crasht_NormalizedAddress {
+  uint64_t file_offset;
+  ddog_ByteSlice build_id;
+  ddog_CharSlice path;
+  enum ddog_crasht_NormalizedAddressTypes typ;
+} ddog_crasht_NormalizedAddress;
+
+typedef struct ddog_crasht_StackFrame {
+  ddog_CharSlice build_id;
+  uintptr_t ip;
+  uintptr_t module_base_address;
+  struct ddog_crasht_Slice_StackFrameNames names;
+  struct ddog_crasht_NormalizedAddress normalized_ip;
+  uintptr_t sp;
+  uintptr_t symbol_address;
+} ddog_crasht_StackFrame;
+
+typedef struct ddog_crasht_Slice_StackFrame {
+  /**
+   * Must be non-null and suitably aligned for the underlying type.
+   */
+  const struct ddog_crasht_StackFrame *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_StackFrame;
+
+/**
+ * Represents time since the Unix Epoch in seconds plus nanoseconds.
+ */
+typedef struct ddog_Timespec {
+  int64_t seconds;
+  uint32_t nanoseconds;
+} ddog_Timespec;
+
+/**
+ * A wrapper for returning owned strings from FFI
+ */
+typedef struct ddog_crasht_StringWrapper {
+  /**
+   * This is a String stuffed into the vec.
+   */
+  struct ddog_Vec_U8 message;
+} ddog_crasht_StringWrapper;
+
+typedef enum ddog_crasht_StringWrapperResult_Tag {
+  DDOG_CRASHT_STRING_WRAPPER_RESULT_OK,
+  DDOG_CRASHT_STRING_WRAPPER_RESULT_ERR,
+} ddog_crasht_StringWrapperResult_Tag;
+
+typedef struct ddog_crasht_StringWrapperResult {
+  ddog_crasht_StringWrapperResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_StringWrapper ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_crasht_StringWrapperResult;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -735,7 +1138,79 @@ ddog_CharSlice ddog_Error_message(const struct ddog_Error *error);
 
 void ddog_MaybeError_drop(ddog_MaybeError);
 
+/**
+ * Creates a new ArrayQueue with the given capacity and item_delete_fn.
+ * The item_delete_fn is called when an item is dropped from the queue.
+ */
+DDOG_CHECK_RETURN
+struct ddog_ArrayQueue_NewResult ddog_ArrayQueue_new(uintptr_t capacity,
+                                                     void (*item_delete_fn)(void*));
+
+/**
+ * Drops the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+void ddog_ArrayQueue_drop(struct ddog_ArrayQueue *queue);
+
+/**
+ * Pushes an item into the ArrayQueue. It returns the given value if the queue is full.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new. The value
+ * is null or points to a valid memory location that can be deallocated by the item_delete_fn.
+ */
+struct ddog_ArrayQueue_PushResult ddog_ArrayQueue_push(const struct ddog_ArrayQueue *queue_ptr,
+                                                       void *value);
+
+/**
+ * Pushes an element into the queue, replacing the oldest element if necessary.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new. The value
+ * is null or points to a valid memory location that can be deallocated by the item_delete_fn.
+ */
+DDOG_CHECK_RETURN
+struct ddog_ArrayQueue_PushResult ddog_ArrayQueue_force_push(const struct ddog_ArrayQueue *queue_ptr,
+                                                             void *value);
+
+/**
+ * Pops an item from the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+DDOG_CHECK_RETURN
+struct ddog_ArrayQueue_PopResult ddog_ArrayQueue_pop(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Checks if the ArrayQueue is empty.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_BoolResult ddog_ArrayQueue_is_empty(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Returns the length of the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_UsizeResult ddog_ArrayQueue_len(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Returns true if the underlying queue is full.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_BoolResult ddog_ArrayQueue_is_full(const struct ddog_ArrayQueue *queue_ptr);
+
+/**
+ * Returns the capacity of the ArrayQueue.
+ * # Safety
+ * The pointer is null or points to a valid memory location allocated by ArrayQueue_new.
+ */
+struct ddog_ArrayQueue_UsizeResult ddog_ArrayQueue_capacity(const struct ddog_ArrayQueue *queue_ptr);
+
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_url(ddog_CharSlice url);
+
+DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_filename(ddog_CharSlice filename);
 
 DDOG_CHECK_RETURN struct ddog_Endpoint *ddog_endpoint_from_api_key(ddog_CharSlice api_key);
 
@@ -746,7 +1221,13 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
 
 void ddog_endpoint_set_timeout(struct ddog_Endpoint *endpoint, uint64_t millis);
 
+void ddog_endpoint_set_test_token(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
+
 void ddog_endpoint_drop(struct ddog_Endpoint*);
+
+struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
+
+struct ddog_Option_U32 ddog_Option_U32_none(void);
 
 /**
  * # Safety

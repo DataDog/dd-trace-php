@@ -206,6 +206,12 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
+ddog_MaybeError ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
+                                           ddog_CharSlice socket_file_path,
+                                           ddog_CharSlice lock_file_path,
+                                           ddog_CharSlice log_file_path,
+                                           ddog_CharSlice log_level);
+
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

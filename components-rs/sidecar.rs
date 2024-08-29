@@ -9,7 +9,9 @@ use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::SidecarTransport;
-use datadog_sidecar::shm_limiters::{AnyLimiter, Limiter, LocalLimiter, ShmLimiterMemory};
+use ddcommon::rate_limiter::{Limiter, LocalLimiter};
+use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
+use datadog_sidecar::tracer::shm_limiter_path;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
 use ddtelemetry_ffi::try_c;
@@ -152,7 +154,7 @@ pub extern "C" fn ddtrace_sidecar_reconnect(
 
 
 lazy_static! {
-    pub static ref SHM_LIMITER: Option<ShmLimiterMemory> = ShmLimiterMemory::open().map_or_else(|e| {
+    pub static ref SHM_LIMITER: Option<ShmLimiterMemory> = ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(|e| {
         warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
         None
     }, Some);
