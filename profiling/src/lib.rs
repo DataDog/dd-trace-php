@@ -128,7 +128,9 @@ extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
 }
 
-static mut FOO: i32 = 0;
+/// We do not need this, as we do not have any globals, but as we want PHP to call GINIT and
+/// GSHUTDOWN, we need to have a valid pointer here.
+static mut GLOBALS_ID_PTR: i32 = 0;
 
 /// The function `get_module` is what makes this a PHP module. Please do not
 /// call this directly; only let it be called by the engine. Generally it is
@@ -169,7 +171,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         #[cfg(php_zts)]
         globals_size: 1,
         #[cfg(php_zts)]
-        globals_id_ptr: unsafe { &mut FOO },
+        globals_id_ptr: unsafe { &mut GLOBALS_ID_PTR },
         ..Default::default()
     });
 
@@ -177,12 +179,12 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     unsafe { &mut *ptr::addr_of_mut!(MODULE) }
 }
 
-unsafe extern "C" fn ginit(foo: *mut c_void) {
-    #[cfg(feature = "timeline")]
+unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
+    #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_ginit();
 }
-unsafe extern "C" fn gshutdown(foo: *mut c_void) {
-    #[cfg(feature = "timeline")]
+unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
+    #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_gshutdown();
 }
 

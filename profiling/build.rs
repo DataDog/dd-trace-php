@@ -30,8 +30,9 @@ fn main() {
     let fibers = cfg_fibers(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
     let trigger_time_sample = cfg_trigger_time_sample();
+    let zend_error_observer = cfg_zend_error_observer(vernum);
 
-    generate_bindings(php_config_includes, fibers);
+    generate_bindings(php_config_includes, fibers, zend_error_observer);
     build_zend_php_ffis(
         php_config_includes,
         post_startup_cb,
@@ -39,6 +40,7 @@ fn main() {
         run_time_cache,
         fibers,
         trigger_time_sample,
+        zend_error_observer,
         vernum,
     );
 
@@ -90,6 +92,7 @@ fn build_zend_php_ffis(
     run_time_cache: bool,
     fibers: bool,
     trigger_time_sample: bool,
+    zend_error_observer: bool,
     vernum: u64,
 ) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
@@ -135,6 +138,7 @@ fn build_zend_php_ffis(
     let fibers = if fibers { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
+    let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
     #[cfg(feature = "stack_walking_tests")]
     let stack_walking_tests = "1";
@@ -150,6 +154,7 @@ fn build_zend_php_ffis(
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
+        .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -190,7 +195,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
     }
 }
 
-fn generate_bindings(php_config_includes: &str, fibers: bool) {
+fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observer: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=../ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
@@ -206,11 +211,19 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .collect(),
     );
 
-    let clang_args = if fibers {
+    let mut clang_args = if fibers {
         vec!["-D", "CFG_FIBERS=1"]
     } else {
         vec!["-D", "CFG_FIBERS=0"]
     };
+
+    if zend_error_observer {
+        clang_args.push("-D");
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=1");
+    } else {
+        clang_args.push("-D");
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=0");
+    }
 
     let bindings = bindgen::Builder::default()
         .ctypes_prefix("libc")
@@ -294,6 +307,15 @@ fn cfg_run_time_cache(vernum: u64) -> bool {
 
 fn cfg_trigger_time_sample() -> bool {
     env::var("CARGO_FEATURE_TRIGGER_TIME_SAMPLE").is_ok()
+}
+
+fn cfg_zend_error_observer(vernum: u64) -> bool {
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=zend_error_observer");
+        true
+    } else {
+        false
+    }
 }
 
 fn cfg_php_major_version(vernum: u64) {

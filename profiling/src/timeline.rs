@@ -6,7 +6,9 @@ use crate::zend::{
 use crate::REQUEST_LOCALS;
 use libc::c_char;
 use log::{error, trace};
-use std::cell::{Cell, RefCell};
+#[cfg(php_zts)]
+use std::cell::Cell;
+use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ptr;
 use std::time::Instant;
@@ -30,6 +32,7 @@ static mut FRANKENPHP_HANDLE_REQUEST_HANDLER: InternalFunctionHandler = None;
 
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
+    #[cfg(php_zts)]
     static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -145,6 +148,8 @@ unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
     }
 }
 
+/// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
+#[cfg(zend_error_observer)]
 unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     _type: i32,
     file: *mut zend::ZendString,
@@ -173,6 +178,7 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
 /// This functions needs to be called in MINIT of the module
 pub fn timeline_minit() {
     unsafe {
+        #[cfg(zend_error_observer)]
         zend::zend_observer_error_register(Some(ddog_php_prof_zend_error_observer));
 
         // register our function in the `gc_collect_cycles` pointer
@@ -260,6 +266,7 @@ pub unsafe fn timeline_rinit() {
         });
     });
 
+    #[cfg(php_zts)]
     IS_NEW_THREAD.with(|cell| {
         if cell.get() == false {
             return;
@@ -346,15 +353,18 @@ pub(crate) unsafe fn timeline_mshutdown() {
             }
         });
     });
+    #[cfg(php_zts)]
     timeline_gshutdown();
 }
 
+#[cfg(php_zts)]
 pub(crate) fn timeline_ginit() {
     IS_NEW_THREAD.with(|cell| {
         cell.set(true);
     });
 }
 
+#[cfg(php_zts)]
 pub(crate) fn timeline_gshutdown() {
     REQUEST_LOCALS.with(|cell| {
         let is_timeline_enabled = cell

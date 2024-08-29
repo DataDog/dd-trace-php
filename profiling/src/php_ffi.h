@@ -1,7 +1,6 @@
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_exceptions.h>
-#include <Zend/zend_errors.h>
 #include <Zend/zend_types.h>
 #if CFG_FIBERS // defined by build.rs
 #include <Zend/zend_fibers.h>
@@ -17,6 +16,12 @@
 
 #include <ext/standard/info.h>
 
+// Needed for `zend_observer_error_register` starting from PHP 8
+#if CFG_ZEND_ERROR_OBSERVER // defined by build.rs
+#include <Zend/zend_errors.h>
+#include <Zend/zend_observer.h>
+#endif
+
 // Profiling needs ZAI config for INI support.
 #include <config/config.h>
 // And json to cleanup json state for graceful restart
@@ -25,8 +30,6 @@
 // Exception profiling needs to get the message of the exception (and ZAI
 // provides `zai_exception_message()`)
 #include <exceptions/exceptions.h>
-
-#include <Zend/zend_observer.h>
 
 // Used to communicate strings from C -> Rust.
 #include <zai_string/string.h>
