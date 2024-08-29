@@ -173,7 +173,7 @@ void ddtrace_signals_first_rinit(void) {
             }
         }
 
-        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
             ddtrace_init_crashtracker();
         }
     }
