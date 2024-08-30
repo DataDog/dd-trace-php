@@ -99,6 +99,7 @@ The default value for datadog.log_backtrace is now set to true, meaning that on 
 - Use the Windows User ID as sidecar identifier instead of the Session ID Datadog/libdatadog#558
 - Fix error check in trampoline.c Datadog/libdatadog#569
 - Do not implicitly fall back to spl_autoload() if no autoloader is registered on PHP 7 #2822
+- Prevent crash in shutdown if hook was not stored #2824
 
 ### Internal
 - Send x-datadog-test-session-token metric and send metrics to request-replayer #2802
