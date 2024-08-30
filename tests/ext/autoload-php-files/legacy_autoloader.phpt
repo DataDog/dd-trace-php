@@ -1,5 +1,5 @@
 --TEST--
-Execute the default spl_autoload implementation if spl_autoload_register() is called without args
+Execute __autoload() if present
 --SKIPIF--
 <?php if (PHP_VERSION_ID >= 80000) die("skip: __autoload was removed in PHP 8") ?>
 --INI--
