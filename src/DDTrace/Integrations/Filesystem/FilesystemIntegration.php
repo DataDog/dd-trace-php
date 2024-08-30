@@ -67,9 +67,9 @@ class FilesystemIntegration extends Integration
             $filename = $hook->args[0];
             if (function_exists('\datadog\appsec\push_address')) {
                 \datadog\appsec\push_address("server.io.fs.file", $filename, true);
+                $time_end = microtime(true);
+                $span->metrics[Tag::APPSEC_RASP_DURATION_EXT] = $time_end - $time_start;
             }
-            $time_end = microtime(true);
-            $span->metrics[Tag::APPSEC_RASP_DURATION_EXT] = $time_end - $time_start;
         };
     }
 
