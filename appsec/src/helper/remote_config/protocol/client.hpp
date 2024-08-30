@@ -14,7 +14,7 @@
 
 namespace dds::remote_config::protocol {
 
-enum class capabilities_e : uint16_t {
+enum class capabilities_e : uint32_t {
     NONE = 0,
     RESERVED = 1,
     ASM_ACTIVATION = 1 << 1,
@@ -27,6 +27,7 @@ enum class capabilities_e : uint16_t {
     ASM_CUSTOM_RULES = 1 << 8,
     ASM_CUSTOM_BLOCKING_RESPONSE = 1 << 9,
     ASM_TRUSTED_IPS = 1 << 10,
+    ASM_RASP_LFI = 1 << 22,
 };
 
 constexpr capabilities_e operator|(
