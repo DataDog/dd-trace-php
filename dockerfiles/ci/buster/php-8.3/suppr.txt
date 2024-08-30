@@ -3,3 +3,4 @@ leak:timer_create
 leak:add_to_global
 leak:_dl_map_object_deps
 leak:__res_context_send
+leak:_dl_make_tlsdesc_dynamic

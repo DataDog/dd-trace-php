@@ -10,14 +10,23 @@ function analyze_web($tmpScenariosFolder)
     $unexpectedCodes = [];
     $possibleSegfaults = [];
     $minimumRequestCount = [];
+    $prepareErrors = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
             continue;
         }
-        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
-        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'results.json';
+
         $analyzed[] = $identifier;
+
+        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
+        $prepareErrorFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'prepare-error';
+        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'results.json';
+
+        if (file_exists($prepareErrorFilePath)) {
+            $prepareErrors[$identifier] = (int)file_get_contents($prepareErrorFilePath);
+            continue;
+        }
 
         $jsonResult = json_decode(file_get_contents($absFilePath), 1);
 
@@ -71,6 +80,10 @@ function analyze_web($tmpScenariosFolder)
         echo "Minimum request not matched: " . var_export($minimumRequestCount, 1) . "\n";
         $isError = true;
     }
+    if (count($prepareErrors)) {
+        echo "Prepare step failed with error: " . var_export($prepareErrors, 1) . "\n";
+        $isError = count($prepareErrors) > count($analyzed) / 2; // In that case it's probably not transient
+    }
 
     if ($isError) {
         return false;
@@ -115,7 +128,13 @@ function analyze_cli($tmpScenariosFolder)
 
         $analyzed[] = $identifier;
 
-        $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'memory.out';
+        $scenarioResultsRoot = $resultsFolder . DIRECTORY_SEPARATOR . $identifier;
+        $absFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'memory.out';
+        $prepareErrorFilePath = $scenarioResultsRoot . DIRECTORY_SEPARATOR . 'prepare-error';
+
+        if (file_exists($prepareErrorFilePath)) {
+            continue; // We already handled it in analyze_web
+        }
 
         $values = array_map('intval', array_filter(
             file($absFilePath),
