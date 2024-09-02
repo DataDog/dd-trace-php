@@ -381,7 +381,7 @@ pub(crate) fn timeline_gshutdown() {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_nanos() as i64,
-                "thread_end",
+                "thread_stop",
             );
         }
     });
