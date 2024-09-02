@@ -1,5 +1,5 @@
 --TEST--
-Push address are sent on request_exec - array
+Some addresses are rasp requests
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -17,7 +17,8 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_address("server.request.path_params", ["some" => "params", "more" => "parameters"]);
+$is_rasp = true;
+push_address("server.request.path_params", 1234, $is_rasp);
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));
@@ -32,16 +33,11 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    bool(false)
+    bool(true)
     [1]=>
     array(1) {
       ["server.request.path_params"]=>
-      array(2) {
-        ["some"]=>
-        string(6) "params"
-        ["more"]=>
-        string(10) "parameters"
-      }
+      int(1234)
     }
   }
 }

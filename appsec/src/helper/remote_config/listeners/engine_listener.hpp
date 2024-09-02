@@ -43,7 +43,8 @@ public:
                         protocol::capabilities_e::ASM_REQUEST_BLOCKING |
                         protocol::capabilities_e::ASM_RESPONSE_BLOCKING |
                         protocol::capabilities_e::ASM_CUSTOM_RULES |
-                        protocol::capabilities_e::ASM_TRUSTED_IPS},
+                        protocol::capabilities_e::ASM_TRUSTED_IPS |
+                        protocol::capabilities_e::ASM_RASP_LFI},
             {asm_dd_product, protocol::capabilities_e::ASM_DD_RULES},
             {asm_data_product,
                 protocol::capabilities_e::ASM_IP_BLOCKING |

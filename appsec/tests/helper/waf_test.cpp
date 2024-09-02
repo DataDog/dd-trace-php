@@ -79,39 +79,88 @@ TEST(WafTest, RunWithInvalidParam)
 
 TEST(WafTest, RunWithTimeout)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    { // No rasp
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi(waf::instance::from_string(waf_rule, meta, metrics, 0));
-    auto ctx = wi->get_listener();
+        subscriber::ptr wi(
+            waf::instance::from_string(waf_rule, meta, metrics, 0));
+        auto ctx = wi->get_listener();
 
-    auto p = parameter::map();
-    p.add("arg1", parameter::string("string 1"sv));
-    p.add("arg2", parameter::string("string 2"sv));
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 2"sv));
 
-    parameter_view pv(p);
-    dds::event e;
-    EXPECT_THROW(ctx->call(pv, e), timeout_error);
+        parameter_view pv(p);
+        dds::event e;
+        EXPECT_THROW(ctx->call(pv, e), timeout_error);
+    }
+    { // Rasp
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
+
+        subscriber::ptr wi(
+            waf::instance::from_string(waf_rule, meta, metrics, 0));
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 2"sv));
+
+        parameter_view pv(p);
+        dds::event e;
+        bool is_rasp = true;
+        EXPECT_THROW(ctx->call(pv, e, is_rasp), timeout_error);
+
+        ctx->get_meta_and_metrics(meta, metrics);
+        EXPECT_EQ(metrics[tag::rasp_timeout], 1);
+    }
 }
 
 TEST(WafTest, ValidRunGood)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    { // No rasp event
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
-    auto ctx = wi->get_listener();
+        subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+        auto ctx = wi->get_listener();
 
-    auto p = parameter::map();
-    p.add("arg1", parameter::string("string 1"sv));
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
 
-    parameter_view pv(p);
-    dds::event e;
-    ctx->call(pv, e);
+        parameter_view pv(p);
+        dds::event e;
+        ctx->call(pv, e); // default to rasp=false
 
-    ctx->get_meta_and_metrics(meta, metrics);
-    EXPECT_STREQ(meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-    EXPECT_GT(metrics[tag::waf_duration], 0.0);
+        ctx->get_meta_and_metrics(meta, metrics);
+        EXPECT_STREQ(
+            meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
+        EXPECT_GT(metrics[tag::waf_duration], 0.0);
+        EXPECT_TRUE(metrics.find(tag::rasp_duration) == metrics.end());
+    }
+
+    { // Rasp event
+        std::map<std::string, std::string> meta;
+        std::map<std::string_view, double> metrics;
+
+        subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+        auto ctx = wi->get_listener();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+
+        parameter_view pv(p);
+        dds::event e;
+        bool is_rasp = true;
+        ctx->call(pv, e, is_rasp);
+
+        ctx->get_meta_and_metrics(meta, metrics);
+        EXPECT_STREQ(
+            meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
+        EXPECT_GT(metrics[tag::waf_duration], 0.0);
+        EXPECT_GT(metrics[tag::rasp_duration], 0.0);
+    }
 }
 
 TEST(WafTest, ValidRunMonitor)

@@ -1,8 +1,10 @@
 --TEST--
-Push address are sent on request_exec - array
+Rasp addresses are not sent to the helper if RASP disabled
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
+--ENV--
+DD_APPSEC_RASP_ENABLED=false
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
@@ -12,12 +14,12 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_exec([[['ok', []]], [], [], [], false])),
     response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
 
 var_dump(rinit());
-push_address("server.request.path_params", ["some" => "params", "more" => "parameters"]);
+$is_rasp = true;
+push_address("server.request.path_params", 1234, $is_rasp);
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));
@@ -26,22 +28,5 @@ var_dump($helper->get_command("request_exec"));
 --EXPECTF--
 bool(true)
 bool(true)
-array(2) {
-  [0]=>
-  string(12) "request_exec"
-  [1]=>
-  array(2) {
-    [0]=>
-    bool(false)
-    [1]=>
-    array(1) {
-      ["server.request.path_params"]=>
-      array(2) {
-        ["some"]=>
-        string(6) "params"
-        ["more"]=>
-        string(10) "parameters"
-      }
-    }
-  }
+array(0) {
 }

@@ -31,7 +31,8 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual void call(parameter_view &data, event &event) = 0;
+        virtual void call(
+            parameter_view &data, event &event, bool rasp = false) = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void get_meta_and_metrics(
