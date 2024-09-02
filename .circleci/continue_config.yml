@@ -3835,12 +3835,16 @@ jobs:
           name: Install cbindgen
           command: cargo install --version "^0.26" cbindgen
       - run:
-          name: Regenerate cbindgen headers and
+          name: Regenerate cbindgen headers and compare them
           command: |
             set -eu
             make cbindgen
             git diff --exit-code components-rs
-
+      - run:
+          name: Ensure no non-bundled rust git dependencies are used
+          command: |
+            set -eu
+            ! grep -P 'source = "git+(?!.*libdatadog)' Cargo.lock
 
   placeholder:
     docker:
