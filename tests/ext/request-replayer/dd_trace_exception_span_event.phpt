@@ -36,6 +36,7 @@ DDTrace\trace_method('ExceptionClass', 'exceptionMethod', function (SpanData $sp
 });
 
 $rr = new RequestReplayer();
+$rr->replayRequest(); // cleanup possible leftover
 
 try {
     $exceptionClass = new ExceptionClass();

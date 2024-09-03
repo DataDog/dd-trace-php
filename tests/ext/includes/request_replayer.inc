@@ -30,6 +30,26 @@ class RequestReplayer
         usleep($this->flushInterval * 2 * 1000);
     }
 
+    public function waitForRequest($matcher)
+    {
+        $i = 0;
+        do {
+            if ($i++ == 100) {
+                throw new Exception("wait for replay timeout");
+            }
+            usleep($this->flushInterval * 1000);
+
+            $requests = $this->replayAllRequests();
+            if (is_array($requests)) {
+                foreach ($requests as $request) {
+                    if ($matcher($request)) {
+                        return $request;
+                    }
+                }
+            }
+        } while (true);
+    }
+
     public function waitForDataAndReplay($ignoreTelemetry = true)
     {
         $i = 0;
@@ -46,15 +66,20 @@ class RequestReplayer
     {
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
-        $allRequests = json_decode(file_get_contents($this->endpoint . '/replay', false, stream_context_create([
-            "http" => [
-                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
-            ],
-        ])), true);
+        $allRequests = $this->replayAllRequests();
         if ($allRequests && $ignoreTelemetry) {
             $allRequests = array_values(array_filter($allRequests, function ($v) { return $v["uri"] != '/telemetry/proxy/api/v2/apmtelemetry'; }));
         }
         return $allRequests ? $allRequests[0] : [];
+    }
+
+    public function replayAllRequests()
+    {
+        return json_decode(file_get_contents($this->endpoint . '/replay', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
     }
 
     public function replayHeaders($showOnly = [])
