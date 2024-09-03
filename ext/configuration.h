@@ -92,7 +92,7 @@ enum ddtrace_sampling_rules_format {
 
 #define DD_CONFIGURATION_ALL                                                                                   \
     CONFIG(STRING, DD_TRACE_SOURCES_PATH, DD_DEFAULT_SOURCES_PATH, .ini_change = zai_config_system_ini_change) \
-    CONFIG(STRING, DD_AUTOLOAD_NO_COMPILE, "0", .ini_change = zai_config_system_ini_change)                    \
+    CONFIG(BOOL, DD_AUTOLOAD_NO_COMPILE, "false", .ini_change = zai_config_system_ini_change)                  \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(STRING, DD_AGENT_HOST, "", .ini_change = zai_config_system_ini_change)                              \
     CONFIG(STRING, DD_DOGSTATSD_URL, "")                                                                       \
