@@ -220,6 +220,7 @@ trait TracerTestTrait
     {
         $this->resetRequestDumper();
         $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
+        usleep(100000); // Add a slight delay to give the request-replayer time to handle and store all requests.
         $out = [$this->parseTracesFromDumpedData()];
         if ($withOutput) {
             $out[] = $output;
