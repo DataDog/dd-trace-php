@@ -287,7 +287,7 @@ pub unsafe fn timeline_rinit() {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_nanos() as i64,
-                    "thread_start",
+                    "thread start",
                 );
             }
         });
@@ -381,7 +381,7 @@ pub(crate) fn timeline_gshutdown() {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_nanos() as i64,
-                "thread_stop",
+                "thread stop",
             );
         }
     });
