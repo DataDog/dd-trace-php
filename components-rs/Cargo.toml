@@ -14,7 +14,7 @@ ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
 datadog-dynamic-configuration = { path = "../libdatadog/dynamic-configuration" }
 datadog-live-debugger = { path = "../libdatadog/live-debugger" }
-datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi" }
+datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/ipc" }
 datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }

@@ -53,7 +53,7 @@ static void dd_check_exception_in_header(int old_response_code) {
     if (ex) {
         ZVAL_OBJ_COPY(root_exception, ex);
         Z_PROP_FLAG_P(root_exception) = 2; // Re-assigning property values resets the property flag, which is very nice
-    }
+    }q
 }
 
 zend_object *ddtrace_find_active_exception(void) {
@@ -401,32 +401,34 @@ static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_obj
     zval trace;
     ddtrace_fetch_debug_backtrace(&trace, 0, (ignore_args ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS, 0);
     Z_SET_REFCOUNT(trace, 0);
-    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
 
-    zval tmp;
+    zval filezv, linezv;
     zend_string *filename;
     if ((class_type != zend_ce_parse_error
 #if PHP_VERSION_ID >= 70300
                 && class_type != zend_ce_compile_error
 #endif
             ) || !(filename = zend_get_compiled_filename())) {
-        ZVAL_STRING(&tmp, zend_get_executed_filename());
-        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_FILE), &tmp);
-        zval_ptr_dtor(&tmp);
-        ZVAL_LONG(&tmp, zend_get_executed_lineno());
-        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
+        ZVAL_STRING(&filezv, zend_get_executed_filename());
+        ZVAL_LONG(&linezv, zend_get_executed_lineno());
     } else {
-        ZVAL_STR(&tmp, filename);
-        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_FILE), &tmp);
-        ZVAL_LONG(&tmp, zend_get_compiled_lineno());
-        zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &tmp);
+        ZVAL_STR_COPY(&filezv, filename);
+        ZVAL_LONG(&linezv, zend_get_compiled_lineno());
     }
 
+    EG(current_execute_data) = NULL; // zend_std_write_property will have side effects when EX(opline) points to ZEND_ASSIGN_OBJ...
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_FILE), &filezv);
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &linezv);
+    zval_ptr_dtor(&filezv);
+    EG(current_execute_data) = ex;
+
     if (ex && ex->func && ZEND_USER_CODE(ex->func->type)) {
-        ddtrace_call_get_locals(ex, &tmp, !ignore_args);
+        zval locals;
+        ddtrace_call_get_locals(ex, &locals, !ignore_args);
         zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
-        Z_SET_REFCOUNT(tmp, 0);
-        zend_update_property_ex(base_ce, object, key_locals, &tmp);
+        Z_SET_REFCOUNT(locals, 0);
+        zend_update_property_ex(base_ce, object, key_locals, &locals);
         zend_string_release(key_locals);
     }
 
@@ -565,7 +567,10 @@ void ddtrace_exception_handlers_startup(void) {
     } ZEND_HASH_FOREACH_END();
 }
 
-void ddtrace_exception_handlers_shutdown(void) { ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce); }
+void ddtrace_exception_handlers_shutdown(void) {
+    ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce);
+    zend_hash_destroy(&ddtrace_exception_custom_create_object);
+}
 
 void ddtrace_exception_handlers_rinit(void) {
     if (Z_TYPE(EG(user_exception_handler)) != IS_OBJECT ||
