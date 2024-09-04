@@ -513,6 +513,13 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     dd_result res = dd_request_exec(conn, &parameters_zv, rasp);
     zval_ptr_dtor(&parameters_zv);
 
+    if (rasp && (res == dd_should_block || res == dd_should_redirect)) {
+        gettimeofday(&end, NULL);
+        int elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
+                      (end.tv_usec - start.tv_usec);
+        dd_tags_add_rasp_duration_ext(dd_trace_get_active_root_span(), elapsed);
+    }
+
     if (dd_req_is_user_req()) {
         if (res == dd_should_block || res == dd_should_redirect) {
             dd_req_call_blocking_function(res);
