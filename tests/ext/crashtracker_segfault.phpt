@@ -13,11 +13,10 @@ include __DIR__ . '/includes/skipif_no_dev_env.inc';
 DD_TRACE_LOG_LEVEL=0
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
+--INI--
+datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
 --FILE--
 <?php
-
-// WARNING: This test does not set a value for "datadog.trace.agent_test_session_token"
-// because the crashtracker uploader does not pass the header.
 
 include __DIR__ . '/includes/request_replayer.inc';
 $rr = new RequestReplayer();
