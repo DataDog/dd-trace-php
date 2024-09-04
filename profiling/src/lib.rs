@@ -30,7 +30,9 @@ use clocks::*;
 use core::ptr;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
-use libc::{c_char, c_void};
+use libc::c_char;
+#[cfg(php_zts)]
+use libc::c_void;
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -130,6 +132,7 @@ extern "C" {
 
 /// We do not need this, as we do not have any globals, but as we want PHP to call GINIT and
 /// GSHUTDOWN, we need to have a valid pointer here.
+#[cfg(php_zts)]
 static mut GLOBALS_ID_PTR: i32 = 0;
 
 /// The function `get_module` is what makes this a PHP module. Please do not
@@ -179,10 +182,13 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     unsafe { &mut *ptr::addr_of_mut!(MODULE) }
 }
 
+#[cfg(php_zts)]
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_ginit();
 }
+
+#[cfg(php_zts)]
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_gshutdown();
