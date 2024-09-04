@@ -108,7 +108,9 @@ static void ddtrace_init_crashtracker() {
         .endpoint = agent_endpoint,
         .timeout_secs = 5,
         .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        .wait_for_receiver = false
+        // Likely running in a container, so wait until the report is uploaded.
+        // Otherwise, the container shutdown may stop the sidecar before it has finished uploading the crash report.
+        .wait_for_receiver = getpid() == 1,
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
