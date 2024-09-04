@@ -7,13 +7,20 @@ if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: intentio
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %A in EXPECTF");
 if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
 if (PHP_VERSION_ID < 70200) die("skip: TEST_PHP_EXTRA_ARGS is only available on PHP 7.2+");
+include __DIR__ . '/includes/skipif_no_dev_env.inc';
 ?>
 --ENV--
-DD_TRACE_SIDECAR_TRACE_SENDER=1
+DD_TRACE_LOG_LEVEL=0
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
 --INI--
-datadog.trace.agent_url="file://{PWD}/crashtracker_segfault_agent.out"
+datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
 --FILE--
 <?php
+
+include __DIR__ . '/includes/request_replayer.inc';
+$rr = new RequestReplayer();
+$rr->replayRequest(); // cleanup possible leftover
 
 usleep(100000); // Let time to the sidecar to open the crashtracker socket
 
@@ -22,49 +29,49 @@ $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
 $cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
 system($cmd);
 
-for ($i = 0; $i < 100; ++$i) {
-    $content = file_get_contents(__DIR__."/crashtracker_segfault_agent.out");
-    if (false != strpos($content, '"signame": "SIGSEGV"')) {
-        echo $content;
-        break;
+$rr->waitForRequest(function ($request) {
+    if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
+        return false;
     }
-    usleep(5000); // Let time for the crash report to be uploaded
-}
+    $body = json_decode($request["body"], true);
+    if ($body["request_type"] != "logs" || !isset($body["payload"][0]["message"])) {
+        return false;
+    }
 
+    $payload = $body["payload"][0];
+    $payload["message"] = json_decode($payload["message"], true);
+    $output = json_encode($payload, JSON_PRETTY_PRINT);
+
+    echo $output;
+
+    return true;
+});
 ?>
 --EXPECTF--
+%A{
+    "message": {
+        "additional_stacktraces": [],
+        "files": {
 %A
-  "counters": {
+        },
+        "metadata": {
+            "library_name": "dd-trace-php",
+            "library_version": "%s",
+            "family": "php",
+            "tags": [
 %A
-  },
-  "files": {
-    "/proc/self/maps": [
+            ]
+        },
+        "os_info": {
 %A
-    ]
-  },
-  "incomplete": %s,
-  "metadata": {
-    "library_name": "dd-trace-php",
-    "library_version": "%s",
-    "family": "php",
-    "tags": [
-%A
-    ]
-  },
-  "os_info": {
-%A
-  },
-  "proc_info": {
-    "pid": %d
-  },
-  "siginfo": {
-    "signum": 11,
-    "signame": "SIGSEGV"
-  },
-  "timestamp": "%s",
-  "uuid": "%s"
-%A
---CLEAN--
-<?php
-
-@unlink(__DIR__ . '/crashtracker_segfault_agent.out');
+        },
+        "span_ids": [],
+        "tags": [],
+        "trace_ids": []
+    },
+    "level": "ERROR",
+    "count": 1,
+    "stack_trace": "%s",
+    "tags": "%ssigname:SIGSEGV%s",
+    "is_sensitive": true
+}%A

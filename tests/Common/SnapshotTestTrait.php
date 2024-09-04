@@ -344,6 +344,7 @@ trait SnapshotTestTrait
         $fn($tracer);
 
         if ($snapshotMetrics) {
+            usleep(50000); // Add a slight delay to avoid a race condition where the "tracer-snapshot-end" metric is handled before a test metric.
             \DDTrace\dogstatsd_count("tracer-snapshot-end", 1);
         }
 

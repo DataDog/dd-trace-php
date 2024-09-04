@@ -23,10 +23,6 @@ static uint8_t dd_sidecar_formatted_session_id[36];
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
     ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
     ddtrace_endpoint = ddtrace_sidecar_agent_endpoint();
-
-    if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddog_endpoint_set_test_token(ddtrace_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
-    }
 }
 
 // Set the globals that must be updated in case of fork
@@ -178,6 +174,10 @@ ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void) {
         char *agent_url = ddtrace_agent_url();
         agent_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
         free(agent_url);
+    }
+
+    if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+        ddog_endpoint_set_test_token(agent_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 
     return agent_endpoint;
