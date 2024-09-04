@@ -2,7 +2,7 @@
 generator hooking works with JIT
 --SKIPIF--
 <?php if (!file_exists(ini_get("extension_dir") . "/opcache.so")) die('skip: opcache.so does not exist in extension_dir'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>
+<?php if (PHP_VERSION_ID < 80100) die('skip: JIT is only on PHP 8, and not stable enough on PHP 8.0'); ?>
 --INI--
 opcache.enable=1
 opcache.enable_cli = 1
