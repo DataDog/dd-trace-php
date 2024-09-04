@@ -1083,7 +1083,8 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
             zend_ulong address = zai_hook_frame_address(ex);
             zai_hook_table_find(&zai_hook_resolved, address, (void**)&hooks);
             zval *hook_zv;
-            if ((hook_zv = zend_hash_index_find(&hooks->hooks, (zend_ulong) -hook->id))) {
+            ZEND_ASSERT(CG(unclean_shutdown) || hooks != NULL);
+            if (hooks && (hook_zv = zend_hash_index_find(&hooks->hooks, (zend_ulong) -hook->id))) {
                 if (Z_TYPE_INFO_P(hook_zv) == ZAI_IS_SHARED_HOOK_PTR) {
                     // lookup primary by name
                     zend_class_entry *ce = NULL;

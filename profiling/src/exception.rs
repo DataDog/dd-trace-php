@@ -1,5 +1,5 @@
+use crate::profiling::Profiler;
 use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
-use crate::PROFILER;
 use crate::REQUEST_LOCALS;
 use log::{error, info};
 use rand::rngs::ThreadRng;
@@ -83,7 +83,7 @@ impl ExceptionProfilingStats {
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        if let Some(profiler) = Profiler::get() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
                 profiler.collect_exception(

@@ -3025,6 +3025,10 @@ jobs:
       - run:
           name: Compile sidecar
           command: |
+            # Workaround "error: failed to run custom build command for `aws-lc-sys v0.20.0`"
+            cargo install --force --locked bindgen-cli
+            export PATH="/root/.cargo/bin:$PATH"
+
             SHARED=1 PROFILE=tracer-release host_os=linux-musl ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m)-alpine.a
             objcopy --compress-debug-sections ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.so libddtrace_php_$(uname -m)-alpine.so
@@ -3831,12 +3835,16 @@ jobs:
           name: Install cbindgen
           command: cargo install --version "^0.26" cbindgen
       - run:
-          name: Regenerate cbindgen headers and
+          name: Regenerate cbindgen headers and compare them
           command: |
             set -eu
             make cbindgen
             git diff --exit-code components-rs
-
+      - run:
+          name: Ensure no non-bundled rust git dependencies are used
+          command: |
+            set -eu
+            ! grep -P 'source = "git+(?!.*libdatadog)' Cargo.lock
 
   placeholder:
     docker:

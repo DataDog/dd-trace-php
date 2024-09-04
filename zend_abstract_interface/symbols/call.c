@@ -208,7 +208,7 @@ bool zai_symbol_call_impl(
     bool zai_symbol_call_bailed    = false;
     bool rebound_closure = false;
     zval new_closure;
-    zend_op_array *op_array;
+    zend_op_array *op_array = NULL;
 
     if (function_type == ZAI_SYMBOL_FUNCTION_CLOSURE && fcc.called_scope) {
         zend_class_entry *closure_called_scope;

@@ -235,6 +235,9 @@ static struct extract_res dd_parse_multiple_maybe_port(zend_string *zvalue, ipad
     do {
         for (; value < end && *value == ' '; value++) {
         }
+        if (end - value < 0) {
+            ZEND_UNREACHABLE();
+        }
         const char *comma = memchr(value, ',', end - value);
         const char *end_cur = comma ? comma : end;
         ipaddr cur;

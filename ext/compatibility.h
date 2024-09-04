@@ -325,6 +325,8 @@ static zend_always_inline void zend_array_release(zend_array *array)
     }
 }
 
+#define ZEND_UNREACHABLE() ZEND_ASSUME(0)
+
 #define ZEND_ARG_SEND_MODE(arg_info) (arg_info)->pass_by_reference
 #define zend_value_error zend_type_error
 #endif

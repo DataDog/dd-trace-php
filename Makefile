@@ -39,7 +39,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dynamic-configuration,ipc,remote-config,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -381,9 +381,9 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
+	rm -f components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 
-generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
+generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 	( \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
 			--config cbindgen.toml \
@@ -398,11 +398,14 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
 			--config sidecar-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate datadog-crashtracker-ffi  \
+			--config crashtracker-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h  \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
 	)
 
 cbindgen_binary:
@@ -503,7 +506,7 @@ PHPUNIT_COVERAGE ?=
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
-PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
+PHPBENCH = $(TESTS_ROOT)/Benchmarks/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
 TELEMETRY_ENABLED=0
 

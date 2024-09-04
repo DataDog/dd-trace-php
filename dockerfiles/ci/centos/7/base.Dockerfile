@@ -201,9 +201,9 @@ RUN source scl_source enable devtoolset-7 \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.71.1"
-ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
-ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
+ARG RUST_VERSION="1.76.0"
+ARG RUST_SHA256_ARM="2e8313421e8fb673efdf356cdfdd4bc16516f2610d4f6faa01327983104c05a0"
+ARG RUST_SHA256_X86="9d589d2036b503cc45ecc94992d616fb3deec074deb36cacc2f5c212408f7399"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
@@ -224,7 +224,7 @@ RUN source scl_source enable devtoolset-7 \
 
 # now install PHP specific dependencies
 RUN set -eux; \
-    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
+    yum install -y epel-release; \
     yum update -y; \
     yum install -y \
     re2c \

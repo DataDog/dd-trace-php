@@ -23,6 +23,8 @@ include __DIR__ . '/vendor/autoload.php';
 
 DDTrace\close_span();
 
+dd_trace_serialize_closed_spans();
+
 dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 100; ++$i) {

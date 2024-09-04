@@ -157,6 +157,9 @@ def buildRunInDockerTask = { Map options ->
         volumes['php-tracer-cargo-cache'] = [
                 mountPoint: '/root/.cargo/registry',
         ]
+        volumes['php-tracer-cargo-cache-git'] = [
+                mountPoint: '/root/.cargo/git',
+        ]
     }
 
     def composerDlTask
@@ -443,6 +446,7 @@ task loadCaches(type: Exec) {
 
     dependsOn downloadCaches
     dependsOn 'createVolume-php-tracer-cargo-cache'
+    dependsOn 'createVolume-php-tracer-cargo-cache-git'
     dependsOn 'createVolume-php-appsec-hunter-cache'
 }
 

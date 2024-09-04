@@ -2261,26 +2261,11 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             ],
         ],
         [
-            'name' => 'datadog.appsec.helper_launch',
-            'default' => 'On',
-            'commented' => true,
-            'description' => [
-                'The dd-appsec extension communicates with a helper process via UNIX sockets.',
-                'This setting determines whether the extension should try to launch the daemon',
-                'in case it cannot obtain a connection.',
-                'If this is disabled, the helper should be launched through some other method.',
-                'The extension expects the helper to run under the same user as the process',
-                'where PHP is running, and will verify it.',
-            ],
-        ],
-        [
             'name' => 'datadog.appsec.helper_path',
             'default' => $appsecHelperPath,
             'commented' => false,
             'description' => [
-                'If ddappsec.helper_launch is enabled, this setting determines which binary',
-                'the extension should try to load in the sidecar.',
-                'Only relevant if ddappsec.helper_launch is enabled.',
+                'The path to the shared library that the appsec extension loads in the sidecar.',
                 'This ini setting is configured by the installer',
             ],
         ],
@@ -2289,7 +2274,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => $appsecRulesPath,
             'commented' => true,
             'description' => [
-                'The path to the rules json file. The helper process must be able to read the',
+                'The path to the rules json file. The sidecar process must be able to read the',
                 'file. This ini setting is configured by the installer',
             ],
         ],
@@ -2298,10 +2283,9 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/tmp/',
             'commented' => true,
             'description' => [
-                'The location to the UNIX socket that extension uses to communicate with the',
-                'helper and the lock file that the extension processes will use to',
-                'synchronize the launching of the helper.',
-                'Only relevant if datadog.appsec.helper_launch is enabled',
+                'The directory where to place the lock file and the UNIX socket that the',
+                'extension uses communicate with the helper inside sidecar. Ultimately,',
+                'the paths include the version of the extension and uid/gid.',
             ],
         ],
         [
@@ -2309,7 +2293,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => '/dev/null',
             'commented' => true,
             'description' => [
-                'The location of the log file of the helper. This defaults to /dev/null ',
+                'The location of the log file of the helper. This defaults to /dev/null',
                 '(the log messages will be discarded).',
             ],
         ],
@@ -2318,8 +2302,8 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => 'info',
             'commented' => true,
             'description' => [
-				'The verbosity of the logging of the appsec helper loaded in the sidecar. ',
-				'Valid values are trace, debug, info, warn, err, critical and off',
+                'The verbosity of the logging of the appsec helper loaded in the sidecar. ',
+                'Valid values are trace, debug, info, warn, err, critical and off',
             ],
         ],
         [

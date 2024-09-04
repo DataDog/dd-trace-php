@@ -9,6 +9,9 @@ void ddtrace_sidecar_setup(void);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);
+void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);
+void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);
+ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void);
 
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);

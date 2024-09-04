@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:3.19
 
 RUN mkdir -p /app
 WORKDIR /app
@@ -13,6 +13,7 @@ RUN set -eux; \
         g++ \
         gcc \
         make \
+        cmake \
         build-base \
         curl-dev \
         libedit-dev \

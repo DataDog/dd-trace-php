@@ -33,7 +33,8 @@ class WordPressBench extends WebFrameworkTestCase
 
     public function disableWordPressTracing()
     {
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+        $pdo->exec('CREATE DATABASE IF NOT EXISTS wp61');
         $pdo->exec(file_get_contents(__DIR__ . '/../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
         $this->setUpWebServer([
             'DD_TRACE_ENABLED' => 0,
