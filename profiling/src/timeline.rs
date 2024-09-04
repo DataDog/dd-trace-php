@@ -152,7 +152,8 @@ unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
 #[cfg(zend_error_observer)]
 unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     _type: i32,
-    file: *mut zend::ZendString,
+    #[cfg(zend_error_observer_80)] file: *const i8,
+    #[cfg(not(zend_error_observer_80))] file: *mut zend::ZendString,
     line: u32,
     message: *mut zend::ZendString,
 ) {
@@ -161,15 +162,24 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
         return;
     }
 
+    #[cfg(zend_error_observer_80)]
+    let file = unsafe {
+        let mut len = 0;
+        let file = file as *const u8;
+        while *file.add(len) != 0 {
+            len += 1;
+        }
+        std::str::from_utf8_unchecked(std::slice::from_raw_parts(file, len)).to_string()
+    };
+    #[cfg(not(zend_error_observer_80))]
+    let file = unsafe { zend::zai_str_from_zstr(file.as_mut()).into_string() };
+
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
-        profiler.collect_fatal(
-            now,
-            unsafe { zend::zai_str_from_zstr(file.as_mut()).into_string() },
-            line,
-            unsafe { zend::zai_str_from_zstr(message.as_mut()).into_string() },
-        );
+        profiler.collect_fatal(now, file, line, unsafe {
+            zend::zai_str_from_zstr(message.as_mut()).into_string()
+        });
     }
 }
 

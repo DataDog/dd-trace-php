@@ -313,6 +313,9 @@ fn cfg_trigger_time_sample() -> bool {
 fn cfg_zend_error_observer(vernum: u64) -> bool {
     if vernum >= 80000 {
         println!("cargo:rustc-cfg=zend_error_observer");
+        if vernum < 80100 {
+            println!("cargo:rustc-cfg=zend_error_observer_80");
+        }
         true
     } else {
         false
