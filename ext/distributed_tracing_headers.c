@@ -263,11 +263,13 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                         size_t valuelen = valueend - valuestart;
 
                         if (keylen == 1 && keystart[0] == 'p') {
-                            zval zv;
-                            ZVAL_STRINGL(&zv, valuestart, valuelen);
-                            zend_hash_update(&result.meta_tags, span_parent_key, &zv);
-                            zend_string_release(span_parent_key);
-                            span_parent_key = NULL;
+                            if (span_parent_key) {
+                                zval zv;
+                                ZVAL_STRINGL(&zv, valuestart, valuelen);
+                                zend_hash_update(&result.meta_tags, span_parent_key, &zv);
+                                zend_string_release(span_parent_key);
+                                span_parent_key = NULL;
+                            }
                         } else if (keylen == 1 && keystart[0] == 's') {
                             int extraced_priority = strtol(valuestart, NULL, 10);
                             if ((result.priority_sampling > 0) == (extraced_priority > 0)) {
