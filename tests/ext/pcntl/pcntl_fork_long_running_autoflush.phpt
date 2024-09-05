@@ -6,6 +6,8 @@ Long running autoflush
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=true
 DD_TRACE_LOG_LEVEL=info,startup=off
+--INI--
+datadog.trace.sources_path=
 --FILE--
 <?php
 
