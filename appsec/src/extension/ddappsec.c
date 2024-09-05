@@ -478,6 +478,7 @@ static PHP_FUNCTION(datadog_appsec_push_address)
 {
     struct timeval start, end;
     gettimeofday(&start, NULL);
+    int elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_address "
@@ -515,8 +516,8 @@ static PHP_FUNCTION(datadog_appsec_push_address)
 
     if (rasp && (res == dd_should_block || res == dd_should_redirect)) {
         gettimeofday(&end, NULL);
-        int elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
-                      (end.tv_usec - start.tv_usec);
+        elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
+                  (end.tv_usec - start.tv_usec);
         dd_tags_add_rasp_duration_ext(dd_trace_get_active_root_span(), elapsed);
     }
 
@@ -532,10 +533,10 @@ static PHP_FUNCTION(datadog_appsec_push_address)
         }
     }
 
-    if (rasp) {
+    if (rasp && elapsed == 0) {
         gettimeofday(&end, NULL);
-        int elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
-                      (end.tv_usec - start.tv_usec);
+        elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
+                  (end.tv_usec - start.tv_usec);
         dd_tags_add_rasp_duration_ext(dd_trace_get_active_root_span(), elapsed);
     }
 }
