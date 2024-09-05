@@ -86,13 +86,19 @@ pub struct LiveDebuggerState {
 pub unsafe extern "C" fn ddog_init_remote_config(
     tracer_version: CharSlice,
     endpoint: &Endpoint,
+    live_debugging_enabled: bool,
 ) -> Box<RemoteConfigState> {
+    let mut products = vec![RemoteConfigProduct::ApmTracing];
+    if live_debugging_enabled {
+        products.push(RemoteConfigProduct::LiveDebugger);
+    }
+    
     Box::new(RemoteConfigState {
         manager: RemoteConfigManager::new(ConfigInvariants {
             language: "php".to_string(),
             tracer_version: tracer_version.to_utf8_lossy().into(),
             endpoint: endpoint.clone(),
-            products: DDTRACE_REMOTE_CONFIG_PRODUCTS.to_vec(),
+            products,
             capabilities: DDTRACE_REMOTE_CONFIG_CAPABILITIES.to_vec(),
         }),
         live_debugger: LiveDebuggerState::default(),

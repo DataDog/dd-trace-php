@@ -78,13 +78,14 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     // for historical reasons in seconds
                                     get_global_DD_TELEMETRY_HEARTBEAT_INTERVAL() * 1000,
+                                    get_global_DD_EXCEPTION_REPLAY_RATE_LIMIT_SECONDS(),
                                     get_global_DD_TRACE_BUFFER_SIZE(),
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
                                     ddtrace_set_all_thread_vm_interrupt,
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS,
-                                    sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]),
+                                    get_DD_DYNAMIC_INSTRUMENTATION_ENABLED() ? sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]) : 1,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES,
                                     sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES) / sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES[0]));
 
@@ -302,7 +303,7 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
 }
 
 void ddtrace_sidecar_submit_root_span_data(void) {
-    if (ddtrace_sidecar && DDTRACE_G(active_stack)) {
+    if (ddtrace_sidecar && DDTRACE_G(active_stack) && get_global_DD_REMOTE_CONFIGURATION_ENABLED()) {
         ddtrace_root_span_data *root = DDTRACE_G(active_stack)->root_span;
         if (root) {
             zval *service = &root->property_service;

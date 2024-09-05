@@ -1488,9 +1488,8 @@ static void dd_initialize_request(void) {
         }
     }
 
-    // TODO CONFIG option for RC
     if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
-        DDTRACE_G(remote_config_state) = ddog_init_remote_config(DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION), ddtrace_endpoint);
+        DDTRACE_G(remote_config_state) = ddog_init_remote_config(DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION), ddtrace_endpoint, get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED());
     }
 
     if (DDTRACE_G(remote_config_state)) {

@@ -6,6 +6,7 @@ Installing a live debugger span decoration probe
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
 --INI--
 datadog.trace.agent_test_session_token=live-debugger/span_decoration_probe
 --FILE--
@@ -47,7 +48,9 @@ await_probe_installation(function() {
 \DDTrace\start_span();
 var_dump(foo(["foo" => (object)["var" => 1, "val" => "test"], "val" => 123]));
 \DDTrace\active_span()->meta = [];
-var_dump(foo(["foo" => (object)["var" => 2]]));
+$meta = foo(["foo" => (object)["var" => 2]]);
+ksort($meta);
+var_dump($meta);
 
 root(1);
 var_dump(\DDTrace\root_span()->meta);
@@ -75,18 +78,18 @@ array(4) {
   string(1) "1"
 }
 array(6) {
-  ["valid"]=>
-  string(20) "[(stdClass){var: 2}]"
-  ["_dd.di.valid.probe_id"]=>
-  string(1) "2"
-  ["bare"]=>
-  string(3) "raw"
-  ["_dd.di.bare.probe_id"]=>
-  string(1) "1"
-  ["arg"]=>
-  string(27) "[foo => (stdClass){var: 2}]"
   ["_dd.di.arg.probe_id"]=>
   string(1) "1"
+  ["_dd.di.bare.probe_id"]=>
+  string(1) "1"
+  ["_dd.di.valid.probe_id"]=>
+  string(1) "2"
+  ["arg"]=>
+  string(27) "[foo => (stdClass){var: 2}]"
+  ["bare"]=>
+  string(3) "raw"
+  ["valid"]=>
+  string(20) "[(stdClass){var: 2}]"
 }
 array(2) {
   ["ret"]=>

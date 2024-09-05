@@ -1,5 +1,6 @@
 #include "live_debugger.h"
 #include "ddtrace.h"
+#include "exception_serialize.h"
 #include "zai_string/string.h"
 #include "span.h"
 #include "hook/uhook.h"

@@ -152,6 +152,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/dogstatsd_client.c \
     ext/engine_api.c \
     ext/engine_hooks.c \
+    ext/exception_serialize.c \
     ext/excluded_modules.c \
     ext/git.c \
     ext/handlers_api.c \

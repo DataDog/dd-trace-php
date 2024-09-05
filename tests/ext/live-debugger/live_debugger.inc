@@ -69,7 +69,11 @@ class DebuggerLogReplayer {
     
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
-        $allLogs = json_decode(file_get_contents($this->rr->endpoint . '/replay'), true);
+        $allLogs = json_decode(file_get_contents($this->rr->endpoint . '/replay', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
         if ($allLogs) {
             $allLogs = array_values(array_filter($allLogs, function ($v) { return strpos($v["uri"], '/debugger/v1/input') === 0; }));
         }
@@ -100,7 +104,11 @@ class DebuggerLogReplayer {
     
         // Request replayer now returns as many requests as were sent during a session.
         // For the scope of the tests, we are returning the very first one.
-        $allDiagnostics = json_decode(file_get_contents($this->rr->endpoint . '/replay'), true);
+        $allDiagnostics = json_decode(file_get_contents($this->rr->endpoint . '/replay', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
         if ($allDiagnostics) {
             $allDiagnostics = array_values(array_filter($allDiagnostics, function ($v) { return strpos($v["uri"], '/debugger/v1/diagnostics') === 0; }));
         }

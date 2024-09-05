@@ -26,6 +26,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " dogstatsd.c";
 	DDTRACE_EXT_SOURCES += " engine_api.c";
 	DDTRACE_EXT_SOURCES += " engine_hooks.c";
+	DDTRACE_EXT_SOURCES += " exception_serialize.c";
 	DDTRACE_EXT_SOURCES += " excluded_modules.c";
 	DDTRACE_EXT_SOURCES += " git.c";
 	DDTRACE_EXT_SOURCES += " handlers_api.c";

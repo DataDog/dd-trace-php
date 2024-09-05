@@ -53,7 +53,7 @@ static void dd_check_exception_in_header(int old_response_code) {
     if (ex) {
         ZVAL_OBJ_COPY(root_exception, ex);
         Z_PROP_FLAG_P(root_exception) = 2; // Re-assigning property values resets the property flag, which is very nice
-    }q
+    }
 }
 
 zend_object *ddtrace_find_active_exception(void) {

@@ -8,9 +8,10 @@ use tracing::warn;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
-use datadog_sidecar::service::blocking::SidecarTransport;
+use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use ddcommon::rate_limiter::{Limiter, LocalLimiter};
 use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
+use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
@@ -158,6 +159,11 @@ lazy_static! {
         warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
         None
     }, Some);
+
+    pub static ref EXCEPTION_HASH_LIMITER: Option<ExceptionHashRateLimiter> = ExceptionHashRateLimiter::open().map_or_else(|e| {
+        warn!("Attempt to use the EXCEPTION_HASH_LIMITER failed: {e:?}");
+        None
+    }, Some);
 }
 
 pub struct MaybeShmLimiter(Option<AnyLimiter>);
@@ -186,4 +192,15 @@ impl MaybeShmLimiter {
 #[no_mangle]
 pub extern "C" fn ddog_shm_limiter_inc(limiter: &MaybeShmLimiter, limit: u32) -> bool {
     limiter.inc(limit)
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_exception_hash_limiter_inc(connection: &mut SidecarTransport, hash: u64) -> bool {
+    if let Some(limiter) = &*EXCEPTION_HASH_LIMITER {
+        if let Some(limiter) = limiter.find(hash) {
+            return limiter.inc();
+        }
+    }
+    let _ = acquire_exception_hash_rate_limiter(connection, hash);
+    true
 }

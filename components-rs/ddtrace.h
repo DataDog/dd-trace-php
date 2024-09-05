@@ -166,7 +166,8 @@ void ddog_reset_logger(void);
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config(ddog_CharSlice tracer_version,
-                                                       const struct ddog_Endpoint *endpoint);
+                                                       const struct ddog_Endpoint *endpoint,
+                                                       bool live_debugging_enabled);
 
 void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
 
@@ -221,6 +222,8 @@ void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
+
+bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection, uint64_t hash);
 
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
