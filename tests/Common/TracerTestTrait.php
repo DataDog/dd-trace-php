@@ -518,6 +518,14 @@ trait TracerTestTrait
         };
     }
 
+    function untilTelemetryRequest($metricName) {
+        return function ($request) use ($metricName) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", $metricName) !== false)
+            ;
+        };
+    }
+
     /**
      * Set a property into an object from an array optionally applying a converter.
      *
