@@ -216,12 +216,12 @@ trait TracerTestTrait
     /**
      * This method executes a single script with the provided configuration.
      */
-    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null)
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null, $throw = true)
     {
         $this->resetRequestDumper();
         $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
         usleep(100000); // Add a slight delay to give the request-replayer time to handle and store all requests.
-        $out = [$this->parseTracesFromDumpedData($until)];
+        $out = [$this->parseTracesFromDumpedData($until, $throw)];
         if ($withOutput) {
             $out[] = $output;
         }
@@ -387,9 +387,9 @@ trait TracerTestTrait
      * @return array
      * @throws \Exception
      */
-    private function parseTracesFromDumpedData(callable $until = null)
+    private function parseTracesFromDumpedData(callable $until = null, $throw = false)
     {
-        $loaded = $this->retrieveDumpedTraceData($until);
+        $loaded = $this->retrieveDumpedTraceData($until, $throw);
         if (!$loaded) {
             return [];
         }
@@ -496,9 +496,9 @@ trait TracerTestTrait
         return $allResponses;
     }
 
-    public function retrieveDumpedTraceData(callable $until = null)
+    public function retrieveDumpedTraceData(callable $until = null, $throw = false)
     {
-        return array_values(array_filter($this->retrieveDumpedData($until), function ($request) {
+        return array_values(array_filter($this->retrieveDumpedData($until, $throw), function ($request) {
             // Filter telemetry requests
             return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
         }));
