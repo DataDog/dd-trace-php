@@ -216,12 +216,12 @@ trait TracerTestTrait
     /**
      * This method executes a single script with the provided configuration.
      */
-    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null)
     {
         $this->resetRequestDumper();
         $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
         usleep(100000); // Add a slight delay to give the request-replayer time to handle and store all requests.
-        $out = [$this->parseTracesFromDumpedData()];
+        $out = [$this->parseTracesFromDumpedData($until)];
         if ($withOutput) {
             $out[] = $output;
         }
@@ -443,12 +443,6 @@ trait TracerTestTrait
      */
     public function retrieveDumpedData(callable $until = null, $throw = false)
     {
-        if (!$until) {
-            $until = function ($request) {
-                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
-            };
-        }
-
         return $this->retrieveAnyDumpedData($until, $throw);
     }
 
@@ -457,16 +451,12 @@ trait TracerTestTrait
      */
     public function retrieveDumpedMetrics(callable $until = null, $throw = false)
     {
-        if (!$until) {
-            $until = function ($request) {
-                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
-            };
-        }
-
         return $this->retrieveAnyDumpedData($until, $throw, true);
     }
 
-    public function retrieveAnyDumpedData(callable $until, $throw, $metrics = false) {
+    public function retrieveAnyDumpedData(callable $until = null, $throw, $metrics = false) {
+        $until = $until ?? $this->untilFirstTelemetryRequest();
+
         $allResponses = [];
 
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
@@ -508,15 +498,24 @@ trait TracerTestTrait
 
     public function retrieveDumpedTraceData(callable $until = null)
     {
-        if ($until) {
-            return array_values(array_filter($this->retrieveDumpedData($until), function ($request) use ($until) {
-                return $until($request);
-            }));
-        } else {
-            return array_values(array_filter($this->retrieveDumpedData(), function ($request) {
-                return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
-            }));
-        }
+        return array_values(array_filter($this->retrieveDumpedData($until), function ($request) {
+            // Filter telemetry requests
+            return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
+        }));
+    }
+
+    function untilNumberOfTraces($number) {
+        $count = 0;
+        return function ($request) use (&$count, $number) {
+            $count += $request['headers']['X-Datadog-Trace-Count'] ?? 0;
+            return $count >= $number;
+        };
+    }
+
+    function untilFirstTelemetryRequest() {
+        return function ($request) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
+        };
     }
 
     /**

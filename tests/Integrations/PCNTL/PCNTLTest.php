@@ -86,7 +86,11 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(2)
         );
 
         $this->assertCount(2, $requests);
@@ -139,7 +143,11 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(2)
         );
 
         $this->assertCount(2, $requests);
@@ -167,7 +175,11 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(6)
         );
 
         $this->assertCount(6, $requests);
@@ -246,7 +258,11 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_AGENT_FLUSH_INTERVAL' => 0,
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(4)
         );
         $this->assertCount(4, $requests);
 
@@ -279,7 +295,11 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'false',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(6)
         );
         $this->assertCount(6, $requests);
 
