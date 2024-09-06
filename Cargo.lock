@@ -1325,6 +1325,7 @@ dependencies = [
  "bytes",
  "criterion",
  "datadog-ipc-macros",
+ "ddcommon 0.0.1",
  "futures",
  "glibc_version",
  "io-lifetimes",
@@ -1604,6 +1605,7 @@ dependencies = [
  "hyper-util",
  "indexmap 2.2.6",
  "lazy_static",
+ "libc 0.2.154",
  "log",
  "maplit",
  "pin-project",
@@ -1614,6 +1616,7 @@ dependencies = [
  "static_assertions",
  "tokio",
  "tokio-rustls 0.26.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

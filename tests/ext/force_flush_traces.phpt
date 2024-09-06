@@ -43,5 +43,4 @@ var_dump(dd_trace_serialize_closed_spans()); // Spans should be flushed, so this
 tracing process
 process
 [ddtrace] [info] Flushing trace of size 3 to send-queue for %s
-kill
-%r\n*(Killed\n*)?(Termsig=9)?%r
+kill%r\n*(Killed\n*)?(Termsig=9)?%r
