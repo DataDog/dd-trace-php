@@ -1847,8 +1847,14 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
     }
 
-    if (ddtrace_span_is_entrypoint_root(span) && get_DD_TRACE_MEASURE_COMPILE_TIME()) {
-        add_assoc_double(&metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
+    if (ddtrace_span_is_entrypoint_root(span)) {
+        if (get_DD_TRACE_MEASURE_COMPILE_TIME()) {
+            add_assoc_double(&metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
+        }
+        if (get_DD_TRACE_MEASURE_PEAK_MEMORY_USAGE()) {
+            add_assoc_double(&metrics_zv, "php.memory.peak_usage_bytes", zend_memory_peak_usage(false));
+            add_assoc_double(&metrics_zv, "php.memory.peak_real_usage_bytes", zend_memory_peak_usage(true));
+        }
     }
 
     LOGEV(SPAN, {

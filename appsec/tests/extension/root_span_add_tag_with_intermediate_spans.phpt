@@ -84,4 +84,6 @@ Array
     [_dd.agent_psr] => 1
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %s
+    [php.memory.peak_usage_bytes] => %f
+    [php.memory.peak_real_usage_bytes] => %f
 )
