@@ -115,6 +115,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                         \
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
+    CONFIG(BOOL, DD_TRACE_MEASURE_PEAK_MEMORY_USAGE, "true")                                                   \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false", .ini_change = ddtrace_alter_dd_trace_debug)                          \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config,               \
            .env_config_fallback = ddtrace_conf_otel_traces_exporter)                                           \

@@ -10,6 +10,8 @@ class MessengerTest extends WebFrameworkTestCase
 {
     const FIELDS_TO_IGNORE = [
         'metrics.php.compilation.total_time_ms',
+        'metrics.php.memory.peak_usage_bytes',
+        'metrics.php.memory.peak_real_usage_bytes',
         'meta.error.stack',
         'meta._dd.p.tid',
         'meta.messaging.message_id',

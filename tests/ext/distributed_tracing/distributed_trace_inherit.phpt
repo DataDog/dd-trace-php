@@ -59,12 +59,16 @@ array(2) {
       string(7) "datadog"
     }
     ["metrics"]=>
-    array(3) {
+    array(5) {
       ["process_id"]=>
       float(%f)
       ["_sampling_priority_v1"]=>
       float(3)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
