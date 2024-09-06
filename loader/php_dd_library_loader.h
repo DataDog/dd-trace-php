@@ -3,7 +3,9 @@
 #ifndef PHP_DD_LIBRARY_LOADER_H
 #define PHP_DD_LIBRARY_LOADER_H
 
+#ifndef PHP_DD_LIBRARY_LOADER_VERSION
 #define PHP_DD_LIBRARY_LOADER_VERSION "0.1.0"
+#endif
 
 #define UNUSED(x) (void)(x)
 
