@@ -268,14 +268,14 @@ final class PCNTLTest extends IntegrationTestCase
 
         for ($i = 0; $i < 4; $i += 2) {
             $this->assertFlameGraph([$requests[$i]], [
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
+                SpanAssertion::exists('curl_exec', '/httpbin_integration/child-'.($i/2)),
             ]);
 
             $this->assertFlameGraph([$requests[$i + 1]], [
                 SpanAssertion::exists('long_running_entry_point')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/entry_point'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/main_process'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/end_entry_point'),
                     SpanAssertion::exists('pcntl_fork'),
                 ]),
             ]);
