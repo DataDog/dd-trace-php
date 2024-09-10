@@ -38,6 +38,8 @@ elif [ "$SCENARIO" = "appsec" ]; then
   make benchmarks_run_dependencies
   make install_appsec
 
+  php -m
+
   ## Non-OPCache Benchmarks
   make call_benchmarks
   cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/appsec-bench-results.csv"
