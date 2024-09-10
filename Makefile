@@ -136,6 +136,7 @@ install_appsec:
 	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
 	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.enabled=1" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.rules_path=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
