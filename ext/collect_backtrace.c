@@ -1,4 +1,5 @@
 #include "collect_backtrace.h"
+#include "ddtrace.h"
 #include <php.h>
 #include <Zend/zend_generators.h>
 #if PHP_VERSION_ID >= 80000

@@ -65,7 +65,7 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    EXTRA_LDFLAGS="-fsanitize=address"
+    EXTRA_LDFLAGS="-fsanitize=address -lasan"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
@@ -231,7 +231,7 @@ if test "$PHP_DDTRACE" != "no"; then
   if test "$ext_shared" = "yes"; then
     dnl Only export symbols defined in ddtrace.sym, which should all be marked as
     dnl DDTRACE_PUBLIC in their source files as well.
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden -ftls-model=global-dynamic"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
 
     PHP_SUBST(EXTRA_CFLAGS)
@@ -308,7 +308,7 @@ EOT
     pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
       popdef([PHP_GEN_GLOBAL_MAKEFILE])
       PHP_GEN_GLOBAL_MAKEFILE
-      sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/^distclean:/a\'$'\n\t''rm -rf target/' -e '/.*\.a /{s/| xargs rm -f/! -path ".\/target\/*" | xargs rm -f/'$'\n}' Makefile
+      sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/^distclean:/a\'$'\n\t''rm -rf target/ target_mockgen/' -e '/.*\.a /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' Makefile
       DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
     ])
   ])
@@ -341,7 +341,7 @@ EOT
     if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
       ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
     else
-      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) run"
+      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run"
     fi
     cat <<EOT >> Makefile.fragments
 

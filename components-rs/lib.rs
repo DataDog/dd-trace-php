@@ -1,5 +1,4 @@
 #![feature(allow_internal_unstable)]
-#![feature(local_key_cell_methods)]
 #![feature(linkage)]
 
 pub mod log;

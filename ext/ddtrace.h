@@ -142,6 +142,12 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable telemetry_spans_created_per_integration;
     ddog_SidecarActionsBuffer *telemetry_buffer;
 
+#if PHP_VERSION_ID >= 80000
+    HashTable curl_headers;
+    // Multi-handle API: curl_multi_*()
+    HashTable curl_multi_handles;
+#endif
+
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
 

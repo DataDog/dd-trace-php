@@ -73,7 +73,9 @@ typedef struct ddog_Error {
 
 typedef struct ddog_Slice_CChar {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const char *ptr;
   /**
@@ -904,7 +906,9 @@ typedef struct ddog_crasht_Result {
 
 typedef struct ddog_crasht_Slice_CharSlice {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const ddog_CharSlice *ptr;
   /**
@@ -934,7 +938,9 @@ typedef struct ddog_crasht_EnvVar {
 
 typedef struct ddog_crasht_Slice_EnvVar {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_crasht_EnvVar *ptr;
   /**
@@ -1027,7 +1033,9 @@ typedef struct ddog_crasht_StackFrameNames {
 
 typedef struct ddog_crasht_Slice_StackFrameNames {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_crasht_StackFrameNames *ptr;
   /**
@@ -1039,7 +1047,9 @@ typedef struct ddog_crasht_Slice_StackFrameNames {
 
 typedef struct ddog_Slice_U8 {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const uint8_t *ptr;
   /**
@@ -1073,7 +1083,9 @@ typedef struct ddog_crasht_StackFrame {
 
 typedef struct ddog_crasht_Slice_StackFrame {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_crasht_StackFrame *ptr;
   /**
