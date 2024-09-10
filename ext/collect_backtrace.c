@@ -198,6 +198,21 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
 #endif
 }
 
+#if PHP_VERSION_ID < 80100
+static inline zend_bool skip_internal_handler(zend_execute_data *skip) /* {{{ */
+{
+    return !(skip->func && ZEND_USER_CODE(skip->func->common.type))
+            && skip->prev_execute_data
+            && skip->prev_execute_data->func
+            && ZEND_USER_CODE(skip->prev_execute_data->func->common.type)
+            && skip->prev_execute_data->opline->opcode != ZEND_DO_FCALL
+            && skip->prev_execute_data->opline->opcode != ZEND_DO_ICALL
+            && skip->prev_execute_data->opline->opcode != ZEND_DO_UCALL
+            && skip->prev_execute_data->opline->opcode != ZEND_DO_FCALL_BY_NAME
+            && skip->prev_execute_data->opline->opcode != ZEND_INCLUDE_OR_EVAL;
+}
+#endif
+
 /* Copy of zend_fetch_debug_backtrace with ability to gather local variables */
 void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int options, int limit)
 {
@@ -271,6 +286,13 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
 #endif
             prev = zend_generator_check_placeholder_frame(prev);
         }
+
+#if PHP_VERSION_ID < 80100
+        /* skip internal handler */
+        if (prev && skip_internal_handler(prev)) {
+            prev = prev->prev_execute_data;
+        }
+#endif
 
 #if PHP_VERSION_ID >= 80400
         /* For frameless calls we add an additional frame for the call itself. */
@@ -418,7 +440,11 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
             ZVAL_STR_COPY(&tmp, func->common.function_name);
             _zend_hash_append_ex(stack_frame, ZSTR_KNOWN(ZEND_STR_FUNCTION), &tmp, 1);
 
-            if (Z_TYPE(call->This) == IS_OBJECT) {
+            if (Z_TYPE(call->This) == IS_OBJECT
+#if PHP_VERSION_ID < 80000
+                && Z_OBJ(call->This)
+#endif
+            ) {
                 object = Z_OBJ(call->This);
                 /* $this may be passed into regular internal functions */
                 if (func->common.scope) {

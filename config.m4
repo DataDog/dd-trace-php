@@ -308,7 +308,7 @@ EOT
     pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
       popdef([PHP_GEN_GLOBAL_MAKEFILE])
       PHP_GEN_GLOBAL_MAKEFILE
-      sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/^distclean:/a\'$'\n\t''rm -rf target/ target_mockgen/' -e '/.*\.a /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' Makefile
+      [sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/.*\.[ao] /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' -e '/^distclean:/a\'$'\n\t''rm -rf target/ target_mockgen/' Makefile]
       DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
     ])
   ])

@@ -86,11 +86,13 @@
 
 // On PHP 7 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
 #if PHP_VERSION_ID < 80000
+#pragma push_macro("ZVAL_EMPTY_ARRAY")
 #undef ZVAL_EMPTY_ARRAY
 #define ZVAL_EMPTY_ARRAY ZVAL_NULL
 #endif
 // CG(empty_string) is not accessible during MINIT (in ZTS at least)
 #if PHP_VERSION_ID < 70200
+#pragma push_macro("ZVAL_EMPTY_STRING")
 #undef ZVAL_EMPTY_STRING
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
@@ -99,12 +101,10 @@
 #include "live_debugger.h"
 
 #if PHP_VERSION_ID < 70200
-#undef ZVAL_EMPTY_STRING
-#define ZVAL_EMPTY_STRING(z) ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC())
+#pragma pop_macro("ZVAL_EMPTY_STRING")
 #endif
 #if PHP_VERSION_ID < 80000
-#undef ZVAL_EMPTY_ARRAY
-#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
+#pragma pop_macro("ZVAL_EMPTY_ARRAY")
 #endif
 
 // For manual ZPP

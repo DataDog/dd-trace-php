@@ -234,12 +234,7 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     return ht;
 }
 
-#define DD_ZVAL_EMPTY_ARRAY(z) do {       \
-        zval *__z = (z);                  \
-        Z_ARR_P(__z) = zend_new_array(0); \
-        Z_TYPE_INFO_P(__z) = IS_ARRAY;    \
-    } while (0)
-#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
+#define ZVAL_EMPTY_ARRAY(z) ZVAL_ARR(z, zend_new_array(0))
 
 #define GC_IS_RECURSIVE(gc) ((gc)->u.v.nApplyCount > 0)
 #define GC_PROTECT_RECURSION(gc) (++(gc)->u.v.nApplyCount)
