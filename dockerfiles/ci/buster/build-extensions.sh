@@ -144,7 +144,14 @@ else
   # ext-swoole needs PHP 8
   # currently no swoole for PHP 8.4, see https://github.com/swoole/swoole-src/issues/5451
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_VERSION_ID -lt 84 ]]; then
-    pecl install swoole-5.1.2; # we don't install swoole here
+    pushd /tmp
+    pecl download swoole-5.1.2; # we don't install swoole here
+    tar xzf swoole-5.1.2.tgz
+    cd swoole-5.1.2
+    phpize
+    ./configure --host=$HOST_ARCH-linux-gnu
+    make install
+    popd
   fi
 
   # We don't install any redis.so to inis, but allow selection at runtime.
