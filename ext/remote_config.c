@@ -87,8 +87,16 @@ void ddtrace_minit_remote_config(void) {
 
 #ifndef _WIN32
     struct sigaction act = {0};
-    act.sa_flags = SA_RESTART;
+    act.sa_flags = SA_SIGINFO | SA_RESTART;
     act.sa_sigaction = dd_sigvtalarm_handler;
+    sigaction(SIGVTALRM, &act, NULL);
+#endif
+}
+
+void ddtrace_mshutdown_remote_config(void) {
+#ifndef _WIN32
+    struct sigaction act = {0};
+    act.sa_handler = SIG_IGN;
     sigaction(SIGVTALRM, &act, NULL);
 #endif
 }

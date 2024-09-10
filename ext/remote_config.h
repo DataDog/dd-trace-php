@@ -4,6 +4,7 @@
 #include "ddtrace_export.h"
 
 void ddtrace_minit_remote_config(void);
+void ddtrace_mshutdown_remote_config(void);
 void ddtrace_rinit_remote_config(void);
 void ddtrace_rshutdown_remote_config(void);
 

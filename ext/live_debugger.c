@@ -1242,7 +1242,7 @@ static bool dd_eval_instanceof(void *ctx, const void *zvp, const ddog_CharSlice 
 #if PHP_VERSION_ID < 70300
     if (Z_TYPE_P(zv) == _IS_BOOL || Z_TYPE_P(zv) == IS_FALSE || Z_TYPE_P(zv) == IS_TRUE)
     {
-        name = "bool"
+        name = "bool";
     }
     else
 #endif

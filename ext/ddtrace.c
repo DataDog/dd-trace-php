@@ -1395,6 +1395,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_mshutdown_remote_config();
+
     if (DDTRACE_G(agent_rate_by_service)) {
         zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
         DDTRACE_G(agent_rate_by_service) = NULL;

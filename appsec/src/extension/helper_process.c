@@ -130,7 +130,7 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void)
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val, zend_string *nullable new_str)
+bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val, zend_string *nonnull new_str)
 {
     UNUSED(old_val);
     UNUSED(new_str);
