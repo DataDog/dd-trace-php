@@ -250,7 +250,7 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliLongRunningMultipleForksAutoFlush()
     {
-        list($requests) = $this->inCli(
+        $this->inCli(
             __DIR__ . '/scripts/long-running-autoflush.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
@@ -262,24 +262,23 @@ final class PCNTLTest extends IntegrationTestCase
             [],
             '',
             false,
-            $this->untilNumberOfTraces(4)
-        );
-        $this->assertCount(4, $requests);
-
-        for ($i = 0; $i < 4; $i += 2) {
-            $this->assertFlameGraph([$requests[$i]], [
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/child-'.($i/2)),
-            ]);
-
-            $this->assertFlameGraph([$requests[$i + 1]], [
-                SpanAssertion::exists('long_running_entry_point')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/entry_point'),
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/main_process'),
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/end_entry_point'),
+            $this->until(
+                $this->untilSpan(SpanAssertion::exists('curl_exec', '/httpbin_integration/child-0')),
+                $this->untilSpan(SpanAssertion::exists('curl_exec', '/httpbin_integration/child-1')),
+                $this->untilSpan(SpanAssertion::exists('long_running_entry_point')->withChildren([
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/entry_point-0'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/main_process-0'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/end_entry_point-0'),
                     SpanAssertion::exists('pcntl_fork'),
-                ]),
-            ]);
-        }
+                ])),
+                $this->untilSpan(SpanAssertion::exists('long_running_entry_point')->withChildren([
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/entry_point-1'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/main_process-1'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/end_entry_point-1'),
+                    SpanAssertion::exists('pcntl_fork'),
+                ]))
+            )
+        );
     }
 
     public function testCliLongRunningMultipleForksManualFlush()

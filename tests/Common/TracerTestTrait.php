@@ -455,7 +455,7 @@ trait TracerTestTrait
     }
 
     public function retrieveAnyDumpedData(callable $until = null, $throw, $metrics = false) {
-        $until = $until ?? $this->untilFirstTelemetryRequest();
+        $until = $until ?? $this->untilFirstTraceRequest();
 
         $allResponses = [];
 
@@ -512,9 +512,11 @@ trait TracerTestTrait
         };
     }
 
-    function untilFirstTelemetryRequest() {
+    function untilFirstTraceRequest() {
         return function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
+            return (strpos($request["uri"] ?? "", "/v0.4/traces") === 0)
+                || (strpos($request["uri"] ?? "", "/v0.7/traces") === 0)
+            ;
         };
     }
 
@@ -523,6 +525,34 @@ trait TracerTestTrait
             return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
                 && (strpos($request["body"] ?? "", $metricName) !== false)
             ;
+        };
+    }
+
+    function untilSpan(SpanAssertion $assertion) {
+        return function ($request) use ($assertion) {
+            if (strpos($request["uri"] ?? "", "/telemetry/") === 0 || !isset($request['body'])) {
+                return false;
+            }
+            $trace = $this->parseRawDumpedTraces(json_decode($request['body'], true));
+            try {
+                (new SpanChecker())->assertFlameGraph($trace, [$assertion]);
+            } catch (\Exception $e) {
+                return false;
+            }
+
+            return true;
+        };
+    }
+
+    function until(...$expectations) {
+        return function ($request) use (&$expectations) {
+            foreach ($expectations as $key => $expect) {
+                if ($expect($request)) {
+                    unset($expectations[$key]);
+                }
+            }
+
+            return !count($expectations);
         };
     }
 
