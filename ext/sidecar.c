@@ -303,7 +303,7 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
 }
 
 void ddtrace_sidecar_submit_root_span_data(void) {
-    if (ddtrace_sidecar && DDTRACE_G(active_stack) && get_global_DD_REMOTE_CONFIGURATION_ENABLED()) {
+    if (ddtrace_sidecar && DDTRACE_G(active_stack) && get_global_DD_REMOTE_CONFIG_ENABLED()) {
         ddtrace_root_span_data *root = DDTRACE_G(active_stack)->root_span;
         if (root) {
             zval *service = &root->property_service;

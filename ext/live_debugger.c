@@ -1238,8 +1238,17 @@ static bool dd_eval_instanceof(void *ctx, const void *zvp, const ddog_CharSlice 
         zend_string_release(class_str);
         return ce && instanceof_function(Z_OBJCE_P(zv), ce);
     }
-
-    const char *name = zend_zval_type_name(zv);
+    const char *name;
+#if PHP_VERSION_ID < 70300
+    if (Z_TYPE_P(zv) == _IS_BOOL || Z_TYPE_P(zv) == IS_FALSE || Z_TYPE_P(zv) == IS_TRUE)
+    {
+        name = "bool"
+    }
+    else
+#endif
+    {
+        name = zend_zval_type_name(zv);
+    }
     return zend_binary_strcasecmp(name, strlen(name), class->ptr, class->len) == 0;
 }
 

@@ -233,7 +233,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(DOUBLE, DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE, "0.1")                                         \
     CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5", .ini_change = zai_config_system_ini_change)    \
-    CONFIG(BOOL, DD_REMOTE_CONFIGURATION_ENABLED, "true", .ini_change = zai_config_system_ini_change)          \
+    CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)          \
     CONFIG(BOOL, DD_DYNAMIC_INSTRUMENTATION_ENABLED, "false", .ini_change = zai_config_system_ini_change)      \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \

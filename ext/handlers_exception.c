@@ -398,8 +398,10 @@ static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_obj
     ignore_args = EG(exception_ignore_args);
 #endif
 
+    bool exception_replay = get_DD_EXCEPTION_REPLAY_ENABLED();
+
     zval trace;
-    ddtrace_fetch_debug_backtrace(&trace, 0, (ignore_args ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS, 0);
+    ddtrace_fetch_debug_backtrace(&trace, 0, (ignore_args ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | (exception_replay ? DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS : 0), 0);
     Z_SET_REFCOUNT(trace, 0);
 
     zval filezv, linezv;
@@ -423,7 +425,7 @@ static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_obj
     zval_ptr_dtor(&filezv);
     EG(current_execute_data) = ex;
 
-    if (ex && ex->func && ZEND_USER_CODE(ex->func->type)) {
+    if (ex && ex->func && ZEND_USER_CODE(ex->func->type) && exception_replay) {
         zval locals;
         ddtrace_call_get_locals(ex, &locals, !ignore_args);
         zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
@@ -446,7 +448,7 @@ HashTable ddtrace_exception_custom_create_object;
 static zend_object *ddtrace_custom_exception_new(zend_class_entry *class_type) {
     zend_class_entry *ce = class_type;
     zend_object *(*prev)(zend_class_entry *class_type);
-    while (!(prev = zend_hash_index_find_ptr(&ddtrace_exception_custom_create_object, (zend_long)(uintptr_t)ce))) {
+    while (!(prev = zend_hash_index_find_ptr(&ddtrace_exception_custom_create_object, (zend_ulong)(uintptr_t)ce))) {
         ce = ce->parent;
     }
     return ddtrace_exception_new(class_type, prev);

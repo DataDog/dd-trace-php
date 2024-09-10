@@ -2,6 +2,7 @@
 Test exception replay
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %A in EXPECTF"); ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
