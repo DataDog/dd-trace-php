@@ -109,10 +109,6 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
-$(SO_APPSEC_FILE):
-	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
-	cd $(BUILD_DIR_APPSEC);make extension
-
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
 
@@ -122,12 +118,7 @@ $(AR_FILE): $(ALL_OBJECT_FILES)
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
 	$(Q) $(SUDO) $(if $(ASSUME_COMPILED),cp $(BUILD_DIR)/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so,$(MAKE) -C $(BUILD_DIR) install)
 
-$(PHP_EXTENSION_DIR)/ddappsec.so: $(SO_APPSEC_FILE)
-	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
-
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
-
-install_appsec: install $(PHP_EXTENSION_DIR)/ddappsec.so
 
 set_static_option:
 	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)
@@ -137,8 +128,18 @@ static: set_static_option $(AR_FILE)
 install_ini:
 	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $(INI_FILE)
 
-install_ini_appsec: install_ini
+install_appsec:
+	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
+	cd $(BUILD_DIR_APPSEC);make extension ddappsec-helper
+	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+	cp $(BUILD_DIR_APPSEC)/libddappsec-helper.so $(PHP_EXTENSION_DIR)/libddappsec-helper.so
+	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
 	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.enabled=1" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.rules_path=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" | $(SUDO) tee -a $(INI_FILE)
 
 install_all: install install_ini
 

@@ -34,11 +34,12 @@ elif [ "$SCENARIO" = "tracer" ]; then
 elif [ "$SCENARIO" = "appsec" ]; then
   # Run Appsec Benchmarks
   cd ..
-  make install_appsec
   make composer_tests_update
+  make benchmarks_run_dependencies
+  make install_appsec
 
   ## Non-OPCache Benchmarks
-  make benchmarks
+  make call_benchmarks
   cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/appsec-bench-results.csv"
 
   ## OPCache Benchmarks
