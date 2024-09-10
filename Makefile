@@ -140,6 +140,11 @@ install_appsec:
 	$(Q) echo "datadog.appsec.rules_path=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.log_file=/tmp/appsec.log" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.log_level=debug" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_log_level=debug" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_extra_args=--log_level debug" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_log_file=/tmp/helper.log" | $(SUDO) tee -a $(INI_FILE)
 
 install_all: install install_ini
 

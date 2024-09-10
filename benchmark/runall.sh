@@ -49,4 +49,7 @@ elif [ "$SCENARIO" = "appsec" ]; then
   ## Request Startup/Shutdown Benchmarks
   make benchmarks_tea
   cp tea/benchmarks/reports/tea-bench-results.json "$ARTIFACTS_DIR/appsec-tea-bench-results.json"
+
+  cat /tmp/appsec.log
+  cat /tmp/helper.log
 fi
