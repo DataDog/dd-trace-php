@@ -231,7 +231,7 @@ if test "$PHP_DDTRACE" != "no"; then
   if test "$ext_shared" = "yes"; then
     dnl Only export symbols defined in ddtrace.sym, which should all be marked as
     dnl DDTRACE_PUBLIC in their source files as well.
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden -ftls-model=global-dynamic"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
 
     PHP_SUBST(EXTRA_CFLAGS)
