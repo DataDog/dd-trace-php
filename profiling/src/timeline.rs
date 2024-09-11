@@ -152,12 +152,13 @@ unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
 #[cfg(zend_error_observer)]
 unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     _type: i32,
-    #[cfg(zend_error_observer_80)] file: *const i8,
+    #[cfg(zend_error_observer_80)] file: *const c_char,
     #[cfg(not(zend_error_observer_80))] file: *mut zend::ZendString,
     line: u32,
     message: *mut zend::ZendString,
 ) {
     // we are only interested in FATAL errors
+
     if _type & zend::E_FATAL_ERRORS as i32 == 0 {
         return;
     }
