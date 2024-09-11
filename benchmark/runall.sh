@@ -52,6 +52,6 @@ elif [ "$SCENARIO" = "appsec" ]; then
   make benchmarks_tea
   cp tea/benchmarks/reports/tea-bench-results.json "$ARTIFACTS_DIR/appsec-tea-bench-results.json"
 
-  cat /tmp/appsec.log
-  cat /tmp/helper.log
+  [ -f /tmp/appsec.log ] && cat /tmp/appsec.log
+  [ -f /tmp/helper.log ] && cat /tmp/helper.log
 fi
