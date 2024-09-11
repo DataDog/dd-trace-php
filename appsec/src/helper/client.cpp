@@ -81,6 +81,7 @@ bool handle_message(client &client, const network::base_broker &broker,
             std::ostream_iterator<std::string>(all_names, " "));
         SPDLOG_DEBUG("Wait for one of these messages: {}", all_names.str());
     }
+    std::this_thread::sleep_for(200ms);
 
     bool send_error = false;
     bool result = true;
