@@ -533,14 +533,19 @@ trait TracerTestTrait
             if (strpos($request["uri"] ?? "", "/telemetry/") === 0 || !isset($request['body'])) {
                 return false;
             }
-            $trace = $this->parseRawDumpedTraces(json_decode($request['body'], true));
-            try {
-                (new SpanChecker())->assertFlameGraph($trace, [$assertion]);
-            } catch (\Exception $e) {
-                return false;
+            $traces = $this->parseRawDumpedTraces(json_decode($request['body'], true));
+
+            foreach ($traces as $trace) {
+                try {
+                    (new SpanChecker())->assertFlameGraph([$trace], [$assertion]);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                return true;
             }
 
-            return true;
+            return false;
         };
     }
 

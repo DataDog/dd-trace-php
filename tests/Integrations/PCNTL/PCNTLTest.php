@@ -251,8 +251,7 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_AGENT_FLUSH_INTERVAL' => 0,
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => '2000000'
+                'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,
             ],
             [],
             '',
