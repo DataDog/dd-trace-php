@@ -1154,7 +1154,7 @@ test_integrations_amqp2: global_test_run_dependencies tests/Integrations/AMQP/V2
 	$(call run_tests_debug,tests/Integrations/AMQP/V2)
 test_integrations_amqp35: global_test_run_dependencies tests/Integrations/AMQP/V3_5/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/AMQP/V3_5)
-test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/Predis/composer.lock-php$(PHP_MAJOR_MINOR)
+test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/DeferredLoading/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_curl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Curl)
