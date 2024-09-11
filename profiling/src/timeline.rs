@@ -39,6 +39,8 @@ thread_local! {
 enum State {
     Idle,
     Sleeping,
+    ThreadStart,
+    ThreadStop,
 }
 
 impl State {
@@ -46,6 +48,8 @@ impl State {
         match self {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
+            State::ThreadStart => "thread start",
+            State::ThreadStop => "thread stop",
         }
     }
 }
@@ -298,7 +302,7 @@ pub unsafe fn timeline_rinit() {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_nanos() as i64,
-                    "thread start",
+                    State::ThreadStart.as_str(),
                 );
             }
         });
@@ -368,6 +372,9 @@ pub(crate) unsafe fn timeline_mshutdown() {
 
 #[cfg(php_zts)]
 pub(crate) fn timeline_ginit() {
+    // During GINIT in "this" thread, the request locals are not initialized, which happens in
+    // RINIT, so we currently do not know if profile is enabled at all and if, if timeline is
+    // enabled. That's why we raise this flag here and read it in RINIT.
     IS_NEW_THREAD.with(|cell| {
         cell.set(true);
     });
@@ -392,7 +399,7 @@ pub(crate) fn timeline_gshutdown() {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_nanos() as i64,
-                "thread stop",
+                State::ThreadStop.as_str(),
             );
         }
     });

@@ -976,7 +976,7 @@ impl Profiler {
         }
     }
 
-    /// This function can be called to collect any fatal errors
+    /// This function will collect a thread start or stop timeline event
     #[cfg(all(feature = "timeline", php_zts))]
     pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
         let mut labels = Profiler::common_labels(1);
