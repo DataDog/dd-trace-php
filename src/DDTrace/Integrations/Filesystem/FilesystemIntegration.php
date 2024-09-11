@@ -12,6 +12,11 @@ class FilesystemIntegration extends Integration
 
     public function init(): int
     {
+        if (!function_exists('\datadog\appsec\push_address')) {
+            //There is no point on adding all this wrappers without that function available when appsec is not loaded
+            return Integration::LOADED;
+        }
+
         \DDTrace\install_hook(
             'file_get_contents',
             self::preHook('file_get_contents'),
@@ -64,9 +69,7 @@ class FilesystemIntegration extends Integration
             $span = $hook->span()->parent;
 
             $filename = $hook->args[0];
-            if (function_exists('\datadog\appsec\push_address')) {
-                \datadog\appsec\push_address("server.io.fs.file", $filename, true);
-            }
+            \datadog\appsec\push_address("server.io.fs.file", $filename, true);
         };
     }
 
