@@ -24,8 +24,10 @@ download_circleci_artifact() {
     ARTIFACT_PATTERN=$4     # "loader/modules/dd_library_loader.so"
     ARTIFACT_NAME=$5        # "dd_library_loader-x86_64-linux-gnu.so"
 
-    BRANCH=${CI_COMMIT_BRANCH}  # Set by Gilab CI
-    COMMIT_SHA=${CI_COMMIT_SHA} # Set by Gilab CI
+    # Circle CI workflow is not triggered by tags,
+    # So we fallback to the release branch (eg. "ddtrace-1.3.0")
+    BRANCH=${CI_COMMIT_BRANCH:-"ddtrace-${CI_COMMIT_TAG}"}  # Set by Gilab CI
+    COMMIT_SHA=${CI_COMMIT_SHA}                             # Set by Gilab CI
 
     PIPELINES=$(call_api "https://circleci.com/api/v2/project/${SLUG}/pipeline?branch=${BRANCH}")
 

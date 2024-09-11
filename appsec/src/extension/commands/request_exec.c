@@ -14,6 +14,7 @@
 
 struct ctx {
     struct req_info req_info; // dd_command_proc_resp_verd_span_data expect it
+    bool rasp;
     zval *nonnull data;
 };
 
@@ -22,13 +23,13 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull ctx);
 static const dd_command_spec _spec = {
     .name = "request_exec",
     .name_len = sizeof("request_exec") - 1,
-    .num_args = 1, // a single map
+    .num_args = 2,
     .outgoing_cb = _pack_command,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,
 };
 
-dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data)
+dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data, bool rasp)
 {
     if (Z_TYPE_P(data) != IS_ARRAY) {
         mlog(dd_log_debug, "Invalid data provided to command request_exec, "
@@ -36,7 +37,7 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data)
         return dd_error;
     }
 
-    struct ctx ctx = {.data = data};
+    struct ctx ctx = {.rasp = rasp, .data = data};
 
     return dd_command_exec_req_info(conn, &_spec, &ctx.req_info);
 }
@@ -46,6 +47,7 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     assert(_ctx != NULL);
     struct ctx *ctx = _ctx;
 
+    mpack_write(w, ctx->rasp);
     dd_mpack_write_zval(w, ctx->data);
 
     return dd_success;

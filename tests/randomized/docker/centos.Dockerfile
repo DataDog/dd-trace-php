@@ -30,7 +30,7 @@ RUN set -eux; \
 
 # Redis
 RUN set -eux; \
-    printf 'yes' | pecl install "redis"; \
+    printf 'yes' | pecl install "redis$(if [ ${PHP_VERSION/./} -le 71 ]; then echo -5.3.7; fi)"; \
     for DIR in /opt/php/*; do echo "extension=redis.so" > $DIR/conf.d/redis.ini; done
 
 # Create coredumps folder
@@ -82,6 +82,8 @@ RUN echo "CoreDumpDirectory /tmp/corefiles" >> /etc/httpd/conf/httpd.conf
 
 ADD run.sh /scripts/run.sh
 ADD prepare.sh /scripts/prepare.sh
+
+ENV DD_SPAWN_WORKER_USE_EXEC=1
 
 WORKDIR /var/www/html
 
