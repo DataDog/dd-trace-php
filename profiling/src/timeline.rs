@@ -39,7 +39,9 @@ thread_local! {
 enum State {
     Idle,
     Sleeping,
+    #[cfg(php_zts)]
     ThreadStart,
+    #[cfg(php_zts)]
     ThreadStop,
 }
 
@@ -48,7 +50,9 @@ impl State {
         match self {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
+            #[cfg(php_zts)]
             State::ThreadStart => "thread start",
+            #[cfg(php_zts)]
             State::ThreadStop => "thread stop",
         }
     }
