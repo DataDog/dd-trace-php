@@ -373,3 +373,7 @@ bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_str
 #endif
     return true;
 }
+
+bool ddtrace_exception_debugging_is_active(void) {
+    return ddtrace_sidecar && ddtrace_sidecar_instance_id && get_DD_EXCEPTION_REPLAY_ENABLED();
+}

@@ -492,10 +492,8 @@ zend_result ddtrace_exception_to_meta(zend_object *exception, zend_string *servi
         previous = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     }
 
-    if (get_DD_EXCEPTION_REPLAY_ENABLED()) {
-        // exception is now the innermost exception, i.e. what we need
-        ddtrace_collect_exception_debug_data(exception, service_name, time / 1000000, context, add_meta);
-    }
+    // exception is now the innermost exception, i.e. what we need
+    ddtrace_collect_exception_debug_data(exception, service_name, time / 1000000, context, add_meta);
 
     previous = zai_exception_read_property(exception_root, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
