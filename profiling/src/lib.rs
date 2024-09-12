@@ -130,8 +130,10 @@ extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
 }
 
-/// We do not need this, as we do not have any globals, but as we want PHP to call GINIT and
-/// GSHUTDOWN, we need to have a valid pointer here.
+/// We do not have any globals, but we need TSRM to call into GINIT and GSHUTDOWN to observe
+/// spawning and joining threads. This will be pointed to by the [`ModuleEntry::globals_id_ptr`] in
+/// the `zend_module_entry` and the TSRM will store it's thread-safe-resource id here.
+/// See: <https://heap.space/xref/PHP-8.3/Zend/zend_API.c?r=d41e97ae#2303>
 #[cfg(php_zts)]
 static mut GLOBALS_ID_PTR: i32 = 0;
 
