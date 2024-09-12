@@ -123,7 +123,7 @@ trait SnapshotTestTrait
      */
     private function stopAndCompareSnapshotSession(
         string $token,
-        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
         int $numExpectedTraces = 1,
         bool $snapshotMetrics = false,
         array $fieldsToIgnoreMetrics = ['openai.request.duration'],
@@ -290,7 +290,7 @@ trait SnapshotTestTrait
 
     public function tracesFromWebRequestSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid', 'start', 'duration'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid', 'start', 'duration'],
         $numExpectedTraces = 1,
         $tracer = null
     ) {
@@ -317,7 +317,7 @@ trait SnapshotTestTrait
 
     public function isolateTracerSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
         $numExpectedTraces = 1,
         $tracer = null,
         $config = [],
@@ -344,6 +344,7 @@ trait SnapshotTestTrait
         $fn($tracer);
 
         if ($snapshotMetrics) {
+            usleep(50000); // Add a slight delay to avoid a race condition where the "tracer-snapshot-end" metric is handled before a test metric.
             \DDTrace\dogstatsd_count("tracer-snapshot-end", 1);
         }
 
@@ -369,7 +370,7 @@ trait SnapshotTestTrait
 
     public function snapshotFromTraces(
         $traces,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
         $tokenSubstitute = null,
         $ignoreSampledAway = false
     ) {

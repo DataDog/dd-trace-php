@@ -87,6 +87,8 @@ final class SpanChecker
             }
             if (isset($span['metrics'])) {
                 unset($span['metrics']['php.compilation.total_time_ms']);
+                unset($span['metrics']['php.memory.peak_usage_bytes']);
+                unset($span['metrics']['php.memory.peak_real_usage_bytes']);
                 unset($span['metrics']['process_id']);
                 foreach ($span['metrics'] as $k => $v) {
                     $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
@@ -193,7 +195,7 @@ final class SpanChecker
             // Not using a TestCase::markTestAsIncomplete() because it exits immediately,
             // while with an error log we are still able to proceed with tests.
             error_log(sprintf(
-                "WARNING: More then one candidate found for '%s' at the same level. "
+                "WARNING: More than one candidate found for '%s' at the same level. "
                     . "Proceeding in the order they appears. "
                     . "This might not work if this span is not a leaf span.",
                 $expectedNodeRoot
@@ -523,6 +525,12 @@ final class SpanChecker
             // Ignore compilation-time metric unless explicitly tested
             if (!isset($metrics['php.compilation.total_time_ms'])) {
                 unset($spanMetrics['php.compilation.total_time_ms']);
+            }
+            if (!isset($metrics['php.memory.peak_usage_bytes'])) {
+                unset($spanMetrics['php.memory.peak_usage_bytes']);
+            }
+            if (!isset($metrics['php.memory.peak_real_usage_bytes'])) {
+                unset($spanMetrics['php.memory.peak_real_usage_bytes']);
             }
             if (isset($metrics['process_id'])) {
                 unset($metrics['process_id']);

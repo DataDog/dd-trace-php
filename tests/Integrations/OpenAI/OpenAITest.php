@@ -29,7 +29,7 @@ class OpenAITest extends IntegrationTestCase
 
     protected function ddSetUp()
     {
-        // Note: Remember that DD_DOGSTATSD_URL=http://127.0.0.1:9876 is set in the Makefile call
+        // Note: Remember that DD_DOGSTATSD_URL=http://request-replayer:80 is set in the Makefile call
         ini_set("log_errors", 1);
         ini_set("error_log", __DIR__ . "/openai.log");
         self::putEnvAndReloadConfig([

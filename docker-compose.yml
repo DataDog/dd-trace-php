@@ -226,7 +226,7 @@ services:
       - DD_DISABLE_ERROR_RESPONSES=true
       - SNAPSHOTS_DIR=/snapshots
       - SNAPSHOT_CI=0
-      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
+      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.php.memory.peak_usage_bytes,metrics.php.memory.peak_real_usage_bytes,metrics.process_id
       - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
 
 

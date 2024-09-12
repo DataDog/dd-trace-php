@@ -745,6 +745,7 @@ static void *ZEND_FASTCALL zai_interceptor_handle_created_generator_goto(void) {
     if (zai_interceptor_avoid_compile_opt) {
         uintptr_t tmp = (uintptr_t)&&zai_interceptor_handle_created_generator_goto_LABEL2;
         zai_interceptor_dummy_label_use = tmp;
+        zai_interceptor_avoid_compile_opt = false; // tell the compiler that the other branch is not unreachable
         // We need to return zai_interceptor_handle_created_generator_goto_LABEL; zai_interceptor_handle_created_generator_goto cannot be jumped to directly as it will contain prologue updating the stack pointer.
         tmp = (uintptr_t)&&zai_interceptor_handle_created_generator_goto_LABEL;
         return (void *)tmp; // extra var to prevent 'function returns address of label [-Werror=return-local-addr]'
@@ -909,6 +910,10 @@ zend_result zai_interceptor_post_startup(void) {
     zai_interceptor_setup_resolving_post_startup();
 #if PHP_VERSION_ID < 80400
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
+#endif
+
+#ifdef __GNUC__
+    zai_interceptor_avoid_compile_opt = true; // Reset it in case MINIT gets re-executed
 #endif
 
     return result;

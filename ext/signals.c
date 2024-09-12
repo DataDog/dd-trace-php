@@ -37,7 +37,7 @@
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
-static ddog_CharSlice crashtracker_socket_path = {0};
+static char crashtracker_socket_path[100] = {0};
 
 #define MAX_STACK_SIZE 1024
 #define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
@@ -101,14 +101,28 @@ static bool ddtrace_crashtracker_check_result(ddog_crasht_Result result, const c
 }
 
 static void ddtrace_init_crashtracker() {
+    ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
+    if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
+        LOG(ERROR, "Cannot initialize CrashTracker : the socket path is too long.");
+        free((void *) socket_path.ptr);
+        return;
+    }
+
+    // Copy the string to a global buffer to avoid a use-after-free error
+    memcpy(crashtracker_socket_path, socket_path.ptr, socket_path.len);
+    crashtracker_socket_path[socket_path.len] = '\0';
+    free((void *) socket_path.ptr);
+    socket_path.ptr = crashtracker_socket_path;
+
     ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
-    crashtracker_socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
 
     ddog_crasht_Config config = {
         .endpoint = agent_endpoint,
         .timeout_secs = 5,
         .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        .wait_for_receiver = false
+        // Likely running in a container, so wait until the report is uploaded.
+        // Otherwise, the container shutdown may stop the sidecar before it has finished uploading the crash report.
+        .wait_for_receiver = getpid() == 1,
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
@@ -137,7 +151,7 @@ static void ddtrace_init_crashtracker() {
     ddtrace_crashtracker_check_result(
         ddog_crasht_init_with_unix_socket(
             config,
-            crashtracker_socket_path,
+            socket_path,
             metadata
         ),
         "Cannot initialize CrashTracker"
@@ -181,9 +195,6 @@ void ddtrace_signals_first_rinit(void) {
 
 void ddtrace_signals_mshutdown(void) {
     free(ddtrace_altstack.ss_sp);
-    if (crashtracker_socket_path.ptr) {
-        free((void *) crashtracker_socket_path.ptr);
-    }
 }
 
 #else
