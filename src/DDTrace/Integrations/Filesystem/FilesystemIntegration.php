@@ -13,7 +13,7 @@ class FilesystemIntegration extends Integration
     public function init(): int
     {
         if (!function_exists('\datadog\appsec\push_address')) {
-            //There is no point on adding all this wrappers without that function available when appsec is not loaded
+            //Dont load Appsec wrappers is not available
             return Integration::LOADED;
         }
 
