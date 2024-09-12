@@ -195,7 +195,7 @@ final class SpanChecker
             // Not using a TestCase::markTestAsIncomplete() because it exits immediately,
             // while with an error log we are still able to proceed with tests.
             error_log(sprintf(
-                "WARNING: More then one candidate found for '%s' at the same level. "
+                "WARNING: More than one candidate found for '%s' at the same level. "
                     . "Proceeding in the order they appears. "
                     . "This might not work if this span is not a leaf span.",
                 $expectedNodeRoot

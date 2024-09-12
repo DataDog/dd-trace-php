@@ -50,7 +50,7 @@ download_artifacts:
   tags: [ "runner:main", "size:large" ]
   script:
     - |
-      sleep 1m # Let time for the CircleCI pipeline to start
+      sleep 2m # Let time for the CircleCI pipeline to start
       source .gitlab/download-circleci_artifact.sh
 
       download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"

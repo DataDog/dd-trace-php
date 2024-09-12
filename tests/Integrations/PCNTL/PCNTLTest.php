@@ -84,9 +84,12 @@ final class PCNTLTest extends IntegrationTestCase
             __DIR__ . '/scripts/synthetic.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(2)
         );
 
         $this->assertCount(2, $requests);
@@ -112,7 +115,6 @@ final class PCNTLTest extends IntegrationTestCase
             __DIR__ . '/scripts/access-tracer-after-fork.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
                 'DD_TRACE_DEBUG' => 'false',
             ],
@@ -137,9 +139,12 @@ final class PCNTLTest extends IntegrationTestCase
             __DIR__ . '/scripts/short-running.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(2)
         );
 
         $this->assertCount(2, $requests);
@@ -165,9 +170,12 @@ final class PCNTLTest extends IntegrationTestCase
             __DIR__ . '/scripts/short-running-multiple.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(6)
         );
 
         $this->assertCount(6, $requests);
@@ -204,7 +212,6 @@ final class PCNTLTest extends IntegrationTestCase
             __DIR__ . '/scripts/short-running-multiple-nested.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             ]
         );
@@ -238,32 +245,34 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliLongRunningMultipleForksAutoFlush()
     {
-        list($requests) = $this->inCli(
+        $this->inCli(
             __DIR__ . '/scripts/long-running-autoflush.php',
             [
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_AGENT_FLUSH_INTERVAL' => 0,
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
-        );
-        $this->assertCount(4, $requests);
-
-        for ($i = 0; $i < 4; $i += 2) {
-            $this->assertFlameGraph([$requests[$i]], [
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
-            ]);
-
-            $this->assertFlameGraph([$requests[$i + 1]], [
-                SpanAssertion::exists('long_running_entry_point')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/headers'),
-                    SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+                'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,
+            ],
+            [],
+            '',
+            false,
+            $this->until(
+                $this->untilSpan(SpanAssertion::exists('curl_exec', '/httpbin_integration/child-0')),
+                $this->untilSpan(SpanAssertion::exists('curl_exec', '/httpbin_integration/child-1')),
+                $this->untilSpan(SpanAssertion::exists('long_running_entry_point')->withChildren([
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/entry_point-0'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/main_process-0'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/end_entry_point-0'),
                     SpanAssertion::exists('pcntl_fork'),
-                ]),
-            ]);
-        }
+                ])),
+                $this->untilSpan(SpanAssertion::exists('long_running_entry_point')->withChildren([
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/entry_point-1'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/main_process-1'),
+                    SpanAssertion::exists('curl_exec', '/httpbin_integration/end_entry_point-1'),
+                    SpanAssertion::exists('pcntl_fork'),
+                ]))
+            )
+        );
     }
 
     public function testCliLongRunningMultipleForksManualFlush()
@@ -278,8 +287,11 @@ final class PCNTLTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'false',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
+            ],
+            [],
+            '',
+            false,
+            $this->untilNumberOfTraces(6)
         );
         $this->assertCount(6, $requests);
 
