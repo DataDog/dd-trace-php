@@ -58,8 +58,11 @@ final class Context implements ContextInterface
      */
     public static function storage(): ContextStorageInterface
     {
-        /** @psalm-suppress RedundantPropertyInitializationCheck */
-        return self::$storage ??= new ContextStorage();
+        if (class_exists('\OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC')) {
+            return self::$storage ??= new FiberBoundContextStorageExecutionAwareBC();
+        } else {
+            return self::$storage ??= new ContextStorage();
+        }
     }
 
     /**

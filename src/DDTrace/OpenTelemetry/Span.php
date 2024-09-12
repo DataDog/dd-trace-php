@@ -112,28 +112,18 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             foreach ($links as $link) {
                 /** @var LinkInterface $link */
                 $linkContext = $link->getSpanContext();
-
-                $spanLink = new SpanLink();
-                $spanLink->traceId = $linkContext->getTraceId();
-                $spanLink->spanId = $linkContext->getSpanId();
-                $spanLink->traceState = (string)$linkContext->getTraceState(); // __toString()
-                $spanLink->attributes = $link->getAttributes()->toArray();
-                $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
-
-                // Save the link
-                ObjectKVStore::put($spanLink, "link", $link);
-                $span->links[] = $spanLink;
+                $span->links[] = $this->createAndSaveSpanLink($linkContext, $link->getAttributes()->toArray(), $link);
             }
 
             foreach ($events as $event) {
                 /** @var EventInterface $event */
 
                 $spanEvent = new SpanEvent(
-                    $event->getName(), 
+                    $event->getName(),
                     $event->getAttributes()->toArray(),
                     $event->getEpochNanos()
                 );
-     
+
                 // Save the event
                 ObjectKVStore::put($spanEvent, "event", $event);
                 $span->events[] = $spanEvent;
@@ -235,17 +225,24 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->updateSpanLinks();
         $this->updateSpanEvents();
 
-        return new ImmutableSpan(
-            $this,
-            $this->getName(),
-            $this->links,
-            $this->events,
-            Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
-            0,
-            StatusData::create($this->status->getCode(), $this->status->getDescription()),
-            $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
-            $this->hasEnded()
-        );
+        $spanData = [
+            'span' => $this,
+            'name' => $this->getName(),
+            'links' => $this->links,
+            'events' => $this->events,
+            'attributes' => Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+            'totalRecordedEvents' => $this->totalRecordedEvents,
+            'status' => StatusData::create($this->status->getCode(), $this->status->getDescription()),
+            'endEpochNanos' => $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
+            'hasEnded' => $this->hasEnded(),
+        ];
+
+        // Workaround for a breaking change introduced in open-telemetry/api 1.1.0
+        if (in_array('addLink', get_class_methods(SpanInterface::class))) {
+            $spanData['totalRecordedLinks'] = $this->totalRecordedLinks;
+        }
+
+        return new ImmutableSpan(...$spanData);
     }
 
     /**
@@ -361,11 +358,24 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
+    public function addLink(SpanContextInterface $context, iterable $attributes = []): SpanInterface
+    {
+        if ($this->hasEnded() || !$context->isValid()) {
+            return $this;
+        }
+
+        $this->span->links[] = $this->createAndSaveSpanLink($context, $attributes);
+        return $this;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanInterface
     {
         if (!$this->hasEnded()) {
             $this->span->events[] = new SpanEvent(
-                $name, 
+                $name,
                 $attributes,
                 $timestamp ?? (int)(microtime(true) * 1e9)
             );
@@ -522,7 +532,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     {
         $datadogSpanEvents = $this->span->events;
         $this->span->meta["events"] = count($this->events);
-    
+
         $otel = [];
         foreach ($datadogSpanEvents as $datadogSpanEvent) {
             $exceptionAttributes = [];
@@ -539,7 +549,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $event = new Event(
                     $datadogSpanEvent->name,
                     (int)$datadogSpanEvent->timestamp,
-                    Attributes::create(array_merge($exceptionAttributes, \is_array($datadogSpanEvent->attributes) ? $datadogSpanEvent->attributes : iterator_to_array($datadogSpanEvent->attributes)))                
+                    Attributes::create(array_merge($exceptionAttributes, \is_array($datadogSpanEvent->attributes) ? $datadogSpanEvent->attributes : iterator_to_array($datadogSpanEvent->attributes)))
                 );
 
                 // Save the event
@@ -547,9 +557,27 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             }
             $otel[] = $event;
         }
-    
+
         // Update the events
         $this->events = $otel;
         $this->totalRecordedEvents = count($otel);
+    }
+
+    private function createAndSaveSpanLink(SpanContextInterface $context, iterable $attributes = [], LinkInterface $link = null)
+    {
+        $spanLink = new SpanLink();
+        $spanLink->traceId = $context->getTraceId();
+        $spanLink->spanId = $context->getSpanId();
+        $spanLink->traceState = (string)$context->getTraceState(); // __toString()
+        $spanLink->attributes = $attributes;
+        $spanLink->droppedAttributesCount = 0; // Attributes limit aren't supported/meaningful in DD
+
+        // Save the link
+        if (is_null($link)) {
+            $link = new Link($context, Attributes::create($attributes));
+        }
+        ObjectKVStore::put($spanLink, "link", $link);
+
+        return $spanLink;
     }
 }
