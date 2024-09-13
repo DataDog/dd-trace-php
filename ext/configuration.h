@@ -92,8 +92,10 @@ enum ddtrace_sampling_rules_format {
 
 #ifdef __SANITIZE_ADDRESS__
 #define DD_LOG_BACKTRACE_DEFAULT "false"
+#define DD_CRASHTRACKING_ENABLED_DEFAULT "false"
 #else
 #define DD_LOG_BACKTRACE_DEFAULT "true"
+#define DD_CRASHTRACKING_ENABLED_DEFAULT "true"
 #endif
 
 #define DD_CONFIGURATION_ALL                                                                                   \
@@ -169,7 +171,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL),             \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1", .ini_change = ddtrace_reseed_seed_change)                      \
-    CONFIG(BOOL, DD_LOG_BACKTRACE, DD_LOG_BACKTRACE_DEFAULT)                                                                    \
+    CONFIG(BOOL, DD_LOG_BACKTRACE, DD_LOG_BACKTRACE_DEFAULT)                                                   \
+    CONFIG(BOOL, DD_CRASHTRACKING_ENABLED, DD_CRASHTRACKING_ENABLED_DEFAULT)                                   \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                          \

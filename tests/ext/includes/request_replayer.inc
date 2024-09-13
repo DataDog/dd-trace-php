@@ -21,13 +21,13 @@ class RequestReplayer
         );
 
         $this->flushInterval = getenv('DD_TRACE_AGENT_FLUSH_INTERVAL')
-            ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL')
-            : 5000;
+            ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL') * 100
+            : 50000;
     }
 
     public function waitForFlush()
     {
-        usleep($this->flushInterval * 2 * 1000);
+        usleep($this->flushInterval * 2);
     }
 
     public function waitForRequest($matcher)
@@ -37,7 +37,7 @@ class RequestReplayer
             if ($i++ == 100) {
                 throw new Exception("wait for replay timeout");
             }
-            usleep($this->flushInterval * 1000);
+            usleep($this->flushInterval);
 
             $requests = $this->replayAllRequests();
             if (is_array($requests)) {
@@ -57,7 +57,7 @@ class RequestReplayer
             if ($i++ == 100) {
                 throw new Exception("wait for replay timeout");
             }
-            usleep($this->flushInterval * 1000);
+            usleep($this->flushInterval);
         } while (empty($data = $this->replayRequest($ignoreTelemetry)));
         return $data;
     }
