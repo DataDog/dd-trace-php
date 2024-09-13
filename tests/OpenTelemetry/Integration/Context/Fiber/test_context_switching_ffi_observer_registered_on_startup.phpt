@@ -4,14 +4,11 @@ Fiber handler has to be loaded before fibers are used.
 <?php if (PHP_VERSION_ID < 80100 || !extension_loaded('ffi') || getenv('PHPUNIT_COVERAGE')) die('skip requires PHP8.1 and FFI'); ?>
 --ENV--
 OTEL_PHP_FIBERS_ENABLED=1
---INI--
-zend_extension=xdebug-3.2.2.so
 --FILE--
 <?php
 use OpenTelemetry\Context\Context;
 
 require_once './tests/OpenTelemetry/vendor/autoload.php';
-require_once './tests/vendor/autoload.php';
 
 $key = Context::createKey('-');
 

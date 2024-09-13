@@ -10,7 +10,6 @@ OTEL_PHP_FIBERS_ENABLED=1
 use OpenTelemetry\Context\Context;
 
 require_once './tests/OpenTelemetry/vendor/autoload.php';
-require_once './tests/vendor/autoload.php';
 
 $key = Context::createKey('-');
 $scope = Context::getCurrent()
