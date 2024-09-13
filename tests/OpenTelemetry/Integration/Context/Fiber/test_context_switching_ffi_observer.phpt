@@ -1,7 +1,8 @@
 --TEST--
 Context switches on execution context switch.
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 80100 || !extension_loaded('ffi')) die('skip requires PHP8.1 and FFI'); ?>
+# Skip if env PHPUNIT_COVERAGE is enabled
+<?php if (PHP_VERSION_ID < 80100 || !extension_loaded('ffi') || getenv('PHPUNIT_COVERAGE')) die('skip requires PHP8.1 and FFI'); ?>
 --ENV--
 OTEL_PHP_FIBERS_ENABLED=1
 --FILE--
@@ -9,6 +10,7 @@ OTEL_PHP_FIBERS_ENABLED=1
 use OpenTelemetry\Context\Context;
 
 require_once './tests/OpenTelemetry/vendor/autoload.php';
+require_once './tests/vendor/autoload.php';
 
 $key = Context::createKey('-');
 $scope = Context::getCurrent()
