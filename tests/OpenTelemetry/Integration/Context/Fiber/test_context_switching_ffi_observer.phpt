@@ -1,7 +1,6 @@
 --TEST--
 Context switches on execution context switch.
 --SKIPIF--
-# Skip if env PHPUNIT_COVERAGE is enabled
 <?php if (PHP_VERSION_ID < 80100 || !extension_loaded('ffi') || getenv('PHPUNIT_COVERAGE')) die('skip requires PHP8.1 and FFI'); ?>
 --ENV--
 OTEL_PHP_FIBERS_ENABLED=1
