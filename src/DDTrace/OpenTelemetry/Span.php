@@ -225,24 +225,32 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->updateSpanLinks();
         $this->updateSpanEvents();
 
-        $spanData = [
-            'span' => $this,
-            'name' => $this->getName(),
-            'links' => $this->links,
-            'events' => $this->events,
-            'attributes' => Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
-            'totalRecordedEvents' => $this->totalRecordedEvents,
-            'status' => StatusData::create($this->status->getCode(), $this->status->getDescription()),
-            'endEpochNanos' => $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
-            'hasEnded' => $this->hasEnded(),
-        ];
-
-        // Workaround for a breaking change introduced in open-telemetry/api 1.1.0
         if (in_array('addLink', get_class_methods(SpanInterface::class))) {
-            $spanData['totalRecordedLinks'] = $this->totalRecordedLinks;
+            return new ImmutableSpan(
+                $this,
+                $this->getName(),
+                $this->links,
+                $this->events,
+                Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+                $this->totalRecordedEvents,
+                $this->totalRecordedLinks,
+                StatusData::create($this->status->getCode(), $this->status->getDescription()),
+                $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
+                $this->hasEnded(),
+            );
+        } else {
+            return new ImmutableSpan(
+                $this,
+                $this->getName(),
+                $this->links,
+                $this->events,
+                Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+                $this->totalRecordedEvents,
+                StatusData::create($this->status->getCode(), $this->status->getDescription()),
+                $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
+                $this->hasEnded(),
+            );
         }
-
-        return new ImmutableSpan(...$spanData);
     }
 
     /**
