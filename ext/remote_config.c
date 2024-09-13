@@ -26,7 +26,9 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     if (dd_prev_interrupt_function) {
         dd_prev_interrupt_function(execute_data);
     }
-    if (DDTRACE_G(remote_config_state)) {
+    if (DDTRACE_G(remote_config_state) && DDTRACE_G(reread_remote_configuration)) {
+        LOG(INFO, "Rereading remote configurations after interrupt");
+        DDTRACE_G(reread_remote_configuration) = 0;
         ddog_process_remote_configs(DDTRACE_G(remote_config_state));
     }
 }
@@ -47,6 +49,7 @@ DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void) {
 #else
         DDTRACE_G(zai_vm_interrupt) = 1;
 #endif
+        DDTRACE_G(reread_remote_configuration) = 1;
 #if ZTS
     } ZEND_HASH_FOREACH_END();
 

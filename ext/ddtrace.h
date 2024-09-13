@@ -112,6 +112,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 #if PHP_VERSION_ID < 70100
     bool zai_vm_interrupt;
 #endif
+    bool reread_remote_configuration;
 
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;
