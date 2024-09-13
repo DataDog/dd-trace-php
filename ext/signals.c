@@ -169,8 +169,13 @@ void ddtrace_signals_first_rinit(void) {
         return;
     }
 
-    bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
+    bool crashtracker_installed = false;
+    if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED()) {
+        crashtracker_installed = true;
+        ddtrace_init_crashtracker();
+    }
 
+    bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
 #if DDTRACE_HAVE_BACKTRACE
     install_handler |= get_DD_LOG_BACKTRACE();
 #endif
@@ -180,6 +185,11 @@ void ddtrace_signals_first_rinit(void) {
      * stack overflows.
      */
     if (install_handler) {
+        if (crashtracker_installed) {
+            LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
+            return;
+        }
+
         size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
         if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
             ddtrace_altstack.ss_size = stack_size;
@@ -191,10 +201,6 @@ void ddtrace_signals_first_rinit(void) {
                 sigaction(SIGSEGV, &ddtrace_sigaction, NULL);
             }
         }
-    }
-
-    if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED()) {
-        ddtrace_init_crashtracker();
     }
 }
 

@@ -50,5 +50,6 @@ $rr->waitForRequest(function ($request) {
 
 ?>
 --EXPECTF--
+%A
 Fatal error: Uncaught Exception: wait for replay timeout in %s
 %A
