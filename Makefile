@@ -97,8 +97,14 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
+# 1st sed: Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
+# 2nd sed: Fix a bug that sometimes freezes or crashes the PHP process
 $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
-	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
+	$(Q) (cd $(BUILD_DIR); \
+			phpize \
+			&& $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php \
+			&& $(SED_I) 's/if (!extension_loaded(\$$matches\[1\]) && @dl(\$$matches\[1\]))/if (false)/' $(BUILD_DIR)/run-tests.php \
+			)
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
