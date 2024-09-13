@@ -39,17 +39,11 @@ elif [ "$SCENARIO" = "appsec" ]; then
   make install_appsec
 
   ## Non-OPCache Benchmarks
-  make call_benchmarks
+  BENCHMARK_EXTRA="--group=frameworks" make call_benchmarks
   cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/appsec-bench-results.csv"
-
-  ## OPCache Benchmarks
-  make benchmarks_opcache
-  cp tests/Benchmarks/reports/tracer-bench-results-opcache.csv "$ARTIFACTS_DIR/appsec-bench-results-opcache.csv"
-
-  ## Request Startup/Shutdown Benchmarks
-  make benchmarks_tea
-  cp tea/benchmarks/reports/tea-bench-results.json "$ARTIFACTS_DIR/appsec-tea-bench-results.json"
 
   [ -f /tmp/appsec.log ] && cat /tmp/appsec.log
   [ -f /tmp/helper.log ] && cat /tmp/helper.log
+
+  make delete_ini
 fi
