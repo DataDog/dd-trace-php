@@ -62,9 +62,9 @@ final class Context implements ContextInterface
     public static function storage(): ContextStorageInterface
     {
         if (self::$storageClass === '') {
-            self::$storageClass = class_exists('\OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC')
-                ? '\OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC' // v1.1+
-                : '\OpenTelemetry\Context\ContextStorage';
+            self::$storageClass = class_exists('OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC')
+                ? 'OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC' // v1.1+
+                : 'OpenTelemetry\Context\ContextStorage';
         }
 
         return self::$storage ??= new self::$storageClass();
