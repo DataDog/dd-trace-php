@@ -3881,7 +3881,7 @@ jobs:
             docker-compose --version
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          command: git clone https://github.com/DataDog/system-tests.git && git checkout conti/fix-php-errors
 
       - fetch_job_artifact:
           job: "package extension"
@@ -4856,6 +4856,36 @@ workflows:
           build: |
             cd system-tests
             ./build.sh php
+          run: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+      
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "System tests Integration Tests"
+          build: |
+            cd system-tests
+            ./build.sh php
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
+          run: |
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+      
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "System tests Crossed Tracer Propagation Tests for Messaging"
+          build: |
+            cd system-tests
+            ./build.sh php
+          environment:
+            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            - AWS_REGION: us-east-1
+            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           run: |
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
