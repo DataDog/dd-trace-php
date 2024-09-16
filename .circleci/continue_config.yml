@@ -3354,6 +3354,18 @@ jobs:
           command: |
             set -xeuo pipefail
 
+            if [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.3.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.2" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.2.2.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.1" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.1.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.0" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.0.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "7.4" ]]; then
+              export XDEBUG_SO_NAME=xdebug-2.9.5.so
+            fi
+
             rm -rf dd-library-php-ssi
             tar -xzf dd-library-php-ssi-*-linux.tar.gz
             export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
@@ -3394,6 +3406,7 @@ jobs:
             set -xeuo pipefail
 
             apk add --no-cache curl-dev << parameters.alpine_packages >>
+            export XDEBUG_SO_NAME=xdebug.so
 
             rm -rf dd-library-php-ssi
             tar -xzf dd-library-php-ssi-*-linux.tar.gz
@@ -4976,7 +4989,7 @@ workflows:
           name: "[Alpine/x86_64] Loader PHP Alpine << matrix.alpine_version >>"
           docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "medium"
-          alpine_packages: "php83 php83-dev"
+          alpine_packages: "php83 php83-dev php83-pecl-xdebug"
           matrix:
             parameters:
               alpine_version:
@@ -4990,7 +5003,7 @@ workflows:
           name: "[Alpine/aarch64] Loader PHP Alpine << matrix.alpine_version >>"
           docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "arm.medium"
-          alpine_packages: "php83 php83-dev"
+          alpine_packages: "php83 php83-dev php83-pecl-xdebug"
           matrix:
             parameters:
               alpine_version:

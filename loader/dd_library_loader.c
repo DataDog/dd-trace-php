@@ -306,6 +306,12 @@ static void ddloader_unregister_module(const char *name) {
     zend_hash_str_del(&module_registry, name, strlen(name));
 }
 
+static bool ddloader_is_ext_loaded(const char *name) {
+    return zend_hash_str_find_ptr(&module_registry, name, strlen(name))
+        || zend_get_extension(name)
+    ;
+}
+
 static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     // Find the injected extension config using the module_number set by the engine
     injected_ext *config = NULL;
@@ -326,6 +332,16 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
+    }
+
+    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
+    for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
+        if (ddloader_is_ext_loaded(incompatible_exts[i])) {
+            TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Incompatible extension '%s' detected, unregister the injected extension", incompatible_exts[i]);
+            ddloader_unregister_module(config->tmp_name);
+
+            return SUCCESS;
+        }
     }
 
     LOG(INFO, "Extension '%s' is not loaded, checking its dependencies", config->ext_name);
