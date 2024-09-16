@@ -4866,27 +4866,25 @@ workflows:
           build: |
             cd system-tests
             ./build.sh php
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           run: |
+            export AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS_KEY=$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            export AWS_REGION=us-east-1
+            export AWS_DEFAULT_REGION=us-east-1
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
-      
+
       - system_tests:
           requires: [ 'package extension' ]
           name: "System tests Crossed Tracer Propagation Tests for Messaging"
           build: |
             cd system-tests
             ./build.sh php
-          environment:
-            - AWS_ACCESS_KEY_ID: $SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
-            - AWS_SECRET_ACCESS_KEY: $SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
-            - AWS_REGION: us-east-1
-            - AWS_DEFAULT_REGION: us-east-1  # AWS services should use `AWS_REGION`, but some still use the older `AWS_DEFAULT_REGION`
           run: |
+            export AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS_KEY=$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            export AWS_REGION=us-east-1
+            export AWS_DEFAULT_REGION=us-east-1
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
