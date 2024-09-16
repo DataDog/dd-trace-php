@@ -3881,7 +3881,7 @@ jobs:
             docker-compose --version
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git && git checkout conti/fix-php-errors
+          command: git clone https://github.com/DataDog/system-tests.git
 
       - fetch_job_artifact:
           job: "package extension"
@@ -4865,6 +4865,7 @@ workflows:
           name: "System tests Integration Tests"
           build: |
             cd system-tests
+            git checkout conti/fix-php-errors
             ./build.sh php
           run: |
             export AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
@@ -4872,6 +4873,7 @@ workflows:
             export AWS_REGION=us-east-1
             export AWS_DEFAULT_REGION=us-east-1
             cd system-tests
+            git checkout conti/fix-php-errors
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
       - system_tests:
@@ -4879,6 +4881,7 @@ workflows:
           name: "System tests Crossed Tracer Propagation Tests for Messaging"
           build: |
             cd system-tests
+            git checkout conti/fix-php-errors
             ./build.sh php
           run: |
             export AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
@@ -4886,6 +4889,7 @@ workflows:
             export AWS_REGION=us-east-1
             export AWS_DEFAULT_REGION=us-east-1
             cd system-tests
+            git checkout conti/fix-php-errors
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
 
       - system_tests:
