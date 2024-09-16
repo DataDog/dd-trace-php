@@ -2535,7 +2535,7 @@ jobs:
             docker-compose --version
       - run:
           name: Clone System Tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
+          command: git clone https://github.com/DataDog/system-tests.git && git checkout conti/fix-php-errors
       - run:
           name: Copy .tar.gz file to system test binaries folder
           command: |
