@@ -225,7 +225,8 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->updateSpanLinks();
         $this->updateSpanEvents();
 
-        if (in_array('addLink', get_class_methods(SpanInterface::class))) {
+        if (method_exists(SpanInterface::class, 'addLink')) {
+            // v1.1 backward compatibility: totalRecordedLinks parameter added
             return new ImmutableSpan(
                 $this,
                 $this->getName(),
