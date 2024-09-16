@@ -4874,7 +4874,7 @@ workflows:
             export AWS_DEFAULT_REGION=us-east-1
             cd system-tests
             git checkout conti/fix-php-errors
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
 
       - system_tests:
           requires: [ 'package extension' ]
@@ -4890,7 +4890,7 @@ workflows:
             export AWS_DEFAULT_REGION=us-east-1
             cd system-tests
             git checkout conti/fix-php-errors
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - system_tests:
           requires: [ 'package extension' ]
