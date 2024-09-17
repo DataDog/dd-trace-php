@@ -84,7 +84,7 @@ socket::ptr acceptor::accept()
     int s = ::accept(sock_, reinterpret_cast<struct sockaddr *>(&addr), &len);
     if (s == -1) {
         if (errno == EINTR || errno == EAGAIN) {
-            throw dds::timeout_error();
+            return {};
         }
 
         throw std::system_error(errno, std::generic_category());
