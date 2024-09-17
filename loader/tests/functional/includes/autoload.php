@@ -69,6 +69,13 @@ function skip_if_not_php5() {
     }
 }
 
+function skip_if_not_php8() {
+    if (PHP_MAJOR_VERSION < 8) {
+        echo "Skip: test requires PHP 8\n";
+        exit(0);
+    }
+}
+
 function skip_if_opcache_missing() {
     $output = runCLI('-dzend_extension=opcache -m');
     if (strpos($output, 'Zend OPcache') === false) {

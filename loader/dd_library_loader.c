@@ -8,6 +8,7 @@
 #include <php.h>
 #include <php_ini.h>
 #include <stdbool.h>
+#include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
 
 #include "compat_php.h"
@@ -68,15 +69,64 @@ static bool ddloader_is_ext_loaded(const char *name) {
     ;
 }
 
-static bool ddtrace_compat_check_hook(void) {
+static zval *ddloader_ini_get_configuration(const char *name, size_t name_len) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (!configuration_hash) {
+        return NULL;
+    }
+    zend_string *ini = ddloader_zend_string_init(php_api_no, name, name_len, 1);
+    zval *val = zend_hash_find(configuration_hash, ini);
+    ddloader_zend_string_release(php_api_no, ini);
+
+    return val;
+}
+
+static bool ddtrace_compat_check_hook() {
     char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
     for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
         if (ddloader_is_ext_loaded(incompatible_exts[i])) {
-            TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Incompatible extension '%s' detected, unregister the injected extension", incompatible_exts[i]);
-
-            return false;
+            if (!force_load) {
+                TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Incompatible extension '%s' detected, unregister the injected extension", incompatible_exts[i]);
+                return false;
+            }
+            LOG(WARN, "Incompatible extension '%s' detected, continuing as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
         }
     }
+
+    // Check if JIT (PHP 8.0+) is enabled
+    if (php_api_no < 20200930 || !ddloader_is_ext_loaded("Zend OPcache")) {
+        return true;
+    }
+    zval *opcache_enable = ddloader_ini_get_configuration(ZEND_STRL("opcache.enable"));
+    if (opcache_enable && Z_TYPE_P(opcache_enable) == IS_STRING && !ddloader_zend_ini_parse_bool(Z_STR_P(opcache_enable))) {
+        return true;
+    }
+    if (strcmp("cli", sapi_module.name) == 0) {
+        zval *opcache_enable_cli = ddloader_ini_get_configuration(ZEND_STRL("opcache.enable_cli"));
+        if (!opcache_enable_cli || Z_TYPE_P(opcache_enable_cli) != IS_STRING || !ddloader_zend_ini_parse_bool(Z_STR_P(opcache_enable_cli))) {
+            return true;
+        }
+    }
+    if (php_api_no > 20230831) { // PHP > 8.3 (https://php.watch/versions/8.4/opcache-jit-ini-default-changes)
+        zval *opcache_jit = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit"));
+        if (opcache_jit && Z_TYPE_P(opcache_jit) == IS_STRING && strcmp(Z_STRVAL_P(opcache_jit), "disable") != 0 && strcmp(Z_STRVAL_P(opcache_jit), "off") != 0) {
+            goto jit_enabled;
+        }
+    } else {
+        zval *opcache_jit_buffer_size = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit_buffer_size"));
+        if (opcache_jit_buffer_size && Z_TYPE_P(opcache_jit_buffer_size) == IS_STRING && strcmp(Z_STRVAL_P(opcache_jit_buffer_size), "0") != 0) {
+            goto jit_enabled;
+        }
+    }
+
+    return true;
+
+jit_enabled:
+    if (!force_load) {
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Opcache JIT is enabled, unregister the injected extension");
+        return false;
+    }
+    LOG(WARN, "Opcache JIT is enabled, continuing as DD_INJECT_FORCE is enabled");
 
     return true;
 }
