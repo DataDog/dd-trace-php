@@ -846,6 +846,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_mysqli \
 	test_integrations_openai \
 	test_opentelemetry_1 \
+	test_opentelemetry_beta \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -898,6 +899,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_mysqli \
 	test_integrations_openai \
 	test_opentelemetry_1 \
+	test_opentelemetry_beta \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -958,6 +960,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_mysqli \
 	test_integrations_openai \
 	test_opentelemetry_1 \
+	test_opentelemetry_beta \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -1133,10 +1136,27 @@ benchmarks: benchmarks_run_dependencies call_benchmarks
 
 benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
-test_opentelemetry_1: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+define setup_opentelemetry
+	cp $(1) $(dir $(1))/composer.json
+endef
+
+define run_opentelemetry_tests
 	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 	$(eval TEST_EXTRA_ENV=)
+endef
+
+_test_opentelemetry_beta_setup: global_test_run_dependencies
+	$(call setup_opentelemetry,tests/OpenTelemetry/composer-beta.json)
+
+test_opentelemetry_beta: _test_opentelemetry_beta_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_opentelemetry_tests)
+
+_test_opentelemetry_1_setup: global_test_run_dependencies
+	$(call setup_opentelemetry,tests/OpenTelemetry/composer-1.json)
+
+test_opentelemetry_1: _test_opentelemetry_1_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_opentelemetry_tests)
 
 test_opentracing_10: global_test_run_dependencies tests/OpenTracer1Unit/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Custom/OpenTracing/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests,tests/OpenTracer1Unit)
