@@ -42,8 +42,8 @@ elif [ "$SCENARIO" = "appsec" ]; then
   BENCHMARK_EXTRA="--group=frameworks" make call_benchmarks
   cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/appsec-bench-results.csv"
 
-  [ -f /tmp/appsec.log ] && cat /tmp/appsec.log
-  [ -f /tmp/helper.log ] && cat /tmp/helper.log
+  [ -f /tmp/appsec.log ] && cat /tmp/appsec.log && rm /tmp/appsec.log
+  [ -f /tmp/helper.log ] && cat /tmp/helper.log && rm /tmp/helper.log
 
   make delete_ini
 fi
