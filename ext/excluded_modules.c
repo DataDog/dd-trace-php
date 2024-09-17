@@ -58,7 +58,7 @@ void ddtrace_excluded_modules_startup() {
     zend_module_entry *module;
 
     ddtrace_has_excluded_module = false;
-    bool inject_force = (IS_TRUE == Z_TYPE(zai_config_memoized_entries[DDTRACE_CONFIG_DD_INJECT_FORCE].decoded_value));
+    bool inject_force = get_global_DD_INJECT_FORCE();
 
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
         char error[DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
