@@ -9,11 +9,13 @@
 #include "configuration.h"
 
 bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
+#if PHP_VERSION_ID >= 80000
     if (strcmp("ionCube Loader", module->name) == 0) {
         snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
                      "Found incompatible ionCube Loader extension");
         return true;
     }
+#endif
 
     if (strcmp("xdebug", module->name) == 0) {
         /*
