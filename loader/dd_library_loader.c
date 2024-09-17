@@ -28,6 +28,8 @@ static bool injection_forced = false;
 # define OS_PATH "linux-gnu/"
 #endif
 
+static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...);
+
 static char *ddtrace_pre_load_hook(void) {
     char *libddtrace_php;
     int res = asprintf(&libddtrace_php, "%s/%sloader/libddtrace_php.so", package_path, OS_PATH);
@@ -60,6 +62,25 @@ static char *ddtrace_pre_load_hook(void) {
     return NULL;
 }
 
+static bool ddloader_is_ext_loaded(const char *name) {
+    return zend_hash_str_find_ptr(&module_registry, name, strlen(name))
+        || zend_get_extension(name)
+    ;
+}
+
+static bool ddtrace_compat_check_hook(void) {
+    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
+    for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
+        if (ddloader_is_ext_loaded(incompatible_exts[i])) {
+            TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Incompatible extension '%s' detected, unregister the injected extension", incompatible_exts[i]);
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void ddtrace_pre_minit_hook(void) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
@@ -82,10 +103,10 @@ static void ddtrace_pre_minit_hook(void) {
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
+    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_compat_check_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
 };
 
 void ddloader_logv(log_level level, const char *format, va_list va) {
@@ -306,12 +327,6 @@ static void ddloader_unregister_module(const char *name) {
     zend_hash_str_del(&module_registry, name, strlen(name));
 }
 
-static bool ddloader_is_ext_loaded(const char *name) {
-    return zend_hash_str_find_ptr(&module_registry, name, strlen(name))
-        || zend_get_extension(name)
-    ;
-}
-
 static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     // Find the injected extension config using the module_number set by the engine
     injected_ext *config = NULL;
@@ -334,14 +349,10 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         return SUCCESS;
     }
 
-    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
-    for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
-        if (ddloader_is_ext_loaded(incompatible_exts[i])) {
-            TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Incompatible extension '%s' detected, unregister the injected extension", incompatible_exts[i]);
-            ddloader_unregister_module(config->tmp_name);
+    if (config->compat_check_hook && !config->compat_check_hook()) {
+        ddloader_unregister_module(config->tmp_name);
 
-            return SUCCESS;
-        }
+        return SUCCESS;
     }
 
     LOG(INFO, "Extension '%s' is not loaded, checking its dependencies", config->ext_name);
