@@ -15,7 +15,7 @@ TEA_BUILD_BENCHMARKS ?= OFF
 TEA_BENCHMARK_REPETITIONS ?= 10
 # Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
 TEA_BENCHMARK_FORMAT ?= json
-TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tracer-tea-bench-results.$(TEA_BENCHMARK_FORMAT)
 BENCHMARK_EXTRA ?=
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
