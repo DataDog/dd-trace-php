@@ -80,13 +80,10 @@ socket::ptr acceptor::accept()
     struct sockaddr_un addr {};
     socklen_t len = sizeof(addr);
 
-    int s;
-    do {
-        // NOLINTNEXTLINE
-        s = ::accept(sock_, reinterpret_cast<struct sockaddr *>(&addr), &len);
-    } while (s == -1 && errno == EINTR);
+    // NOLINTNEXTLINE
+    int s = ::accept(sock_, reinterpret_cast<struct sockaddr *>(&addr), &len);
     if (s == -1) {
-        if (errno == EAGAIN) {
+        if (errno == EINTR || errno == EAGAIN) {
             throw dds::timeout_error();
         }
 
