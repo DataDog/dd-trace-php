@@ -93,6 +93,7 @@ static void ddloader_ini_set_configuration(const char *name, size_t name_len, co
     zval tmp;
     ZVAL_STR(&tmp, zstr_value);
     ddloader_zend_hash_update(configuration_hash, zstr_name, &tmp);
+    ddloader_zend_string_release(php_api_no, zstr_name);
 }
 
 static bool ddloader_is_opcache_jit_enabled() {
@@ -553,13 +554,14 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     config->module_number = module_entry->module_number;
     config->version = (char *)module_entry->version;
 
-    return SUCCESS;
+    goto ok;
 
 abort_and_unload:
     LOG(INFO, "Unloading the library");
     DL_UNLOAD(handle);
 abort:
     LOG(INFO, "Abort the loader");
+ok:
     free(ext_path);
 
     return SUCCESS;

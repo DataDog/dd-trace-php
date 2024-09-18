@@ -4,6 +4,11 @@ require_once __DIR__."/includes/autoload.php";
 skip_if_not_php8();
 skip_if_opcache_missing();
 
+if (PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 0 && php_uname('m') === 'aarch64') {
+    echo "Skip: JIT not working on PHP 8.0 on aarch64\n";
+    exit(0);
+}
+
 $msg_disabled = "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'";
 $msg_forced = "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled";
 

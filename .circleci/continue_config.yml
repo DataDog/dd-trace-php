@@ -3332,6 +3332,9 @@ jobs:
       switch_php_version:
         type: string
         default: none
+      use_valgrind:
+        type: boolean
+        default: false
       resource_class:
         type: string
         default: medium
@@ -3374,6 +3377,10 @@ jobs:
             mkdir -p modules
             cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
             ./bin/test.sh
+            if [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
+              true
+              <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
+            fi
             ./bin/check_glibc_version.sh
 
   "test_loader_alpine":
@@ -4934,6 +4941,7 @@ workflows:
           name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "medium"
+          use_valgrind: true
           matrix:
             parameters:
               php_major_minor:

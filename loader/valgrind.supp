@@ -1,0 +1,29 @@
+{
+   <leak from zai interceptor>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   fun:zai_hook_register_inheritor
+   fun:zai_hook_register_all_inheritors
+   fun:zai_hook_post_startup
+   fun:zai_interceptor_post_startup
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:UnknownInlinedFun
+   fun:UnknownInlinedFun
+   fun:alloc
+   fun:alloc_impl
+   fun:allocate
+   fun:do_alloc<alloc::alloc::Global>
+   fun:new_uninitialized<alloc::alloc::Global>
+   fun:fallible_with_capacity<alloc::alloc::Global>
+   fun:prepare_resize<alloc::alloc::Global>
+   fun:resize_inner<alloc::alloc::Global>
+   fun:reserve_rehash_inner<alloc::alloc::Global>
+   ...
+}
