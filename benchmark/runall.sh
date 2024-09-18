@@ -2,6 +2,9 @@
 
 set -exu
 
+php -i > /tmp/phpinfo
+cat /tmp/phpinfo
+
 if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
   cd ../profiling/
