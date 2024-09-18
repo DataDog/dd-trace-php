@@ -47,3 +47,5 @@ elif [ "$SCENARIO" = "appsec" ]; then
 
   make delete_ini
 fi
+
+[ -f /tmp/php-error.log ] && cat /tmp/php-error.log && rm /tmp/php-error.log
