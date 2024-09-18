@@ -169,23 +169,23 @@ void ddtrace_signals_first_rinit(void) {
         return;
     }
 
-    bool crashtracker_installed = false;
-    if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED()) {
-        crashtracker_installed = true;
+    bool install_crashtracker = get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED();
+
+    bool install_backtrace_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
+#if DDTRACE_HAVE_BACKTRACE
+    install_backtrace_handler |= get_DD_LOG_BACKTRACE();
+#endif
+
+    if (install_crashtracker) {
         ddtrace_init_crashtracker();
     }
-
-    bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
-#if DDTRACE_HAVE_BACKTRACE
-    install_handler |= get_DD_LOG_BACKTRACE();
-#endif
 
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
-    if (install_handler) {
-        if (crashtracker_installed) {
+    if (install_backtrace_handler) {
+        if (install_crashtracker) {
             LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
             return;
         }

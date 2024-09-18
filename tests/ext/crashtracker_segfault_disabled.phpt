@@ -1,5 +1,5 @@
 --TEST--
-Send crashtracker report when segmentation fault signal is raised and config enables it
+Don't send crashtracker report when segmentation fault signal is raised and config disables it
 --SKIPIF--
 <?php
 if (!extension_loaded('posix')) die('skip: posix extension required');
@@ -15,7 +15,7 @@ DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_CRASHTRACKING_ENABLED=0
 --INI--
-datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
+datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault_disabled.phpt
 --FILE--
 <?php
 
