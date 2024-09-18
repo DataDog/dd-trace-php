@@ -4,7 +4,7 @@ function boolstr($bool) {
     return ($bool ? 'YES' : 'NO');
 }
 
-echo "datadog.trace.enabled: ".boolstr(dd_trace_env_config('DD_TRACE_ENABLED'))."\n";
+echo "ddtrace.disable: ".boolstr((bool) ini_get('ddtrace.disable'))."\n";
 
 if (!extension_loaded('Zend OPcache')) {
     echo "OPcache is not loaded\n";

@@ -169,7 +169,7 @@ static void ddtrace_pre_minit_hook(void) {
     }
 
     if (disable_tracer) {
-        ddloader_ini_set_configuration(ZEND_STRL("datadog.trace.enabled"), ZEND_STRL("0"));
+        ddloader_ini_set_configuration(ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
 }
 

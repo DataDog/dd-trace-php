@@ -18,7 +18,7 @@ $tests = [
         "config" => "-dzend_extension=opcache -ddatadog.trace.cli_enabled=1",
         "must_not_contain" => [$msg_disabled],
         "must_contain" => [<<<EOT
-datadog.trace.enabled: YES
+ddtrace.disable: NO
 OPcache is disabled
 EOT
 ],
@@ -28,7 +28,7 @@ EOT
         "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1",
         "must_not_contain" => [$msg_disabled],
         "must_contain" => [<<<EOT
-datadog.trace.enabled: YES
+ddtrace.disable: NO
 opcache_enabled: YES
 jit.enabled: NO
 jit.on: NO
@@ -43,7 +43,7 @@ EOT
         "must_contain" => [
             $msg_disabled,
             <<<EOT
-datadog.trace.enabled: NO
+ddtrace.disable: YES
 opcache_enabled: YES
 jit.enabled: YES
 jit.on: YES
@@ -59,7 +59,7 @@ EOT
         "must_contain" => [
             $msg_forced,
             <<<EOT
-datadog.trace.enabled: YES
+ddtrace.disable: NO
 opcache_enabled: YES
 jit.enabled: YES
 jit.on: YES
