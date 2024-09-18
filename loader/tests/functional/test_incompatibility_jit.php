@@ -4,27 +4,77 @@ require_once __DIR__."/includes/autoload.php";
 skip_if_not_php8();
 skip_if_opcache_missing();
 
-$jit_disabled = [
-    "-dzend_extension=opcache",
-    "-dzend_extension=opcache -dopcache.jit_buffer_size=32M",
-    "-dzend_extension=opcache -dopcache.jit_buffer_size=32M -dopcache.enable=0 -dopcache.enable_cli=1",
-    "-dzend_extension=opcache -dopcache.jit=tracing -dopcache.enable_cli=1",
-    "-dopcache.jit_buffer_size=32M -dopcache.jit=tracing -dopcache.enable=1 -dopcache.enable_cli=1",
+$msg_disabled = "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'";
+$msg_forced = "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled";
 
+$tests = [
+    // OPcache disabled in CLI
+    [
+        "config" => "-dzend_extension=opcache -ddatadog.trace.cli_enabled=1",
+        "must_not_contain" => [$msg_disabled],
+        "must_contain" => [<<<EOT
+datadog.trace.enabled: YES
+OPcache is disabled
+EOT
+],
+    ],
+    // OPcache enabled, but not JIT
+    [
+        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1",
+        "must_not_contain" => [$msg_disabled],
+        "must_contain" => [<<<EOT
+datadog.trace.enabled: YES
+opcache_enabled: YES
+jit.enabled: NO
+jit.on: NO
+jit.buffer_size: 0
+EOT
+],
+    ],
+    // JIT enabled
+    [
+        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M",
+        "must_not_contain" => [],
+        "must_contain" => [
+            $msg_disabled,
+            <<<EOT
+datadog.trace.enabled: NO
+opcache_enabled: YES
+jit.enabled: YES
+jit.on: YES
+jit.buffer_size: 33554416
+EOT
+],
+    ],
+    // JIT enabled + force injection
+    [
+        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M",
+        "env" => ['DD_INJECT_FORCE=1'],
+        "must_not_contain" => [],
+        "must_contain" => [
+            $msg_forced,
+            <<<EOT
+datadog.trace.enabled: YES
+opcache_enabled: YES
+jit.enabled: YES
+jit.on: YES
+jit.buffer_size: 33554416
+[ddtrace] [span] Encoding span
+EOT
+],
+    ],
 ];
-foreach ($jit_disabled as $options) {
-    $output = runCLI($options.' -v', true, ['DD_TRACE_DEBUG=1']);
-    assertContains($output, 'Application instrumentation bootstrapping complete (\'ddtrace\')');
-    assertContains($output, 'with dd_library_loader v');
-    assertContains($output, 'with ddtrace v');
-}
+foreach ($tests as $data) {
+    $env = ['DD_TRACE_DEBUG=1'];
+    if (isset($data['env'])) {
+        $env = array_merge($env, $data['env']);
+    }
+    $output = runCLI($data['config'].' '.__DIR__.'/fixtures/opcache_jit.php', true, $env);
 
-$jit_enabled = [
-    "-dzend_extension=opcache -dopcache.jit_buffer_size=32M -dopcache.enable_cli=1",
-];
-foreach ($jit_enabled as $options) {
-    $output = runCLI($options.' -v', true, ['DD_TRACE_DEBUG=1']);
-    assertContains($output, 'Opcache JIT is enabled, unregister the injected extension');
-    assertContains($output, 'with dd_library_loader v');
-    assertNotContains($output, 'with ddtrace v');
+    foreach ($data['must_contain'] as $str) {
+        assertContains($output, $str);
+    }
+    foreach ($data['must_not_contain'] as $str) {
+        assertNotContains($output, $str);
+    }
 }

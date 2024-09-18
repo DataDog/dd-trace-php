@@ -81,52 +81,51 @@ static zval *ddloader_ini_get_configuration(const char *name, size_t name_len) {
     return val;
 }
 
-static bool ddtrace_compat_check_hook() {
-    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
-    for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
-        if (ddloader_is_ext_loaded(incompatible_exts[i])) {
-            if (!force_load) {
-                TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Incompatible extension '%s' detected, unregister the injected extension", incompatible_exts[i]);
-                return false;
-            }
-            LOG(WARN, "Incompatible extension '%s' detected, continuing as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
-        }
+static void ddloader_ini_set_configuration(const char *name, size_t name_len, const char *value, size_t value_len) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (!configuration_hash) {
+        return;
     }
 
-    // Check if JIT (PHP 8.0+) is enabled
+    zend_string *zstr_name = ddloader_zend_string_init(php_api_no, name, name_len, 1);
+    zend_string *zstr_value = ddloader_zend_string_init(php_api_no, value, value_len, 1);
+
+    zval tmp;
+    ZVAL_STR(&tmp, zstr_value);
+    ddloader_zend_hash_update(configuration_hash, zstr_name, &tmp);
+}
+
+static bool ddloader_is_opcache_jit_enabled() {
+    // JIT is only PHP 8.0+
     if (php_api_no < 20200930 || !ddloader_is_ext_loaded("Zend OPcache")) {
-        return true;
+        return false;
     }
+
+    // opcache.enable = false (default: true)
     zval *opcache_enable = ddloader_ini_get_configuration(ZEND_STRL("opcache.enable"));
     if (opcache_enable && Z_TYPE_P(opcache_enable) == IS_STRING && !ddloader_zend_ini_parse_bool(Z_STR_P(opcache_enable))) {
-        return true;
+        return false;
     }
     if (strcmp("cli", sapi_module.name) == 0) {
+        // opcache.enable_cli = false (default: false)
         zval *opcache_enable_cli = ddloader_ini_get_configuration(ZEND_STRL("opcache.enable_cli"));
         if (!opcache_enable_cli || Z_TYPE_P(opcache_enable_cli) != IS_STRING || !ddloader_zend_ini_parse_bool(Z_STR_P(opcache_enable_cli))) {
-            return true;
+            return false;
         }
     }
     if (php_api_no > 20230831) { // PHP > 8.3 (https://php.watch/versions/8.4/opcache-jit-ini-default-changes)
+        // opcache.jit == disable (default: disable)
         zval *opcache_jit = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit"));
-        if (opcache_jit && Z_TYPE_P(opcache_jit) == IS_STRING && strcmp(Z_STRVAL_P(opcache_jit), "disable") != 0 && strcmp(Z_STRVAL_P(opcache_jit), "off") != 0) {
-            goto jit_enabled;
+        if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0) {
+            return false;
         }
     } else {
+        // opcache.jit_buffer_size = 0 (default: 0)
         zval *opcache_jit_buffer_size = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit_buffer_size"));
-        if (opcache_jit_buffer_size && Z_TYPE_P(opcache_jit_buffer_size) == IS_STRING && strcmp(Z_STRVAL_P(opcache_jit_buffer_size), "0") != 0) {
-            goto jit_enabled;
+        if (!opcache_jit_buffer_size || Z_TYPE_P(opcache_jit_buffer_size) != IS_STRING || strcmp(Z_STRVAL_P(opcache_jit_buffer_size), "0") == 0) {
+            return false;
         }
     }
-
-    return true;
-
-jit_enabled:
-    if (!force_load) {
-        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, "Opcache JIT is enabled, unregister the injected extension");
-        return false;
-    }
-    LOG(WARN, "Opcache JIT is enabled, continuing as DD_INJECT_FORCE is enabled");
 
     return true;
 }
@@ -140,23 +139,46 @@ static void ddtrace_pre_minit_hook(void) {
         }
 
         // Set 'datadog.trace.sources_path' setting
-        zend_string *name = ddloader_zend_string_init(php_api_no, ZEND_STRL("datadog.trace.sources_path"), 1);
-        zend_string *value = ddloader_zend_string_init(php_api_no, sources_path, strlen(sources_path), 1);
+        ddloader_ini_set_configuration(ZEND_STRL("datadog.trace.sources_path"), sources_path, strlen(sources_path));
         free(sources_path);
+    }
 
-        zval tmp;
-        ZVAL_STR(&tmp, value);
-        ddloader_zend_hash_update(configuration_hash, name, &tmp);
+    // Load, but disable the tracer if runtime configuration is not safe for auto-injection
+    bool disable_tracer = false;
+
+    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
+    for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
+        if (ddloader_is_ext_loaded(incompatible_exts[i])) {
+            if (force_load) {
+                LOG(WARN, "Potentially incompatible extension detected: %s. Ignoring as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
+            } else {
+                LOG(WARN, "Potentially incompatible extension detected: %s. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'", incompatible_exts[i]);
+                disable_tracer = true;
+            }
+        }
+    }
+
+    if (ddloader_is_opcache_jit_enabled()) {
+        if (force_load) {
+            LOG(WARN, "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled");
+        } else {
+            LOG(WARN, "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'");
+            disable_tracer = true;
+        }
+    }
+
+    if (disable_tracer) {
+        ddloader_ini_set_configuration(ZEND_STRL("datadog.trace.enabled"), ZEND_STRL("0"));
     }
 }
 
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_compat_check_hook, ddtrace_pre_minit_hook,
+    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
 };
 
 void ddloader_logv(log_level level, const char *format, va_list va) {
@@ -394,12 +416,6 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     zend_module_entry *module = zend_hash_str_find_ptr(&module_registry, config->ext_name, strlen(config->ext_name));
     if (module) {
         LOG(INFO, "Extension '%s' is already loaded, unregister the injected extension", config->ext_name);
-        ddloader_unregister_module(config->tmp_name);
-
-        return SUCCESS;
-    }
-
-    if (config->compat_check_hook && !config->compat_check_hook()) {
         ddloader_unregister_module(config->tmp_name);
 
         return SUCCESS;
