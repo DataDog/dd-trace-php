@@ -63,6 +63,12 @@ benchmarks-tracer:
         compare_to: "master"
       when: on_success
     - when: manual
+  artifacts:
+    name: "logs"
+    paths:
+      - candidate.tar.gz
+      - baseline.tar.gz
+    expire_in: 2 days
   variables:
     SCENARIO: "tracer"
 
@@ -76,6 +82,12 @@ benchmarks-appsec:
         compare_to: "master"
       when: on_success
     - when: manual
+  artifacts:
+    name: "logs"
+    paths:
+      - candidate.tar.gz
+      - baseline.tar.gz
+    expire_in: 2 days
   variables:
     SCENARIO: "appsec"
 

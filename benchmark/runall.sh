@@ -2,9 +2,6 @@
 
 set -exu
 
-php -i > /tmp/phpinfo
-cat /tmp/phpinfo
-
 if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
   cd ../profiling/
@@ -45,10 +42,5 @@ elif [ "$SCENARIO" = "appsec" ]; then
   BENCHMARK_EXTRA="--group=frameworks" make call_benchmarks
   cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/appsec-bench-results.csv"
 
-  [ -f /tmp/appsec.log ] && cat /tmp/appsec.log && rm /tmp/appsec.log
-  [ -f /tmp/helper.log ] && cat /tmp/helper.log && rm /tmp/helper.log
-
   make delete_ini
 fi
-
-[ -f /tmp/php-error.log ] && cat /tmp/php-error.log && rm /tmp/php-error.log
