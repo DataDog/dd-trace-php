@@ -565,14 +565,6 @@ abort:
     return SUCCESS;
 }
 
-static void ddloader_strtolower(char *dest, char *src) {
-    while (*src) {
-        *dest = (char)tolower((int)*src);
-        ++dest;
-        ++src;
-    }
-}
-
 static bool ddloader_is_truthy(char *str) {
     if (!str) {
         return false;
@@ -583,10 +575,7 @@ static bool ddloader_is_truthy(char *str) {
         return false;
     }
 
-    char lower[5] = {0};
-    ddloader_strtolower(lower, str);
-
-    return (strcmp(lower, "1") == 0 || strcmp(lower, "true") == 0 || strcmp(lower, "yes") == 0 || strcmp(lower, "on") == 0);
+    return (strcasecmp(str, "1") == 0 || strcasecmp(str, "true") == 0 || strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0);
 }
 
 static inline void ddloader_configure() {
