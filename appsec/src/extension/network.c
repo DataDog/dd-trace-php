@@ -85,7 +85,8 @@ try_again:
     res = connect(
         conn->socket, (struct sockaddr *)&conn->addr, sizeof(conn->addr));
     if (res == -1) {
-        if (errno == EINPROGRESS) {
+        int errno_copy = errno;
+        if (errno_copy == EINPROGRESS) {
             struct pollfd pfds[] = {
                 {.fd = conn->socket, .events = POLLIN | POLLOUT}};
             struct timespec now;
@@ -123,8 +124,8 @@ try_again:
             }
             // else good
         } else {
-            if (errno == ENOENT) {
-                // the socket does not exist. Retry
+            if (errno_copy == ENOENT || errno_copy == ECONNREFUSED) {
+                // the socket does not exist or is not being listened on. Retry
                 struct timespec now;
                 clock_gettime(CLOCK_MONOTONIC, &now);
                 long time_left = _timespec_delta_ms(&deadline, &now);
@@ -134,8 +135,10 @@ try_again:
                     return dd_error;
                 }
 
-                mlog(dd_log_debug,
-                    "Socket does not exist.  Waiting 100 ms for next retry");
+                mlog(dd_log_debug, "Socket %s.  Waiting %d ms for next retry",
+                    errno_copy == ENOENT ? "does not exist"
+                                         : "is not being listened on",
+                    CONNECT_RETRY_PAUSE);
                 int ret = usleep(CONNECT_RETRY_PAUSE * 1000); // NOLINT
                 if (ret == 0) {
                     goto try_again;
@@ -146,6 +149,7 @@ try_again:
             }
 
             dd_conn_destroy(conn);
+            errno = errno_copy; // restore for mlog_err
             mlog_err(
                 dd_log_info, "Failed connecting to helper (connect() call)");
             return dd_error;
