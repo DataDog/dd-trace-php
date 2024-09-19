@@ -162,19 +162,34 @@ static void ddtrace_init_crashtracker() {
 }
 
 void ddtrace_signals_first_rinit(void) {
-    bool install_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
+    DDTRACE_G(backtrace_handler_already_run) = false;
 
+    // Signal handlers are causing issues with FrankenPHP.
+    if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP) {
+        return;
+    }
+
+    bool install_crashtracker = get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED();
+
+    bool install_backtrace_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
 #if DDTRACE_HAVE_BACKTRACE
-    install_handler |= get_DD_LOG_BACKTRACE();
+    install_backtrace_handler |= get_DD_LOG_BACKTRACE();
 #endif
 
-    DDTRACE_G(backtrace_handler_already_run) = false;
+    if (install_crashtracker) {
+        ddtrace_init_crashtracker();
+    }
 
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
-    if (install_handler && ddtrace_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
+    if (install_backtrace_handler) {
+        if (install_crashtracker) {
+            LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
+            return;
+        }
+
         size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
         if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
             ddtrace_altstack.ss_size = stack_size;
@@ -185,10 +200,6 @@ void ddtrace_signals_first_rinit(void) {
                 sigemptyset(&ddtrace_sigaction.sa_mask);
                 sigaction(SIGSEGV, &ddtrace_sigaction, NULL);
             }
-        }
-
-        if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-            ddtrace_init_crashtracker();
         }
     }
 }

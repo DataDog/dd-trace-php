@@ -91,9 +91,9 @@ enum ddtrace_sampling_rules_format {
     "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)"
 
 #ifdef __SANITIZE_ADDRESS__
-#define DD_LOG_BACKTRACE_DEFAULT "false"
+#define DD_CRASHTRACKING_ENABLED_DEFAULT "false"
 #else
-#define DD_LOG_BACKTRACE_DEFAULT "true"
+#define DD_CRASHTRACKING_ENABLED_DEFAULT "true"
 #endif
 
 #define DD_CONFIGURATION_ALL                                                                                   \
@@ -169,7 +169,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL),             \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1", .ini_change = ddtrace_reseed_seed_change)                      \
-    CONFIG(BOOL, DD_LOG_BACKTRACE, DD_LOG_BACKTRACE_DEFAULT)                                                                    \
+    CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                    \
+    CONFIG(BOOL, DD_CRASHTRACKING_ENABLED, DD_CRASHTRACKING_ENABLED_DEFAULT)                                   \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                          \
