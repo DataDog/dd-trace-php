@@ -1132,7 +1132,7 @@ test_distributed_tracing_coverage:
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
-benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_8_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
+benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 
 call_benchmarks:
