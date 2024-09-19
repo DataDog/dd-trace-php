@@ -227,6 +227,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_OPENAI_SPAN_CHAR_LIMIT, "128")                                                              \
     CONFIG(DOUBLE, DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE, "1.0")                                        \
     CONFIG(DOUBLE, DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE, "0.1")                                         \
+    CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                             \
     DD_INTEGRATIONS
 
 #ifndef _WIN32
