@@ -13,7 +13,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 class WordPressBench extends FrameworkBenchmarksCase
 {
     /**
-     * @BeforeMethods("enableDatadog")
+     * @BeforeMethods({"enableDatadog", "createDatabase"})
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -34,12 +34,11 @@ class WordPressBench extends FrameworkBenchmarksCase
         return __DIR__ . '/../../Frameworks/WordPress/Version_6_1/index.php';
     }
 
-    public function disableWordPressTracing()
+    public function createDatabase(): void
     {
         $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
         $pdo->exec('CREATE DATABASE IF NOT EXISTS wp61');
         $pdo->exec(file_get_contents(__DIR__ . '/../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
-        $this->disableDatadog();
     }
 
     public function afterMethod()
@@ -48,7 +47,7 @@ class WordPressBench extends FrameworkBenchmarksCase
     }
 
     /**
-     * @BeforeMethods("disableWordPressTracing")
+     * @BeforeMethods({"disableDatadog", "createDatabase"})
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
