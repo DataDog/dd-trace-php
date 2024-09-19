@@ -1,6 +1,6 @@
 # Contributing to dd-trace-php
 
-As an open-source project we welcome contributions of many forms, but due to the experimental pre-beta nature of this repository, you should [reach out to us](https://github.com/DataDog/dd-trace-php/issues) before starting work on any major code changes. This will ensure we avoid duplicating work, or that your code can't be merged due to a rapidly changing base.
+As an open-source project we welcome contributions of many forms, but you should [reach out to us](https://github.com/DataDog/dd-trace-php/issues) before starting work on any major code changes. This will ensure we avoid duplicating work, or that your code can't be merged due to a rapidly changing base.
 
 ## Project initialization
 
