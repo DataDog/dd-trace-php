@@ -7,6 +7,7 @@
 
 #include "client.hpp"
 #include "subscriber/waf.hpp"
+#include <csignal>
 #include <cstdio>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
@@ -32,6 +33,39 @@ network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
 
     return std::make_unique<network::local::acceptor>(sock_path);
 }
+
+void block_sigusr1()
+{
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGUSR1);
+    if (pthread_sigmask(SIG_UNBLOCK, &mask, nullptr) != 0) {
+        throw std::runtime_error{
+            "Failed to block SIGUSR1: errno " + std::to_string(errno)};
+    }
+}
+
+void unblock_sigusr1()
+{
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGUSR1);
+    if (pthread_sigmask(SIG_UNBLOCK, &mask, nullptr) != 0) {
+        throw std::runtime_error{
+            "Failed to unblock SIGUSR1: errno " + std::to_string(errno)};
+    }
+}
+
+void handle_sigusr1()
+{
+    // the signal handler need not do anything (just interrupt accept())
+    struct sigaction alarmer = {};
+    alarmer.sa_handler = [](int) {};
+    if (sigaction(SIGUSR1, &alarmer, nullptr) < 0) {
+        throw std::runtime_error{
+            "Failed to set SIGUSR1 handler: errno " + std::to_string(errno)};
+    }
+}
 } // namespace
 
 runner::runner(const config::config &cfg, std::atomic<bool> &interrupted)
@@ -54,19 +88,16 @@ runner::runner(const config::config &cfg,
 void runner::run()
 {
     try {
-        auto last_not_idle = std::chrono::steady_clock::now();
         SPDLOG_INFO("Runner running");
+        handle_sigusr1();
+
         while (!interrupted()) {
-            network::base_socket::ptr socket;
-            try {
-                socket = acceptor_->accept();
-            } catch (const timeout_error &e) {
-                continue;
-            }
+            unblock_sigusr1();
+            network::base_socket::ptr socket = acceptor_->accept();
+            block_sigusr1();
 
             if (!socket) {
-                SPDLOG_CRITICAL("Acceptor returned invalid socket. Bug.");
-                break;
+                continue; // interrupted / timeout
             }
 
             if (interrupted()) {
@@ -80,8 +111,6 @@ void runner::run()
 
             worker_pool_.launch(
                 [c](worker::queue_consumer &q) mutable { c->run(q); });
-
-            last_not_idle = std::chrono::steady_clock::now();
         }
     } catch (const std::exception &e) {
         SPDLOG_ERROR("exception: {}", e.what());
