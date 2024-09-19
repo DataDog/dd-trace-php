@@ -7,6 +7,7 @@ DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
 --INI--
 datadog.trace.agent_test_session_token=live-debugger/span_probe
 --FILE--

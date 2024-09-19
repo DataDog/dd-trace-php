@@ -133,7 +133,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
     CONFIG(BOOL, DD_EXCEPTION_REPLAY_ENABLED, "false")                                                         \
     CONFIG(INT, DD_EXCEPTION_REPLAY_MAX_FRAMES_TO_CAPTURE, "-1")                                               \
-    CONFIG(INT, DD_EXCEPTION_REPLAY_RATE_LIMIT_SECONDS, "3600", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(INT, DD_EXCEPTION_REPLAY_RATE_LIMIT_SECONDS, "3600")                                                \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
@@ -219,7 +219,6 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level,                \
            .env_config_fallback = ddtrace_conf_otel_log_level)                                                 \
-    CONFIG(INT, DD_REMOTE_CONFIG_INTERVAL, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
     CONFIG(BOOL, DD_APPSEC_TESTING, "false")                                                                   \
     CONFIG(BOOL, DD_TRACE_GIT_METADATA_ENABLED, "true")                                                        \

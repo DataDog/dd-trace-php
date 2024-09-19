@@ -178,7 +178,7 @@ bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remo
 
 struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
 
-void ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
+bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,
                                             ddog_CharSlice env,
                                             ddog_CharSlice version);
@@ -223,7 +223,9 @@ void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
-bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection, uint64_t hash);
+bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
+                                     uint64_t hash,
+                                     uint32_t granularity_seconds);
 
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,

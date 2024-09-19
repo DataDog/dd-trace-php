@@ -170,7 +170,6 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uint32_t flush_interval_milliseconds,
                                                 uint32_t remote_config_poll_interval_millis,
                                                 uint32_t telemetry_heartbeat_interval_millis,
-                                                uint32_t exception_hash_rate_limiter_seconds,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,

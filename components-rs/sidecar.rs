@@ -7,6 +7,7 @@ use tracing::warn;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
+use std::time::Duration;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use ddcommon::rate_limiter::{Limiter, LocalLimiter};
@@ -195,12 +196,12 @@ pub extern "C" fn ddog_shm_limiter_inc(limiter: &MaybeShmLimiter, limit: u32) ->
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_exception_hash_limiter_inc(connection: &mut SidecarTransport, hash: u64) -> bool {
+pub extern "C" fn ddog_exception_hash_limiter_inc(connection: &mut SidecarTransport, hash: u64, granularity_seconds: u32) -> bool {
     if let Some(limiter) = &*EXCEPTION_HASH_LIMITER {
         if let Some(limiter) = limiter.find(hash) {
             return limiter.inc();
         }
     }
-    let _ = acquire_exception_hash_rate_limiter(connection, hash);
+    let _ = acquire_exception_hash_rate_limiter(connection, hash, Duration::from_secs(granularity_seconds as u64));
     true
 }

@@ -401,7 +401,7 @@ static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_obj
     bool exception_replay = get_DD_EXCEPTION_REPLAY_ENABLED();
 
     zval trace;
-    ddtrace_fetch_debug_backtrace(&trace, 0, (ignore_args ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | (exception_replay ? DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS : 0), 0);
+    ddtrace_fetch_debug_backtrace(&trace, 0, (ignore_args ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | (exception_replay ? DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS | DEBUG_BACKTRACE_PROVIDE_OBJECT : 0), 0);
     Z_SET_REFCOUNT(trace, 0);
 
     zval filezv, linezv;

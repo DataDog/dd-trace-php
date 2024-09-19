@@ -15,7 +15,7 @@ class RequestReplayer
     /**
      * @var int
      */
-    private $maxIteration;
+    public $maxIteration;
 
     public function __construct()
     {

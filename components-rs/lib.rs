@@ -1,3 +1,4 @@
+#![allow(internal_features)]
 #![feature(allow_internal_unstable)]
 #![feature(linkage)]
 
@@ -10,7 +11,6 @@ use std::borrow::Cow;
 use std::ffi::c_char;
 use std::ptr::null_mut;
 use ddcommon::entity_id::{get_container_id, set_cgroup_file};
-use ddcommon_ffi::CharSlice;
 use uuid::Uuid;
 
 pub use datadog_crashtracker_ffi::*;

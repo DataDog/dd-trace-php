@@ -76,16 +76,16 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     DDOG_CHARSLICE_C("php"),
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
+                                    (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),
                                     // for historical reasons in seconds
                                     get_global_DD_TELEMETRY_HEARTBEAT_INTERVAL() * 1000,
-                                    get_global_DD_EXCEPTION_REPLAY_RATE_LIMIT_SECONDS(),
                                     get_global_DD_TRACE_BUFFER_SIZE(),
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
                                     ddtrace_set_all_thread_vm_interrupt,
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS,
-                                    get_DD_DYNAMIC_INSTRUMENTATION_ENABLED() ? sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]) : 1,
+                                    sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]) - !get_DD_DYNAMIC_INSTRUMENTATION_ENABLED(),
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES,
                                     sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES) / sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES[0]));
 
@@ -330,9 +330,12 @@ void ddtrace_sidecar_submit_root_span_data(void) {
                 version_slice = dd_zend_string_to_CharSlice(Z_STR_P(version));
             }
 
-            ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
+            bool changed = true;
             if (DDTRACE_G(remote_config_state)) {
-                ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
+                changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
+            }
+            if (changed) {
+                ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
             }
         }
     }

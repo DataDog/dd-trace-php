@@ -53,10 +53,10 @@ class DebuggerLogReplayer {
     {
         $i = 0;
         do {
-            if ($i++ == 100) {
+            if ($i++ == $this->rr->maxIteration) {
                 throw new Exception("wait for replay timeout");
             }
-            usleep($this->rr->flushInterval * 1000);
+            usleep($this->rr->flushInterval);
         } while (empty($data = $this->replayDebuggerData()));
         return $data;
     }
@@ -88,10 +88,10 @@ class DebuggerLogReplayer {
     {
         $i = 0;
         do {
-            if ($i++ == 100) {
+            if ($i++ == $this->rr->maxIteration) {
                 throw new Exception("wait for replay timeout");
             }
-            usleep($this->rr->flushInterval * 1000);
+            usleep($this->rr->flushInterval);
         } while (empty($data = $this->replayDiagnosticsData()));
         return $data;
     }

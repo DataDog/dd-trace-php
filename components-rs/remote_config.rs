@@ -330,7 +330,7 @@ pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut Vec<c_c
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_remote_configs_service_env_change(remote_config: &mut RemoteConfigState, service: CharSlice, env: CharSlice, version: CharSlice) {
+pub extern "C" fn ddog_remote_configs_service_env_change(remote_config: &mut RemoteConfigState, service: CharSlice, env: CharSlice, version: CharSlice) -> bool {
     let new_target = Target {
         service: service.to_utf8_lossy().to_string(),
         env: env.to_utf8_lossy().to_string(),
@@ -339,12 +339,14 @@ pub extern "C" fn ddog_remote_configs_service_env_change(remote_config: &mut Rem
 
     if let Some(target) = remote_config.manager.get_target() {
         if **target == new_target {
-            return;
+            return false;
         }
     }
 
     remote_config.manager.track_target(&Arc::new(new_target));
     ddog_process_remote_configs(remote_config);
+    
+    true
 }
 
 #[no_mangle]
