@@ -1,15 +1,4 @@
 {
-   <leak from zai interceptor>
-   Memcheck:Leak
-   match-leak-kinds: possible
-   ...
-   fun:zai_hook_register_inheritor
-   fun:zai_hook_register_all_inheritors
-   fun:zai_hook_post_startup
-   fun:zai_interceptor_post_startup
-   ...
-}
-{
    <insert_a_suppression_name_here>
    Memcheck:Leak
    match-leak-kinds: possible
