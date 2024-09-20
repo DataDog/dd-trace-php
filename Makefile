@@ -20,7 +20,6 @@ BENCHMARK_EXTRA ?=
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
-SO_APPSEC_FILE = $(BUILD_DIR)/modules/ddappsec.so
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
 LDFLAGS ?=
@@ -126,8 +125,10 @@ set_static_option:
 
 static: set_static_option $(AR_FILE)
 
-install_ini:
-	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $(INI_FILE)
+$(INI_FILE):
+	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
+
+install_ini: $(INI_FILE)
 
 delete_ini:
 	$(SUDO) rm $(INI_FILE)
