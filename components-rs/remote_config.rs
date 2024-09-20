@@ -367,12 +367,6 @@ pub unsafe extern "C" fn ddog_setup_remote_config(update_config: DynamicConfigUp
 
 #[no_mangle]
 pub extern "C" fn ddog_rinit_remote_config(remote_config: &mut RemoteConfigState) {
-    let active = mem::take(&mut remote_config.live_debugger.active);
-    for (_, boxed) in &active {
-        let (debugger, limiter) = &**boxed;
-        apply_config(remote_config, debugger, limiter);
-    }
-    remote_config.live_debugger.active = active;
     ddog_process_remote_configs(remote_config);
 }
 

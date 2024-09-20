@@ -113,6 +113,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     bool zai_vm_interrupt;
 #endif
     bool reread_remote_configuration;
+    bool root_span_data_submitted;
 
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;

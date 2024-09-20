@@ -849,10 +849,6 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
             ddtrace_inject_git_metadata(&span->property_git_metadata);
         }
-
-        if (ddtrace_span_is_entrypoint_root(&span->span)) {
-            ddtrace_sidecar_submit_root_span_data();
-        }
     }
 
     zval pid;

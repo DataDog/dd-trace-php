@@ -1044,6 +1044,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     ddtrace_root_span_data *span = ROOTSPANDATA(obj);
     zval zv;
+    bool root_span_data_changed = false;
     if (zend_string_equals_literal(prop_name, "parentId")) {
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
             span->parent_id = (uint64_t) Z_LVAL_P(value);
@@ -1067,24 +1068,30 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         }
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
-            ddtrace_sidecar_submit_root_span_data();
+            root_span_data_changed = true;
         }
     } else if (zend_string_equals_literal(prop_name, "env")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_env, value)) {
-            ddtrace_sidecar_submit_root_span_data();
+            root_span_data_changed = true;
         }
     } else if (zend_string_equals_literal(prop_name, "version")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_version, value)) {
-            ddtrace_sidecar_submit_root_span_data();
+            root_span_data_changed = true;
         }
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     }
 
 #if PHP_VERSION_ID >= 70400
-    return ddtrace_span_data_readonly(object, member, value, cache_slot);
+    zval *ret = ddtrace_span_data_readonly(object, member, value, cache_slot);
 #else
     ddtrace_span_data_readonly(object, member, value, cache_slot);
+#endif
+    if (root_span_data_changed) {
+        ddtrace_sidecar_submit_root_span_data();
+    }
+#if PHP_VERSION_ID >= 70400
+    return ret;
 #endif
 }
 

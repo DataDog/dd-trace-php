@@ -141,7 +141,8 @@ static void dd_probe_resolved(void *data, bool found) {
         def->probe.status_msg = DDOG_CHARSLICE_C("Method does not exist on the given class");
         def->probe.status_exception = DDOG_CHARSLICE_C("METHOD_NOT_FOUND");
     }
-    ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime());
+    ddtrace_sidecar_ensure_root_span_data_submitted();
+    ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
 }
 
 static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def *def, zai_hook_begin begin, zai_hook_end end, void (*def_dtor)(void *), size_t dynamic) {
@@ -184,14 +185,16 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
         def->probe.status_msg = DDOG_CHARSLICE_C("Method does not exist on the given class");
         def->probe.status_exception = DDOG_CHARSLICE_C("METHOD_NOT_FOUND");
 error:
-        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime());
+        ddtrace_sidecar_ensure_root_span_data_submitted();
+        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
         def_dtor(def);
         return -1;
     }
 
     if (def->probe.status != DDOG_PROBE_STATUS_INSTALLED) {
         def->probe.status = DDOG_PROBE_STATUS_RECEIVED;
-        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime());
+        ddtrace_sidecar_ensure_root_span_data_submitted();
+        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
     }
 
     zend_hash_index_add_new_ptr(&DDTRACE_G(active_rc_hooks), id, def);
@@ -201,7 +204,8 @@ error:
 static void dd_probe_mark_active(dd_probe_def *def) {
     if (def->probe.status != DDOG_PROBE_STATUS_EMITTING) {
         def->probe.status = DDOG_PROBE_STATUS_EMITTING;
-        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime());
+        ddtrace_sidecar_ensure_root_span_data_submitted();
+        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
     }
 }
 
@@ -252,7 +256,8 @@ static void dd_submit_probe_eval_error_snapshot(const ddog_Probe *probe, ddog_Ve
                                                                     (ddog_CharSlice){ .ptr = ZSTR_VAL(service_name), .len = ZSTR_LEN(service_name) },
                                                                     DDOG_CHARSLICE_C("php"),
                                                                     error,
-                                                                    ddtrace_nanoseconds_realtime());
+                                                                    ddtrace_nanoseconds_realtime() / 1000000);
+    ddtrace_sidecar_ensure_root_span_data_submitted();
     ddtrace_sidecar_send_debugger_datum(snapshot);
     zend_string_release(service_name);
 }
@@ -369,7 +374,7 @@ static void dd_log_probe_ensure_payload(dd_log_probe_dyn *dyn, dd_log_probe_def 
         ddog_update_payload_message(dyn->payload, *msg);
     } else {
         dyn->service = ddtrace_active_service_name();
-        dyn->payload = ddog_create_log_probe_snapshot(&def->parent.probe, msg, dd_zend_string_to_CharSlice(dyn->service), DDOG_CHARSLICE_C("php"), ddtrace_nanoseconds_realtime());
+        dyn->payload = ddog_create_log_probe_snapshot(&def->parent.probe, msg, dd_zend_string_to_CharSlice(dyn->service), DDOG_CHARSLICE_C("php"), ddtrace_nanoseconds_realtime() / 1000000);
     }
 }
 
@@ -437,6 +442,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         ddtrace_create_capture_value(&EX(This), &capture_value, capture_config, capture_config->max_reference_depth);
         ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("@return"), capture_value);
     }
+    ddtrace_sidecar_ensure_root_span_data_submitted();
     ddtrace_sidecar_send_debugger_datum(dyn->payload);
     if (DDTRACE_G(debugger_capture_arena)) {
         zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
@@ -716,7 +722,11 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
         if (ZEND_USER_CODE(EX(func)->type)) {
             zend_execute_data *current_execute_data = EG(current_execute_data);
             EG(current_execute_data) = execute_data;
-            zval *zvp = zend_hash_str_find_ind(zend_rebuild_symbol_table(), name->ptr, name->len);
+            zend_array *symtable = zend_rebuild_symbol_table();
+            if (!symtable) {
+                return NULL;
+            }
+            zval *zvp = zend_hash_str_find_ind(symtable, name->ptr, name->len);
             EG(current_execute_data) = current_execute_data;
             if (zvp) {
                 return zvp;
