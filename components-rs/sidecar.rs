@@ -130,7 +130,10 @@ pub extern "C" fn ddog_sidecar_connect_php(
             let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
         cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
     }
-    let stream = Box::new(try_c!(run_sidecar(cfg)));
+    let mut stream = Box::new(try_c!(run_sidecar(cfg)));
+    // Generally the Send buffer ought to be big enough for instantaneous transmission
+    _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
+    _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
     *connection = Box::into_raw(stream);
 
     MaybeError::None
