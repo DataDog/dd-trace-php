@@ -1,8 +1,10 @@
-use libc::sched_yield;
+use libc::{c_char, sched_yield};
 use log::warn;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+
+use crate::SAPI;
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -68,4 +70,30 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
     if let Err(err) = handle.join() {
         std::panic::resume_unwind(err)
     }
+}
+
+pub fn get_current_thread_name() -> String {
+    let mut name = [0u8; 32];
+
+    let result = unsafe {
+        libc::pthread_getname_np(
+            libc::pthread_self(),
+            name.as_mut_ptr() as *mut c_char,
+            name.len(),
+        )
+    };
+
+    let mut thread_name = SAPI.to_string();
+
+    if result == 0 {
+        // If successful, convert the result to a Rust String
+        let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
+        let str_slice: &str = cstr.to_str().unwrap();
+        if str_slice.len() > 0 {
+            thread_name.push_str(": ");
+            thread_name.push_str(str_slice);
+        }
+    }
+
+    return thread_name;
 }

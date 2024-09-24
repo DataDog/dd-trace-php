@@ -7,6 +7,7 @@ mod uploader;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
+use thread_utils::get_current_thread_name;
 use uploader::*;
 
 #[cfg(all(php_has_fibers, not(test)))]
@@ -1071,10 +1072,15 @@ impl Profiler {
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///                      caller adds gc or exception labels.
     fn common_labels(n_extra_labels: usize) -> Vec<Label> {
-        let mut labels = Vec::with_capacity(4 + n_extra_labels);
+        let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
             value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+        });
+
+        labels.push(Label {
+            key: "thread name",
+            value: LabelValue::Str(get_current_thread_name().into()),
         });
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and
