@@ -28,22 +28,6 @@
     },
     "deny": [
         {
-            "id": "windows",
-            "description": "Do not inject on Windows",
-            "os": "windows",
-            "cmds": [],
-            "args": [],
-            "envars": null
-        },
-        {
-            "id": "macos",
-            "description": "Do not inject on macOS",
-            "os": "darwin",
-            "cmds": [],
-            "args": [],
-            "envars": null
-        },
-        {
             "id": "php5",
             "description": "Do not inject if PHP 5",
             "os": null,
