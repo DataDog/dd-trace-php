@@ -471,11 +471,11 @@ static void ddtrace_activate(void) {
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
-    ddtrace_sidecar_rinit();
-
     if (!ddtrace_disable && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
         ddtrace_sidecar_ensure_active();
     }
+
+    ddtrace_sidecar_rinit();
 
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
     if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
