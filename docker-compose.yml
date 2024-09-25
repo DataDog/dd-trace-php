@@ -83,6 +83,7 @@ services:
   '8.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_buster' }
   'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- Bookworm ---
+  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-3' }
   '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-3' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }

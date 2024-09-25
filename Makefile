@@ -3,8 +3,10 @@ PROJECT_ROOT := ${PWD}
 TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
 ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
 SHELL = /bin/bash
+APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
 BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
@@ -13,7 +15,8 @@ TEA_BUILD_BENCHMARKS ?= OFF
 TEA_BENCHMARK_REPETITIONS ?= 10
 # Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
 TEA_BENCHMARK_FORMAT ?= json
-TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tracer-tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+BENCHMARK_EXTRA ?=
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
@@ -126,6 +129,24 @@ $(INI_FILE):
 	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
 
 install_ini: $(INI_FILE)
+
+delete_ini:
+	$(SUDO) rm $(INI_FILE)
+
+install_appsec:
+	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
+	cd $(BUILD_DIR_APPSEC);make extension ddappsec-helper
+	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+	cp $(BUILD_DIR_APPSEC)/libddappsec-helper.so $(PHP_EXTENSION_DIR)/libddappsec-helper.so
+	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
+	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" | $(SUDO) tee -a $(INI_FILE)
 
 install_all: install install_ini
 
@@ -1040,11 +1061,11 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_composer_with_lock
@@ -1115,7 +1136,7 @@ test_distributed_tracing_coverage:
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
-benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_8_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
+benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 
 call_benchmarks:
