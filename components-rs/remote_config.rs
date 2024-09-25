@@ -30,21 +30,13 @@ type DynamicConfigUpdate = for <'a> extern "C" fn(config: CharSlice, value: Char
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
+type VecRemoteConfigProduct = ddcommon_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
-pub static DDTRACE_REMOTE_CONFIG_PRODUCTS: [RemoteConfigProduct; 2] = [
-    RemoteConfigProduct::ApmTracing,
-    RemoteConfigProduct::LiveDebugger,
-];
+pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = ddcommon_ffi::Vec::new();
 
+type VecRemoteConfigCapabilities = ddcommon_ffi::Vec<RemoteConfigCapabilities>;
 #[no_mangle]
-pub static DDTRACE_REMOTE_CONFIG_CAPABILITIES: [RemoteConfigCapabilities; 6] = [
-    RemoteConfigCapabilities::ApmTracingCustomTags,
-    RemoteConfigCapabilities::ApmTracingEnabled,
-    RemoteConfigCapabilities::ApmTracingHttpHeaderTags,
-    RemoteConfigCapabilities::ApmTracingLogsInjection,
-    RemoteConfigCapabilities::ApmTracingSampleRate,
-    RemoteConfigCapabilities::ApmTracingSampleRules,
-];
+pub static mut DDTRACE_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities = ddcommon_ffi::Vec::new();
 
 #[derive(Default)]
 struct DynamicConfig {
@@ -81,24 +73,33 @@ pub struct LiveDebuggerState {
     pub deny_dfa: Option<Regex>,
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn ddog_init_remote_config(live_debugging_enabled: bool) {
+
+    DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingCustomTags);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingEnabled);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingHttpHeaderTags);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingLogsInjection);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
+
+    if live_debugging_enabled {
+        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugger)
+    }
+}
+
 // Per-thread state
 #[no_mangle]
-pub unsafe extern "C" fn ddog_init_remote_config(
-    tracer_version: CharSlice,
+pub unsafe extern "C" fn ddog_init_remote_config_state(
     endpoint: &Endpoint,
-    live_debugging_enabled: bool,
 ) -> Box<RemoteConfigState> {
-    let mut products = vec![RemoteConfigProduct::ApmTracing];
-    if live_debugging_enabled {
-        products.push(RemoteConfigProduct::LiveDebugger);
-    }
-    
     Box::new(RemoteConfigState {
         manager: RemoteConfigManager::new(ConfigInvariants {
             language: "php".to_string(),
-            tracer_version: tracer_version.to_utf8_lossy().into(),
+            tracer_version: include_str!("../VERSION").into(),
             endpoint: endpoint.clone(),
-            products,
+            products: DDTRACE_REMOTE_CONFIG_PRODUCTS.to_vec(),
             capabilities: DDTRACE_REMOTE_CONFIG_CAPABILITIES.to_vec(),
         }),
         live_debugger: LiveDebuggerState::default(),

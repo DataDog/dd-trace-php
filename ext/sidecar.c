@@ -84,10 +84,10 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
                                     ddtrace_set_all_thread_vm_interrupt,
-                                    DDTRACE_REMOTE_CONFIG_PRODUCTS,
-                                    sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS) / sizeof(DDTRACE_REMOTE_CONFIG_PRODUCTS[0]) - !get_DD_DYNAMIC_INSTRUMENTATION_ENABLED(),
-                                    DDTRACE_REMOTE_CONFIG_CAPABILITIES,
-                                    sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES) / sizeof(DDTRACE_REMOTE_CONFIG_CAPABILITIES[0]));
+                                    DDTRACE_REMOTE_CONFIG_PRODUCTS.ptr,
+                                    DDTRACE_REMOTE_CONFIG_PRODUCTS.len,
+                                    DDTRACE_REMOTE_CONFIG_CAPABILITIES.ptr,
+                                    DDTRACE_REMOTE_CONFIG_CAPABILITIES.len);
 
     ddog_endpoint_drop(dogstatsd_endpoint);
 
@@ -125,6 +125,8 @@ void ddtrace_sidecar_setup(void) {
     ddtrace_set_resettable_sidecar_globals();
 
     maybe_enable_appsec();
+
+    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED());
 
     ddtrace_sidecar = dd_sidecar_connection_factory();
     if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong

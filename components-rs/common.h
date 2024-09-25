@@ -578,6 +578,30 @@ typedef struct ddog_Vec_DebuggerPayload {
   uintptr_t capacity;
 } ddog_Vec_DebuggerPayload;
 
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigProduct {
+  const enum ddog_RemoteConfigProduct *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigProduct;
+
+typedef struct ddog_Vec_RemoteConfigProduct ddog_VecRemoteConfigProduct;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigCapabilities {
+  const enum ddog_RemoteConfigCapabilities *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigCapabilities;
+
+typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
+
 typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
 typedef struct ddog_DebuggerValue ddog_DebuggerValue;
 
