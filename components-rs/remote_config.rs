@@ -374,7 +374,7 @@ pub extern "C" fn ddog_rinit_remote_config(remote_config: &mut RemoteConfigState
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
     remote_config.dynamic_config.old_config_values.clear();
-    remote_config.manager.reset();
+    remote_config.manager.unload_configs(&[RemoteConfigProduct::ApmTracing, RemoteConfigProduct::LiveDebugger]);
 }
 
 #[no_mangle]
