@@ -258,8 +258,12 @@ bool process_git_info(zend_string *git_dir, zend_string *cwd) {
 }
 
 void use_cached_metadata(git_metadata_t *git_metadata) {
-    zend_string_addref(git_metadata->property_commit);
-    zend_string_addref(git_metadata->property_repository);
+    if (git_metadata->property_commit) {
+        zend_string_addref(git_metadata->property_commit);
+    }
+    if (git_metadata->property_repository) {
+        zend_string_addref(git_metadata->property_repository);
+    }
     add_git_info(git_metadata->property_commit, git_metadata->property_repository);
 }
 
