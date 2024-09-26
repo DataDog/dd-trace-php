@@ -45,7 +45,7 @@ static char *find_last_dir_separator(const char *path) {
 #endif
 }
 
-zend_string *read_git_file(const char *path, bool persistent) {
+zend_string *read_git_file(const char *path) {
     FILE *file = fopen(path, "r");
     if (!file) {
         return NULL;
@@ -61,14 +61,14 @@ zend_string *read_git_file(const char *path, bool persistent) {
 
     buffer[len] = '\0';
     len = remove_trailing_newline(buffer);
-    return zend_string_init(buffer, len, persistent);
+    return zend_string_init(buffer, len, true);
 }
 
 zend_string *get_commit_sha(const char *git_dir) {
     char head_path[PATH_MAX];
     snprintf(head_path, sizeof(head_path), "%s/HEAD", git_dir);
 
-    zend_string *head_content = read_git_file(head_path, true);
+    zend_string *head_content = read_git_file(head_path);
     if (!head_content) {
         return NULL;
     }
@@ -78,7 +78,7 @@ zend_string *get_commit_sha(const char *git_dir) {
         char ref_path[PATH_MAX];
         snprintf(ref_path, sizeof(ref_path), "%s/%s", git_dir, ZSTR_VAL(head_content) + strlen(ref_prefix));
         zend_string_release(head_content);
-        return read_git_file(ref_path, true);
+        return read_git_file(ref_path);
     }
 
     return head_content;
