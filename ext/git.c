@@ -257,16 +257,6 @@ bool process_git_info(zend_string *git_dir, zend_string *cwd) {
     return success;
 }
 
-void use_cached_metadata(git_metadata_t *git_metadata) {
-    if (git_metadata->property_commit) {
-        zend_string_addref(git_metadata->property_commit);
-    }
-    if (git_metadata->property_repository) {
-        zend_string_addref(git_metadata->property_repository);
-    }
-    add_git_info(git_metadata->property_commit, git_metadata->property_repository);
-}
-
 void replace_git_metadata(git_metadata_t *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
     if (git_metadata->property_commit) {
         zend_string_release(git_metadata->property_commit);
@@ -334,7 +324,7 @@ bool inject_from_git_dir() {
 
     git_metadata_t *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
     if (git_metadata) {
-        use_cached_metadata(git_metadata);
+        add_git_info(git_metadata->property_commit, git_metadata->property_repository);
         zend_string_release(cwd);
         return true;
     }
