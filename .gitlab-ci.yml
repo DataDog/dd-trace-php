@@ -109,3 +109,12 @@ onboarding_tests_installer:
     matrix:
       - ONBOARDING_FILTER_WEBLOG: [test-app-php,test-app-php-container-83]
         SCENARIO: SIMPLE_INSTALLER_AUTO_INJECTION
+
+onboarding_tests_k8s_injection:
+  rules:
+    - when: never
+  parallel:
+    matrix:
+      - WEBLOG_VARIANT:
+          - dd-lib-php-init-test-83
+          - dd-lib-php-init-test-alpine
