@@ -77,14 +77,7 @@
 ## Tracer
 
 ### Fixed
-- Fix DD_AUTOLOAD_NO_COMPILE #2833
-- Loader: Use the same version number as for other extensions #2838
-- Consider ifunc symbols also defined Datadog/libdatadog#609
-- Fix crash with double parent key in tracestate #2837
-- Fix #2831: Failure with LTO #2839
-
-### Internal
-- Avoid using non-bundled rust git dependencies #2827
+- Fix crash with git metadata injection
 
 ]]></notes>
     <contents>
