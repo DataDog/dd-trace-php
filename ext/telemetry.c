@@ -23,7 +23,7 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
 
     ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
     if (!ddtrace_sidecar // if sidecar connection was broken, let's skip immediately
-        || ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), composer_path)) {
+        || ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), composer_path)) {
         zai_hook_remove((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_composer_hook_id);
     }
     return true;
@@ -143,7 +143,7 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     ddtrace_ffi_try("Failed flushing telemetry buffer",
-                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), buffer));
+                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
 
     ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {
@@ -159,7 +159,7 @@ void ddtrace_telemetry_finalize(void) {
     struct ddog_RuntimeMetadata *meta = ddog_sidecar_runtimeMeta_build(DDOG_CHARSLICE_C("php"), php_version, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
 
     ddtrace_ffi_try("Failed flushing service data",
-                    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), meta, service_name, env_name));
+                    ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), meta, service_name, env_name));
 
     ddog_sidecar_runtimeMeta_drop(meta);
 }
@@ -167,7 +167,7 @@ void ddtrace_telemetry_finalize(void) {
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
     if (ddtrace_sidecar && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
-        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), integration,
+        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), integration,
                                               DDOG_CHARSLICE_C(""), true);
     }
 }

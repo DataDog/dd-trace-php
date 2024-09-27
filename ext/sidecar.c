@@ -308,7 +308,7 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) 
     if (!ddtrace_sidecar || !get_global_DD_REMOTE_CONFIG_ENABLED()) {
         return;
     }
-    
+
     ddog_CharSlice service_slice = DDOG_CHARSLICE_C("unnamed-php-service");
     zend_string *free_string = NULL;
     if (root) {
@@ -353,8 +353,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) 
     if (DDTRACE_G(remote_config_state)) {
         changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
     }
-    if (changed) {
-        ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
+    if (changed || !root) {
+        ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
     }
 
     if (free_string) {
@@ -373,15 +373,17 @@ void ddtrace_sidecar_submit_root_span_data(void) {
 
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_data(&payloads););
-    ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), payloads);
+    ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payloads);
 }
 
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_datum(payload););
-    ddog_sidecar_send_debugger_datum(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(telemetry_queue_id), payload);
+    ddog_sidecar_send_debugger_datum(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payload);
 }
 
 void ddtrace_sidecar_rinit(void) {
+    DDTRACE_G(sidecar_queue_id) = ddog_sidecar_queueId_generate();
+
     DDTRACE_G(active_global_tags) = ddog_Vec_Tag_new();
     zend_string *tag;
     zval *value;

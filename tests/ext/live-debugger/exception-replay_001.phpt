@@ -58,7 +58,7 @@ array(2) {
     ["debugger"]=>
     array(1) {
       ["snapshot"]=>
-      array(7) {
+      array(8) {
         ["language"]=>
         string(3) "php"
         ["id"]=>
@@ -113,6 +113,16 @@ array(2) {
             }
           }
         }
+        ["probe"]=>
+        array(2) {
+          ["id"]=>
+          string(0) ""
+          ["location"]=>
+          array(1) {
+            ["method"]=>
+            string(3) "foo"
+          }
+        }
       }
     }
     ["message"]=>
@@ -129,7 +139,7 @@ array(2) {
     ["debugger"]=>
     array(1) {
       ["snapshot"]=>
-      array(7) {
+      array(8) {
         ["language"]=>
         string(3) "php"
         ["id"]=>
@@ -207,6 +217,14 @@ array(2) {
                 string(1) "1"
               }
             }
+          }
+        }
+        ["probe"]=>
+        array(2) {
+          ["id"]=>
+          string(0) ""
+          ["location"]=>
+          array(0) {
           }
         }
       }

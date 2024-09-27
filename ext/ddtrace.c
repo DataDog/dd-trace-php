@@ -1473,6 +1473,7 @@ static void dd_rinit_once(void) {
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request(void) {
+    DDTRACE_G(request_initialized) = true;
     DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
@@ -1526,10 +1527,6 @@ static void dd_initialize_request(void) {
 
     ddtrace_distributed_tracing_result distributed_result = ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, NULL);
     ddtrace_apply_distributed_tracing_result(&distributed_result, NULL);
-
-    if (!DDTRACE_G(telemetry_queue_id)) {
-        DDTRACE_G(telemetry_queue_id) = ddog_sidecar_queueId_generate();
-    }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
@@ -1645,13 +1642,12 @@ void dd_force_shutdown_tracing(void) {
 }
 
 static void dd_finalize_sidecar_lifecycle(void) {
-    if (DDTRACE_G(telemetry_queue_id)) {
+    if (DDTRACE_G(request_initialized)) {
         ddtrace_telemetry_finalize();
         if (ddtrace_sidecar) {
             ddtrace_ffi_try("Failed signaling lifecycle end",
-                ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id)));
+                ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
         }
-        DDTRACE_G(telemetry_queue_id) = 0;
     }
 }
 
@@ -1712,6 +1708,8 @@ zend_result ddtrace_post_deactivate(void) {
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
+
+    DDTRACE_G(request_initialized) = false;
     return SUCCESS;
 }
 
@@ -2421,7 +2419,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
+            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {

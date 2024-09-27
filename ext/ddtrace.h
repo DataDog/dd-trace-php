@@ -130,7 +130,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_reference *curl_multi_injecting_spans;
 
     char *cgroup_file;
-    ddog_QueueId telemetry_queue_id;
+    ddog_QueueId sidecar_queue_id;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     zend_arena *debugger_capture_arena;
@@ -141,6 +141,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_string *last_flushed_root_env_name;
     ddog_Vec_Tag active_global_tags;
 
+    bool request_initialized;
     HashTable telemetry_spans_created_per_integration;
     ddog_SidecarActionsBuffer *telemetry_buffer;
 
