@@ -120,7 +120,7 @@ class DebuggerLogReplayer {
     }
 }
 
-function await_probe_installation($trigger) {
+function await_probe_installation($trigger, $num = 1) {
     ini_set("datadog.trace.hook_limit", "0");
 
     $last_id = \DDtrace\install_hook("_dummy", function () {});
@@ -131,7 +131,10 @@ function await_probe_installation($trigger) {
 
         $id = \DDtrace\install_hook("_dummy", function () {});
         if ($last_id + 1 != $id) {
-            return $ret;
+            $num -= $id - $last_id - 1;
+            if ($num <= 0) {
+                return $ret;
+            }
         }
         $last_id = $id;
     }

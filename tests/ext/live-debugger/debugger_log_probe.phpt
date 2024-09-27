@@ -65,7 +65,7 @@ int(30)
 array(5) {
   ["service"]=>
   string(22) "debugger_log_probe.php"
-  ["source"]=>
+  ["ddsource"]=>
   string(11) "dd_debugger"
   ["timestamp"]=>
   int(%d)

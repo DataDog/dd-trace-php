@@ -51,7 +51,7 @@ array(2) {
   array(5) {
     ["service"]=>
     string(24) "exception-replay_001.php"
-    ["source"]=>
+    ["ddsource"]=>
     string(11) "dd_debugger"
     ["timestamp"]=>
     int(%d)
@@ -122,7 +122,7 @@ array(2) {
   array(5) {
     ["service"]=>
     string(24) "exception-replay_001.php"
-    ["source"]=>
+    ["ddsource"]=>
     string(11) "dd_debugger"
     ["timestamp"]=>
     int(%d)

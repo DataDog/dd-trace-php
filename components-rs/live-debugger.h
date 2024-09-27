@@ -46,6 +46,8 @@ ddog_DebuggerCapture *ddog_create_exception_snapshot(struct ddog_Vec_DebuggerPay
                                                      ddog_CharSlice exception_id,
                                                      ddog_CharSlice exception_hash,
                                                      uint32_t frame_index,
+                                                     ddog_CharSlice type_name,
+                                                     ddog_CharSlice method_name,
                                                      uint64_t timestamp);
 
 struct ddog_DebuggerPayload *ddog_create_log_probe_snapshot(const struct ddog_Probe *probe,

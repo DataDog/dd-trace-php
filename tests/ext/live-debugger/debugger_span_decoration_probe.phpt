@@ -44,7 +44,7 @@ await_probe_installation(function() {
     ]]);
 
     \DDTrace\start_span(); // submit span data
-});
+}, 3);
 
 \DDTrace\start_span();
 var_dump(foo(["foo" => (object)["var" => 1, "val" => "test"], "val" => 123]));
@@ -104,7 +104,7 @@ array(1) {
   array(5) {
     ["service"]=>
     string(34) "debugger_span_decoration_probe.php"
-    ["source"]=>
+    ["ddsource"]=>
     string(11) "dd_debugger"
     ["timestamp"]=>
     int(1%d)

@@ -38,7 +38,7 @@ await_probe_installation(function() {
     build_span_probe(["where" => ["typeName" => "Delayed", "methodName" => "foo"]]);
 
     \DDTrace\start_span(); // submit span data
-});
+}, 2);
 
 var_dump(Bar::foo());
 

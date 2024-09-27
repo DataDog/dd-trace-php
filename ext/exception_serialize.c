@@ -288,7 +288,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
 #define uuid_len 36
 #define hash_len 16
 
-static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, char *exception_hash, int frame_num, zval *locals, zend_string *service_name, const ddog_CaptureConfiguration *capture_config, uint64_t time, void *context, add_tag_fn_t add_meta) {
+static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, char *exception_hash, int frame_num, ddog_CharSlice class_slice, ddog_CharSlice func_slice, zval *locals, zend_string *service_name, const ddog_CaptureConfiguration *capture_config, uint64_t time, void *context, add_tag_fn_t add_meta) {
     char *snapshot_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])snapshot_id);
 
@@ -303,6 +303,8 @@ static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_
                                                                    (ddog_CharSlice){ .ptr = exception_id, .len = uuid_len },
                                                                    (ddog_CharSlice){ .ptr = exception_hash, .len = hash_len },
                                                                    frame_num,
+                                                                   class_slice,
+                                                                   func_slice,
                                                                    time);
 
     if (locals && Z_TYPE_P(locals) == IS_ARRAY) {
@@ -407,20 +409,24 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
             continue;
         }
 
-        ddog_DebuggerCapture *capture = dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num, locals, service_name, &capture_config, time, context, add_meta);
-        locals = zend_hash_find(Z_ARR_P(frame), key_locals);
-
         zend_class_entry *ce = NULL;
         zend_function *func = NULL;
+        ddog_CharSlice func_slice = DDOG_CHARSLICE_C("");
+        ddog_CharSlice class_slice = DDOG_CHARSLICE_C("");
         zval *class_name = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_CLASS));
         if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
             ce = zai_symbol_lookup_class_global(zai_str_from_zstr(Z_STR_P(class_name)));
+            class_slice = dd_zend_string_to_CharSlice(Z_STR_P(class_name));
         }
         zval *func_name = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_FUNCTION));
         if (func_name && Z_TYPE_P(func_name) == IS_STRING) {
             zai_str wtf = zai_str_from_zstr(Z_STR_P(func_name));
             func = zai_symbol_lookup_function(ce ? ZAI_SYMBOL_SCOPE_CLASS : ZAI_SYMBOL_SCOPE_GLOBAL, ce, &wtf);
+            func_slice = dd_zend_string_to_CharSlice(Z_STR_P(func_name));
         }
+
+        ddog_DebuggerCapture *capture = dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num, class_slice, func_slice, locals, service_name, &capture_config, time, context, add_meta);
+        locals = zend_hash_find(Z_ARR_P(frame), key_locals);
 
         zend_string *key;
         zval *val;
@@ -460,7 +466,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
 
     if (get_DD_EXCEPTION_REPLAY_MAX_FRAMES_TO_CAPTURE() < 0 || get_DD_EXCEPTION_REPLAY_MAX_FRAMES_TO_CAPTURE() > frame_num) {
         if (locals && Z_TYPE_P(locals) == IS_ARRAY) {
-            dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num + 1, locals, service_name, &capture_config, time, context, add_meta);
+            dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num + 1, DDOG_CHARSLICE_C(""), DDOG_CHARSLICE_C(""), locals, service_name, &capture_config, time, context, add_meta);
         }
     }
 

@@ -1,5 +1,5 @@
 --TEST--
-Installing a live debugger span probe
+Installing a live debugger metric probe
 --SKIPIF--
 <?php 
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
@@ -14,6 +14,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_DOGSTATSD_URL=unix:///tmp/ddtrace-test-metric_probe.socket
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
+DD_VERSION=1.2.3
 --INI--
 datadog.trace.agent_test_session_token=live-debugger/metric_probe
 --FILE--
@@ -32,8 +33,6 @@ $span = await_probe_installation(function() {
     build_metric_probe(["where" => ["methodName" => "foo"], "metricName" => "foo", "kind" => "COUNT", "value" => ["json" => ["ref" => "@return"]]]);
     return \DDTrace\start_span(); // submit span data
 });
-
-$span->version = "1.2.3";
 
 foo();
 

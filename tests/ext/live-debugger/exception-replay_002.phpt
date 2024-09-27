@@ -80,7 +80,7 @@ reset_request_replayer();
 array(5) {
   ["service"]=>
   string(24) "exception-replay_002.php"
-  ["source"]=>
+  ["ddsource"]=>
   string(11) "dd_debugger"
   ["timestamp"]=>
   int(%d)
