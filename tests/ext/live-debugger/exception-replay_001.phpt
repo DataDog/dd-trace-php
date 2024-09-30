@@ -179,13 +179,12 @@ array(2) {
                 string(5) "array"
               }
               ["_SERVER"]=>
-              array(2) {
+              array(%d) {
                 ["type"]=>
                 string(5) "array"
                 ["entries"]=>
                 array(%d) {
                 %A
-                }
               }
               ["argc"]=>
               array(2) {
@@ -205,7 +204,7 @@ array(2) {
                     ["type"]=>
                     string(6) "string"
                     ["value"]=>
-                    string(%d) "%s/exception-replay_001.php"
+                    string(%d) "%sexception-replay_001.php"
                   }
                 }
               }

@@ -575,10 +575,24 @@ static int64_t dd_set_probe(const ddog_Probe probe, const ddog_MaybeShmLimiter *
 static void dd_remove_live_debugger_probe(int64_t id) {
     dd_probe_def *def;
     if ((def = zend_hash_index_find_ptr(&DDTRACE_G(active_rc_hooks), (zend_ulong)id))) {
+        zend_string *scope = def->scope;
+        if (scope) {
+            GC_TRY_ADDREF(scope);
+        }
+        zend_string *func = def->function;
+        if (func) {
+            GC_TRY_ADDREF(func);
+        }
         zai_hook_remove(
                 def->scope ? (zai_str)ZAI_STR_FROM_ZSTR(def->scope) : (zai_str)ZAI_STR_EMPTY,
                 def->function ? (zai_str)ZAI_STR_FROM_ZSTR(def->function) : (zai_str)ZAI_STR_EMPTY,
                 id);
+        if (scope) {
+            zend_string_release(scope);
+        }
+        if (func) {
+            zend_string_release(func);
+        }
     }
 }
 

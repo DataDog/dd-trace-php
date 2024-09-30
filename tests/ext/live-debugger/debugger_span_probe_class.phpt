@@ -60,6 +60,9 @@ do {
 ksort($ordered);
 foreach ($ordered as &$value) {
     ksort($value);
+    foreach ($value as &$v) {
+        uasort($v, function($a, $b) { $map = ["RECEIVED" => 0, "INSTALLED" => 1, "EMITTING" => 2]; return $map[$a] - $map[$b]; });
+    }
 }
 var_dump($log["uri"]);
 var_dump($log["files"]["event"]["name"]);

@@ -4,6 +4,7 @@
 #include <hook/hook.h>
 #include <components-rs/ddtrace.h>
 #include "telemetry.h"
+#include "serializer.h"
 #include "sidecar.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -145,14 +146,22 @@ void ddtrace_telemetry_finalize(void) {
     ddtrace_ffi_try("Failed flushing telemetry buffer",
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
 
+    zend_string *free_string = NULL;
     ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
     if (DDTRACE_G(last_flushed_root_service_name)) {
         service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
+    } else if (ZSTR_LEN(get_DD_SERVICE())) {
+        service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
+    } else {
+        free_string = ddtrace_default_service_name();
+        service_name = dd_zend_string_to_CharSlice(free_string);
     }
 
     ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
     if (DDTRACE_G(last_flushed_root_env_name)) {
         env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
+    } else if (ZSTR_LEN(get_DD_ENV())) {
+        env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
     }
 
     ddog_CharSlice php_version = dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION"))));
@@ -160,6 +169,10 @@ void ddtrace_telemetry_finalize(void) {
 
     ddtrace_ffi_try("Failed flushing service data",
                     ddog_sidecar_telemetry_flushServiceData(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), meta, service_name, env_name));
+
+    if (free_string) {
+        zend_string_release(free_string);
+    }
 
     ddog_sidecar_runtimeMeta_drop(meta);
 }

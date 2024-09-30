@@ -605,7 +605,7 @@ commands:
                   -e DD_AGENT_HOST=127.0.0.1 \
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
-                  -e ASAN_OPTIONS=abort_on_error=1 \
+                  -e ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1" \
                   -e CIRCLE_SHA1 \
                   -e CIRCLE_BRANCH \
                   -e CODECOV_TOKEN \
@@ -1019,7 +1019,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1091,12 +1091,17 @@ jobs:
             sudo chown -R docker-circleci . tests
       # - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - run:
           name: Run tests
           command: |
             docker-compose run --rm \
               -e DDAGENT_HOSTNAME=127.0.0.1 \
               -e DD_AGENT_HOST=127.0.0.1 \
               -e DATADOG_HAVE_DEV_ENV=1 \
+              -e ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1" \
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
               -e PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" \
               << parameters.php_major_minor >>-buster-arm64 \
@@ -1114,7 +1119,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1200,6 +1205,10 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -1236,7 +1245,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
