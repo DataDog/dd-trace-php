@@ -476,9 +476,10 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 
 static PHP_FUNCTION(datadog_appsec_push_address)
 {
-    struct timeval start, end;
+    struct timeval start;
+    struct timeval end;
     gettimeofday(&start, NULL);
-    int elapsed = 0;
+    long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_address "
@@ -516,9 +517,13 @@ static PHP_FUNCTION(datadog_appsec_push_address)
 
     if (rasp && (res == dd_should_block || res == dd_should_redirect)) {
         gettimeofday(&end, NULL);
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
         elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
                   (end.tv_usec - start.tv_usec);
-        dd_tags_add_rasp_duration_ext(dd_trace_get_active_root_span(), elapsed);
+        zend_object *span = dd_trace_get_active_root_span();
+        if (span) {
+            dd_tags_add_rasp_duration_ext(span, elapsed);
+        }
     }
 
     if (dd_req_is_user_req()) {
@@ -535,9 +540,13 @@ static PHP_FUNCTION(datadog_appsec_push_address)
 
     if (rasp && elapsed == 0) {
         gettimeofday(&end, NULL);
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
         elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
                   (end.tv_usec - start.tv_usec);
-        dd_tags_add_rasp_duration_ext(dd_trace_get_active_root_span(), elapsed);
+        zend_object *span = dd_trace_get_active_root_span();
+        if (span) {
+            dd_tags_add_rasp_duration_ext(span, elapsed);
+        }
     }
 }
 
