@@ -961,7 +961,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1014,12 +1014,13 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -1108,7 +1109,7 @@ jobs:
       #     name: Run tests
       #     command: |
       #       set -euo pipefail
-      #        make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      #       _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1153,7 +1154,7 @@ jobs:
           name: Run extension tests
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
 #      - run:
 #          name: Install the extension and setup composer
 #          shell: powershell.exe
@@ -1215,7 +1216,7 @@ jobs:
           command: |
             set -euo pipefail
             if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
-            make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1992,6 +1993,8 @@ jobs:
       - run:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
           command: |
+            export _DD_DEBUG_SIDECAR_LOG_LEVEL=trace
+            export _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log"
             make test_extension_ci \
               RUST_DEBUG_BUILD=1 \
               BUILD_DIR=$(pwd)/tmp/build_extension \

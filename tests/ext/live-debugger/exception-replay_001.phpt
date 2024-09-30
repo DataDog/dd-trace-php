@@ -65,11 +65,11 @@ array(2) {
         string(36) "%s"
         ["timestamp"]=>
         int(%d)
-        ["exception_capture_id"]=>
+        ["exceptionCaptureId"]=>
         string(36) "%s"
-        ["exception_hash"]=>
+        ["exceptionHash"]=>
         string(%d) "%s"
-        ["frame_index"]=>
+        ["frameIndex"]=>
         int(0)
         ["captures"]=>
         array(1) {
@@ -146,11 +146,11 @@ array(2) {
         string(36) "%s"
         ["timestamp"]=>
         int(%d)
-        ["exception_capture_id"]=>
+        ["exceptionCaptureId"]=>
         string(36) "%s"
-        ["exception_hash"]=>
+        ["exceptionHash"]=>
         string(16) "0547bb1d4e434257"
-        ["frame_index"]=>
+        ["frameIndex"]=>
         int(1)
         ["captures"]=>
         array(1) {

@@ -94,11 +94,11 @@ array(5) {
       string(36) "%s"
       ["timestamp"]=>
       int(%d)
-      ["exception_capture_id"]=>
+      ["exceptionCaptureId"]=>
       string(36) "%s"
-      ["exception_hash"]=>
+      ["exceptionHash"]=>
       string(%d) "%s"
-      ["frame_index"]=>
+      ["frameIndex"]=>
       int(0)
       ["captures"]=>
       array(1) {
