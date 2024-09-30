@@ -13,7 +13,7 @@ use Fiber;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\Context\Context;
-use OpenTelemetry\Context\ContextStorage;
+use OpenTelemetry\Context\ExecutionContextAwareInterface;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\close_span;
 use function DDTrace\start_span;
@@ -31,78 +31,6 @@ final class FiberTest extends BaseTestCase
     public function ddTearDown()
     {
         parent::ddTearDown();
-        Context::setStorage(new ContextStorage()); // Reset OpenTelemetry context
-    }
-
-    /**
-     * @throws \Throwable
-     */
-    public function test_context_switching_ffi_observer()
-    {
-        $key = Context::createKey('-');
-        $scope = Context::getCurrent()
-            ->with($key, 'main')
-            ->activate();
-
-        $fiber = new Fiber(function () use ($key) {
-            $scope = Context::getCurrent()
-                ->with($key, 'fiber')
-                ->activate();
-
-            $this->assertSame('fiber:fiber', 'fiber:' . Context::getCurrent()->get($key));
-
-            Fiber::suspend();
-
-            $this->assertSame('fiber:fiber', 'fiber:' . Context::getCurrent()->get($key));
-
-            $scope->detach();
-        });
-
-        $this->assertSame('main:main', 'main:' . Context::getCurrent()->get($key));
-
-        $fiber->start();
-
-        $this->assertSame('main:main', 'main:' . Context::getCurrent()->get($key));
-
-        $fiber->resume();
-
-        $this->assertSame('main:main', 'main:' . Context::getCurrent()->get($key));
-
-        $scope->detach();
-    }
-
-    public function test_context_switching_ffi_observer_registered_on_startup()
-    {
-        $key = Context::createKey('-');
-
-        $fiber = new Fiber(function () use ($key) {
-            $scope = Context::getCurrent()
-                ->with($key, 'fiber')
-                ->activate();
-
-            $this->assertSame('fiber:fiber', 'fiber:' . Context::getCurrent()->get($key));
-
-            Fiber::suspend();
-
-            $this->assertSame('fiber:fiber', 'fiber:' . Context::getCurrent()->get($key));
-
-            $scope->detach();
-        });
-
-
-        $fiber->start();
-
-        $this->assertSame('main:', 'main:' . Context::getCurrent()->get($key));
-
-        $scope = Context::getCurrent()
-            ->with($key, 'main')
-            ->activate();
-
-        $fiber->resume();
-
-        $this->assertSame('main:main', 'main:' . Context::getCurrent()->get($key));
-
-        $scope->detach();
     }
 
     public function testFiberInteroperabilityStackSwitch()

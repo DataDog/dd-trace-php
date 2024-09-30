@@ -1226,7 +1226,10 @@ void zai_hook_rshutdown(void) {
 
 void zai_hook_gshutdown(void) { free(zai_hook_tls); }
 
-void zai_hook_mshutdown(void) { zend_hash_destroy(&zai_hook_static); } /* }}} */
+void zai_hook_mshutdown(void) {
+    zend_hash_destroy(&zai_hook_static);
+    zend_hash_destroy(&zai_hook_static_inheritors);
+} /* }}} */
 
 /* {{{ */
 zend_long zai_hook_install_resolved_generator(zend_function *function,

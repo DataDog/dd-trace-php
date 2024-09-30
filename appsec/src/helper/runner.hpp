@@ -30,7 +30,7 @@ public:
 
     void run() noexcept(false);
 
-    bool interrupted() const
+    [[nodiscard]] bool interrupted() const
     {
         return interrupted_.load(std::memory_order_acquire);
     }

@@ -29,10 +29,12 @@ typedef enum {
 
 #define TELEMETRY(reason, format, ...) ddloader_telemetryf(reason, format, ##__VA_ARGS__);
 
-#define DECLARE_INJECTED_EXT(name, dir, _pre_load_hook, _pre_minit_hook, deps)                                                                                                 \
-    {                                                                                                                                               \
-        .ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps, .pre_load_hook = _pre_load_hook, .pre_minit_hook = _pre_minit_hook, .orig_module_startup_func = NULL, \
-        .orig_module_deps = NULL, .orig_module_functions = NULL, .module_number = -1, .version = NULL                                               \
+#define DECLARE_INJECTED_EXT(name, dir, _pre_load_hook, _pre_minit_hook, deps)                      \
+    {                                                                                               \
+        .ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps,           \
+        .pre_load_hook = _pre_load_hook, .pre_minit_hook = _pre_minit_hook,                         \
+        .orig_module_startup_func = NULL, .orig_module_deps = NULL, .orig_module_functions = NULL,  \
+        .module_number = -1, .version = NULL                                                        \
     }
 
 typedef struct _injected_ext {

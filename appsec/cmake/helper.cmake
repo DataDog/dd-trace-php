@@ -45,6 +45,9 @@ set_target_properties(ddappsec-helper PROPERTIES
     SUFFIX .so
 )
 
+include(cmake/cond_flag.cmake)
+target_linker_flag_conditional(ddappsec-helper "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/helper/helper.version")
+
 patch_away_libc(ddappsec-helper)
 
 try_compile(STDLIBXX_FS_NO_LIB_NEEDED ${CMAKE_CURRENT_BINARY_DIR}

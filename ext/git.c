@@ -45,7 +45,7 @@ static char *find_last_dir_separator(const char *path) {
 #endif
 }
 
-zend_string *read_git_file(const char *path, bool persistent) {
+zend_string *read_git_file(const char *path) {
     FILE *file = fopen(path, "r");
     if (!file) {
         return NULL;
@@ -61,14 +61,14 @@ zend_string *read_git_file(const char *path, bool persistent) {
 
     buffer[len] = '\0';
     len = remove_trailing_newline(buffer);
-    return zend_string_init(buffer, len, persistent);
+    return zend_string_init(buffer, len, true);
 }
 
 zend_string *get_commit_sha(const char *git_dir) {
     char head_path[PATH_MAX];
     snprintf(head_path, sizeof(head_path), "%s/HEAD", git_dir);
 
-    zend_string *head_content = read_git_file(head_path, true);
+    zend_string *head_content = read_git_file(head_path);
     if (!head_content) {
         return NULL;
     }
@@ -78,7 +78,7 @@ zend_string *get_commit_sha(const char *git_dir) {
         char ref_path[PATH_MAX];
         snprintf(ref_path, sizeof(ref_path), "%s/%s", git_dir, ZSTR_VAL(head_content) + strlen(ref_prefix));
         zend_string_release(head_content);
-        return read_git_file(ref_path, true);
+        return read_git_file(ref_path);
     }
 
     return head_content;
@@ -257,12 +257,6 @@ bool process_git_info(zend_string *git_dir, zend_string *cwd) {
     return success;
 }
 
-void use_cached_metadata(git_metadata_t *git_metadata) {
-    zend_string_addref(git_metadata->property_commit);
-    zend_string_addref(git_metadata->property_repository);
-    add_git_info(git_metadata->property_commit, git_metadata->property_repository);
-}
-
 void replace_git_metadata(git_metadata_t *git_metadata, zend_string *commit_sha, zend_string *repository_url) {
     if (git_metadata->property_commit) {
         zend_string_release(git_metadata->property_commit);
@@ -330,7 +324,7 @@ bool inject_from_git_dir() {
 
     git_metadata_t *git_metadata = zend_hash_find_ptr(&DDTRACE_G(git_metadata), cwd);
     if (git_metadata) {
-        use_cached_metadata(git_metadata);
+        add_git_info(git_metadata->property_commit, git_metadata->property_repository);
         zend_string_release(cwd);
         return true;
     }

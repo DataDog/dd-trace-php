@@ -26,19 +26,6 @@ target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS
 target_link_libraries(extension PRIVATE mpack PhpConfig zai)
 target_include_directories(extension PRIVATE ..)
 
-macro(target_linker_flag_conditional target) # flags as argv
-    try_compile(LINKER_HAS_FLAG "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check.c"
-        LINK_OPTIONS ${ARGN}
-        OUTPUT_VARIABLE LINKER_HAS_FLAG_ERROR_LOG)
-
-    if(LINKER_HAS_FLAG)
-        target_link_options(${target} PRIVATE ${ARGN})
-        message(STATUS "Linker has flag ${ARGN}")
-    else()
-        #message(STATUS "Linker does not have flag: ${LINKER_HAS_FLAG_ERROR_LOG}")
-    endif()
-endmacro()
-
 # we don't have any C++ now, but just so we don't forget in the future...
 check_cxx_compiler_flag("-fno-gnu-unique" COMPILER_HAS_NO_GNU_UNIQUE)
 if(COMPILER_HAS_NO_GNU_UNIQUE)
@@ -49,11 +36,13 @@ target_compile_options(extension PRIVATE -Wall -Wextra -Werror)
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
 
+include(cmake/cond_flag.cmake)
+
 target_linker_flag_conditional(extension -Wl,--as-needed)
 # ld doesn't necessarily respect the visibility of hidden symbols if
 # they're inside static libraries, so use a linker script only exporting
 # ddappsec.version as a safeguard
-target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ddappsec.version")
+target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/extension/ddappsec.version")
 
 # Mac OS
 target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
