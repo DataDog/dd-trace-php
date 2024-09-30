@@ -53,6 +53,17 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 - `ext/spl/tests/gh10011.phpt`
 - `Zend/tests/gc_045.phpt`
 
+## Tests related to exceptions
+
+- `Zend/tests/generators/exception_during_shutdown.phpt`
+- `ext/dom/tests/dom003.phpt`
+- `ext/dom/tests/dom_set_attr_node.phpt`
+- `ext/intl/tests/bug60192-sort.phpt`
+- `ext/phar/tests/frontcontroller29.phpt`
+- `ext/phar/tests/cache_list/frontcontroller29.phpt`
+- `ext/soap/tests/bug77088.phpt`
+- `ext/spl/tests/gh8318.phpt`
+
 ---
 
 # Specific tests
@@ -84,6 +95,10 @@ Test does http request to shut down server.
 ## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`
 
 Distributed tracing headers are injected
+
+## `ext/intl/tests/bug60192-sort.phpt`
+
+Has a refcounting bug on PHP 7.4 (which gets triggered by the tracer, but isn't caused by it).
 
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 

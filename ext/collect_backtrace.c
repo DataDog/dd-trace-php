@@ -289,7 +289,7 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
                 break;
             }
 #if PHP_VERSION_ID < 70100
-        } else if (call->func->op_array.fn_flags & ZEND_ACC_GENERATOR) {
+        } else if (call->func && (call->func->op_array.fn_flags & ZEND_ACC_GENERATOR)) {
 #else
         } else if (UNEXPECTED((ZEND_CALL_INFO(call) & ZEND_CALL_GENERATOR) != 0)) {
 #endif

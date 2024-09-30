@@ -171,9 +171,16 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
         goto error;
     }
 
+    zai_str scope = ZAI_STR_EMPTY, function = ZAI_STR_EMPTY;
+    if (def->scope) {
+        scope = (zai_str) ZAI_STR_FROM_ZSTR(def->scope);
+    }
+    if (def->function) {
+        function = (zai_str) ZAI_STR_FROM_ZSTR(def->function);
+    }
     zend_long id = zai_hook_install(
-            def->scope ? (zai_str) ZAI_STR_FROM_ZSTR(def->scope) : (zai_str) ZAI_STR_EMPTY,
-            def->function ? (zai_str) ZAI_STR_FROM_ZSTR(def->function) : (zai_str) ZAI_STR_EMPTY,
+            scope,
+            function,
             begin,
             end,
             ZAI_HOOK_AUX_RESOLVED(def, def_dtor, dd_probe_resolved),
@@ -575,14 +582,8 @@ static int64_t dd_set_probe(const ddog_Probe probe, const ddog_MaybeShmLimiter *
 static void dd_remove_live_debugger_probe(int64_t id) {
     dd_probe_def *def;
     if ((def = zend_hash_index_find_ptr(&DDTRACE_G(active_rc_hooks), (zend_ulong)id))) {
-        zend_string *scope = def->scope;
-        if (scope) {
-            GC_TRY_ADDREF(scope);
-        }
-        zend_string *func = def->function;
-        if (func) {
-            GC_TRY_ADDREF(func);
-        }
+        zend_string *scope = def->scope ? zend_string_copy(def->scope) : NULL;
+        zend_string *func = def->function ? zend_string_copy(def->function) : NULL;
         zai_hook_remove(
                 def->scope ? (zai_str)ZAI_STR_FROM_ZSTR(def->scope) : (zai_str)ZAI_STR_EMPTY,
                 def->function ? (zai_str)ZAI_STR_FROM_ZSTR(def->function) : (zai_str)ZAI_STR_EMPTY,

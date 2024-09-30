@@ -393,9 +393,9 @@ static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_obj
 
     zend_class_entry *base_ce = zai_get_exception_base(object);
 
-    bool ignore_args = false;
+    bool ignore_args = zend_string_equals_literal(class_type->name, "SodiumException");
 #if PHP_VERSION_ID >= 70400
-    ignore_args = EG(exception_ignore_args);
+    ignore_args = ignore_args || EG(exception_ignore_args);
 #endif
 
     bool exception_replay = get_DD_EXCEPTION_REPLAY_ENABLED();
@@ -546,7 +546,7 @@ void ddtrace_exception_handlers_startup(void) {
 
                     zend_property_info *property_info;
                     ZEND_HASH_MAP_FOREACH_PTR(&ce->properties_info, property_info) {
-                        if (property_info->ce == ce && (property_info->flags & ZEND_ACC_STATIC) == 0) {
+                        if (property_info->offset >= parent_info->offset && property_info->ce != base_ce && (property_info->flags & ZEND_ACC_STATIC) == 0) {
                             property_info->offset += sizeof(zval);
                         }
                     } ZEND_HASH_FOREACH_END();

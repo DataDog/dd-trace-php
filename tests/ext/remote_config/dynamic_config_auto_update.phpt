@@ -23,13 +23,13 @@ $path = put_dynamic_config_file([
     "log_injection_enabled" => true,
 ]);
 
-usleep(100000);
+usleep(500000);
 
 var_dump(ini_get("datadog.logs_injection"));
 
 del_rc_file($path);
 
-usleep(100000);
+usleep(500000);
 
 var_dump(ini_get("datadog.logs_injection"));
 

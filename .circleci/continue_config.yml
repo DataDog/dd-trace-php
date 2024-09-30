@@ -2069,11 +2069,11 @@ jobs:
           command: |
             switch-php debug
             export DDTRACE_PKG_SO="/opt/datadog-php/extensions/ddtrace-$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')-debug.so"
-            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO'"
+            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO' tests/ext" MAX_TEST_PARALLELISM=8
       - run:
           name: Run phpt tests against build from source
           command: |
-            make test_c
+            make test_c MAX_TEST_PARALLELISM=8
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
