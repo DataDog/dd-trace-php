@@ -63,13 +63,7 @@ class FilesystemIntegration extends Integration
                 return;
             }
 
-            if (!$hook->span()->parent) {
-                return;
-            }
-            $span = $hook->span()->parent;
-
-            $filename = $hook->args[0];
-            \datadog\appsec\push_address("server.io.fs.file", $filename, true);
+            \datadog\appsec\push_address("server.io.fs.file", $hook->args[0], true);
         };
     }
 
