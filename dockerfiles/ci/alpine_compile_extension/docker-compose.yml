@@ -129,8 +129,8 @@ services:
       x-bake: *bake
       args:
         php_version: 8.4.0
-        php_url: https://downloads.php.net/~calvinb/php-8.4.0beta3.tar.gz
-        php_sha: a2466aca468a4dd1bde15dd604e80bb80a8d44982fbec0c1acaed52f06980240
-        php_api: 20230901
+        php_url: https://downloads.php.net/~saki/php-8.4.0RC1.tar.gz
+        php_sha: ff924ce24493cd546c7227c2cedf75c32d23815b0a6e5c1658d9b005837631ff
+        php_api: 20240924
     volumes:
       - ../../:/app

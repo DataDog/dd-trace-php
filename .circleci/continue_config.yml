@@ -4095,12 +4095,12 @@ workflows:
       - "cargo build --release":
           name: "Profiler PHP v8.4 - x86_64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.4"
-          abi_no: "20230901"
+          abi_no: "20240924"
           triplet: "x86_64-alpine-linux-musl"
       - "cargo build --release":
           name: "Profiler PHP v8.4 - aarch64-alpine-linux-musl"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.4"
-          abi_no: "20230901"
+          abi_no: "20240924"
           triplet: "aarch64-alpine-linux-musl"
           resource_class: "arm.medium"
 
@@ -4204,12 +4204,12 @@ workflows:
       - "cargo build --release":
           name: "Profiler PHP v8.4 - x86_64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
-          abi_no: "20230901"
+          abi_no: "20240924"
           triplet: "x86_64-unknown-linux-gnu"
       - "cargo build --release":
           name: "Profiler PHP v8.4 - aarch64-unknown-linux-gnu"
           docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
-          abi_no: "20230901"
+          abi_no: "20240924"
           triplet: "aarch64-unknown-linux-gnu"
           resource_class: "arm.medium"
 
@@ -4473,20 +4473,20 @@ workflows:
           name: "Compile x86_64 PHP 84 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
           php_version: "8.4"
-          so_suffix: "20230901"
+          so_suffix: "20240924"
       - compile_extension_centos:
           requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 84 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
           php_version: "8.4"
-          so_suffix: "20230901"
+          so_suffix: "20240924"
           resource_class: "arm.medium"
       - compile_extension_windows:
           requires: [ 'Prepare Code' ]
           name: "Compile Windows PHP 84 nts + zts"
           docker_image: "datadog/dd-trace-ci:php-8.4_windows"
           php_version: "8.4"
-          so_suffix: "20230901"
+          so_suffix: "20240924"
 
       - compile_rust_centos:
           name: "Compile x86_64 rust"
@@ -4647,12 +4647,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "Compile x86_64 PHP 84 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.4_buster"
-          so_suffix: "20230901"
+          so_suffix: "20240924"
       - compile_extension_asan:
           requires: [ 'Prepare Code' ]
           name: "Compile aarch64 PHP 84 debug-zts-asan"
           docker_image: "datadog/dd-trace-ci:php-8.4_buster"
-          so_suffix: "20230901"
+          so_suffix: "20240924"
           resource_class: "arm.medium"
 
       - "package extension":

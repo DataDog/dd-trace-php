@@ -33,7 +33,7 @@ for architecture in "${architectures[@]}"; do
     tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
     tmp_folder_final_windows_trace=$tmp_folder_final_windows/dd-library-php/trace
 
-    php_apis=(20190902 20200930 20210902 20220829 20230831 20230901)
+    php_apis=(20190902 20200930 20210902 20220829 20230831 20240924)
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         php_apis+=(20151012 20160303 20170718 20180731)
     fi
@@ -67,7 +67,7 @@ for architecture in "${architectures[@]}"; do
     ########################
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         # Extension
-        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20230901)
+        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924)
         for version in "${php_apis[@]}"
         do
             mkdir -v -p \
@@ -109,7 +109,7 @@ for architecture in "${architectures[@]}"; do
         tmp_folder_final_musl_appsec=$tmp_folder_final_musl/dd-library-php/appsec
 
         # Extensions
-        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20230901);
+        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924);
         for php_api in "${php_apis[@]}"; do
             mkdir -p \
                 ${tmp_folder_final_gnu_appsec}/ext/$php_api \
