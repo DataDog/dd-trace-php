@@ -843,6 +843,9 @@ jobs:
                 echo "3.0.0"
               fi
             }
+            if [[ "<<parameters.xdebug_version_one>>" == "3.4.0" ]]; then
+              ln -s /opt/php/zts/lib/php/extensions/no-debug-zts-20240924/xdebug-3.4.0.so /opt/php/zts/lib/php/extensions/no-debug-zts-20240924/xdebug-3.4.0alpha2-dev.so
+            fi
             php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
               php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_two >>)
@@ -4955,7 +4958,7 @@ workflows:
           run: |
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
-      
+
       - system_tests:
           requires: [ 'package extension' ]
           name: "System tests Integration Tests"
@@ -5612,7 +5615,7 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           xdebug_version_one: "3.3.0"
       - xdebug_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Prepare Code', 'Compile 8.4 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 84 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.4_buster"
           xdebug_version_one: "3.4.0"
