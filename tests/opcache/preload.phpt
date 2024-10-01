@@ -24,7 +24,7 @@ Datadog\negative_function();
     echo "negative_function\n";
 });
 
-// call again (should not be traced)
+// call again
 Datadog\NegativeClass::negativeMethod();
 Datadog\negative_function();
 
