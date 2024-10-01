@@ -844,7 +844,7 @@ jobs:
               fi
             }
             if [[ "<<parameters.xdebug_version_one>>" == "3.4.0" ]]; then
-              ln -s /opt/php/zts/lib/php/extensions/no-debug-zts-20240924/xdebug-3.4.0.so /opt/php/zts/lib/php/extensions/no-debug-zts-20240924/xdebug-3.4.0alpha2-dev.so
+              ln -s $(php-config --extension-dir)/xdebug-3.4.0.so $(php-config --extension-dir)/xdebug-3.4.0alpha2-dev.so
             fi
             php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
