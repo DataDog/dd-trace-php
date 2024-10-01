@@ -85,7 +85,7 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.4.0beta3"
+        phpVersion: "8.4.0RC1"
         vsVersion: "vs17"
         phpTarGzUrl: https://downloads.php.net/~saki/php-8.4.0RC1.tar.gz
         phpSha256Hash: "ff924ce24493cd546c7227c2cedf75c32d23815b0a6e5c1658d9b005837631ff"
