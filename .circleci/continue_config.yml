@@ -3360,7 +3360,9 @@ jobs:
           command: |
             set -xeuo pipefail
 
-            if [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
+            if [[ "<< parameters.php_major_minor >>" == "8.4" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.4.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
               export XDEBUG_SO_NAME=xdebug-3.3.0.so
             elif [[ "<< parameters.php_major_minor >>" == "8.2" ]]; then
               export XDEBUG_SO_NAME=xdebug-3.2.2.so
