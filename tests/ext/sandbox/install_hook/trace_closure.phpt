@@ -65,7 +65,7 @@ spans(\DDTrace\SpanData) (8) {
   intval (trace_closure.php, 0, cli)
     result => 0
     _dd.p.tid => %s
-  test\trace_closure.php:7\{closure%s} (trace_closure.php, 1, cli)
+  test\trace_closure.php:7\{%s} (trace_closure.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:7
     result => 1
     _dd.p.tid => %s
@@ -80,7 +80,7 @@ spans(\DDTrace\SpanData) (8) {
   intval (trace_closure.php, 0, cli)
     result => 1
     _dd.p.tid => %s
-  test\trace_closure.php:7\{closure%s} (trace_closure.php, 1, cli)
+  test\trace_closure.php:7\{%s} (trace_closure.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:7
     result => 2
     _dd.p.tid => %s
