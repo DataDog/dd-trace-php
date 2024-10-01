@@ -36,9 +36,9 @@ include __DIR__ . '/../dd_dumper.inc';
 ?>
 --EXPECTF--
 spans(\DDTrace\SpanData) (1) {
-  {closure:%s.php:%d\{closure} (trace_generator.php, {closure:%s.php:%d\{closure}, cli)
+  {closure:%s.php:%d\{closure} (trace_generator_ge_php_84.php, {closure:%s.php:%d\{closure}, cli)
     closure.declaration => %s:%d
     result => 3
     _dd.p.tid => %s
-     (trace_generator.php, cli)
+     (trace_generator_ge_php_84.php, cli)
 }
