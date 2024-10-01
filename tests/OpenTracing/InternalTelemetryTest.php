@@ -37,18 +37,25 @@ final class InternalTelemetryTest extends CLITestCase
 
         $this->executeCommand();
 
-        $requests = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
+        $requests = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"), true);
 
         $payloads = $this->readTelemetryPayloads($requests);
         $isMetric = function (array $payload) {
             return 'generate-metrics' === $payload['request_type'];
         };
-        $metrics = array_values(array_filter($payloads, $isMetric));
+        $metricRequests = array_values(array_filter($payloads, $isMetric));
 
-        $this->assertCount(1, $metrics);
-        $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
-        $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
-        $this->assertEquals(["integration_name:opentracing"], $metrics[0]["payload"]["series"][0]["tags"]);
+        $this->assertCount(1, $metricRequests);
+        $this->assertEquals("generate-metrics", $metricRequests[0]["request_type"]);
+
+        $metrics = [];
+        foreach ($metricRequests[0]['payload']['series'] as $serie) {
+            $metrics[$serie['metric']][] = $serie;
+        }
+
+        $this->assertCount(1, $metrics['spans_created']);
+        $this->assertEquals("tracers", $metrics['spans_created'][0]["namespace"]);
+        $this->assertEquals("spans_created", $metrics['spans_created'][0]["metric"]);
+        $this->assertEquals(["integration_name:opentracing"], $metrics['spans_created'][0]["tags"]);
     }
 }
