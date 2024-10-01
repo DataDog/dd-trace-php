@@ -3543,13 +3543,17 @@ jobs:
           name: Link sidecar and extension
           command: |
             sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags
+            pids=()
             for archive in extensions_$(uname -m)/*.a; do
               (
                 gcc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags) libddtrace_php_$(uname -m)<< parameters.libddtrace_suffix >>.a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
                 objcopy --compress-debug-sections ${archive%.a}.so
               ) &
+              pids+=($!)
             done
-            wait
+            for pid in "${pids[@]}"; do
+              wait $pid
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './extensions_*' ]
@@ -4315,7 +4319,7 @@ workflows:
             - "Compile alpine x86_64 PHP 8.3"
             - "Compile alpine x86_64 PHP 8.4"
           libddtrace_suffix: "-alpine"
-          resource_class: "medium"
+          resource_class: "large"
           name: "Link x86_64 alpine"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - link_extension:
@@ -4332,7 +4336,7 @@ workflows:
             - "Compile alpine aarch64 PHP 8.3"
             - "Compile alpine aarch64 PHP 8.4"
           libddtrace_suffix: "-alpine"
-          resource_class: "arm.medium"
+          resource_class: "arm.large"
           name: "Link aarch64 alpine"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - compile_extension_centos:
