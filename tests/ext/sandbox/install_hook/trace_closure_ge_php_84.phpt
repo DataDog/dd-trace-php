@@ -2,7 +2,7 @@
 Tracing Closures via install_hook()
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80400) {
+if (PHP_VERSION_ID < 80400) {
     die('skip: test only stable on PHP >= 8.4');
 }
 ?>
@@ -71,7 +71,7 @@ spans(\DDTrace\SpanData) (8) {
   intval (trace_closure.php, 0, cli)
     result => 0
     _dd.p.tid => %s
-  test\trace_closure.php:7\{%s} (trace_closure.php, 1, cli)
+  {closure:%s.php:7{closure} (trace_closure.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:7
     result => 1
     _dd.p.tid => %s
@@ -86,7 +86,7 @@ spans(\DDTrace\SpanData) (8) {
   intval (trace_closure.php, 0, cli)
     result => 1
     _dd.p.tid => %s
-  test\trace_closure.php:7\{%s} (trace_closure.php, 1, cli)
+  {closure:%s.php:7\{closure} (trace_closure.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure.php:7
     result => 2
     _dd.p.tid => %s

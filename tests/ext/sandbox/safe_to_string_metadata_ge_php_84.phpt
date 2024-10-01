@@ -100,12 +100,12 @@ arg.5: string(5) "false"
 NULL
 arg.6: string(4) "null"
 
-object(Closure)#%d (0) {
-  ["name"] =>
+object(Closure)#%d (3) {
+  ["name"]=>
   string(%d) "{closure%s}"
-  ["file"] =>
+  ["file"]=>
   string(%d) "%s"
-  ["line"] =>
+  ["line"]=>
   int(%d)
 }
 arg.7: string(0) ""

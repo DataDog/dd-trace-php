@@ -1,9 +1,10 @@
 --TEST--
 Span metadata is safely converted to strings without errors or exceptions
---SKIP--
+--SKIPIF--
 <?php
-if (version_compare(PHP_VERSION, '8.4.0', '>='))
-    die('skip: test only works on PHP < 8.4.0');
+if (PHP_VERSION_ID >= 80400) {
+    die('skip: test only stable on PHP < 8.4');
+}
 ?>
 --FILE--
 <?php
