@@ -71,7 +71,7 @@ spans(\DDTrace\SpanData) (8) {
   intval (trace_closure_ge_php_84.php, 0, cli)
     result => 0
     _dd.p.tid => %s
-  {closure:%s.php:7{closure} (trace_closure_ge_php_84.php, 1, cli)
+  {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 1
     _dd.p.tid => %s

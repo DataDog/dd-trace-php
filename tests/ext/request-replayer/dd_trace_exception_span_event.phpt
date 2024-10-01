@@ -54,4 +54,4 @@ var_dump($span['meta']['events']);
 ?>
 --EXPECTF--
 Caught exception: Exception in method
-string(%d) "[{"name":"exception","time_unix_nano":%d,"attributes":{"exception.message":"override message","exception.type":"Exception","exception.stacktrace":"#0 %s(%d): ExceptionClass->{closure}()\n#1 %s(%d): ExceptionClass->exceptionMethod()\n#2 {main}","custom.attribute":"custom value"}}]"
+string(%d) "[{"name":"exception","time_unix_nano":%d,"attributes":{"exception.message":"override message","exception.type":"Exception","exception.stacktrace":"#0 %s(%d): ExceptionClass->{%s}()\n#1 %s(%d): ExceptionClass->exceptionMethod()\n#2 {main}","custom.attribute":"custom value"}}]"
