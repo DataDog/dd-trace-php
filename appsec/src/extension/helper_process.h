@@ -28,6 +28,6 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void);
 void dd_helper_close_conn(void);
 
 bool dd_on_runtime_path_update(
-    zval *nullable old_value, zval *nonnull new_value);
+    zval *nullable old_value, zval *nonnull new_value, zend_string *nonnull new_str);
 
 #endif // DD_HELPER_MGR_H

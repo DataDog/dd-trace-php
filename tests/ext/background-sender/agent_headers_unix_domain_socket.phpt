@@ -11,18 +11,20 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_AUTO_FLUSH_ENABLED=1
+DD_REMOTE_CONFIG_ENABLED=0
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_headers_unix_domain_socket
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
 
+$rr = new RequestReplayer();
+$rr->replayRequest(); // clear
+
 RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL")));
 
 \DDTrace\start_span();
 \DDTrace\close_span();
-
-$rr = new RequestReplayer();
 
 echo PHP_EOL;
 $headers = $rr->replayHeaders([

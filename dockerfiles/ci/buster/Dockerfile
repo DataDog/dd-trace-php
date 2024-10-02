@@ -9,7 +9,6 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    clang-16 \
     libclang-16-dev \
     libclang-rt-16-dev \
     llvm-16-dev \
@@ -23,6 +22,7 @@ ENV DEVLIBS \
     libjpeg-dev \
     libmcrypt-dev \
     libmemcached-dev \
+    libodbc1 \
     libonig-dev \
     libpq-dev \
     libpng-dev \
@@ -33,24 +33,24 @@ ENV DEVLIBS \
     libxml2-dev \
     libxslt1-dev \
     libzip-dev \
+    odbcinst1debian2 \
     zlib1g-dev \
     libasan5 \
-    gnupg \
-    gpg \
     unixodbc-dev \
     unixodbc
 
+#netcat
 ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang \
     clang-format \
     curl \
     debian-goodies \
     gdb \
     git \
     less \
+    lsof \
     netbase \
     netcat \
     nginx \
@@ -65,10 +65,16 @@ ENV RUNTIME_DEPS \
 ENV PHPIZE_DEPS \
     autoconf \
     bison \
+    clang-16 \
+    cmake \
     dpkg-dev \
     file \
     g++ \
     gcc \
+    gnupg \
+    gpg \
+    file \
+    lcov \
     libc-dev \
     make \
     pkg-config \

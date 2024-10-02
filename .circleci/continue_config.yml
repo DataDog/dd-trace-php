@@ -605,7 +605,7 @@ commands:
                   -e DD_AGENT_HOST=127.0.0.1 \
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
-                  -e ASAN_OPTIONS=abort_on_error=1 \
+                  -e ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1" \
                   -e CIRCLE_SHA1 \
                   -e CIRCLE_BRANCH \
                   -e CODECOV_TOKEN \
@@ -820,6 +820,7 @@ jobs:
     executor:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
+    resource_class: medium
     steps:
       - restore_cache:
           keys:
@@ -960,7 +961,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1013,12 +1014,13 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -1089,12 +1091,17 @@ jobs:
             sudo chown -R docker-circleci . tests
       # - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - run:
           name: Run tests
           command: |
             docker-compose run --rm \
               -e DDAGENT_HOSTNAME=127.0.0.1 \
               -e DD_AGENT_HOST=127.0.0.1 \
               -e DATADOG_HAVE_DEV_ENV=1 \
+              -e ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1" \
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
               -e PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" \
               << parameters.php_major_minor >>-buster-arm64 \
@@ -1107,12 +1114,12 @@ jobs:
       #     name: Run tests
       #     command: |
       #       set -euo pipefail
-      #        make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      #       _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1152,7 +1159,7 @@ jobs:
           name: Run extension tests
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
 #      - run:
 #          name: Install the extension and setup composer
 #          shell: powershell.exe
@@ -1198,6 +1205,10 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -1214,7 +1225,7 @@ jobs:
           command: |
             set -euo pipefail
             if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
-            make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1234,7 +1245,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1806,6 +1817,7 @@ jobs:
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>
+    resource_class: medium
     steps:
       - restore_cache:
           keys:
@@ -1990,6 +2002,8 @@ jobs:
       - run:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
           command: |
+            export _DD_DEBUG_SIDECAR_LOG_LEVEL=trace
+            export _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log"
             make test_extension_ci \
               RUST_DEBUG_BUILD=1 \
               BUILD_DIR=$(pwd)/tmp/build_extension \
@@ -2055,11 +2069,11 @@ jobs:
           command: |
             switch-php debug
             export DDTRACE_PKG_SO="/opt/datadog-php/extensions/ddtrace-$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')-debug.so"
-            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO'"
+            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO' tests/ext" MAX_TEST_PARALLELISM=8
       - run:
           name: Run phpt tests against build from source
           command: |
-            make test_c
+            make test_c MAX_TEST_PARALLELISM=8
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -5255,7 +5269,7 @@ workflows:
 
       - integration:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
-          resource_class: medium+
+          resource_class: large
           matrix:
             parameters:
               php_major_minor:

@@ -3,6 +3,7 @@ Disabled telemetry test
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
+if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to telemetry");
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0

@@ -1,6 +1,7 @@
 --TEST--
 HTTP headers are sent to the Agent from the background sender
 --SKIPIF--
+<?php if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with telemetry"); ?>
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off

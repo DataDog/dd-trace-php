@@ -168,6 +168,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice language,
                                                 ddog_CharSlice tracer_version,
                                                 uint32_t flush_interval_milliseconds,
+                                                uint32_t remote_config_poll_interval_millis,
                                                 uint32_t telemetry_heartbeat_interval_millis,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
@@ -196,12 +197,23 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(struct ddog_SidecarTransport *
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
 
+ddog_MaybeError ddog_sidecar_send_debugger_data(struct ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                ddog_QueueId queue_id,
+                                                struct ddog_Vec_DebuggerPayload payloads);
+
+ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **transport,
+                                                 const struct ddog_InstanceId *instance_id,
+                                                 ddog_QueueId queue_id,
+                                                 struct ddog_DebuggerPayload *payload);
+
 ddog_MaybeError ddog_sidecar_set_remote_config_data(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
                                                     ddog_CharSlice service_name,
                                                     ddog_CharSlice env_name,
-                                                    ddog_CharSlice app_version);
+                                                    ddog_CharSlice app_version,
+                                                    const struct ddog_Vec_Tag *global_tags);
 
 /**
  * Dumps the current state of the sidecar.

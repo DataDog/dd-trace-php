@@ -43,8 +43,12 @@ ext/curl/tests/curl_int_cast.phpt
 ext/curl/tests/curl_postfields_array.phpt
 ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt
 ext/date/tests/bug52113.phpt
+ext/dom/tests/dom003.phpt
+ext/dom/tests/dom_set_attr_node.phpt
 ext/ffi/tests/gh12905.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
+ext/json/tests/json_decode_exceptions.phpt
+ext/json/tests/json_encode_exceptions.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
@@ -99,7 +103,9 @@ ext/pdo_sqlite/tests/pdo_fetch_func_001.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
+ext/phar/tests/cache_list/frontcontroller29.phpt
 ext/phar/tests/fatal_error_webphar.phpt
+ext/phar/tests/frontcontroller29.phpt
 ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
 ext/phar/tests/phar_metadata_write4.phpt
@@ -109,6 +115,7 @@ ext/phar/tests/phar_oo_007.phpt
 ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
+ext/soap/tests/bug77088.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
 ext/spl/tests/bug48493.phpt
@@ -117,6 +124,7 @@ ext/spl/tests/bug65006.phpt
 ext/spl/tests/bug71236.phpt
 ext/spl/tests/bug75049.phpt
 ext/spl/tests/fixedarray_003.phpt
+ext/spl/tests/gh8318.phpt
 ext/spl/tests/gh10011.phpt
 ext/spl/tests/spl_autoload_002.phpt
 ext/spl/tests/spl_autoload_004.phpt
