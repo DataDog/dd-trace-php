@@ -347,6 +347,7 @@ void instance::listener::call(
         }
     }
     if (rasp) {
+        // NOLINTNEXTLINE
         rasp_runtime_ += res.total_runtime / 1000.0;
         rasp_calls_++;
         if (res.timeout) {

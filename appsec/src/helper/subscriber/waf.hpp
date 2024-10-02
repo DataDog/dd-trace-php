@@ -36,8 +36,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        void call(dds::parameter_view &data, event &event,
-            bool rasp = false) override;
+        void call(dds::parameter_view &data, event &event, bool rasp) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void submit_metrics(metrics::telemetry_submitter &msubmitter) override;
