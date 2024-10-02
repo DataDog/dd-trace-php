@@ -1,6 +1,7 @@
 --TEST--
 Basic Git Metadata Injection from global tags (Repository URL & Commit Sha)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TAGS=git.commit.sha:123456,git.repository_url:github.com/user/env_repo
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

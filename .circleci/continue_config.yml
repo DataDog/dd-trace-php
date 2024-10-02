@@ -836,7 +836,6 @@ jobs:
           name: Run xdebug tests
           command: |
             export REPORT_EXIT_STATUS=1
-            export DD_TRACE_CLI_ENABLED=1
             targetdir() {
               if [[ ${1:0:1} -eq 2 ]]; then
                 echo $1
@@ -1154,7 +1153,7 @@ jobs:
           name: Set test environment variables
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0'
+            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0'
       - run:
           name: Run extension tests
           shell: powershell.exe
@@ -1843,7 +1842,6 @@ jobs:
               )
             fi
             cd /usr/local/src/php
-            export DD_TRACE_CLI_ENABLED=true
             export DD_TRACE_STARTUP_LOGS=0
             export DD_TRACE_WARN_CALL_STACK_DEPTH=0
             export DD_TRACE_WARN_LEGACY_DD_TRACE=0
@@ -2584,7 +2582,6 @@ jobs:
             TERM=dumb \
             HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
-            DD_TRACE_CLI_ENABLED=1 \
             DD_TRACE_GIT_METADATA_ENABLED=0 \
             pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d datadog.trace.sources_path=" -p datadog_trace
       - run:

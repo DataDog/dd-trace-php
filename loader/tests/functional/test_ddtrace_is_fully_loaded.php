@@ -3,7 +3,7 @@
 require_once __DIR__."/includes/autoload.php";
 skip_if_php5();
 
-$output = runCLI(__DIR__.'/fixtures/ddtrace.php');
+$output = runCLI('-ddatadog.trace.cli_enabled=0 '.__DIR__.'/fixtures/ddtrace.php');
 assertEquals($output, <<<EOS
 foo
 using passthru
@@ -13,7 +13,7 @@ Array
 EOS
 );
 
-$output = runCLI('-ddatadog.trace.cli_enabled=1 '.__DIR__.'/fixtures/ddtrace.php');
+$output = runCLI(__DIR__.'/fixtures/ddtrace.php');
 assertMatchesFormat($output, <<<EOS
 foo
 using passthru

@@ -3,6 +3,7 @@ Test max_per_second single span limiting with multiple buckets
 --SKIPIF--
 <?php if (getenv("USE_ZEND_ALLOC") === "0" && !getenv("SKIP_ASAN")) die('skip timing sensitive test, does not make sense with valgrind'); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_SAMPLE_RATE=0
 DD_SPAN_SAMPLING_RULES=[{"sample_rate":1,"max_per_second":2,"service":"a","name":"b"},{"sample_rate":1,"max_per_second":2,"service":"a"},{"sample_rate":1,"max_per_second":2,"name":"b"}]
 DD_TRACE_GENERATE_ROOT_SPAN=0

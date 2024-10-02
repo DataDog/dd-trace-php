@@ -1,5 +1,5 @@
 --TEST--
-Spans are automatically flushed when auto-flushing enabled
+Spans are not automatically flushed when auto-flushing disabled
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
