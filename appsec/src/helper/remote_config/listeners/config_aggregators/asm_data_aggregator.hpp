@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "config.hpp"
+#include "../../../engine.hpp"
+#include "../../../parameter.hpp"
+#include "../../config.hpp"
 #include "config_aggregator.hpp"
-#include "engine.hpp"
-#include "parameter.hpp"
 #include <optional>
 #include <rapidjson/document.h>
 #include <utility>

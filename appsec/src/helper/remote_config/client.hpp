@@ -6,25 +6,26 @@
 #pragma once
 
 #include <atomic>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include "../service_identifier.hpp"
-#include "engine.hpp"
-#include "engine_settings.hpp"
-#include "http_api.hpp"
+#include "../engine.hpp"
+#include "../engine_settings.hpp"
+#include "../service_config.hpp"
+#include "../utils.hpp"
 #include "listeners/listener.hpp"
 #include "product.hpp"
-#include "protocol/client.hpp"
-#include "protocol/tuf/get_configs_request.hpp"
-#include "protocol/tuf/get_configs_response.hpp"
-#include "runtime_id_pool.hpp"
-#include "service_config.hpp"
 #include "settings.hpp"
-#include "utils.hpp"
+
+extern "C" {
+struct ddog_RemoteConfigReader;
+}
 
 namespace dds::remote_config {
+
+void resolve_symbols();
 
 struct config_path {
     static config_path from_path(const std::string &path);
@@ -34,63 +35,36 @@ struct config_path {
 };
 
 class client {
+    client(remote_config::settings settings,
+        std::vector<std::shared_ptr<listener_base>> listeners);
+
 public:
-    using ptr = std::unique_ptr<client>;
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    client(std::unique_ptr<http_api> &&arg_api, service_identifier &&sid,
-        remote_config::settings settings,
-        std::vector<listener_base::shared_ptr> listeners = {});
-    virtual ~client() = default;
+    ~client() = default;
 
     client(const client &) = delete;
     client(client &&) = delete;
     client &operator=(const client &) = delete;
     client &operator=(client &&) = delete;
 
-    static client::ptr from_settings(service_identifier &&sid,
+    static std::unique_ptr<client> from_settings(
         const remote_config::settings &settings,
-        std::vector<listener_base::shared_ptr> listeners);
+        std::vector<std::shared_ptr<listener_base>> listeners);
 
-    virtual bool poll();
-    virtual bool is_remote_config_available();
-    [[nodiscard]] virtual const std::unordered_map<std::string, product> &
-    get_products()
-    {
-        return products_;
-    }
-
-    [[nodiscard]] const service_identifier &get_service_identifier()
-    {
-        return sid_;
-    }
-
-    virtual void register_runtime_id(const std::string &id) { ids_.add(id); }
-    virtual void unregister_runtime_id(const std::string &id)
-    {
-        ids_.remove(id);
-    }
+    bool poll();
 
 protected:
-    [[nodiscard]] protocol::get_configs_request generate_request() const;
-    bool process_response(const protocol::get_configs_response &response);
+    bool process_response(std::set<config> new_configs);
 
-    std::unique_ptr<http_api> api_;
+    std::unique_ptr<ddog_RemoteConfigReader,
+        void (*)(ddog_RemoteConfigReader *)>
+        reader_;
+    remote_config::settings settings_; // just for logging
 
-    std::string id_;
-    runtime_id_pool ids_;
-    const service_identifier sid_;
-    const remote_config::settings settings_;
+    std::vector<std::shared_ptr<listener_base>> listeners_;
+    std::unordered_map<product, std::vector<listener_base *>>
+        listeners_per_product_; // non-owning index of listeners_
 
-    // remote config state
-    std::string last_poll_error_;
-    std::string opaque_backend_state_;
-    int targets_version_{0};
-
-    // supported products
-    std::vector<listener_base::shared_ptr> listeners_;
-    std::unordered_map<std::string, product> products_;
-
-    protocol::capabilities_e capabilities_ = {protocol::capabilities_e::NONE};
+    std::set<config> last_configs_;
 };
 
 } // namespace dds::remote_config

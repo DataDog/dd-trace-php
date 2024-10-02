@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "../../common.hpp"
+#include "../mocks.hpp"
 #include "base64.h"
 #include "remote_config/exception.hpp"
 #include "remote_config/listeners/asm_features_listener.hpp"
@@ -12,22 +13,13 @@
 
 namespace dds {
 
-remote_config::config get_config(const std::string &content, bool encode = true)
-{
-    std::string encoded_content = content;
-    if (encode) {
-        encoded_content = base64_encode(content);
-    }
-
-    return {"some product", "some id", encoded_content, "some path", {}, 123,
-        321,
-        remote_config::protocol::config_state::applied_state::UNACKNOWLEDGED,
-        ""};
-}
+namespace mock = remote_config::mock;
+auto &ASM_FEATURES = remote_config::known_products::ASM_FEATURES;
 
 remote_config::config get_config_with_status(std::string status)
 {
-    return get_config("{\"asm\":{\"enabled\":" + status + "}}");
+    return mock::get_config(
+        ASM_FEATURES, "{\"asm\":{\"enabled\":" + status + "}}");
 }
 
 remote_config::config get_enabled_config(bool as_string = true)
@@ -138,7 +130,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     std::string error_message = "";
     std::string expected_error_message = "Invalid config contents";
     remote_config::config non_base_64_content_config =
-        get_config(invalid_content, false);
+        mock::get_config(ASM_FEATURES, invalid_content);
 
     try {
         listener.on_update(non_base_64_content_config);
@@ -160,7 +152,8 @@ TEST(RemoteConfigAsmFeaturesListener,
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     std::string invalid_content = "invalidJsonContent";
-    remote_config::config config = get_config(invalid_content);
+    remote_config::config config =
+        mock::get_config(ASM_FEATURES, invalid_content);
 
     try {
         listener.on_update(config);
@@ -181,7 +174,8 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmKeyMissing)
         "Invalid config json encoded contents: asm key missing or invalid";
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
-    remote_config::config asm_key_missing = get_config("{}");
+    remote_config::config asm_key_missing =
+        mock::get_config(ASM_FEATURES, "{}");
 
     try {
         listener.on_update(asm_key_missing);
@@ -201,7 +195,8 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmIsNotValid)
         "Invalid config json encoded contents: asm key missing or invalid";
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
-    remote_config::config invalid_asm_key = get_config("{ \"asm\": 123}");
+    remote_config::config invalid_asm_key =
+        mock::get_config(ASM_FEATURES, "{ \"asm\": 123}");
 
     try {
         listener.on_update(invalid_asm_key);
@@ -222,7 +217,8 @@ TEST(
         "Invalid config json encoded contents: enabled key missing";
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
-    remote_config::config enabled_key_missing = get_config("{ \"asm\": {}}");
+    remote_config::config enabled_key_missing =
+        mock::get_config(ASM_FEATURES, "{ \"asm\": {}}");
 
     try {
         listener.on_update(enabled_key_missing);
@@ -244,7 +240,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     remote_config::config enabled_key_invalid =
-        get_config("{ \"asm\": { \"enabled\": 123}}");
+        mock::get_config(ASM_FEATURES, "{ \"asm\": { \"enabled\": 123}}");
 
     try {
         listener.on_update(enabled_key_invalid);

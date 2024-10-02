@@ -200,19 +200,10 @@ json_helper::get_field_of_type(
     return get_field_of_type(*parent_field, key, type);
 }
 
-bool json_helper::get_json_base64_encoded_content(
+bool json_helper::parse_json(
     const std::string &content, rapidjson::Document &output)
 {
-    std::string base64_decoded;
-    try {
-        base64_decoded = base64_decode(content, true);
-    } catch (const std::runtime_error &error) {
-        SPDLOG_DEBUG(
-            "Invalid base64 encoded content: " + std::string(error.what()));
-        return false;
-    }
-
-    if (output.Parse(base64_decoded).HasParseError()) {
+    if (output.Parse(content).HasParseError()) {
         SPDLOG_DEBUG("Invalid json: " + std::string(rapidjson::GetParseError_En(
                                             output.GetParseError())));
         return false;

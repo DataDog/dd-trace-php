@@ -1411,7 +1411,14 @@ jobs:
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi cargo
+            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi
+      - run:
+          name: Install rust
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh
+            chmod +x /tmp/rustup.sh
+            /tmp/rustup.sh -y --default-toolchain 1.76
+            sudo ln -s $HOME/.cargo/bin/* /usr/bin/
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
@@ -1422,7 +1429,7 @@ jobs:
       - run:
           name: Test
           command: |
-            make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
+            PATH=$PATH:$HOME/.cargo/bin make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
             ./appsec/build/tests/helper/ddappsec_helper_test
       - run:
           name: Generate XML coverage
@@ -3855,7 +3862,7 @@ jobs:
               php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
               # run phpize just to get run-tests.php
               phpize
-              php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+              php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
   "cbindgen up-to-date":
     working_directory: ~/datadog

@@ -55,6 +55,13 @@ public class RemoteConfigRequest {
         return this.client;
     }
 
+    public Target extractTarget() {
+        return Target.create(
+                client.tracerInfo.serviceName,
+                client.tracerInfo.serviceEnv,
+                client.tracerInfo.serviceVersion);
+    }
+
     /** Stores client information for Remote Configuration */
     public static class ClientInfo {
         @JsonProperty("state")
@@ -75,7 +82,16 @@ public class RemoteConfigRequest {
         @JsonProperty("is_agent")
         public Boolean isAgent = null; // MUST NOT be set;
 
+        @JsonProperty("last_seen")
+        public long lastSeen;
+
         public byte[] capabilities;
+
+        @JsonProperty("is_updater")
+        public Boolean isUpdater = null; // MUST NOT be set;
+
+        @JsonProperty("client_updater")
+        public Map<String, Object> clientUpdater;
 
         public ClientInfo() {}
         public ClientInfo(
@@ -118,13 +134,13 @@ public class RemoteConfigRequest {
             public String error;
 
             @JsonProperty("backend_client_state")
-            public String backendClientState;
+            public byte[] backendClientState;
 
             public void setState(
                     long targetsVersion,
                     List<ConfigState> configStates,
                     String error,
-                    String backendClientState) {
+                    byte[] backendClientState) {
                 this.targetsVersion = targetsVersion;
                 this.configStates = configStates;
                 this.error = error;
@@ -136,8 +152,8 @@ public class RemoteConfigRequest {
                 public static final int APPLY_STATE_ACKNOWLEDGED = 2;
                 public static final int APPLY_STATE_ERROR = 3;
 
-                private String id;
-                private long version;
+                public String id;
+                public long version;
                 public String product;
 
                 @JsonProperty("apply_state")
@@ -281,9 +297,9 @@ public class RemoteConfigRequest {
             return true;
         }
 
-        public class TargetFileHash {
-            String algorithm;
-            String hash;
+        static public class TargetFileHash {
+            public String algorithm;
+            public String hash;
 
             TargetFileHash() {}
             TargetFileHash(String algorithm, String hash) {

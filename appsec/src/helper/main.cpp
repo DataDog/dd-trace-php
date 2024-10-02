@@ -1,5 +1,5 @@
-// Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
+// Unless explicitly stated otherwise all files in this repository are
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
@@ -9,7 +9,6 @@
 
 #include "config.hpp"
 #include "runner.hpp"
-#include "subscriber/waf.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <spdlog/common.h>
@@ -111,7 +110,10 @@ int appsec_helper_main_impl()
         return 1;
     }
 
-    auto runner = std::make_unique<dds::runner>(config, interrupted);
+    dds::remote_config::resolve_symbols();
+    dds::runner::resolve_symbols();
+
+    auto runner = std::make_shared<dds::runner>(config, interrupted);
     SPDLOG_INFO("starting runner on new thread");
     std::thread thr{[runner = std::move(runner)]() {
 #ifdef __linux__
@@ -119,6 +121,8 @@ int appsec_helper_main_impl()
 #elif defined(__APPLE__)
         pthread_setname_np("appsec_helper runner");
 #endif
+        runner->register_for_rc_notifications();
+
         runner->run();
 
         finished.store(true, std::memory_order_release);

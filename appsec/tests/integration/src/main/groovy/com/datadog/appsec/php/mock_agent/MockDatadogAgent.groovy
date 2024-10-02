@@ -1,6 +1,8 @@
 package com.datadog.appsec.php.mock_agent
 
-
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
+import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Trace
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -68,5 +70,13 @@ class MockDatadogAgent implements Startable {
 
     List<Object> drainTelemetry(int timeoutInMs) {
         TelemetryHandler.instance.drain(timeoutInMs)
+    }
+
+    void setNextRCResponse(Target target, RemoteConfigResponse nextResponse) {
+        ConfigV07Handler.instance.setNextResponse(target, nextResponse)
+    }
+
+    RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
+        ConfigV07Handler.instance.waitForVersion(target, version, timeoutInMs)
     }
 }

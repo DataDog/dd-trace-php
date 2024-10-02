@@ -4,18 +4,17 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "asm_features_listener.hpp"
-#include "exception.hpp"
-#include "json_helper.hpp"
-#include "remote_config/exception.hpp"
-#include "utils.hpp"
+#include "../../json_helper.hpp"
+#include "../../utils.hpp"
+#include "../exception.hpp"
 #include <algorithm>
 #include <rapidjson/document.h>
 
 void dds::remote_config::asm_features_listener::on_update(const config &config)
 {
+    const std::string contents{config.read()};
     rapidjson::Document serialized_doc;
-    if (!json_helper::get_json_base64_encoded_content(
-            config.contents, serialized_doc)) {
+    if (!json_helper::parse_json(contents, serialized_doc)) {
         throw error_applying_config("Invalid config contents");
     }
 

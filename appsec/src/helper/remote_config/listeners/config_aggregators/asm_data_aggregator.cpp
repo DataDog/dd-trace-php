@@ -4,13 +4,12 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "asm_data_aggregator.hpp"
-#include "exception.hpp"
-#include "json_helper.hpp"
-#include "remote_config/exception.hpp"
-#include "spdlog/spdlog.h"
+#include "../../../json_helper.hpp"
+#include "../../exception.hpp"
 #include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
+#include <spdlog/spdlog.h>
 
 namespace dds::remote_config {
 
@@ -81,8 +80,7 @@ void extract_data(
 void asm_data_aggregator::add(const config &config)
 {
     rapidjson::Document serialized_doc;
-    if (!json_helper::get_json_base64_encoded_content(
-            config.contents, serialized_doc)) {
+    if (!json_helper::parse_json(config.read(), serialized_doc)) {
         throw error_applying_config("Invalid config contents");
     }
 
