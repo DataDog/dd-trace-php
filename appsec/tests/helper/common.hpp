@@ -22,10 +22,13 @@ using ::testing::DoAll;
 using ::testing::ElementsAre;
 using ::testing::Invoke;
 using ::testing::MatchesRegex;
+using ::testing::Mock;
+using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
+using ::testing::StrictMock;
 using ::testing::Throw;
 using ::testing::WithArg;
 

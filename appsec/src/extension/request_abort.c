@@ -12,7 +12,6 @@
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
-#include "dddefs.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "php_compat.h"

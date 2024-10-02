@@ -9,6 +9,7 @@
 #include "config.hpp"
 #include "engine_ruleset.hpp"
 #include "engine_settings.hpp"
+#include "metrics.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
@@ -67,8 +68,7 @@ public:
 
         std::optional<result> publish(parameter &&param);
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
-            std::map<std::string_view, double> &metrics);
+        void get_metrics(metrics::telemetry_submitter &msubmitter);
 
     protected:
         std::shared_ptr<shared_state> common_;
@@ -87,8 +87,7 @@ public:
 
     static std::unique_ptr<engine> from_settings(
         const dds::engine_settings &eng_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+        metrics::telemetry_submitter &msubmitter);
 
     static auto create(
         uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
@@ -96,22 +95,26 @@ public:
         return std::unique_ptr<engine>(new engine(trace_rate_limit));
     }
 
-    context get_context() { return context{*this}; }
-
     // Not thread-safe, should only be called after construction
     void subscribe(std::unique_ptr<subscriber> sub);
 
-    virtual void update(engine_ruleset &ruleset,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+    context get_context() { return context{*this}; }
+
+    // Should not be called concurrently but safely publishes changes to common_
+    // the rc client has a lock that ensures this
+    virtual void update(
+        engine_ruleset &ruleset, metrics::telemetry_submitter &submit_metric);
 
 protected:
     explicit engine(uint32_t trace_rate_limit)
         : limiter_(trace_rate_limit), common_(new shared_state{{}})
     {}
 
-    // in practice: the current ddwaf_handle, atomically swapped in update
+    // in practice: the current ddwaf_handle, swapped in update
+    // should use only atomic operations (pre-c++20
+    // std::atomic<std::shared_ptr>)
     std::shared_ptr<shared_state> common_;
+    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
     rate_limiter<dds::timer> limiter_;
 };
 

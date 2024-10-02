@@ -376,6 +376,16 @@ DDOG_CHECK_RETURN
 struct ddog_crasht_Result ddog_crasht_CrashInfo_set_timestamp_to_now(struct ddog_crasht_CrashInfo *crashinfo);
 
 /**
+ * Sets crashinfo procinfo
+ *
+ * # Safety
+ * `crashinfo` must be a valid pointer to a `CrashInfo` object.
+ */
+DDOG_CHECK_RETURN
+struct ddog_crasht_Result ddog_crasht_CrashInfo_set_procinfo(struct ddog_crasht_CrashInfo *crashinfo,
+                                                             struct ddog_crasht_ProcInfo procinfo);
+
+/**
  * Exports `crashinfo` to the backend at `endpoint`
  * Note that we support the "file://" endpoint for local file output.
  * # Safety

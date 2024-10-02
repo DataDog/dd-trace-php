@@ -13,8 +13,6 @@ namespace dds::network {
 
 class base_acceptor {
 public:
-    using ptr = std::unique_ptr<base_acceptor>;
-
     base_acceptor() = default;
     base_acceptor(const base_acceptor &) = delete;
     base_acceptor &operator=(const base_acceptor &) = delete;
@@ -23,7 +21,7 @@ public:
     virtual ~base_acceptor() = default;
 
     virtual void set_accept_timeout(std::chrono::seconds timeout) = 0;
-    [[nodiscard]] virtual base_socket::ptr accept() = 0;
+    [[nodiscard]] virtual std::unique_ptr<base_socket> accept() = 0;
 };
 
 namespace local {
@@ -55,7 +53,7 @@ public:
     }
 
     void set_accept_timeout(std::chrono::seconds timeout) override;
-    [[nodiscard]] base_socket::ptr accept() override;
+    [[nodiscard]] std::unique_ptr<base_socket> accept() override;
 
 private:
     int sock_{-1};

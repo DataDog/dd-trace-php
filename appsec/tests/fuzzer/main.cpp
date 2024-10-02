@@ -1,11 +1,12 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "mutators.hpp"
 #include "network.hpp"
+#include "network/acceptor.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <runner.hpp>
@@ -172,7 +173,7 @@ int main(int argc, char **argv)
 
     auto acceptor_ptr = std::make_unique<dds::fuzzer::acceptor>();
     acceptor = acceptor_ptr.get();
-    std::atomic<bool> interrupted;
+    std::atomic<bool> interrupted{};
     dds::runner runner{config, std::move(acceptor_ptr), interrupted};
 
     std::thread runner_thread([&runner] { runner.run(); });

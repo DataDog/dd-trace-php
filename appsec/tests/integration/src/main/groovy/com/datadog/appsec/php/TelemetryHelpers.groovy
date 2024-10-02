@@ -1,15 +1,18 @@
 package com.datadog.appsec.php
 
+/**
+ * @link https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md
+ */
 class TelemetryHelpers {
    static <T> List<T> filterMessages(List<Map> telemetryData, Class<T> type) {
-        telemetryData.findAll { it['request_type'] == type.name } +
+       (telemetryData.findAll { it['request_type'] in type.names } +
                 telemetryData.findAll { it['request_type'] == 'message-batch'}
-                        *.payload*.findAll { it['request_type'] == 'generate-metrics' }.flatten()
+                        *.payload*.findAll { it['request_type'] in type.names }.flatten())
         .collect { type.newInstance([it['payload']] as Object[]) }
    }
 
     static class GenerateMetrics {
-        static name = 'generate-metrics'
+        static names = ['generate-metrics']
         List<Metric> series
 
         GenerateMetrics(Map m) {
@@ -34,6 +37,71 @@ class TelemetryHelpers {
             common = m.common
             type = m.type
             interval = m.interval
+        }
+    }
+
+    static class WithConfiguration {
+        static names = ['app-started', 'app-client-configuration-change']
+        List<ConfigurationEntry> configuration
+
+        WithConfiguration(Map m) {
+            configuration = m.configuration?.collect { new ConfigurationEntry(it) }
+        }
+    }
+
+    static class WithDependencies {
+        static names = ['app-started', 'app-dependencies-loaded']
+        List<DependencyEntry> dependencies
+
+        WithDependencies(Map m) {
+            dependencies = m.dependencies?.collect { new DependencyEntry(it) }
+        }
+    }
+
+    static class WithIntegrations {
+        static names = ['app-started', 'app-integrations-change']
+        List<IntegrationEntry> integrations
+
+        WithIntegrations(Map m) {
+            integrations = m.integrations?.collect { new IntegrationEntry(it) }
+        }
+    }
+
+    static class ConfigurationEntry {
+        String name
+        String value
+        String origin
+
+        ConfigurationEntry(Map m) {
+            name = m.name
+            value = m.value
+            origin = m.origin
+        }
+    }
+
+    static class DependencyEntry {
+        String name
+        String version
+
+        DependencyEntry(Map m) {
+            name = m.name
+            version = m.version
+        }
+    }
+
+    static class IntegrationEntry {
+        String name
+        Boolean enabled
+        String version
+        Boolean compatible
+        Boolean autoEnabled
+
+        IntegrationEntry(Map m) {
+            name = m.name
+            enabled = m.enabled
+            version = m.version
+            compatible = m.compatible
+            autoEnabled = m.autoEnabled
         }
     }
 }

@@ -13,11 +13,11 @@
 
 namespace dds {
 
-namespace mock = remote_config::mock;
+namespace rcmock = remote_config::mock;
 
 remote_config::config get_config_with_status(std::string status)
 {
-    return mock::get_config(
+    return rcmock::get_config(
         "ASM_FEATURES", "{\"asm\":{\"enabled\":" + status + "}}");
 }
 
@@ -129,7 +129,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     std::string error_message = "";
     std::string expected_error_message = "Invalid config contents";
     remote_config::config non_base_64_content_config =
-        mock::get_config("ASM_FEATURES", invalid_content);
+        rcmock::get_config("ASM_FEATURES", invalid_content);
 
     try {
         listener.on_update(non_base_64_content_config);
@@ -152,7 +152,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     remote_config::asm_features_listener listener(remote_config_service);
     std::string invalid_content = "invalidJsonContent";
     remote_config::config config =
-        mock::get_config("ASM_FEATURES", invalid_content);
+        rcmock::get_config("ASM_FEATURES", invalid_content);
 
     try {
         listener.on_update(config);
@@ -174,7 +174,7 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmKeyMissing)
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     remote_config::config asm_key_missing =
-        mock::get_config("ASM_FEATURES", "{}");
+        rcmock::get_config("ASM_FEATURES", "{}");
 
     try {
         listener.on_update(asm_key_missing);
@@ -195,7 +195,7 @@ TEST(RemoteConfigAsmFeaturesListener, ListenerThrowsAnErrorWhenAsmIsNotValid)
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     remote_config::config invalid_asm_key =
-        mock::get_config("ASM_FEATURES", "{ \"asm\": 123}");
+        rcmock::get_config("ASM_FEATURES", "{ \"asm\": 123}");
 
     try {
         listener.on_update(invalid_asm_key);
@@ -217,7 +217,7 @@ TEST(
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     remote_config::config enabled_key_missing =
-        mock::get_config("ASM_FEATURES", "{ \"asm\": {}}");
+        rcmock::get_config("ASM_FEATURES", "{ \"asm\": {}}");
 
     try {
         listener.on_update(enabled_key_missing);
@@ -239,7 +239,7 @@ TEST(RemoteConfigAsmFeaturesListener,
     auto remote_config_service = std::make_shared<service_config>();
     remote_config::asm_features_listener listener(remote_config_service);
     remote_config::config enabled_key_invalid =
-        mock::get_config("ASM_FEATURES", "{ \"asm\": { \"enabled\": 123}}");
+        rcmock::get_config("ASM_FEATURES", "{ \"asm\": { \"enabled\": 123}}");
 
     try {
         listener.on_update(enabled_key_invalid);

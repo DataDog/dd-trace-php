@@ -31,9 +31,7 @@ public:
 
     virtual std::shared_ptr<service> create_service(
         const engine_settings &settings,
-        const remote_config::settings &rc_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics, bool dynamic_enablement);
+        const remote_config::settings &rc_settings, bool dynamic_enablement);
 
     void notify_of_rc_updates(std::string_view shmem_path);
 

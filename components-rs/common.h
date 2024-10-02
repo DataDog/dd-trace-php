@@ -315,6 +315,12 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_SIDECAR,
 } ddog_MetricNamespace;
 
+typedef enum ddog_MetricType {
+  DDOG_METRIC_TYPE_GAUGE,
+  DDOG_METRIC_TYPE_COUNT,
+  DDOG_METRIC_TYPE_DISTRIBUTION,
+} ddog_MetricType;
+
 typedef enum ddog_ProbeStatus {
   DDOG_PROBE_STATUS_RECEIVED,
   DDOG_PROBE_STATUS_INSTALLED,
@@ -761,12 +767,6 @@ typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_DEBUG,
 } ddog_LogLevel;
 
-typedef enum ddog_MetricType {
-  DDOG_METRIC_TYPE_GAUGE,
-  DDOG_METRIC_TYPE_COUNT,
-  DDOG_METRIC_TYPE_DISTRIBUTION,
-} ddog_MetricType;
-
 typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,
 } ddog_TelemetryWorkerBuilderBoolProperty;
@@ -1150,6 +1150,10 @@ typedef struct ddog_Timespec {
   int64_t seconds;
   uint32_t nanoseconds;
 } ddog_Timespec;
+
+typedef struct ddog_crasht_ProcInfo {
+  uint32_t pid;
+} ddog_crasht_ProcInfo;
 
 /**
  * A wrapper for returning owned strings from FFI

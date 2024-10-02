@@ -4,23 +4,22 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "engine_listener.hpp"
-#include "../../json_helper.hpp"
 #include "../exception.hpp"
 #include "../product.hpp"
 #include "config_aggregators/asm_aggregator.hpp"
 #include "config_aggregators/asm_data_aggregator.hpp"
 #include "config_aggregators/asm_dd_aggregator.hpp"
-#include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 #include <spdlog/spdlog.h>
-#include <type_traits>
+#include <utility>
 
 namespace dds::remote_config {
 
-engine_listener::engine_listener(
-    std::shared_ptr<engine> engine, const std::string &rules_file)
-    : engine_(std::move(engine))
+engine_listener::engine_listener(std::shared_ptr<engine> engine,
+    std::shared_ptr<dds::metrics::telemetry_submitter> msubmitter,
+    const std::string &rules_file)
+    : engine_{std::move(engine)}, msubmitter_{std::move(msubmitter)}
 {
     aggregators_.emplace(
         known_products::ASM, std::make_unique<asm_aggregator>());
@@ -82,12 +81,8 @@ void engine_listener::commit()
         }
     }
 
-    // TODO find a way to provide this information to the service
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     engine_ruleset ruleset = dds::engine_ruleset(std::move(ruleset_));
-    engine_->update(ruleset, meta, metrics);
+    engine_->update(ruleset, *msubmitter_);
 }
 
 } // namespace dds::remote_config

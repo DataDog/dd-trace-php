@@ -4,10 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "client.hpp"
-#include "exception.hpp"
 #include "product.hpp"
-#include <algorithm>
-#include <regex>
 #include <set>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
@@ -18,7 +15,7 @@ extern "C" {
 }
 
 namespace {
-struct ddog_CharSlice {
+struct ddog_CharSlice { // NOLINT(readability-identifier-naming)
     const char *ptr;
     uintptr_t len;
 };

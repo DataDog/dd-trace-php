@@ -17,8 +17,8 @@
 
 #include "../compression.hpp"
 #include "../json_helper.hpp"
+#include "../metrics.hpp"
 #include "../std_logging.hpp"
-#include "../tags.hpp"
 #include "base.hpp"
 #include "waf.hpp"
 #include <base64.h>
@@ -124,9 +124,107 @@ void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
         std::string_view(message, message_len));
 }
 
-void extract_tags_and_metrics(parameter_view diagnostics, std::string &version,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+metrics::telemetry_tags waf_update_init_report_tags(
+    bool success, std::optional<std::string> rules_version)
+{
+    metrics::telemetry_tags tags;
+    if (success) {
+        tags.add("success", "true");
+    } else {
+        tags.add("success", "false");
+    }
+    if (rules_version) {
+        tags.add("event_rules_version", rules_version.value());
+    }
+    tags.add("waf_version", ddwaf_get_version());
+    return tags;
+}
+
+void waf_init_report(metrics::telemetry_submitter &msubmitter, bool success,
+    std::optional<std::string> rules_version)
+{
+    msubmitter.submit_metric(metrics::waf_init, 1.0,
+        waf_update_init_report_tags(success, std::move(rules_version)));
+}
+
+void waf_update_report(metrics::telemetry_submitter &msubmitter, bool success,
+    std::optional<std::string> rules_version)
+{
+    msubmitter.submit_metric(metrics::waf_updates, 1.0,
+        waf_update_init_report_tags(success, std::move(rules_version)));
+}
+
+void load_result_report(
+    parameter_view diagnostics, metrics::telemetry_submitter &msubmitter)
+{
+    const auto info = static_cast<parameter_view::map>(diagnostics);
+
+    std::string_view ruleset_version{"unknown"};
+    auto ruleset_version_it = info.find("ruleset_version");
+    if (ruleset_version_it != info.end() &&
+        ruleset_version_it->second.is_string()) {
+        ruleset_version =
+            static_cast<std::string_view>(ruleset_version_it->second);
+    }
+
+    static constexpr std::array<std::string_view, 5> keys{
+        "custom_rules",
+        "exclusions",
+        "rules",
+        "rules_data",
+        "rules_override",
+    };
+
+    for (auto k : keys) {
+        auto it = info.find(k);
+        if (it == info.end()) {
+            continue;
+        }
+
+        const parameter_view &value = it->second;
+        if (!value.is_map()) {
+            continue;
+        }
+
+        // map has either "error" key or "loaded", "failed", "errors" keys
+        const parameter_view::map map = static_cast<parameter_view::map>(value);
+
+        auto tags_common = [&]() {
+            metrics::telemetry_tags tags;
+            tags.add("waf_version", ddwaf_get_version())
+                .add("event_rules_version", ruleset_version)
+                .add("config_key", k);
+            return tags;
+        };
+        if (map.contains("error")) {
+            metrics::telemetry_tags tags{tags_common()};
+            tags.add("scope", "top-level");
+
+            msubmitter.submit_metric(
+                metrics::waf_config_errors, 1.0, std::move(tags));
+        } else if (map.contains("errors")) {
+            const auto errors_map = map.at("errors");
+            if (errors_map.size() == 0) {
+                continue;
+            }
+            std::uint64_t error_count = 0;
+            for (const parameter_view &err : errors_map) {
+                // key is error message, value is array of ids
+                assert(err.type() == parameter_type::array);
+                error_count += err.size();
+            }
+
+            metrics::telemetry_tags tags{tags_common()};
+            tags.add("scope", "item");
+
+            msubmitter.submit_metric(metrics::waf_config_errors,
+                static_cast<double>(error_count), std::move(tags));
+        }
+    }
+}
+
+void load_result_report_legacy(parameter_view diagnostics, std::string &version,
+    metrics::telemetry_submitter &msubmitter)
 {
     try {
         const parameter_view diagnostics_view{diagnostics};
@@ -137,24 +235,24 @@ void extract_tags_and_metrics(parameter_view diagnostics, std::string &version,
             auto rules = static_cast<parameter_view::map>(rules_it->second);
             auto it = rules.find("loaded");
             if (it != rules.end()) {
-                metrics[tag::event_rules_loaded] =
-                    static_cast<double>(it->second.size());
+                msubmitter.submit_span_metric(metrics::event_rules_loaded,
+                    static_cast<double>(it->second.size()));
             }
 
             it = rules.find("failed");
             if (it != rules.end()) {
-                metrics[tag::event_rules_failed] =
-                    static_cast<double>(it->second.size());
+                msubmitter.submit_span_metric(metrics::event_rules_failed,
+                    static_cast<double>(it->second.size()));
             }
 
             it = rules.find("errors");
             if (it != rules.end()) {
-                meta[std::string(tag::event_rules_errors)] =
-                    parameter_to_json(it->second);
+                msubmitter.submit_span_meta(
+                    metrics::event_rules_errors, parameter_to_json(it->second));
             }
         }
 
-        meta[std::string(tag::waf_version)] = ddwaf_get_version();
+        msubmitter.submit_span_meta(metrics::waf_version, ddwaf_get_version());
 
         auto version_it = info.find("ruleset_version");
         if (version_it != info.end()) {
@@ -173,9 +271,13 @@ void initialise_logging(spdlog::level::level_enum level)
 }
 
 instance::listener::listener(ddwaf_context ctx,
-    std::chrono::microseconds waf_timeout, std::string_view ruleset_version)
-    : handle_{ctx}, waf_timeout_{waf_timeout}, ruleset_version_(ruleset_version)
-{}
+    std::chrono::microseconds waf_timeout, std::string ruleset_version)
+    : handle_{ctx}, waf_timeout_{waf_timeout},
+      ruleset_version_{std::move(ruleset_version)}
+{
+    base_tags_.add("event_rules_version", ruleset_version_);
+    base_tags_.add("waf_version", ddwaf_get_version());
+}
 
 instance::listener::listener(instance::listener &&other) noexcept
     : handle_{other.handle_}, waf_timeout_{other.waf_timeout_}
@@ -221,7 +323,6 @@ void instance::listener::call(dds::parameter_view &data, event &event)
             fmt::underlying(code),
             parameter_to_json(parameter_view{res.actions}),
             parameter_to_json(parameter_view{res.derivatives}));
-
     } else {
         run_waf();
     }
@@ -232,6 +333,18 @@ void instance::listener::call(dds::parameter_view &data, event &event)
 
     // NOLINTNEXTLINE
     total_runtime_ += res.total_runtime / 1000.0;
+    if (res.timeout) {
+        waf_hit_timeout_ = true;
+    }
+    const parameter_view actions{res.actions};
+    for (const auto &action : actions) {
+        const std::string_view action_type = action.key();
+        if (action_type == "block_request" ||
+            action_type == "redirect_request") {
+            request_blocked_ = true;
+            break;
+        }
+    }
 
     const parameter_view derivatives{res.derivatives};
     for (const auto &derivative : derivatives) {
@@ -245,15 +358,20 @@ void instance::listener::call(dds::parameter_view &data, event &event)
 
     switch (code) {
     case DDWAF_MATCH:
+        rule_triggered_ = true;
         return format_waf_result(res, event);
     case DDWAF_ERR_INTERNAL:
+        waf_run_error_ = true;
         throw internal_error();
     case DDWAF_ERR_INVALID_OBJECT:
+        waf_run_error_ = true;
         throw invalid_object();
     case DDWAF_ERR_INVALID_ARGUMENT:
+        waf_run_error_ = true;
         throw invalid_argument();
     case DDWAF_OK:
         if (res.timeout) {
+            waf_hit_timeout_ = true;
             throw timeout_error();
         }
         break;
@@ -262,18 +380,33 @@ void instance::listener::call(dds::parameter_view &data, event &event)
     }
 }
 
-void instance::listener::get_meta_and_metrics(
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+void instance::listener::submit_metrics(
+    metrics::telemetry_submitter &msubmitter)
 {
-    meta[std::string(tag::event_rules_version)] = ruleset_version_;
-    metrics[tag::waf_duration] = total_runtime_;
+    metrics::telemetry_tags tags = base_tags_;
+    if (rule_triggered_) {
+        tags.add("rule_triggered", "true");
+    }
+    if (request_blocked_) {
+        tags.add("request_blocked", "true");
+    }
+    if (waf_hit_timeout_) {
+        tags.add("waf_timeout", "true");
+    }
+    if (waf_run_error_) {
+        tags.add("waf_run_error", "true");
+    }
+    msubmitter.submit_metric(metrics::waf_requests, 1.0, std::move(tags));
+
+    // span tags/metrics
+    msubmitter.submit_span_meta(
+        metrics::event_rules_version, std::string{ruleset_version_});
+    msubmitter.submit_span_metric(metrics::waf_duration, total_runtime_);
 
     for (const auto &[key, value] : derivatives_) {
         std::string derivative = value;
         if (value.length() > max_plain_schema_allowed &&
             key.starts_with("_dd.appsec.s.")) {
-
             auto encoded = compress(derivative);
             if (encoded) {
                 derivative = base64_encode(encoded.value(), false);
@@ -281,15 +414,17 @@ void instance::listener::get_meta_and_metrics(
         }
 
         if (derivative.length() <= max_schema_size) {
-            meta.emplace(key, std::move(derivative));
+            msubmitter.submit_span_meta_copy_key(key, std::move(derivative));
+        } else {
+            SPDLOG_WARN("Schema for key {} is too large to submit", key);
         }
     }
 }
 
-instance::instance(parameter &rule, std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
-    std::string_view key_regex, std::string_view value_regex)
-    : waf_timeout_{waf_timeout_us}
+instance::instance(parameter &rule, metrics::telemetry_submitter &msubmit,
+    std::uint64_t waf_timeout_us, std::string_view key_regex,
+    std::string_view value_regex)
+    : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
 {
     const ddwaf_config config{
         {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
@@ -297,9 +432,12 @@ instance::instance(parameter &rule, std::map<std::string, std::string> &meta,
     ddwaf_object diagnostics;
     handle_ = ddwaf_init(rule, &config, &diagnostics);
 
-    extract_tags_and_metrics(
-        parameter_view{diagnostics}, ruleset_version_, meta, metrics);
-    meta[std::string(tag::waf_version)] = ddwaf_get_version();
+    load_result_report(parameter_view{diagnostics}, msubmit);
+    load_result_report_legacy(
+        parameter_view{diagnostics}, ruleset_version_, msubmit);
+    waf_init_report(msubmit, handle_ != nullptr,
+        ruleset_version_.empty() ? std::nullopt
+                                 : std::make_optional(ruleset_version_));
 
     ddwaf_object_free(&diagnostics);
 
@@ -314,8 +452,22 @@ instance::instance(parameter &rule, std::map<std::string, std::string> &meta,
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
+instance::instance(ddwaf_handle handle,
+    metrics::telemetry_submitter &msubmitter, std::chrono::microseconds timeout,
+    std::string version)
+    : handle_{handle}, msubmitter_{msubmitter}, waf_timeout_{timeout},
+      ruleset_version_{std::move(version)}
+{
+    uint32_t size;
+    const auto *addrs = ddwaf_known_addresses(handle_, &size);
+
+    addresses_.clear();
+    for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
+}
+
 instance::instance(instance &&other) noexcept
-    : handle_(other.handle_), waf_timeout_(other.waf_timeout_),
+    : handle_(other.handle_), msubmitter_(other.msubmitter_),
+      waf_timeout_(other.waf_timeout_),
       ruleset_version_(std::move(other.ruleset_version_)),
       addresses_(std::move(other.addresses_))
 {
@@ -350,63 +502,51 @@ std::unique_ptr<subscriber::listener> instance::get_listener()
         ddwaf_context_init(handle_), waf_timeout_, ruleset_version_);
 }
 
-instance::instance(
-    ddwaf_handle handle, std::chrono::microseconds timeout, std::string version)
-    : handle_(handle), waf_timeout_(timeout),
-      ruleset_version_(std::move(version))
-{
-    uint32_t size;
-    const auto *addrs = ddwaf_known_addresses(handle_, &size);
-
-    addresses_.clear();
-    for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
-}
-
-std::unique_ptr<subscriber> instance::update(parameter &rule,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+std::unique_ptr<subscriber> instance::update(
+    parameter &rule, metrics::telemetry_submitter &msubmitter)
 {
     ddwaf_object diagnostics;
     auto *new_handle = ddwaf_update(handle_, rule, &diagnostics);
 
     std::string version;
-    extract_tags_and_metrics(
-        parameter_view{diagnostics}, version, meta, metrics);
-    meta[std::string(tag::waf_version)] = ddwaf_get_version();
-    if (version.empty()) {
-        version = ruleset_version_;
-    }
+    {
+        load_result_report(parameter_view{diagnostics}, msubmitter);
+        load_result_report_legacy(
+            parameter_view{diagnostics}, version, msubmitter);
+        if (version.empty()) {
+            version = ruleset_version_;
+        }
+        ddwaf_object_free(&diagnostics);
 
-    ddwaf_object_free(&diagnostics);
+        waf_update_report(msubmitter, new_handle != nullptr, version);
+    }
 
     if (new_handle == nullptr) {
         throw invalid_object();
     }
 
-    return std::unique_ptr<subscriber>(
-        new instance(new_handle, waf_timeout_, std::move(version)));
+    return std::unique_ptr<subscriber>(new instance(
+        new_handle, msubmitter_, waf_timeout_, std::move(version)));
 }
 
 std::unique_ptr<instance> instance::from_settings(
     const engine_settings &settings, const engine_ruleset &ruleset,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+    metrics::telemetry_submitter &msubmitter)
 {
     dds::parameter param = json_to_parameter(ruleset.get_document());
-    return std::make_unique<instance>(param, meta, metrics,
+    return std::make_unique<instance>(param, msubmitter,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
         settings.obfuscator_value_regex);
 }
 
 std::unique_ptr<instance> instance::from_string(std::string_view rule,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
+    metrics::telemetry_submitter &msubmitter, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
     engine_ruleset const ruleset{rule};
     dds::parameter param = json_to_parameter(ruleset.get_document());
     return std::make_unique<instance>(
-        param, meta, metrics, waf_timeout_us, key_regex, value_regex);
+        param, msubmitter, waf_timeout_us, key_regex, value_regex);
 }
 
 } // namespace dds::waf

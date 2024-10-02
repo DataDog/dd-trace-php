@@ -9,7 +9,9 @@
 #include "../service_config.hpp"
 #include "client.hpp"
 #include "settings.hpp"
+#include <atomic>
 #include <memory>
+#include <mutex>
 
 namespace dds::remote_config {
 
@@ -18,7 +20,8 @@ using namespace std::chrono_literals;
 class client_handler {
 public:
     client_handler(std::unique_ptr<remote_config::client> &&rc_client,
-        std::shared_ptr<service_config> service_config);
+        std::shared_ptr<service_config> service_config,
+        std::shared_ptr<metrics::telemetry_submitter> msubmitter);
     ~client_handler() = default;
 
     client_handler(const client_handler &) = delete;
@@ -31,13 +34,28 @@ public:
         const dds::engine_settings &eng_settings,
         std::shared_ptr<dds::service_config> service_config,
         const remote_config::settings &rc_settings,
-        const std::shared_ptr<engine> &engine_ptr, bool dynamic_enablement);
+        const std::shared_ptr<engine> &engine_ptr,
+        std::shared_ptr<metrics::telemetry_submitter> msubmitter,
+        bool dynamic_enablement);
 
     void poll();
 
+    bool has_applied_rc()
+    {
+        std::lock_guard lock{mutex_};
+        return creation_time_ == empty_time;
+    }
+
 protected:
+    static constexpr auto empty_time = std::chrono::steady_clock::time_point{};
+
     std::shared_ptr<service_config> service_config_;
     std::unique_ptr<remote_config::client> rc_client_;
+    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
+
+    std::mutex mutex_{};
+    std::chrono::steady_clock::time_point creation_time_{
+        std::chrono::steady_clock::now()}; // def value after first poll() done
 };
 
 } // namespace dds::remote_config

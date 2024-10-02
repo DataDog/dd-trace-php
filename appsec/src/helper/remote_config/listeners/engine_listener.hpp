@@ -5,27 +5,24 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../../config.hpp"
 #include "../../engine.hpp"
-#include "../../parameter.hpp"
 #include "../product.hpp"
 #include "config_aggregators/config_aggregator.hpp"
 #include "listener.hpp"
-#include <optional>
 #include <rapidjson/document.h>
-#include <utility>
 
 namespace dds::remote_config {
 
 //// ENGINE PROXY LISTENER
 class engine_listener : public listener_base {
 public:
-    explicit engine_listener(
-        std::shared_ptr<engine> engine, const std::string &rules_file = {});
+    explicit engine_listener(std::shared_ptr<engine> engine,
+        std::shared_ptr<metrics::telemetry_submitter> msubmitter,
+        const std::string &rules_file = {});
     engine_listener(const engine_listener &) = delete;
     engine_listener(engine_listener &&) = default;
     engine_listener &operator=(const engine_listener &) = delete;
-    engine_listener &operator=(engine_listener &&) = default;
+    engine_listener &operator=(engine_listener &&) = delete;
 
     ~engine_listener() override = default;
 
@@ -46,6 +43,7 @@ protected:
     std::shared_ptr<engine> engine_;
     rapidjson::Document ruleset_;
     std::unordered_set<config_aggregator_base *> to_commit_;
+    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
 };
 
 } // namespace dds::remote_config
