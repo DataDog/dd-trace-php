@@ -32,7 +32,8 @@ void (*ddog_remote_config_path_free)(char *);
 namespace dds {
 
 namespace {
-network::base_acceptor::ptr acceptor_from_config(const config::config &cfg)
+std::unique_ptr<network::base_acceptor> acceptor_from_config(
+    const config::config &cfg)
 {
     std::string_view const sock_path{cfg.socket_file_path()};
     if (sock_path.size() >= 4 && sock_path.substr(0, 3) == "fd:") {
@@ -89,7 +90,8 @@ runner::runner(const config::config &cfg, std::atomic<bool> &interrupted)
 {}
 
 runner::runner(const config::config &cfg,
-    network::base_acceptor::ptr &&acceptor, std::atomic<bool> &interrupted)
+    std::unique_ptr<network::base_acceptor> &&acceptor,
+    std::atomic<bool> &interrupted)
     : cfg_(cfg), service_manager_{std::make_shared<service_manager>()},
       acceptor_(std::move(acceptor)), interrupted_{interrupted}
 {
@@ -157,7 +159,7 @@ void runner::run()
 
         while (!interrupted()) {
             unblock_sigusr1();
-            network::base_socket::ptr socket = acceptor_->accept();
+            std::unique_ptr<network::base_socket> socket = acceptor_->accept();
             block_sigusr1();
 
             if (!socket) {

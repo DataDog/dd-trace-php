@@ -24,7 +24,7 @@ if [[ -f /appsec/ddappsec.so && -d /project ]]; then
     echo datadog.appsec.helper_path=/appsec/libddappsec-helper.so
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log
     echo datadog.appsec.helper_log_level=info
-#    echo datadog.appsec.helper_log_level=debug
+#    echo datadog.appsec.helper_log_level=trace
     echo datadog.appsec.rules=/etc/recommended.json
     echo datadog.appsec.log_file=/tmp/logs/appsec.log
     echo datadog.appsec.log_level=debug
@@ -33,6 +33,8 @@ fi
 
 if [[ -n $XDEBUG ]]; then
   echo "Enabling Xdebug" >&2
+  touch /tmp/logs/xdebug.log
+  chown www-data:www-data /tmp/logs/xdebug.log
   {
     echo zend_extension = xdebug.so
     echo xdebug.mode = debug

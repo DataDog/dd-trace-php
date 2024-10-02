@@ -15,8 +15,6 @@ namespace dds::network {
 
 class base_socket {
 public:
-    using ptr = std::unique_ptr<base_socket>;
-
     base_socket() = default;
     base_socket(const base_socket &) = delete;
     base_socket &operator=(const base_socket &) = delete;

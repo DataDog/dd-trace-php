@@ -20,12 +20,13 @@ namespace dds::remote_config {
 //// ENGINE PROXY LISTENER
 class engine_listener : public listener_base {
 public:
-    explicit engine_listener(
-        std::shared_ptr<engine> engine, const std::string &rules_file = {});
+    explicit engine_listener(std::shared_ptr<engine> engine,
+        std::shared_ptr<metrics::TelemetrySubmitter> msubmitter,
+        const std::string &rules_file = {});
     engine_listener(const engine_listener &) = delete;
     engine_listener(engine_listener &&) = default;
     engine_listener &operator=(const engine_listener &) = delete;
-    engine_listener &operator=(engine_listener &&) = default;
+    engine_listener &operator=(engine_listener &&) = delete;
 
     ~engine_listener() override = default;
 
@@ -46,6 +47,7 @@ protected:
     std::shared_ptr<engine> engine_;
     rapidjson::Document ruleset_;
     std::unordered_set<config_aggregator_base *> to_commit_;
+    std::shared_ptr<metrics::TelemetrySubmitter> msubmitter_;
 };
 
 } // namespace dds::remote_config
