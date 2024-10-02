@@ -5,7 +5,8 @@ ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
 SHELL = /bin/bash
 APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
-BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR_NAME = tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR = $(PROJECT_ROOT)/$(BUILD_DIR_NAME)
 BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
@@ -30,6 +31,7 @@ QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
+MAX_TEST_PARALLELISM ?= $(shell nproc)
 
 VERSION := $(shell cat VERSION)
 
@@ -38,11 +40,11 @@ INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
 # shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(shell nproc))
+RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dynamic-configuration,ipc,remote-config,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -151,10 +153,10 @@ install_appsec:
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
+	DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -402,9 +404,9 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
+	rm -f components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 
-generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
+generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 	( \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
 			--config cbindgen.toml \
@@ -413,6 +415,9 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
 			--config ddcommon-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
+			--config live-debugger-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
 			--config ddtelemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
@@ -426,7 +431,7 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
 	)
 
 cbindgen_binary:

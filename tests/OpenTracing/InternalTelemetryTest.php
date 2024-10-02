@@ -28,7 +28,7 @@ final class InternalTelemetryTest extends CLITestCase
         }
 
         // Filter the payloads from the trace background sender
-        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
+        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") == "service_name"; }));
     }
 
     public function testInternalMetricWithOpenTracing()

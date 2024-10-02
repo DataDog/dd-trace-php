@@ -91,6 +91,9 @@ function logRequest($message, $data = '')
 }
 
 set_error_handler(function ($number, $message, $errfile, $errline) {
+    if (error_reporting() == 0) {
+        return;
+    }
     logRequest("Triggered error $number $message in $errfile on line $errline: " . (new \Exception)->getTraceAsString());
     trigger_error($message, $number);
 });

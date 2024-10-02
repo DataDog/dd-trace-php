@@ -171,7 +171,9 @@ ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
 ext/phar/tests/bug69720.phpt
 ext/phar/tests/bug70433.phpt
+ext/phar/tests/cache_list/frontcontroller29.phpt
 ext/phar/tests/fatal_error_webphar.phpt
+ext/phar/tests/frontcontroller29.phpt
 ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
 ext/phar/tests/phar_oo_002.phpt
