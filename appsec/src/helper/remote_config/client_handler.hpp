@@ -9,6 +9,7 @@
 #include "../service_config.hpp"
 #include "client.hpp"
 #include "settings.hpp"
+#include <atomic>
 #include <memory>
 
 namespace dds::remote_config {
@@ -18,7 +19,8 @@ using namespace std::chrono_literals;
 class client_handler {
 public:
     client_handler(std::unique_ptr<remote_config::client> &&rc_client,
-        std::shared_ptr<service_config> service_config);
+        std::shared_ptr<service_config> service_config,
+        std::shared_ptr<metrics::TelemetrySubmitter> msubmitter);
     ~client_handler() = default;
 
     client_handler(const client_handler &) = delete;
@@ -31,13 +33,26 @@ public:
         const dds::engine_settings &eng_settings,
         std::shared_ptr<dds::service_config> service_config,
         const remote_config::settings &rc_settings,
-        const std::shared_ptr<engine> &engine_ptr, bool dynamic_enablement);
+        const std::shared_ptr<engine> &engine_ptr,
+        std::shared_ptr<metrics::TelemetrySubmitter> msubmitter,
+        bool dynamic_enablement);
 
     void poll();
 
+    bool has_applied_rc()
+    {
+        return creation_time_.load(std::memory_order_acquire) == empty_time;
+    }
+
 protected:
+    static constexpr auto empty_time = std::chrono::steady_clock::time_point{};
+
     std::shared_ptr<service_config> service_config_;
     std::unique_ptr<remote_config::client> rc_client_;
+    std::shared_ptr<metrics::TelemetrySubmitter> msubmitter_;
+    std::atomic<std::chrono::steady_clock::time_point> creation_time_{
+        std::chrono::steady_clock::now()}; // def value if first poll() done
+    std::chrono::steady_clock::time_point last_success_{};
 };
 
 } // namespace dds::remote_config

@@ -449,7 +449,7 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
         return true;
     }
     for (const char *end = ct + ct_len, *c = psemi + 1;
-         c < end - LSTRLEN("charset=utf-8") + 1; c++) {
+        c < end - LSTRLEN("charset=utf-8") + 1; c++) {
         if (tolower(*c) == 'c' && tolower(*(c + 1)) == 'h' &&
             tolower(*(c + 2)) == 'a' && tolower(*(c + 3)) == 'r' &&
             tolower(*(c + 4)) == 's' && tolower(*(c + 5)) == 'e' && // NOLINT

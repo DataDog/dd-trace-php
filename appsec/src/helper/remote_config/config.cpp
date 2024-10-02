@@ -81,7 +81,7 @@ std::string config::read() const
     auto close_fs = defer{[fd]() { ::close(fd); }};
 
     // check that the uid of the shared memory segment is the same as ours
-    struct ::stat shm_stat {};
+    struct ::stat shm_stat{};
     if (::fstat(fd, &shm_stat) == -1) {
         throw std::runtime_error{
             "Call to fstat on memory segment failed: " + strerror_ts(errno)};

@@ -45,7 +45,7 @@ void extract_data(
     rapidjson::Value::ConstMemberIterator itr, rule_data &rule_data)
 {
     for (const auto *data_entry_it = itr->value.Begin();
-         data_entry_it != itr->value.End(); ++data_entry_it) {
+        data_entry_it != itr->value.End(); ++data_entry_it) {
         if (!data_entry_it->IsObject()) {
             throw dds::remote_config::error_applying_config(
                 "Invalid config json contents: "
@@ -95,7 +95,7 @@ void asm_data_aggregator::add(const config &config)
 
     decltype(rules_data_) new_rules_data_;
     for (const auto *itr = rules_data_value->value.Begin();
-         itr != rules_data_value->value.End(); ++itr) {
+        itr != rules_data_value->value.End(); ++itr) {
         if (!itr->IsObject()) {
             throw error_applying_config("Invalid config json contents: "
                                         "rules_data entry invalid");

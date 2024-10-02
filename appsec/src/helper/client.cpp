@@ -16,8 +16,10 @@
 #include "client.hpp"
 #include "compression.hpp"
 #include "exception.hpp"
+#include "metrics.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
+#include "service.hpp"
 #include "std_logging.hpp"
 
 using namespace std::chrono_literals;
@@ -25,6 +27,11 @@ using namespace std::chrono_literals;
 namespace dds {
 
 namespace {
+
+void collect_metrics(network::request_shutdown::response &response,
+    service &service, std::optional<engine::context> &context);
+void collect_metrics(network::client_init::response &response, service &service,
+    std::optional<engine::context> &context);
 
 template <typename M, typename... Mrest>
 // NOLINTNEXTLINE(google-runtime-references)
@@ -155,18 +162,14 @@ bool client::handle_command(const network::client_init::request &command)
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     std::vector<std::string> errors;
     bool has_errors = false;
 
     client_enabled_conf = command.enabled_configuration;
 
     try {
-        service_ =
-            service_manager_->create_service(eng_settings, command.rc_settings,
-                meta, metrics, !client_enabled_conf.has_value());
+        service_ = service_manager_->create_service(eng_settings,
+            command.rc_settings, !client_enabled_conf.has_value());
 
         // save engine settings so we can recreate the service if rc path
         // changes
@@ -190,8 +193,11 @@ bool client::handle_command(const network::client_init::request &command)
     auto response = std::make_shared<network::client_init::response>();
     response->status = has_errors ? "fail" : "ok";
     response->errors = std::move(errors);
-    response->meta = std::move(meta);
-    response->metrics = std::move(metrics);
+
+    if (service_) {
+        // may be null in testing
+        collect_metrics(*response, *service_, context_);
+    }
 
     try {
         if (!broker_->send(response)) {
@@ -229,6 +235,8 @@ std::shared_ptr<typename T::response> client::publish(
 
     auto response = std::make_shared<typename T::response>();
     try {
+        service_->before_first_publish();
+
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto res = context_->publish(std::move(command.data));
         if (res) {
@@ -345,13 +353,7 @@ bool client::handle_command(network::config_sync::request &command)
     SPDLOG_DEBUG(
         "received command config_sync with path {}", command.rem_cfg_path);
 
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-    update_remote_config_path(command.rem_cfg_path, meta, metrics);
-
-    // TODO: meta/metrics not transmitted fwd
-    // wait for new interface; see
-    // https://github.com/DataDog/dd-trace-php/pull/2735
+    update_remote_config_path(command.rem_cfg_path);
 
     if (compute_client_status()) {
         auto response_cf =
@@ -433,15 +435,12 @@ bool client::handle_command(network::request_shutdown::request &command)
         return false;
     }
 
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    context_->get_meta_and_metrics(response->meta, response->metrics);
+    collect_metrics(*response, *service_, context_);
 
     return send_message<network::request_shutdown>(response);
 }
 
-void client::update_remote_config_path(std::string_view path,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+void client::update_remote_config_path(std::string_view path)
 {
     if (service_->is_remote_config_shmem_path(path) ||
         !engine_settings_.has_value()) {
@@ -453,8 +452,8 @@ void client::update_remote_config_path(std::string_view path,
     rc_settings.enabled = true;
     rc_settings.shmem_path = path;
 
-    service_ = service_manager_->create_service(
-        *engine_settings_, rc_settings, meta, metrics, true);
+    service_ =
+        service_manager_->create_service(*engine_settings_, rc_settings, true);
 }
 
 bool client::run_client_init()
@@ -493,5 +492,79 @@ void client::run(worker::queue_consumer &q)
 
     SPDLOG_DEBUG("Finished handling client");
 }
+
+namespace {
+
+struct RequestMetricsSubmitter : public metrics::TelemetrySubmitter {
+    RequestMetricsSubmitter() = default;
+    ~RequestMetricsSubmitter() override = default;
+    RequestMetricsSubmitter(const RequestMetricsSubmitter &) = delete;
+    RequestMetricsSubmitter &operator=(
+        const RequestMetricsSubmitter &) = delete;
+    RequestMetricsSubmitter(RequestMetricsSubmitter &&) = delete;
+    RequestMetricsSubmitter &operator=(RequestMetricsSubmitter &&) = delete;
+
+    void submit_metric(
+        std::string_view name, double value, std::string tags) override
+    {
+        SPDLOG_TRACE("submit_metric [req]: name={}, value={}, tags={}", name,
+            value, tags);
+        tel_metrics[name].emplace_back(value, tags);
+    };
+    void submit_legacy_metric(std::string_view name, double value) override
+    {
+        SPDLOG_TRACE(
+            "submit_legacy_metric [req]: name={}, value={}", name, value);
+        metrics[name] = value;
+    };
+    void submit_legacy_meta(std::string_view name, std::string value) override
+    {
+        SPDLOG_TRACE(
+            "submit_legacy_meta [req]: name={}, value={}", name, value);
+        meta[std::string{name}] = value;
+    };
+    void submit_legacy_meta_copy_key(
+        std::string name, std::string value) override
+    {
+        SPDLOG_TRACE("submit_legacy_meta_copy_key [req]: name={}, value={}",
+            name, value);
+        meta[name] = value;
+    }
+
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    std::map<std::string_view, std::vector<std::pair<double, std::string>>>
+        tel_metrics;
+};
+
+template <typename Response>
+void collect_metrics_impl(Response &response, service &service,
+    std::optional<engine::context> &context)
+{
+    RequestMetricsSubmitter msubmitter{};
+    if (context) {
+        context->get_metrics(msubmitter);
+    }
+    service.drain_metrics(
+        [&msubmitter](std::string_view name, double value, std::string tags) {
+            msubmitter.submit_metric(name, value, std::move(tags));
+        });
+    msubmitter.metrics.merge(service.drain_legacy_metrics());
+    msubmitter.meta.merge(service.drain_legacy_meta());
+    response.tel_metrics = std::move(msubmitter.tel_metrics);
+    response.meta = std::move(msubmitter.meta);
+    response.metrics = std::move(msubmitter.metrics);
+}
+void collect_metrics(network::request_shutdown::response &response,
+    service &service, std::optional<engine::context> &context)
+{
+    collect_metrics_impl(response, service, context);
+}
+void collect_metrics(network::client_init::response &response, service &service,
+    std::optional<engine::context> &context)
+{
+    collect_metrics_impl(response, service, context);
+}
+} // namespace
 
 } // namespace dds

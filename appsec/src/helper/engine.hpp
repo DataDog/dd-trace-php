@@ -9,6 +9,7 @@
 #include "config.hpp"
 #include "engine_ruleset.hpp"
 #include "engine_settings.hpp"
+#include "metrics.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
@@ -67,8 +68,7 @@ public:
 
         std::optional<result> publish(parameter &&param);
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
-            std::map<std::string_view, double> &metrics);
+        void get_metrics(metrics::TelemetrySubmitter &msubmitter);
 
     protected:
         std::shared_ptr<shared_state> common_;
@@ -87,8 +87,7 @@ public:
 
     static std::unique_ptr<engine> from_settings(
         const dds::engine_settings &eng_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+        metrics::TelemetrySubmitter &msubmitter);
 
     static auto create(
         uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
@@ -96,14 +95,13 @@ public:
         return std::unique_ptr<engine>(new engine(trace_rate_limit));
     }
 
+    void subscribe(std::unique_ptr<subscriber> sub);
+
     context get_context() { return context{*this}; }
 
     // Not thread-safe, should only be called after construction
-    void subscribe(std::unique_ptr<subscriber> sub);
-
-    virtual void update(engine_ruleset &ruleset,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+    virtual void update(
+        engine_ruleset &ruleset, metrics::TelemetrySubmitter &submit_metric);
 
 protected:
     explicit engine(uint32_t trace_rate_limit)
@@ -112,6 +110,7 @@ protected:
 
     // in practice: the current ddwaf_handle, atomically swapped in update
     std::shared_ptr<shared_state> common_;
+    std::shared_ptr<metrics::TelemetrySubmitter> msubmitter_;
     rate_limiter<dds::timer> limiter_;
 };
 

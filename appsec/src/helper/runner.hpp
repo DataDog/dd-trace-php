@@ -20,7 +20,8 @@ namespace dds {
 class runner : public std::enable_shared_from_this<runner> {
 public:
     runner(const config::config &cfg, std::atomic<bool> &interrupted);
-    runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor,
+    runner(const config::config &cfg,
+        std::unique_ptr<network::base_acceptor> &&acceptor,
         std::atomic<bool> &interrupted);
     runner(const runner &) = delete;
     runner &operator=(const runner &) = delete;
@@ -47,7 +48,7 @@ private:
     worker::pool worker_pool_;
 
     // Server variables
-    network::base_acceptor::ptr acceptor_;
+    std::unique_ptr<network::base_acceptor> acceptor_;
     std::atomic<bool> &interrupted_; // NOLINT
 };
 

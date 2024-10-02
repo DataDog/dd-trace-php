@@ -393,7 +393,7 @@ static zend_string *_concat_json_fragments()
 
     zend_llist_position pos;
     for (zend_string **sp = zend_llist_get_first_ex(&_appsec_json_frags, &pos);
-         sp != NULL; sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos)) {
+        sp != NULL; sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos)) {
         zend_string *s = *sp;
         needed_len += ZSTR_LEN(s);
     }
@@ -405,8 +405,8 @@ static zend_string *_concat_json_fragments()
 
     size_t i = 0;
     for (zend_string **sp = zend_llist_get_first_ex(&_appsec_json_frags, &pos);
-         sp != NULL;
-         sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos), i++) {
+        sp != NULL;
+        sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos), i++) {
         if (i != 0) {
             *buf++ = ',';
         }
@@ -717,7 +717,7 @@ static void _dd_response_headers(zend_array *meta_ht)
     zend_llist *l = &SG(sapi_headers).headers;
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(l, &pos); header;
-         header = zend_llist_get_next_ex(l, &pos)) {
+        header = zend_llist_get_next_ex(l, &pos)) {
         const char *pcol = memchr(header->header, ':', header->header_len);
         if (!pcol) {
             if (header->header_len <= INT_MAX) {

@@ -513,9 +513,9 @@ static void _run_rshutdowns()
 
     mlog_g(dd_log_debug, "Running remaining extensions' RSHUTDOWN");
     for (zend_hash_internal_pointer_end_ex(&module_registry, &pos);
-         (module = zend_hash_get_current_data_ptr_ex(&module_registry, &pos)) !=
-         NULL;
-         zend_hash_move_backwards_ex(&module_registry, &pos)) {
+        (module = zend_hash_get_current_data_ptr_ex(&module_registry, &pos)) !=
+        NULL;
+        zend_hash_move_backwards_ex(&module_registry, &pos)) {
         if (!found_ddappsec && strcmp("ddappsec", module->name) == 0) {
             found_ddappsec = true;
             continue;

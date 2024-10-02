@@ -9,8 +9,7 @@ namespace dds {
 
 std::shared_ptr<service> service_manager::create_service(
     const engine_settings &settings, const remote_config::settings &rc_settings,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics, bool dynamic_enablement)
+    bool dynamic_enablement)
 {
     const cache_key key{settings, rc_settings};
 
@@ -29,8 +28,8 @@ std::shared_ptr<service> service_manager::create_service(
     SPDLOG_DEBUG("Creating a service for settings={} rc_settings={}", settings,
         rc_settings);
 
-    auto service_ptr = service::from_settings(
-        settings, rc_settings, meta, metrics, dynamic_enablement);
+    auto service_ptr =
+        service::from_settings(settings, rc_settings, dynamic_enablement);
     cache_.emplace(key, std::move(service_ptr));
 
     last_service_ = service_ptr;

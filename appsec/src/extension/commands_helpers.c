@@ -672,7 +672,7 @@ static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
     zend_llist_position pos;
     int i = 1;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
+        iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
         zend_string *zstr = php_base64_encode(iov->iov_base, iov->iov_len);
         if (ZSTR_LEN(zstr) > INT_MAX) {
             return;
