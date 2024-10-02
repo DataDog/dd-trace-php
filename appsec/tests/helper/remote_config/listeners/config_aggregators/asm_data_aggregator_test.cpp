@@ -15,7 +15,7 @@
 
 namespace dds::remote_config {
 
-using mock::generate_config;
+using mock::get_config;
 
 struct test_rule_data_data {
     std::optional<uint64_t> expiration;
@@ -62,7 +62,7 @@ remote_config::config get_rules_data(std::vector<test_rule_data> data)
     rapidjson::Writer<decltype(buffer)> writer(buffer);
     document.Accept(writer);
 
-    return generate_config("ASM_DATA", buffer.get_string_ref());
+    return get_config(known_products::ASM_DATA, buffer.get_string_ref());
 }
 
 TEST(RemoteConfigAsmDataAggregator, ParseRulesData)
@@ -335,7 +335,8 @@ TEST(RemoteConfigAsmDataAggregator, IgnoreInvalidConfigs)
     {
         const std::string &invalid =
             R"({"rules_data": [{"id": "id01", "data": [{"expiration": 11, "value": "1.2.3.5"} ], "type": "ip_with_expiration"},{"data": [{"expiration": 11111, "value": "1.2.3.4"} ], "type": "ip_with_expiration"}]})";
-        EXPECT_THROW(aggregator.add(generate_config("ASM_DATA", invalid)),
+        EXPECT_THROW(
+            aggregator.add(get_config(known_products::ASM_DATA, invalid)),
             remote_config::error_applying_config);
     }
     aggregator.aggregate(doc);
@@ -415,7 +416,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfContentNotInBase64)
     std::string invalid_content = "&&&";
     std::string expected_error_message = "Invalid config contents";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, false);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -439,7 +440,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfContentNotValidJsonContent)
     std::string invalid_content = "InvalidJsonContent";
     std::string expected_error_message = "Invalid config contents";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -465,7 +466,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfNoRulesDataKey)
         "Invalid config json contents: rules_data key missing or "
         "invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -491,7 +492,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfRulesDataNotArray)
         "Invalid config json contents: rules_data key missing or "
         "invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -516,7 +517,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfRulesDataEntryNotObject)
     std::string expected_error_message =
         "Invalid config json contents: rules_data entry invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -544,7 +545,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfNoId)
         "Invalid config json contents: rules_data missing a field or "
         "field is invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -572,7 +573,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfIdNotString)
         "Invalid config json contents: rules_data missing a field or "
         "field is invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -600,7 +601,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfNoType)
         "Invalid config json contents: rules_data missing a field or "
         "field is invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -628,7 +629,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfTypeNotString)
         "Invalid config json contents: rules_data missing a field or "
         "field is invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -655,7 +656,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfNoData)
         "Invalid config json contents: rules_data missing a field or "
         "field is invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -683,7 +684,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfDataNotArray)
         "Invalid config json contents: rules_data missing a field or "
         "field is invalid";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -709,7 +710,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfDataEntryNotObject)
     std::string expected_error_message =
         "Invalid config json contents: Entry on data not a valid object";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -734,7 +735,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfDataExpirationHasInvalidType)
         R"({"rules_data": [{"data": [{"expiration": "invalid", "value": "1.2.3.4"}], "id": "some_id", "type": "data_with_expiration"}]})";
     std::string expected_error_message = "Invalid type for expiration entry";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -760,7 +761,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfDataValueMissing)
         "\"some_id\", \"type\": \"data_with_expiration\"} ] }";
     std::string expected_error_message = "Invalid value of data entry";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 
@@ -787,7 +788,7 @@ TEST(RemoteConfigAsmDataAggregator, ThrowsAnErrorIfDataValueHasInvalidType)
         "\"ip_with_expiration\"} ] }";
     std::string expected_error_message = "Invalid value of data entry";
     remote_config::config config =
-        generate_config("ASM_DATA", invalid_content, true);
+        get_config(known_products::ASM_DATA, invalid_content);
 
     remote_config::asm_data_aggregator aggregator;
 

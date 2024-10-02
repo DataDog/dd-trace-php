@@ -12,9 +12,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.net.http.HttpResponse
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
-import static com.datadog.appsec.php.integration.TestParams.getTracerVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
-import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
 @Slf4j

@@ -1,12 +1,17 @@
 package com.datadog.appsec.php.mock_agent.rem_cfg;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +28,8 @@ public class RemoteConfigResponse {
     public List<String> clientConfigs;
 
     @JsonDeserialize(using = TargetsDeserializer.class)
-    private Targets targets;
+    @JsonSerialize(using = TargetsSerializer.class)
+    public Targets targets;
 
     @JsonProperty("target_files")
     public List<TargetFile> targetFiles;
@@ -103,7 +109,7 @@ public class RemoteConfigResponse {
         throw new MissingContentException("No content for " + configKey);
     }
 
-    private static BigInteger sha256(byte[] bytes) {
+    public static BigInteger sha256(byte[] bytes) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(bytes);
@@ -136,6 +142,8 @@ public class RemoteConfigResponse {
             public String type;
 
             public TargetsCustom custom;
+
+            @JsonSerialize(using=InstantSerializer.class)
             public Instant expires;
 
             @JsonProperty("spec_version")
@@ -145,6 +153,9 @@ public class RemoteConfigResponse {
             public Map<String, ConfigTarget> targets;
 
             public static class TargetsCustom {
+                @JsonProperty("agent_request_interval")
+                public long agentRequestInterval;
+
                 @JsonProperty("opaque_backend_state")
                 public String opaqueBackendState;
             }
@@ -181,6 +192,29 @@ public class RemoteConfigResponse {
             JsonDeserializer<?> defaultDeserializer = deserializationContext.findRootValueDeserializer(
                     deserializationContext.constructType(Targets.class));
             return (Targets) defaultDeserializer.deserialize(defParser, deserializationContext);
+        }
+    }
+
+    public static class TargetsSerializer extends JsonSerializer<Targets> {
+        @Override
+        public void serialize(Targets value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            JsonSerializer<Object> defaultSerializer = serializers.findValueSerializer(Targets.class);
+
+            StringWriter sw = new StringWriter();
+            JsonGenerator defGen = gen.getCodec().getFactory().createGenerator(sw);
+            defaultSerializer.serialize(value, defGen, serializers);
+            defGen.flush();
+
+            byte[] base64 = Base64.getEncoder().encode(sw.toString().getBytes(StandardCharsets.UTF_8));
+
+            gen.writeString(new String(base64, StandardCharsets.ISO_8859_1));
+        }
+    }
+
+    public static class InstantSerializer extends JsonSerializer<Instant> {
+        @Override
+        public void serialize(Instant value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            gen.writeString(value.toString());
         }
     }
 }

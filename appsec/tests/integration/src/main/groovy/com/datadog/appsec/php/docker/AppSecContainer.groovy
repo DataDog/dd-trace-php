@@ -1,6 +1,9 @@
 package com.datadog.appsec.php.docker
 
 import com.datadog.appsec.php.mock_agent.MockDatadogAgent
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
+import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import com.github.dockerjava.api.command.CreateContainerCmd
@@ -115,6 +118,14 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     List<Object> drainTelemetry(int timeoutInMs) {
         mockDatadogAgent.drainTelemetry(timeoutInMs)
+    }
+
+    void setNextRCResponse(Target target, RemoteConfigResponse nextResponse) {
+        mockDatadogAgent.setNextRCResponse(target, nextResponse)
+    }
+
+    RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
+        mockDatadogAgent.waitForRCVersion(target, version, timeoutInMs)
     }
 
     void close() {

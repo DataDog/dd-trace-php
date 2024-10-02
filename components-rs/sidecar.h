@@ -71,6 +71,12 @@ struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddo
                                                                        const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
                                                                        uintptr_t remote_config_capabilities_count);
 
+/**
+ * # Safety
+ * Argument should point to a valid C string.
+ */
+struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_path(const char *path);
+
 bool ddog_remote_config_read(struct ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
 
 void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);

@@ -20,7 +20,7 @@ set_target_properties(helper_objects PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED YES
     POSITION_INDEPENDENT_CODE 1)
-target_include_directories(helper_objects PUBLIC ${HELPER_INCLUDE_DIR})
+target_include_directories(helper_objects INTERFACE ${HELPER_INCLUDE_DIR})
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 target_compile_options(helper_objects PRIVATE -ftls-model=global-dynamic)
 target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog cpp-base64 msgpack_c RapidJSON::rapidjson Boost::system zlibstatic)
@@ -35,6 +35,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # Bind symbols lookup of symbols defined in the library to the library itself
     # also avoids relocation problems with libc++.a on linux/aarch64
     target_link_options(ddappsec-helper PRIVATE -Wl,-Bsymbolic)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_options(ddappsec-helper PRIVATE -undefined dynamic_lookup)
 endif()
 set_target_properties(ddappsec-helper PROPERTIES
     CXX_VISIBILITY_PRESET hidden
