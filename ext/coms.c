@@ -1072,6 +1072,11 @@ static void *_dd_writer_loop(void *_) {
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
         struct curl_slist *headers = curl_slist_append(NULL, "Content-Type: application/json");
+        if (*ddtrace_coms_globals.test_session_token) {
+            char buffer[300];
+            sprintf(buffer, "x-datadog-test-session-token: %s", ddtrace_coms_globals.test_session_token);
+            headers = curl_slist_append(headers, buffer);
+        }
         curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
         ddtrace_curl_set_telemetry_url(writer->curl);
         curl_easy_perform(writer->curl);

@@ -180,6 +180,7 @@ test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.p
 test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
+	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	sed -i 's/stream_socket_accept($$listenSock, 5)/stream_socket_accept($$listenSock, 20)/' $(BUILD_DIR)/run-tests.php; \
 	export DD_TRACE_CLI_ENABLED=1; \
 	export USE_ZEND_ALLOC=0; \
