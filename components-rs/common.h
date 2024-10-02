@@ -861,6 +861,7 @@ typedef enum ddog_crasht_DemangleOptions {
 typedef enum ddog_crasht_NormalizedAddressTypes {
   DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_NONE = 0,
   DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_ELF,
+  DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_PDB,
 } ddog_crasht_NormalizedAddressTypes;
 
 /**
@@ -1091,6 +1092,7 @@ typedef struct ddog_Slice_U8 ddog_ByteSlice;
 typedef struct ddog_crasht_NormalizedAddress {
   uint64_t file_offset;
   ddog_ByteSlice build_id;
+  uint64_t age;
   ddog_CharSlice path;
   enum ddog_crasht_NormalizedAddressTypes typ;
 } ddog_crasht_NormalizedAddress;

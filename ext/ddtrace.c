@@ -1399,6 +1399,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_disable == 1) {
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
+#if ZTS
+        ddtrace_thread_mshutdown();
+#endif
         return SUCCESS;
     }
 

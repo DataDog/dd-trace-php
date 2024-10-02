@@ -132,8 +132,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                                \
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
     CONFIG(BOOL, DD_EXCEPTION_REPLAY_ENABLED, "false")                                                         \
-    CONFIG(INT, DD_EXCEPTION_REPLAY_MAX_FRAMES_TO_CAPTURE, "-1")                                               \
-    CONFIG(INT, DD_EXCEPTION_REPLAY_RATE_LIMIT_SECONDS, "3600")                                                \
+    CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES, "-1")                                                  \
+    CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS, "3600")                                          \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
