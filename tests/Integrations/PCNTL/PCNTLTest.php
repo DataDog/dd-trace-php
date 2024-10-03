@@ -5,12 +5,16 @@ namespace DDTrace\Tests\Integrations\PCNTL;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-const ACCEPTABLE_TEST_EXECTION_TIME_S = 1.4;
-
 final class PCNTLTest extends IntegrationTestCase
 {
+    private static $acceptable_test_execution_time = 2;
+
     protected function ddSetUp()
     {
+        if (!\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            self::$acceptable_test_execution_time = 1.4;
+        }
+
         $this->resetRequestDumper();
         parent::ddSetUp();
     }
@@ -34,7 +38,7 @@ final class PCNTLTest extends IntegrationTestCase
             ]
         );
         $end = \microtime(true);
-        $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_S, $end - $start);
+        $this->assertLessThan(self::$acceptable_test_execution_time, $end - $start);
     }
 
     /**
@@ -59,7 +63,7 @@ final class PCNTLTest extends IntegrationTestCase
             true
         );
         $end = \microtime(true);
-        $this->assertLessThan(ACCEPTABLE_TEST_EXECTION_TIME_S, $end - $start);
+        $this->assertLessThan(self::$acceptable_test_execution_time, $end - $start);
         if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
             \dd_trace_synchronous_flush();
         }

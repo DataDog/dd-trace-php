@@ -453,6 +453,13 @@ static void dd_activate_once(void) {
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
+static bool dd_is_cli_autodisabled(const char *arg) {
+    const char *slashend = strrchr(arg, '/');
+    const char *backslashend = strrchr(arg, '\\');
+    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
+}
+
 static void ddtrace_activate(void) {
     ddog_reset_logger();
 
@@ -482,8 +489,16 @@ static void ddtrace_activate(void) {
         dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
     }
 
-    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        ddtrace_disable = 2;
+    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0) {
+        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index < 0 && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
+            zend_string *zero = zend_string_init("0", 1, 0);
+            zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].ini_entries[0]->name, zero,
+                                 ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+            zend_string_release(zero);
+        }
+        if (!get_DD_TRACE_CLI_ENABLED()) {
+            ddtrace_disable = 2;
+        }
     }
 
     if (ddtrace_disable) {

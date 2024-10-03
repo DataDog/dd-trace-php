@@ -67,26 +67,19 @@ Array
 
     [1] => Array
         (
-            [name] => trace.cli_enabled
+            [name] => instrumentation_telemetry_enabled
             [value] => 1
             [origin] => EnvVar
         )
 
     [2] => Array
         (
-            [name] => instrumentation_telemetry_enabled
-            [value] => 1
-            [origin] => EnvVar
-        )
-
-    [3] => Array
-        (
             [name] => trace.generate_root_span
             [value] => 0
             [origin] => EnvVar
         )
 
-    [4] => Array
+    [3] => Array
         (
             [name] => trace.git_metadata_enabled
             [value] => 0

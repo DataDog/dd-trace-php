@@ -1,6 +1,7 @@
 --TEST--
 When DD_GIT_COMMIT_SHA is specified, _dd.git_commit_sha is injected
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

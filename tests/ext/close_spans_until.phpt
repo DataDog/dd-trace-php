@@ -1,6 +1,7 @@
 --TEST--
 Test DDTrace\close_spans_until
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,span=trace,startup=off
 --FILE--
 <?php

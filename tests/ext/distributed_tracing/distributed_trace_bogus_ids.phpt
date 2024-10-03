@@ -1,6 +1,7 @@
 --TEST--
 Transmit distributed header information to spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TRACE_ID=foo
 HTTP_X_DATADOG_PARENT_ID=bar
 HTTP_X_DATADOG_ORIGIN=datadog

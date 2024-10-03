@@ -2,6 +2,7 @@
 Unset, nulled and generally invalid data in exception property is ignored
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --SKIPIF--
 <?php
 if (version_compare(PHP_VERSION, '7.4.0', '>='))

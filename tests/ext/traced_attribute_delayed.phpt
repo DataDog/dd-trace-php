@@ -3,6 +3,7 @@ Test delayed resolution of tracing attributes
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80000) die('skip: No attributes pre-PHP 8'); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php

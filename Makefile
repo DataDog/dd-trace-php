@@ -153,10 +153,10 @@ install_appsec:
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) $(TESTS)
+	DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -168,12 +168,11 @@ test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-te
 	)
 
 test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
 
-test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
 
@@ -182,7 +181,6 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	sed -i 's/stream_socket_accept($$listenSock, 5)/stream_socket_accept($$listenSock, 20)/' $(BUILD_DIR)/run-tests.php; \
-	export DD_TRACE_CLI_ENABLED=1; \
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
@@ -190,13 +188,12 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
-	export DD_TRACE_CLI_ENABLED=1; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	export DD_TRACE_GIT_METADATA_ENABLED=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
@@ -519,7 +516,7 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 DD_TRACE_CLI_ENABLED=true DD_TRACE_GIT_METADATA_ENABLED=false
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 DD_TRACE_GIT_METADATA_ENABLED=false
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 

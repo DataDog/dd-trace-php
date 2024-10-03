@@ -2,6 +2,8 @@
 Span stacks are fully reset when the tracer is disabled and re-enabled
 --INI--
 datadog.trace.generate_root_span=0
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 

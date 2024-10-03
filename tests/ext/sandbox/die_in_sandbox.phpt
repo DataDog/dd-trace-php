@@ -4,6 +4,8 @@ Die()'ing in the sandbox is properly caught
 <?php if (PHP_VERSION_ID < 80000) die('skip: UnwindExit does not exist on PHP 7'); ?>
 --INI--
 datadog.trace.debug=1
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 

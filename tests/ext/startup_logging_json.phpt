@@ -2,6 +2,8 @@
 Startup logging from JSON fetched at runtime
 --INI--
 datadog.trace.sources_path=
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 include_once 'startup_logging.inc';
