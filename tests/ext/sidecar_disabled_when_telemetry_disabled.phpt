@@ -6,7 +6,7 @@ Sidecar should be disabled when telemetry is disabled
 <?php
 include_once 'startup_logging.inc';
 
-// IN PHP 8.4, the sidecar is enabled
+// IN PHP 8.3, the sidecar is enabled
 // In all other versions the sidecar is disabled.
 // But we disable in all cases if telemetry is disabled.
 // So in this test, the sidecar should be disabled all the time

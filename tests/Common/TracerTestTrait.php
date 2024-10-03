@@ -507,7 +507,7 @@ trait TracerTestTrait
     function untilNumberOfTraces($number) {
         $count = 0;
         return function ($request) use (&$count, $number) {
-            $count += $request['headers']['X-Datadog-Trace-Count'] ?? 0;
+            $count += $request['headers']['X-Datadog-Trace-Count'] ?? $request["headers"]["x-datadog-trace-count"] ?? 0;
             return $count >= $number;
         };
     }
