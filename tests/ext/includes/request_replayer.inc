@@ -25,10 +25,7 @@ class RequestReplayer
             getenv('DD_TRACE_AGENT_PORT') ?: '80'
         );
 
-        $this->flushInterval = getenv('DD_TRACE_AGENT_FLUSH_INTERVAL')
-            ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL') * 100
-            : 50000;
-
+        $this->flushInterval = 100000; // 0.1 second
         $this->maxIteration = (strncasecmp(PHP_OS, "WIN", 3) === 0) ? 500 : 200;
     }
 
