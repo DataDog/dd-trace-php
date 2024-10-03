@@ -359,6 +359,10 @@ typedef enum ddog_RemoteConfigCapabilities {
 
 typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
 } ddog_RemoteConfigProduct;
 
@@ -820,6 +824,13 @@ typedef struct ddog_ContextKey {
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
+
+typedef struct ddog_Arc_Target ddog_Arc_Target;
+
+/**
+ * Fundamental configuration of the RC client, which always must be set.
+ */
+typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
 
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
 

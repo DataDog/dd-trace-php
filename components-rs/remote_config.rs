@@ -209,6 +209,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         remote_config.dynamic_config.active_config_path = Some(value.config_id);
                     }
                 },
+                RemoteConfigData::Ignored(_) => {}
             },
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
@@ -221,6 +222,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         remove_old_configs(remote_config);
                     }
                 },
+                _ => {},
             },
         }
     }

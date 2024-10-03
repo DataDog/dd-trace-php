@@ -1399,9 +1399,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_disable == 1) {
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
-#if ZTS
-        ddtrace_thread_mshutdown();
-#endif
         return SUCCESS;
     }
 
@@ -1437,9 +1434,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_user_req_shutdown();
 
     ddtrace_sidecar_shutdown();
-#if ZTS
-    ddtrace_thread_mshutdown();
-#endif
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation
