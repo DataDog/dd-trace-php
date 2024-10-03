@@ -13,6 +13,7 @@ variables:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
+
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
@@ -118,3 +119,10 @@ onboarding_tests_k8s_injection:
       - WEBLOG_VARIANT:
           - dd-lib-php-init-test-83
           - dd-lib-php-init-test-alpine
+
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
