@@ -29,6 +29,6 @@ void dd_helper_close_conn(void);
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 bool dd_on_runtime_path_update(zval *nullable old_value,
-    zval *nonnull new_value, zend_string *nonnull new_str);
+    zval *nonnull new_value, zend_string *nullable new_str);
 
 #endif // DD_HELPER_MGR_H
