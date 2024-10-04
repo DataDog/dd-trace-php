@@ -27,7 +27,8 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(client_init_func nonnull, void *uns
 dd_conn *nullable dd_helper_mgr_cur_conn(void);
 void dd_helper_close_conn(void);
 
-bool dd_on_runtime_path_update(
-    zval *nullable old_value, zval *nonnull new_value, zend_string *nonnull new_str);
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+bool dd_on_runtime_path_update(zval *nullable old_value,
+    zval *nonnull new_value, zend_string *nullable new_str);
 
 #endif // DD_HELPER_MGR_H
