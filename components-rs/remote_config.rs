@@ -119,11 +119,6 @@ pub unsafe extern "C" fn ddog_init_remote_config(
             RemoteConfigCapabilities::AsmCustomRules,
             RemoteConfigCapabilities::AsmCustomBlockingResponse,
             RemoteConfigCapabilities::AsmTrustedIps,
-            RemoteConfigCapabilities::AsmApiSecuritySampleRate,
-            RemoteConfigCapabilities::AsmProcessorOverrides,
-            RemoteConfigCapabilities::AsmCustomDataScanners,
-            RemoteConfigCapabilities::AsmExclusionData,
-            RemoteConfigCapabilities::AsmRaspSqli,
         ]
         .iter()
         .for_each(|c| DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(*c));

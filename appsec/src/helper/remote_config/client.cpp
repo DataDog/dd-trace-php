@@ -27,6 +27,27 @@ ddog_RemoteConfigReader *(*ddog_remote_config_reader_for_path)(
 bool (*ddog_remote_config_read)(
     ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
 void (*ddog_remote_config_reader_drop)(struct ddog_RemoteConfigReader *);
+
+// if before is the same as after, disconsidering elements not in products
+bool has_updates(
+    const std::unordered_set<dds::remote_config::product> &products,
+    const std::set<dds::remote_config::config> &before,
+    const std::set<dds::remote_config::config> &after)
+{
+    auto set_is_subset_of = [&products](auto &set1, auto &set2) {
+        for (auto &&elem_set_1 : set1) { // NOLINT(readability-use-anyofallof)
+            if (!products.contains(elem_set_1.get_product())) {
+                continue;
+            }
+            if (!set2.contains(elem_set_1)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    return !set_is_subset_of(before, after) || !set_is_subset_of(after, before);
+}
 } // namespace
 
 namespace dds::remote_config {
@@ -73,6 +94,7 @@ client::client(remote_config::settings settings,
             std::vector<listener_base *> &vec_listeners =
                 listeners_per_product_[p];
             vec_listeners.push_back(listener.get());
+            all_products_.insert(p);
         }
     }
 }
@@ -86,6 +108,8 @@ std::unique_ptr<client> client::from_settings(
 
 bool client::poll()
 {
+    const std::lock_guard lock{mutex_};
+
     SPDLOG_DEBUG("Polling remote config");
 
     ddog_CharSlice slice{};
@@ -114,6 +138,20 @@ bool client::poll()
         }
         new_configs.emplace(config::from_line(configs.substr(0, pos_lf)));
         configs = configs.substr(pos_lf + 1);
+    }
+
+    if (!has_updates(all_products_, new_configs, last_configs_)) {
+        SPDLOG_DEBUG("Configuration is identical for the subscribed products. "
+                     "Skipping update");
+        SPDLOG_DEBUG("BEFORE:");
+        for (auto &&c : last_configs_) {
+            SPDLOG_DEBUG("{}:{}", c.rc_path, c.shm_path);
+        }
+        SPDLOG_DEBUG("AFTER:");
+        for (auto &&c : last_configs_) {
+            SPDLOG_DEBUG("{}:{}", c.rc_path, c.shm_path);
+        }
+        return false;
     }
 
     return process_response(std::move(new_configs));

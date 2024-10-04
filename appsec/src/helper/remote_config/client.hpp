@@ -6,6 +6,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <set>
 #include <string>
 #include <thread>
@@ -62,9 +63,11 @@ protected:
 
     std::vector<std::shared_ptr<listener_base>> listeners_;
     std::unordered_map<product, std::vector<listener_base *>>
-        listeners_per_product_; // non-owning index of listeners_
+        listeners_per_product_;                // non-owning index of listeners_
+    std::unordered_set<product> all_products_; // keys of listeners_per_product_
 
     std::set<config> last_configs_;
+    std::mutex mutex_;
 };
 
 } // namespace dds::remote_config

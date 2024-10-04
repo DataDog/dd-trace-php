@@ -2,6 +2,7 @@ package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
+import com.datadog.appsec.php.mock_agent.rem_cfg.Capability
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
@@ -55,7 +56,7 @@ class RemoteConfigTests {
     }
 
     @Test
-    void 'test remote activation'() {
+    void 'test remote activation and capabilities'() {
         def doReq = { int expectedStatus ->
             HttpRequest req = CONTAINER.buildReq('/hello.php')
                     .GET()
@@ -68,11 +69,26 @@ class RemoteConfigTests {
 
         doReq.call(200)
 
-        applyRemoteConfig(INITIAL_TARGET, [
+        RemoteConfigRequest rcr = applyRemoteConfig(INITIAL_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
                 ]
         ])
+
+        def capSet = Capability.forByteArray(rcr.client.capabilities)
+
+        [
+                Capability.ASM_ACTIVATION,
+                Capability.ASM_IP_BLOCKING,
+                Capability.ASM_DD_RULES,
+                Capability.ASM_EXCLUSIONS,
+                Capability.ASM_REQUEST_BLOCKING,
+                Capability.ASM_RESPONSE_BLOCKING,
+                Capability.ASM_USER_BLOCKING,
+                Capability.ASM_CUSTOM_RULES,
+                Capability.ASM_CUSTOM_BLOCKING_RESPONSE,
+                Capability.ASM_TRUSTED_IPS,
+        ].each { assert it in capSet }
 
         doReq.call(403)
 
@@ -138,7 +154,7 @@ class RemoteConfigTests {
 
         applyRemoteConfig(INITIAL_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
-                'datadog/2/ASM_DD/full_cfg/config':
+                'employee/ASM_DD/full_cfg/config':
                         [
                                 version: '2.1',
                                 rules: [[

@@ -32,7 +32,7 @@ namespace dds::remote_config {
         }
     } else if (sv.starts_with("employee/"sv)) {
         sv.remove_prefix("employee/"sv.length());
-        auto product_end = shm_path.find('/');
+        auto product_end = sv.find('/');
         if (product_end != std::string::npos) {
             return known_products::for_name(sv.substr(0, product_end));
         }
