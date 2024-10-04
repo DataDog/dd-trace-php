@@ -1413,6 +1413,7 @@ jobs:
             apt update
             apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi
             curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "1.76.0"
+            echo 'export PATH=${PATH}:$HOME/.cargo/bin' >> $BASH_ENV
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
