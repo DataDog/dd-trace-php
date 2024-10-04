@@ -86,10 +86,10 @@ mapped_memory config::read() const
         throw std::runtime_error{
             "Call to fstat on memory segment failed: " + strerror_ts(errno)};
     }
-    if (shm_stat.st_uid != ::getuid()) {
+    if (shm_stat.st_uid != ::geteuid()) {
         throw std::runtime_error{"Shared memory segment does not have the "
                                  "expected owner. Expect our uid " +
-                                 std::to_string(::getuid()) + " but found " +
+                                 std::to_string(::geteuid()) + " but found " +
                                  std::to_string(shm_stat.st_uid)};
     }
 
