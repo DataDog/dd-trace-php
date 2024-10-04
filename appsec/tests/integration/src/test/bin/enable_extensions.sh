@@ -23,8 +23,8 @@ if [[ -f /appsec/ddappsec.so && -d /project ]]; then
     echo datadog.appsec.enabled=true
     echo datadog.appsec.helper_path=/appsec/libddappsec-helper.so
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log
-#    echo datadog.appsec.helper_log_level=info
-    echo datadog.appsec.helper_log_level=debug
+    echo datadog.appsec.helper_log_level=info
+#    echo datadog.appsec.helper_log_level=debug
     echo datadog.appsec.rules=/etc/recommended.json
     echo datadog.appsec.log_file=/tmp/logs/appsec.log
     echo datadog.appsec.log_level=debug

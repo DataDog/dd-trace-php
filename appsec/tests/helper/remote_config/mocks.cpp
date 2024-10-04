@@ -5,7 +5,8 @@
 #include <sys/mman.h>
 
 namespace dds::remote_config::mock {
-remote_config::config get_config(product p, const std::string &content)
+remote_config::config get_config(
+    std::string_view product_name, const std::string &content)
 {
     static std::atomic<std::uint32_t> id{0};
 
@@ -34,7 +35,7 @@ remote_config::config get_config(product p, const std::string &content)
 
     ::close(shm_fd);
 
-    return {shm_path, std::string{"datadog/2/"} + std::string{p.name()} +
+    return {shm_path, std::string{"datadog/2/"} + std::string{product_name} +
                           "/foobar_" + std::to_string(cur_id) + "/config"};
 }
 } // namespace dds::remote_config::mock

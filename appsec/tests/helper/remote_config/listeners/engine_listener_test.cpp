@@ -57,8 +57,7 @@ TEST(RemoteConfigEngineListener, UnknownConfig)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    EXPECT_THROW(
-        listener.on_update(get_config(known_products::UNKNOWN, waf_rule)),
+    EXPECT_THROW(listener.on_update(get_config("UNKNOWN", waf_rule)),
         error_applying_config);
     listener.commit();
 }
@@ -75,7 +74,7 @@ TEST(RemoteConfigEngineListener, RuleUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
+    listener.on_update(get_config("ASM_DD", waf_rule));
     listener.commit();
 
     {
@@ -105,7 +104,7 @@ TEST(RemoteConfigEngineListener, RuleUpdateFallback)
 
     remote_config::engine_listener listener(engine, create_sample_rules_ok());
     listener.init();
-    listener.on_unapply(get_config(known_products::ASM_DD, waf_rule));
+    listener.on_unapply(get_config("ASM_DD", waf_rule));
     listener.commit();
 
     {
@@ -138,7 +137,7 @@ TEST(RemoteConfigEngineListener, RulesOverrideUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -179,8 +178,8 @@ TEST(RemoteConfigEngineListener, RulesAndRulesOverrideUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM_DD", waf_rule));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -228,7 +227,7 @@ TEST(RemoteConfigEngineListener, ExclusionsUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -270,8 +269,8 @@ TEST(RemoteConfigEngineListener, RulesAndExclusionsUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM_DD", waf_rule));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -320,7 +319,7 @@ TEST(RemoteConfigEngineListener, ActionsUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -363,8 +362,8 @@ TEST(RemoteConfigEngineListener, RulesAndActionsUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM_DD", waf_rule));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -415,7 +414,7 @@ TEST(RemoteConfigEngineListener, CustomRulesUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -460,8 +459,8 @@ TEST(RemoteConfigEngineListener, RulesAndCustomRulesUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM_DD", waf_rule));
+    listener.on_update(get_config("ASM", update));
     listener.commit();
 
     {
@@ -509,7 +508,7 @@ TEST(RemoteConfigEngineListener, RulesDataUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DATA, update));
+    listener.on_update(get_config("ASM_DATA", update));
     listener.commit();
 
     {
@@ -543,8 +542,8 @@ TEST(RemoteConfigEngineListener, RulesAndRuleDataUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
-    listener.on_update(get_config(known_products::ASM_DATA, update));
+    listener.on_update(get_config("ASM_DD", waf_rule));
+    listener.on_update(get_config("ASM_DATA", update));
     listener.commit();
 
     {
@@ -581,11 +580,11 @@ TEST(RemoteConfigEngineListener, FullUpdate)
 
     remote_config::engine_listener listener(engine);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
+    listener.on_update(get_config("ASM_DD", waf_rule));
     {
         const std::string update =
             R"({"rules_data":[{"id":"blocked_ips","type":"ip_with_expiration","data":[{"value":"1.2.3.4","expiration":0}]}]})";
-        listener.on_update(get_config(known_products::ASM_DATA, update));
+        listener.on_update(get_config("ASM_DATA", update));
     }
     {
         const std::string update =
@@ -594,23 +593,23 @@ TEST(RemoteConfigEngineListener, FullUpdate)
                 {"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],
                 "on_match":["block"]}]})";
 
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
                 {"status_code": "303", "location": "localhost"}}]})";
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"rules_override": [{"rules_target": [{"rule_id": "1"}], "enabled":"false"}]})";
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     listener.commit();
 
@@ -637,11 +636,11 @@ TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
     remote_config::engine_listener listener(engine, create_sample_rules_ok());
 
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
+    listener.on_update(get_config("ASM_DD", waf_rule));
     {
         const std::string update =
             R"({"rules_data":[{"id":"blocked_ips","type":"ip_with_expiration","data":[{"value":"1.2.3.4","expiration":0}]}]})";
-        listener.on_update(get_config(known_products::ASM_DATA, update));
+        listener.on_update(get_config("ASM_DATA", update));
     }
     listener.commit();
 
@@ -676,12 +675,12 @@ TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
                 {"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],
                 "on_match":["block"]}]})";
 
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     listener.commit();
 
@@ -717,17 +716,17 @@ TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
     }
 
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, waf_rule));
+    listener.on_update(get_config("ASM_DD", waf_rule));
     {
         const std::string update =
             R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
                 {"status_code": "303", "location": "localhost"}}]})";
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"rules_override": [{"rules_target": [{"rule_id": "1"}], "enabled":"false"}]})";
-        listener.on_update(get_config(known_products::ASM, update));
+        listener.on_update(get_config("ASM", update));
     }
     listener.commit();
 
@@ -800,7 +799,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
 
     remote_config::engine_listener listener(e);
     listener.init();
-    listener.on_update(get_config(known_products::ASM_DD, new_rules));
+    listener.on_update(get_config("ASM_DD", new_rules));
     listener.commit();
 
     {
@@ -843,7 +842,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
     remote_config::engine_listener listener(e, create_sample_rules_ok());
     listener.init();
-    listener.on_unapply(get_config(known_products::ASM_DD, ""));
+    listener.on_unapply(get_config("ASM_DD", ""));
     listener.commit();
 
     {
@@ -880,7 +879,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 
     const std::string rule_override =
         R"({"rules_override": [{"rules_target": [{"rule_id": "1"}], "enabled":"false"}]})";
-    listener.on_update(get_config(known_products::ASM, rule_override));
+    listener.on_update(get_config("ASM", rule_override));
 
     {
         auto ctx = engine->get_context();
@@ -929,7 +928,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
     const std::string rule_override =
         R"({"rules_override": [{"rules_target": [{"tags": {"type": "flow1"}}], "on_match": ["block"]}]})";
-    listener.on_update(get_config(known_products::ASM, rule_override));
+    listener.on_update(get_config("ASM", rule_override));
 
     {
         auto ctx = engine->get_context();
@@ -982,7 +981,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
             {"status_code": "303", "location": "localhost"}}],"rules_override":
             [{"rules_target": [{"rule_id": "1"}], "on_match": ["redirect"]}]})";
 
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
 
     {
         auto ctx = engine->get_context();
@@ -1032,7 +1031,7 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 
     const std::string update =
         R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
 
     {
         auto ctx = engine->get_context();
@@ -1093,7 +1092,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
             "category":"custom"},"conditions":[{"operator":"match_regex","parameters":
             {"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],
             "on_match":["block"]}]})";
-    listener.on_update(get_config(known_products::ASM, update));
+    listener.on_update(get_config("ASM", update));
 
     {
         auto ctx = engine->get_context();
@@ -1137,8 +1136,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
     }
 
     listener.init();
-    listener.on_update(
-        get_config(known_products::ASM, R"({"custom_rules":[]})"));
+    listener.on_update(get_config("ASM", R"({"custom_rules":[]})"));
     listener.commit();
 
     {
@@ -1190,7 +1188,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
 
     const std::string update =
         R"({"rules_data":[{"id":"blocked_ips","type":"ip_with_expiration","data":[{"value":"1.2.3.4","expiration":0}]}]})";
-    listener.on_update(get_config(known_products::ASM_DATA, update));
+    listener.on_update(get_config("ASM_DATA", update));
     {
         auto ctx = e->get_context();
 

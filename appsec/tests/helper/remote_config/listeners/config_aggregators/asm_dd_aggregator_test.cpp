@@ -24,7 +24,7 @@ TEST(RemoteConfigAsmDdAggregator, AddConfig)
 
     rapidjson::Document doc(rapidjson::kObjectType);
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM_DD, waf_rule));
+    aggregator.add(get_config("ASM_DD", waf_rule));
     aggregator.aggregate(doc);
 
     const auto &rules = doc["rules"];
@@ -38,7 +38,7 @@ TEST(RemoteConfigAsmDdAggregator, RemoveConfig)
 
     rapidjson::Document doc(rapidjson::kObjectType);
     aggregator.init(&doc.GetAllocator());
-    aggregator.remove(get_config(known_products::ASM_DD, waf_rule));
+    aggregator.remove(get_config("ASM_DD", waf_rule));
     aggregator.aggregate(doc);
 
     const auto &rules = doc["rules"];
@@ -55,8 +55,7 @@ TEST(RemoteConfigAsmDdAggregator, AddConfigInvalidBase64Content)
     std::string invalid_content = "&&&";
     std::string error_message = "";
     std::string expected_error_message = "Invalid config contents";
-    remote_config::config config =
-        get_config(known_products::ASM_DD, invalid_content);
+    remote_config::config config = get_config("ASM_DD", invalid_content);
 
     remote_config::asm_dd_aggregator aggregator;
     rapidjson::Document doc(rapidjson::kObjectType);
@@ -79,8 +78,7 @@ TEST(RemoteConfigAsmDdAggregator, AddConfigInvalidJsonContent)
     std::string invalid_content = "InvalidJsonContent";
     std::string error_message = "";
     std::string expected_error_message = "Invalid config contents";
-    remote_config::config config =
-        get_config(known_products::ASM_DD, invalid_content);
+    remote_config::config config = get_config("ASM_DD", invalid_content);
 
     remote_config::asm_dd_aggregator aggregator;
     rapidjson::Document doc(rapidjson::kObjectType);

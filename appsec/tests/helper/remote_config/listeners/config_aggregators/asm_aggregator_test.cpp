@@ -60,7 +60,7 @@ TEST(RemoteConfigAsmAggregator, EmptyConfigThrows)
     rapidjson::Document doc(rapidjson::kObjectType);
 
     aggregator.init(&doc.GetAllocator());
-    EXPECT_THROW(aggregator.add(get_config(known_products::ASM, {})),
+    EXPECT_THROW(aggregator.add(get_config("ASM", {})),
         std::runtime_error); // mmap failure
 
     aggregator.aggregate(doc);
@@ -92,7 +92,7 @@ TEST(RemoteConfigAsmAggregator, IncorrectTypeThrows)
     rapidjson::Document doc(rapidjson::kObjectType);
     aggregator.init(&doc.GetAllocator());
 
-    EXPECT_THROW(aggregator.add(get_config(known_products::ASM, rule_override)),
+    EXPECT_THROW(aggregator.add(get_config("ASM", rule_override)),
         remote_config::error_applying_config);
 
     aggregator.aggregate(doc);
@@ -122,7 +122,7 @@ TEST(RemoteConfigAsmAggregator, RulesOverrideEmpty)
 
     rapidjson::Document doc(rapidjson::kObjectType);
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, rule_override));
+    aggregator.add(get_config("ASM", rule_override));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -151,7 +151,7 @@ TEST(RemoteConfigAsmAggregator, RulesOverrideSingleConfig)
 
     rapidjson::Document doc(rapidjson::kObjectType);
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, rule_override));
+    aggregator.add(get_config("ASM", rule_override));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -194,10 +194,10 @@ TEST(RemoteConfigAsmAggregator, RulesOverrideMultipleConfigs)
     rapidjson::Document doc(rapidjson::kObjectType);
     remote_config::asm_aggregator aggregator;
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, rule_override));
-    aggregator.add(get_config(known_products::ASM, rule_override));
-    aggregator.add(get_config(known_products::ASM, rule_override));
-    aggregator.add(get_config(known_products::ASM, rule_override));
+    aggregator.add(get_config("ASM", rule_override));
+    aggregator.add(get_config("ASM", rule_override));
+    aggregator.add(get_config("ASM", rule_override));
+    aggregator.add(get_config("ASM", rule_override));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -242,15 +242,15 @@ TEST(RemoteConfigAsmAggregator, RulesOverrideIgnoreInvalidConfigs)
     rapidjson::Document doc(rapidjson::kObjectType);
     remote_config::asm_aggregator aggregator;
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, rule_override));
-    aggregator.add(get_config(known_products::ASM, rule_override));
+    aggregator.add(get_config("ASM", rule_override));
+    aggregator.add(get_config("ASM", rule_override));
     {
         const std::string invalid =
             R"({"rules_override": {"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, invalid)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", invalid)),
             remote_config::error_applying_config);
     }
-    aggregator.add(get_config(known_products::ASM, rule_override));
+    aggregator.add(get_config("ASM", rule_override));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -296,7 +296,7 @@ TEST(RemoteConfigAsmAggregator, RulesOverridesConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, rule_override));
+        aggregator.add(get_config("ASM", rule_override));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -336,9 +336,9 @@ TEST(RemoteConfigAsmAggregator, RulesOverridesConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, rule_override));
-        aggregator.add(get_config(known_products::ASM, rule_override));
-        aggregator.add(get_config(known_products::ASM, rule_override));
+        aggregator.add(get_config("ASM", rule_override));
+        aggregator.add(get_config("ASM", rule_override));
+        aggregator.add(get_config("ASM", rule_override));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -385,7 +385,7 @@ TEST(RemoteConfigAsmAggregator, ActionsSingleConfig)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -414,9 +414,9 @@ TEST(RemoteConfigAsmAggregator, ActionsMultipleConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, action_definitions));
-    aggregator.add(get_config(known_products::ASM, action_definitions));
-    aggregator.add(get_config(known_products::ASM, action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -445,15 +445,15 @@ TEST(RemoteConfigAsmAggregator, ActionsIgnoreInvalidConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
     {
         const std::string invalid =
             R"({"actions": {"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, invalid)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", invalid)),
             remote_config::error_applying_config);
     }
-    aggregator.add(get_config(known_products::ASM, action_definitions));
-    aggregator.add(get_config(known_products::ASM, action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
+    aggregator.add(get_config("ASM", action_definitions));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -483,9 +483,9 @@ TEST(RemoteConfigAsmAggregator, ActionsConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, action_definitions));
-        aggregator.add(get_config(known_products::ASM, action_definitions));
-        aggregator.add(get_config(known_products::ASM, action_definitions));
+        aggregator.add(get_config("ASM", action_definitions));
+        aggregator.add(get_config("ASM", action_definitions));
+        aggregator.add(get_config("ASM", action_definitions));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -508,7 +508,7 @@ TEST(RemoteConfigAsmAggregator, ActionsConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, action_definitions));
+        aggregator.add(get_config("ASM", action_definitions));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -538,7 +538,7 @@ TEST(RemoteConfigAsmAggregator, ExclusionsSingleConfig)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -567,10 +567,10 @@ TEST(RemoteConfigAsmAggregator, ExclusionsMultipleConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -599,15 +599,15 @@ TEST(RemoteConfigAsmAggregator, ExclusionsIgnoreInvalidConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
     {
         const std::string invalid =
             R"({"exclusions": {"id":1,"rules_target":[{"rule_id":1}]}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, invalid)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", invalid)),
             remote_config::error_applying_config);
     }
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -637,10 +637,10 @@ TEST(RemoteConfigAsmAggregator, ExclusionsConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, update));
-        aggregator.add(get_config(known_products::ASM, update));
-        aggregator.add(get_config(known_products::ASM, update));
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
+        aggregator.add(get_config("ASM", update));
+        aggregator.add(get_config("ASM", update));
+        aggregator.add(get_config("ASM", update));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -663,7 +663,7 @@ TEST(RemoteConfigAsmAggregator, ExclusionsConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -693,7 +693,7 @@ TEST(RemoteConfigAsmAggregator, CustomRulesSingleConfig)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -722,15 +722,15 @@ TEST(RemoteConfigAsmAggregator, CustomRulesMultipleConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
     {
         const std::string invalid =
             R"({"custom_rules": {"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, invalid)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", invalid)),
             remote_config::error_applying_config);
     }
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -759,10 +759,10 @@ TEST(RemoteConfigAsmAggregator, CustomRulesIgnoreInvalidConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -792,10 +792,10 @@ TEST(RemoteConfigAsmAggregator, CustomRulesConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, update));
-        aggregator.add(get_config(known_products::ASM, update));
-        aggregator.add(get_config(known_products::ASM, update));
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
+        aggregator.add(get_config("ASM", update));
+        aggregator.add(get_config("ASM", update));
+        aggregator.add(get_config("ASM", update));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -818,7 +818,7 @@ TEST(RemoteConfigAsmAggregator, CustomRulesConfigCycling)
     {
         rapidjson::Document doc(rapidjson::kObjectType);
         aggregator.init(&doc.GetAllocator());
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
         aggregator.aggregate(doc);
 
         const auto &overrides = doc["rules_override"];
@@ -848,7 +848,7 @@ TEST(RemoteConfigAsmAggregator, AllSingleConfigs)
     remote_config::asm_aggregator aggregator;
 
     aggregator.init(&doc.GetAllocator());
-    aggregator.add(get_config(known_products::ASM, update));
+    aggregator.add(get_config("ASM", update));
     aggregator.aggregate(doc);
 
     const auto &overrides = doc["rules_override"];
@@ -877,23 +877,23 @@ TEST(RemoteConfigAsmAggregator, IgnoreInvalidConfigs)
     {
         const std::string update =
             R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}]})";
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"actions": {"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, update)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", update)),
             remote_config::error_applying_config);
     }
     {
         const std::string update =
             R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
     }
     aggregator.aggregate(doc);
 
@@ -923,23 +923,23 @@ TEST(RemoteConfigAsmAggregator, IgnoreInvalidOverlappingConfigs)
     {
         const std::string update =
             R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}],"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}],"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})";
-        aggregator.add(get_config(known_products::ASM, update));
+        aggregator.add(get_config("ASM", update));
     }
     {
         const std::string update =
             R"({"rules_override": [{"rules_target": [{"tags": {"confidence": "1"}}], "on_match": ["block"]}],"actions": {"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, update)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", update)),
             remote_config::error_applying_config);
     }
     {
         const std::string update =
             R"({"custom_rules":{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}})";
-        EXPECT_THROW(aggregator.add(get_config(known_products::ASM, update)),
+        EXPECT_THROW(aggregator.add(get_config("ASM", update)),
             remote_config::error_applying_config);
     }
     aggregator.aggregate(doc);

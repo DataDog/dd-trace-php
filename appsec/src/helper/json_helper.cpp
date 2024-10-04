@@ -201,9 +201,9 @@ json_helper::get_field_of_type(
 }
 
 bool json_helper::parse_json(
-    const std::string &content, rapidjson::Document &output)
+    std::string_view content, rapidjson::Document &output)
 {
-    if (output.Parse(content).HasParseError()) {
+    if (output.Parse(content.data(), content.size()).HasParseError()) {
         SPDLOG_DEBUG("Invalid json: " + std::string(rapidjson::GetParseError_En(
                                             output.GetParseError())));
         return false;

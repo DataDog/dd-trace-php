@@ -12,10 +12,13 @@
 
 void dds::remote_config::asm_features_listener::on_update(const config &config)
 {
-    const std::string contents{config.read()};
     rapidjson::Document serialized_doc;
-    if (!json_helper::parse_json(contents, serialized_doc)) {
-        throw error_applying_config("Invalid config contents");
+
+    {
+        const mapped_memory contents{config.read()};
+        if (!json_helper::parse_json(contents, serialized_doc)) {
+            throw error_applying_config("Invalid config contents");
+        }
     }
 
     auto asm_itr = json_helper::get_field_of_type(

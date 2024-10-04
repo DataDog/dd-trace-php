@@ -29,6 +29,7 @@ public:
     static auto create() { return std::shared_ptr<engine>(new engine()); }
 };
 
-remote_config::config get_config(product p, const std::string &content);
+remote_config::config get_config(
+    std::string_view product_name, const std::string &content);
 
 } // namespace dds::remote_config::mock

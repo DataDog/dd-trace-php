@@ -63,7 +63,7 @@ std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
 std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
     rapidjson::Value::ConstValueIterator parent_field, std::string_view key,
     rapidjson::Type type);
-bool parse_json(const std::string &content, rapidjson::Document &output);
+bool parse_json(std::string_view content, rapidjson::Document &output);
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void merge_arrays(rapidjson::Value &destination, rapidjson::Value &source,
     rapidjson::Value::AllocatorType &allocator);

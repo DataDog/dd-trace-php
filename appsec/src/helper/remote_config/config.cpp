@@ -69,7 +69,7 @@ config config::from_line(std::string_view line)
     return {std::string{shm_path}, std::move(rc_path)};
 }
 
-std::string config::read() const
+mapped_memory config::read() const
 {
     // open shared memory segment at rc_path:
     const int fd = ::shm_open(shm_path.c_str(), O_RDONLY, 0);
@@ -100,19 +100,6 @@ std::string config::read() const
             "Failed to map shared memory: " + std::string{strerror_ts(errno)});
     }
 
-    auto unmap = defer{[shm_ptr, &shm_stat]() {
-        if (::munmap(shm_ptr, shm_stat.st_size) == -1) {
-            // NOLINTNEXTLINE(bugprone-lambda-function-name)
-            SPDLOG_WARN(
-                "Failed to unmap shared memory: {}", strerror_ts(errno));
-        }
-    }};
-
-    std::string result;
-    result.resize(shm_stat.st_size);
-
-    std::copy_n(static_cast<char *>(shm_ptr), shm_stat.st_size, result.begin());
-
-    return result;
+    return mapped_memory{shm_ptr, static_cast<std::size_t>(shm_stat.st_size)};
 }
 } // namespace dds::remote_config
