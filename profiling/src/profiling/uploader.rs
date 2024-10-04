@@ -69,8 +69,7 @@ impl Uploader {
         let agent_endpoint = &self.endpoint;
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
-        // This is the currently unstable Arc::unwrap_or_clone.
-        let tags = Some(Arc::try_unwrap(index.tags).unwrap_or_else(|arc| (*arc).clone()));
+        let tags = Some(Arc::unwrap_or_clone(index.tags));
         let exporter = datadog_profiling::exporter::ProfileExporter::new(
             profiling_library_name,
             profiling_library_version,
