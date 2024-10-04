@@ -28,8 +28,7 @@ bool (*ddog_remote_config_read)(
     ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
 void (*ddog_remote_config_reader_drop)(struct ddog_RemoteConfigReader *);
 
-// if before is the same as after, disconsidering elements not in products
-bool has_updates(
+bool sets_are_indentical_for_subbed_products(
     const std::unordered_set<dds::remote_config::product> &products,
     const std::set<dds::remote_config::config> &before,
     const std::set<dds::remote_config::config> &after)
@@ -46,7 +45,7 @@ bool has_updates(
         return true;
     };
 
-    return !set_is_subset_of(before, after) || !set_is_subset_of(after, before);
+    return set_is_subset_of(before, after) && set_is_subset_of(after, before);
 }
 } // namespace
 
@@ -87,7 +86,7 @@ client::client(remote_config::settings settings,
           ddog_remote_config_reader_drop},
       settings_{std::move(settings)}, listeners_{std::move(listeners)}
 {
-    assert(settings.enabled == true); // NOLINT
+    assert(settings_.enabled == true); // NOLINT
 
     for (auto const &listener : listeners_) {
         for (const product p : listener->get_supported_products()) {
@@ -140,17 +139,10 @@ bool client::poll()
         configs = configs.substr(pos_lf + 1);
     }
 
-    if (!has_updates(all_products_, new_configs, last_configs_)) {
-        SPDLOG_DEBUG("Configuration is identical for the subscribed products. "
+    if (sets_are_indentical_for_subbed_products(
+            all_products_, new_configs, last_configs_)) {
+        SPDLOG_DEBUG("Configuration is identical for the subscribed products.  "
                      "Skipping update");
-        SPDLOG_DEBUG("BEFORE:");
-        for (auto &&c : last_configs_) {
-            SPDLOG_DEBUG("{}:{}", c.rc_path, c.shm_path);
-        }
-        SPDLOG_DEBUG("AFTER:");
-        for (auto &&c : last_configs_) {
-            SPDLOG_DEBUG("{}:{}", c.rc_path, c.shm_path);
-        }
         return false;
     }
 

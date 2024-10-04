@@ -402,13 +402,14 @@ __attribute__((visibility("default"))) void dd_appsec_rc_conf(
     bool prev_active = DDAPPSEC_G(active);
     bool prev_to_be_configured = DDAPPSEC_G(to_be_configured);
     _check_enabled();
-    DDAPPSEC_G(enabled) = prev_enabled;
-    DDAPPSEC_G(active) = prev_active;
-    DDAPPSEC_G(to_be_configured) = prev_to_be_configured;
 
     *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
     // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
     *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
+
+    DDAPPSEC_G(enabled) = prev_enabled;
+    DDAPPSEC_G(active) = prev_active;
+    DDAPPSEC_G(to_be_configured) = prev_to_be_configured;
 }
 
 static PHP_FUNCTION(datadog_appsec_is_enabled)

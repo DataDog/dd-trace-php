@@ -48,7 +48,13 @@ template <> struct less<dds::remote_config::config> {
     bool operator()(const dds::remote_config::config &lhs,
         const dds::remote_config::config &rhs) const
     {
-        return lhs.rc_path < rhs.rc_path;
+        if (lhs.rc_path < rhs.rc_path) {
+            return true;
+        };
+        if (lhs.rc_path > rhs.rc_path) {
+            return false;
+        }
+        return lhs.shm_path < rhs.shm_path;
     }
 };
 } // namespace std
