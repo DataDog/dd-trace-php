@@ -2460,7 +2460,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else
 #endif
             if (ddtrace_sidecar) {
-                ddog_sidecar_flush_traces(&ddtrace_sidecar);
+                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
             }
             RETVAL_TRUE;
 #ifndef _WIN32
@@ -2577,7 +2577,7 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     } else
 #endif
     if (ddtrace_sidecar) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
     }
     RETURN_NULL();
 }

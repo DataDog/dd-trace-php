@@ -46,7 +46,7 @@ static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
 static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error) {
     if (maybe_error.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
         ddog_CharSlice error = ddog_Error_message(&maybe_error.some);
-        LOG(ERROR, "%s: %.*s", msg, (int) error.len, error.ptr);
+        LOG(WARN, "%s: %.*s", msg, (int) error.len, error.ptr);
         ddog_MaybeError_drop(maybe_error);
         return false;
     }
