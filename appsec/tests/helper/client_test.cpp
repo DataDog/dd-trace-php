@@ -30,7 +30,7 @@ public:
 class service_manager : public dds::service_manager {
 public:
     MOCK_METHOD(std::shared_ptr<dds::service>, create_service,
-        (dds::service_identifier && id, const dds::engine_settings &settings,
+        (const dds::engine_settings &settings,
             const dds::remote_config::settings &rc_settings,
             (std::map<std::string, std::string> & meta),
             (std::map<std::string_view, double> & metrics),
@@ -42,12 +42,8 @@ class service : public dds::service {
 public:
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config)
-        : dds::service(engine, service_config, {})
+        : dds::service(engine, service_config, {}, "/rc_path")
     {}
-
-    MOCK_METHOD(void, register_runtime_id, (const std::string &id), (override));
-    MOCK_METHOD(
-        void, unregister_runtime_id, (const std::string &id), (override));
 };
 
 } // namespace mock
@@ -187,7 +183,6 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
     msg.pid = 1729;
     msg.runtime_version = "1.0";
     msg.client_version = "2.0";
-    msg.service.runtime_id = "thisisaruntimeid";
     msg.engine_settings.rules_file = fn;
 
     network::request req(std::move(msg));
@@ -198,17 +193,11 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _, _, _, true))
         .Times(1)
         .WillOnce(Return(service));
 
-    std::string runtime_id;
-    EXPECT_CALL(*service, register_runtime_id(_))
-        .Times(1)
-        .WillOnce(testing::SaveArg<0>(&runtime_id));
-
     EXPECT_TRUE(c.run_client_init());
-    EXPECT_STREQ(runtime_id.c_str(), "thisisaruntimeid");
 }
 
 TEST(ClientTest, ClientInitGeneratesRuntimeId)
@@ -238,17 +227,11 @@ TEST(ClientTest, ClientInitGeneratesRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _, _, _, true))
         .Times(1)
         .WillOnce(Return(service));
 
-    std::string runtime_id;
-    EXPECT_CALL(*service, register_runtime_id(_))
-        .Times(1)
-        .WillOnce(testing::SaveArg<0>(&runtime_id));
-
     EXPECT_TRUE(c.run_client_init());
-    EXPECT_STRNE(runtime_id.c_str(), "");
 }
 
 TEST(ClientTest, ClientInitInvalidRules)
@@ -1847,7 +1830,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
 
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+        EXPECT_CALL(*smanager, create_service(_, _, _, _, true))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -1863,7 +1846,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _, _, _, false))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -1879,7 +1862,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _, _, _, false))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));

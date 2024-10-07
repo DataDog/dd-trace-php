@@ -5,15 +5,14 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "engine_settings.hpp"
+#include "../engine_settings.hpp"
+#include "../remote_config/settings.hpp"
+#include "../version.hpp"
 #include "msgpack_helpers.hpp"
-#include "remote_config/settings.hpp"
-#include "service_identifier.hpp"
 #include <msgpack.hpp>
 #include <optional>
 #include <type_traits>
 #include <typeinfo>
-#include <version.hpp>
 
 using stream_packer = msgpack::packer<std::stringstream>;
 
@@ -101,7 +100,6 @@ struct client_init {
         std::string runtime_version;
         std::optional<bool> enabled_configuration;
 
-        dds::service_identifier service;
         dds::engine_settings engine_settings;
         dds::remote_config::settings rc_settings;
 
@@ -113,7 +111,7 @@ struct client_init {
         ~request() override = default;
 
         MSGPACK_DEFINE(pid, client_version, runtime_version,
-            enabled_configuration, service, engine_settings, rc_settings);
+            enabled_configuration, engine_settings, rc_settings);
     };
 
     struct response : base_response_generic<response> {
@@ -223,7 +221,10 @@ struct config_sync {
         request(request &&) = default;
         request &operator=(request &&) = default;
         ~request() override = default;
-        MSGPACK_DEFINE()
+
+        std::string rem_cfg_path;
+
+        MSGPACK_DEFINE(rem_cfg_path)
     };
 
     struct response : base_response_generic<response> {

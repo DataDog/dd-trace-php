@@ -2,6 +2,8 @@
 
 set -e
 
+export DD_REMOTE_CONFIG_ENABLED=false
+
 # Installing generic dependencies. OS_ID='centos'|'debian'|'alpine'
 OS_ID=$(. /etc/os-release; echo $ID)
 sh $(pwd)/dockerfiles/verify_packages/${OS_ID}/install.sh

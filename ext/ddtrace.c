@@ -395,6 +395,8 @@ bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
     return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
 }
 
+static zend_module_entry *dd_appsec_module() { return zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1); }
+
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
     ddtrace_generate_runtime_id();
@@ -416,8 +418,8 @@ static void dd_activate_once(void) {
                 bgs_service = ddtrace_default_service_name();
             }
         }
-        zend_module_entry *appsec_module = zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1);
-        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || appsec_module)
+        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
+            (dd_appsec_module() != NULL && !get_global_DD_APPSEC_TESTING()))
 #endif
         {
             bool request_startup = PG(during_request_startup);

@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     vim \
     && rm -rf /var/lib/apt/lists/*
-ADD build_dev_php.sh /build/php/
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.73.0 -y
+ADD build_dev_php.sh /build/php/
+RUN USER=root /build/php/build_dev_php.sh deps
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.81.0 -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN USER=root /build/php/build_dev_php.sh deps

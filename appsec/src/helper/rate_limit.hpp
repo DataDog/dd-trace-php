@@ -12,10 +12,6 @@
 #include <mutex>
 
 #include "timer.hpp"
-using std::chrono::duration_cast;
-using std::chrono::microseconds;
-using std::chrono::milliseconds;
-using std::chrono::seconds;
 
 namespace dds {
 
@@ -25,6 +21,11 @@ public:
         : max_per_second_(max_per_second){};
     bool allow()
     {
+        using std::chrono::duration_cast;
+        using std::chrono::microseconds;
+        using std::chrono::milliseconds;
+        using std::chrono::seconds;
+
         if (max_per_second_ == 0) {
             return true;
         }

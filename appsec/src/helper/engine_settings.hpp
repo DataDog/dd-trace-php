@@ -39,6 +39,11 @@ struct engine_settings {
     std::string obfuscator_value_regex;
     schema_extraction_settings schema_extraction;
 
+    engine_settings() = default;
+    engine_settings(const engine_settings &) = default;
+    engine_settings(engine_settings &&) = default;
+    engine_settings &operator=(const engine_settings &) = default;
+    engine_settings &operator=(engine_settings &&) = default;
     virtual ~engine_settings() = default;
 
     static const std::string &default_rules_file();
@@ -79,14 +84,16 @@ struct engine_settings {
                   << ", schema_extraction.sample_rate=" << std::fixed
                   << c.schema_extraction.sample_rate << "}";
     }
-
-    struct settings_hash {
-        std::size_t operator()(const engine_settings &s) const noexcept
-        {
-            return hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
-                s.obfuscator_key_regex, s.obfuscator_value_regex,
-                s.schema_extraction.enabled, s.schema_extraction.sample_rate);
-        }
-    };
 };
 } // namespace dds
+
+namespace std {
+template <> struct hash<dds::engine_settings> {
+    std::size_t operator()(const dds::engine_settings &s) const noexcept
+    {
+        return dds::hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
+            s.obfuscator_key_regex, s.obfuscator_value_regex,
+            s.schema_extraction.enabled, s.schema_extraction.sample_rate);
+    }
+};
+} // namespace std

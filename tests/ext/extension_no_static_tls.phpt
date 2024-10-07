@@ -26,7 +26,7 @@ if (!file_exists('/proc/self/maps')) { die('skip: no /proc/self/maps'); }
 // 5. Determine in which compilation unit(s) this function is defined
 
 $maps = file_get_contents('/proc/self/maps');
-if (preg_match('@(?<=\\s)\\S*/ddtrace[^/]*\\.so$@m', $maps, $m) != 1) {
+if (preg_match('@(?<=\\s)\\S*/ddtrace\\.so$@m', $maps, $m) != 1) {
     die('cannot find loaded ddtrace.so');
 }
 

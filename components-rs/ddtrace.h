@@ -165,9 +165,11 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
-void ddog_init_remote_config(bool live_debugging_enabled);
+void ddog_init_remote_config(bool live_debugging_enabled, bool appsec_features, bool appsec_config);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint);
+
+const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
 void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
 
