@@ -112,7 +112,7 @@ TEST(WafTest, RunWithTimeout)
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
 
-        subscriber::ptr wi(
+        std::shared_ptr<subscriber> wi(
             waf::instance::from_string(waf_rule, meta, metrics, 0));
         auto ctx = wi->get_listener();
 
