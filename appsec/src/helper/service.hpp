@@ -10,7 +10,6 @@
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
 #include "service_config.hpp"
-#include "service_identifier.hpp"
 #include "std_logging.hpp"
 #include "utils.hpp"
 #include <memory>
@@ -23,11 +22,10 @@ using namespace std::chrono_literals;
 
 class service {
 public:
-    using ptr = std::shared_ptr<service>;
-
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config,
-        dds::remote_config::client_handler::ptr &&client_handler,
+        std::unique_ptr<dds::remote_config::client_handler> &&client_handler,
+        std::string rc_path,
         const schema_extraction_settings &schema_extraction_settings = {});
 
     service(const service &) = delete;
@@ -38,25 +36,11 @@ public:
 
     virtual ~service() = default;
 
-    static service::ptr from_settings(service_identifier &&id,
+    static std::shared_ptr<service> from_settings(
         const dds::engine_settings &eng_settings,
         const remote_config::settings &rc_settings,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics, bool dynamic_enablement);
-
-    virtual void register_runtime_id(const std::string &id)
-    {
-        if (client_handler_) {
-            client_handler_->register_runtime_id(id);
-        }
-    }
-
-    virtual void unregister_runtime_id(const std::string &id)
-    {
-        if (client_handler_) {
-            client_handler_->unregister_runtime_id(id);
-        }
-    }
 
     [[nodiscard]] std::shared_ptr<engine> get_engine() const
     {
@@ -75,11 +59,19 @@ public:
         return schema_sampler_;
     }
 
+    [[nodiscard]] bool is_remote_config_shmem_path(std::string_view path)
+    {
+        return rc_path_ == path;
+    }
+
+    void notify_of_rc_updates() { client_handler_->poll(); }
+
 protected:
     std::shared_ptr<engine> engine_{};
     std::shared_ptr<service_config> service_config_{};
-    dds::remote_config::client_handler::ptr client_handler_{};
+    std::unique_ptr<dds::remote_config::client_handler> client_handler_{};
     std::shared_ptr<sampler> schema_sampler_;
+    std::string rc_path_;
 };
 
 } // namespace dds

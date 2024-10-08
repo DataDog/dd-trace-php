@@ -1,0 +1,45 @@
+{
+    "version": 1,
+    "native_deps": {
+        "glibc": [
+            {
+                "arch": "x64",
+                "supported": true,
+                "description": "From centOS 7",
+                "min": "2.17"
+            },
+            {
+                "arch": "arm64",
+                "supported": true,
+                "description": "From centOS 7",
+                "min": "2.17"
+            }
+        ],
+        "musl": [
+            {
+                "arch": "x64",
+                "supported": true
+            },
+            {
+                "arch": "arm64",
+                "supported": true
+            }
+        ]
+    },
+    "deny": [
+        {
+            "id": "php5",
+            "description": "Do not inject if PHP 5",
+            "os": null,
+            "cmds": [
+                "**/php/5*/**",
+                "**/php5*/**",
+                "**/php5*",
+                "**/php-5*",
+                "**/php.5*"
+            ],
+            "args": [],
+            "envars": null
+        }
+    ]
+}

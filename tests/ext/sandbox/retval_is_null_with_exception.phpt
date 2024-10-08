@@ -4,6 +4,7 @@ The return value is null when an exception is thrown in the original call
 We enable debug mode to ensure this does not raise an "Undefined variable" E_NOTICE in the tracing closure
 https://github.com/DataDog/dd-trace-php/issues/788
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php

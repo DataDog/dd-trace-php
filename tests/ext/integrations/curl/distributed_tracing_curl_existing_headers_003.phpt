@@ -10,6 +10,7 @@ Some libraries do not check the return stats when setting curl opts.
 The original headers should still be applied even when there is an error from
 setting the curl opts.
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_ORIGIN=phpt-test

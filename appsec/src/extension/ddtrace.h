@@ -79,3 +79,5 @@ bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
+
+const char *nullable dd_trace_remote_config_get_path(void);

@@ -6,6 +6,7 @@
 #include "common.hpp"
 #include "json_helper.hpp"
 #include <engine.hpp>
+#include <memory>
 #include <rapidjson/document.h>
 #include <subscriber/waf.hpp>
 
@@ -19,8 +20,6 @@ namespace dds {
 namespace mock {
 class listener : public dds::subscriber::listener {
 public:
-    typedef std::shared_ptr<dds::mock::listener> ptr;
-
     MOCK_METHOD2(call, void(dds::parameter_view &, dds::event &));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
@@ -29,12 +28,10 @@ public:
 
 class subscriber : public dds::subscriber {
 public:
-    typedef std::shared_ptr<dds::mock::subscriber> ptr;
-
     MOCK_METHOD0(get_name, std::string_view());
-    MOCK_METHOD0(get_listener, dds::subscriber::listener::ptr());
+    MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
-    MOCK_METHOD3(update, dds::subscriber::ptr(dds::parameter &,
+    MOCK_METHOD3(update, std::unique_ptr<dds::subscriber>(dds::parameter &,
                              std::map<std::string, std::string> &meta,
                              std::map<std::string_view, double> &metrics));
 };
@@ -55,17 +52,18 @@ TEST(EngineTest, SingleSubscriptor)
 {
     auto e{engine::create()};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_, _))
-        .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
-                event_.actions.push_back({dds::action_type::block, {}});
-            }));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([]() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _))
+            .WillRepeatedly(Invoke(
+                [](dds::parameter_view &data, dds::event &event_) -> void {
+                    event_.actions.push_back({dds::action_type::block, {}});
+                }));
+        return listener;
+    }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
-
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -87,7 +85,8 @@ using namespace std::literals;
 TEST(EngineTest, MultipleSubscriptors)
 {
     auto e{engine::create()};
-    mock::listener::ptr blocker = mock::listener::ptr(new mock::listener());
+
+    auto blocker = std::make_unique<mock::listener>();
     EXPECT_CALL(*blocker, call(_, _))
         .WillRepeatedly(
             Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
@@ -98,7 +97,7 @@ TEST(EngineTest, MultipleSubscriptors)
                 }
             }));
 
-    mock::listener::ptr recorder = mock::listener::ptr(new mock::listener());
+    auto recorder = std::make_unique<mock::listener>();
     EXPECT_CALL(*recorder, call(_, _))
         .WillRepeatedly(
             Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
@@ -108,21 +107,31 @@ TEST(EngineTest, MultipleSubscriptors)
                 }
             }));
 
-    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
+    std::unique_ptr<mock::listener> ignorer =
+        std::unique_ptr<mock::listener>(new mock::listener());
     EXPECT_CALL(*ignorer, call(_, _)).Times(testing::AnyNumber());
 
-    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, get_listener()).WillRepeatedly(Return(blocker));
+    std::unique_ptr<mock::subscriber> sub1 =
+        std::unique_ptr<mock::subscriber>(new mock::subscriber());
+    EXPECT_CALL(*sub1, get_listener()).WillRepeatedly(Invoke([&]() {
+        return std::move(blocker);
+    }));
 
-    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, get_listener()).WillRepeatedly(Return(recorder));
+    std::unique_ptr<mock::subscriber> sub2 =
+        std::unique_ptr<mock::subscriber>(new mock::subscriber());
+    EXPECT_CALL(*sub2, get_listener()).WillRepeatedly(Invoke([&]() {
+        return std::move(recorder);
+    }));
 
-    mock::subscriber::ptr sub3 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub3, get_listener()).WillRepeatedly(Return(ignorer));
+    std::unique_ptr<mock::subscriber> sub3 =
+        std::unique_ptr<mock::subscriber>(new mock::subscriber());
+    EXPECT_CALL(*sub3, get_listener()).WillRepeatedly(Invoke([&]() {
+        return std::move(ignorer);
+    }));
 
-    e->subscribe(sub1);
-    e->subscribe(sub2);
-    e->subscribe(sub3);
+    e->subscribe(std::move(sub1));
+    e->subscribe(std::move(sub2));
+    e->subscribe(std::move(sub3));
 
     auto ctx = e->get_context();
 
@@ -194,21 +203,23 @@ TEST(EngineTest, StatefulSubscriptor)
     auto e{engine::create()};
 
     int attempt = 0;
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_, _))
-        .Times(6)
-        .WillRepeatedly(Invoke(
-            [&attempt](dds::parameter_view &data, dds::event &event_) -> void {
+
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _))
+            .Times(3)
+            .WillRepeatedly(Invoke([&attempt](dds::parameter_view &data,
+                                       dds::event &event_) -> void {
                 if (attempt == 2 || attempt == 5) {
                     event_.actions.push_back({dds::action_type::block, {}});
                 }
                 attempt++;
             }));
+        return listener;
+    }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
-
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -251,7 +262,7 @@ TEST(EngineTest, WafDefaultActions)
 {
     auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
+    auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data,
                                    dds::event &event_) -> void {
@@ -261,10 +272,12 @@ TEST(EngineTest, WafDefaultActions)
             event_.actions.push_back({dds::action_type::extract_schema, {}});
         }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
+        return std::move(listener);
+    }));
 
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -293,7 +306,7 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
 {
     auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
+    auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
             Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
@@ -301,10 +314,12 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
                 event_.actions.push_back({dds::action_type::block, {}});
             }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
+        return std::move(listener);
+    }));
 
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -330,8 +345,10 @@ TEST(EngineTest, WafSubscriptorBasic)
 
     auto e{engine::create()};
 
-    auto waf_ptr = waf::instance::from_string(waf_rule, meta, metrics);
-    e->subscribe(waf_ptr);
+    auto waf_uniq_ptr = waf::instance::from_string(waf_rule, meta, metrics);
+    auto *waf_ptr = waf_uniq_ptr.get();
+
+    e->subscribe(std::move(waf_uniq_ptr));
 
     EXPECT_STREQ(waf_ptr->get_name().data(), "waf");
 
@@ -390,27 +407,36 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 {
     auto e{engine::create()};
 
-    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_, _)).Times(testing::AnyNumber());
+    auto ignorer = []() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _)).Times(testing::AnyNumber());
+        return listener;
+    };
 
-    mock::subscriber::ptr new_sub1 =
-        mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*new_sub1, get_listener()).WillOnce(Return(ignorer));
+    auto new_sub1 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*new_sub1, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, update(_, _, _)).WillOnce(Return(new_sub1));
+    auto sub1 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub1, update(_, _, _)).WillOnce(Invoke([&]() {
+        return std::move(new_sub1);
+    }));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
 
-    mock::subscriber::ptr new_sub2 =
-        mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*new_sub2, get_listener()).WillOnce(Return(ignorer));
+    auto new_sub2 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*new_sub2, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, update(_, _, _)).WillOnce(Return(new_sub2));
+    auto sub2 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub2, update(_, _, _)).WillOnce(Invoke([&]() {
+        return std::move(new_sub2);
+    }));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
 
-    e->subscribe(sub1);
-    e->subscribe(sub2);
+    e->subscribe(std::move(sub1));
+    e->subscribe(std::move(sub2));
 
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
@@ -433,21 +459,28 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 {
     auto e{engine::create()};
 
-    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_, _)).Times(testing::AnyNumber());
+    auto ignorer = []() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _)).Times(testing::AnyNumber());
+        return listener;
+    };
 
-    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
+    auto sub1 = std::make_unique<mock::subscriber>();
     EXPECT_CALL(*sub1, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
-    EXPECT_CALL(*sub1, get_listener()).WillOnce(Return(ignorer));
+    EXPECT_CALL(*sub1, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
+    auto sub2 = std::make_unique<mock::subscriber>();
     EXPECT_CALL(*sub2, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
-    EXPECT_CALL(*sub2, get_listener()).WillOnce(Return(ignorer));
+    EXPECT_CALL(*sub2, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    e->subscribe(sub1);
-    e->subscribe(sub2);
+    e->subscribe(std::move(sub1));
+    e->subscribe(std::move(sub2));
 
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
@@ -857,17 +890,19 @@ TEST(EngineTest, RateLimiterForceKeep)
     int rate_limit = 0;
     auto e{engine::create(rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
+    auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _))
         .WillRepeatedly(
             Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
                 event_.actions.push_back({dds::action_type::redirect, {}});
             }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
+        return std::move(listener);
+    }));
 
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
@@ -881,17 +916,18 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     int rate_limit = 1;
     auto e{engine::create(rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_, _))
-        .WillRepeatedly(
-            Invoke([](dds::parameter_view &data, dds::event &event_) -> void {
-                event_.actions.push_back({dds::action_type::redirect, {}});
-            }));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _))
+            .WillOnce(Invoke(
+                [](dds::parameter_view &data, dds::event &event_) -> void {
+                    event_.actions.push_back({dds::action_type::redirect, {}});
+                }));
+        return listener;
+    }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
-
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));

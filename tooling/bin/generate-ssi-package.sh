@@ -62,6 +62,7 @@ for architecture in "${architectures[@]}"; do
 
     cp -r ./src ${trace}/
     echo "$release_version_sanitized" > ${root}/version
+    ln ./loader/packaging/requirements.json ${root}/requirements.json
 
     ########################
     # Final archives

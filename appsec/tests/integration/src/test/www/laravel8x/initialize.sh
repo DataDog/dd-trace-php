@@ -2,6 +2,8 @@
 
 cd /var/www
 
+export DD_TRACE_CLI_ENABLED=false
+
 composer install --no-dev
 chown -R www-data.www-data vendor
 

@@ -2,7 +2,6 @@
 runtime-id exists in meta when profiling is disabled
 --ENV--
 DD_PROFILING_ENABLED=false
-DD_TRACE_CLI_ENABLED=true
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))

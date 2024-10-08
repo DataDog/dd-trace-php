@@ -46,6 +46,8 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
 
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 
+static const char *nullable (*_ddtrace_remote_config_get_path)(void);
+
 static void dd_trace_load_symbols(void)
 {
     bool testing = get_global_DD_APPSEC_TESTING();
@@ -97,6 +99,14 @@ static void dd_trace_load_symbols(void)
     if (_ddtrace_ip_extraction_find == NULL && !testing) {
         mlog(dd_log_error, "Failed to load ddtrace_ip_extraction_find: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
+    _ddtrace_remote_config_get_path =
+        dlsym(handle, "ddtrace_remote_config_get_path");
+    if (_ddtrace_remote_config_get_path == NULL && !testing) {
+        mlog(dd_log_error,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            "Failed to load ddtrace_remote_config_get_path: %s", dlerror());
     }
 
     dlclose(handle);
@@ -357,6 +367,16 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
         return NULL;
     }
     return _ddtrace_ip_extraction_find(server);
+}
+
+const char *nullable dd_trace_remote_config_get_path()
+{
+    if (!_ddtrace_remote_config_get_path) {
+        return NULL;
+    }
+    __auto_type path = _ddtrace_remote_config_get_path();
+    mlog(dd_log_trace, "Remote config path: %s", path ? path : "(unset)");
+    return path;
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

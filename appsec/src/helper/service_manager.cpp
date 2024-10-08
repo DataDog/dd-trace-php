@@ -8,33 +8,57 @@
 namespace dds {
 
 std::shared_ptr<service> service_manager::create_service(
-    service_identifier &&id, const engine_settings &settings,
-    const remote_config::settings &rc_settings,
+    const engine_settings &settings, const remote_config::settings &rc_settings,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics, bool dynamic_enablement)
 {
-    const std::lock_guard guard{mutex_};
+    const cache_key key{settings, rc_settings};
 
-    auto hit = cache_.find(id);
+    const std::lock_guard guard{mutex_};
+    auto hit = cache_.find(key);
     if (hit != cache_.end()) {
         auto service_ptr = hit->second.lock();
         if (service_ptr) { // not expired
             SPDLOG_DEBUG(
-                "Found an existing service for {}::{}", id.service, id.env);
+                "Found an existing service for settings={} rc_settings={}",
+                settings, rc_settings);
             return service_ptr;
         }
     }
 
-    SPDLOG_DEBUG("Creating a service for {}::{}", id.service, id.env);
+    SPDLOG_DEBUG("Creating a service for settings={} rc_settings={}", settings,
+        rc_settings);
 
-    auto service_ptr = service::from_settings(service_identifier(id), settings,
-        rc_settings, meta, metrics, dynamic_enablement);
-    cache_.emplace(std::move(id), std::move(service_ptr));
+    auto service_ptr = service::from_settings(
+        settings, rc_settings, meta, metrics, dynamic_enablement);
+    cache_.emplace(key, std::move(service_ptr));
+
     last_service_ = service_ptr;
 
     cleanup_cache();
 
     return service_ptr;
+}
+
+void service_manager::notify_of_rc_updates(std::string_view shmem_path)
+{
+    std::vector<std::shared_ptr<service>> services_to_notify;
+    {
+        const std::lock_guard guard{mutex_};
+        for (auto &[key, service_ptr] : cache_) {
+            if (key.get_shmem_path() == shmem_path) {
+                if (std::shared_ptr<service> service = service_ptr.lock()) {
+                    services_to_notify.emplace_back(std::move(service));
+                }
+            }
+        }
+    } // release lock
+
+    SPDLOG_DEBUG(
+        "Notifying {} services of RC updates", services_to_notify.size());
+    for (auto &service : services_to_notify) {
+        service->notify_of_rc_updates();
+    }
 }
 
 void service_manager::cleanup_cache()

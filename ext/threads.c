@@ -23,14 +23,6 @@ __attribute__((weak)) size_t zend_signal_globals_offset;
 HashTable ddtrace_tls_bases; // map thread id to TSRMLS_CACHE
 MUTEX_T ddtrace_threads_mutex = NULL;
 
-void ddtrace_thread_mshutdown() {
-    if (ddtrace_threads_mutex) {
-        tsrm_mutex_free(ddtrace_threads_mutex);
-        ddtrace_threads_mutex = NULL;
-        zend_hash_destroy(&ddtrace_tls_bases);
-    }
-}
-
 void ddtrace_thread_ginit() {
     if (!ddtrace_threads_mutex) {
         ddtrace_threads_mutex = tsrm_mutex_alloc();
@@ -73,6 +65,12 @@ void ddtrace_thread_gshutdown() {
             HANDLE_UNBLOCK_INTERRUPTIONS();
         }
 #endif
+
+        if (zend_hash_num_elements(&ddtrace_tls_bases) == 0) {
+            tsrm_mutex_free(ddtrace_threads_mutex);
+            ddtrace_threads_mutex = NULL;
+            zend_hash_destroy(&ddtrace_tls_bases);
+        }
     }
 }
 

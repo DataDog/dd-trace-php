@@ -293,9 +293,10 @@ static bool parse_element(
     case mpack_type_int:
         ZVAL_LONG(output, mpack_tag_int_value(&tag));
         break;
-    case mpack_type_uint:
-        ZVAL_LONG(output, mpack_tag_int_value(&tag));
+    case mpack_type_uint: {
+        ZVAL_LONG(output, (long)mpack_tag_uint_value(&tag));
         break;
+    }
 
     case mpack_type_str: {
         uint32_t length = mpack_tag_str_length(&tag);

@@ -395,6 +395,8 @@ bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
     return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
 }
 
+static zend_module_entry *dd_appsec_module() { return zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1); }
+
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
     ddtrace_generate_runtime_id();
@@ -416,8 +418,8 @@ static void dd_activate_once(void) {
                 bgs_service = ddtrace_default_service_name();
             }
         }
-        zend_module_entry *appsec_module = zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1);
-        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || appsec_module)
+        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
+            (dd_appsec_module() != NULL && !get_global_DD_APPSEC_TESTING()))
 #endif
         {
             bool request_startup = PG(during_request_startup);
@@ -453,6 +455,13 @@ static void dd_activate_once(void) {
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 
+static bool dd_is_cli_autodisabled(const char *arg) {
+    const char *slashend = strrchr(arg, '/');
+    const char *backslashend = strrchr(arg, '\\');
+    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
+}
+
 static void ddtrace_activate(void) {
     ddog_reset_logger();
 
@@ -482,8 +491,16 @@ static void ddtrace_activate(void) {
         dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
     }
 
-    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        ddtrace_disable = 2;
+    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0) {
+        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index < 0 && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
+            zend_string *zero = zend_string_init("0", 1, 0);
+            zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].ini_entries[0]->name, zero,
+                                 ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+            zend_string_release(zero);
+        }
+        if (!get_DD_TRACE_CLI_ENABLED()) {
+            ddtrace_disable = 2;
+        }
     }
 
     if (ddtrace_disable) {
@@ -1399,9 +1416,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_disable == 1) {
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
-#if ZTS
-        ddtrace_thread_mshutdown();
-#endif
         return SUCCESS;
     }
 
@@ -1437,9 +1451,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_user_req_shutdown();
 
     ddtrace_sidecar_shutdown();
-#if ZTS
-    ddtrace_thread_mshutdown();
-#endif
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation

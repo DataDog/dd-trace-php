@@ -5,9 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "config.hpp"
+#include "../../config.hpp"
+#include "../../service_config.hpp"
+#include "../product.hpp"
 #include "listener.hpp"
-#include "service_config.hpp"
 
 namespace dds::remote_config {
 
@@ -22,10 +23,9 @@ public:
         service_config_->unset_asm();
     }
 
-    [[nodiscard]] std::unordered_map<std::string_view, protocol::capabilities_e>
-    get_supported_products() override
+    [[nodiscard]] std::unordered_set<product> get_supported_products() override
     {
-        return {{"ASM_FEATURES", protocol::capabilities_e::ASM_ACTIVATION}};
+        return {known_products::ASM_FEATURES};
     }
 
     void init() override {}

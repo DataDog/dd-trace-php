@@ -176,6 +176,10 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 }
 
 bool ddtrace_config_minit(int module_number) {
+    if (ddtrace_active_sapi == DATADOG_PHP_SAPI_CLI) {
+        config_entries[DDTRACE_CONFIG_DD_TRACE_AUTO_FLUSH_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+    }
+
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
         ddtrace_log_ginit();

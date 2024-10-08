@@ -14,6 +14,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_12/public/index.php';
     }
 
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+	        'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
+        ]);
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
@@ -22,6 +29,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
+	    $this->resetRequestDumper();
+
         $traces = $this->tracesFromWebRequest(function () use ($spec) {
             $this->call($spec);
         });

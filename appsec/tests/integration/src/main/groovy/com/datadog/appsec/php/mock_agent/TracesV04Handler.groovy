@@ -101,7 +101,9 @@ class TracesV04Handler implements Handler {
         List<Object> traces = []
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(is)
         while (unpacker.hasNext()) {
-            traces << MsgpackHelper.unpackSingle(unpacker)
+            def trace = MsgpackHelper.unpackSingle(unpacker)
+            log.debug('Read submitted trace {}', trace)
+            traces << trace
         }
 
         traces.first() as List<Object> ?: []

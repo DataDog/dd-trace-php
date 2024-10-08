@@ -1,7 +1,6 @@
 --TEST--
 HTTP headers are sent to the Agent from the background sender
 --SKIPIF--
-<?php if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with telemetry"); ?>
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
@@ -11,7 +10,6 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=666
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
-DD_TRACE_AUTO_FLUSH_ENABLED=1
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_headers
 --FILE--

@@ -53,7 +53,7 @@ enum ddtrace_sampling_rules_format {
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1
 
-#if PHP_VERSION_ID >= 80400 || defined(_WIN32)
+#if PHP_VERSION_ID >= 80300 || defined(_WIN32)
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
 #else
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT false
@@ -118,8 +118,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_APPEND_TRACE_IDS_TO_LOGS, "false")                                                   \
-    CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false")                                                         \
-    CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "false")                                                                \
+    CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false") /* true in CLI */                                       \
+    CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "true")                                                                 \
     CONFIG(BOOL, DD_TRACE_MEASURE_COMPILE_TIME, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_MEASURE_PEAK_MEMORY_USAGE, "true")                                                   \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false", .ini_change = ddtrace_alter_dd_trace_debug)                          \

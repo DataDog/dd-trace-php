@@ -233,7 +233,6 @@ trait TracerTestTrait
         $envs = (string) new EnvSerializer(array_merge(
             [
                 'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
-                'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_AGENT_HOST' => 'test-agent',
                 'DD_TRACE_AGENT_PORT' => '9126',
                 // Uncomment to see debug-level messages
@@ -507,7 +506,7 @@ trait TracerTestTrait
     function untilNumberOfTraces($number) {
         $count = 0;
         return function ($request) use (&$count, $number) {
-            $count += $request['headers']['X-Datadog-Trace-Count'] ?? 0;
+            $count += $request['headers']['X-Datadog-Trace-Count'] ?? $request["headers"]["x-datadog-trace-count"] ?? 0;
             return $count >= $number;
         };
     }

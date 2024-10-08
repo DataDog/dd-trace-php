@@ -3,6 +3,7 @@ Exceptions and errors are ignored when inside a tracing closure
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
+DD_APPSEC_ENABLED=0
 --INI--
 error_reporting=E_ALL
 --FILE--

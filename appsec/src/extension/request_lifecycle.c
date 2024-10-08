@@ -49,6 +49,9 @@ static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
+#define MAX_LENGTH_OF_REM_CFG_PATH 31
+static THREAD_LOCAL_ON_ZTS char
+    _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req() { return _enabled_user_req; }
@@ -127,6 +130,31 @@ static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
     return _do_request_begin(rbe_zv, true);
 }
 
+static bool _rem_cfg_path_changed()
+{
+    const char *cur_path = dd_trace_remote_config_get_path();
+    if (!cur_path) {
+        cur_path = "";
+    }
+    if (strcmp(cur_path, _last_rem_cfg_path) == 0) {
+        return false;
+    }
+
+    if (strlen(cur_path) > MAX_LENGTH_OF_REM_CFG_PATH) {
+        mlog(dd_log_warning, "Remote config path too long: %s", cur_path);
+        return false;
+    }
+
+    mlog(dd_log_info, "Remote config path changed from %s to %s",
+        _last_rem_cfg_path[0] ? _last_rem_cfg_path : "(none)",
+        cur_path[0] ? cur_path : "(none)");
+
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.strcpy)
+    strcpy(_last_rem_cfg_path, cur_path);
+
+    return true;
+}
+
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */, bool user_req)
 {
@@ -158,16 +186,17 @@ static zend_array *nullable _do_request_begin(
     }
 
     int res = dd_success;
-    if (DDAPPSEC_G(active)) {
-        // request_init
-        res = dd_request_init(conn, &req_info);
-    } else if (DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG) {
-        // config_sync
-        res = dd_config_sync(conn);
-        if (res == SUCCESS && DDAPPSEC_G(active)) {
-            // Since it came as enabled, lets proceed
+    if (_rem_cfg_path_changed() ||
+        (!DDAPPSEC_G(active) &&
+            DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG)) {
+        res = dd_config_sync(conn,
+            &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
+        if (res == dd_success && DDAPPSEC_G(active)) {
             res = dd_request_init(conn, &req_info);
         }
+    } else if (DDAPPSEC_G(active)) {
+        // request_init
+        res = dd_request_init(conn, &req_info);
     }
 
     if (rbe) {

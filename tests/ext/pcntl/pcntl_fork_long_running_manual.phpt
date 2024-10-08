@@ -3,7 +3,6 @@ Long running manual flush
 --SKIPIF--
 <?php if (!extension_loaded('pcntl')) die('skip: pcntl extension required'); ?>
 --ENV--
-DD_TRACE_CLI_ENABLED=true
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=false
 --FILE--

@@ -24,7 +24,7 @@ public:
     static constexpr int default_waf_timeout_us = 10000;
     static constexpr int max_plain_schema_allowed = 260;
     static constexpr int max_schema_size = 25000;
-    using ptr = std::shared_ptr<instance>;
+
     class listener : public dds::subscriber::listener {
     public:
         listener(ddwaf_context ctx, std::chrono::microseconds waf_timeout,
@@ -68,18 +68,19 @@ public:
         return addresses_;
     }
 
-    listener::ptr get_listener() override;
+    std::unique_ptr<subscriber::listener> get_listener() override;
 
-    subscriber::ptr update(parameter &rule,
+    std::unique_ptr<subscriber> update(parameter &rule,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics) override;
 
-    static instance::ptr from_settings(const engine_settings &settings,
-        const engine_ruleset &ruleset, std::map<std::string, std::string> &meta,
+    static std::unique_ptr<instance> from_settings(
+        const engine_settings &settings, const engine_ruleset &ruleset,
+        std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
     // testing only
-    static instance::ptr from_string(std::string_view rule,
+    static std::unique_ptr<instance> from_string(std::string_view rule,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics,
         std::uint64_t waf_timeout_us = default_waf_timeout_us,
