@@ -2,7 +2,7 @@
 Tracing Closures via install_hook()
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80400) {
+if (PHP_VERSION_ID < 80400) {
     die('skip: test only stable on PHP >= 8.4');
 }
 ?>
@@ -37,9 +37,9 @@ include __DIR__ . '/../dd_dumper.inc';
 ?>
 --EXPECTF--
 spans(\DDTrace\SpanData) (1) {
-  test\trace_generator.php:%d\{%s} (trace_generator.php, test\trace_generator.php:%d\{%s}, cli)
+  {closure:%s.php:%d\{closure} (trace_generator_ge_php_84.php, {closure:%s.php:%d\{closure}, cli)
     closure.declaration => %s:%d
     result => 3
     _dd.p.tid => %s
-     (trace_generator.php, cli)
+     (trace_generator_ge_php_84.php, cli)
 }

@@ -9,6 +9,7 @@
 #include <unistd.h>
 #endif
 
+
 #if PHP_VERSION_ID >= 80100
 #include <Zend/Optimizer/zend_call_graph.h>
 #else
@@ -66,6 +67,7 @@ typedef struct _zend_func_info {
 } zend_func_info;
 #endif
 
+#if PHP_VERSION_ID < 80400
 typedef struct _zend_jit_op_array_trace_extension {
     zend_func_info func_info;
     const zend_op_array *op_array;
@@ -86,6 +88,7 @@ typedef union _zend_op_trace_info {
 
 #define ZEND_OP_TRACE_INFO(opline, offset) \
 	((zend_op_trace_info*)(((char*)opline) + offset))
+#endif
 
 #define ZEND_FUNC_INFO(op_array) \
 	((zend_func_info*)((op_array)->reserved[zend_func_info_rid]))
@@ -103,6 +106,19 @@ void zai_jit_minit(void) {
     zend_llist_apply(&zend_extensions, zai_jit_find_opcache_handle);
 }
 
+#if PHP_VERSION_ID >= 80400
+void (*zai_jit_blacklist_function)(zend_op_array *), (*zai_jit_unprotect)(void);
+static void zai_jit_fetch_symbols(void) {
+    if (!zai_jit_blacklist_function) {
+        ZEND_ASSERT(opcache_handle); // assert the handle is there is zend_func_info_rid != -1
+
+        zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(opcache_handle, "zend_jit_blacklist_function");
+        if (zai_jit_blacklist_function == NULL) {
+            zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_blacklist_function");
+        }
+    }
+}
+#else
 void (*zai_jit_protect)(void), (*zai_jit_unprotect)(void);
 static void zai_jit_fetch_symbols(void) {
     if (!zai_jit_protect) {
@@ -123,6 +139,7 @@ static void zai_jit_fetch_symbols(void) {
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
 }
+#endif
 
 #if PHP_VERSION_ID < 80100
 static inline bool check_pointer_near(void *a, void *b) {
@@ -162,6 +179,12 @@ int zai_get_zend_func_rid(zend_op_array *op_array) {
 }
 
 void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
+#if PHP_VERSION_ID >= 80400
+    if (opcache_handle) {
+        zai_jit_fetch_symbols();
+        zai_jit_blacklist_function(op_array);
+    }
+#else
     if (zai_get_zend_func_rid(op_array) < 0) {
         return;
     }
@@ -230,4 +253,5 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #endif
         }
     }
+#endif
 }

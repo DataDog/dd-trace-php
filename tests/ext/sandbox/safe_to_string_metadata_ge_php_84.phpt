@@ -2,8 +2,8 @@
 Span metadata is safely converted to strings without errors or exceptions
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80400) {
-    die('skip: test only stable on PHP < 8.4');
+if (PHP_VERSION_ID < 80400) {
+    die('skip: test only stable on PHP >= 8.4');
 }
 ?>
 --FILE--
@@ -100,7 +100,13 @@ arg.5: string(5) "false"
 NULL
 arg.6: string(4) "null"
 
-object(Closure)#%d (0) {
+object(Closure)#%d (3) {
+  ["name"]=>
+  string(%d) "{closure%s}"
+  ["file"]=>
+  string(%d) "%s"
+  ["line"]=>
+  int(%d)
 }
 arg.7: string(0) ""
 

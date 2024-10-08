@@ -7,11 +7,12 @@
 #include <zend_API.h>
 #include <zend_alloc.h>
 
-#include "attributes.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "php_compat.h"
 #include "php_objects.h"
+
+#include "attributes.h"
 
 static int _module_number;
 static zend_llist _function_entry_arrays;

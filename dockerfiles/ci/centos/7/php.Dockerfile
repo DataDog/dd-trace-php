@@ -9,6 +9,10 @@ ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
 ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
 ENV PHP_VERSION=${phpVersion}
 
+# Need a new `cert.pem` as otherwise pecl will not work
+RUN cd /usr/local/openssl/; \
+    curl -Lo cert.pem http://curl.haxx.se/ca/cacert.pem;
+
 # Download and extract PHP source
 ARG phpTarGzUrl
 ARG phpSha256Hash
@@ -19,7 +23,8 @@ RUN set -eux; \
     (echo "${phpSha256Hash}  /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
-    [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || ${PHP_SRC_DIR}/buildconf --force;
+    [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || ${PHP_SRC_DIR}/buildconf --force
+
 COPY php-${PHP_VERSION}/configure.sh /root/
 
 FROM base as php-zts

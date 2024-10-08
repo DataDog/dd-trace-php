@@ -7,7 +7,7 @@ overrideArguments() works with JIT (Issue #2174)
 --INI--
 opcache.enable=1
 opcache.enable_cli = 1
-opcache.jit_buffer_size=512M
+opcache.jit_buffer_size=128M
 opcache.jit=1255
 zend_extension=opcache.so
 --FILE--
