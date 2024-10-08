@@ -333,8 +333,13 @@ void (*zai_interceptor_replace_observer)(zend_function *func, bool remove, zend_
 void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define ZAI_GENERATOR_YIELD_OFFSET (-1)
+#else
+#define ZAI_GENERATOR_YIELD_OFFSET 0
+#endif
 static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval *retval, zend_generator *generator, zai_frame_memory *frame_memory) {
-    if (generator->execute_data && (generator->execute_data->opline - 1)->opcode == ZEND_YIELD_FROM) {
+    if (generator->execute_data && generator->execute_data->opline[ZAI_GENERATOR_YIELD_OFFSET].opcode == ZEND_YIELD_FROM) {
         // There are two cases here:
         // a) yield from array or iterator
         //    Here we can just wrap the iterator or array into our custom iterator, transparently without observable side effects
