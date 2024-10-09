@@ -1,9 +1,11 @@
 #include "threads.h"
 #define zend_signal_globals_id zend_signal_globals_id_dummy
 #define zend_signal_globals_offset zend_signal_globals_offset_dummy
+#define zend_signal_handler_unblock zend_signal_handler_unblock_dummy
 #include <Zend/zend.h>
 #undef zend_signal_globals_id
 #undef zend_signal_globals_offset
+#undef zend_signal_handler_unblock
 #include "ddtrace.h"
 
 #if ZTS
@@ -18,6 +20,8 @@ extern __attribute__((weak, weak_import)) size_t zend_signal_globals_offset;
 __attribute__((weak)) int zend_signal_globals_id;
 __attribute__((weak)) size_t zend_signal_globals_offset;
 #endif
+
+__attribute__((weak)) void zend_signal_handler_unblock(void);
 #endif
 
 HashTable ddtrace_tls_bases; // map thread id to TSRMLS_CACHE
