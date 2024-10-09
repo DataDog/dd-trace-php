@@ -650,7 +650,9 @@ commands:
     steps:
       - run:
           name: Build Profiler NTS
+          shell: /bin/bash -ieo pipefail
           command: |
+            source "$BASH_ENV"
             if [ -d '/opt/rh/devtoolset-7' ] ; then
                 set +eo pipefail
                 source scl_source enable devtoolset-7
@@ -659,7 +661,7 @@ commands:
             set -u
             prefix="<< parameters.prefix >>"
             mkdir -vp "${prefix}"
-            command -v switch-php && switch-php "${PHP_VERSION}"
+            switch-php "${PHP_VERSION}"
             cd profiling
             echo "${CARGO_TARGET_DIR}"
             cargo build --release
@@ -668,7 +670,9 @@ commands:
             objcopy --compress-debug-sections "${prefix}/datadog-profiling.so"
       - run:
           name: Build Profiler ZTS
+          shell: /bin/bash -ieo pipefail
           command: |
+            source "$BASH_ENV"
             if [ -d '/opt/rh/devtoolset-7' ] ; then
                 set +eo pipefail
                 source scl_source enable devtoolset-7
@@ -677,7 +681,7 @@ commands:
             set -u
             prefix="<< parameters.prefix >>"
             mkdir -vp "${prefix}"
-            command -v switch-php && switch-php "${PHP_VERSION}-zts"
+            switch-php "${PHP_VERSION}-zts"
             cd profiling
             echo "${CARGO_TARGET_DIR}"
             touch build.rs #make sure `build.rs` gets executed after `switch-php` call
