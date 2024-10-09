@@ -320,8 +320,9 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     }
 
     GC_ADDREF(&target_stack->std);
-    OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
+    ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = target_stack;
+    OBJ_RELEASE(&active_stack->std);
 }
 
 ddtrace_span_data *ddtrace_init_dummy_span(void) {
