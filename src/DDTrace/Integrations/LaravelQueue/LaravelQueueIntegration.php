@@ -159,7 +159,6 @@ class LaravelQueueIntegration extends Integration
 
                 if ($class == 'Illuminate\\Queue\\CallQueuedHandler') {
                     $class = $payload['data']['commandName'];
-                    $method = 'handle';
                 }
 
                 install_hook(
