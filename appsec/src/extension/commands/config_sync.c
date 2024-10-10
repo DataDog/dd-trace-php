@@ -9,6 +9,7 @@
 
 #include "../commands_helpers.h"
 #include "../ddtrace.h"
+#include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "config_sync.h"
 #include <mpack.h>
@@ -29,6 +30,10 @@ static const dd_command_spec _spec = {
 dd_result dd_config_sync(
     dd_conn *nonnull conn, const struct config_sync_data *nonnull data)
 {
+    mlog_g(dd_log_debug,
+        "Sending config sync request to the helper with path %s",
+        data->rem_cfg_path);
+
     return dd_command_exec(conn, &_spec, (void *)data);
 }
 

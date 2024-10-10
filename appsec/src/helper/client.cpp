@@ -448,10 +448,17 @@ void client::update_remote_config_path(std::string_view path,
         return;
     }
 
-    SPDLOG_INFO("Remote config path changed to {}, recreating service", path);
     remote_config::settings rc_settings;
-    rc_settings.enabled = true;
-    rc_settings.shmem_path = path;
+    if (path.empty()) {
+        SPDLOG_INFO("Remote config path is empty, recreating service with "
+                    "disabled remote config");
+        rc_settings.enabled = false;
+    } else {
+        SPDLOG_INFO(
+            "Remote config path changed to {}, recreating service", path);
+        rc_settings.enabled = true;
+        rc_settings.shmem_path = path;
+    }
 
     service_ = service_manager_->create_service(
         *engine_settings_, rc_settings, meta, metrics, true);
