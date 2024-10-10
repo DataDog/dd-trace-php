@@ -392,7 +392,7 @@ trait CommonTests {
     void 'module does not have STATIC_TLS flag'() {
         Container.ExecResult res = container.execInContainer(
                 'bash', '-c',
-                '''! { readelf -d "$(php -r 'echo ini_get("extension_dir");')"/ddappsec.so | grep STATIC_TLS; }''')
+                '''! { readelf -d "$(DD_TRACE_CLI_ENABLED=0 php -r 'echo ini_get("extension_dir");')"/ddappsec.so | grep STATIC_TLS; }''')
         if (res.exitCode != 0) {
             throw new AssertionError("Module has STATIC_TLS flag: $res.stdout")
         }

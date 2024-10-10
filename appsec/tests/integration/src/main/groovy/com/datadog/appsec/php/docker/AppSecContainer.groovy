@@ -1,6 +1,9 @@
 package com.datadog.appsec.php.docker
 
 import com.datadog.appsec.php.mock_agent.MockDatadogAgent
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
+import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import com.github.dockerjava.api.command.CreateContainerCmd
@@ -73,6 +76,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_LOG_LEVEL', 'info,startup=off'
         withEnv 'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS', '0'
         withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
+        withEnv 'DD_TRACE_SIDECAR_TRACE_SENDER', '0'
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
         withEnv 'DD_TRACE_GIT_METADATA_ENABLED', '0'
@@ -115,6 +119,14 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     List<Object> drainTelemetry(int timeoutInMs) {
         mockDatadogAgent.drainTelemetry(timeoutInMs)
+    }
+
+    void setNextRCResponse(Target target, RemoteConfigResponse nextResponse) {
+        mockDatadogAgent.setNextRCResponse(target, nextResponse)
+    }
+
+    RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
+        mockDatadogAgent.waitForRCVersion(target, version, timeoutInMs)
     }
 
     void close() {

@@ -26,7 +26,7 @@ function register_subscriber()
             if ($span) {
                 if (is_null(self::$useDeprecatedMethods)) {
                     // v1.20+: getServer() is deprecated in favor of getHost() and getPort()
-                    self::$useDeprecatedMethods = !method_exists($event, 'getHost') || method_exists($event, 'getPort');
+                    self::$useDeprecatedMethods = !method_exists($event, 'getHost') || !method_exists($event, 'getPort');
                 }
 
                 if (self::$useDeprecatedMethods) {

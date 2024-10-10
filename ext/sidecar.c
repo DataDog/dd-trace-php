@@ -98,7 +98,10 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
     return sidecar_transport;
 }
 
-static void maybe_enable_appsec() {
+static void maybe_enable_appsec(bool *appsec_features, bool *appsec_config) {
+    *appsec_features = false;
+    *appsec_config = false;
+
     // this must be done in ddtrace rather than ddappsec because
     // the sidecar is launched by ddtrace before ddappsec has a chance
     // to run its first rinit
@@ -117,6 +120,14 @@ static void maybe_enable_appsec() {
     }
     void (*dd_appsec_maybe_enable_helper)(typeof(&ddog_sidecar_enable_appsec) enable_appsec) = handle;
     dd_appsec_maybe_enable_helper(ddog_sidecar_enable_appsec);
+
+    typedef void (*dd_appsec_rc_conf_t)(bool *, bool *);
+    dd_appsec_rc_conf_t dd_appsec_rc_conf = dlsym(RTLD_DEFAULT, "dd_appsec_rc_conf");
+    if (dd_appsec_rc_conf) {
+        dd_appsec_rc_conf(appsec_features, appsec_config);
+    } else {
+        LOG(WARN, "Could not resolve dd_appsec_rc_conf");
+    }
 #endif
 }
 
@@ -124,9 +135,11 @@ void ddtrace_sidecar_setup(void) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
 
-    maybe_enable_appsec();
+    bool appsec_features;
+    bool appsec_config;
+    maybe_enable_appsec(&appsec_features, &appsec_config);
 
-    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED());
+    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_features, appsec_config);
 
     ddtrace_sidecar = dd_sidecar_connection_factory();
     if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong

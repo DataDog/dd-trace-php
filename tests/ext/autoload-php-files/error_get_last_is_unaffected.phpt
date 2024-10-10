@@ -4,6 +4,7 @@ Errors in ddtrace autoloader do not affect error_get_last()
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AUTOLOAD_NO_COMPILE=1
+DD_APPSEC_ENABLED=0
 --INI--
 error_reporting=E_ALL
 datadog.trace.sources_path="{PWD}/.."
