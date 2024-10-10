@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "acceptor.hpp"
 #include "../exception.hpp"
+#include "socket.hpp"
 #include <cerrno>
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -75,7 +76,7 @@ void acceptor::set_accept_timeout(std::chrono::seconds timeout)
     }
 }
 
-socket::ptr acceptor::accept()
+std::unique_ptr<base_socket> acceptor::accept()
 {
     struct sockaddr_un addr {};
     socklen_t len = sizeof(addr);

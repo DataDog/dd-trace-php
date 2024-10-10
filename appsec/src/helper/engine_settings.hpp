@@ -39,16 +39,9 @@ struct engine_settings {
     std::string obfuscator_value_regex;
     schema_extraction_settings schema_extraction;
 
-    engine_settings() = default;
-    engine_settings(const engine_settings &) = default;
-    engine_settings(engine_settings &&) = default;
-    engine_settings &operator=(const engine_settings &) = default;
-    engine_settings &operator=(engine_settings &&) = default;
-    virtual ~engine_settings() = default;
-
     static const std::string &default_rules_file();
 
-    [[nodiscard]] virtual const std::string &rules_file_or_default() const
+    [[nodiscard]] const std::string &rules_file_or_default() const
     {
         if (rules_file.empty()) {
             return default_rules_file();

@@ -49,93 +49,38 @@ __attribute__((constructor)) void resolve_symbols()
 
 namespace dds {
 
-TEST(ServiceTest, NullEngine)
-{
-    std::shared_ptr<engine> engine{};
-    remote_config::settings rc_settings{true, ""};
-    auto client = remote_config::client::from_settings(rc_settings, {});
-
-    auto service_config = std::make_shared<dds::service_config>();
-    auto client_handler = std::make_unique<remote_config::client_handler>(
-        std::move(client), service_config);
-
-    EXPECT_THROW(
-        auto s = service(engine, service_config, std::move(client_handler), ""),
-        std::runtime_error);
-}
-
-TEST(ServiceTest, NullServiceHandler)
-{
-    std::shared_ptr<engine> engine{engine::create()};
-    auto service_config = std::make_shared<dds::service_config>();
-
-    // A null service handler doesn't make a difference as remote config is
-    // optional
-    service svc{engine, service_config, nullptr, ""};
-    EXPECT_EQ(engine.get(), svc.get_engine().get());
-}
-
 TEST(ServiceTest, ServicePickSchemaExtractionSamples)
 {
     std::shared_ptr<engine> engine{engine::create()};
 
-    auto client = remote_config::client::from_settings({true}, {});
+    auto create_engine_settings = [](bool enabled, double sample_rate) {
+        engine_settings engine_settings = {};
+        engine_settings.rules_file = create_sample_rules_ok();
+        engine_settings.schema_extraction.enabled = enabled;
+        engine_settings.schema_extraction.sample_rate = sample_rate;
+        return engine_settings;
+    };
     auto service_config = std::make_shared<dds::service_config>();
-    engine_settings engine_settings = {};
-    engine_settings.rules_file = create_sample_rules_ok();
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
 
-    { // Constructor. It picks based on rate
-        double all_requests_are_picked = 1.0;
-        auto s = service(engine, service_config, nullptr, "",
-            {true, all_requests_are_picked});
+    { // All requests are picked
+        auto s = service::from_settings(
+            create_engine_settings(true, 1.0), {}, false);
 
-        EXPECT_TRUE(s.get_schema_sampler()->picked());
+        EXPECT_TRUE(s->get_schema_sampler()->picked());
     }
 
-    { // Constructor. It does not pick based on rate
-        double no_request_is_picked = 0.0;
-        auto s = service(
-            engine, service_config, nullptr, "", {true, no_request_is_picked});
+    { // Static constructor. It does not pick based on rate
+        auto s = service::from_settings(
+            create_engine_settings(true, 0.0), {}, false);
 
-        EXPECT_FALSE(s.get_schema_sampler()->picked());
-    }
-
-    { // Constructor. It does not pick if disabled
-        double all_requests_are_picked = 1.0;
-        bool schema_extraction_disabled = false;
-        auto s = service(engine, service_config, nullptr, "",
-            {schema_extraction_disabled, all_requests_are_picked});
-
-        EXPECT_FALSE(s.get_schema_sampler()->picked());
-    }
-
-    { // Static constructor. It picks based on rate
-        engine_settings.schema_extraction.enabled = true;
-        engine_settings.schema_extraction.sample_rate = 1.0;
-        auto service =
-            service::from_settings(engine_settings, {}, meta, metrics, false);
-
-        EXPECT_TRUE(service->get_schema_sampler()->picked());
-    }
-
-    { // Static constructor.  It does not pick based on rate
-        engine_settings.schema_extraction.enabled = true;
-        engine_settings.schema_extraction.sample_rate = 0.0;
-        auto service =
-            service::from_settings(engine_settings, {}, meta, metrics, false);
-
-        EXPECT_FALSE(service->get_schema_sampler()->picked());
+        EXPECT_FALSE(s->get_schema_sampler()->picked());
     }
 
     { // Static constructor. It does not pick if disabled
-        engine_settings.schema_extraction.enabled = false;
-        engine_settings.schema_extraction.sample_rate = 1.0;
-        auto service =
-            service::from_settings(engine_settings, {}, meta, metrics, false);
+        auto s = service::from_settings(
+            create_engine_settings(false, 1.0), {}, false);
 
-        EXPECT_FALSE(service->get_schema_sampler()->picked());
+        EXPECT_FALSE(s->get_schema_sampler()->picked());
     }
 }
 

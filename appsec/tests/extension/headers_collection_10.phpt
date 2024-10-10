@@ -111,6 +111,8 @@ array(25) {
   string(13) "my user agent"
   ["http.request.headers.via"]=>
   string(12) "HTTP/1.1 GWA"
+  ["http.request.headers.user-agent"]=>
+  string(13) "my user agent"
   ["http.request.headers.x-amzn-trace-id"]=>
   string(13) "amazontraceid"
   ["http.request.headers.x-appgw-trace-id"]=>

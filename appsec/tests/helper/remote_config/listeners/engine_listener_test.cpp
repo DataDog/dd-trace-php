@@ -9,6 +9,7 @@
 #include "base64.h"
 #include "engine.hpp"
 #include "json_helper.hpp"
+#include "metrics.hpp"
 #include "remote_config/exception.hpp"
 #include "remote_config/listeners/engine_listener.hpp"
 #include "remote_config/product.hpp"
@@ -21,6 +22,7 @@ const std::string waf_rule =
 
 namespace dds::remote_config {
 
+using dds::mock::tel_submitter;
 using mock::get_config;
 
 namespace {
@@ -40,22 +42,26 @@ TEST(RemoteConfigEngineListener, NoUpdates)
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
+    EXPECT_CALL(*engine, update(_, _)).Times(0);
 
-    remote_config::engine_listener listener(engine);
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.commit();
 }
 
 TEST(RemoteConfigEngineListener, UnknownConfig)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _)).Times(0);
+    EXPECT_CALL(*engine, update(_, _)).Times(0);
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     EXPECT_THROW(listener.on_update(get_config("UNKNOWN", waf_rule)),
         error_applying_config);
@@ -64,15 +70,17 @@ TEST(RemoteConfigEngineListener, UnknownConfig)
 
 TEST(RemoteConfigEngineListener, RuleUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     listener.commit();
@@ -94,15 +102,18 @@ TEST(RemoteConfigEngineListener, RuleUpdate)
 
 TEST(RemoteConfigEngineListener, RuleUpdateFallback)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
-    remote_config::engine_listener listener(engine, create_sample_rules_ok());
+    remote_config::engine_listener listener(
+        engine, msubmitter, create_sample_rules_ok());
     listener.init();
     listener.on_unapply(get_config("ASM_DD", waf_rule));
     listener.commit();
@@ -124,18 +135,20 @@ TEST(RemoteConfigEngineListener, RuleUpdateFallback)
 
 TEST(RemoteConfigEngineListener, RulesOverrideUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
     const std::string update =
         R"({"rules_override": [{"rules_target": [{"rule_id": "1"}], "enabled":"false"}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM", update));
     listener.commit();
@@ -165,18 +178,20 @@ TEST(RemoteConfigEngineListener, RulesOverrideUpdate)
 
 TEST(RemoteConfigEngineListener, RulesAndRulesOverrideUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
     const std::string update =
         R"({"rules_override": [{"rules_target": [{"rule_id": "1"}], "enabled":"false"}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     listener.on_update(get_config("ASM", update));
@@ -214,18 +229,20 @@ TEST(RemoteConfigEngineListener, RulesAndRulesOverrideUpdate)
 
 TEST(RemoteConfigEngineListener, ExclusionsUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
     const std::string update =
         R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM", update));
     listener.commit();
@@ -256,18 +273,20 @@ TEST(RemoteConfigEngineListener, ExclusionsUpdate)
 
 TEST(RemoteConfigEngineListener, RulesAndExclusionsUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
     const std::string update =
         R"({"exclusions":[{"id":1,"rules_target":[{"rule_id":1}]}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     listener.on_update(get_config("ASM", update));
@@ -305,11 +324,13 @@ TEST(RemoteConfigEngineListener, RulesAndExclusionsUpdate)
 
 TEST(RemoteConfigEngineListener, ActionsUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
@@ -317,7 +338,7 @@ TEST(RemoteConfigEngineListener, ActionsUpdate)
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
             {"status_code": "303", "location": "localhost"}}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM", update));
     listener.commit();
@@ -348,11 +369,13 @@ TEST(RemoteConfigEngineListener, ActionsUpdate)
 
 TEST(RemoteConfigEngineListener, RulesAndActionsUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
@@ -360,7 +383,7 @@ TEST(RemoteConfigEngineListener, RulesAndActionsUpdate)
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
             {"status_code": "303", "location": "localhost"}}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     listener.on_update(get_config("ASM", update));
@@ -398,11 +421,13 @@ TEST(RemoteConfigEngineListener, RulesAndActionsUpdate)
 
 TEST(RemoteConfigEngineListener, CustomRulesUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
@@ -412,7 +437,7 @@ TEST(RemoteConfigEngineListener, CustomRulesUpdate)
             {"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],
             "on_match":["block"]}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM", update));
     listener.commit();
@@ -443,11 +468,13 @@ TEST(RemoteConfigEngineListener, CustomRulesUpdate)
 
 TEST(RemoteConfigEngineListener, RulesAndCustomRulesUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
@@ -457,7 +484,7 @@ TEST(RemoteConfigEngineListener, RulesAndCustomRulesUpdate)
             {"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],
             "on_match":["block"]}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     listener.on_update(get_config("ASM", update));
@@ -495,18 +522,20 @@ TEST(RemoteConfigEngineListener, RulesAndCustomRulesUpdate)
 
 TEST(RemoteConfigEngineListener, RulesDataUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
     const std::string update =
         R"({"rules_data":[{"id":"blocked_ips","type":"ip_with_expiration","data":[{"value":"1.2.3.4","expiration":0}]}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DATA", update));
     listener.commit();
@@ -529,18 +558,21 @@ TEST(RemoteConfigEngineListener, RulesDataUpdate)
 
 TEST(RemoteConfigEngineListener, RulesAndRuleDataUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
     const std::string update =
         R"({"rules_data":[{"id":"blocked_ips","type":"ip_with_expiration","data":[{"value":"1.2.3.4","expiration":0}]}]})";
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
+
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     listener.on_update(get_config("ASM_DATA", update));
@@ -570,15 +602,17 @@ TEST(RemoteConfigEngineListener, RulesAndRuleDataUpdate)
 
 TEST(RemoteConfigEngineListener, FullUpdate)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(1)
         .WillOnce(DoAll(SaveDocument(&doc)));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
     {
@@ -625,15 +659,18 @@ TEST(RemoteConfigEngineListener, FullUpdate)
 
 TEST(RemoteConfigEngineListener, MultipleInitCommitUpdates)
 {
+    auto msubmitter =
+        std::shared_ptr<metrics::TelemetrySubmitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
 
-    EXPECT_CALL(*engine, update(_, _, _))
+    EXPECT_CALL(*engine, update(_, _))
         .Times(3)
         .WillRepeatedly(DoAll(SaveDocument(&doc)));
 
-    remote_config::engine_listener listener(engine, create_sample_rules_ok());
+    remote_config::engine_listener listener(
+        engine, msubmitter, create_sample_rules_ok());
 
     listener.init();
     listener.on_update(get_config("ASM_DD", waf_rule));
@@ -776,10 +813,12 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
             {"inputs": [{"address": "server.request.query"} ], "list": ["/other/url"] },
             "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
 
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
     std::shared_ptr<engine> e{engine::create()};
-    e->subscribe(waf::instance::from_string(rules, meta, metrics));
+    e->subscribe(waf::instance::from_string(rules, *msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -797,7 +836,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
             {"inputs": [{"address": "server.request.query"} ], "list":
             ["/anotherUrl"] }, "operator": "phrase_match"} ], "on_match": ["block"]}]})";
 
-    remote_config::engine_listener listener(e);
+    remote_config::engine_listener listener(e, msubmitter);
     listener.init();
     listener.on_update(get_config("ASM_DD", new_rules));
     listener.commit();
@@ -823,10 +862,13 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
             {"inputs": [{"address": "server.request.query"} ], "list": ["/a/url"] },
             "operator": "phrase_match"} ], "on_match": ["block"] } ] })";
 
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
+
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
     std::shared_ptr<engine> e{engine::create()};
-    e->subscribe(waf::instance::from_string(rules, meta, metrics));
+    e->subscribe(waf::instance::from_string(rules, *msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -840,7 +882,8 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
         EXPECT_EQ(res->events.size(), 1);
     }
 
-    remote_config::engine_listener listener(e, create_sample_rules_ok());
+    remote_config::engine_listener listener(
+        e, msubmitter, create_sample_rules_ok());
     listener.init();
     listener.on_unapply(get_config("ASM_DD", ""));
     listener.commit();
@@ -858,13 +901,13 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
 TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    engine->subscribe(waf::instance::from_string(waf_rule, *msubmitter));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
 
     {
@@ -905,13 +948,13 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 
 TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    engine->subscribe(waf::instance::from_string(waf_rule, *msubmitter));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
 
     listener.init();
 
@@ -956,13 +999,13 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
 TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    engine->subscribe(waf::instance::from_string(waf_rule, *msubmitter));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
 
     listener.init();
 
@@ -1009,13 +1052,13 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
 TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    engine->subscribe(waf::instance::from_string(waf_rule, *msubmitter));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
 
     listener.init();
 
@@ -1057,13 +1100,13 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 
 TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
-    engine->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    engine->subscribe(waf::instance::from_string(waf_rule, *msubmitter));
 
-    remote_config::engine_listener listener(engine);
+    remote_config::engine_listener listener(engine, msubmitter);
 
     listener.init();
 
@@ -1168,12 +1211,12 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
             [{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},
             "operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = std::shared_ptr<metrics::TelemetrySubmitter>(
+        new NiceMock<tel_submitter>());
     std::shared_ptr<engine> e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, *msubmitter));
 
-    remote_config::engine_listener listener(e);
+    remote_config::engine_listener listener(e, msubmitter);
     listener.init();
 
     {
