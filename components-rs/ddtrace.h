@@ -183,7 +183,8 @@ struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
 bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,
                                             ddog_CharSlice env,
-                                            ddog_CharSlice version);
+                                            ddog_CharSlice version,
+                                            const struct ddog_Vec_Tag *tags);
 
 bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
                                              ddog_CharSlice config,

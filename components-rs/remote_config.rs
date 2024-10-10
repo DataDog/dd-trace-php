@@ -28,6 +28,7 @@ use std::ffi::c_char;
 use std::mem;
 use std::sync::Arc;
 use tracing::debug;
+use ddcommon::tag::Tag;
 
 type DynamicConfigUpdate = for<'a> extern "C" fn(
     config: CharSlice,
@@ -415,11 +416,13 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     service: CharSlice,
     env: CharSlice,
     version: CharSlice,
+    tags: &ddcommon_ffi::Vec<Tag>,
 ) -> bool {
     let new_target = Target {
         service: service.to_utf8_lossy().to_string(),
         env: env.to_utf8_lossy().to_string(),
         app_version: version.to_utf8_lossy().to_string(),
+        tags: tags.as_slice().to_vec(),
     };
 
     if let Some(target) = remote_config.manager.get_target() {

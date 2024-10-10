@@ -411,6 +411,11 @@ typedef struct ddog_Vec_CChar {
   uintptr_t capacity;
 } ddog_Vec_CChar;
 
+typedef struct ddog_Tag {
+  ddog_CharSlice name;
+  const struct ddog_DslString *value;
+} ddog_Tag;
+
 typedef enum ddog_IntermediateValue_Tag {
   DDOG_INTERMEDIATE_VALUE_STRING,
   DDOG_INTERMEDIATE_VALUE_NUMBER,
@@ -507,11 +512,6 @@ typedef struct ddog_LogProbe {
   bool capture_snapshot;
   uint32_t sampling_snapshots_per_second;
 } ddog_LogProbe;
-
-typedef struct ddog_Tag {
-  ddog_CharSlice name;
-  const struct ddog_DslString *value;
-} ddog_Tag;
 
 typedef struct ddog_SpanProbeTag {
   struct ddog_Tag tag;
