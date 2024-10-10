@@ -364,7 +364,7 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) 
 
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
-        changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice);
+        changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
     }
     if (changed || !root) {
         ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
@@ -394,7 +394,7 @@ void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
     ddog_sidecar_send_debugger_datum(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payload);
 }
 
-void ddtrace_sidecar_rinit(void) {
+void ddtrace_sidecar_activate(void) {
     DDTRACE_G(sidecar_queue_id) = ddog_sidecar_queueId_generate();
 
     DDTRACE_G(active_global_tags) = ddog_Vec_Tag_new();
@@ -403,6 +403,27 @@ void ddtrace_sidecar_rinit(void) {
     ZEND_HASH_FOREACH_STR_KEY_VAL(get_DD_TAGS(), tag, value) {
         UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), dd_zend_string_to_CharSlice(tag), dd_zend_string_to_CharSlice(Z_STR_P(value))));
     } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_sidecar_rinit(void) {
+    if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+        zval git_object;
+        ZVAL_UNDEF(&git_object);
+        ddtrace_inject_git_metadata(&git_object);
+        if (Z_TYPE(git_object) == IS_OBJECT) {
+            ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ(git_object);
+            if (Z_TYPE(git_metadata->property_commit) == IS_STRING) {
+                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("DD_GIT_COMMIT_SHA"),
+                                         dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_commit))));
+            }
+            if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
+                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("DD_GIT_REPOSITORY_URL"),
+                                         dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_repository))));
+            }
+            OBJ_RELEASE(&git_metadata->std);
+        }
+    }
+
     ddtrace_sidecar_submit_root_span_data_direct(NULL);
 }
 

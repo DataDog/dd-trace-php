@@ -20,6 +20,7 @@ ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void);
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads);
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 
+void ddtrace_sidecar_activate(void);
 void ddtrace_sidecar_rinit(void);
 void ddtrace_sidecar_rshutdown(void);
 

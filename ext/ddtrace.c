@@ -484,7 +484,7 @@ static void ddtrace_activate(void) {
         ddtrace_sidecar_ensure_active();
     }
 
-    ddtrace_sidecar_rinit();
+    ddtrace_sidecar_activate();
 
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
     if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
@@ -1496,6 +1496,8 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
+
+    ddtrace_sidecar_rinit();
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
