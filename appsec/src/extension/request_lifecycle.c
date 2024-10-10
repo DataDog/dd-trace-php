@@ -47,6 +47,7 @@ static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
+static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 #define MAX_LENGTH_OF_REM_CFG_PATH 31
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
@@ -104,6 +105,9 @@ void dd_req_lifecycle_rinit(bool force)
         return;
     }
 
+    _empty_service_or_env = zend_string_equals_literal(get_DD_ENV(), "") ||
+                            zend_string_equals_literal(get_DD_SERVICE(), "");
+
     _set_cur_span(dd_trace_get_active_root_span());
     if (!_cur_req_span) {
         mlog(dd_log_debug, "No root span available on request init");
@@ -128,8 +132,13 @@ static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
     return _do_request_begin(rbe_zv, true);
 }
 
-static bool _rem_cfg_path_changed()
+static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
 {
+    if (ignore_empty && _empty_service_or_env &&
+        _last_rem_cfg_path[0] != '\0') {
+        return false;
+    }
+
     const char *cur_path = dd_trace_remote_config_get_path();
     if (!cur_path) {
         cur_path = "";
@@ -184,7 +193,7 @@ static zend_array *nullable _do_request_begin(
     }
 
     int res = dd_success;
-    if (_rem_cfg_path_changed() ||
+    if (_rem_cfg_path_changed(true) ||
         (!DDAPPSEC_G(active) &&
             DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG)) {
         res = dd_config_sync(conn,
@@ -252,6 +261,27 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     } else {
         _do_request_finish_php(ignore_verdict);
         // _rest_globals already called
+    }
+
+    // if we don't have service/env, our only chance to update the remote config
+    // path is rshutdown because ddtrace's rinit is called before ours and it
+    // resets the path
+    if (_empty_service_or_env && _rem_cfg_path_changed(false)) {
+        mlog_g(dd_log_debug, "No DD_SERVICE/DD_ENV; trying to sync remote "
+                             "config path on rshutdown");
+        dd_conn *conn = dd_helper_mgr_cur_conn();
+        if (conn == NULL) {
+            mlog_g(dd_log_debug,
+                "No connection to the helper for rshutdown config sync");
+        } else {
+            dd_result res = dd_config_sync(conn,
+                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
+            if (res) {
+                mlog_g(dd_log_info,
+                    "Failed to sync remote config path on rshutdown: %s",
+                    dd_result_to_string(res));
+            }
+        }
     }
 }
 
