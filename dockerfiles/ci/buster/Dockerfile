@@ -9,10 +9,10 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    libclang-16-dev \
-    libclang-rt-16-dev \
-    llvm-16-dev \
-    lld-16 \
+    libclang-17-dev \
+    libclang-rt-17-dev \
+    llvm-17-dev \
+    lld-17 \
     libbrotli-dev \
     libcurl4-openssl-dev \
     libedit-dev \
@@ -65,7 +65,7 @@ ENV RUNTIME_DEPS \
 ENV PHPIZE_DEPS \
     autoconf \
     bison \
-    clang-16 \
+    clang-17 \
     cmake \
     dpkg-dev \
     file \
@@ -95,11 +95,11 @@ RUN set -eux; \
     echo "deb http://deb.debian.org/debian-debug/ buster-debug main" | \
         tee -a /etc/apt/sources.list; \
     \
-# Use LLVM from orig vendor (also LLVM 16 is not shipped with buster)
+# Use LLVM from orig vendor (also LLVM 17 is not shipped with buster)
     apt-get update; \
     apt-get install -y curl gnupg; \
-    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
-    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
+    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-17 main" >> /etc/apt/sources.list; \
+    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-17 main" >> /etc/apt/sources.list; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
     \
