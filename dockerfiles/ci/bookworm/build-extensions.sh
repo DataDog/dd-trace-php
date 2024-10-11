@@ -117,19 +117,7 @@ else
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
   # Redis 6.0.0 dropped support for PHP 7.1 and below
-  if [[ $PHP_VERSION_ID -le 83 ]]; then
-    pecl install redis$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -5.3.7; fi); echo "extension=redis.so" >> ${iniDir}/redis.ini;
-  else
-    # phpredis from latest `develop` branch has PHP 8.4 support, no release so
-    # far
-    curl -LO https://github.com/phpredis/phpredis/archive/6673b5b2bed7f50600aad0bf02afd49110a49d81.tar.gz;
-    tar -xvzf 6673b5b2bed7f50600aad0bf02afd49110a49d81.tar.gz;
-    cd phpredis-6673b5b2bed7f50600aad0bf02afd49110a49d81;
-    phpize;
-    ./configure;
-    make && make install;
-    echo "extension=redis.so" >> ${iniDir}/redis.ini;
-  fi
+  pecl install redis$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -5.3.7; fi); echo "extension=redis.so" >> ${iniDir}/redis.ini;
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do

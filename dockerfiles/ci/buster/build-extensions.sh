@@ -152,15 +152,6 @@ else
     ./configure --host=$HOST_ARCH-linux-gnu
     make install
     popd
-  if [[ $PHP_VERSION_ID -ge 80 ]]; then
-    pushd /tmp
-    pecl download swoole-5.1.2; # we don't install swoole here
-    tar xzf swoole-5.1.2.tgz
-    cd swoole-5.1.2
-    phpize
-    ./configure --host=$HOST_ARCH-linux-gnu
-    make install
-    popd
   fi
 
   # We don't install any redis.so to inis, but allow selection at runtime.
@@ -170,23 +161,13 @@ else
     pecl install redis-4.3.0
     mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-4.3.0.so
   fi
-  if [[ $PHP_VERSION_ID -le 83 ]]; then
-    pecl install redis-5.3.7
-    # Redis 6.0.0 dropped support for PHP 7.1 and below
-    if [[ $PHP_VERSION_ID -gt 71 ]]; then
-      mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
-      pecl install redis
-    else
-      ln -s $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
-    fi
+  pecl install redis-5.3.7
+  # Redis 6.0.0 dropped support for PHP 7.1 and below
+  if [[ $PHP_VERSION_ID -gt 71 ]]; then
+    mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
+    pecl install redis
   else
-    curl -LO https://github.com/phpredis/phpredis/archive/6673b5b2bed7f50600aad0bf02afd49110a49d81.tar.gz;
-    tar -xvzf 6673b5b2bed7f50600aad0bf02afd49110a49d81.tar.gz;
-    cd phpredis-6673b5b2bed7f50600aad0bf02afd49110a49d81;
-    phpize;
-    ./configure;
-    make && make install;
-    echo "extension=redis.so" >> ${iniDir}/redis.ini;
+    ln -s $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
   fi
 
 fi
