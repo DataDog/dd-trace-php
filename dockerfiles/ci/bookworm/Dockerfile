@@ -18,8 +18,7 @@ ENV DEVLIBS \
     libfreetype6-dev \
     libicu-dev \
     libjpeg-dev \
-    libltdl \
-    libltdl-dev \
+    libtool \
     libmcrypt-dev \
     libmemcached-dev \
     libodbc1 \
