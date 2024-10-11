@@ -32,6 +32,7 @@ RUN set -eux; \
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
     yum update nss nss-util nss-sysinit nss-tools; \
     yum install -y --nogpgcheck devtoolset-7; \
+    yum install -y --nogpgcheck devtoolset-9; \
     yum clean all;
 
 ENV SRC_DIR=/usr/local/src
@@ -97,7 +98,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 # Required: CMake >= 3.20.0 (default version is 2.8.12.2)
 # Required to build libzip from source (has to be a separate RUN layer)
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.30.5/cmake-3.30.5.tar.gz; \
+    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.28.6/cmake-3.28.6.tar.gz; \
     cd "${SRC_DIR}/cmake"; \
     mkdir -v 'build' && cd 'build'; \
     ../bootstrap && make -j $(nproc) && make install; \
@@ -159,7 +160,7 @@ ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib6
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
-RUN source scl_source enable devtoolset-7 \
+RUN source scl_source enable devtoolset-9 \
   && yum install -y python3 \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
   && mkdir -vp "${SRC_DIR}/ninja/build" \
