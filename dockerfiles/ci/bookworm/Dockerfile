@@ -214,7 +214,7 @@ RUN set -eux; \
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
 
-ARG RUST_VERSION="1.71.1"
+ARG RUST_VERSION="1.76.0"
 # Need a nightly that is at least 1.71.1
 ARG RUST_NIGHTLY_VERSION="-2024-02-27"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
