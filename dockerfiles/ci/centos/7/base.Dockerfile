@@ -94,10 +94,10 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# Required: CMake >= 3.0.2 (default version is 2.8.12.2)
+# Required: CMake >= 3.20.0 (default version is 2.8.12.2)
 # Required to build libzip from source (has to be a separate RUN layer)
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz; \
+    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.30.5/cmake-3.30.5.tar.gz; \
     cd "${SRC_DIR}/cmake"; \
     mkdir -v 'build' && cd 'build'; \
     ../bootstrap && make -j $(nproc) && make install; \
