@@ -317,7 +317,11 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
     ddog_Vec_Tag_drop(vec);
 }
 
-void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) {
+void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddtrace_root_span_data *root) {
+    ddtrace_sidecar_submit_root_span_data_direct(root, get_DD_SERVICE(), get_DD_ENV(), get_DD_VERSION());
+}
+
+void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
     if (!ddtrace_sidecar || !get_global_DD_REMOTE_CONFIG_ENABLED()) {
         return;
     }
@@ -329,8 +333,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) 
         if (Z_TYPE_P(service) == IS_STRING && Z_STRLEN_P(service) > 0) {
             service_slice = dd_zend_string_to_CharSlice(Z_STR_P(service));
         }
-    } else if (ZSTR_LEN(get_DD_SERVICE())) {
-        service_slice = dd_zend_string_to_CharSlice(get_DD_SERVICE());
+    } else if (ZSTR_LEN(cfg_service)) {
+        service_slice = dd_zend_string_to_CharSlice(cfg_service);
     } else {
         free_string = ddtrace_default_service_name();
         service_slice = dd_zend_string_to_CharSlice(free_string);
@@ -345,8 +349,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) 
         if (Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) > 0) {
             env_slice = dd_zend_string_to_CharSlice(Z_STR_P(env));
         }
-    } else if (ZSTR_LEN(get_DD_ENV())) {
-        env_slice = dd_zend_string_to_CharSlice(get_DD_ENV());
+    } else if (ZSTR_LEN(cfg_env)) {
+        env_slice = dd_zend_string_to_CharSlice(cfg_env);
     }
 
     ddog_CharSlice version_slice = DDOG_CHARSLICE_C("");
@@ -358,8 +362,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root) 
         if (version && Z_TYPE_P(version) == IS_STRING && Z_STRLEN_P(version) > 0) {
             version_slice = dd_zend_string_to_CharSlice(Z_STR_P(version));
         }
-    } else if (ZSTR_LEN(get_DD_VERSION())) {
-        version_slice = dd_zend_string_to_CharSlice(get_DD_VERSION());
+    } else if (ZSTR_LEN(cfg_version)) {
+        version_slice = dd_zend_string_to_CharSlice(cfg_version);
     }
 
     bool changed = true;
@@ -379,7 +383,7 @@ void ddtrace_sidecar_submit_root_span_data(void) {
     if (DDTRACE_G(active_stack)) {
         ddtrace_root_span_data *root = DDTRACE_G(active_stack)->root_span;
         if (root) {
-            ddtrace_sidecar_submit_root_span_data_direct(root);
+            ddtrace_sidecar_submit_root_span_data_direct_defaults(root);
         }
     }
 }
@@ -424,7 +428,7 @@ void ddtrace_sidecar_rinit(void) {
         }
     }
 
-    ddtrace_sidecar_submit_root_span_data_direct(NULL);
+    ddtrace_sidecar_submit_root_span_data_direct_defaults(NULL);
 }
 
 void ddtrace_sidecar_rshutdown(void) {
