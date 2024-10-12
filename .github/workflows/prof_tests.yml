@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   profiling-tests:
     strategy:
@@ -34,6 +38,7 @@ jobs:
 
     container:
       image: ${{ matrix.docker_image }}
+      options: --user root
 
     steps:
       - name: Checkout repository
@@ -41,7 +46,8 @@ jobs:
         with:
           submodules: true
 
-      - name: Bake me into the image
+      - name: Bake me into the base image
+        if: contains(matrix.docker_image, 'alpine')
         run: |
           apk add --no-cache tar
 
@@ -54,12 +60,10 @@ jobs:
 
       - name: Run cargo tests
         run: |
-          if [ -d '/opt/rh/devtoolset-7' ] ; then
-              set +eo pipefail
-              source scl_source enable devtoolset-7
-              set -eo pipefail
-          fi
           set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            source /root/.bashrc
+          fi
           switch-php "${PHP_VERSION}"
           cd profiling
           cargo test --release --all-features
@@ -67,6 +71,9 @@ jobs:
       - name: Run phpt tests NTS
         run: |
           set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            source /root/.bashrc
+          fi
           switch-php "${PHP_VERSION}"
           libdir="/tmp/datadog-profiling"
           cd profiling
@@ -80,6 +87,9 @@ jobs:
       - name: Run phpt tests ZTS
         run: |
           set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            source /root/.bashrc
+          fi
           switch-php "${PHP_VERSION}-zts"
           libdir="/tmp/datadog-profiling"
           cd profiling
