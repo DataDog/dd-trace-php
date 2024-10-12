@@ -16,6 +16,7 @@ final class CompileTimeDisabledTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_MEASURE_COMPILE_TIME' => '0',
+            'DD_TRACE_MEASURE_PEAK_MEMORY_USAGE' => '0',
         ]);
     }
 
@@ -26,12 +27,14 @@ final class CompileTimeDisabledTest extends WebFrameworkTestCase
          * For the compile-time metrics specifically, this goofs things up, so let's disable.
          */
         self::putenv('DD_TRACE_MEASURE_COMPILE_TIME=0');
+        self::putenv('DD_TRACE_MEASURE_PEAK_MEMORY_USAGE=0');
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected function ddTearDown()
     {
         self::putenv('DD_TRACE_MEASURE_COMPILE_TIME');
+        self::putenv('DD_TRACE_MEASURE_PEAK_MEMORY_USAGE');
         dd_trace_internal_fn('ddtrace_reload_config');
         parent::ddTearDown();
     }
@@ -44,5 +47,7 @@ final class CompileTimeDisabledTest extends WebFrameworkTestCase
         });
 
         self::assertFalse(isset($traces[0][0]['metrics']['php.compilation.total_time_ms']));
+        self::assertFalse(isset($traces[0][0]['metrics']['php.memory.peak_usage_bytes']));
+        self::assertFalse(isset($traces[0][0]['metrics']['php.memory.peak_real_usage_bytes']));
     }
 }

@@ -47,7 +47,12 @@ public:
         return *this;
     }
 
-    ~acceptor() override { close(sock_); }
+    ~acceptor() override
+    {
+        if (sock_ != -1) {
+            close(sock_);
+        }
+    }
 
     void set_accept_timeout(std::chrono::seconds timeout) override;
     [[nodiscard]] base_socket::ptr accept() override;

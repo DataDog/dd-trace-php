@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "queue/broadcast",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/queue/broadcast",
+      "http.url": "http://localhost/queue/broadcast",
       "laravel.route.action": "App\\Http\\Controllers\\QueueTestController@broadcast",
       "laravel.route.name": "broadcast",
       "runtime-id": "2b8747b7-5a3e-44cb-8545-9c808e7b4e93",

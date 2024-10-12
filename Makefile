@@ -3,8 +3,11 @@ PROJECT_ROOT := ${PWD}
 TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
 ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
 SHELL = /bin/bash
+APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
-BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR_NAME = tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR = $(PROJECT_ROOT)/$(BUILD_DIR_NAME)
+BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
@@ -13,7 +16,8 @@ TEA_BUILD_BENCHMARKS ?= OFF
 TEA_BENCHMARK_REPETITIONS ?= 10
 # Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
 TEA_BENCHMARK_FORMAT ?= json
-TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tracer-tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+BENCHMARK_EXTRA ?=
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
@@ -27,6 +31,7 @@ QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
+MAX_TEST_PARALLELISM ?= $(shell nproc)
 
 VERSION := $(shell cat VERSION)
 
@@ -34,11 +39,13 @@ INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this 
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), -j$(shell nproc))
+# shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
+RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,ipc,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -46,10 +53,10 @@ M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$
 XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
 
 # Make 'sed -i' portable
-ifeq ($(shell uname),Darwin)
-	SED_I = sed -i ''
-else
+ifeq ($(shell { sed --version 2>&1 || echo ''; } | grep GNU > /dev/null && echo GNU || true),GNU)
 	SED_I = sed -i
+else
+	SED_I = sed -i ''
 endif
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
@@ -104,12 +111,10 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
-all_object_files: $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
-
-$(SO_FILE): $(if $(ASSUME_COMPILED),, all_object_files $(BUILD_DIR)/compile_rust.sh)
+$(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
 
-$(AR_FILE): all_object_files
+$(AR_FILE): $(ALL_OBJECT_FILES)
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all
 
 $(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
@@ -127,13 +132,31 @@ $(INI_FILE):
 
 install_ini: $(INI_FILE)
 
+delete_ini:
+	$(SUDO) rm $(INI_FILE)
+
+install_appsec:
+	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
+	cd $(BUILD_DIR_APPSEC);make extension ddappsec-helper
+	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+	cp $(BUILD_DIR_APPSEC)/libddappsec-helper.so $(PHP_EXTENSION_DIR)/libddappsec-helper.so
+	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
+	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" | $(SUDO) tee -a $(INI_FILE)
+
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
+	DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -145,20 +168,19 @@ test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-te
 	)
 
 test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
 
-test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
 
 test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
+	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	sed -i 's/stream_socket_accept($$listenSock, 5)/stream_socket_accept($$listenSock, 20)/' $(BUILD_DIR)/run-tests.php; \
-	export DD_TRACE_CLI_ENABLED=1; \
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
@@ -166,13 +188,12 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
-	export DD_TRACE_CLI_ENABLED=1; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	export DD_TRACE_GIT_METADATA_ENABLED=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
@@ -336,7 +357,7 @@ clean:
 	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
 	rm -f $(BUILD_DIR)/configure*
 	rm -f $(SO_FILE)
-	rm -f composer.lock
+	rm -f composer.lock composer.lock-php$(PHP_MAJOR_MINOR)
 	echo $(ZAI_BUILD_DIR)
 
 sudo:
@@ -381,9 +402,9 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
+	rm -f components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 
-generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h
+generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 	( \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
 			--config cbindgen.toml \
@@ -392,17 +413,23 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
 			--config ddcommon-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
+			--config live-debugger-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
 			--config ddtelemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
 			--config sidecar-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate datadog-crashtracker-ffi  \
+			--config crashtracker-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h  \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
 	)
 
 cbindgen_binary:
@@ -489,14 +516,13 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://127.0.0.1:9876 DD_TRACE_CLI_ENABLED=true DD_TRACE_GIT_METADATA_ENABLED=false
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 DD_TRACE_GIT_METADATA_ENABLED=false
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
 ### DDTrace tests ###
 TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
-COMPOSER_TESTS = $(COMPOSER) --working-dir=$(TESTS_ROOT)
 DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
 PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
@@ -504,7 +530,7 @@ PHPUNIT_COVERAGE ?=
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
 PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
-PHPBENCH = $(TESTS_ROOT)/vendor/bin/phpbench $(PHPBENCH_OPTS) run
+PHPBENCH = $(TESTS_ROOT)/Benchmarks/vendor/bin/phpbench $(PHPBENCH_OPTS) run
 PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
 TELEMETRY_ENABLED=0
 
@@ -524,8 +550,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
-	test_integrations_sqlsrv \
-	test_opentracing_beta5
+	test_integrations_sqlsrv
 
 TEST_WEB_70 := \
 	test_metrics \
@@ -568,8 +593,6 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
-	test_opentracing_beta5 \
-	test_opentracing_beta6 \
 	test_opentracing_10
 
 TEST_WEB_71 := \
@@ -623,8 +646,6 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
-	test_opentracing_beta5 \
-	test_opentracing_beta6 \
 	test_opentracing_10
 
 TEST_WEB_72 := \
@@ -683,8 +704,6 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
-	test_opentracing_beta5 \
-	test_opentracing_beta6 \
 	test_opentracing_10
 
 TEST_WEB_73 := \
@@ -745,8 +764,6 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_predis1 \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
-	test_opentracing_beta5 \
-	test_opentracing_beta6 \
 	test_opentracing_10
 
 TEST_WEB_74 := \
@@ -787,8 +804,6 @@ TEST_WEB_74 := \
 # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that only
 # shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
 # Since we run tests in CI using php debug builds, we run test_integrations_phpredis5 in a separate non-debug container.
-# Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove that additional container
-# and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
@@ -808,6 +823,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
+	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
@@ -854,10 +870,12 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_mysqli \
 	test_integrations_openai \
 	test_opentelemetry_1 \
+	test_opentelemetry_beta \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
@@ -905,11 +923,13 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_mysqli \
 	test_integrations_openai \
 	test_opentelemetry_1 \
+	test_opentelemetry_beta \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
+	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
@@ -964,11 +984,13 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_mysqli \
 	test_integrations_openai \
 	test_opentelemetry_1 \
+	test_opentelemetry_beta \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
+	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
@@ -1018,7 +1040,7 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 84 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 84 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 83 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 83 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage
@@ -1042,13 +1064,19 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
+define run_composer_with_lock
+	rm $1/composer.lock-php* 2>/dev/null || true
+	$(call run_composer_with_retry,$1,)
+	find $1/vendor* \( -name Tests -prune -o -name tests -prune \) -exec rm -rf '{}' \;
+	touch $1/composer.lock-php$(PHP_MAJOR_MINOR)
+endef
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
 dev:
@@ -1059,25 +1087,14 @@ use_generated:
 	$(Q) :
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=)
 
-clean_test: clean_test_scenarios
-	rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock $(TESTS_ROOT)/vendor
+clean_test:
+	find $(TESTS_ROOT)/ -not \( -name "Frameworks" -prune \) -not \( -name "ext" -prune \) -not \( -name "randomized" -prune \) -name "composer.lock" -o -name "vendor" -print -exec rm -rf {} \;
 	find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
 
-clean_test_scenarios:
-	$(TESTS_ROOT)/clean-composer-scenario-locks.sh
-
-COMPOSER_PHP_LOCK = $(TESTS_ROOT)/composer.lock.php$(PHP_MAJOR_MINOR)
-$(COMPOSER_PHP_LOCK):
-	$(Q) touch $(COMPOSER_PHP_LOCK)
-
-$(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json $(COMPOSER_PHP_LOCK)
-	$(Q) find "$(TESTS_ROOT)" -maxdepth 1 -name 'composer.lock*' -not -wholename "$(COMPOSER_PHP_LOCK)" -delete
-	$(COMPOSER_TESTS) update
-
 composer_tests_update:
-	$(COMPOSER_TESTS) update
+	$(call run_composer_with_lock,$(TESTS_ROOT))
 
-global_test_run_dependencies: install_all $(TESTS_ROOT)/composer.lock
+global_test_run_dependencies: install_all $(TESTS_ROOT)/./composer.lock-php$(PHP_MAJOR_MINOR)
 
 test_all: \
 	test_unit \
@@ -1122,12 +1139,8 @@ test_distributed_tracing_coverage:
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
-benchmarks_run_dependencies: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_5_2,)
+benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_8_x,)
-	rm -f tests/.scenarios.lock/benchmarks/composer.lock
-	$(MAKE) test_scenario_benchmarks
 
 call_benchmarks:
 	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
@@ -1147,25 +1160,29 @@ benchmarks: benchmarks_run_dependencies call_benchmarks
 
 benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
-test_opentelemetry_1: global_test_run_dependencies
-	rm -f tests/.scenarios.lock/opentelemetry1/composer.lock
-	$(MAKE) test_scenario_opentelemetry1
-	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTelemetry,)
+define setup_opentelemetry
+	cp $(1) $(dir $(1))/composer.json
+endef
+
+define run_opentelemetry_tests
 	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 	$(eval TEST_EXTRA_ENV=)
+endef
 
-test_opentracing_beta5: global_test_run_dependencies
-	$(MAKE) test_scenario_opentracing_beta5
-	$(call run_tests,tests/OpenTracerUnit)
+_test_opentelemetry_beta_setup: global_test_run_dependencies
+	$(call setup_opentelemetry,tests/OpenTelemetry/composer-beta.json)
 
-test_opentracing_beta6: global_test_run_dependencies
-	$(MAKE) test_scenario_opentracing_beta6
-	$(call run_tests,tests/OpenTracerUnit)
+test_opentelemetry_beta: _test_opentelemetry_beta_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_opentelemetry_tests)
 
-test_opentracing_10: global_test_run_dependencies
-	$(MAKE) test_scenario_opentracing10
-	$(call run_composer_with_retry,tests/Frameworks/Custom/OpenTracing,)
+_test_opentelemetry_1_setup: global_test_run_dependencies
+	$(call setup_opentelemetry,tests/OpenTelemetry/composer-1.json)
+
+test_opentelemetry_1: _test_opentelemetry_1_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_opentelemetry_tests)
+
+test_opentracing_10: global_test_run_dependencies tests/OpenTracer1Unit/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Custom/OpenTracing/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests,tests/OpenTracer1Unit)
 	$(call run_tests,tests/OpenTracing)
 
@@ -1177,200 +1194,144 @@ test_web_coverage:
 test_integrations_coverage:
 	PHPUNIT_COVERAGE=1 $(MAKE) test_integrations
 
-test_integrations_amqp2: global_test_run_dependencies
-	$(MAKE) test_scenario_amqp2
-	$(call run_tests_debug,tests/Integrations/AMQP)
-test_integrations_amqp35: global_test_run_dependencies
-	$(MAKE) test_scenario_amqp35
-	$(call run_tests_debug,tests/Integrations/AMQP)
-test_integrations_deferred_loading: global_test_run_dependencies
-	$(MAKE) test_scenario_predis1
+test_integrations_amqp2: global_test_run_dependencies tests/Integrations/AMQP/V2/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/AMQP/V2)
+test_integrations_amqp35: global_test_run_dependencies tests/Integrations/AMQP/V3_5/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/AMQP/V3_5)
+test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/DeferredLoading/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_curl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Curl)
-test_integrations_elasticsearch1: global_test_run_dependencies
-	$(MAKE) test_scenario_elasticsearch1
+test_integrations_elasticsearch1: global_test_run_dependencies tests/Integrations/Elasticsearch/V1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V1)
-test_integrations_elasticsearch7: global_test_run_dependencies
-	$(MAKE) test_scenario_elasticsearch7
-	$(call run_tests_debug,tests/Integrations/Elasticsearch/V1)
-test_integrations_elasticsearch8: global_test_run_dependencies
-	$(MAKE) test_scenario_elasticsearch8
+test_integrations_elasticsearch7: global_test_run_dependencies tests/Integrations/Elasticsearch/V7/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Elasticsearch/V7)
+test_integrations_elasticsearch8: global_test_run_dependencies tests/Integrations/Elasticsearch/V8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V8)
-test_integrations_guzzle5: global_test_run_dependencies
-	$(MAKE) test_scenario_guzzle5
+test_integrations_guzzle5: global_test_run_dependencies tests/Integrations/Guzzle/V5/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Guzzle/V5)
-test_integrations_guzzle6: global_test_run_dependencies
-	$(MAKE) test_scenario_guzzle6
+test_integrations_guzzle6: global_test_run_dependencies  tests/Integrations/Guzzle/V6/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Guzzle/V6)
-test_integrations_guzzle7: global_test_run_dependencies
-	$(MAKE) test_scenario_guzzle7
+test_integrations_guzzle7: global_test_run_dependencies tests/Integrations/Guzzle/V7/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Guzzle/V7)
-test_integrations_laminaslog2: global_test_run_dependencies
-	$(MAKE) test_scenario_laminaslog2
+test_integrations_laminaslog2: global_test_run_dependencies tests/Integrations/Logs/LaminasLogV2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Logs/LaminasLogV2)
 test_integrations_memcached: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/Memcached)
 test_integrations_memcache: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/Memcache)
-test_integrations_monolog1: global_test_run_dependencies
-	$(MAKE) test_scenario_monolog1
+test_integrations_monolog1: global_test_run_dependencies tests/Integrations/Logs/MonologV1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Logs/MonologV1)
-test_integrations_monolog2: global_test_run_dependencies
-	$(MAKE) test_scenario_monolog2
+test_integrations_monolog2: global_test_run_dependencies tests/Integrations/Logs/MonologV2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Logs/MonologV2)
-test_integrations_monolog3: global_test_run_dependencies
-	$(MAKE) test_scenario_monolog3
+test_integrations_monolog3: global_test_run_dependencies tests/Integrations/Logs/MonologV3/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Logs/MonologV3)
 test_integrations_mysqli: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/Mysqli)
 test_integrations_mongo: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/Mongo)
-test_integrations_mongodb1:
-	$(MAKE) test_scenario_mongodb1
+test_integrations_mongodb1: global_test_run_dependencies tests/Integrations/MongoDB/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/MongoDB)
-test_integrations_openai:
-	$(MAKE) test_scenario_openai
+test_integrations_openai: global_test_run_dependencies tests/Integrations/OpenAI/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(eval TELEMETRY_ENABLED=1)
 	$(call run_tests_debug,tests/Integrations/OpenAI)
  	$(eval TELEMETRY_ENABLED=0)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/PDO)
 test_integrations_phpredis3: global_test_run_dependencies
-	$(MAKE) test_scenario_phpredis3
+	$(eval TEST_EXTRA_INI=-d extension=redis-3.1.6.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V3)
+	$(eval TEST_EXTRA_INI=)
 test_integrations_phpredis4: global_test_run_dependencies
-	$(MAKE) test_scenario_phpredis4
+	$(eval TEST_EXTRA_INI=-d extension=redis-4.3.0.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V4)
+	$(eval TEST_EXTRA_INI=)
 test_integrations_phpredis5: global_test_run_dependencies
-	$(MAKE) test_scenario_phpredis5
+	$(eval TEST_EXTRA_ENV=DD_IGNORE_ARGINFO_ZPP_CHECK=1)
+	$(eval TEST_EXTRA_INI=-d extension=redis-5.3.7.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V5)
-test_integrations_predis1: global_test_run_dependencies
-	$(MAKE) test_scenario_predis1
+	$(eval TEST_EXTRA_INI=)
+	$(eval TEST_EXTRA_ENV=)
+test_integrations_predis1: global_test_run_dependencies tests/Integrations/Predis/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis)
 test_integrations_frankenphp: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,--testsuite=frankenphp-test)
-test_integrations_roadrunner: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Roadrunner/Version_2,)
+test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_sqlsrv: global_test_run_dependencies
-	$(MAKE) test_scenario_default
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 test_integrations_swoole_5: global_test_run_dependencies
-	$(MAKE) test_scenario_swoole5
 	$(call run_tests_debug,--testsuite=swoole-test)
-test_web_cakephp_28: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_2_8,)
+test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
-test_web_cakephp_310: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_3_10,)
+test_web_cakephp_310: global_test_run_dependencies tests/Frameworks/CakePHP/Version_3_10/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-310-test)
-test_web_cakephp_45: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_4_5,)
+test_web_cakephp_45: global_test_run_dependencies tests/Frameworks/CakePHP/Version_4_5/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-45-test)
-test_web_cakephp_50: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/CakePHP/Version_5_0,)
+test_web_cakephp_50: global_test_run_dependencies tests/Frameworks/CakePHP/Version_5_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-50-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
-test_web_codeigniter_31: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/CodeIgniter/Version_3_1 update
+test_web_codeigniter_31: global_test_run_dependencies tests/Frameworks/CodeIgniter/Version_3_1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=codeigniter-31-test)
-test_web_drupal_89: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9/core,--ignore-platform-reqs)
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_8_9,--ignore-platform-reqs)
+test_web_drupal_89: global_test_run_dependencies tests/Frameworks/Drupal/Version_8_9/core/composer.lock-php tests/Frameworks/Drupal/Version_8_9/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V8_9)
-test_web_drupal_95: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_9_5/core,--ignore-platform-reqs)
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_9_5,--ignore-platform-reqs)
+test_web_drupal_95: global_test_run_dependencies tests/Frameworks/Drupal/Version_9_5/core/composer.lock-php tests/Frameworks/Drupal/Version_9_5/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V9_5)
-test_web_drupal_101: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_10_1/core,--ignore-platform-reqs)
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/Version_10_1,--ignore-platform-reqs)
+test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Version_10_1/core/composer.lock-php tests/Frameworks/Drupal/Version_10_1/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
-test_web_laminas_rest_19: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laminas/ApiTools/Version_1_9,)
+test_web_laminas_rest_19: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Version_1_9/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
-test_web_laminas_14: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laminas/Version_1_4,)
+test_web_laminas_14: global_test_run_dependencies tests/Frameworks/Laminas/Version_1_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/V1_4)
-test_web_laminas_20: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laminas/Version_2_0,)
+test_web_laminas_20: global_test_run_dependencies tests/Frameworks/Laminas/Version_2_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/V2_0)
-test_web_laravel_42: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_4_2,)
+test_web_laravel_42: global_test_run_dependencies tests/Frameworks/Laravel/Version_4_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
 	$(call run_tests_debug,tests/Integrations/Laravel/V4)
-test_web_laravel_57: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_5_7,)
+test_web_laravel_57: global_test_run_dependencies tests/Frameworks/Laravel/Version_5_7/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laravel/V5_7)
-test_web_laravel_58: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_5_8,)
+test_web_laravel_58: global_test_run_dependencies tests/Frameworks/Laravel/Version_5_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-58-test)
-test_web_laravel_8x: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_8_x,)
+test_web_laravel_8x: global_test_run_dependencies tests/Frameworks/Laravel/Version_8_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-8x-test)
-test_web_laravel_9x: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_9_x,)
+test_web_laravel_9x: global_test_run_dependencies tests/Frameworks/Laravel/Version_9_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-9x-test)
-test_web_laravel_10x: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_10_x,)
+test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-10x-test)
-test_web_laravel_11x: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Version_11_x,)
+test_web_laravel_11x: global_test_run_dependencies tests/Frameworks/Laravel/Version_11_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-11x-test)
-test_web_laravel_octane: global_test_run_dependencies
-	$(MAKE) test_scenario_swoole5
-	$(call run_composer_with_retry,tests/Frameworks/Laravel/Octane,)
+test_web_laravel_octane: global_test_run_dependencies tests/Frameworks/Laravel/Octane/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-octane-test)
-test_web_lumen_52: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_2,)
+test_web_lumen_52: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)
-test_web_lumen_56: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_6,)
+test_web_lumen_56: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_6/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_6)
-test_web_lumen_58: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_5_8,)
+test_web_lumen_58: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_8)
-test_web_lumen_81: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_8_1,)
+test_web_lumen_81: global_test_run_dependencies tests/Frameworks/Lumen/Version_8_1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V8_1)
-test_web_lumen_90: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_9_0,)
+test_web_lumen_90: global_test_run_dependencies tests/Frameworks/Lumen/Version_9_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V9_0)
-test_web_lumen_100: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Lumen/Version_10_0,)
+test_web_lumen_100: global_test_run_dependencies tests/Frameworks/Lumen/Version_10_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V10_0)
-test_web_slim_312: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_3_12,)
+test_web_slim_312: global_test_run_dependencies tests/Frameworks/Slim/Version_3_12/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=slim-312-test)
-test_web_slim_4: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Slim/Version_4,)
+test_web_slim_4: global_test_run_dependencies tests/Frameworks/Slim/Version_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=slim-4-test)
-test_web_symfony_23: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_3,)
+test_web_symfony_23: global_test_run_dependencies tests/Frameworks/Symfony/Version_2_3/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)
-test_web_symfony_28: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_2_8,)
+test_web_symfony_28: global_test_run_dependencies tests/Frameworks/Symfony/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_8)
-test_web_symfony_30: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_3_0,)
+test_web_symfony_30: global_test_run_dependencies tests/Frameworks/Symfony/Version_3_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V3_0)
-test_web_symfony_33: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_3_3,)
+test_web_symfony_33: global_test_run_dependencies tests/Frameworks/Symfony/Version_3_3/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V3_3)
-test_web_symfony_34: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_3_4,)
+test_web_symfony_34: global_test_run_dependencies tests/Frameworks/Symfony/Version_3_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V3_4)
 test_web_symfony_40: global_test_run_dependencies
@@ -1379,32 +1340,26 @@ test_web_symfony_40: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install --no-dev
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_0)
-test_web_symfony_42: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_4_2,)
+test_web_symfony_42: global_test_run_dependencies tests/Frameworks/Symfony/Version_4_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_2)
-test_web_symfony_44: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_4_4,)
+test_web_symfony_44: global_test_run_dependencies tests/Frameworks/Symfony/Version_4_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-44-test)
 test_web_symfony_50: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
 	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V5_0)
-test_web_symfony_51: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_5_1,)
+test_web_symfony_51: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_1/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V5_1)
-test_web_symfony_52: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_5_2,)
+test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-52-test)
-test_web_symfony_62: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_6_2,)
+test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
-test_web_symfony_70: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Symfony/Version_7_0,)
+test_web_symfony_70: global_test_run_dependencies tests/Frameworks/Symfony/Version_7_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_7_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-70-test)
 test_web_wordpress_48: global_test_run_dependencies
@@ -1415,31 +1370,29 @@ test_web_wordpress_59: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V5_9)
 test_web_wordpress_61: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V6_1)
-test_web_yii_2: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Yii/Version_2_0,)
+test_web_yii_2: global_test_run_dependencies tests/Frameworks/Yii/Version_2_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Yii/V2_0)
-test_web_magento_23: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Magento/Version_2_3,)
+test_web_magento_23: global_test_run_dependencies tests/Frameworks/Magento/Version_2_3/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Magento/V2_3)
-test_web_magento_24: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Magento/Version_2_4,)
+test_web_magento_24: global_test_run_dependencies tests/Frameworks/Magento/Version_2_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Magento/V2_4)
-test_web_nette_24: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Nette/Version_2_4,)
+test_web_nette_24: global_test_run_dependencies tests/Frameworks/Nette/Version_2_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Nette/V2_4)
-test_web_nette_30: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Nette/Version_3_0,)
+test_web_nette_30: global_test_run_dependencies tests/Frameworks/Nette/Version_3_0/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Nette/V3_0)
 test_web_zend_1: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/ZendFramework/V1)
 test_web_zend_1_21: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/ZendFramework/V1_21)
-test_web_custom: global_test_run_dependencies
-	$(call run_composer_with_retry,tests/Frameworks/Custom/Version_Autoloaded,)
+test_web_custom: global_test_run_dependencies tests/Frameworks/Custom/Version_Autoloaded/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
 
-test_scenario_%:
-	$(Q) $(COMPOSER_TESTS) scenario $*
+tests/Frameworks/Drupal/%/composer.lock-php: tests/Frameworks/Drupal/%/composer.json
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs)
+	touch tests/Frameworks/Drupal/$(*)/composer.lock-php
+
+tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json
+	$(call run_composer_with_lock,tests/$(*))
 
 merge_coverage_reports:
 	php -d memory_limit=-1 $(PHPCOV) merge --clover reports/coverage.xml reports/cov
@@ -1455,7 +1408,7 @@ test_internal_api_randomized: $(SO_FILE)
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) php -n -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2> >(grep -A 1000 ==============)
 
 composer.lock: composer.json
-	$(Q) $(COMPOSER) update
+	$(call run_composer_with_retry,,)
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary

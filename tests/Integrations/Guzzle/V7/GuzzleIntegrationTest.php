@@ -84,6 +84,8 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
         }, [
             'start',
             'metrics.php.compilation.total_time_ms',
+            'metrics.php.memory.peak_usage_bytes',
+            'metrics.php.memory.peak_real_usage_bytes',
             'meta.error.stack',
             'meta._dd.p.tid',
             'meta.curl.appconnect_time_us',

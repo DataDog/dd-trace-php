@@ -5,7 +5,7 @@ use crate::bindings::{
     zend_execute_data, zend_execute_internal, zend_interrupt_function, zval, VmInterruptFn,
     ZEND_ACC_CALL_VIA_TRAMPOLINE,
 };
-use crate::{zend, PROFILER, REQUEST_LOCALS};
+use crate::{profiling::Profiler, zend, REQUEST_LOCALS};
 use std::mem::MaybeUninit;
 use std::sync::atomic::Ordering;
 
@@ -55,7 +55,7 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
             return;
         }
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        if let Some(profiler) = Profiler::get() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             profiler.collect_time(execute_data, interrupt_count);
         }

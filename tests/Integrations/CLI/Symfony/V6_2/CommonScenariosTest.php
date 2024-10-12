@@ -15,7 +15,7 @@ class CommonScenariosTest extends IntegrationTestCase
 
     public function testThrowCommand()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [
+        list($traces) = $this->inCli(static::getConsoleScript(), [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
@@ -88,7 +88,7 @@ class CommonScenariosTest extends IntegrationTestCase
 
     public function testCommand()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [
+        list($traces) = $this->inCli(static::getConsoleScript(), [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
@@ -148,12 +148,12 @@ class CommonScenariosTest extends IntegrationTestCase
 
     public function testLongRunningCommandWithoutRootSpan()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [
+        list($traces) = $this->inCli(static::getConsoleScript(), [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
             'DD_TRACE_EXEC_ENABLED' => 'false',
-        ], [], 'about');
+        ], [], 'about', false, null, false);
 
         $this->assertFlameGraph(
             $traces,

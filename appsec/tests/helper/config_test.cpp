@@ -5,6 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
 #include <config.hpp>
+#include <optional>
+#include <spdlog/common.h>
 
 namespace dds {
 
@@ -15,74 +17,35 @@ template <typename T, size_t size> constexpr size_t vsize(T (&)[size])
 }
 } // namespace
 
-TEST(ConfigTest, ValidConstruction)
-{
-    char *argv[] = {const_cast<char *>("tester"), const_cast<char *>("--key"),
-        const_cast<char *>("value"), nullptr};
-    EXPECT_NO_THROW(config::config(vsize(argv) - 1, argv));
-}
-
-TEST(ConfigTest, NonNullTerminatedListConstruction)
-{
-    char *argv[] = {const_cast<char *>("a"), const_cast<char *>("b")};
-    EXPECT_NO_THROW(config::config(vsize(argv), argv));
-}
-
-TEST(ConfigTest, InvalidParameter)
-{
-    char *argv[] = {const_cast<char *>("tester"),
-        const_cast<char *>("parameter_missing_dashes"), nullptr};
-    EXPECT_NO_THROW(config::config(vsize(argv) - 1, argv));
-}
-
 TEST(ConfigTest, TestDefaultKeys)
 {
-    config::config cfg(0, nullptr);
-    EXPECT_NO_THROW(cfg.get<std::string_view>("lock_path"));
-    EXPECT_NO_THROW(cfg.get<std::string_view>("socket_path"));
-    EXPECT_NO_THROW(cfg.get<std::string_view>("log_level"));
+    config::config cfg{[](std::string_view) { return std::nullopt; }};
+    EXPECT_EQ(cfg.lock_file_path(), "/tmp/ddappsec.lock"sv);
+    EXPECT_EQ(cfg.socket_file_path(), "/tmp/ddappsec.sock"sv);
+    EXPECT_EQ(cfg.log_file_path(), "/tmp/ddappsec_helper.log"sv);
+    EXPECT_EQ(cfg.log_level(), spdlog::level::level_enum::warn);
 }
 
 TEST(ConfigTest, TestDefaultOverride)
 {
-    char *argv[] = {const_cast<char *>("tester"),
-        const_cast<char *>("--lock_path"), const_cast<char *>("unknown"),
-        const_cast<char *>("--socket_path"), const_cast<char *>("unknown"),
-        const_cast<char *>("--log_level"), const_cast<char *>("unknown"),
-        nullptr};
+    static std::unordered_map<std::string_view, std::string_view> defaults = {
+        {"_DD_SIDECAR_APPSEC_LOCK_FILE_PATH", "/foo/ddappsec.lock"},
+        {"_DD_SIDECAR_APPSEC_SOCKET_FILE_PATH", "/foo/ddappsec.sock"},
+        {"_DD_SIDECAR_APPSEC_LOG_FILE_PATH", "/foo/ddappsec_helper.log"},
+        {"_DD_SIDECAR_APPSEC_LOG_LEVEL", "debug"}};
 
-    config::config cfg(vsize(argv) - 1, argv);
-    EXPECT_TRUE(cfg.get<std::string_view>("lock_path") == "unknown");
-    EXPECT_TRUE(cfg.get<std::string_view>("socket_path") == "unknown");
-    EXPECT_TRUE(cfg.get<std::string_view>("log_level") == "unknown");
+    config::config cfg{[&](std::string_view key) {
+        auto it = defaults.find(key);
+        if (it != defaults.end()) {
+            return std::optional<std::string_view>{it->second};
+        }
+        return std::optional<std::string_view>{};
+    }};
+
+    EXPECT_EQ(cfg.lock_file_path(), "/foo/ddappsec.lock"sv);
+    EXPECT_EQ(cfg.log_file_path(), "/foo/ddappsec_helper.log"sv);
+    EXPECT_EQ(cfg.socket_file_path(), "/foo/ddappsec.sock"sv);
+    EXPECT_EQ(cfg.log_level(), spdlog::level::level_enum::debug);
 }
 
-TEST(ConfigTest, TestInvalidKeys)
-{
-    config::config cfg(0, nullptr);
-    EXPECT_THROW(cfg.get<std::string_view>("invalid"), std::out_of_range);
-}
-
-TEST(ConfigTest, TestKeyValue)
-{
-    char *argv[] = {const_cast<char *>("tester"), const_cast<char *>("--a_key"),
-        const_cast<char *>("a_value"), const_cast<char *>("--b_key"),
-        const_cast<char *>("b_value"), const_cast<char *>("--c_key=c_value"),
-        nullptr};
-
-    config::config cfg(vsize(argv) - 1, argv);
-    EXPECT_TRUE(cfg.get<std::string_view>("a_key") == "a_value");
-    EXPECT_TRUE(cfg.get<std::string_view>("b_key") == "b_value");
-    EXPECT_TRUE(cfg.get<std::string>("c_key") == "c_value");
-}
-
-TEST(ConfigTest, TestModifiers)
-{
-    int argc = 2;
-    char *argv[] = {const_cast<char *>("tester"),
-        const_cast<char *>("--modifier"), nullptr};
-
-    config::config cfg(argc, argv);
-    EXPECT_TRUE(cfg.get<bool>("modifier"));
-}
 } // namespace dds

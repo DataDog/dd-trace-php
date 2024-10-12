@@ -12,7 +12,7 @@
       "component": "drupal",
       "http.method": "GET",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/simple_view",
+      "http.url": "http://localhost/simple_view",
       "runtime-id": "cecb7d5b-eb5a-49f8-8374-29dce2d6fce6",
       "span.kind": "server",
       "symfony.route.action": "Drupal\\datadog\\Controller\\DatadogController@simpleView",

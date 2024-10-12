@@ -1,6 +1,8 @@
 package com.datadog.appsec.php.mock_agent
 
-
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
+import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Trace
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -25,6 +27,11 @@ class MockDatadogAgent implements Startable {
         this.httpServer.post('v0.4/traces', tracesHandler)
         this.httpServer.put('v0.4/traces', tracesHandler)
         this.httpServer.get('info', InfoHandler.instance)
+        this.httpServer.post('/telemetry/proxy/api/v2/apmtelemetry', TelemetryHandler.instance)
+        this.httpServer.post('v0.7/config', ConfigV07Handler.instance)
+        this.httpServer.error(404, ctx -> {
+            log.info("Unmatched request: ${ctx.method()} ${ctx.path()}")
+        })
 
         this.httpServer.start(0)
     }
@@ -59,5 +66,17 @@ class MockDatadogAgent implements Startable {
 
     List<Object> drainTraces() {
         tracesHandler.drainTraces()
+    }
+
+    List<Object> drainTelemetry(int timeoutInMs) {
+        TelemetryHandler.instance.drain(timeoutInMs)
+    }
+
+    void setNextRCResponse(Target target, RemoteConfigResponse nextResponse) {
+        ConfigV07Handler.instance.setNextResponse(target, nextResponse)
+    }
+
+    RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
+        ConfigV07Handler.instance.waitForVersion(target, version, timeoutInMs)
     }
 }

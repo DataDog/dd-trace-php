@@ -4,6 +4,8 @@ namespace DDTrace\Tests\Integrations\Drupal\V9_5;
 
 class CommonScenariosTest extends \DDTrace\Tests\Integrations\Drupal\V8_9\CommonScenariosTest
 {
+    public static $database = "drupal95";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Drupal/Version_9_5/index.php';

@@ -3,7 +3,9 @@ Report user config telemetry
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
+if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to telemetry");
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
+require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -11,6 +13,7 @@ DD_TRACE_AUTOFINISH_SPANS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=
 DD_AUTOLOAD_NO_COMPILE=
+DD_TRACE_GIT_METADATA_ENABLED=0
 --INI--
 datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
@@ -22,6 +25,8 @@ include __DIR__ . '/vendor/autoload.php';
 
 DDTrace\close_span();
 
+dd_trace_serialize_closed_spans();
+
 dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 100; ++$i) {
@@ -30,7 +35,7 @@ for ($i = 0; $i < 100; ++$i) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
-                if ($json["request_type"] == "app-started") {
+                if ($json && $json["request_type"] == "app-started" && $json["application"]["service_name"] != "background_sender-php-service" && $json["application"]["service_name"] != "datadog-ipc-helper") {
                     $cfg = $json["payload"]["configuration"];
                     print_r(array_values(array_filter($cfg, function($c) {
                         return $c["origin"] == "EnvVar" && $c["name"] != "trace.sources_path" && $c["name"] != "trace.sidecar_trace_sender";
@@ -62,26 +67,19 @@ Array
 
     [1] => Array
         (
-            [name] => trace.cli_enabled
+            [name] => instrumentation_telemetry_enabled
             [value] => 1
             [origin] => EnvVar
         )
 
     [2] => Array
         (
-            [name] => instrumentation_telemetry_enabled
-            [value] => 1
-            [origin] => EnvVar
-        )
-
-    [3] => Array
-        (
             [name] => trace.generate_root_span
             [value] => 0
             [origin] => EnvVar
         )
 
-    [4] => Array
+    [3] => Array
         (
             [name] => trace.git_metadata_enabled
             [value] => 0

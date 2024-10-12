@@ -15,7 +15,7 @@ class ConsoleCommandTest extends IntegrationTestCase
 
     public function testScenario()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [
+        list($traces) = $this->inCli(static::getConsoleScript(), [
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             'DD_TRACE_EXEC_ENABLED' => 'false',
         ], [], 'about');

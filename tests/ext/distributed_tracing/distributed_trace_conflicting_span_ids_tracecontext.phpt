@@ -8,7 +8,7 @@ DD_TRACE_PROPAGATION_STYLE=tracecontext
 
 DDTrace\consume_distributed_tracing_headers([
     "traceparent" => "00-0000000000000000000000000000002a-0000000000000001-01",
-    "tracestate" => "dd=p:00000000000000bb;s:1",
+    "tracestate" => "dd=p:00000000000000bb;p:00000000000000bb;s:1",
 ]);
 
 $span = \DDTrace\start_span();

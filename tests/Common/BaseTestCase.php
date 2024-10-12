@@ -18,12 +18,20 @@ use DDTrace\Util\Versions;
  */
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
+    public static $activeResourceLock;
+
     public static function ddSetUpBeforeClass()
     {
+        if (isset(static::$lockedResource)) {
+            $lock = fopen("/tmp/ddtrace-phpunit/lock-" . static::$lockedResource, "c+");
+            flock($lock, LOCK_EX);
+            self::$activeResourceLock = $lock;
+        }
     }
 
     public static function ddTearDownAfterClass()
     {
+        self::$activeResourceLock = null;
     }
 
     protected function ddSetUp()
@@ -102,7 +110,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 
     protected function assertStringContains($needle, $haystack, $message = '')
     {
-        if (PHPUNIT_MAJOR >= 9) {
+        if (PHPUNIT_MAJOR >= 8) {
             parent::assertStringContainsString($needle, $haystack, $message);
         } else {
             parent::assertContains($needle, $haystack, $message);
@@ -111,7 +119,7 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 
     protected function assertStringNotContains($needle, $haystack, $message = '')
     {
-        if (PHPUNIT_MAJOR >= 9) {
+        if (PHPUNIT_MAJOR >= 8) {
             parent::assertStringNotContainsString($needle, $haystack, $message);
         } else {
             parent::assertNotContains($needle, $haystack, $message);

@@ -12,6 +12,8 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 
 class MongoTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "mongodb";
+
     const HOST = 'mongodb_integration';
     const PORT = '27017';
     const USER = 'test';

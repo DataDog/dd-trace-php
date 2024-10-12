@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/un.h>
+#include <time.h>
 
 #define HELPER_PROCESS_C_INCLUDES
 #include "ddappsec.h"
@@ -34,8 +35,12 @@ struct PACKED _dd_header { // NOLINT
 
 typedef struct PACKED _dd_header dd_header;
 
-static const int CONNECT_TIMEOUT = 2500; // ms
+static const int CONNECT_TIMEOUT = 2500;    // ms
+static const int CONNECT_RETRY_PAUSE = 100; // ms
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
+
+static void _timespec_add_ms(struct timespec *ts, long num_ms);
+static long _timespec_delta_ms(struct timespec *ts1, struct timespec *ts2);
 
 int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
     dd_conn *nonnull conn, const char *nonnull path, size_t path_len)
@@ -45,6 +50,7 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
         return dd_error;
     }
 
+    // NOLINTNEXTLINE(android-cloexec-socket)
     int res = conn->socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
     if (res == -1) {
@@ -71,13 +77,28 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
     }
 
     mlog(dd_log_info, "Attempting to connect to UNIX socket %s", path);
+    struct timespec deadline;
+    clock_gettime(CLOCK_MONOTONIC, &deadline);
+    _timespec_add_ms(&deadline, CONNECT_TIMEOUT);
+
+try_again:
     res = connect(
         conn->socket, (struct sockaddr *)&conn->addr, sizeof(conn->addr));
     if (res == -1) {
-        if (errno == EINPROGRESS) {
+        int errno_copy = errno;
+        if (errno_copy == EINPROGRESS) {
             struct pollfd pfds[] = {
                 {.fd = conn->socket, .events = POLLIN | POLLOUT}};
-            res = poll(pfds, 1, CONNECT_TIMEOUT);
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            long time_left = _timespec_delta_ms(&deadline, &now);
+            if (time_left <= 0) {
+                dd_conn_destroy(conn);
+                mlog(dd_log_info, "Connection to helper timed out");
+                return dd_error;
+            }
+
+            res = poll(pfds, 1, (int)time_left);
             if (res == 0) {
                 dd_conn_destroy(conn);
                 mlog(dd_log_info, "Connection to helper timed out");
@@ -103,7 +124,32 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
             }
             // else good
         } else {
+            if (errno_copy == ENOENT || errno_copy == ECONNREFUSED) {
+                // the socket does not exist or is not being listened on. Retry
+                struct timespec now;
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                long time_left = _timespec_delta_ms(&deadline, &now);
+                if (time_left <= 0) {
+                    dd_conn_destroy(conn);
+                    mlog(dd_log_info, "Connection to helper timed out");
+                    return dd_error;
+                }
+
+                mlog(dd_log_debug, "Socket %s.  Waiting %d ms for next retry",
+                    errno_copy == ENOENT ? "does not exist"
+                                         : "is not being listened on",
+                    CONNECT_RETRY_PAUSE);
+                int ret = usleep(CONNECT_RETRY_PAUSE * 1000); // NOLINT
+                if (ret == 0) {
+                    goto try_again;
+                } else {
+                    mlog_err(dd_log_warning,
+                        "Failed connecting to helper (usleep())");
+                }
+            }
+
             dd_conn_destroy(conn);
+            errno = errno_copy; // restore for mlog_err
             mlog_err(
                 dd_log_info, "Failed connecting to helper (connect() call)");
             return dd_error;
@@ -308,7 +354,7 @@ dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
 
     setsockopt(conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){0}, sizeof(int));
 
-    if (recv_bytes <= 0) {
+    if (recv_bytes == 0) {
         mlog(dd_log_info, "No data received");
         return dd_network;
     }
@@ -422,4 +468,30 @@ dd_result dd_conn_set_timeout(
     }
 
     return dd_success;
+}
+
+#define ONE_E3 1000
+#define ONE_E6 1000000
+#define ONE_E9 1000000000
+static void _timespec_add_ms(struct timespec *ts, long num_ms)
+{
+    long seconds = num_ms / ONE_E3;
+    long nanoseconds = (num_ms % ONE_E3) * ONE_E6;
+
+    ts->tv_sec += seconds;
+    ts->tv_nsec += nanoseconds;
+
+    if (ts->tv_nsec >= ONE_E9) {
+        ts->tv_sec += ts->tv_nsec / ONE_E9;
+        ts->tv_nsec %= ONE_E9;
+    }
+}
+
+static long _timespec_delta_ms(struct timespec *ts1, struct timespec *ts2)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    long res = (ts1->tv_sec - ts2->tv_sec) * 1000;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    res += (ts1->tv_nsec - ts2->tv_nsec) / 1000000;
+    return res;
 }

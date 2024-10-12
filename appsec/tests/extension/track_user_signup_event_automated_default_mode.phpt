@@ -23,6 +23,6 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => 1234
-    [_dd.appsec.events.users.signup.auto.mode] => safe
+    [_dd.appsec.events.users.signup.auto.mode] => identification
     [appsec.events.users.signup.track] => true
 )

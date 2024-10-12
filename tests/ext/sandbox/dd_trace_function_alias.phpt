@@ -1,6 +1,7 @@
 --TEST--
 dd_trace_function() is aliased to DDTrace\trace_function()
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php

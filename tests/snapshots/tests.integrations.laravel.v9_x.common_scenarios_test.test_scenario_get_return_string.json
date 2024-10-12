@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "simple",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/simple?key=value&<redacted>",
+      "http.url": "http://localhost/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
       "laravel.route.name": "simple_route",
       "runtime-id": "614cba3e-708f-4797-8da5-40fa71e9c272",

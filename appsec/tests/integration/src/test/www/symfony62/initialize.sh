@@ -2,6 +2,8 @@
 
 cd /var/www
 
+export DD_TRACE_CLI_ENABLED=false
+
 composer install
 php bin/console doctrine:database:drop --force
 php bin/console doctrine:database:create

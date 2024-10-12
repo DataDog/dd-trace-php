@@ -7,6 +7,9 @@ target_include_directories(
 target_compile_features(zai_hook PUBLIC c_std_99)
 
 target_link_libraries(zai_hook PUBLIC Tea::Php Zai::Symbols)
+if(PhpConfig_VERNUM GREATER_EQUAL "80000")
+  target_link_libraries(zai_hook PUBLIC Zai::JitUtils)
+endif()
 
 set_target_properties(zai_hook PROPERTIES EXPORT_NAME Hook
                                             VERSION ${PROJECT_VERSION})

@@ -25,15 +25,16 @@ abstract class CLITestCase extends IntegrationTestCase
     protected static function getEnvs()
     {
         $envs = [
-            'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_AGENT_HOST' => 'test-agent',
             'DD_TRACE_AGENT_PORT' => '9126',
             // Uncomment to see debug-level messages
             'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',
+            'DD_TRACE_AUTO_FLUSH_ENABLED' => 'false',
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
-            'DD_TRACE_AGENT_RETRIES' => '3'
+            'DD_TRACE_AGENT_RETRIES' => '3',
+            'DD_TRACE_AGENT_TEST_SESSION_TOKEN' => ini_get("datadog.trace.agent_test_session_token"),
         ];
         return $envs;
     }

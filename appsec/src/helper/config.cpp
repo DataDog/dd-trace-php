@@ -8,63 +8,25 @@
 namespace dds::config {
 
 // NOLINTNEXTLINE
-config::config(int argc, char *argv[])
+config::config(
+    const std::function<std::optional<std::string_view>(std::string_view)> &fn)
 {
-    for (int i = 1; i < argc; ++i) {
-        std::string_view arg(argv[i]);
-        if (arg.size() < 2 || arg.substr(0, 2) != "--") {
-            // Not an option, weird
-            continue;
-        }
-        arg.remove_prefix(2);
-
-        // Check if the option has an assignment
-        auto pos = arg.find('=');
-        if (pos != std::string::npos) {
-            kv_[arg.substr(0, pos)] = arg.substr(pos + 1);
-            continue;
-        }
-
-        // Check the next argument
-        if ((i + 1) < argc) {
-            const std::string_view value(argv[i + 1]);
-            if (arg.size() < 2 || arg.substr(0, 2) != "--") {
-                // Not an option, so we assume it's a value
-                kv_[arg] = value;
-                // Skip on next iteration
-                ++i;
-                continue;
-            }
-        }
-
-        // If the next argument is an option or this is the last argument, we
-        // assume it's just a modifier.
-        kv_[arg] = std::string_view();
-    }
-}
-
-template <> bool config::get<bool>(std::string_view key) const
-{
-    return kv_.find(key) != kv_.end();
-}
-
-template <> std::string config::get<std::string>(std::string_view key) const
-{
-    return std::string(kv_.at(key));
-}
-
-template <>
-std::string_view config::get<std::string_view>(std::string_view key) const
-{
-    return kv_.at(key);
+    auto get_env = [&fn](std::string_view key) -> std::string_view {
+        return fn(key).value_or(defaults.at(key));
+    };
+    kv_[env_socket_file_path] = get_env(env_socket_file_path);
+    kv_[env_lock_file_path] = get_env(env_lock_file_path);
+    kv_[env_log_file_path] = get_env(env_log_file_path);
+    kv_[env_log_level] = get_env(env_log_level);
 }
 
 // NOLINTNEXTLINE
 const std::unordered_map<std::string_view, std::string_view> config::defaults =
     {
-        {"lock_path", "/tmp/ddappsec.lock"},
-        {"socket_path", "/tmp/ddappsec.sock"}, {"log_level", "warn"},
-        {"runner_idle_timeout", "1440"} // minutes
+        {env_lock_file_path, "/tmp/ddappsec.lock"},
+        {env_socket_file_path, "/tmp/ddappsec.sock"},
+        {env_log_file_path, "/tmp/ddappsec_helper.log"},
+        {env_log_level, "warn"},
 };
 
 } // namespace dds::config

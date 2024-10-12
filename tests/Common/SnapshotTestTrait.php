@@ -10,10 +10,6 @@ use PHPUnit\Framework\TestCase;
 trait SnapshotTestTrait
 {
     protected static $testAgentUrl = 'http://test-agent:9126';
-    protected static $dogstatsdAddr = '127.0.0.1';
-    protected static $dogstatsdPort = 9876;
-    /** @var UDPServer */
-    protected $server;
     protected $logFileSize = 0;
 
     private function decamelize($string): string
@@ -55,11 +51,6 @@ trait SnapshotTestTrait
         return $class . '.' . $function;
     }
 
-    private function startMetricsSnapshotSession()
-    {
-        $this->server = new UDPServer(self::$dogstatsdAddr, self::$dogstatsdPort);
-    }
-
     /**
      * Start a snapshotting session associated with a given token.
      *
@@ -68,9 +59,8 @@ trait SnapshotTestTrait
      * @param string $token The token to associate with the snapshotting session
      * @return void
      */
-    private function startSnapshotSession(string $token, $snapshotMetrics = false, $logsFile = null)
+    private function startSnapshotSession(string $token, $logsFile = null)
     {
-
         $url = self::$testAgentUrl . '/test/session/start?test_session_token=' . $token;
 
         $ch = curl_init($url);
@@ -79,10 +69,6 @@ trait SnapshotTestTrait
 
         if (curl_getinfo($ch, CURLINFO_HTTP_CODE) !== 200) {
             TestCase::fail('Error starting snapshot session: ' . $response);
-        }
-
-        if ($snapshotMetrics) {
-            $this->startMetricsSnapshotSession();
         }
 
         if ($logsFile) {
@@ -137,7 +123,7 @@ trait SnapshotTestTrait
      */
     private function stopAndCompareSnapshotSession(
         string $token,
-        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
         int $numExpectedTraces = 1,
         bool $snapshotMetrics = false,
         array $fieldsToIgnoreMetrics = ['openai.request.duration'],
@@ -214,8 +200,10 @@ trait SnapshotTestTrait
         string $token,
         array $fieldsToIgnore = ['openai.request.duration']
     ) {
-        $receivedMetrics = $this->server->dump();
-        $this->server->close();
+        $receivedMetrics = $this->retrieveDumpedMetrics(function($metrics) {
+            return $metrics["name"] == "tracer-snapshot-end";
+        });
+        array_pop($receivedMetrics);
 
         $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
         $expectedMetricsFile = $basePath . '/tests/snapshots/metrics/' . $token . '.txt';
@@ -230,10 +218,7 @@ trait SnapshotTestTrait
     private function compareMetrics($expectedMetrics, $receivedMetrics, $fieldsToIgnore)
     {
         $expectedMetrics = explode("\n", $expectedMetrics);
-        $receivedMetrics = explode("\n", $receivedMetrics);
-
         $expectedMetrics = $this->decodeDogStatsDMetrics($expectedMetrics);
-        $receivedMetrics = $this->decodeDogStatsDMetrics($receivedMetrics);
 
         $this->compareMetricsArrays($expectedMetrics, $receivedMetrics, $fieldsToIgnore);
     }
@@ -282,6 +267,12 @@ trait SnapshotTestTrait
         $expectedMetrics = $this->filterMetrics($expectedMetrics, $fieldsToIgnore);
         $receivedMetrics = $this->filterMetrics($receivedMetrics, $fieldsToIgnore);
 
+        $alg = function ($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        };
+        usort($expectedMetrics, $alg);
+        usort($receivedMetrics, $alg);
+
         TestCase::assertEquals($expectedMetrics, $receivedMetrics, "Metrics don't match");
     }
 
@@ -299,7 +290,7 @@ trait SnapshotTestTrait
 
     public function tracesFromWebRequestSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid', 'start', 'duration'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid', 'start', 'duration'],
         $numExpectedTraces = 1,
         $tracer = null
     ) {
@@ -312,9 +303,12 @@ trait SnapshotTestTrait
 
         $token = $this->generateToken();
         $this->startSnapshotSession($token);
+        $originalToken = ini_get("datadog.trace.agent_test_session_token");
+        update_test_agent_session_token($token);
 
         $fn($tracer);
 
+        update_test_agent_session_token($originalToken);
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
 
@@ -323,7 +317,7 @@ trait SnapshotTestTrait
 
     public function isolateTracerSnapshot(
         $fn,
-        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'meta.error.stack', 'meta._dd.p.tid'],
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
         $numExpectedTraces = 1,
         $tracer = null,
         $config = [],
@@ -336,8 +330,11 @@ trait SnapshotTestTrait
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
 
         $token = $this->generateToken();
-        $this->startSnapshotSession($token, $snapshotMetrics, $logsFile);
+        $this->startSnapshotSession($token, $logsFile);
+        $originalToken = ini_get("datadog.trace.agent_test_session_token");
+        update_test_agent_session_token($token);
 
+        $this->resetRequestDumper();
         $this->resetTracer($tracer, $config);
 
         $tracer = GlobalTracer::get();
@@ -346,8 +343,10 @@ trait SnapshotTestTrait
         }
         $fn($tracer);
 
-        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
-        self::putEnv('DD_TRACE_AGENT_RETRIES');
+        if ($snapshotMetrics) {
+            usleep(50000); // Add a slight delay to avoid a race condition where the "tracer-snapshot-end" metric is handled before a test metric.
+            \DDTrace\dogstatsd_count("tracer-snapshot-end", 1);
+        }
 
         $traces = $this->flushAndGetTraces($tracer);
         if (!empty($traces)) {
@@ -363,5 +362,52 @@ trait SnapshotTestTrait
             $logsFile,
             $fieldsToIgnoreLogs
         );
+
+        update_test_agent_session_token($originalToken);
+        self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
+        self::putEnv('DD_TRACE_AGENT_RETRIES');
+    }
+
+    public function snapshotFromTraces(
+        $traces,
+        $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
+        $tokenSubstitute = null,
+        $ignoreSampledAway = false
+    ) {
+        $token = $tokenSubstitute ?: $this->generateToken();
+        $this->startSnapshotSession($token);
+        $originalToken = ini_get("datadog.trace.agent_test_session_token");
+        update_test_agent_session_token($token);
+
+        if ($ignoreSampledAway) {
+            $traces = $this->ignoreSampledTraces($traces);
+        }
+
+        $this->sendTracesToTestAgent($traces);
+
+        $this->stopAndCompareSnapshotSession($token, $fieldsToIgnore, \count($traces));
+        update_test_agent_session_token($originalToken);
+    }
+
+    protected function ignoreSampledTraces($traces) {
+        $filteredSpans = [];
+        $sampledTraceIDs = [];
+        foreach ($traces as $trace) {
+            foreach ($trace as $span) {
+                if (isset($span['metrics']['_sampling_priority_v1']) && $span['metrics']['_sampling_priority_v1'] === 0) {
+                    $sampledTraceIDs[$span['trace_id']] = true;
+                }
+            }
+        }
+
+        foreach ($traces as $trace) {
+            foreach ($trace as $span) {
+                if (!isset($sampledTraceIDs[$span['trace_id']])) {
+                    $filteredSpans[] = $span;
+                }
+            }
+        }
+
+        return [$filteredSpans];
     }
 }

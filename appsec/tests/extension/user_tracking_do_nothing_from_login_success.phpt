@@ -48,8 +48,8 @@ Array
     [runtime-id] => %s
     [usr.id] => Admin
     [_dd.appsec.events.users.login.success.sdk] => true
-    [appsec.events.users.login.success.track] => true
     [appsec.events.users.login.success.value] => something
     [appsec.events.users.login.success.metadata] => some other metadata
     [appsec.events.users.login.success.email] => noneofyour@business.com
+    [appsec.events.users.login.success.track] => true
 )

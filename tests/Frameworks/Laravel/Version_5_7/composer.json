@@ -45,6 +45,7 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php -r \"(new PDO('mysql:host=mysql_integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel57');\"",
             "@php artisan package:discover",
             "@php artisan migrate:fresh --force"
         ],

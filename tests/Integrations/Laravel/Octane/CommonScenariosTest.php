@@ -9,8 +9,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    public static $iniPath;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Octane/artisan';
@@ -23,11 +21,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public static function ddSetUpBeforeClass()
     {
-        $iniFiles = php_ini_scanned_files();
-        $iniFile = explode(',', $iniFiles)[0];
-        $iniDir = dirname($iniFile);
-        self::$iniPath = $iniDir . '/swoole.ini';
-
         $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
 
         $currentDir = getcwd();
@@ -40,7 +33,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             $swooleIni = str_replace('datadog.autoload_no_compile=true', 'datadog.autoload_no_compile=false', $swooleIni);
         }
 
-        file_put_contents(self::$iniPath, $swooleIni);
+        file_put_contents(dirname(self::getAppIndexScript()) . "/swoole.ini", $swooleIni);
 
         parent::ddSetUpBeforeClass();
     }
@@ -48,7 +41,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
-        unlink(self::$iniPath);
     }
 
     protected static function getEnvs()
@@ -56,7 +48,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'swoole_test_app',
             'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_TRACE_DEBUG' => 'true'
+            'DD_TRACE_DEBUG' => 'true',
+            'PHP_INI_SCAN_DIR' => ':' . dirname(self::getAppIndexScript()),
         ]);
     }
 
@@ -105,7 +98,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'App\Http\Controllers\CommonSpecsController@simple simple_route'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'simple',
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
@@ -172,7 +165,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'App\Http\Controllers\CommonSpecsController@simple_view unnamed_route'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'simple_view',
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
@@ -256,7 +249,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'App\Http\Controllers\CommonSpecsController@error unnamed_route'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'error',
                 Tag::HTTP_STATUS_CODE => '500',
                 Tag::SPAN_KIND => 'server',
@@ -322,7 +315,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'GET /does_not_exist'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
-                Tag::HTTP_URL => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
+                Tag::HTTP_URL => 'http://localhost/does_not_exist?key=value&<redacted>',
                 Tag::HTTP_STATUS_CODE => '404',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'laravel',

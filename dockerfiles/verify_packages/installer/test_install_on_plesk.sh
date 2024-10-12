@@ -2,7 +2,7 @@
 
 set -e
 
-service mysql start
+service mariadb start
 
 plesk installer --select-release-current --install-component php8.1
 

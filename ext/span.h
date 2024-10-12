@@ -9,6 +9,7 @@
 #include "compatibility.h"
 #include "ddtrace.h"
 #include "ddtrace_export.h"
+#include "priority_sampling/priority_sampling.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
@@ -28,6 +29,7 @@ enum ddtrace_span_dataype {
 typedef struct {
     double sampling_rate;
     int rule;
+    enum dd_sampling_mechanism mechanism;
 } ddtrace_rule_result;
 
 enum ddtrace_trace_limited {
@@ -55,6 +57,7 @@ typedef union ddtrace_span_properties {
             zval property_id;
         };
         zval property_links;
+        zval property_events;
         zval property_peer_service_sources;
         union {
             union ddtrace_span_properties *parent;
@@ -171,6 +174,23 @@ struct ddtrace_span_link {
     };
 };
 
+struct ddtrace_span_event {
+    union {
+        zend_object std;
+        struct {
+            char object_placeholder[sizeof(zend_object) - sizeof(zval)];
+            zval property_name;
+            zval property_attributes;
+            zval property_timestamp;
+        };
+    };
+};
+
+struct ddtrace_exception_span_event {
+    ddtrace_span_event span_event;
+    zval property_exception;
+};
+
 struct ddtrace_git_metadata {
     union {
         zend_object std;
@@ -204,6 +224,7 @@ void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 // Note that this function is used externally by the appsec extension.
 DDTRACE_PUBLIC zend_object *ddtrace_get_root_span(void);
 
+uint64_t ddtrace_nanoseconds_realtime(void);
 void dd_trace_stop_span_time(ddtrace_span_data *span);
 bool ddtrace_has_top_internal_span(ddtrace_span_data *end);
 void ddtrace_close_stack_userland_spans_until(ddtrace_span_data *until);
@@ -221,7 +242,7 @@ zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
 
-bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value);
+bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str);
 
 static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
     return span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN;

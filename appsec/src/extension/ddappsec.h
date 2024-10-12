@@ -53,7 +53,11 @@ extern __thread void *unspecnull ATTR_TLS_LOCAL_DYNAMIC TSRMLS_CACHE;
 #    define DDAPPSEC_G(v) (ddappsec_globals.v)
 #endif
 
+void dd_appsec_rinit_once(void);
 int dd_appsec_rshutdown(bool ignore_verdict);
+
+__attribute__((visibility("default"))) void dd_appsec_rc_conf(
+    bool *nonnull appsec_features, bool *nonnull appsec_conf); // NOLINT
 
 // Add a NO_CACHE version.
 // Use tsrm_get_ls_cache() instead of thread-local _tsrmls_ls_cache

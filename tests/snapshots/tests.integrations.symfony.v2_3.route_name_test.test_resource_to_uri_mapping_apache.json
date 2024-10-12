@@ -13,7 +13,7 @@
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/?key=value&<redacted>",
+      "http.url": "http://localhost/?key=value&<redacted>",
       "runtime-id": "d29fcd90-cbec-4796-bdc8-5e3fb022b605",
       "span.kind": "server",
       "symfony.route.action": "AppBundle\\Controller\\DefaultController@testingRouteNameAction",

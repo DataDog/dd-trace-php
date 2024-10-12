@@ -1,6 +1,7 @@
 --TEST--
 Transmit distributed header information to spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
@@ -59,12 +60,16 @@ array(2) {
       string(7) "datadog"
     }
     ["metrics"]=>
-    array(3) {
+    array(5) {
       ["process_id"]=>
       float(%f)
       ["_sampling_priority_v1"]=>
       float(3)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

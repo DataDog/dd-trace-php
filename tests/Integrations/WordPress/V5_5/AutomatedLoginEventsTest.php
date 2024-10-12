@@ -9,6 +9,8 @@ use DDTrace\Tests\Integrations\WordPress\AutomatedLoginEventsTestSuite;
  */
 class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
+    public static $database = "wp55";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_5/index.php';

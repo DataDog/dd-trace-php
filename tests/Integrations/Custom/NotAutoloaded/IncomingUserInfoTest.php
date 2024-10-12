@@ -22,7 +22,7 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
     public function testSelectedHeadersAreIncluded()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->sendRequest('GET', self::HOST_WITH_CREDENTIALS . ':' . self::PORT);
+            $response = $this->sendRequest('GET', self::HOST_WITH_CREDENTIALS);
         });
 
         $this->assertFlameGraph(
@@ -35,7 +35,7 @@ final class IncomingUserInfoTest extends WebFrameworkTestCase
                     'GET /'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/',
+                    'http.url' => 'http://localhost/',
                     'http.status_code' => 200,
                 ]),
             ]

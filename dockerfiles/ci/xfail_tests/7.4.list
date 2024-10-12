@@ -67,6 +67,7 @@ Zend/tests/gc_031.phpt
 Zend/tests/gc_037.phpt
 Zend/tests/gc_041.phpt
 Zend/tests/gc_042.phpt
+Zend/tests/generators/exception_during_shutdown.phpt
 Zend/tests/generators/gc_with_yield_from.phpt
 Zend/tests/generators/generator_closure_with_this.phpt
 Zend/tests/generators/generator_with_nonscalar_keys.phpt
@@ -160,9 +161,11 @@ ext/date/tests/date_diff1.phpt
 ext/date/tests/date_time_fractions_serialize.phpt
 ext/date/tests/date_timestamp_set_nullparam2.phpt
 ext/date/tests/test-parse-from-format.phpt
+ext/dom/tests/dom003.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/ftp/tests
 ext/gd/tests/bug70976.phpt
+ext/intl/tests/bug60192-sort.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/bug77843.phpt
 ext/json/tests/json_decode_exceptions.phpt
@@ -224,7 +227,9 @@ ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
 ext/phar/tests/bug69720.phpt
 ext/phar/tests/bug70433.phpt
+ext/phar/tests/cache_list/frontcontroller29.phpt
 ext/phar/tests/fatal_error_webphar.phpt
+ext/phar/tests/frontcontroller29.phpt
 ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
 ext/phar/tests/phar_oo_002.phpt

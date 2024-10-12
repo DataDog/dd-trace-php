@@ -51,7 +51,7 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'GET /index.php'
             )->withExactTags([
                 'http.method' => 'GET',
-                'http.url' => 'http://localhost:9999/index.php',
+                'http.url' => 'http://localhost/index.php',
                 'http.status_code' => '200',
                 '_dd.origin' => 'synthetics-browser',
             ])->withExactMetrics([

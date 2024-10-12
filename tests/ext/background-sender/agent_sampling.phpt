@@ -10,7 +10,8 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=0
-DD_TRACE_AUTO_FLUSH_ENABLED=1
+--INI--
+datadog.trace.agent_test_session_token=background-sender/agent_sampling
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
@@ -31,6 +32,7 @@ $rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
 echo "Initial sampling: {$get_sampling()}\n";
 
 $rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:none" => 1]]);
+dd_trace_internal_fn("synchronous_flush");
 
 \DDTrace\start_span();
 \DDTrace\close_span();
@@ -39,6 +41,7 @@ echo "Generic sampling: {$get_sampling()}\n";
 
 // reset it for other tests
 $rr->setResponse(["rate_by_service" => []]);
+dd_trace_internal_fn("synchronous_flush");
 
 $s = \DDTrace\start_span();
 $s->service = "foo";

@@ -1,6 +1,7 @@
 --TEST--
 Basic Git Metadata Injection from env var (Repository URL & Commit Sha)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_GIT_REPOSITORY_URL=github.com/user/env_repo
 DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -52,7 +53,7 @@ array(2) {
       string(16) "%s"
     }
     ["metrics"]=>
-    array(4) {
+    array(6) {
       ["process_id"]=>
       float(%d)
       ["_dd.agent_psr"]=>
@@ -60,6 +61,10 @@ array(2) {
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

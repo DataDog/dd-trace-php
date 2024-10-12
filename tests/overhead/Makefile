@@ -59,12 +59,12 @@ time_l57_%:
 
 request_synthetic_%:
 	@echo "Synthetic request: $*"
-	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
 	@echo "\n------------"
 
 request_hook_%:
 	@echo "Request init hook: $*"
-	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
 	@echo "\n------------"
 
 time_hook_notracer:
@@ -74,5 +74,5 @@ time_hook_notracer:
 
 time_hook_%:
 	@echo "Benchmarking time for init hook only: $*"
-	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true multitime -n ${EXEC_REPETITIONS} -s 0 php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true multitime -n ${EXEC_REPETITIONS} -s 0 php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
 	@echo "\n------------"

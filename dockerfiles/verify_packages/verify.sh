@@ -2,6 +2,8 @@
 
 set -e
 
+export DD_REMOTE_CONFIG_ENABLED=false
+
 # Installing generic dependencies. OS_ID='centos'|'debian'|'alpine'
 OS_ID=$(. /etc/os-release; echo $ID)
 sh $(pwd)/dockerfiles/verify_packages/${OS_ID}/install.sh
@@ -32,7 +34,7 @@ fi
 echo "PHP version: $(${DD_TRACE_PHP_BIN} -v)"
 
 # Script output
-CLI_OUTPUT=$(DD_TRACE_CLI_ENABLED=true ${DD_TRACE_PHP_BIN} /var/www/html/index.php)
+CLI_OUTPUT=$(${DD_TRACE_PHP_BIN} /var/www/html/index.php)
 if [ "${CLI_OUTPUT}" != "hi" ]; then
     echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
     exit 1

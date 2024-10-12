@@ -14,6 +14,10 @@ abstract class IntegrationTestCase extends BaseTestCase
     use SpanAssertionTrait;
 
     private $errorReportingBefore;
+    public static $autoloadPath = null;
+
+    public static $database = "test";
+    private static $createdDatabases = ["test" => true];
 
     public static function ddSetUpBeforeClass()
     {
@@ -38,14 +42,21 @@ abstract class IntegrationTestCase extends BaseTestCase
         file_put_contents($artifactsDir . "/extension_versions.csv", $csv, FILE_APPEND);
 
         $csv = '';
-        $output = shell_exec('DD_TRACE_ENABLED=0 composer --working-dir=./tests show -f json');
-        $data = json_decode($output, true);
 
-        foreach ($data['installed'] as $package) {
-            $csv = $csv . $package['name'] . ";" . $package['version'] . "\n";
+        if (self::$autoloadPath && file_exists(dirname(self::$autoloadPath). "/composer/installed.json")) {
+            $data = json_decode(file_get_contents(dirname(self::$autoloadPath). "/composer/installed.json"), true);
+            foreach ($data['packages'] as $package) {
+                $csv = $csv . $package['name'] . ";" . $package['version'] . "\n";
+            }
         }
 
         file_put_contents($artifactsDir . "/composer_versions.csv", $csv, FILE_APPEND);
+
+        if (isset(static::$database) && !isset(self::$createdDatabases[static::$database])) {
+            $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS " . static::$database);
+            self::$createdDatabases[static::$database] = true;
+        }
     }
 
     public static function ddTearDownAfterClass()
@@ -57,6 +68,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     protected function ddSetUp()
     {
         $this->errorReportingBefore = error_reporting();
+        $this->resetTracer(); // Needs reset so we can remove root span
         $this->putEnv("DD_TRACE_GENERATE_ROOT_SPAN=0");
         parent::ddSetUp();
     }

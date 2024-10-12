@@ -7,6 +7,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
+    public static $database = "magento24";
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Magento/Version_2_4/pub/index.php';

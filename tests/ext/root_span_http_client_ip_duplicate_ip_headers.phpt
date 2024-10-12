@@ -1,6 +1,7 @@
 --TEST--
 Verify the right span tags are present when multiple XFF headers are provided.
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 HTTP_X_FORWARDED_FOR=7.7.7.7,10.0.0.1
 HTTP_X_CLIENT_IP=7.7.7.7

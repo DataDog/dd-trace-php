@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "([^/]+)(?:/([0-9]+))?/?$",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/simple?key=value&<redacted>",
+      "http.url": "http://localhost/simple?key=value&<redacted>",
       "runtime-id": "333590aa-cf9b-4804-9dde-1ac7b59c09ab",
       "span.kind": "server"
     },
@@ -1459,7 +1459,7 @@
           "parent_id": 10,
           "type": "web",
           "meta": {
-            "closure.declaration": "/home/circleci/datadog/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
+            "closure.declaration": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
             "component": "wordpress",
             "wordpress.callback": "Closure",
             "wordpress.hook": "wp_loaded"

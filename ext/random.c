@@ -32,8 +32,8 @@ void ddtrace_seed_prng(void) {
 }
 
 // Allow for usage in phpunit testsuite
-bool ddtrace_reseed_seed_change(zval *old_value, zval *new_value) {
-    UNUSED(old_value, new_value);
+bool ddtrace_reseed_seed_change(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value, new_str);
     ddtrace_seed_prng_with_optional_seed(Z_LVAL_P(new_value));
     return true;
 }

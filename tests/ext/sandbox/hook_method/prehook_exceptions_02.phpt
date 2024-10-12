@@ -1,6 +1,7 @@
 --TEST--
 DDTrace\hook_method prehook exception is sandboxed (debug)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php

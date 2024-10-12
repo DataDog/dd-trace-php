@@ -9,7 +9,6 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    clang-16 \
     libclang-16-dev \
     libclang-rt-16-dev \
     llvm-16-dev \
@@ -23,6 +22,7 @@ ENV DEVLIBS \
     libjpeg-dev \
     libmcrypt-dev \
     libmemcached-dev \
+    libodbc1 \
     libonig-dev \
     libpq-dev \
     libpng-dev \
@@ -33,24 +33,24 @@ ENV DEVLIBS \
     libxml2-dev \
     libxslt1-dev \
     libzip-dev \
+    odbcinst1debian2 \
     zlib1g-dev \
     libasan5 \
-    gnupg \
-    gpg \
     unixodbc-dev \
     unixodbc
 
+#netcat
 ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang \
     clang-format \
     curl \
     debian-goodies \
     gdb \
     git \
     less \
+    lsof \
     netbase \
     netcat \
     nginx \
@@ -65,10 +65,16 @@ ENV RUNTIME_DEPS \
 ENV PHPIZE_DEPS \
     autoconf \
     bison \
+    clang-16 \
+    cmake \
     dpkg-dev \
     file \
     g++ \
     gcc \
+    gnupg \
+    gpg \
+    file \
+    lcov \
     libc-dev \
     make \
     pkg-config \
@@ -261,9 +267,9 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.71.1"
-ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
-ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
+ARG RUST_VERSION="1.76.0"
+ARG RUST_SHA256_ARM="2e8313421e8fb673efdf356cdfdd4bc16516f2610d4f6faa01327983104c05a0"
+ARG RUST_SHA256_X86="9d589d2036b503cc45ecc94992d616fb3deec074deb36cacc2f5c212408f7399"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

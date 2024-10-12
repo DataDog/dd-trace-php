@@ -164,7 +164,7 @@ partial class Build
                     char[] charsToTrim = { ' ', ',' };
                     string cleaned = value.TrimStart('-', '+').Trim(charsToTrim);
 
-                    string[] keysToReplace = { "start", "duration", "php.compilation.total_time_ms", "process_id" };
+                    string[] keysToReplace = { "start", "duration", "php.compilation.total_time_ms", "metrics.php.memory.peak_usage_bytes", "metrics.php.memory.peak_real_usage_bytes", "process_id" };
                     foreach (var key in keysToReplace)
                     {
                         if (cleaned.Contains(key))

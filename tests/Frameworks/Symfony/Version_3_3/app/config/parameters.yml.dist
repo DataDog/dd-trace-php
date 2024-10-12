@@ -4,7 +4,7 @@
 parameters:
     database_host: mysql_integration
     database_port: null
-    database_name: test
+    database_name: symfony33
     database_user: test
     database_password: test
     # You should uncomment this if you want to use pdo_sqlite

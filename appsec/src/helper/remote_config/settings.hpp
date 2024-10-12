@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "utils.hpp"
+#include "../utils.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <msgpack.hpp>
@@ -15,45 +15,31 @@
 
 namespace dds::remote_config {
 
-/* client_settings are currently the same for the whole client session.
- * If this changes in the future, it will make sense to create a separation
- * between 1) settings used for creating the engine and 2) settings used
- * after, possibly when creating the subscriber listeners on every request
- */
 struct settings {
-    static constexpr uint32_t default_poll_interval{1000};
-    static constexpr unsigned default_port{8126};
-    // Remote config settings
-    bool enabled{false};
-    std::string host;
-    unsigned port = default_port;
-    std::uint32_t poll_interval = default_poll_interval;
-
-    // these two are specified in RCTE1
-    // std::string targets_key;
-    // std::string targets_key_id;
-    // bool integrity_check_enabled{false};
-
-    MSGPACK_DEFINE_MAP(enabled, host, port, poll_interval);
+    bool enabled{};
+    std::string shmem_path;
 
     bool operator==(const settings &oth) const noexcept
     {
-        return enabled == oth.enabled && host == oth.host && port == oth.port &&
-               poll_interval == oth.poll_interval;
+        return enabled == oth.enabled && shmem_path == oth.shmem_path;
     }
 
     friend auto &operator<<(std::ostream &os, const settings &c)
     {
         return os << "{enabled=" << std::boolalpha << c.enabled
-                  << ", host=" << c.host << ", port=" << c.port
-                  << ", poll_interval=" << c.poll_interval << "}";
+                  << ", shmem_path=" << c.shmem_path << "}";
     }
 
-    struct settings_hash {
-        std::size_t operator()(const settings &s) const noexcept
-        {
-            return hash(s.enabled, s.host, s.port, s.poll_interval);
-        }
-    };
+    MSGPACK_DEFINE_MAP(enabled, shmem_path);
 };
 } // namespace dds::remote_config
+
+namespace std {
+template <> struct hash<dds::remote_config::settings> {
+    std::size_t operator()(const dds::remote_config::settings &s) const noexcept
+    {
+        return dds::hash(s.enabled, s.shmem_path);
+    }
+};
+
+} // namespace std

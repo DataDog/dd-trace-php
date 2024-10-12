@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:3.19
 
 RUN mkdir -p /app
 WORKDIR /app
@@ -13,6 +13,7 @@ RUN set -eux; \
         g++ \
         gcc \
         make \
+        cmake \
         build-base \
         curl-dev \
         libedit-dev \
@@ -22,12 +23,15 @@ RUN set -eux; \
         libxml2-dev \
         gnu-libiconv-dev \
         oniguruma-dev \
-        tar
+        tar \
+        cmake
 
 # Profiling deps
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 RUN apk add --no-cache llvm16-libs clang16-dev lld llvm16 rust-stdlib cargo clang git protoc unzip
+
+RUN cargo install --force --locked bindgen-cli && mv /root/.cargo/bin/bindgen /usr/local/bin/ && rm -rf /root/.cargo
 
 CMD ["bash"]

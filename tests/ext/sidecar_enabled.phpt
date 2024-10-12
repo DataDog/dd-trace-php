@@ -6,7 +6,7 @@ Sidecar should be enabled by default on PHP 8.4
 <?php
 include_once 'startup_logging.inc';
 
-// IN PHP 8.4, the sidecar is enabled by default, let's test this here
+// IN PHP 8.3, the sidecar is enabled by default, let's test this here
 // In all other versions the sidecar is disabled but this is tested by sidecar_disabled_when_telemetry_disabled.phpt
 $logs = dd_get_startup_logs([], [
     'DD_TRACE_DEBUG' => '1',

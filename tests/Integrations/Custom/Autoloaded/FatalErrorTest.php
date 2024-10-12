@@ -44,7 +44,7 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'GET /fatal'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/fatal',
+                    'http.url' => 'http://localhost/fatal',
                     'http.status_code' => '200',
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")

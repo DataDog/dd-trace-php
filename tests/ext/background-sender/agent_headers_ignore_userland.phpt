@@ -14,6 +14,8 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+--INI--
+datadog.trace.agent_test_session_token=background-sender/agent_headers_ignore_userland
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';

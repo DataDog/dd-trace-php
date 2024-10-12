@@ -25,6 +25,7 @@
 #include <vendor/mpack/mpack.h>
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
+#include <zend_abstract_interface/symbols/symbols.h>
 
 #include "arrays.h"
 #include "compat_string.h"
@@ -40,6 +41,9 @@
 #include "user_request.h"
 #include "ddshared.h"
 #include "zend_hrtime.h"
+#include "sidecar.h"
+#include "live_debugger.h"
+#include "exception_serialize.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -249,146 +253,6 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     zval value;
     ZVAL_COPY(&value, prop);
     add_assoc_zval(el, (name), &value);
-}
-
-typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
-
-#if PHP_VERSION_ID < 70100
-#define ZEND_STR_LINE "line"
-#define ZEND_STR_FILE "file"
-#define ZEND_STR_PREVIOUS "previous"
-#endif
-
-enum dd_exception {
-    DD_EXCEPTION_THROWN,
-    DD_EXCEPTION_CAUGHT,
-    DD_EXCEPTION_UNCAUGHT,
-};
-
-static zend_result dd_exception_to_error_msg(zend_object *exception, void *context, add_tag_fn_t add_tag, enum dd_exception exception_state) {
-    zend_string *msg = zai_exception_message(exception);
-    zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
-    zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
-
-    char *error_text, *status_line = NULL;
-
-    if (SG(sapi_headers).http_response_code >= 500) {
-        if (SG(sapi_headers).http_status_line) {
-            UNUSED(asprintf(&status_line, " (%s)", SG(sapi_headers).http_status_line));
-        } else {
-            UNUSED(asprintf(&status_line, " (%d)", SG(sapi_headers).http_response_code));
-        }
-    }
-
-    const char *exception_type;
-    switch (exception_state) {
-        case DD_EXCEPTION_CAUGHT: exception_type = "Caught"; break;
-        case DD_EXCEPTION_UNCAUGHT: exception_type = "Uncaught"; break;
-        default: exception_type = "Thrown"; break;
-    }
-
-    int error_len = asprintf(&error_text, "%s %s%s%s%s in %s:" ZEND_LONG_FMT, exception_type,
-                             ZSTR_VAL(exception->ce->name), status_line ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
-                             ZSTR_VAL(msg), ZSTR_VAL(file), line);
-
-    free(status_line);
-
-    ddtrace_string key = DDTRACE_STRING_LITERAL("error.message");
-    ddtrace_string value = {error_text, error_len};
-    zend_result result = add_tag(context, key, value);
-
-    zend_string_release(file);
-    free(error_text);
-    return result;
-}
-
-static zend_result dd_exception_to_error_type(zend_object *exception, void *context, add_tag_fn_t add_tag) {
-    ddtrace_string value, key = DDTRACE_STRING_LITERAL("error.type");
-
-    if (instanceof_function(exception->ce, ddtrace_ce_fatal_error)) {
-        zval *code = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_CODE);
-        const char *error_type_string = "{unknown error}";
-
-        if (Z_TYPE_P(code) == IS_LONG) {
-            switch (Z_LVAL_P(code)) {
-                case E_ERROR:
-                    error_type_string = "E_ERROR";
-                    break;
-                case E_CORE_ERROR:
-                    error_type_string = "E_CORE_ERROR";
-                    break;
-                case E_COMPILE_ERROR:
-                    error_type_string = "E_COMPILE_ERROR";
-                    break;
-                case E_USER_ERROR:
-                    error_type_string = "E_USER_ERROR";
-                    break;
-                default:
-                    LOG_UNREACHABLE(
-                        "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
-            }
-
-        } else {
-            LOG_UNREACHABLE("Exception was a DDTrace\\FatalError but failed to get an exception code");
-        }
-
-        value = ddtrace_string_cstring_ctor((char *)error_type_string);
-    } else {
-        zend_string *type_name = exception->ce->name;
-        value.ptr = ZSTR_VAL(type_name);
-        value.len = ZSTR_LEN(type_name);
-    }
-
-    return add_tag(context, key, value);
-}
-
-static zend_result dd_exception_trace_to_error_stack(zend_string *trace, void *context, add_tag_fn_t add_tag) {
-    ddtrace_string key = DDTRACE_STRING_LITERAL("error.stack");
-    ddtrace_string value = {ZSTR_VAL(trace), ZSTR_LEN(trace)};
-    zend_result result = add_tag(context, key, value);
-    zend_string_release(trace);
-    return result;
-}
-
-// Guarantees that add_tag will only be called once per tag, will stop trying to add tags if one fails.
-static zend_result ddtrace_exception_to_meta(zend_object *exception, void *context, add_tag_fn_t add_meta, enum dd_exception exception_state) {
-    zend_object *exception_root = exception;
-    zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
-
-    zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
-    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
-           instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
-        zend_string *trace_string = zai_get_trace_without_args_from_exception(Z_OBJ_P(previous));
-
-        zend_string *msg = zai_exception_message(exception);
-        zend_long line = zval_get_long(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_LINE));
-        zend_string *file = ddtrace_convert_to_str(ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_FILE));
-
-        zend_string *complete_trace =
-            zend_strpprintf(0, "%s\n\nNext %s%s%s in %s:" ZEND_LONG_FMT "\nStack trace:\n%s", ZSTR_VAL(trace_string),
-                            ZSTR_VAL(exception->ce->name), ZSTR_LEN(msg) ? ": " : "", ZSTR_VAL(msg), ZSTR_VAL(file),
-                            line, ZSTR_VAL(full_trace));
-        zend_string_release(trace_string);
-        zend_string_release(full_trace);
-        zend_string_release(file);
-        full_trace = complete_trace;
-
-        Z_PROTECT_RECURSION_P(previous);
-        exception = Z_OBJ_P(previous);
-        previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
-    }
-
-    previous = ZAI_EXCEPTION_PROPERTY(exception_root, ZEND_STR_PREVIOUS);
-    while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
-           instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
-        Z_UNPROTECT_RECURSION_P(previous);
-        previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
-    }
-
-    bool success = dd_exception_to_error_msg(exception, context, add_meta, exception_state) == SUCCESS &&
-                   dd_exception_to_error_type(exception, context, add_meta) == SUCCESS &&
-                   dd_exception_trace_to_error_stack(full_trace, context, add_meta) == SUCCESS;
-    return success ? SUCCESS : FAILURE;
 }
 
 typedef struct dd_error_info {
@@ -1243,7 +1107,7 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
     }
 }
 
-static void _serialize_meta(zval *el, ddtrace_span_data *span) {
+static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *service_name) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     zval meta_zv, *meta = &span->property_meta;
     bool ignore_error = false;
@@ -1307,7 +1171,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
-        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), meta, dd_add_meta_array, exception_type);
+        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
     }
 
     zend_array *span_links = ddtrace_property_array(&span->property_links);
@@ -1325,6 +1189,23 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
         // Restore the exception
         EG(exception) = current_exception;
     }
+
+    zend_array *span_events = ddtrace_property_array(&span->property_events);
+    if (zend_hash_num_elements(span_events) > 0) {
+        // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
+        // and zend_call_function to actually call the jsonSerialize method
+        // Restored after span events are serialized
+        zend_object* current_exception = EG(exception);
+        EG(exception) = NULL;
+
+        smart_str buf = {0};
+        _dd_serialize_json(span_events, &buf, 0);
+        add_assoc_str(meta, "events", buf.s);
+
+        // Restore the exception
+        EG(exception) = current_exception;
+    }
+
 
     zval *git_metadata = &span->root->property_git_metadata;
     if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
@@ -1412,8 +1293,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span) {
 
     if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
         add_assoc_str(meta, "_dd.base_service", Z_STR(prop_root_service_as_string));
-    }
-    else {
+    } else {
         zend_string_release(Z_STR(prop_root_service_as_string));
     }
 
@@ -1811,8 +1691,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
 
-    _serialize_meta(el, span);
-
+    _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
     zval metrics_zv;
     array_init(&metrics_zv);
@@ -1830,8 +1709,14 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
     }
 
-    if (ddtrace_span_is_entrypoint_root(span) && get_DD_TRACE_MEASURE_COMPILE_TIME()) {
-        add_assoc_double(&metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
+    if (ddtrace_span_is_entrypoint_root(span)) {
+        if (get_DD_TRACE_MEASURE_COMPILE_TIME()) {
+            add_assoc_double(&metrics_zv, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
+        }
+        if (get_DD_TRACE_MEASURE_PEAK_MEMORY_USAGE()) {
+            add_assoc_double(&metrics_zv, "php.memory.peak_usage_bytes", zend_memory_peak_usage(false));
+            add_assoc_double(&metrics_zv, "php.memory.peak_real_usage_bytes", zend_memory_peak_usage(true));
+        }
     }
 
     LOGEV(SPAN, {

@@ -9,6 +9,7 @@ memory_limit=2M
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_APPSEC_ENABLED=0
 --FILE--
 <?php
 function flushTracer() {

@@ -40,4 +40,6 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv);
 void dd_mpack_writer_init_iov(
     mpack_writer_t *nonnull writer, zend_llist *nonnull iovec_list);
 
+void dd_msgpack_helpers_startup();
+
 #endif // DD_MSGPACK_HELPERS_H

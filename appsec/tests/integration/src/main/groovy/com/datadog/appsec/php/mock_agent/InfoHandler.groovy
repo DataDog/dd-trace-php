@@ -15,7 +15,8 @@ class InfoHandler implements Handler {
     static class InfoResponse {
         String version = '7.49.0'
         List<String> endpoints = [
-              '/v0.4/traces'
+                '/v0.4/traces',
+                '/v0.7/config',
         ]
     }
 

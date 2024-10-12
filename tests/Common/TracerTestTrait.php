@@ -16,6 +16,8 @@ trait TracerTestTrait
     protected static $agentRequestDumperUrl = 'http://request-replayer';
     protected static $testAgentUrl = 'http://test-agent:9126';
 
+    protected static $webserverPort = 6666 + GLOBAL_PORT_OFFSET;
+
     public function resetTracer($tracer = null, $config = [])
     {
         // Reset the current C-level array of generated spans
@@ -36,7 +38,10 @@ trait TracerTestTrait
             "http" => [
                 "method" => "POST",
                 "content" => json_encode($content),
-                "header" => "Content-Type: application/json"
+                "header" => [
+                    "Content-Type: application/json",
+                    'X-Datadog-Test-Session-Token: ' . ini_get("datadog.trace.agent_test_session_token"),
+                ],
             ]
         ]));
     }
@@ -80,7 +85,8 @@ trait TracerTestTrait
             'Content-Type: application/json',
             'Datadog-Meta-Lang: php',
             'X-Datadog-Agent-Proxy-Disabled: true',
-            'X-Datadog-Trace-Count: ' . count($traces)
+            'X-Datadog-Trace-Count: ' . count($traces),
+            'X-Datadog-Test-Session-Token: ' . ini_get("datadog.trace.agent_test_session_token"),
         );
 
         // add environment variables to headers
@@ -106,7 +112,7 @@ trait TracerTestTrait
         curl_close($curl);
 
         // Output the response for debugging purposes
-        // echo $response;
+        //echo $response;
     }
 
     /**
@@ -169,7 +175,7 @@ trait TracerTestTrait
             self::putEnv('DD_TRACE_AGENT_RETRIES=3');
 
             $this->resetTracer();
-            $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
+            $webServer = new WebServer($rootPath, '0.0.0.0', self::$webserverPort);
             $webServer->mergeEnvs($envs);
             $webServer->mergeInis($inis);
             $webServer->start();
@@ -177,7 +183,7 @@ trait TracerTestTrait
 
             $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
                 if ($request instanceof GetSpec) {
-                    $curl = curl_init('http://127.0.0.1:6666' . $request->getPath());
+                    $curl = curl_init('http://127.0.0.1:' . self::$webserverPort . $request->getPath());
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
                     $response = curl_exec($curl);
@@ -210,11 +216,12 @@ trait TracerTestTrait
     /**
      * This method executes a single script with the provided configuration.
      */
-    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null, $throw = true)
     {
         $this->resetRequestDumper();
         $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
-        $out = [$this->parseTracesFromDumpedData()];
+        usleep(100000); // Add a slight delay to give the request-replayer time to handle and store all requests.
+        $out = [$this->parseTracesFromDumpedData($until, $throw)];
         if ($withOutput) {
             $out[] = $output;
         }
@@ -226,7 +233,6 @@ trait TracerTestTrait
         $envs = (string) new EnvSerializer(array_merge(
             [
                 'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
-                'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_AGENT_HOST' => 'test-agent',
                 'DD_TRACE_AGENT_PORT' => '9126',
                 // Uncomment to see debug-level messages
@@ -237,9 +243,10 @@ trait TracerTestTrait
             $customEnvs
         ));
 
+        if (GLOBAL_AUTO_PREPEND_FILE) {
+            $customInis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
+        }
         if (getenv('PHPUNIT_COVERAGE')) {
-            $customInis['auto_prepend_file'] = __DIR__ . '/../save_code_coverage.php';
-
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $customInis['zend_extension'] = $xdebugExtension;
@@ -254,7 +261,11 @@ trait TracerTestTrait
         ));
 
         $script = escapeshellarg($scriptPath);
-        $arguments = escapeshellarg($arguments);
+        if (\is_string($arguments)) {
+            $arguments = escapeshellarg($arguments);
+        } elseif (\is_array($arguments)) {
+            $arguments = implode(' ', array_map('escapeshellarg', $arguments));
+        }
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         if ($withOutput) {
             $ret = (string) `$commandToExecute 2>&1`;
@@ -274,6 +285,7 @@ trait TracerTestTrait
     public function resetRequestDumper()
     {
         $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
+        curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
         curl_exec($curl);
     }
 
@@ -374,9 +386,9 @@ trait TracerTestTrait
      * @return array
      * @throws \Exception
      */
-    private function parseTracesFromDumpedData(callable $until = null)
+    private function parseTracesFromDumpedData(callable $until = null, $throw = false)
     {
-        $loaded = $this->retrieveDumpedTraceData($until);
+        $loaded = $this->retrieveDumpedTraceData($until, $throw);
         if (!$loaded) {
             return [];
         }
@@ -430,11 +442,19 @@ trait TracerTestTrait
      */
     public function retrieveDumpedData(callable $until = null, $throw = false)
     {
-        if (!$until) {
-            $until = function ($request) {
-                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
-            };
-        }
+        return $this->retrieveAnyDumpedData($until, $throw);
+    }
+
+    /**
+     * Returns the raw response body, if any, or null otherwise.
+     */
+    public function retrieveDumpedMetrics(callable $until = null, $throw = false)
+    {
+        return $this->retrieveAnyDumpedData($until, $throw, true);
+    }
+
+    public function retrieveAnyDumpedData(callable $until = null, $throw, $metrics = false) {
+        $until = $until ?? $this->untilFirstTraceRequest();
 
         $allResponses = [];
 
@@ -442,8 +462,9 @@ trait TracerTestTrait
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 50; $attemptNumber++) {
-            $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
+            $curl = curl_init(self::$agentRequestDumperUrl . '/replay' . ($metrics ? '-metrics' : ''));
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
             // Retrieving data
             $response = curl_exec($curl);
             if (!$response) {
@@ -463,7 +484,7 @@ trait TracerTestTrait
                         return $allResponses;
                     }
                 }
-                \usleep(1000);
+                \usleep(10000);
             }
         }
 
@@ -474,17 +495,69 @@ trait TracerTestTrait
         return $allResponses;
     }
 
-    public function retrieveDumpedTraceData(callable $until = null)
+    public function retrieveDumpedTraceData(callable $until = null, $throw = false)
     {
-        if ($until) {
-            return array_values(array_filter($this->retrieveDumpedData($until), function ($request) use ($until) {
-                return $until($request);
-            }));
-        } else {
-            return array_values(array_filter($this->retrieveDumpedData(), function ($request) {
-                return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
-            }));
-        }
+        return array_values(array_filter($this->retrieveDumpedData($until, $throw), function ($request) {
+            // Filter telemetry requests
+            return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
+        }));
+    }
+
+    function untilNumberOfTraces($number) {
+        $count = 0;
+        return function ($request) use (&$count, $number) {
+            $count += $request['headers']['X-Datadog-Trace-Count'] ?? $request["headers"]["x-datadog-trace-count"] ?? 0;
+            return $count >= $number;
+        };
+    }
+
+    function untilFirstTraceRequest() {
+        return function ($request) {
+            return (strpos($request["uri"] ?? "", "/v0.4/traces") === 0)
+                || (strpos($request["uri"] ?? "", "/v0.7/traces") === 0)
+            ;
+        };
+    }
+
+    function untilTelemetryRequest($metricName) {
+        return function ($request) use ($metricName) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", $metricName) !== false)
+            ;
+        };
+    }
+
+    function untilSpan(SpanAssertion $assertion) {
+        return function ($request) use ($assertion) {
+            if (strpos($request["uri"] ?? "", "/telemetry/") === 0 || !isset($request['body'])) {
+                return false;
+            }
+            $traces = $this->parseRawDumpedTraces(json_decode($request['body'], true));
+
+            foreach ($traces as $trace) {
+                try {
+                    (new SpanChecker())->assertFlameGraph([$trace], [$assertion]);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                return true;
+            }
+
+            return false;
+        };
+    }
+
+    function until(...$expectations) {
+        return function ($request) use (&$expectations) {
+            foreach ($expectations as $key => $expect) {
+                if ($expect($request)) {
+                    unset($expectations[$key]);
+                }
+            }
+
+            return !count($expectations);
+        };
     }
 
     /**

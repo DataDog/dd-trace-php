@@ -10,6 +10,9 @@ RUN for DIR in /opt/php/*; do (echo "zend_extension=opcache.so"; echo "opcache.e
 # don't execute an asan *binary* under qemu
 RUN mv /opt/php/debug/bin/php-config /opt/php/debug/bin/php-config-debug; cp /opt/php/debug-zts-asan/bin/php-config /opt/php/debug/bin/php-config
 
+# install redis for randomized tests
+RUN echo "extension=redis" >> $(php-config --ini-dir)/redis.ini
+
 # Igbinary
 RUN set -eux; \
     pecl install "igbinary"; \
@@ -64,6 +67,10 @@ RUN sed -i 's/apache2/httpd/' /etc/apache2/envvars
 
 ADD run.sh /scripts/run.sh
 ADD prepare.sh /scripts/prepare.sh
+
+# actually bind the sidecar error output to docker out
+ENV _DD_DEBUG_SIDECAR_LOG_METHOD=file:///proc/1/fd/2
+ENV DD_SPAWN_WORKER_USE_EXEC=1
 
 WORKDIR /var/www/html
 

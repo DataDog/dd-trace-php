@@ -39,7 +39,7 @@ class ModuleTest extends WebFrameworkTestCase
                     'GET /forum/?/?/?'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/forum/new-york/new-york/manhattan?key=value&<redacted>',
+                    Tag::HTTP_URL => 'http://localhost/forum/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/forum/:state/:city/:neighborhood',
                     Tag::HTTP_ROUTE => '/forum/:state/:city/:neighborhood',

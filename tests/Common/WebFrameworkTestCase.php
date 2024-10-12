@@ -18,7 +18,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     // host and port for the testing framework
     const HOST = 'http://localhost';
     const HOST_WITH_CREDENTIALS = 'http://my_user:my_password@localhost';
-    const PORT = 9999;
+    const PORT = 9999 - GLOBAL_PORT_OFFSET;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
     const COOKIE_JAR = 'cookies.txt';
@@ -215,7 +215,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $response = $this->sendRequest(
             $spec->getMethod(),
-            self::HOST . ':' . self::PORT . $spec->getPath(),
+            self::HOST . $spec->getPath(),
             $spec->getHeaders(),
             $spec->getBody(),
             $options
@@ -245,6 +245,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
         for ($i = 0; $i < 10; ++$i) {
             $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_CONNECT_TO, ["localhost:80:localhost:" . self::PORT]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, $options[CURLOPT_RETURNTRANSFER]);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $options[CURLOPT_FOLLOWLOCATION]);

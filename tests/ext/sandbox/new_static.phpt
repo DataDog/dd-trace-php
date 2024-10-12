@@ -1,5 +1,7 @@
 --TEST--
 New static instantiates from expected class
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 use DDTrace\SpanData;

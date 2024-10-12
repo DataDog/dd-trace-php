@@ -2,6 +2,7 @@
 Test ddtrace_root_span_add_tag
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_SERVICE=appsec_tests
 --INI--
 extension=ddtrace.so
@@ -56,7 +57,7 @@ array(1) {
       string(16) "%s"
     }
     ["metrics"]=>
-    array(4) {
+    array(6) {
       [%s"]=>
       float(%d)
       ["_dd.agent_psr"]=>
@@ -65,6 +66,10 @@ array(1) {
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%s)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
     }
   }
 }

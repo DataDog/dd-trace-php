@@ -5,8 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <boost/asio.hpp>
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 
 #include "config.hpp"
 #include "network/acceptor.hpp"
@@ -16,29 +17,38 @@
 
 namespace dds {
 
-class runner {
+class runner : public std::enable_shared_from_this<runner> {
 public:
-    explicit runner(const config::config &cfg);
-    runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor);
+    runner(const config::config &cfg, std::atomic<bool> &interrupted);
+    runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor,
+        std::atomic<bool> &interrupted);
     runner(const runner &) = delete;
     runner &operator=(const runner &) = delete;
     runner(runner &&) = delete;
     runner &operator=(runner &&) = delete;
-    ~runner() = default;
+    ~runner() noexcept;
+
+    static void resolve_symbols();
 
     void run() noexcept(false);
 
-    void exit() { running_ = false; }
+    void register_for_rc_notifications();
+
+    [[nodiscard]] bool interrupted() const
+    {
+        return interrupted_.load(std::memory_order_acquire);
+    }
 
 private:
-    const config::config &cfg_;
+    static std::shared_ptr<runner> RUNNER_FOR_NOTIFICATIONS;
+
+    const config::config &cfg_; // NOLINT
     std::shared_ptr<service_manager> service_manager_;
     worker::pool worker_pool_;
 
     // Server variables
     network::base_acceptor::ptr acceptor_;
-    std::chrono::minutes idle_timeout_;
-    std::atomic<bool> running_{true};
+    std::atomic<bool> &interrupted_; // NOLINT
 };
 
 } // namespace dds

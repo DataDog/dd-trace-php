@@ -53,11 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
-        $response = $this->retrieveDumpedData(function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "spans_created") !== false)
-            ;
-        }, true);
+        $response = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
 
         $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
@@ -96,10 +92,16 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
 
-        $response = $this->retrieveDumpedData(function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "spans_created") !== false)
-            ;
+        $found_telemetry = false;
+        $found_app_integrations_change = false;
+        $response = $this->retrieveDumpedData(function ($request) use (&$found_telemetry, &$found_app_integrations_change) {
+            if (strpos($request["uri"] ?? "", "/telemetry/") === 0 && strpos($request["body"] ?? "", "spans_created") !== false) {
+                $found_telemetry = true;
+            }
+            if (strpos($request["body"] ?? "", "app-integrations-change") !== false) {
+                $found_app_integrations_change = true;
+            }
+            return $found_telemetry && $found_app_integrations_change;
         }, true);
 
         $this->assertGreaterThanOrEqual(3, $response);

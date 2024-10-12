@@ -29,12 +29,6 @@
         <active>yes</active>
     </lead>
     <lead>
-        <name>Joe Watkins</name>
-        <user>krakjoe</user>
-        <email>krakjoe@php.net</email>
-        <active>yes</active>
-    </lead>
-    <lead>
         <name>Pierre Bonet</name>
         <user>pierotibou</user>
         <email>pierotibou@php.net</email>
@@ -74,52 +68,60 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This release adds beta support for PHP Single Step Instrumentation, allowing the instrumentation
-of your PHP applications without the manual installation of the dd-trace-php extension.
-
-Read https://docs.datadoghq.com/tracing/trace_collection/automatic_instrumentation/single-step-apm/ for
-more details.
-
 ## Tracer
 
+The default value for datadog.trace.cli_enabled is now set to true (except for composer), meaning that CLI processes will be traced by default.
+
 ### Added
-- Add span field meta_struct #2673
-- Add config to disable obfuscation in memcached queries #2725
-- Add PDO spans to orphans removal #2743
-- Make generators replaceable #2718
-- Source Code Integration #2731
-- OpenAI Integration #2685
-- Add support for Single Step Instrumentation #2684 #2723
+- Dynamic configuration #2796
+- Dynamic instrumentation #2796
+  - Can be enabled with datadog.dynamic_instrumentation.enabled=1.
+- Exception replay #2796
+  - Can be enabled with datadog.exception_replay_enabled=1.
+- Track peak memory usage in root span metrics #2840
+
+### Changed
+- Enable sidecar trace sender on PHP 8.3 #2729
+- Optimize sending traces via sidecar Datadog/libdatadog#598
+- Add new ini config datadog.crashtracking_enabled #2850
+- Add ionCube to the list of incompatible extensions + add INI setting to ignore incompatible extensions #2858
+- Enable CLI by default #2871
 
 ### Fixed
-- Fix PHP binary detection in package post-install script #2707
-- Handle OTel HTTP semantic conventions < 1.21.0 #2717
-- Respect the active service/env/version for metric tags #2742
-- Fix post bailout hook execution in 8.3 unoptimized builds #2737
-- Fix env&version tags leaking in metrics #2745
-- Fix global priority sampling #2728
-- Fix crash in OpenTelemetry Span::getCurrent() when accessing span link #2767
+- Crashtracker: fix a use-after-free error #2843
+- Fix curl integration race condition #2847
+- Fix memory leak with sidecar trace sender #2875
+- OpenTelemetry: Missing addLink method and Fiber handling #2849
+- Mongodb: Deprecated exception in v1.20+ #2870
+- Fix leaking sidecar sessions Datadog/libdatadog#642
+- Implement deadlock watchdog for sidecar Datadog/libdatadog#647
 
 ### Internal
-- Compile sidecar and extension separately, to link them together later #2741
-- Sync with libdatadog for telemetry flush data intval #2757
+- Fix testsuite flakiness #2841, #2846, #2848, #2867
+- Fix telemetry metric name Datadog/libdatadog#666
+
+### SSI Loader changes
+- Add SSI requirements.json file #2813
+- Disable the tracer in case of a potential incompatibility (extension/jit) #2853
 
 ## Profiling
 
 ### Internal
-- Keep string cache data alive longer #2668
-- Extract func is_internal() #2736
-- Less unsafe code #2739
-- Refactor fork handling #2747
+- bump to Rust 1.76 #2876
 
 ## Application Security Management
 
-### Fixed
-- Refactor the sampler to fix errors #2761
+### Changed
+- Move helper to sidecar remote config #2864
 
-### Internal
-- Upgrade helper to use WAF 1.18.0 #2660
-- Add more logs around schema extraction #2755
+### Fixed
+- Fix improper symbol exports in appsec ext/helper #2854
+- Remove gid from socket/lock path of helper #2855
+- appsec ext: retry on connection refused #2860
+- Fix orderly helper appsec shutdown #2859
+
+### Internal changes
+- Add appsec benchmarks #2791
 
 ]]></notes>
     <contents>

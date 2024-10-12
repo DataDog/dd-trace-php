@@ -38,7 +38,7 @@ class ExitTest extends WebFrameworkTestCase
                     'GET /exits'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/exits',
+                    Tag::HTTP_URL => 'http://localhost/exits',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.endpoint' => 'Exits::index',
                     Tag::SPAN_KIND => 'server',

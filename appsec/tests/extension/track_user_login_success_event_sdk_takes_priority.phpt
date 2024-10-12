@@ -25,7 +25,7 @@ Array
     [runtime-id] => %s
     [usr.id] => Admin
     [_dd.appsec.events.users.login.success.sdk] => true
-    [appsec.events.users.login.success.track] => true
     [appsec.events.users.login.success.value] => something-from-sdk
-    [_dd.appsec.events.users.login.success.auto.mode] => safe
+    [appsec.events.users.login.success.track] => true
+    [_dd.appsec.events.users.login.success.auto.mode] => identification
 )

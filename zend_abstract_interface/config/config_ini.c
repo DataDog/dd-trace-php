@@ -216,7 +216,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
         return SUCCESS;
     }
 
-    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv)) {
+    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv, new_value)) {
         zval_dtor(&new_zv);
         return FAILURE;
     }

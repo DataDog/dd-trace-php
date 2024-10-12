@@ -17,12 +17,8 @@ namespace dds {
 
 class subscriber {
 public:
-    using ptr = std::shared_ptr<subscriber>;
-
     class listener {
     public:
-        using ptr = std::shared_ptr<listener>;
-
         listener() = default;
         listener(const listener &) = default;
         listener &operator=(const listener &) = delete;
@@ -49,8 +45,8 @@ public:
 
     virtual std::string_view get_name() = 0;
     virtual std::unordered_set<std::string> get_subscriptions() = 0;
-    virtual listener::ptr get_listener() = 0;
-    virtual subscriber::ptr update(parameter &rule,
+    virtual std::unique_ptr<listener> get_listener() = 0;
+    virtual std::unique_ptr<subscriber> update(parameter &rule,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics) = 0;
 };

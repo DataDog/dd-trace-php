@@ -52,4 +52,22 @@ inline std::string dd_tolower(std::string string)
 
 std::string read_file(std::string_view filename);
 
+#ifdef __linux__
+extern "C" int __xpg_strerror_r(int, char *, size_t);
+#endif
+inline std::string strerror_ts(int errnum)
+{
+    std::string buf(256, '\0'); // NOLINT
+
+#ifdef __linux__
+    (void)__xpg_strerror_r(errnum, buf.data(), buf.size());
+#else
+    (void)strerror_r(errnum, buf.data(), buf.size());
+#endif
+
+    buf.resize(std::strlen(buf.data()));
+
+    return buf;
+}
+
 } // namespace dds

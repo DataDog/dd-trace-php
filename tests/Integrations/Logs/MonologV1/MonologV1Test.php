@@ -12,7 +12,7 @@ class MonologV1Test extends BaseLogsTest
     protected function getLogger($jsonFormatter = false)
     {
         $logger = new Logger('test');
-        $streamHandler = new StreamHandler('/tmp/test.log');
+        $streamHandler = new StreamHandler(static::logFile());
 
         if ($jsonFormatter) {
             $streamHandler->setFormatter(new JsonFormatter());

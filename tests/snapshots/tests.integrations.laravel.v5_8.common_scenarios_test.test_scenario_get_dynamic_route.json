@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "dynamic_route/{param01}/static/{param02?}",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/dynamic_route/dynamic01/static/dynamic02",
+      "http.url": "http://localhost/dynamic_route/dynamic01/static/dynamic02",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@dynamicRoute",
       "laravel.route.name": "unnamed_route",
       "runtime-id": "5db5654d-5a9e-4cf0-908b-a51f7ced2ff2",

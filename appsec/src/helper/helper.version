@@ -1,0 +1,7 @@
+{
+	global:
+	  appsec_helper_main;
+	  appsec_helper_shutdown;
+	local: *;
+};
+

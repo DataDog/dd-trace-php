@@ -60,6 +60,32 @@ void ddog_agent_remote_config_reader_drop(struct ddog_AgentRemoteConfigReader*);
 
 void ddog_agent_remote_config_writer_drop(struct ddog_AgentRemoteConfigWriter_ShmHandle*);
 
+struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddog_CharSlice *language,
+                                                                       const ddog_CharSlice *tracer_version,
+                                                                       const struct ddog_Endpoint *endpoint,
+                                                                       ddog_CharSlice service_name,
+                                                                       ddog_CharSlice env_name,
+                                                                       ddog_CharSlice app_version,
+                                                                       const enum ddog_RemoteConfigProduct *remote_config_products,
+                                                                       uintptr_t remote_config_products_count,
+                                                                       const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
+                                                                       uintptr_t remote_config_capabilities_count);
+
+/**
+ * # Safety
+ * Argument should point to a valid C string.
+ */
+struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_path(const char *path);
+
+char *ddog_remote_config_path(const struct ddog_ConfigInvariants *id,
+                              const struct ddog_Arc_Target *target);
+
+void ddog_remote_config_path_free(char *path);
+
+bool ddog_remote_config_read(struct ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
+
+void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);
+
 void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
 
 /**
@@ -127,7 +153,7 @@ ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(struct ddog_SidecarTrans
 /**
  * Enqueues a list of actions to be performed.
  */
-ddog_MaybeError ddog_sidecar_telemetry_end(struct ddog_SidecarTransport **transport,
+ddog_MaybeError ddog_sidecar_lifecycle_end(struct ddog_SidecarTransport **transport,
                                            const struct ddog_InstanceId *instance_id,
                                            const ddog_QueueId *queue_id);
 
@@ -150,12 +176,20 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice session_id,
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
-                                                uint64_t flush_interval_milliseconds,
-                                                uint64_t telemetry_heartbeat_interval_millis,
+                                                ddog_CharSlice language,
+                                                ddog_CharSlice tracer_version,
+                                                uint32_t flush_interval_milliseconds,
+                                                uint32_t remote_config_poll_interval_millis,
+                                                uint32_t telemetry_heartbeat_interval_millis,
                                                 uintptr_t force_flush_size,
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,
-                                                ddog_CharSlice log_path);
+                                                ddog_CharSlice log_path,
+                                                void *remote_config_notify_function,
+                                                const enum ddog_RemoteConfigProduct *remote_config_products,
+                                                uintptr_t remote_config_products_count,
+                                                const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
+                                                uintptr_t remote_config_capabilities_count);
 
 /**
  * Sends a trace to the sidecar via shared memory.
@@ -173,6 +207,24 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(struct ddog_SidecarTransport *
                                                   const struct ddog_InstanceId *instance_id,
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
+
+ddog_MaybeError ddog_sidecar_send_debugger_data(struct ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                ddog_QueueId queue_id,
+                                                struct ddog_Vec_DebuggerPayload payloads);
+
+ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **transport,
+                                                 const struct ddog_InstanceId *instance_id,
+                                                 ddog_QueueId queue_id,
+                                                 struct ddog_DebuggerPayload *payload);
+
+ddog_MaybeError ddog_sidecar_set_remote_config_data(struct ddog_SidecarTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    const ddog_QueueId *queue_id,
+                                                    ddog_CharSlice service_name,
+                                                    ddog_CharSlice env_name,
+                                                    ddog_CharSlice app_version,
+                                                    const struct ddog_Vec_Tag *global_tags);
 
 /**
  * Dumps the current state of the sidecar.
@@ -230,6 +282,13 @@ ddog_MaybeError ddog_sidecar_dogstatsd_set(struct ddog_SidecarTransport **transp
                                            const struct ddog_Vec_Tag *tags);
 
 /**
+ * Sets x-datadog-test-session-token on all requests for the given session.
+ */
+ddog_MaybeError ddog_sidecar_set_test_session_token(struct ddog_SidecarTransport **transport,
+                                                    ddog_CharSlice session_id,
+                                                    ddog_CharSlice token);
+
+/**
  * This function creates a new transport using the provided callback function when the current
  * transport is closed.
  *
@@ -240,5 +299,10 @@ ddog_MaybeError ddog_sidecar_dogstatsd_set(struct ddog_SidecarTransport **transp
  */
 void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                             struct ddog_SidecarTransport *(*factory)(void));
+
+/**
+ * Return the path of the crashtracker unix domain socket.
+ */
+ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
 
 #endif /* DDOG_SIDECAR_H */

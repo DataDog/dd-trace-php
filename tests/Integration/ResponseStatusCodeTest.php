@@ -37,7 +37,7 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
             [
                 SpanAssertion::build('web.request', 'web.request', 'web', 'GET /success')->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/success',
+                    'http.url' => 'http://localhost/success',
                     'http.status_code' => '200',
                 ]),
             ]
@@ -62,7 +62,7 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                 SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactTags(
                     [
                         'http.method'      => 'GET',
-                        'http.url'         => 'http://localhost:' . self::PORT . '/error',
+                        'http.url'         => 'http://localhost/error',
                         'http.status_code' => '500',
                     ]
                 )->setError(),

@@ -31,6 +31,32 @@
     },
     {
       "id": "blk-001-002",
+      "name": "Block user with stack",
+      "tags": {
+        "type": "block_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "data": "blocked_users"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "stack_trace",
+        "block"
+      ]
+    },
+    {
+      "id": "blk-001-003",
       "name": "Block User Addresses",
       "tags": {
         "type": "block_user",

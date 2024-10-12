@@ -8,8 +8,6 @@ use DDTrace\Tests\Common\TracerTestTrait;
 
 final class OrphansTest extends IntegrationTestCase
 {
-    use TracerTestTrait;
-
     static function foo()
     {
         // no-op

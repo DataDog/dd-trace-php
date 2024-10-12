@@ -50,7 +50,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple?key=value&<redacted>',
+                        Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple::index',
                         Tag::SPAN_KIND => 'server',
@@ -75,7 +75,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple_View::index',
                         Tag::SPAN_KIND => 'server',
@@ -109,7 +109,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/error?key=value&<redacted>',
+                        Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
@@ -138,7 +138,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /parameterized/paramValue'
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
-                        Tag::HTTP_URL => 'http://localhost:9999/parameterized/paramValue',
+                        Tag::HTTP_URL => 'http://localhost/parameterized/paramValue',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Parameterized::customAction',
                         Tag::SPAN_KIND => 'server',

@@ -1,4 +1,7 @@
 {
-	global: get_module;
+	global:
+		get_module;
+		dd_appsec_maybe_enable_helper;
+		dd_appsec_rc_conf;
 	local: *;
 };

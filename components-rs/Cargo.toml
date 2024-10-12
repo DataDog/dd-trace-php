@@ -12,11 +12,18 @@ ddcommon = { path = "../libdatadog/ddcommon" }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
+datadog-dynamic-configuration = { path = "../libdatadog/dynamic-configuration" }
+datadog-live-debugger = { path = "../libdatadog/live-debugger" }
+datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi", default-features = false }
+datadog-ipc = { path = "../libdatadog/ipc" }
+datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
+datadog-crashtracker-ffi = { path = "../libdatadog/crashtracker-ffi", default-features = false, features = ["collector"] }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
+itertools = "0.11.0"
 serde = "1.0.196"
 simd-json = "0.13.8"
 serde_with = "3.6.0"
@@ -33,6 +40,9 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
     "fmt",
     "env-filter",
 ] }
+serde_json = "1.0.113"
+regex = "1.10.5"
+regex-automata = "0.4.5"
 
 [build-dependencies]
 cbindgen = "0.26"

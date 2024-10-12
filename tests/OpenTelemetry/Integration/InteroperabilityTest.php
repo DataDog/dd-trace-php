@@ -3,6 +3,8 @@
 namespace DDTrace\Tests\OpenTelemetry\Integration;
 
 use DDTrace\SpanLink;
+use DDTrace\SpanEvent;
+use DDTrace\ExceptionSpanEvent;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -1174,5 +1176,150 @@ final class InteroperabilityTest extends BaseTestCase
             // Verify that the duplicate is not the same instance
             $this->assertNotSame($otelSpanLinks[1], $otelSpanLinks[3]);
         });
+    }
+
+    public function testSpanEventsInteroperabilityFromDatadogSpan()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = start_span();
+            $span->name = "dd.span";
+
+            $spanEvent = new SpanEvent(
+                "event-name", 
+                [ 
+                    'arg1' => 'value1', 
+                    'int_array' => [3, 4], 
+                    'string_array' => ["5", "6"]
+                ], 
+                1720037568765201300
+            );
+            $span->events[] = $spanEvent;
+
+            /** @var en $OTelSpan */
+            $otelSpan = Span::getCurrent();
+            $otelSpanEvent = $otelSpan->toSpanData()->getEvents()[0];
+
+            $this->assertSame('event-name', $otelSpanEvent->getName());
+            $this->assertSame([ 
+                'arg1' => 'value1', 
+                'int_array' => [3, 4], 
+                'string_array' => ["5", "6"]
+            ], $otelSpanEvent->getAttributes()->toArray());
+            $this->assertSame(1720037568765201300, (int)$otelSpanEvent->getEpochNanos());
+
+            close_span();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\",\"int_array\":[3,4],\"string_array\":[\"5\",\"6\"]}}]", $traces[0][0]['meta']['events']);
+    }
+
+    public function testSpanEventsInteroperabilityFromOpenTelemetrySpan()
+    {
+        $traces = $this->isolateTracer(function () {
+            $otelSpan = self::getTracer()->spanBuilder("otel.span")
+                ->startSpan();
+            $otelSpan->addEvent(
+                "event-name", 
+                [ 
+                    'arg1' => 'value1', 
+                    'int_array' => [3, 4], 
+                    'string_array' => ["5", "6"]
+                ], 
+                1720037568765201300
+            );
+
+            $activeSpan = active_span();
+            $spanEvent = $activeSpan->events[0];
+            $this->assertSame("event-name", $spanEvent->name);
+            $this->assertSame([ 
+                'arg1' => 'value1', 
+                'int_array' => [3, 4], 
+                'string_array' => ["5", "6"]
+            ], $spanEvent->attributes);
+            $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
+
+            $otelSpan->end();
+        });
+
+        $this->assertCount(1, $traces[0]);
+        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\",\"int_array\":[3,4],\"string_array\":[\"5\",\"6\"]}}]", $traces[0][0]['meta']['events']);
+    }
+
+    public function testOtelRecordExceptionAttributesSerialization()
+    {
+        $lastException = new \Exception("woof3");
+
+        $traces = $this->isolateTracer(function () use ($lastException)  {
+            $otelSpan = self::getTracer()->spanBuilder("operation")
+                ->recordException(new \Exception("woof1"), [
+                    "string_val" => "value",
+                    "exception.stacktrace" => "stacktrace1"
+                ])
+                ->startSpan();
+
+            $otelSpan->addEvent("non_exception_event", ["exception.stacktrace" => "non-error"]);
+            $otelSpan->recordException($lastException, ["exception.message" => "message override"]);
+
+            $otelSpan->end();
+        });
+
+        $events = json_decode($traces[0][0]['meta']['events'], true);
+        $this->assertCount(3, $events);
+    
+        $event1 = $events[0];
+        $this->assertSame('value', $event1['attributes']['string_val']);
+        $this->assertSame('woof1', $event1['attributes']['exception.message']);
+        $this->assertSame('stacktrace1', $event1['attributes']['exception.stacktrace']);
+    
+        $event2 = $events[1];
+        $this->assertSame('non-error', $event2['attributes']['exception.stacktrace']);
+    
+        $event3 = $events[2];
+        $this->assertSame('message override', $event3['attributes']['exception.message']);
+
+        $this->assertSame(\DDTrace\get_sanitized_exception_trace($lastException), $traces[0][0]['meta']['error.stack']);
+
+        $this->assertArrayNotHasKey('error.message', $traces[0][0]['meta']);
+        $this->assertArrayNotHasKey('error.type', $traces[0][0]['meta']);
+        $this->assertArrayNotHasKey('error', $traces[0][0]);
+    }
+
+    public function testExceptionSpanEvents()
+    {
+        $traces = $this->isolateTracer(function () {
+            $span = start_span();
+            $span->name = "dd.span";
+
+            $spanEvent = new ExceptionSpanEvent(
+                new \Exception("Test exception message"),
+                [ 
+                    'arg1' => 'value1', 
+                    'exception.stacktrace' => 'Stacktrace Override'
+                ]
+            );
+
+            $span->events[] = $spanEvent;
+
+            /** @var Span $otelSpan */
+            $otelSpan = Span::getCurrent();
+            $otelSpanEvent = $otelSpan->toSpanData()->getEvents()[0];
+
+            $this->assertSame('exception', $otelSpanEvent->getName());
+            $this->assertSame([ 
+                'exception.message' => 'Test exception message',
+                'exception.type' => 'Exception',
+                'exception.stacktrace' => 'Stacktrace Override',
+                'arg1' => 'value1'
+            ], $otelSpanEvent->getAttributes()->toArray());
+
+            close_span();
+        });
+        $event = json_decode($traces[0][0]['meta']['events'], true)[0];
+
+        $this->assertSame('Test exception message', $event['attributes']['exception.message']);
+        $this->assertSame('Exception', $event['attributes']['exception.type']);
+        $this->assertSame('Stacktrace Override', $event['attributes']['exception.stacktrace']);
+        $this->assertSame('value1', $event['attributes']['arg1']);
     }
 }

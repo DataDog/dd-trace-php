@@ -3,11 +3,10 @@ use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, zend_execute_data, zend_long, zval,
     InternalFunctionHandler,
 };
-use crate::{config, PROFILER};
+use crate::{config, Profiler};
 use ddcommon::cstr;
 use log::{error, warn};
 use std::ffi::CStr;
-use std::mem::forget;
 use std::ptr;
 
 static mut PCNTL_FORK_HANDLER: InternalFunctionHandler = None;
@@ -62,14 +61,13 @@ unsafe fn handle_fork(
     // Hold mutexes across the handler. If there are any spurious wakeups by
     // the threads while the fork is occurring, they cannot acquire locks
     // since this thread holds them, preventing a deadlock situation.
-    let mut profiler_lock = PROFILER.lock().unwrap();
-    if let Some(profiler) = profiler_lock.as_ref() {
-        profiler.fork_prepare();
+    if let Some(profiler) = Profiler::get() {
+        let _ = profiler.fork_prepare();
     }
 
     match dispatch(handler, execute_data, return_value) {
         Ok(ForkId::Parent) => {
-            if let Some(profiler) = profiler_lock.as_ref() {
+            if let Some(profiler) = Profiler::get() {
                 profiler.post_fork_parent();
             }
             return;
@@ -77,7 +75,7 @@ unsafe fn handle_fork(
         Ok(ForkId::Child) => { /* fallthrough */ }
         Err(ForkError::NullRetval) => {
             // Skip error message if no profiler.
-            if profiler_lock.is_some() {
+            if Profiler::get().is_some() {
                 error!(
                     "Failed to read return value of forking function. A crash or deadlock may occur."
                 );
@@ -87,7 +85,7 @@ unsafe fn handle_fork(
 
         Err(ForkError::ZvalType(r#type)) => {
             // Skip error message if no profiler.
-            if profiler_lock.is_some() {
+            if Profiler::get().is_some() {
                 warn!(
                     "Return type of forking function was unexpected: {type}. A crash or deadlock may occur."
                 );
@@ -101,9 +99,7 @@ unsafe fn handle_fork(
     //  2. Something went wrong, and disable it to be safe.
     // And then leak the old profiler. Its drop method is not safe to run in
     // these situations.
-    if let Some(profiler) = profiler_lock.take() {
-        forget(profiler);
-    }
+    Profiler::kill();
 
     alloc_prof_rshutdown();
 

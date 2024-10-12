@@ -27,6 +27,9 @@ final class Context implements ContextInterface
     /** @var ContextStorageInterface&ExecutionContextAwareInterface */
     private static ContextStorageInterface $storage;
 
+    /** @var string $storageClass */
+    private static string $storageClass = '';
+
     // Optimization for spans to avoid copying the context array.
     private static ContextKeyInterface $spanContextKey;
     private ?object $span = null;
@@ -58,8 +61,13 @@ final class Context implements ContextInterface
      */
     public static function storage(): ContextStorageInterface
     {
-        /** @psalm-suppress RedundantPropertyInitializationCheck */
-        return self::$storage ??= new ContextStorage();
+        if (self::$storageClass === '') {
+            self::$storageClass = class_exists('OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC')
+                ? 'OpenTelemetry\Context\FiberBoundContextStorageExecutionAwareBC' // v1.1+
+                : 'OpenTelemetry\Context\ContextStorage';
+        }
+
+        return self::$storage ??= new self::$storageClass();
     }
 
     /**
@@ -189,6 +197,12 @@ final class Context implements ContextInterface
             $links[] = new SDK\Link($linkSpanContext, Attributes::create($spanLink->attributes ?? []));
         }
 
+        // Check for span events
+        $events = [];
+        foreach ($currentSpan->events as $spanEvent) {
+            $events[] = new SDK\Event($spanEvent->name, (int)$spanEvent->timestamp, Attributes::create((array)$spanEvent->attributes ?? []));
+        }
+
         $OTelCurrentSpan = SDK\Span::startSpan(
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
@@ -201,6 +215,7 @@ final class Context implements ContextInterface
             [], // $attributesBuilder
             $links, // $links
             count($links), // $totalRecordedLinks
+            $events, //$events
             false // The span was created using the DD Api
         );
         ObjectKVStore::put($currentSpan, 'otel_span', $OTelCurrentSpan);

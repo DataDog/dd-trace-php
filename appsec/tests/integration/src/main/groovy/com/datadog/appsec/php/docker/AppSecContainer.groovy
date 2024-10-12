@@ -1,6 +1,9 @@
 package com.datadog.appsec.php.docker
 
 import com.datadog.appsec.php.mock_agent.MockDatadogAgent
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
+import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import com.github.dockerjava.api.command.CreateContainerCmd
@@ -73,9 +76,16 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_LOG_LEVEL', 'info,startup=off'
         withEnv 'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS', '0'
         withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
+        withEnv 'DD_TRACE_SIDECAR_TRACE_SENDER', '0'
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
         withEnv 'DD_TRACE_GIT_METADATA_ENABLED', '0'
+        withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
+        withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
+        withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
+        withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
+        withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
+        // withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
             withEnv 'XDEBUG', '1'
@@ -105,6 +115,18 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     void clearTraces() {
         mockDatadogAgent.drainTraces()
+    }
+
+    List<Object> drainTelemetry(int timeoutInMs) {
+        mockDatadogAgent.drainTelemetry(timeoutInMs)
+    }
+
+    void setNextRCResponse(Target target, RemoteConfigResponse nextResponse) {
+        mockDatadogAgent.setNextRCResponse(target, nextResponse)
+    }
+
+    RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
+        mockDatadogAgent.waitForRCVersion(target, version, timeoutInMs)
     }
 
     void close() {
@@ -205,6 +227,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withFileSystemBind(wwwDir, '/test-resources', BindMode.READ_ONLY)
         withFileSystemBind('src/test/waf/recommended.json',
                 '/etc/recommended.json', BindMode.READ_ONLY)
+        withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
@@ -217,6 +240,8 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         ensureVolume('php-composer-cache')
         addVolumeMount('php-composer-cache', '/root/.composer/cache')
+
+        addVolumeMount('php-tracer-cargo-cache', '/root/.cargo/registry')
 
         File composerFile
         if (phpVersion in ['7.0', '7.1']) {

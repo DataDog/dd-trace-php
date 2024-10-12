@@ -1,10 +1,10 @@
 --TEST--
-Track automated user login failure with disabled mode and verify there is no tags
+Track automated user login failure with disabled mode and verify there are no tags
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=disabled
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=disabled
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;

@@ -45,11 +45,14 @@ extern bool runtime_config_first_init;
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
     SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                                                     \
-    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/ddappsec-helper"))                                                             \
+    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/libddappsec-helper.so"))                                                       \
+    SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \
+    SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32")                                                                                \
+    SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACES, "2")                                                                                      \
     CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)                                    \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
+    SYSCFG(STRING, DD_APPSEC_HELPER_LOG_LEVEL, "info")                                                                                \
     CONFIG(CUSTOM(SET), DD_EXTRA_SERVICES, "", .parser = _parse_list)                                                                 \
-    CONFIG(STRING, DD_APPSEC_HELPER_EXTRA_ARGS, "")                                                                                   \
     CONFIG(STRING, DD_SERVICE, "")                                                                                                    \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
@@ -60,7 +63,9 @@ extern bool runtime_config_first_init;
     CONFIG(INT, DD_APPSEC_MAX_BODY_BUFF_SIZE, "524288")                                                                               \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                                            \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true")                                                                                            \
-    CONFIG(CUSTOM(STRING), DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING, "safe", .parser = dd_parse_automated_user_events_tracking)       \
+    CALIAS(CUSTOM(STRING), DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE, "ident",                              \
+           CALIASES("DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING"), .parser = dd_parse_user_collection_mode)                  \
+    CONFIG(BOOL, DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED, "true")                                                            \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
     CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1", .ini_change = zai_config_system_ini_change)                            \

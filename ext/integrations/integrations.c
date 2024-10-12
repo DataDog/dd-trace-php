@@ -124,10 +124,10 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                             LOG(DEBUG, "Loaded integration %s", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_LOADED:
-                            LOG(DEBUG, "Integration %s not available. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not loaded, possibly unsupported version. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
-                            LOG(DEBUG, "Integration {name} not loaded. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration {name} not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
                             unload_hooks = false;
                             break;
                         default:
@@ -419,6 +419,11 @@ void ddtrace_integrations_minit(void) {
                                              "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Drupal\\Core\\DrupalKernel", "__construct",
                                              "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONYMESSENGER, "Symfony\\Component\\Messenger\\Worker", "__construct",
+                                             "DDTrace\\Integrations\\SymfonyMessenger\\SymfonyMessengerIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONYMESSENGER, "Symfony\\Component\\Messenger\\MessageBusInterface", "dispatch",
+                                         "DDTrace\\Integrations\\SymfonyMessenger\\SymfonyMessengerIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_SQLSRV, "sqlsrv_connect",
                                          "DDTrace\\Integrations\\SQLSRV\\SQLSRVIntegration");

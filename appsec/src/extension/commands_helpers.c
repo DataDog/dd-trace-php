@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
+#include "backtrace.h"
 #include "commands_ctx.h"
 #include "configuration.h"
 #include "ddappsec.h"
@@ -175,7 +176,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return dd_error;
         }
         if (res != dd_success && res != dd_should_block &&
-            res != dd_should_redirect) {
+            res != dd_should_redirect && res != dd_should_record) {
             mlog(dd_log_warning, "Processing for command %.*s failed: %s",
                 NAME_L, dd_result_to_string(res));
             return res;
@@ -419,6 +420,22 @@ static void _command_process_redirect_parameters(mpack_node_t root)
 
     dd_set_redirect_code_and_location(status_code, location);
 }
+static void _command_process_stack_trace_parameters(mpack_node_t root)
+{
+    size_t count = mpack_node_map_count(root);
+    for (size_t i = 0; i < count; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+        if (dd_mpack_node_lstr_eq(key, "stack_id")) {
+            zend_string *id = NULL;
+            size_t id_len = mpack_node_strlen(value);
+            id = zend_string_init(mpack_node_str(value), id_len, 0);
+            dd_report_exploit_backtrace(id);
+            zend_string_release(id);
+            break;
+        }
+    }
+}
 
 dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
 {
@@ -456,6 +473,9 @@ dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
         } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
                    res == dd_success) {
             res = dd_should_record;
+        } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace")) {
+            _command_process_stack_trace_parameters(
+                mpack_node_array_at(action, 1));
         }
     }
 

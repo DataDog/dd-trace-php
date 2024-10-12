@@ -10,6 +10,8 @@ use DDTrace\Util\Obfuscation;
 
 final class MemcacheTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "memcache";
+
     /**
      * @var \Memcache
      */

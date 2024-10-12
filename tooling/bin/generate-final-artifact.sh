@@ -133,14 +133,14 @@ for architecture in "${architectures[@]}"; do
         done
 
         # Helper
-        mkdir -p "${tmp_folder_final_gnu_appsec}/bin" "${tmp_folder_final_musl_appsec}/bin"
+        mkdir -p "${tmp_folder_final_gnu_appsec}/lib" "${tmp_folder_final_musl_appsec}/lib"
         cp \
-            "./appsec_${architecture}/ddappsec-helper" \
-            "${tmp_folder_final_gnu_appsec}/bin/ddappsec-helper"
+            "./appsec_${architecture}/libddappsec-helper.so" \
+            "${tmp_folder_final_gnu_appsec}/lib/libddappsec-helper.so"
 
         cp \
-            "./appsec_${architecture}/ddappsec-helper" \
-            "${tmp_folder_final_musl_appsec}/bin/ddappsec-helper"
+            "./appsec_${architecture}/libddappsec-helper.so" \
+            "${tmp_folder_final_musl_appsec}/lib/libddappsec-helper.so"
 
         # Recommended rules
         mkdir -p "${tmp_folder_final_gnu_appsec}/etc" "${tmp_folder_final_musl_appsec}/etc"

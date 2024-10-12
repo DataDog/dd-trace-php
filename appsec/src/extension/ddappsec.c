@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
+#include "backtrace.h"
 #include "commands/client_init.h"
 #include "commands/config_sync.h"
 #include "commands/request_exec.h"
@@ -32,6 +33,7 @@
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
+#include "msgpack_helpers.h"
 #include "network.h"
 #include "php_compat.h"
 #include "php_helpers.h"
@@ -43,6 +45,7 @@
 #include "user_tracking.h"
 
 #include <json/json.h>
+#include <zend_string.h>
 
 #if ZTS
 static atomic_int _thread_count;
@@ -98,7 +101,7 @@ static zend_extension ddappsec_extension_entry = {
     PHP_DDAPPSEC_EXTNAME,
     PHP_DDAPPSEC_VERSION,
     "Datadog",
-    "https://github.com/DataDog/dd-appsec-php",
+    "https://github.com/DataDog/dd-trace-php",
     "Copyright Datadog",
     ddappsec_startup,
     NULL,
@@ -218,6 +221,8 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
+    dd_backtrace_startup();
+    dd_msgpack_helpers_startup();
 
     return SUCCESS;
 }
@@ -241,9 +246,28 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
-
 static void _rinit_once() { dd_config_first_rinit(); }
+
+void dd_appsec_rinit_once()
+{
+    static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
+    pthread_once(&_rinit_once_control, _rinit_once);
+}
+
+static void _warn_on_empty_service_or_env()
+{
+    if (!get_global_DD_APPSEC_TESTING() && get_DD_REMOTE_CONFIG_ENABLED() &&
+        DDAPPSEC_G(enabled) != APPSEC_FULLY_DISABLED &&
+        (zend_string_equals_literal(get_DD_ENV(), "") ||
+            zend_string_equals_literal(get_DD_SERVICE(), ""))) {
+        mlog(dd_log_warning,
+            "AppSec is not disabled and Datadog service or env is empty. "
+            "Please set DD_SERVICE and DD_ENV rather than setting the "
+            "corresponding properties on the root span. Otherwise, remote "
+            "configuration for AppSec will use service=unnamed-php-service and "
+            "env=none");
+    }
+}
 
 // NOLINTNEXTLINE
 static PHP_RINIT_FUNCTION(ddappsec)
@@ -254,9 +278,10 @@ static PHP_RINIT_FUNCTION(ddappsec)
     // Safety precaution
     DDAPPSEC_G(during_request_shutdown) = false;
 
-    pthread_once(&_rinit_once_control, _rinit_once);
+    dd_appsec_rinit_once();
     zai_config_rinit();
     _check_enabled();
+    _warn_on_empty_service_or_env();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         return SUCCESS;
@@ -368,6 +393,23 @@ static void _check_enabled()
         DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
         // leave DDAPPSEC_G(active) as is
     };
+}
+
+__attribute__((visibility("default"))) void dd_appsec_rc_conf(
+    bool *nonnull appsec_features, bool *nonnull appsec_conf) // NOLINT
+{
+    bool prev_enabled = DDAPPSEC_G(enabled);
+    bool prev_active = DDAPPSEC_G(active);
+    bool prev_to_be_configured = DDAPPSEC_G(to_be_configured);
+    _check_enabled();
+
+    *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
+    // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
+    *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
+
+    DDAPPSEC_G(enabled) = prev_enabled;
+    DDAPPSEC_G(active) = prev_active;
+    DDAPPSEC_G(to_be_configured) = prev_to_be_configured;
 }
 
 static PHP_FUNCTION(datadog_appsec_is_enabled)
