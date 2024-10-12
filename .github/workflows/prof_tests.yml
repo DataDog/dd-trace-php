@@ -19,22 +19,17 @@ jobs:
           - "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
           - "datadog/dd-trace-ci:php-compile-extension-alpine-8.2"
           - "datadog/dd-trace-ci:php-compile-extension-alpine-8.3"
-          # - "datadog/dd-trace-ci:php-7.1_centos-7"
-          # - "datadog/dd-trace-ci:php-7.2_centos-7"
-          # - "datadog/dd-trace-ci:php-7.3_centos-7"
-          # - "datadog/dd-trace-ci:php-7.4_centos-7"
-          # - "datadog/dd-trace-ci:php-8.0_centos-7"
-          # - "datadog/dd-trace-ci:php-8.1_centos-7"
-          # - "datadog/dd-trace-ci:php-8.2_centos-7"
-          # - "datadog/dd-trace-ci:php-8.3_centos-7"
+          - "datadog/dd-trace-ci:php-7.1_buster"
+          - "datadog/dd-trace-ci:php-7.2_buster"
+          - "datadog/dd-trace-ci:php-7.3_buster"
+          - "datadog/dd-trace-ci:php-7.4_buster"
+          - "datadog/dd-trace-ci:php-8.0_buster"
+          - "datadog/dd-trace-ci:php-8.1_buster"
+          - "datadog/dd-trace-ci:php-8.2_buster"
+          - "datadog/dd-trace-ci:php-8.3_buster"
         architecture:
           - x86_64
           - aarch64
-        # triplet:
-          # - "x86_64-alpine-linux-musl"
-          # - "aarch64-alpine-linux-musl"
-          # - "x86_64-unknown-linux-gnu"
-          # - "aarch64-unknown-linux-gnu"
     runs-on: ${{ matrix.architecture == 'aarch64' && 'arm-8core-linux' || 'ubuntu-latest' }}
 
     container:
@@ -55,7 +50,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: target
-          key: cargo-cache-${{ matrix.triplet }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-cache-${{ matrix.docker_image }}-${{ hashFiles('Cargo.lock') }}
 
       - name: Run cargo tests
         run: |
@@ -64,16 +59,15 @@ jobs:
               source scl_source enable devtoolset-7
               set -eo pipefail
           fi
-          set -u
-          command -v switch-php && switch-php "${PHP_VERSION}"
+          set -eux
+          switch-php "${PHP_VERSION}"
           cd profiling
           cargo test --release --all-features
 
       - name: Run phpt tests NTS
         run: |
-          set -u
-          command -v switch-php && switch-php "${PHP_VERSION}"
-          set -e
+          set -eux
+          switch-php "${PHP_VERSION}"
           libdir="/tmp/datadog-profiling"
           cd profiling
           cargo build --release --all-features
@@ -85,9 +79,8 @@ jobs:
 
       - name: Run phpt tests ZTS
         run: |
-          set -u
-          command -v switch-php && switch-php "${PHP_VERSION}-zts"
-          set -e
+          set -eux
+          switch-php "${PHP_VERSION}-zts"
           libdir="/tmp/datadog-profiling"
           cd profiling
           touch build.rs
@@ -101,9 +94,8 @@ jobs:
       # - name: Run clippy NTS (for select platforms)
       #   if: matrix.triplet == 'x86_64-unknown-linux-gnu'
       #   run: |
-      #     set -u
-      #     command -v switch-php && switch-php "${PHP_VERSION}"
-      #     set -e
+      #     set -eux
+      #     switch-php "${PHP_VERSION}"
       #     cd profiling
       #     touch build.rs
       #     sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
