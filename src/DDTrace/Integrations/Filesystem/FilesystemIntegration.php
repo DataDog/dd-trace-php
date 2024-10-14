@@ -12,6 +12,10 @@ class FilesystemIntegration extends Integration
 
     public function init(): int
     {
+        if (!\dd_trace_env_config("DD_APPSEC_RASP_ENABLED")) {
+            return Integration::LOADED;
+        }
+
         if (!function_exists('\datadog\appsec\push_address')) {
             //Dont load Appsec wrappers is not available
             return Integration::LOADED;
@@ -60,6 +64,15 @@ class FilesystemIntegration extends Integration
     {
         return static function (HookData $hook) use ($variant) {
             if (count($hook->args) == 0 || !is_string($hook->args[0])) {
+                return;
+            }
+
+            $protocol = [];
+            if (
+                preg_match('/^[a-z]+\:\/\//', $hook->args[0], $protocol) &&
+                isset($protocol[0]) &&
+                $protocol[0] !== 'file')
+            {
                 return;
             }
 
