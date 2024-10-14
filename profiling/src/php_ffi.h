@@ -16,6 +16,12 @@
 
 #include <ext/standard/info.h>
 
+// Needed for `zend_observer_error_register` starting from PHP 8
+#if CFG_ZEND_ERROR_OBSERVER // defined by build.rs
+#include <Zend/zend_errors.h>
+#include <Zend/zend_observer.h>
+#endif
+
 // Profiling needs ZAI config for INI support.
 #include <config/config.h>
 // And json to cleanup json state for graceful restart
