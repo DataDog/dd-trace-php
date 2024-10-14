@@ -10,6 +10,7 @@ ENV ACCEPT_EULA=Y
 # version.
 ENV DEVLIBS \
     libclang-17-dev \
+    libclang-rt-17-dev \
     llvm-17-dev \
     lld-17 \
     libcurl4-openssl-dev \
