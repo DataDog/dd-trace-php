@@ -2,6 +2,7 @@
 Abort request as a result of rinit, using defaults
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;

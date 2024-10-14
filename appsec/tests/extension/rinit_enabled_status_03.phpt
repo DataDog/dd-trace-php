@@ -2,6 +2,7 @@
 When extension is not configured, it is sent to the helper
 --INI--
 datadog.appsec.log_file=/tmp/php_appsec_test.log
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};

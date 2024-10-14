@@ -2,6 +2,7 @@
 Redirect request as a result of rinit, with custom status_code and location
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;

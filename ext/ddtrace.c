@@ -846,7 +846,7 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
     object_init_ex(return_value, ddtrace_ce_span_link);
     ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(return_value);
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         return;
     }
 
@@ -1576,7 +1576,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 #endif
     }
 
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         dd_initialize_request();
     }
 
@@ -1686,7 +1686,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     // run unconditionally because ddtrace may've been disabled mid-request
     ddtrace_exec_handlers_rshutdown();
 
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         dd_force_shutdown_tracing();
     } else if (!ddtrace_disable) {
         dd_shutdown_hooks_and_observer();
@@ -1874,7 +1874,7 @@ PHP_FUNCTION(DDTrace_add_global_tag) {
         RETURN_NULL();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_NULL();
     }
 
@@ -1894,7 +1894,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
         RETURN_NULL();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_NULL();
     }
 
@@ -1930,7 +1930,7 @@ PHP_FUNCTION(DDTrace_set_user) {
         RETURN_NULL();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_NULL();
     }
 
@@ -1991,7 +1991,7 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
         RETURN_THROWS();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         array_init(return_value);
         return;
     }
@@ -2052,7 +2052,7 @@ PHP_FUNCTION(dd_trace_serialize_msgpack) {
         RETURN_THROWS();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -2065,7 +2065,7 @@ PHP_FUNCTION(dd_trace_serialize_msgpack) {
 PHP_FUNCTION(dd_trace_noop) {
     UNUSED(execute_data);
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_BOOL(0);
     }
 
@@ -2127,7 +2127,7 @@ PHP_FUNCTION(ddtrace_config_integration_enabled) {
         RETURN_NULL();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_FALSE;
     }
 
@@ -2246,7 +2246,7 @@ void dd_internal_handle_fork(void) {
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         if (get_DD_DISTRIBUTED_TRACING()) {
             DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
             DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
@@ -2392,7 +2392,7 @@ PHP_FUNCTION(dd_trace_buffer_span) {
     }
 
 #ifndef _WIN32
-    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+    if ((!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         RETURN_BOOL(0);
     }
 
@@ -2417,7 +2417,7 @@ PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
     }
 
 #ifndef _WIN32
-    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+    if ((!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         RETURN_LONG(0);
     }
 
@@ -2609,7 +2609,7 @@ PHP_FUNCTION(DDTrace_active_span) {
         RETURN_THROWS();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_NULL();
     }
     dd_ensure_root_span();
@@ -2626,7 +2626,7 @@ PHP_FUNCTION(DDTrace_root_span) {
         RETURN_THROWS();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_NULL();
     }
     dd_ensure_root_span();
@@ -2646,7 +2646,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
 
     ddtrace_span_data *span;
 
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         span = ddtrace_open_span(DDTRACE_USER_SPAN);
     } else {
         span = ddtrace_init_dummy_span();
@@ -2666,7 +2666,7 @@ PHP_FUNCTION(DDTrace_start_span) {
 
 /* {{{ proto string DDTrace\start_trace_span() */
 PHP_FUNCTION(DDTrace_start_trace_span) {
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         ddtrace_span_stack *stack = ddtrace_init_root_span_stack();
         ddtrace_switch_span_stack(stack);
         GC_DELREF(&stack->std); // We don't retain a ref to it, it's now the active_stack
@@ -2748,7 +2748,7 @@ PHP_FUNCTION(DDTrace_create_stack) {
         RETURN_THROWS();
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_OBJ(&ddtrace_init_root_span_stack()->std);
     }
 
@@ -2891,7 +2891,7 @@ PHP_FUNCTION(DDTrace_current_context) {
 
     zval tags;
     array_init(&tags);
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         ddtrace_get_propagated_tags(Z_ARR(tags));
     }
     add_assoc_zval_ex(return_value, ZEND_STRL("distributed_tracing_propagated_tags"), &tags);
@@ -2910,7 +2910,7 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
         zend_type_error("DDTrace\\set_distributed_tracing_context expects parameter 4 to be of type array, string or null, %s given", zend_zval_value_name(tags));
     }
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         RETURN_FALSE;
     }
 
@@ -3050,7 +3050,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     ZEND_PARSE_PARAMETERS_END_EX(*success = false; return (ddtrace_distributed_tracing_result){0});
 
     *success = true;
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         return (ddtrace_distributed_tracing_result){0};
     }
 
@@ -3068,7 +3068,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     bool success;
     ddtrace_distributed_tracing_result result = dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
-    if (success && get_DD_TRACE_ENABLED()) {
+    if (success && (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED())) {
         ddtrace_apply_distributed_tracing_result(&result, DDTRACE_G(active_stack)->root_span);
     }
 
@@ -3085,7 +3085,7 @@ PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
     ZEND_PARSE_PARAMETERS_END();
 
     array_init(return_value);
-    if (get_DD_TRACE_ENABLED()) {
+    if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         if (inject) {
             zend_array *inject_set = zend_new_array(zend_hash_num_elements(inject));
             zval *val;
@@ -3238,7 +3238,7 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
         }
 #endif
 
-        if (get_DD_TRACE_ENABLED()) {
+        if (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
             if (DDTRACE_G(curl_multi_injecting_spans) && GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
                 rc_dtor_func((zend_refcounted *) DDTRACE_G(curl_multi_injecting_spans));
             }

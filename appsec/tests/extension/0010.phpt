@@ -2,6 +2,7 @@
 Check for ddappsec presence
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --FILE--
 <?php
 if (extension_loaded('ddappsec')) {

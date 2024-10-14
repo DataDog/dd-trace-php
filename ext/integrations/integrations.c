@@ -71,7 +71,7 @@ void dd_integration_aux_free(void *auxiliary) {
 static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     (void) dynamic, (void) retval, (void) invocation;
 
-    if (!get_DD_TRACE_ENABLED()) {
+    if (!get_DD_TRACE_ENABLED() && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         return;
     }
 
@@ -118,7 +118,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
 
                 zval_ptr_dtor(&obj);
 
-                if (success && get_DD_TRACE_ENABLED()) {
+                if (success && (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED())) {
                     switch (Z_LVAL(rv)) {
                         case DD_TRACE_INTEGRATION_LOADED:
                             LOG(DEBUG, "Loaded integration %s", ZSTR_VAL(aux->classname));
@@ -138,7 +138,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             } while (0);
         } zend_catch {
         } zend_end_try();
-        if ((!success || PG(last_error_message)) && get_DD_TRACE_ENABLED()) {
+        if ((!success || PG(last_error_message)) && (get_DD_TRACE_ENABLED() || get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED())) {
             LOGEV(WARN, {
                 zend_object *ex = EG(exception);
                 if (ex) {

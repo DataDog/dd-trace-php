@@ -2,6 +2,7 @@
 Redirect request as a result of rinit, with invalid status_code and valid location
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;

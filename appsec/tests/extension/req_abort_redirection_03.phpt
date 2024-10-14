@@ -4,6 +4,7 @@ Redirect request as a result of rinit, with valid status_code and invalid locati
 Since location is empty, it defaults to block request with default behaviour
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit, rshutdown};

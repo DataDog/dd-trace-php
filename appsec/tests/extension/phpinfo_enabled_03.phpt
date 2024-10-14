@@ -2,6 +2,7 @@
 Check enablement status when disabled by config
 --INI--
 datadog.appsec.enabled=0
+extension=ddtrace.so
 --FILE--
 <?php
 include __DIR__ . '/inc/phpinfo.php';

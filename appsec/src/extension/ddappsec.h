@@ -18,7 +18,8 @@
 typedef enum _enabled_configuration {
     APPSEC_ENABLED_VIA_REMCFG = 0,
     APPSEC_FULLY_ENABLED,
-    APPSEC_FULLY_DISABLED
+    APPSEC_FULLY_DISABLED,
+    APPSEC_ENABLED_STANDALONE
 } enabled_configuration;
 
 // define zend_ddappsec_globals type
