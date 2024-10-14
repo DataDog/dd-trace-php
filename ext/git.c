@@ -225,6 +225,7 @@ zend_string* get_current_working_directory() {
         return get_directory_from_path_translated();
     }
 
+    zend_is_auto_global_str(ZEND_STRL("_SERVER"));
     zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
     zval *script_filename = zend_hash_str_find(Z_ARRVAL_P(_server_zv), ZEND_STRL("SCRIPT_FILENAME"));
 

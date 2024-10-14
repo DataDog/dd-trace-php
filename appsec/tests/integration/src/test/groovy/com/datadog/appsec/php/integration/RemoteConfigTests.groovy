@@ -327,25 +327,26 @@ class RemoteConfigTests {
 
         doReq.call(200, '/hello.php', ['User-agent': 'dd-test-scanner-log-block'])
 
-        // changes env at the end of the request. The new rem cfg path is not transmitted
-        // to helper because appsec transmit rc path on req init
+        // changes env during the the request. The new rem cfg path is transmitted on a
+        // config_sync on rshutdown
         doReq.call(200, '/change_env.php?env=another-env')
 
-        // new rem cfg path is transmitted to the helper on config_sync
-        doReq.call(200, '/change_env.php?env=another-env')
-
+        // enable appsec for another-env
         applyRemoteConfig(newTarget, [
-                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]]])
+                'datadog/2/ASM_FEATURES/asm_features_activation2/config': [asm: [enabled: true]]])
 
         def status = doReq.call(null, '/hello.php', ['User-agent': 'dd-test-scanner-log-block'])
-        if (status == 200) {
-            assumeTrue(false, "Test fails because env of rc client is reset on ddtrace_sidecar_rinit(), " +
-                    "which runs before appsec rinit")
-        }
+        assert status == 403
+
+        // last request reset the target to INITIAL_TARGET, where appsec is disabled
+        // after this request, the target is reset to newTarget
+        status = doReq.call(null, '/change_env.php?env=another-env&ini', ['User-agent': 'dd-test-scanner-log-block'])
+        assert status == 200
+
+        status = doReq.call(null, '/hello.php', ['User-agent': 'dd-test-scanner-log-block'])
         assert status == 403
 
         dropRemoteConfig(INITIAL_TARGET)
-        dropRemoteConfig(newTarget)
     }
 
     private RemoteConfigRequest applyRemoteConfig(Target target, Map<String, Map> files) {

@@ -66,6 +66,7 @@ struct ddog_RemoteConfigReader *ddog_remote_config_reader_for_endpoint(const ddo
                                                                        ddog_CharSlice service_name,
                                                                        ddog_CharSlice env_name,
                                                                        ddog_CharSlice app_version,
+                                                                       const struct ddog_Vec_Tag *tags,
                                                                        const enum ddog_RemoteConfigProduct *remote_config_products,
                                                                        uintptr_t remote_config_products_count,
                                                                        const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,

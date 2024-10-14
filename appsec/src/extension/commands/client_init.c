@@ -58,9 +58,9 @@ static dd_result _pack_command(
         bool has_rules_file = rules_file && *rules_file;
 
         if (!has_rules_file) {
-            mlog(dd_log_info,
+            mlog(dd_log_debug,
                 "datadog.appsec.rules was not provided. The helper "
-                "will atttempt to use the default file");
+                "will atttempt to use the default file/remote config");
         }
         dd_mpack_write_nullable_cstr(w, rules_file);
     }
