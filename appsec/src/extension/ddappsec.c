@@ -476,9 +476,9 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 
 static PHP_FUNCTION(datadog_appsec_push_address)
 {
-    struct timeval start;
-    struct timeval end;
-    gettimeofday(&start, NULL);
+    struct timespec start;
+    struct timespec end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -516,10 +516,12 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     zval_ptr_dtor(&parameters_zv);
 
     if (rasp && (res == dd_should_block || res == dd_should_redirect)) {
-        gettimeofday(&end, NULL);
-        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
-                  (end.tv_usec - start.tv_usec);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+        elapsed =
+            ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
+                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                (int64_t)1000000000 +
+            ((int64_t)end.tv_nsec - (int64_t)start.tv_nsec);
         zend_object *span = dd_trace_get_active_root_span();
         if (span) {
             dd_tags_add_rasp_duration_ext(span, elapsed);
@@ -539,10 +541,12 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     }
 
     if (rasp && elapsed == 0) {
-        gettimeofday(&end, NULL);
-        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        elapsed = ((end.tv_sec - start.tv_sec) * 1000000) +
-                  (end.tv_usec - start.tv_usec);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+        elapsed =
+            ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
+                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                (int64_t)1000000000 +
+            ((int64_t)end.tv_nsec - (int64_t)start.tv_nsec);
         zend_object *span = dd_trace_get_active_root_span();
         if (span) {
             dd_tags_add_rasp_duration_ext(span, elapsed);
