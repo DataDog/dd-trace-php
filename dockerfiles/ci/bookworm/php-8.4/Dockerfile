@@ -7,7 +7,7 @@ ENV LSAN_OPTIONS="suppressions=/home/circleci/suppr.txt,print_suppressions=0"
 
 COPY php-8.4/suppr.txt /home/circleci/suppr.txt
 
-FROM --platform=$BUILDPLATFORM $BUILD_BASE as src
+FROM --platform=$BUILDPLATFORM $BUILD_BASE AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
@@ -33,25 +33,25 @@ RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
 COPY build-php.sh /home/circleci
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
-FROM build as php-debug
+FROM build AS php-debug
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-nts
+FROM build AS php-nts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-zts
+FROM build AS php-zts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-debug-zts-asan
+FROM build AS php-debug-zts-asan
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts-asan $PHP_VERSION \
     && mv /tmp/build-php/sapi/cli/php /tmp/build-php/sapi/cli/php-asan
@@ -63,7 +63,7 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
-FROM build as php-nts-asan
+FROM build AS php-nts-asan
   ARG TARGETPLATFORM
   RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts-asan $PHP_VERSION \
     && mv /tmp/build-php/sapi/cli/php /tmp/build-php/sapi/cli/php-asan
@@ -82,7 +82,7 @@ FROM build as php-nts-asan
   RUN /home/circleci/build-extensions.sh
   RUN mv /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/nts-asan/bin/php
 
-FROM base as final
+FROM base AS final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
 COPY --chown=circleci:circleci --from=php-nts-asan $PHP_INSTALL_DIR/nts-asan $PHP_INSTALL_DIR/nts-asan
