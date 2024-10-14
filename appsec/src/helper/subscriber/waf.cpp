@@ -78,7 +78,7 @@ DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
     case spdlog::level::trace:
         return DDWAF_LOG_TRACE;
     case spdlog::level::debug:
-        return DDWAF_LOG_DEBUG;
+    // libddwaf is too verbose at debug level
     case spdlog::level::info:
         return DDWAF_LOG_INFO;
     case spdlog::level::warn:
@@ -101,10 +101,8 @@ void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
     auto new_level = spdlog::level::off;
     switch (level) {
     case DDWAF_LOG_TRACE:
-        new_level = spdlog::level::trace;
-        break;
     case DDWAF_LOG_DEBUG:
-        new_level = spdlog::level::debug;
+        new_level = spdlog::level::trace;
         break;
     case DDWAF_LOG_INFO:
         new_level = spdlog::level::info;
