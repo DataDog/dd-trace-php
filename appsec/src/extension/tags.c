@@ -303,7 +303,8 @@ void dd_tags_set_event_user_id(zend_string *nonnull zstr)
     _event_user_id = zend_string_copy(zstr);
 }
 
-void dd_tags_add_rasp_duration_ext(zend_object *nonnull span, long duration)
+void dd_tags_add_rasp_duration_ext(
+    zend_object *nonnull span, zend_long duration)
 {
     zval *metrics_zv = dd_trace_span_get_metrics(span);
     if (!metrics_zv) {

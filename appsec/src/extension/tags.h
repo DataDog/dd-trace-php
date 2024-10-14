@@ -28,4 +28,5 @@ void dd_tags_set_event_user_id(zend_string *nonnull zstr);
 // does not increase the refcount on zstr
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr);
 
-void dd_tags_add_rasp_duration_ext(zend_object *nonnull span, long duration);
+void dd_tags_add_rasp_duration_ext(
+    zend_object *nonnull span, zend_long duration);
