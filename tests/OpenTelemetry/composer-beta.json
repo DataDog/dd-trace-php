@@ -1,0 +1,9 @@
+{
+    "name": "datadog/dd-trace-tests",
+    "require": {
+        "open-telemetry/sdk": "@beta",
+        "open-telemetry/extension-propagator-b3": "@beta",
+        "open-telemetry/opentelemetry-logger-monolog": "@beta"
+    },
+    "minimum-stability": "beta"
+}

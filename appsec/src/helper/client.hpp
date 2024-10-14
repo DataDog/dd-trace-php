@@ -61,6 +61,10 @@ public:
     void run(worker::queue_consumer &q);
     bool compute_client_status();
 
+    void update_remote_config_path(std::string_view path,
+        std::map<std::string, std::string> &meta,
+        std::map<std::string_view, double> &metrics);
+
 protected:
     template <typename T>
     std::shared_ptr<typename T::response> publish(typename T::request &command);
@@ -71,11 +75,11 @@ protected:
     uint32_t version{};
     network::base_broker::ptr broker_;
     std::shared_ptr<service_manager> service_manager_;
+    std::optional<dds::engine_settings> engine_settings_;
     std::shared_ptr<service> service_ = {nullptr};
     std::optional<engine::context> context_;
     std::optional<bool> client_enabled_conf;
     bool request_enabled_ = {false};
-    std::string runtime_id_;
 };
 
 } // namespace dds

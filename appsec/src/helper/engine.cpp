@@ -4,9 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <algorithm>
-#include <rapidjson/rapidjson.h>
-#include <set>
-#include <spdlog/fmt/ostr.h>
+#include <memory>
 #include <spdlog/spdlog.h>
 
 #include "engine.hpp"
@@ -19,17 +17,16 @@
 
 namespace dds {
 
-void engine::subscribe(const subscriber::ptr &sub)
+void engine::subscribe(std::unique_ptr<subscriber> sub)
 {
-    auto common = std::atomic_load(&common_);
-    common->subscribers.emplace_back(sub);
+    common_->subscribers.emplace_back(std::move(sub));
 }
 
 void engine::update(engine_ruleset &ruleset,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
-    std::vector<subscriber::ptr> new_subscribers;
+    std::vector<std::unique_ptr<subscriber>> new_subscribers;
     new_subscribers.reserve(common_->subscribers.size());
     dds::parameter param = json_to_parameter(ruleset.get_document());
     for (auto &sub : common_->subscribers) {
@@ -38,18 +35,17 @@ void engine::update(engine_ruleset &ruleset,
         } catch (const std::exception &e) {
             SPDLOG_WARN("Failed to update subscriber {}: {}", sub->get_name(),
                 e.what());
-            new_subscribers.emplace_back(sub);
+            return; // no partial updates
         } catch (...) {
             SPDLOG_WARN("Failed to update subscriber {}: unknown reason",
                 sub->get_name());
-            new_subscribers.emplace_back(sub);
+            return;
         }
     }
 
-    std::shared_ptr<shared_state> const new_common(
-        new shared_state{std::move(new_subscribers)});
-
-    std::atomic_store(&common_, new_common);
+    auto new_common = std::make_shared<shared_state>(
+        shared_state{std::move(new_subscribers)});
+    std::atomic_store_explicit(&common_, new_common, std::memory_order_release);
 }
 
 std::optional<engine::result> engine::context::publish(parameter &&param)
@@ -70,12 +66,18 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
     event event_;
 
     for (auto &sub : common_->subscribers) {
-        auto it = listeners_.find(sub);
+        auto it = listeners_.find(sub.get());
         if (it == listeners_.end()) {
-            it = listeners_.emplace(sub, sub->get_listener()).first;
+            auto listener = sub->get_listener();
+            assert(listener.get() != nullptr);
+            auto &&[iterator, inserted] =
+                listeners_.emplace(sub.get(), std::move(listener));
+            assert(inserted == true);
+            it = iterator;
         }
         try {
-            it->second->call(data, event_);
+            const auto &listener = it->second;
+            listener->call(data, event_);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }
@@ -116,21 +118,22 @@ void engine::context::get_meta_and_metrics(
     }
 }
 
-engine::ptr engine::from_settings(const dds::engine_settings &eng_settings,
+std::unique_ptr<engine> engine::from_settings(
+    const dds::engine_settings &eng_settings,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
-
 {
     auto &&rules_path = eng_settings.rules_file_or_default();
     auto ruleset = engine_ruleset::from_path(rules_path);
-    std::shared_ptr engine_ptr{engine::create(eng_settings.trace_rate_limit)};
+    std::unique_ptr<engine> engine_ptr{
+        engine::create(eng_settings.trace_rate_limit)};
 
     try {
         SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
         // may throw std::exception
-        const subscriber::ptr waf =
+        auto waf =
             waf::instance::from_settings(eng_settings, ruleset, meta, metrics);
-        engine_ptr->subscribe(waf);
+        engine_ptr->subscribe(std::move(waf));
     } catch (...) {
         DD_STDLOG(DD_STDLOG_WAF_INIT_FAILED, rules_path);
         throw;

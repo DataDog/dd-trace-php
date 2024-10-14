@@ -4,6 +4,8 @@ Inherit some global metadata from parent span
 datadog.trace.generate_root_span=0
 datadog.env = badenv
 datadog.version = badversion
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 

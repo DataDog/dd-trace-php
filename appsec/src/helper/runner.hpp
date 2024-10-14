@@ -17,7 +17,7 @@
 
 namespace dds {
 
-class runner {
+class runner : public std::enable_shared_from_this<runner> {
 public:
     runner(const config::config &cfg, std::atomic<bool> &interrupted);
     runner(const config::config &cfg, network::base_acceptor::ptr &&acceptor,
@@ -26,16 +26,22 @@ public:
     runner &operator=(const runner &) = delete;
     runner(runner &&) = delete;
     runner &operator=(runner &&) = delete;
-    ~runner() = default;
+    ~runner() noexcept;
+
+    static void resolve_symbols();
 
     void run() noexcept(false);
 
-    bool interrupted() const
+    void register_for_rc_notifications();
+
+    [[nodiscard]] bool interrupted() const
     {
         return interrupted_.load(std::memory_order_acquire);
     }
 
 private:
+    static std::shared_ptr<runner> RUNNER_FOR_NOTIFICATIONS;
+
     const config::config &cfg_; // NOLINT
     std::shared_ptr<service_manager> service_manager_;
     worker::pool worker_pool_;

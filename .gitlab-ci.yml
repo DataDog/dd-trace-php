@@ -13,6 +13,7 @@ variables:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
+
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
@@ -50,7 +51,7 @@ download_artifacts:
   tags: [ "runner:main", "size:large" ]
   script:
     - |
-      sleep 1m # Let time for the CircleCI pipeline to start
+      sleep 2m # Let time for the CircleCI pipeline to start
       source .gitlab/download-circleci_artifact.sh
 
       download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
@@ -109,3 +110,19 @@ onboarding_tests_installer:
     matrix:
       - ONBOARDING_FILTER_WEBLOG: [test-app-php,test-app-php-container-83]
         SCENARIO: SIMPLE_INSTALLER_AUTO_INJECTION
+
+onboarding_tests_k8s_injection:
+  rules:
+    - when: never
+  parallel:
+    matrix:
+      - WEBLOG_VARIANT:
+          - dd-lib-php-init-test-83
+          - dd-lib-php-init-test-alpine
+
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"

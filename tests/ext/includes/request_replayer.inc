@@ -5,12 +5,17 @@ class RequestReplayer
     /**
      * @var string
      */
-    private $endpoint;
+    public $endpoint;
 
     /**
      * @var int
      */
-    private $flushInterval;
+    public $flushInterval;
+
+    /**
+     * @var int
+     */
+    public $maxIteration;
 
     public function __construct()
     {
@@ -21,23 +26,25 @@ class RequestReplayer
         );
 
         $this->flushInterval = getenv('DD_TRACE_AGENT_FLUSH_INTERVAL')
-            ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL')
-            : 5000;
+            ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL') * 100
+            : 50000;
+
+        $this->maxIteration = (strncasecmp(PHP_OS, "WIN", 3) === 0) ? 500 : 200;
     }
 
     public function waitForFlush()
     {
-        usleep($this->flushInterval * 2 * 1000);
+        usleep($this->flushInterval * 2);
     }
 
     public function waitForRequest($matcher)
     {
         $i = 0;
         do {
-            if ($i++ == 100) {
+            if ($i++ == $this->maxIteration) {
                 throw new Exception("wait for replay timeout");
             }
-            usleep($this->flushInterval * 1000);
+            usleep($this->flushInterval);
 
             $requests = $this->replayAllRequests();
             if (is_array($requests)) {
@@ -54,10 +61,10 @@ class RequestReplayer
     {
         $i = 0;
         do {
-            if ($i++ == 100) {
+            if ($i++ == $this->maxIteration) {
                 throw new Exception("wait for replay timeout");
             }
-            usleep($this->flushInterval * 1000);
+            usleep($this->flushInterval);
         } while (empty($data = $this->replayRequest($ignoreTelemetry)));
         return $data;
     }

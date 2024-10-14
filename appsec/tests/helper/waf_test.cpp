@@ -44,7 +44,7 @@ TEST(WafTest, InitWithInvalidRules)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{
+    std::shared_ptr<subscriber> wi{
         waf::instance::from_settings(cs, ruleset, meta, metrics)};
 
     EXPECT_EQ(meta.size(), 2);
@@ -70,7 +70,8 @@ TEST(WafTest, RunWithInvalidParam)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_string(waf_rule, meta, metrics)};
     auto ctx = wi->get_listener();
     parameter_view pv;
     dds::event e;
@@ -82,7 +83,8 @@ TEST(WafTest, RunWithTimeout)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi(waf::instance::from_string(waf_rule, meta, metrics, 0));
+    std::shared_ptr<subscriber> wi(
+        waf::instance::from_string(waf_rule, meta, metrics, 0));
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -99,7 +101,8 @@ TEST(WafTest, ValidRunGood)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_string(waf_rule, meta, metrics)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -119,7 +122,8 @@ TEST(WafTest, ValidRunMonitor)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_string(waf_rule, meta, metrics)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -148,8 +152,9 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics,
-        waf::instance::default_waf_timeout_us, "password"sv, "string 3"sv)};
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_string(waf_rule, meta, metrics,
+            waf::instance::default_waf_timeout_us, "password"sv, "string 3"sv)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map(), sub_p = parameter::map();
@@ -189,7 +194,7 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     cs.obfuscator_key_regex = "password";
     auto ruleset = engine_ruleset::from_path(cs.rules_file);
 
-    subscriber::ptr wi{
+    std::shared_ptr<subscriber> wi{
         waf::instance::from_settings(cs, ruleset, meta, metrics)};
 
     auto ctx = wi->get_listener();
@@ -223,7 +228,7 @@ TEST(WafTest, UpdateRuleData)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{
+    std::shared_ptr<subscriber> wi{
         waf::instance::from_string(waf_rule_with_data, meta, metrics)};
     ASSERT_TRUE(wi);
 
@@ -282,7 +287,7 @@ TEST(WafTest, UpdateInvalid)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{
+    std::shared_ptr<subscriber> wi{
         waf::instance::from_string(waf_rule_with_data, meta, metrics)};
     ASSERT_TRUE(wi);
 
@@ -307,7 +312,8 @@ TEST(WafTest, SchemasAreAdded)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    subscriber::ptr wi{waf::instance::from_string(waf_rule, meta, metrics)};
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_string(waf_rule, meta, metrics)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map(), sub_p = parameter::map();
@@ -343,7 +349,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         std::string rules_with_actions =
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"block_request","parameters":{"status_code":123,"grpc_status_code":321,"type":"json","custom_param":"foo"}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
-        subscriber::ptr wi{
+        std::shared_ptr<subscriber> wi{
             waf::instance::from_string(rules_with_actions, meta, metrics)};
         ASSERT_TRUE(wi);
 
@@ -382,7 +388,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         std::string rules_with_actions =
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"block_request","parameters":{}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
-        subscriber::ptr wi{
+        std::shared_ptr<subscriber> wi{
             waf::instance::from_string(rules_with_actions, meta, metrics)};
         ASSERT_TRUE(wi);
 
@@ -421,7 +427,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         std::string rules_with_actions =
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["custom"]}],"actions":[{"id":"custom","type":"custom_type","parameters":{"some":"parameter"}}],"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
-        subscriber::ptr wi{
+        std::shared_ptr<subscriber> wi{
             waf::instance::from_string(rules_with_actions, meta, metrics)};
         ASSERT_TRUE(wi);
 
@@ -455,7 +461,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         std::string rules_with_actions =
             R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"BlockIPAddresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}], "rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})";
 
-        subscriber::ptr wi{
+        std::shared_ptr<subscriber> wi{
             waf::instance::from_string(rules_with_actions, meta, metrics)};
         ASSERT_TRUE(wi);
 

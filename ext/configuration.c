@@ -8,6 +8,9 @@
 #include "sidecar.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
+#include "sidecar.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -43,9 +46,10 @@ DD_CONFIGURATION
 #undef CALIAS
 #define CONFIG(...)
 #define ELEMENT(arg) 1,
-#define CALIASES(...) APPLY_N(ELEMENT, ##__VA_ARGS__)
+#define CALIASES(...) (APPLY_N(ELEMENT, ##__VA_ARGS__))
+#define ELEMENTS(...) __VA_ARGS__
 #define CALIAS(type, name, default, aliases, ...)                             \
-    _Static_assert(sizeof((uint8_t[]){aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
+    _Static_assert(sizeof((uint8_t[]){ELEMENTS aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
                    #name " has more than the allowed ZAI_CONFIG_NAMES_COUNT_MAX alias names");
 DD_CONFIGURATION
 #undef CALIAS
@@ -90,22 +94,37 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+#define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
+    static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
+        UNUSED(old_value, new_value); \
+        if (!DDTRACE_G(remote_config_state)) {  \
+            return true; \
+        } \
+        return ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C(config), dd_zend_string_to_CharSlice(new_str)); \
+    }
+
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_HEADER_TAGS, "datadog.trace.header_tags")
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
+
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+#define EXPAND_FIRST(arg, ...) arg
+#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
+#define EXPAND_IDENTITY(...) __VA_ARGS__
 
 #ifndef _WIN32
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #else
 #define CONFIG(...)
-#define CALIASES(...) {APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)}
-#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = aliases;
+#define CALIASES(...) ({APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = EXPAND_CALL(EXPAND_IDENTITY, EXPAND_FIRST(aliases));
 DD_CONFIGURATION
 #undef CALIAS
 #undef CONFIG
 #endif
 
 #define CUSTOM(...) CUSTOM
-#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
 #define CONFIG(type, name, ...) EXPAND_CALL(ZAI_CONFIG_ENTRY, (DDTRACE_CONFIG_##name, name, type, __VA_ARGS__)),
 #ifndef _WIN32
 #define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
@@ -145,6 +164,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
             ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
+        } else if (env_name.ptr == strstr(env_name.ptr, "DD_DYNAMIC_INSTRUMENTATION_")) {
+            ini_name->ptr[sizeof("datadog.dynamic_instrumentation") - 1] = '.';
         }
     } else {
         ini_name->len = 0;
@@ -155,6 +176,10 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 }
 
 bool ddtrace_config_minit(int module_number) {
+    if (ddtrace_active_sapi == DATADOG_PHP_SAPI_CLI) {
+        config_entries[DDTRACE_CONFIG_DD_TRACE_AUTO_FLUSH_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+    }
+
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
         ddtrace_log_ginit();
@@ -167,6 +192,7 @@ bool ddtrace_config_minit(int module_number) {
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit(false);
 
+    ddtrace_alter_dd_trace_debug(NULL, &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_DEBUG].decoded_value, NULL);
     ddtrace_log_ginit();
     return true;
 }

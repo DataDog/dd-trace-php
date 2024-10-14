@@ -3,6 +3,7 @@ Clone DDTrace\SpanData
 --SKIPIF--
 <?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r"); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php

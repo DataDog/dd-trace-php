@@ -1,6 +1,7 @@
 --TEST--
 Remove credentials from repository URL
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_GIT_REPOSITORY_URL=https://u:t@github.com/user/repo_new
 DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0

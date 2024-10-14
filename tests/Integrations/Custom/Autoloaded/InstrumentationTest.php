@@ -53,11 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
-        $response = $this->retrieveDumpedData(function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "spans_created") !== false)
-            ;
-        }, true);
+        $response = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
 
         $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);

@@ -216,12 +216,12 @@ trait TracerTestTrait
     /**
      * This method executes a single script with the provided configuration.
      */
-    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false)
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null, $throw = true)
     {
         $this->resetRequestDumper();
         $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
         usleep(100000); // Add a slight delay to give the request-replayer time to handle and store all requests.
-        $out = [$this->parseTracesFromDumpedData()];
+        $out = [$this->parseTracesFromDumpedData($until, $throw)];
         if ($withOutput) {
             $out[] = $output;
         }
@@ -233,7 +233,6 @@ trait TracerTestTrait
         $envs = (string) new EnvSerializer(array_merge(
             [
                 'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
-                'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_AGENT_HOST' => 'test-agent',
                 'DD_TRACE_AGENT_PORT' => '9126',
                 // Uncomment to see debug-level messages
@@ -387,9 +386,9 @@ trait TracerTestTrait
      * @return array
      * @throws \Exception
      */
-    private function parseTracesFromDumpedData(callable $until = null)
+    private function parseTracesFromDumpedData(callable $until = null, $throw = false)
     {
-        $loaded = $this->retrieveDumpedTraceData($until);
+        $loaded = $this->retrieveDumpedTraceData($until, $throw);
         if (!$loaded) {
             return [];
         }
@@ -443,12 +442,6 @@ trait TracerTestTrait
      */
     public function retrieveDumpedData(callable $until = null, $throw = false)
     {
-        if (!$until) {
-            $until = function ($request) {
-                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
-            };
-        }
-
         return $this->retrieveAnyDumpedData($until, $throw);
     }
 
@@ -457,16 +450,12 @@ trait TracerTestTrait
      */
     public function retrieveDumpedMetrics(callable $until = null, $throw = false)
     {
-        if (!$until) {
-            $until = function ($request) {
-                return (strpos($request["uri"] ?? "", "/telemetry/") !== 0);
-            };
-        }
-
         return $this->retrieveAnyDumpedData($until, $throw, true);
     }
 
-    public function retrieveAnyDumpedData(callable $until, $throw, $metrics = false) {
+    public function retrieveAnyDumpedData(callable $until = null, $throw, $metrics = false) {
+        $until = $until ?? $this->untilFirstTraceRequest();
+
         $allResponses = [];
 
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
@@ -495,7 +484,7 @@ trait TracerTestTrait
                         return $allResponses;
                     }
                 }
-                \usleep(1000);
+                \usleep(10000);
             }
         }
 
@@ -506,17 +495,69 @@ trait TracerTestTrait
         return $allResponses;
     }
 
-    public function retrieveDumpedTraceData(callable $until = null)
+    public function retrieveDumpedTraceData(callable $until = null, $throw = false)
     {
-        if ($until) {
-            return array_values(array_filter($this->retrieveDumpedData($until), function ($request) use ($until) {
-                return $until($request);
-            }));
-        } else {
-            return array_values(array_filter($this->retrieveDumpedData(), function ($request) {
-                return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
-            }));
-        }
+        return array_values(array_filter($this->retrieveDumpedData($until, $throw), function ($request) {
+            // Filter telemetry requests
+            return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
+        }));
+    }
+
+    function untilNumberOfTraces($number) {
+        $count = 0;
+        return function ($request) use (&$count, $number) {
+            $count += $request['headers']['X-Datadog-Trace-Count'] ?? $request["headers"]["x-datadog-trace-count"] ?? 0;
+            return $count >= $number;
+        };
+    }
+
+    function untilFirstTraceRequest() {
+        return function ($request) {
+            return (strpos($request["uri"] ?? "", "/v0.4/traces") === 0)
+                || (strpos($request["uri"] ?? "", "/v0.7/traces") === 0)
+            ;
+        };
+    }
+
+    function untilTelemetryRequest($metricName) {
+        return function ($request) use ($metricName) {
+            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
+                && (strpos($request["body"] ?? "", $metricName) !== false)
+            ;
+        };
+    }
+
+    function untilSpan(SpanAssertion $assertion) {
+        return function ($request) use ($assertion) {
+            if (strpos($request["uri"] ?? "", "/telemetry/") === 0 || !isset($request['body'])) {
+                return false;
+            }
+            $traces = $this->parseRawDumpedTraces(json_decode($request['body'], true));
+
+            foreach ($traces as $trace) {
+                try {
+                    (new SpanChecker())->assertFlameGraph([$trace], [$assertion]);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                return true;
+            }
+
+            return false;
+        };
+    }
+
+    function until(...$expectations) {
+        return function ($request) use (&$expectations) {
+            foreach ($expectations as $key => $expect) {
+                if ($expect($request)) {
+                    unset($expectations[$key]);
+                }
+            }
+
+            return !count($expectations);
+        };
     }
 
     /**

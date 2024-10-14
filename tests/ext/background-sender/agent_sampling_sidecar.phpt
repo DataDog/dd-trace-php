@@ -11,7 +11,6 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
-DD_TRACE_AUTO_FLUSH_ENABLED=1
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_sampling_sidecar
 --FILE--
@@ -28,7 +27,7 @@ function checkUpdated($marker) {
         do {
             foreach (glob("/dev/shm/*") as $f) {
                 if (@filesize($f) < 5000) {
-                    $file = file_get_contents($f);
+                    $file = @file_get_contents($f);
                     if (@strpos($file, $marker) !== false) {
                         global $contents, $filename;
                         $filename = $f;

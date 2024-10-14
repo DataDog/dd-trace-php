@@ -3,6 +3,7 @@ Fatal errors are ignored inside a tracing closure (PHP 7+)
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_APPSEC_ENABLED=0
 --FILE--
 <?php
 DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {

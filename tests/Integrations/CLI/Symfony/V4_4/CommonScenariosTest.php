@@ -153,7 +153,7 @@ class CommonScenariosTest extends IntegrationTestCase
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
             'DD_TRACE_EXEC_ENABLED' => 'false',
-        ], [], 'about');
+        ], [], 'about', false, null, false);
 
         $this->assertFlameGraph(
             $traces,

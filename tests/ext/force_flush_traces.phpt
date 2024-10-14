@@ -5,6 +5,7 @@ Force flush the traces mid-way through a trace
 if (!function_exists('posix_kill')) die('skip: posix_kill not available');
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die('skip: Pear/RunTest.php does not support %r...%r tags');
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=1
 --FILE--

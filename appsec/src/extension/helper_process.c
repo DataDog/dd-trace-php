@@ -42,7 +42,7 @@ static const int timeout_send = 500;
 static const int timeout_recv_initial = 7500;
 static const int timeout_recv_subseq = 2000;
 
-#define DD_PATH_FORMAT "%s%sddappsec_" PHP_DDAPPSEC_VERSION "_%u.%u"
+#define DD_PATH_FORMAT "%s%sddappsec_" PHP_DDAPPSEC_VERSION "_%u"
 #define DD_SOCK_PATH_FORMAT DD_PATH_FORMAT ".sock"
 #define DD_LOCK_PATH_FORMAT DD_PATH_FORMAT ".lock"
 
@@ -130,29 +130,30 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void)
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val)
+bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val,
+    zend_string *nullable new_str)
 {
     UNUSED(old_val);
+    UNUSED(new_str);
 
     uid_t uid = getuid();
-    gid_t gid = getgid();
     char *base = Z_STRVAL_P(new_val);
     size_t base_len = Z_STRLEN_P(new_val);
     char *separator = base[base_len - 1] != '/' ? "/" : "";
 
     size_t sock_name_len =
-        snprintf(NULL, 0, DD_SOCK_PATH_FORMAT, base, separator, uid, gid);
+        snprintf(NULL, 0, DD_SOCK_PATH_FORMAT, base, separator, uid);
     char *sock_name = safe_pemalloc(sock_name_len, sizeof(char), 1, 1);
     snprintf(sock_name, sock_name_len + 1, DD_SOCK_PATH_FORMAT, base, separator,
-        uid, gid);
+        uid);
     pefree(_mgr.socket_path, 1);
     _mgr.socket_path = sock_name;
 
     size_t lock_name_len =
-        snprintf(NULL, 0, DD_LOCK_PATH_FORMAT, base, separator, uid, gid);
+        snprintf(NULL, 0, DD_LOCK_PATH_FORMAT, base, separator, uid);
     char *lock_name = safe_pemalloc(lock_name_len, sizeof(char), 1, 1);
     snprintf(lock_name, lock_name_len + 1, DD_LOCK_PATH_FORMAT, base, separator,
-        uid, gid);
+        uid);
     pefree(_mgr.lock_path, 1);
     _mgr.lock_path = lock_name;
 
@@ -174,7 +175,7 @@ static void _read_settings()
 
     zval runtime_path;
     ZVAL_STR(&runtime_path, get_DD_APPSEC_HELPER_RUNTIME_PATH());
-    dd_on_runtime_path_update(NULL, &runtime_path);
+    dd_on_runtime_path_update(NULL, &runtime_path, NULL);
 }
 
 __attribute__((visibility("default"))) void dd_appsec_maybe_enable_helper(

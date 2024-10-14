@@ -286,6 +286,7 @@ def buildTracerTask = { String version, String variant ->
                             '../../../ext',
                             '../../../zend_abstract_interface',
                             '../../../libdatadog',
+                            '../../../ddtrace.sym',
                     ],
             ],
             outputs: [

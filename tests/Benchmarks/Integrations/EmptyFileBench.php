@@ -6,11 +6,12 @@ namespace Benchmarks\Integrations;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use Benchmarks\Integrations\FrameworkBenchmarksCase;
 
-class EmptyFileBench extends WebFrameworkTestCase
+class EmptyFileBench extends FrameworkBenchmarksCase
 {
     /**
-     * @BeforeMethods("disabledTracing")
+     * @BeforeMethods("disableDatadog")
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -27,7 +28,7 @@ class EmptyFileBench extends WebFrameworkTestCase
     }
 
     /**
-     * @BeforeMethods("enableTracing")
+     * @BeforeMethods("enableDatadog")
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -48,22 +49,8 @@ class EmptyFileBench extends WebFrameworkTestCase
         return __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }
 
-    public function disabledTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
-        ]);
-    }
-
     public function afterMethod()
     {
         $this->TearDownAfterClass();
-    }
-
-    public function enableTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 1,
-        ]);
     }
 }

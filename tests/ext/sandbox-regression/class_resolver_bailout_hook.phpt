@@ -3,6 +3,7 @@ Assert bailouts are gracefully handled within class autoloading
 --SKIPIF--
 <?php if (PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400) die('skip: Bailing out in autoloaders is fundamentally broken in PHP 7.3'); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php

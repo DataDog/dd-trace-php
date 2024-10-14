@@ -7,7 +7,6 @@ export NO_INTERACTION=1
 export DD_TRACE_ENABLED=true
 #export DD_TRACE_DEBUG=true
 export DD_TRACE_GENERATE_ROOT_SPAN=true
-export DD_TRACE_CLI_ENABLED=true
 export DD_TRACE_AGENT_PORT=18126
 export PHPRC=
 

@@ -73,7 +73,9 @@ typedef struct ddog_Error {
 
 typedef struct ddog_Slice_CChar {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const char *ptr;
   /**
@@ -257,6 +259,8 @@ typedef struct ddog_Vec_Tag_ParseResult {
 
 #define ddog_LOG_ONCE (1 << 3)
 
+#define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
+
 typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
   DDOG_CONFIGURATION_ORIGIN_CODE,
@@ -264,6 +268,17 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
 } ddog_ConfigurationOrigin;
+
+typedef enum ddog_EvaluateAt {
+  DDOG_EVALUATE_AT_ENTRY,
+  DDOG_EVALUATE_AT_EXIT,
+} ddog_EvaluateAt;
+
+typedef enum ddog_InBodyLocation {
+  DDOG_IN_BODY_LOCATION_NONE,
+  DDOG_IN_BODY_LOCATION_START,
+  DDOG_IN_BODY_LOCATION_END,
+} ddog_InBodyLocation;
 
 typedef enum ddog_Log {
   DDOG_LOG_ERROR = 1,
@@ -279,6 +294,13 @@ typedef enum ddog_Log {
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
 
+typedef enum ddog_MetricKind {
+  DDOG_METRIC_KIND_COUNT,
+  DDOG_METRIC_KIND_GAUGE,
+  DDOG_METRIC_KIND_HISTOGRAM,
+  DDOG_METRIC_KIND_DISTRIBUTION,
+} ddog_MetricKind;
+
 typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_TRACERS,
   DDOG_METRIC_NAMESPACE_PROFILERS,
@@ -293,10 +315,78 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_SIDECAR,
 } ddog_MetricNamespace;
 
+typedef enum ddog_ProbeStatus {
+  DDOG_PROBE_STATUS_RECEIVED,
+  DDOG_PROBE_STATUS_INSTALLED,
+  DDOG_PROBE_STATUS_EMITTING,
+  DDOG_PROBE_STATUS_ERROR,
+  DDOG_PROBE_STATUS_BLOCKED,
+  DDOG_PROBE_STATUS_WARNING,
+} ddog_ProbeStatus;
+
+typedef enum ddog_RemoteConfigCapabilities {
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ACTIVATION = 1,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_IP_BLOCKING = 2,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_RULES = 3,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXCLUSIONS = 4,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_REQUEST_BLOCKING = 5,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RESPONSE_BLOCKING = 6,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_USER_BLOCKING = 7,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_RULES = 8,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_BLOCKING_RESPONSE = 9,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRUSTED_IPS = 10,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_API_SECURITY_SAMPLE_RATE = 11,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RATE = 12,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_LOGS_INJECTION = 13,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_HTTP_HEADER_TAGS = 14,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_CUSTOM_TAGS = 15,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_PROCESSOR_OVERRIDES = 16,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_DATA_SCANNERS = 17,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXCLUSION_DATA = 18,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLED = 19,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_DATA_STREAMS_ENABLED = 20,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SQLI = 21,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_LFI = 22,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SSRF = 23,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SHI = 24,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XXE = 25,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_RCE = 26,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_NOSQLI = 27,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XSS = 28,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RULES = 29,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_CSM_ACTIVATION = 30,
+} ddog_RemoteConfigCapabilities;
+
+typedef enum ddog_RemoteConfigProduct {
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+} ddog_RemoteConfigProduct;
+
+typedef enum ddog_SpanProbeTarget {
+  DDOG_SPAN_PROBE_TARGET_ACTIVE,
+  DDOG_SPAN_PROBE_TARGET_ROOT,
+} ddog_SpanProbeTarget;
+
+typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
+
+typedef struct ddog_DslString ddog_DslString;
+
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
 typedef struct ddog_InstanceId ddog_InstanceId;
+
+typedef struct ddog_MaybeShmLimiter ddog_MaybeShmLimiter;
+
+typedef struct ddog_ProbeCondition ddog_ProbeCondition;
+
+typedef struct ddog_ProbeValue ddog_ProbeValue;
+
+typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
 
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
@@ -310,6 +400,360 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * complete.
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_CChar {
+  const char *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_CChar;
+
+typedef struct ddog_Tag {
+  ddog_CharSlice name;
+  const struct ddog_DslString *value;
+} ddog_Tag;
+
+typedef enum ddog_IntermediateValue_Tag {
+  DDOG_INTERMEDIATE_VALUE_STRING,
+  DDOG_INTERMEDIATE_VALUE_NUMBER,
+  DDOG_INTERMEDIATE_VALUE_BOOL,
+  DDOG_INTERMEDIATE_VALUE_NULL,
+  DDOG_INTERMEDIATE_VALUE_REFERENCED,
+} ddog_IntermediateValue_Tag;
+
+typedef struct ddog_IntermediateValue {
+  ddog_IntermediateValue_Tag tag;
+  union {
+    struct {
+      ddog_CharSlice string;
+    };
+    struct {
+      double number;
+    };
+    struct {
+      bool bool_;
+    };
+    struct {
+      const void *referenced;
+    };
+  };
+} ddog_IntermediateValue;
+
+typedef struct ddog_VoidCollection {
+  intptr_t count;
+  const void *elements;
+  void (*free)(struct ddog_VoidCollection);
+} ddog_VoidCollection;
+
+typedef struct ddog_Evaluator {
+  bool (*equals)(void*, struct ddog_IntermediateValue, struct ddog_IntermediateValue);
+  bool (*greater_than)(void*, struct ddog_IntermediateValue, struct ddog_IntermediateValue);
+  bool (*greater_or_equals)(void*, struct ddog_IntermediateValue, struct ddog_IntermediateValue);
+  const void *(*fetch_identifier)(void*, const ddog_CharSlice*);
+  const void *(*fetch_index)(void*, const void*, struct ddog_IntermediateValue);
+  const void *(*fetch_nested)(void*, const void*, struct ddog_IntermediateValue);
+  uintptr_t (*length)(void*, const void*);
+  struct ddog_VoidCollection (*try_enumerate)(void*, const void*);
+  ddog_CharSlice (*stringify)(void*, const void*);
+  ddog_CharSlice (*get_string)(void*, const void*);
+  intptr_t (*convert_index)(void*, const void*);
+  bool (*instanceof)(void*, const void*, const ddog_CharSlice*);
+} ddog_Evaluator;
+
+typedef struct ddog_CharSliceVec {
+  const ddog_CharSlice *strings;
+  uintptr_t string_count;
+} ddog_CharSliceVec;
+
+typedef enum ddog_Option_CharSlice_Tag {
+  DDOG_OPTION_CHAR_SLICE_SOME_CHAR_SLICE,
+  DDOG_OPTION_CHAR_SLICE_NONE_CHAR_SLICE,
+} ddog_Option_CharSlice_Tag;
+
+typedef struct ddog_Option_CharSlice {
+  ddog_Option_CharSlice_Tag tag;
+  union {
+    struct {
+      ddog_CharSlice some;
+    };
+  };
+} ddog_Option_CharSlice;
+
+typedef struct ddog_ProbeTarget {
+  ddog_CharSlice type_name;
+  ddog_CharSlice method_name;
+  ddog_CharSlice source_file;
+  struct ddog_Option_CharSlice signature;
+  const uint32_t *lines;
+  uint32_t lines_count;
+  enum ddog_InBodyLocation in_body_location;
+} ddog_ProbeTarget;
+
+typedef struct ddog_MetricProbe {
+  enum ddog_MetricKind kind;
+  ddog_CharSlice name;
+  const struct ddog_ProbeValue *value;
+} ddog_MetricProbe;
+
+typedef struct ddog_CaptureConfiguration {
+  uint32_t max_reference_depth;
+  uint32_t max_collection_size;
+  uint32_t max_length;
+  uint32_t max_field_count;
+} ddog_CaptureConfiguration;
+
+typedef struct ddog_LogProbe {
+  const struct ddog_DslString *segments;
+  const struct ddog_ProbeCondition *when;
+  const struct ddog_CaptureConfiguration *capture;
+  bool capture_snapshot;
+  uint32_t sampling_snapshots_per_second;
+} ddog_LogProbe;
+
+typedef struct ddog_SpanProbeTag {
+  struct ddog_Tag tag;
+  bool next_condition;
+} ddog_SpanProbeTag;
+
+typedef struct ddog_SpanDecorationProbe {
+  enum ddog_SpanProbeTarget target;
+  const struct ddog_ProbeCondition *const *conditions;
+  const struct ddog_SpanProbeTag *span_tags;
+  uintptr_t span_tags_num;
+} ddog_SpanDecorationProbe;
+
+typedef enum ddog_ProbeType_Tag {
+  DDOG_PROBE_TYPE_METRIC,
+  DDOG_PROBE_TYPE_LOG,
+  DDOG_PROBE_TYPE_SPAN,
+  DDOG_PROBE_TYPE_SPAN_DECORATION,
+} ddog_ProbeType_Tag;
+
+typedef struct ddog_ProbeType {
+  ddog_ProbeType_Tag tag;
+  union {
+    struct {
+      struct ddog_MetricProbe metric;
+    };
+    struct {
+      struct ddog_LogProbe log;
+    };
+    struct {
+      struct ddog_SpanDecorationProbe span_decoration;
+    };
+  };
+} ddog_ProbeType;
+
+typedef struct ddog_Probe {
+  ddog_CharSlice id;
+  uint64_t version;
+  ddog_CharSlice language;
+  struct ddog_CharSliceVec tags;
+  struct ddog_ProbeTarget target;
+  enum ddog_EvaluateAt evaluate_at;
+  struct ddog_ProbeType probe;
+  ddog_CharSlice diagnostic_msg;
+  enum ddog_ProbeStatus status;
+  ddog_CharSlice status_msg;
+  ddog_CharSlice status_exception;
+  ddog_CharSlice status_stacktrace;
+} ddog_Probe;
+
+typedef struct ddog_LiveDebuggerCallbacks {
+  int64_t (*set_probe)(struct ddog_Probe probe, const struct ddog_MaybeShmLimiter *limiter);
+  void (*remove_probe)(int64_t id);
+} ddog_LiveDebuggerCallbacks;
+
+typedef struct ddog_LiveDebuggerSetup {
+  const struct ddog_Evaluator *evaluator;
+  struct ddog_LiveDebuggerCallbacks callbacks;
+} ddog_LiveDebuggerSetup;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_DebuggerPayload {
+  const struct ddog_DebuggerPayload *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_DebuggerPayload;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigProduct {
+  const enum ddog_RemoteConfigProduct *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigProduct;
+
+typedef struct ddog_Vec_RemoteConfigProduct ddog_VecRemoteConfigProduct;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigCapabilities {
+  const enum ddog_RemoteConfigCapabilities *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigCapabilities;
+
+typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
+
+typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
+typedef struct ddog_DebuggerValue ddog_DebuggerValue;
+
+
+#define ddog_EVALUATOR_RESULT_UNDEFINED (const void*)0
+
+#define ddog_EVALUATOR_RESULT_INVALID (const void*)-1
+
+#define ddog_EVALUATOR_RESULT_REDACTED (const void*)-2
+
+typedef enum ddog_DebuggerType {
+  DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
+  DDOG_DEBUGGER_TYPE_LOGS,
+} ddog_DebuggerType;
+
+typedef enum ddog_FieldType {
+  DDOG_FIELD_TYPE_STATIC,
+  DDOG_FIELD_TYPE_ARG,
+  DDOG_FIELD_TYPE_LOCAL,
+} ddog_FieldType;
+
+typedef struct ddog_Entry ddog_Entry;
+
+typedef struct ddog_HashMap_CowStr__Value ddog_HashMap_CowStr__Value;
+
+typedef struct ddog_InternalIntermediateValue ddog_InternalIntermediateValue;
+
+typedef struct ddog_SenderHandle ddog_SenderHandle;
+
+typedef struct ddog_SnapshotEvaluationError ddog_SnapshotEvaluationError;
+
+typedef struct ddog_String ddog_String;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_SnapshotEvaluationError {
+  const struct ddog_SnapshotEvaluationError *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_SnapshotEvaluationError;
+
+typedef enum ddog_ConditionEvaluationResult_Tag {
+  DDOG_CONDITION_EVALUATION_RESULT_SUCCESS,
+  DDOG_CONDITION_EVALUATION_RESULT_FAILURE,
+  DDOG_CONDITION_EVALUATION_RESULT_ERROR,
+} ddog_ConditionEvaluationResult_Tag;
+
+typedef struct ddog_ConditionEvaluationResult {
+  ddog_ConditionEvaluationResult_Tag tag;
+  union {
+    struct {
+      struct ddog_Vec_SnapshotEvaluationError *error;
+    };
+  };
+} ddog_ConditionEvaluationResult;
+
+typedef enum ddog_ValueEvaluationResult_Tag {
+  DDOG_VALUE_EVALUATION_RESULT_SUCCESS,
+  DDOG_VALUE_EVALUATION_RESULT_ERROR,
+} ddog_ValueEvaluationResult_Tag;
+
+typedef struct ddog_ValueEvaluationResult {
+  ddog_ValueEvaluationResult_Tag tag;
+  union {
+    struct {
+      struct ddog_InternalIntermediateValue *success;
+    };
+    struct {
+      struct ddog_Vec_SnapshotEvaluationError *error;
+    };
+  };
+} ddog_ValueEvaluationResult;
+
+typedef struct ddog_FilterList {
+  struct ddog_CharSliceVec package_prefixes;
+  struct ddog_CharSliceVec classes;
+} ddog_FilterList;
+
+typedef struct ddog_ServiceConfiguration {
+  ddog_CharSlice id;
+  struct ddog_FilterList allow;
+  struct ddog_FilterList deny;
+  uint32_t sampling_snapshots_per_second;
+} ddog_ServiceConfiguration;
+
+typedef enum ddog_LiveDebuggingData_Tag {
+  DDOG_LIVE_DEBUGGING_DATA_NONE,
+  DDOG_LIVE_DEBUGGING_DATA_PROBE,
+  DDOG_LIVE_DEBUGGING_DATA_SERVICE_CONFIGURATION,
+} ddog_LiveDebuggingData_Tag;
+
+typedef struct ddog_LiveDebuggingData {
+  ddog_LiveDebuggingData_Tag tag;
+  union {
+    struct {
+      struct ddog_Probe probe;
+    };
+    struct {
+      struct ddog_ServiceConfiguration service_configuration;
+    };
+  };
+} ddog_LiveDebuggingData;
+
+typedef struct ddog_LiveDebuggingParseResult {
+  struct ddog_LiveDebuggingData data;
+  struct ddog_LiveDebuggingData *opaque_data;
+} ddog_LiveDebuggingParseResult;
+
+typedef struct ddog_HashMap_CowStr__Value ddog_Fields;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_DebuggerValue {
+  const ddog_DebuggerValue *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_DebuggerValue;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_Entry {
+  const struct ddog_Entry *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_Entry;
+
+typedef struct ddog_CaptureValue {
+  ddog_CharSlice type;
+  ddog_CharSlice value;
+  ddog_Fields *fields;
+  struct ddog_Vec_DebuggerValue elements;
+  struct ddog_Vec_Entry entries;
+  bool is_null;
+  bool truncated;
+  ddog_CharSlice not_captured_reason;
+  ddog_CharSlice size;
+} ddog_CaptureValue;
+
+typedef struct ddog_OwnedCharSlice {
+  ddog_CharSlice slice;
+  void (*free)(ddog_CharSlice);
+} ddog_OwnedCharSlice;
 
 typedef enum ddog_LogLevel {
   DDOG_LOG_LEVEL_ERROR,
@@ -377,49 +821,16 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
-#define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
-
-typedef enum ddog_RemoteConfigCapabilities {
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ACTIVATION = 1,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_IP_BLOCKING = 2,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_RULES = 3,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXCLUSIONS = 4,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_REQUEST_BLOCKING = 5,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RESPONSE_BLOCKING = 6,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_USER_BLOCKING = 7,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_RULES = 8,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_BLOCKING_RESPONSE = 9,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRUSTED_IPS = 10,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_API_SECURITY_SAMPLE_RATE = 11,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RATE = 12,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_LOGS_INJECTION = 13,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_HTTP_HEADER_TAGS = 14,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_CUSTOM_TAGS = 15,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_PROCESSOR_OVERRIDES = 16,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_CUSTOM_DATA_SCANNERS = 17,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXCLUSION_DATA = 18,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLED = 19,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_DATA_STREAMS_ENABLED = 20,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SQLI = 21,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_LFI = 22,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SSRF = 23,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_SHI = 24,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XXE = 25,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_RCE = 26,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_NOSQLI = 27,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XSS = 28,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RULES = 29,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_CSM_ACTIVATION = 30,
-} ddog_RemoteConfigCapabilities;
-
-typedef enum ddog_RemoteConfigProduct {
-  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
-  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
-} ddog_RemoteConfigProduct;
-
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
+
+typedef struct ddog_Arc_Target ddog_Arc_Target;
+
+/**
+ * Fundamental configuration of the RC client, which always must be set.
+ */
+typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
 
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
 
@@ -461,6 +872,7 @@ typedef enum ddog_crasht_DemangleOptions {
 typedef enum ddog_crasht_NormalizedAddressTypes {
   DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_NONE = 0,
   DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_ELF,
+  DDOG_CRASHT_NORMALIZED_ADDRESS_TYPES_PDB,
 } ddog_crasht_NormalizedAddressTypes;
 
 /**
@@ -530,7 +942,9 @@ typedef struct ddog_crasht_Result {
 
 typedef struct ddog_crasht_Slice_CharSlice {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const ddog_CharSlice *ptr;
   /**
@@ -560,7 +974,9 @@ typedef struct ddog_crasht_EnvVar {
 
 typedef struct ddog_crasht_Slice_EnvVar {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_crasht_EnvVar *ptr;
   /**
@@ -653,7 +1069,9 @@ typedef struct ddog_crasht_StackFrameNames {
 
 typedef struct ddog_crasht_Slice_StackFrameNames {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_crasht_StackFrameNames *ptr;
   /**
@@ -665,7 +1083,9 @@ typedef struct ddog_crasht_Slice_StackFrameNames {
 
 typedef struct ddog_Slice_U8 {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const uint8_t *ptr;
   /**
@@ -683,6 +1103,7 @@ typedef struct ddog_Slice_U8 ddog_ByteSlice;
 typedef struct ddog_crasht_NormalizedAddress {
   uint64_t file_offset;
   ddog_ByteSlice build_id;
+  uint64_t age;
   ddog_CharSlice path;
   enum ddog_crasht_NormalizedAddressTypes typ;
 } ddog_crasht_NormalizedAddress;
@@ -699,7 +1120,9 @@ typedef struct ddog_crasht_StackFrame {
 
 typedef struct ddog_crasht_Slice_StackFrame {
   /**
-   * Must be non-null and suitably aligned for the underlying type.
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_crasht_StackFrame *ptr;
   /**

@@ -9,7 +9,8 @@
 
 #include "config.hpp"
 #include "runner.hpp"
-#include "subscriber/waf.hpp"
+#include <csignal>
+#include <cstdlib>
 #include <spdlog/common.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -17,7 +18,6 @@
 #include <string_view>
 
 extern "C" {
-#include <csignal>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/file.h>
@@ -101,7 +101,19 @@ int appsec_helper_main_impl()
         return 1;
     }
 
-    auto runner = std::make_unique<dds::runner>(config, interrupted);
+    // block SIGUSR1 (only used to interrupt the runner)
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGUSR1);
+    if (auto err = pthread_sigmask(SIG_BLOCK, &mask, nullptr)) {
+        SPDLOG_ERROR("Failed to block SIGUSR1: error number {}", err);
+        return 1;
+    }
+
+    dds::remote_config::resolve_symbols();
+    dds::runner::resolve_symbols();
+
+    auto runner = std::make_shared<dds::runner>(config, interrupted);
     SPDLOG_INFO("starting runner on new thread");
     std::thread thr{[runner = std::move(runner)]() {
 #ifdef __linux__
@@ -109,6 +121,8 @@ int appsec_helper_main_impl()
 #elif defined(__APPLE__)
         pthread_setname_np("appsec_helper runner");
 #endif
+        runner->register_for_rc_notifications();
+
         runner->run();
 
         finished.store(true, std::memory_order_release);
@@ -149,8 +163,13 @@ appsec_helper_shutdown() noexcept
             return 0;
         }
         if (std::chrono::steady_clock::now() >= deadline) {
-            SPDLOG_WARN("Could not finish AppSec helper before deadline");
-            return 1;
+            // we need to call exit() to avoid a segfault in the still running
+            // helper threads after the helper shared library is unloaded by
+            // trampoline.c
+            SPDLOG_WARN("Could not finish AppSec helper before deadline. "
+                        "Calling exit().");
+            std::exit(EXIT_FAILURE); // NOLINT
+            __builtin_unreachable();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{10}); // NOLINT
     }

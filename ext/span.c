@@ -17,6 +17,7 @@
 #include <hook/hook.h>
 #include "user_request.h"
 #include "zend_types.h"
+#include "sidecar.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -143,6 +144,12 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
     return span;
 }
 
+uint64_t ddtrace_nanoseconds_realtime(void) {
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    return ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
+}
+
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
@@ -167,9 +174,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     span->duration_start = zend_hrtime();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    span->start = ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
+    span->start = ddtrace_nanoseconds_realtime();
 
     span->span_id = ddtrace_generate_span_id();
 
@@ -212,6 +217,10 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     if (root_span) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
         LOG(SPAN_TRACE, "Starting new root span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d, parent_SpanStack=%d", Z_STRVAL(root->property_trace_id), span->span_id, root->parent_id, root->stack->std.handle, root->stack->parent_stack->std.handle);
+
+        if (ddtrace_span_is_entrypoint_root(span)) {
+            ddtrace_sidecar_submit_root_span_data();
+        }
     } else {
         LOG(SPAN_TRACE, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
     }
@@ -311,8 +320,9 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     }
 
     GC_ADDREF(&target_stack->std);
-    OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
+    ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = target_stack;
+    OBJ_RELEASE(&active_stack->std);
 }
 
 ddtrace_span_data *ddtrace_init_dummy_span(void) {
@@ -377,7 +387,9 @@ DDTRACE_PUBLIC zend_object *ddtrace_get_root_span()
     return &rsd->std;
 }
 
-bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value) {
+bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(new_str);
+
     if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value) || !DDTRACE_G(active_stack)) {
         return true;
     }
@@ -713,6 +725,8 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
     if (DDTRACE_G(top_closed_stack)) {
+        memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
+
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
         do {
@@ -745,6 +759,14 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 }
             } while (stack);
         } while (rootstack);
+
+        if (ddtrace_exception_debugging_is_active()) {
+            ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));
+            if (DDTRACE_G(debugger_capture_arena)) {
+                zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
+                DDTRACE_G(debugger_capture_arena) = NULL;
+            }
+        }
     }
 
     // Reset closed span counter for limit-refresh, don't touch open spans

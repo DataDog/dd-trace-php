@@ -121,12 +121,15 @@ final class CurlIntegration extends Integration
                     list($ch, $requestSpan) = $requestSpan;
                     $requestSpan->metrics["_dd.measured"] = 1;
                     $info = curl_getinfo($ch);
-                    if (isset($requestSpan->meta['network.destination.name']) && $requestSpan->meta['network.destination.name'] !== 'unparsable-host') {
+                    if (empty($info["http_code"])) {
+                        $saveSpans = true;
+                    }
+
+                    if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
                         continue;
                     }
 
                     if (empty($info["http_code"])) {
-                        $saveSpans = true;
                         if (!isset($error_trace)) {
                             $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
                         }
@@ -183,16 +186,15 @@ final class CurlIntegration extends Integration
             }
 
             list(, $spans) = $data;
+            if (empty($spans)) {
+                return;
+            }
 
             if (!isset($hook->returned["result"]) || $hook->returned["result"] == CURLE_OK) {
-                if (empty($spans)) {
-                    return;
-                }
-
                 foreach ($spans as $requestSpan) {
                     list($ch, $requestSpan) = $requestSpan;
                     if ($ch === $handle) {
-                        if (isset($requestSpan->meta['network.destination.name']) && $requestSpan->meta['network.destination.name'] !== 'unparsable-host') {
+                        if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
                             continue;
                         }
                         $info = curl_getinfo($ch);

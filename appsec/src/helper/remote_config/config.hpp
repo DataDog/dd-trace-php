@@ -5,48 +5,98 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "protocol/config_state.hpp"
-#include <iostream>
+#include "../utils.hpp"
+#include "product.hpp"
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <vector>
+
+extern "C" {
+#include <sys/mman.h>
+}
 
 namespace dds::remote_config {
 
-struct config {
-    std::string product;
-    std::string id;
-    std::string contents;
-    std::string path;
-    std::unordered_map<std::string, std::string> hashes;
-    int version;
-    int length;
-    protocol::config_state::applied_state apply_state;
-    std::string apply_error;
-
-    friend auto &operator<<(
-        std::ostream &os, const dds::remote_config::config &c)
+class mapped_memory {
+public:
+    mapped_memory(void *ptr, std::size_t size) : ptr_{ptr}, size_{size} {}
+    mapped_memory(const mapped_memory &) = delete;
+    mapped_memory(mapped_memory &&mm) noexcept : ptr_{mm.ptr_}, size_{mm.size_}
     {
-        os << "Product: " << c.product << std::endl;
-        os << "id: " << c.id << std::endl;
-        os << "contents: " << c.contents << std::endl;
-        os << "path: " << c.path << std::endl;
-        //        os << "hashes: " << c.hashes << std::endl;
-        os << "version: " << c.version << std::endl;
-        os << "length: " << c.length << std::endl;
-        os << "apply_state: " << (int)c.apply_state << std::endl;
-        os << "apply_error: " << c.apply_error << std::endl;
-        return os;
+        mm.ptr_ = nullptr;
+        mm.size_ = 0;
+    }
+    mapped_memory &operator=(const mapped_memory &) = delete;
+    mapped_memory &operator=(mapped_memory &&mm) noexcept
+    {
+        ptr_ = mm.ptr_;
+        size_ = mm.size_;
+        mm.ptr_ = nullptr;
+        mm.size_ = 0;
+        return *this;
+    }
+    ~mapped_memory() noexcept
+    {
+        if (ptr_ != nullptr) {
+            if (::munmap(ptr_, size_) == -1) {
+                SPDLOG_WARN(
+                    "Failed to unmap shared memory: {}", strerror_ts(errno));
+            };
+        }
+    }
+
+    operator std::string_view() const // NOLINT
+    {
+        return std::string_view{static_cast<char *>(ptr_), size_};
+    }
+
+private:
+    void *ptr_;
+    std::size_t size_;
+};
+
+struct config {
+    // from a line provided by the RC config reader
+    static config from_line(std::string_view line);
+
+    std::string shm_path;
+    std::string rc_path;
+
+    [[nodiscard]] mapped_memory read() const;
+
+    [[nodiscard]] product get_product() const;
+
+    bool operator==(const config &b) const
+    {
+        return shm_path == b.shm_path && rc_path == b.rc_path;
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const config &c)
+    {
+        return os << c.shm_path << ":" << c.rc_path;
     }
 };
 
-inline bool operator==(const config &rhs, const config &lhs)
-{
-    return rhs.product == lhs.product && rhs.id == lhs.id &&
-           rhs.contents == lhs.contents && rhs.hashes == lhs.hashes &&
-           rhs.version == lhs.version && rhs.path == lhs.path &&
-           rhs.length == lhs.length && rhs.apply_state == lhs.apply_state &&
-           rhs.apply_error == lhs.apply_error;
-}
-
 } // namespace dds::remote_config
+
+namespace std {
+template <> struct hash<dds::remote_config::config> {
+    std::size_t operator()(const dds::remote_config::config &key) const
+    {
+        return dds::hash(key.shm_path, key.rc_path);
+    }
+};
+template <> struct less<dds::remote_config::config> {
+    bool operator()(const dds::remote_config::config &lhs,
+        const dds::remote_config::config &rhs) const
+    {
+        if (lhs.rc_path < rhs.rc_path) {
+            return true;
+        };
+        if (lhs.rc_path > rhs.rc_path) {
+            return false;
+        }
+        return lhs.shm_path < rhs.shm_path;
+    }
+};
+} // namespace std

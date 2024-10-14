@@ -7,10 +7,13 @@ namespace Benchmarks\Integrations;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class WordPressBench extends WebFrameworkTestCase
+/**
+* @Groups({"frameworks"})
+*/
+class WordPressBench extends FrameworkBenchmarksCase
 {
     /**
-     * @BeforeMethods("enableWordPressTracing")
+     * @BeforeMethods({"enableDatadog", "createDatabase"})
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -31,14 +34,11 @@ class WordPressBench extends WebFrameworkTestCase
         return __DIR__ . '/../../Frameworks/WordPress/Version_6_1/index.php';
     }
 
-    public function disableWordPressTracing()
+    public function createDatabase(): void
     {
         $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
         $pdo->exec('CREATE DATABASE IF NOT EXISTS wp61');
         $pdo->exec(file_get_contents(__DIR__ . '/../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
-        ]);
     }
 
     public function afterMethod()
@@ -46,15 +46,8 @@ class WordPressBench extends WebFrameworkTestCase
         $this->TearDownAfterClass();
     }
 
-    public function enableWordPressTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 1
-        ]);
-    }
-
     /**
-     * @BeforeMethods("disableWordPressTracing")
+     * @BeforeMethods({"disableDatadog", "createDatabase"})
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)

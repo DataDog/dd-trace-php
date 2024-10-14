@@ -7,4 +7,9 @@
 
 #include "../network.h"
 
-dd_result dd_config_sync(dd_conn *nonnull conn);
+struct config_sync_data {
+    char *nullable rem_cfg_path;
+};
+
+dd_result dd_config_sync(
+    dd_conn *nonnull conn, const struct config_sync_data *nonnull data);

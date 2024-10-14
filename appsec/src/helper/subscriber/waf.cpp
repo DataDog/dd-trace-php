@@ -15,13 +15,14 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "../compression.hpp"
 #include "../json_helper.hpp"
 #include "../std_logging.hpp"
 #include "../tags.hpp"
-#include "base64.h"
-#include "compression.hpp"
-#include "ddwaf.h"
+#include "base.hpp"
 #include "waf.hpp"
+#include <base64.h>
+#include <ddwaf.h>
 
 namespace dds::waf {
 
@@ -77,7 +78,7 @@ DDWAF_LOG_LEVEL spdlog_level_to_ddwaf(spdlog::level::level_enum level)
     case spdlog::level::trace:
         return DDWAF_LOG_TRACE;
     case spdlog::level::debug:
-        return DDWAF_LOG_DEBUG;
+    // libddwaf is too verbose at debug level
     case spdlog::level::info:
         return DDWAF_LOG_INFO;
     case spdlog::level::warn:
@@ -100,10 +101,8 @@ void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
     auto new_level = spdlog::level::off;
     switch (level) {
     case DDWAF_LOG_TRACE:
-        new_level = spdlog::level::trace;
-        break;
     case DDWAF_LOG_DEBUG:
-        new_level = spdlog::level::debug;
+        new_level = spdlog::level::trace;
         break;
     case DDWAF_LOG_INFO:
         new_level = spdlog::level::info;
@@ -337,10 +336,10 @@ instance::~instance()
     }
 }
 
-instance::listener::ptr instance::get_listener()
+std::unique_ptr<subscriber::listener> instance::get_listener()
 {
-    return listener::ptr(new listener(
-        ddwaf_context_init(handle_), waf_timeout_, ruleset_version_));
+    return std::make_unique<listener>(
+        ddwaf_context_init(handle_), waf_timeout_, ruleset_version_);
 }
 
 instance::instance(
@@ -355,7 +354,7 @@ instance::instance(
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
-subscriber::ptr instance::update(parameter &rule,
+std::unique_ptr<subscriber> instance::update(parameter &rule,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
@@ -376,28 +375,29 @@ subscriber::ptr instance::update(parameter &rule,
         throw invalid_object();
     }
 
-    return subscriber::ptr(
+    return std::unique_ptr<subscriber>(
         new instance(new_handle, waf_timeout_, std::move(version)));
 }
 
-instance::ptr instance::from_settings(const engine_settings &settings,
-    const engine_ruleset &ruleset, std::map<std::string, std::string> &meta,
+std::unique_ptr<instance> instance::from_settings(
+    const engine_settings &settings, const engine_ruleset &ruleset,
+    std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics)
 {
     dds::parameter param = json_to_parameter(ruleset.get_document());
-    return std::make_shared<instance>(param, meta, metrics,
+    return std::make_unique<instance>(param, meta, metrics,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
         settings.obfuscator_value_regex);
 }
 
-instance::ptr instance::from_string(std::string_view rule,
+std::unique_ptr<instance> instance::from_string(std::string_view rule,
     std::map<std::string, std::string> &meta,
     std::map<std::string_view, double> &metrics, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
     engine_ruleset const ruleset{rule};
     dds::parameter param = json_to_parameter(ruleset.get_document());
-    return std::make_shared<instance>(
+    return std::make_unique<instance>(
         param, meta, metrics, waf_timeout_us, key_regex, value_regex);
 }
 

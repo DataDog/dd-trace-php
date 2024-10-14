@@ -12,6 +12,7 @@
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
+#include <atomic>
 #include <map>
 #include <memory>
 #include <rapidjson/document.h>
@@ -34,10 +35,6 @@ namespace dds {
  **/
 class engine {
 public:
-    using ptr = std::shared_ptr<engine>;
-    using subscription_map =
-        std::map<std::string_view, std::vector<subscriber::ptr>>;
-
     using action_map = std::unordered_map<std::string /*id*/, action>;
 
     struct result {
@@ -48,7 +45,7 @@ public:
 
 protected:
     struct shared_state {
-        std::vector<subscriber::ptr> subscribers;
+        std::vector<std::unique_ptr<subscriber>> subscribers;
     };
 
 public:
@@ -58,8 +55,9 @@ public:
     class context {
     public:
         explicit context(engine &engine)
-            : common_(std::atomic_load(&engine.common_)),
-              limiter_(engine.limiter_)
+            : common_{std::atomic_load_explicit(
+                  &engine.common_, std::memory_order_acquire)},
+              limiter_{engine.limiter_}
         {}
         context(const context &) = delete;
         context &operator=(const context &) = delete;
@@ -73,10 +71,12 @@ public:
             std::map<std::string_view, double> &metrics);
 
     protected:
-        std::vector<parameter> prev_published_params_;
-        std::map<subscriber::ptr, subscriber::listener::ptr> listeners_;
         std::shared_ptr<shared_state> common_;
-        rate_limiter<dds::timer> &limiter_;
+        std::map<subscriber *, const std::unique_ptr<subscriber::listener>>
+            listeners_;
+        std::vector<parameter> prev_published_params_;
+        rate_limiter<dds::timer> &
+            limiter_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
     };
 
     engine(const engine &) = delete;
@@ -85,30 +85,32 @@ public:
     engine &operator=(engine &&) = delete;
     virtual ~engine() = default;
 
-    static engine::ptr from_settings(const dds::engine_settings &eng_settings,
+    static std::unique_ptr<engine> from_settings(
+        const dds::engine_settings &eng_settings,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
     static auto create(
         uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
     {
-        return std::shared_ptr<engine>(new engine(trace_rate_limit));
+        return std::unique_ptr<engine>(new engine(trace_rate_limit));
     }
 
     context get_context() { return context{*this}; }
-    void subscribe(const subscriber::ptr &sub);
 
-    // Update is not thread-safe, although only one remote config client should
-    // be able to update it so in practice it should not be a problem.
+    // Not thread-safe, should only be called after construction
+    void subscribe(std::unique_ptr<subscriber> sub);
+
     virtual void update(engine_ruleset &ruleset,
         std::map<std::string, std::string> &meta,
         std::map<std::string_view, double> &metrics);
 
 protected:
-    explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})
+    explicit engine(uint32_t trace_rate_limit)
         : limiter_(trace_rate_limit), common_(new shared_state{{}})
     {}
 
+    // in practice: the current ddwaf_handle, atomically swapped in update
     std::shared_ptr<shared_state> common_;
     rate_limiter<dds::timer> limiter_;
 };
