@@ -3385,7 +3385,7 @@ jobs:
             if [[ "<< parameters.php_major_minor >>" == "8.4" ]]; then
               export XDEBUG_SO_NAME=xdebug-3.4.0.so
             elif [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
-              export XDEBUG_SO_NAME=xdebug-3.3.0.so
+              export XDEBUG_SO_NAME=xdebug-3.3.2.so
             elif [[ "<< parameters.php_major_minor >>" == "8.2" ]]; then
               export XDEBUG_SO_NAME=xdebug-3.2.2.so
             elif [[ "<< parameters.php_major_minor >>" == "8.1" ]]; then
@@ -5637,7 +5637,7 @@ workflows:
           requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 83 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
-          xdebug_version_one: "3.3.0"
+          xdebug_version_one: "3.3.2"
       - xdebug_tests:
           requires: [ 'Prepare Code', 'Compile 8.4 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 84 Xdebug tests"
