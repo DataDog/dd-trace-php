@@ -35,10 +35,10 @@ jobs:
           switch-php nts-asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
-          export CC=clang-16
+          export CC=clang-17
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address'
-          export RUSTC_LINKER=lld-16
+          export RUSTC_LINKER=lld-17
           triplet=$(uname -m)-unknown-linux-gnu
           RUST_NIGHTLY_VERSION="-2024-02-27"
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release

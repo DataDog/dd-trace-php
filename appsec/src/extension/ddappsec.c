@@ -255,21 +255,6 @@ void dd_appsec_rinit_once()
     pthread_once(&_rinit_once_control, _rinit_once);
 }
 
-static void _warn_on_empty_service_or_env()
-{
-    if (!get_global_DD_APPSEC_TESTING() && get_DD_REMOTE_CONFIG_ENABLED() &&
-        DDAPPSEC_G(enabled) != APPSEC_FULLY_DISABLED &&
-        (zend_string_equals_literal(get_DD_ENV(), "") ||
-            zend_string_equals_literal(get_DD_SERVICE(), ""))) {
-        mlog(dd_log_warning,
-            "AppSec is not disabled and Datadog service or env is empty. "
-            "Please set DD_SERVICE and DD_ENV rather than setting the "
-            "corresponding properties on the root span. Otherwise, remote "
-            "configuration for AppSec will use service=unnamed-php-service and "
-            "env=none");
-    }
-}
-
 // NOLINTNEXTLINE
 static PHP_RINIT_FUNCTION(ddappsec)
 {
@@ -282,7 +267,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
     dd_appsec_rinit_once();
     zai_config_rinit();
     _check_enabled();
-    _warn_on_empty_service_or_env();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         return SUCCESS;
