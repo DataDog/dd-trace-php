@@ -70,58 +70,22 @@
         <![CDATA[
 ## Tracer
 
-The default value for datadog.trace.cli_enabled is now set to true (except for composer), meaning that CLI processes will be traced by default.
-
-### Added
-- Dynamic configuration #2796
-- Dynamic instrumentation #2796
-  - Can be enabled with datadog.dynamic_instrumentation.enabled=1.
-- Exception replay #2796
-  - Can be enabled with datadog.exception_replay_enabled=1.
-- Track peak memory usage in root span metrics #2840
-
-### Changed
-- Enable sidecar trace sender on PHP 8.3 #2729
-- Optimize sending traces via sidecar Datadog/libdatadog#598
-- Add new ini config datadog.crashtracking_enabled #2850
-- Add ionCube to the list of incompatible extensions + add INI setting to ignore incompatible extensions #2858
-- Enable CLI by default #2871
-
 ### Fixed
-- Crashtracker: fix a use-after-free error #2843
-- Fix curl integration race condition #2847
+- Fix: MongoDBIntegration condition typo #2884
+- Fix crash in profiler when span stack switch causes GC run #2885
+- Support build with disabled zend signals #2886
+- Send git tags via remote config #2890
 - Fix memory leak with sidecar trace sender #2875
-- OpenTelemetry: Missing addLink method and Fiber handling #2849
-- Mongodb: Deprecated exception in v1.20+ #2870
-- Fix leaking sidecar sessions Datadog/libdatadog#642
-- Implement deadlock watchdog for sidecar Datadog/libdatadog#647
-
-### Internal
-- Fix testsuite flakiness #2841, #2846, #2848, #2867
-- Fix telemetry metric name Datadog/libdatadog#666
-
-### SSI Loader changes
-- Add SSI requirements.json file #2813
-- Disable the tracer in case of a potential incompatibility (extension/jit) #2853
 
 ## Profiling
 
-### Internal
-- bump to Rust 1.76 #2876
+### Fixed
+- Fix profiler ZTS build on alpine #2887
 
 ## Application Security Management
 
-### Changed
-- Move helper to sidecar remote config #2864
-
 ### Fixed
-- Fix improper symbol exports in appsec ext/helper #2854
-- Remove gid from socket/lock path of helper #2855
-- appsec ext: retry on connection refused #2860
-- Fix orderly helper appsec shutdown #2859
-
-### Internal changes
-- Add appsec benchmarks #2791
+- AppSec: improve behavior with empty DD_SERVICE/DD_ENV #2888
 
 ]]></notes>
     <contents>
