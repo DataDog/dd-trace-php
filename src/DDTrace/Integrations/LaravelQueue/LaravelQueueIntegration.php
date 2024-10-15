@@ -168,6 +168,7 @@ class LaravelQueueIntegration extends Integration
                 }
 
                 if ($integration->installedHooks["$class::$method"]) {
+                    $integration->installedHooks["$class::$method"]++;
                     return;
                 }
 
@@ -197,12 +198,15 @@ class LaravelQueueIntegration extends Integration
                             );
                         }
 
-                        unset($integration->installedHooks["$class::$method"]);
-                        remove_hook($hook->id);
+                        $integration->installedHooks["$class::$method"]--;
+                        if ($integration->installedHooks["$class::$method"] === 0) {
+                            remove_hook($hook->id);
+                            unset($integration->installedHooks["$class::$method"]);
+                        }
                     }
                 );
 
-                $integration->installedHooks["$class::$method"] = true;
+                $integration->installedHooks["$class::$method"] = 1;
             }
         );
 
