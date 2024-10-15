@@ -1,9 +1,13 @@
-use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_flf_functions, zend_function};
+use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
+use std::borrow::Cow;
+use std::str::Utf8Error;
+
+#[cfg(php_frameless)]
+use crate::bindings::zend_flf_functions;
+#[cfg(php_frameless)]
 use crate::bindings::{
     ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
 };
-use std::borrow::Cow;
-use std::str::Utf8Error;
 
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
