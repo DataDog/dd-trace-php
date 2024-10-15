@@ -515,7 +515,7 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     dd_result res = dd_request_exec(conn, &parameters_zv, rasp);
     zval_ptr_dtor(&parameters_zv);
 
-    if (rasp && (res == dd_should_block || res == dd_should_redirect)) {
+    if (rasp) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
         elapsed =
             ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
@@ -537,19 +537,6 @@ static PHP_FUNCTION(datadog_appsec_push_address)
             dd_request_abort_static_page();
         } else if (res == dd_should_redirect) {
             dd_request_abort_redirect();
-        }
-    }
-
-    if (rasp && elapsed == 0) {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-        elapsed =
-            ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
-                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                (int64_t)1000000000 +
-            ((int64_t)end.tv_nsec - (int64_t)start.tv_nsec);
-        zend_object *span = dd_trace_get_active_root_span();
-        if (span) {
-            dd_tags_add_rasp_duration_ext(span, elapsed);
         }
     }
 }
