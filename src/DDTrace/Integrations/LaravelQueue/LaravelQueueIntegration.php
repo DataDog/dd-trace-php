@@ -32,6 +32,11 @@ class LaravelQueueIntegration extends Integration
     private $appName;
 
     /**
+     * @var array{string} Currently installed job hooks.
+     */
+    private $installedHooks;
+
+    /**
      * {@inheritdoc}
      */
     public function init(): int
@@ -162,6 +167,10 @@ class LaravelQueueIntegration extends Integration
                     $method = 'handle';
                 }
 
+                if ($integration->installedHooks["$class::$method"]) {
+                    return;
+                }
+
                 install_hook(
                     "$class::$method",
                     function (HookData $hook) use ($integration, $class, $method) {
@@ -189,8 +198,11 @@ class LaravelQueueIntegration extends Integration
                         }
 
                         remove_hook($hook->id);
+                        unset($integration->installedHooks["$class::$method"]);
                     }
                 );
+
+                $integration->installedHooks["$class::$method"] = true;
             }
         );
 
