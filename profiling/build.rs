@@ -329,6 +329,9 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80300 {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
+    if vernum >= 80400 {
+        println!("cargo:rustc-cfg=php_frameless");
+    }
 }
 
 fn cfg_zts() {
