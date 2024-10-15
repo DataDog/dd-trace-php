@@ -16,7 +16,7 @@ class FilesystemIntegration extends Integration
             return Integration::LOADED;
         }
 
-        if (!function_exists('\datadog\appsec\push_address')) {
+        if (!function_exists('datadog\appsec\push_address')) {
             //Dont load Appsec wrappers is not available
             return Integration::LOADED;
         }
