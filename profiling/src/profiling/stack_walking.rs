@@ -206,6 +206,8 @@ mod detail {
             let mut execute_data_ptr = top_execute_data;
 
             while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+                // allowed because it's only used on the frameless path
+                #[allow(unused_variables)]
                 if let Some(func) = unsafe { execute_data.func.as_ref() } {
                     #[cfg(php_frameless)]
                     if !func.is_internal() {
