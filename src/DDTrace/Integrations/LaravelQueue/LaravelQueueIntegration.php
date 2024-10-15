@@ -197,8 +197,8 @@ class LaravelQueueIntegration extends Integration
                             );
                         }
 
-                        remove_hook($hook->id);
                         unset($integration->installedHooks["$class::$method"]);
+                        remove_hook($hook->id);
                     }
                 );
 
