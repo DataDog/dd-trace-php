@@ -15,6 +15,7 @@
 
 The Datadog PHP Tracer (**ddtrace**) brings [APM and distributed tracing](https://docs.datadoghq.com/tracing/) to PHP.
 
+
 ### Installing the extension
 
 Datadog’s PHP Tracing Library supports many of the most common PHP versions, PHP web frameworks, datastores, libraries, and more. Prior to installation, please check our latest [compatibility requirements](https://docs.datadoghq.com/tracing/setup_overview/compatibility_requirements/php/).
