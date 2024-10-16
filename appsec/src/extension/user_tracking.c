@@ -131,7 +131,7 @@ void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
     zend_hash_str_add_new(
         Z_ARRVAL(data_zv), "usr.id", sizeof("usr.id") - 1, &user_id_zv);
 
-    dd_result res = dd_request_exec(conn, &data_zv);
+    dd_result res = dd_request_exec(conn, &data_zv, false);
     zval_ptr_dtor(&data_zv);
 
     dd_tags_set_event_user_id(user_id);

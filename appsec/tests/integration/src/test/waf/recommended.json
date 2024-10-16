@@ -56,6 +56,36 @@
       ]
     },
     {
+      "id": "rasp-001-001",
+      "name": "Path traversal attack",
+      "tags": {
+        "type": "lfi",
+        "category": "vulnerability_trigger",
+        "module": "rasp"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "params": [
+              {
+                "address": "server.request.query"
+              }
+            ],
+            "resource": [
+              {
+                "address": "server.io.fs.file"
+              }
+            ]
+          },
+          "operator": "lfi_detector"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "stack_trace"
+      ]
+    },
+    {
       "id": "blk-001-003",
       "name": "Block User Addresses",
       "tags": {
