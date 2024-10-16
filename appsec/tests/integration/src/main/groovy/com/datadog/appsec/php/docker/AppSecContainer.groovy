@@ -4,7 +4,6 @@ import com.datadog.appsec.php.mock_agent.MockDatadogAgent
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
-import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import com.github.dockerjava.api.command.CreateContainerCmd
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
@@ -12,6 +11,7 @@ import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.model.Bind
 import com.github.dockerjava.api.model.Volume
 import com.google.common.util.concurrent.SettableFuture
+import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
 import groovy.transform.TypeCheckingMode
 import groovy.transform.stc.ClosureParams
@@ -30,9 +30,12 @@ import org.testcontainers.containers.output.Slf4jLogConsumer
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.Future
 import java.util.function.Consumer
+import java.util.function.Supplier
 
 @CompileStatic
 @Slf4j
@@ -127,6 +130,58 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
         mockDatadogAgent.waitForRCVersion(target, version, timeoutInMs)
+    }
+
+    Supplier<RemoteConfigRequest> applyRemoteConfig(Target target, Map<String, Map> files) {
+        Map<String, byte[]> encodedFiles = files
+                .findAll { it.value != null }
+                .collectEntries {
+                    [
+                            it.key,
+                            JsonOutput.toJson(it.value).getBytes(StandardCharsets.UTF_8)
+                    ]
+                }
+        long newVersion = Instant.now().epochSecond
+        def rcr = new RemoteConfigResponse()
+        rcr.clientConfigs = files.keySet() as List
+        rcr.targetFiles = encodedFiles.collect {
+            new RemoteConfigResponse.TargetFile(
+                    path: it.key,
+                    raw: new String(
+                            Base64.encoder.encode(it.value),
+                            StandardCharsets.ISO_8859_1)
+            )
+        }
+        rcr.targets = new RemoteConfigResponse.Targets(
+                signatures: [],
+                targetsSigned: new RemoteConfigResponse.Targets.TargetsSigned(
+                        type: 'root',
+                        custom: new RemoteConfigResponse.Targets.TargetsSigned.TargetsCustom(
+                                opaqueBackendState: 'ABCDEF'
+                        ),
+                        specVersion: '1.0.0',
+                        expires: Instant.parse('2030-01-01T00:00:00Z'),
+                        version: newVersion,
+                        targets: encodedFiles.collectEntries {
+                            [
+                                    it.key,
+                                    new RemoteConfigResponse.Targets.ConfigTarget(
+                                            hashes: [sha256: RemoteConfigResponse.sha256(it.value).toString(16).padLeft(64, '0')],
+                                            length: it.value.size(),
+                                            custom: new RemoteConfigResponse.Targets.ConfigTarget.ConfigTargetCustom(
+                                                    version: newVersion
+                                            )
+                                    )
+                            ]
+                        }
+                ),
+        )
+
+        setNextRCResponse(target, rcr)
+
+        long start = System.currentTimeMillis()
+        return { -> waitForRCVersion(target, newVersion,
+                5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
     }
 
     void close() {

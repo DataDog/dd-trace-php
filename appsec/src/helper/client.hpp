@@ -22,13 +22,13 @@ class client {
 public:
     // Below this limit the encoding+compression might result on a longer string
     client(std::shared_ptr<service_manager> service_manager,
-        network::base_broker::ptr &&broker)
+        std::unique_ptr<network::base_broker> &&broker)
         : service_manager_(std::move(service_manager)),
           broker_(std::move(broker))
     {}
 
     client(std::shared_ptr<service_manager> service_manager,
-        network::base_socket::ptr &&socket)
+        std::unique_ptr<network::base_socket> &&socket)
         : service_manager_(std::move(service_manager)),
           broker_(std::make_unique<network::broker>(std::move(socket)))
     {}
@@ -61,9 +61,7 @@ public:
     void run(worker::queue_consumer &q);
     bool compute_client_status();
 
-    void update_remote_config_path(std::string_view path,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+    void update_remote_config_path(std::string_view path);
 
 protected:
     template <typename T>
@@ -73,7 +71,7 @@ protected:
     bool send_message(const std::shared_ptr<typename T::response> &message);
     bool initialised{false};
     uint32_t version{};
-    network::base_broker::ptr broker_;
+    std::unique_ptr<network::base_broker> broker_;
     std::shared_ptr<service_manager> service_manager_;
     std::optional<dds::engine_settings> engine_settings_;
     std::shared_ptr<service> service_ = {nullptr};

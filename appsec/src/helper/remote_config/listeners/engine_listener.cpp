@@ -15,12 +15,14 @@
 #include <rapidjson/rapidjson.h>
 #include <spdlog/spdlog.h>
 #include <type_traits>
+#include <utility>
 
 namespace dds::remote_config {
 
-engine_listener::engine_listener(
-    std::shared_ptr<engine> engine, const std::string &rules_file)
-    : engine_(std::move(engine))
+engine_listener::engine_listener(std::shared_ptr<engine> engine,
+    std::shared_ptr<dds::metrics::TelemetrySubmitter> msubmitter,
+    const std::string &rules_file)
+    : engine_{std::move(engine)}, msubmitter_{std::move(msubmitter)}
 {
     aggregators_.emplace(
         known_products::ASM, std::make_unique<asm_aggregator>());
@@ -82,12 +84,8 @@ void engine_listener::commit()
         }
     }
 
-    // TODO find a way to provide this information to the service
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     engine_ruleset ruleset = dds::engine_ruleset(std::move(ruleset_));
-    engine_->update(ruleset, meta, metrics);
+    engine_->update(ruleset, *msubmitter_);
 }
 
 } // namespace dds::remote_config
