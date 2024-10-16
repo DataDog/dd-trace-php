@@ -180,6 +180,11 @@ final class Tracer implements TracerInterface
         $span = new Span($internalSpan, $context);
 
         foreach ($options->getTags() as $key => $val) {
+            // As per unified service tagging spec if a span is created with a service name different from the global
+            // service name it will not inherit the global version value
+            if ($key === 'service' && $val !== $service) {
+                $span->setTag("version", null);
+            }
             $span->setTag($key, $val);
         }
 
