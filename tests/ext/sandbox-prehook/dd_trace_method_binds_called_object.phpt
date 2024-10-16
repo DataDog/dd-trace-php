@@ -27,7 +27,11 @@ DDTrace\trace_method('DatePeriod', 'getStartDate', ['prehook' => function () {
 $foo = new Foo();
 $foo->testBinding();
 
-$period = new DatePeriod('R7/2019-08-21T00:00:00Z/P1D');
+if (PHP_VERSION_ID >= 80400) {
+    $period = DatePeriod::createFromISO8601String('R7/2019-08-21T00:00:00Z/P1D');
+} else {
+    $period = new DatePeriod('R7/2019-08-21T00:00:00Z/P1D');
+}
 $period->getStartDate();
 ?>
 --EXPECTF--

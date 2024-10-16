@@ -5,8 +5,8 @@
 // Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "attributes.h"
 #include <php.h>
+#include "attributes.h"
 #include <stdbool.h>
 
 void dd_entity_body_startup(void);

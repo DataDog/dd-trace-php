@@ -354,7 +354,9 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
                 if (prev_stack_frame) {
                     zend_hash_del(prev_stack_frame, ZSTR_KNOWN(ZEND_STR_FILE));
                     zend_hash_del(prev_stack_frame, ZSTR_KNOWN(ZEND_STR_LINE));
-                    zend_hash_del(prev_stack_frame, key_locals);
+                    if ((options & DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS)) {
+                        zend_hash_del(prev_stack_frame, key_locals);
+                    }
                 }
             }
             if ((options & DEBUG_BACKTRACE_IGNORE_ARGS) == 0) {
