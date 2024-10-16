@@ -515,6 +515,7 @@ static void ddtrace_activate(void) {
 
     if (ddtrace_disable) {
         ddtrace_disable_tracing_in_current_request();
+        ddtrace_disable_standalone_appsec_in_current_request();
     }
 
 #if PHP_VERSION_ID < 80000
@@ -1744,6 +1745,14 @@ void ddtrace_disable_tracing_in_current_request(void) {
     // PHP 8 has ZSTR_CHAR('0') which is nicer...
     zend_string *zero = zend_string_init("0", 1, 0);
     zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_ENABLED].ini_entries[0]->name, zero,
+                         ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+    zend_string_release(zero);
+}
+
+void ddtrace_disable_standalone_appsec_in_current_request(void) {
+    // PHP 8 has ZSTR_CHAR('0') which is nicer...
+    zend_string *zero = zend_string_init("0", 1, 0);
+    zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED].ini_entries[0]->name, zero,
                          ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
     zend_string_release(zero);
 }

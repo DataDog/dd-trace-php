@@ -4,6 +4,8 @@ Ensure the tracer can also be enabled or disabled in fibers
 <?php if (PHP_VERSION_ID < 80100) die("skip: Fibers are a PHP 8.1+ feature"); ?>
 --INI--
 datadog.trace.enabled=0
+--ENV--
+DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED=0
 --FILE--
 <?php
 
