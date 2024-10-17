@@ -125,6 +125,8 @@ int appsec_helper_main_impl()
 
         runner->run();
 
+        runner->unregister_for_rc_notifications();
+
         finished.store(true, std::memory_order_release);
     }};
     thread_id = thr.native_handle();
@@ -156,7 +158,8 @@ appsec_helper_shutdown() noexcept
     pthread_kill(thread_id, SIGUSR1);
 
     // wait up to 1 second for the runner to finish
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
+    auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds{100};
     while (true) {
         if (finished.load(std::memory_order_acquire)) {
             SPDLOG_INFO("AppSec helper finished");
