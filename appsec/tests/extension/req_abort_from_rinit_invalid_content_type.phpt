@@ -3,6 +3,7 @@ Abort request as a result of rinit, with an invalid content type
 --INI--
 datadog.appsec.enabled=1
 datadog.appsec.log_level=error
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;

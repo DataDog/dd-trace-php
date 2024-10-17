@@ -43,7 +43,8 @@
 #define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
 #define DD_TAG_HTTP_CLIENT_IP "http.client_ip"
 #define DD_TAG_USER_ID "usr.id"
-#define DD_METRIC_ENABLED "_dd.appsec.enabled"
+#define DD_APPSEC_METRIC_ENABLED "_dd.appsec.enabled"
+#define DD_APM_METRIC_ENABLED "_dd.apm.enabled"
 #define DD_APPSEC_EVENTS_PREFIX "appsec.events."
 #define DD_SIGNUP_EVENT DD_APPSEC_EVENTS_PREFIX "users.signup"
 #define DD_LOGIN_SUCCESS_EVENT DD_APPSEC_EVENTS_PREFIX "users.login.success"
@@ -76,7 +77,8 @@ static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
 static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_tag_user_id;
-static zend_string *_dd_metric_enabled;
+static zend_string *_dd_appsec_metric_enabled;
+static zend_string *_dd_apm_metric_enabled;
 static zend_string *_dd_signup_event;
 static zend_string *_dd_login_success_event;
 static zend_string *_dd_login_failure_event;
@@ -158,8 +160,10 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LANGUAGE), 1);
     _dd_tag_user_id = zend_string_init_interned(LSTRARG(DD_TAG_USER_ID), 1);
 
-    _dd_metric_enabled =
-        zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
+    _dd_appsec_metric_enabled =
+        zend_string_init_interned(LSTRARG(DD_APPSEC_METRIC_ENABLED), 1);
+    _dd_apm_metric_enabled =
+        zend_string_init_interned(LSTRARG(DD_APM_METRIC_ENABLED), 1);
 
     _key_request_uri_zstr =
         zend_string_init_interned(LSTRARG("REQUEST_URI"), 1);
@@ -318,9 +322,21 @@ void dd_tags_add_tags(
         // metric _dd.appsec.enabled
         bool added = _set_appsec_enabled(metrics_zv);
         if (added) {
-            mlog(dd_log_debug, "Added metric %s", DD_METRIC_ENABLED);
+            mlog(dd_log_debug, "Added metric %s", DD_APPSEC_METRIC_ENABLED);
         } else {
-            mlog(dd_log_info, "Failed adding metric %s", DD_METRIC_ENABLED);
+            mlog(dd_log_info, "Failed adding metric %s",
+                DD_APPSEC_METRIC_ENABLED);
+        }
+        if (DDAPPSEC_G(enabled) == APPSEC_ENABLED_STANDALONE) {
+            zval zv;
+            ZVAL_LONG(&zv, 0);
+            zend_hash_add(Z_ARRVAL_P(metrics_zv), _dd_apm_metric_enabled, &zv);
+            if (added) {
+                mlog(dd_log_debug, "Added metric %s", DD_APM_METRIC_ENABLED);
+            } else {
+                mlog(dd_log_info, "Failed adding metric %s",
+                    DD_APM_METRIC_ENABLED);
+            }
         }
     }
     // tag _dd.runtime_family
@@ -1197,8 +1213,8 @@ static bool _set_appsec_enabled(zval *metrics_zv)
 {
     zval zv;
     ZVAL_LONG(&zv, DDAPPSEC_G(active) ? 1 : 0);
-    return zend_hash_add(Z_ARRVAL_P(metrics_zv), _dd_metric_enabled, &zv) !=
-           NULL;
+    return zend_hash_add(
+               Z_ARRVAL_P(metrics_zv), _dd_appsec_metric_enabled, &zv) != NULL;
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_add_all_ancillary_tags)

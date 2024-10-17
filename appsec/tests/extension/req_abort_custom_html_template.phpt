@@ -2,6 +2,7 @@
 Abort request as a result of rinit, with a custom template
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --ENV--
 DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML=tests/extension/templates/response.html
 --FILE--

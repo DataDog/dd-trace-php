@@ -2,6 +2,7 @@
 When there is a block action, the request is blocked
 --INI--
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --ENV--
 DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML=tests/extension/templates/response.html
 --FILE--

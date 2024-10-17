@@ -4,6 +4,7 @@ Abort request as a result of rshutdown, using defaults
 datadog.appsec.enabled=1
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};

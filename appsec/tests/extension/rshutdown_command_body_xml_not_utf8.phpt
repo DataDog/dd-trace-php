@@ -3,6 +3,7 @@ request_shutdown — xml body variant (not utf-8)
 --INI--
 expose_php=0
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --GET--
 a=b
 --FILE--

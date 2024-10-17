@@ -4,6 +4,7 @@ request_shutdown — body size exceeded
 expose_php=0
 datadog.appsec.max_body_buff_size=15
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --GET--
 a=b
 --FILE--

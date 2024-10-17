@@ -690,7 +690,7 @@ dd_result dd_command_process_config_features(
     mpack_node_t first_element = mpack_node_array_at(root, 0);
     bool new_status = mpack_node_bool(first_element);
 
-    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_ENABLED && !new_status) {
+    if ((DDAPPSEC_G(enabled) == APPSEC_FULLY_ENABLED || DDAPPSEC_G(enabled) == APPSEC_ENABLED_STANDALONE) && !new_status) {
         mlog(dd_log_debug, "Remote config is trying to disable extension but "
                            "it is enabled by config");
     } else {

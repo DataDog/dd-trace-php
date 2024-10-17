@@ -3,6 +3,7 @@ Abort request as a result of rinit, with a non-existent template
 --INI--
 datadog.appsec.enabled=1
 datadog.appsec.log_level=error
+extension=ddtrace.so
 --ENV--
 DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML=tests/extension/templates/missing
 --FILE--

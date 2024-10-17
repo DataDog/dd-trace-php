@@ -362,13 +362,19 @@ __thread void *unspecnull TSRMLS_CACHE = NULL;
 
 static void _check_enabled()
 {
-    if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
+    if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled() &&
+            !get_DD_APPSEC_ENABLED()) ||
         (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text) ||
         (strcmp(sapi_module.name, "frankenphp") == 0)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;
         DDAPPSEC_G(to_be_configured) = false;
-    } else if (!dd_cfg_enable_via_remcfg()) {
+    } else if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() &&
+               dd_trace_loaded() && !get_DD_TRACE_ENABLED() && get_DD_APPSEC_ENABLED()) {
+        DDAPPSEC_G(enabled) = APPSEC_ENABLED_STANDALONE;
+        DDAPPSEC_G(active) = true;
+        DDAPPSEC_G(to_be_configured) = false;
+    } else if (!dd_cfg_enable_via_remcfg() && dd_trace_enabled()) {
         DDAPPSEC_G(enabled) = get_DD_APPSEC_ENABLED() ? APPSEC_FULLY_ENABLED
                                                       : APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = get_DD_APPSEC_ENABLED() ? true : false;

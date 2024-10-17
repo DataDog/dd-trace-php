@@ -4,6 +4,8 @@ Request abort from inside ob handler
 <?php
 require __DIR__ . "/inc/no_valgrind.php";
 ?>
+--INI--
+extension=ddtrace.so
 --FILE--
 <?php
 function error_handler($errno, $errstr, $errfile, $errline) {

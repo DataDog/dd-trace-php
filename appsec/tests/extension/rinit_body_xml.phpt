@@ -3,6 +3,7 @@ request_init data on XML data
 --INI--
 datadog.appsec.testing_raw_body=1
 datadog.appsec.enabled=1
+extension=ddtrace.so
 --POST_RAW--
 <foo/>
 --ENV--

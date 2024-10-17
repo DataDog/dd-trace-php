@@ -696,6 +696,10 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     dd_append_header(&list, "Datadog-Meta-Lang-Version", ZSTR_VAL(ddtrace_php_version));
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
 
+    if (!get_DD_TRACE_ENABLED() && get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        dd_append_header(&list, "Datadog-Client-Computed-Stats", "yes");
+    }
+
     ddog_CharSlice id = ddtrace_get_container_id();
     if (id.len) {
         char header[256];

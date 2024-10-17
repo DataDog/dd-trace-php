@@ -3,6 +3,7 @@ When extension is enabled by INI, it is sent to helper
 --INI--
 datadog.appsec.enabled=1
 datadog.appsec.log_file=/tmp/php_appsec_test.log
+extension=ddtrace.so
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
