@@ -1661,6 +1661,7 @@ void dd_force_shutdown_tracing(void) {
 
     // we here need to disable the tracer, so that further hooks do not trigger
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
+    ddtrace_disable_standalone_appsec_in_current_request();
 
     // The hooks shall not be reset, just disabled at runtime.
     dd_shutdown_hooks_and_observer();
