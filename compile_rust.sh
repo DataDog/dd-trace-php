@@ -22,4 +22,4 @@ if test -n "$COMPILE_ASAN"; then
   export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
 fi
 
-SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" build $(test "${PROFILE:-debug}" = "debug" || echo --profile "$PROFILE") "$@"
+SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" build $(test "${PROFILE:-debug}" = "debug" || echo --profile "$PROFILE") $(test -n "$COMPILE_ASAN" && echo "--features lsan") "$@"

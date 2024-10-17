@@ -2462,6 +2462,14 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice slice = ddog_sidecar_stats(&ddtrace_sidecar);
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
+        } else if (FUNCTION_NAME_MATCHES("lsan_sidecar")) {
+            if (!ddtrace_sidecar) {
+                RETURN_FALSE;
+            }
+			ddtrace_wtf();
+            ddog_CharSlice slice = ddog_sidecar_lsan_stats(&ddtrace_sidecar);
+            RETVAL_STRINGL(slice.ptr, slice.len);
+            free((void *) slice.ptr);
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;
             if (params_count == 1) {
