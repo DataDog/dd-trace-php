@@ -238,6 +238,11 @@ ddog_CharSlice ddog_sidecar_dump(struct ddog_SidecarTransport **transport);
 ddog_CharSlice ddog_sidecar_stats(struct ddog_SidecarTransport **transport);
 
 /**
+ * Retrieves the current lsan dump of the sidecar.
+ */
+ddog_CharSlice ddog_sidecar_lsan_stats(struct ddog_SidecarTransport **transport);
+
+/**
  * Send a DogStatsD "count" metric.
  */
 ddog_MaybeError ddog_sidecar_dogstatsd_count(struct ddog_SidecarTransport **transport,

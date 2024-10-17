@@ -65,3 +65,21 @@ pub unsafe extern "C" fn ddtrace_strip_invalid_utf8(input: *const c_char, len: *
 pub unsafe extern "C" fn ddtrace_drop_rust_string(input: *mut c_char, len: usize) {
     _ = String::from_raw_parts(input as *mut u8, len, len);
 }
+
+
+use std::io::Read;
+use std::fmt::Write;
+use std::os::fd::AsRawFd;
+#[no_mangle]
+pub unsafe extern "C" fn ddtrace_wtf() {
+    {
+        extern "C" {
+            fn __lsan_do_recoverable_leak_check();
+        }
+
+                unsafe {
+                    __lsan_do_recoverable_leak_check();
+                }
+    }
+
+}
