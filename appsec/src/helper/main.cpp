@@ -125,6 +125,8 @@ int appsec_helper_main_impl()
 
         runner->run();
 
+        runner->unregister_for_rc_notifications();
+
         finished.store(true, std::memory_order_release);
     }};
     thread_id = thr.native_handle();
