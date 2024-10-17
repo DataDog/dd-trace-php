@@ -26,13 +26,15 @@ public:
     runner &operator=(const runner &) = delete;
     runner(runner &&) = delete;
     runner &operator=(runner &&) = delete;
-    ~runner() noexcept;
+    ~runner() = default;
 
     static void resolve_symbols();
 
     void run() noexcept(false);
 
     void register_for_rc_notifications();
+
+    void unregister_for_rc_notifications();
 
     [[nodiscard]] bool interrupted() const
     {
