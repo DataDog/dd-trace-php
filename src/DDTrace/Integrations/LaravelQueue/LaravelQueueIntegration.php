@@ -150,11 +150,11 @@ class LaravelQueueIntegration extends Integration
             ]
         );
 
-        hook_method(
-            'Illuminate\Queue\Jobs\Job',
-            'fire',
-            function ($job, $scope, $args) use ($integration) {
-                $payload = $job->payload();
+        install_hook(
+            'Illuminate\Queue\Jobs\Job::fire',
+            function (HookData $fireHook) use ($integration) {
+                /** @var \Illuminate\Queue\Jobs\Job $this */
+                $payload = $this->payload();
                 list($class, $method) = JobName::parse($payload['job']);
 
                 if ($class == 'Illuminate\\Queue\\CallQueuedHandler') {
@@ -162,9 +162,9 @@ class LaravelQueueIntegration extends Integration
                     $method = 'handle';
                 }
 
-                install_hook(
+                $fireHook->data['id'] = install_hook(
                     "$class::$method",
-                    function (HookData $hook) use ($integration, $class, $method) {
+                    function (HookData $hook) use ($integration, $class, $method, $fireHook) {
                         $span = $hook->span();
                         $span->name = 'laravel.queue.action';
                         $span->type = 'queue';
@@ -191,6 +191,9 @@ class LaravelQueueIntegration extends Integration
                         remove_hook($hook->id);
                     }
                 );
+            },
+            function (HookData $fireHook) {
+                remove_hook($fireHook->data['id']);
             }
         );
 
