@@ -1,5 +1,7 @@
 <?php
 
+include __DIR__ . '/dummy_filesystem_integration.inc'; //This file uses wrapped function file_get_contents
+
 class RequestReplayer
 {
     /**
