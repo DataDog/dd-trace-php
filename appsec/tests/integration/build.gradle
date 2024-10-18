@@ -38,7 +38,7 @@ test {
 }
 tasks['test'].enabled(false)
 
-ext.testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3'].collectMany {
+ext.testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4'].collectMany {
     [[it, 'release'], [it, 'debug'], [it, 'release-zts']]
 }
 ext.uuid = "id -u".execute().text.trim()

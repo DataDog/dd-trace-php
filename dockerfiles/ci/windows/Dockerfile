@@ -5,9 +5,7 @@ ARG phpTarGzUrl
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 
-ADD ${phpTarGzUrl} /php-sdk/php-src.tar.gz
-RUN tar xzf php-src.tar.gz
-RUN move php-%PHP_VERSION% php-src
+RUN powershell "Invoke-WebRequest %phpTarGzUrl% -OutFile /php-sdk/php-src.tar.gz; tar xzf php-src.tar.gz; move php-%phpVersion% php-src; Remove-Item /php-sdk/php-src.tar.gz"
 
 ADD setup_deps.bat /php-sdk/setup_deps.bat
 

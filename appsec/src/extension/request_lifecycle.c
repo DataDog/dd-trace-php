@@ -1,9 +1,9 @@
 #include "request_lifecycle.h"
-#include "attributes.h"
 #include "commands/client_init.h"
 #include "commands/config_sync.h"
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -22,6 +22,8 @@
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
 #include <stdio.h>
+
+#include "attributes.h"
 
 static void _do_request_finish_php(bool ignore_verdict);
 static zend_array *nullable _do_request_begin(
@@ -858,7 +860,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_arginfo, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "dump_req_lifecycle_state", PHP_FN(datadog_appsec_testing_dump_req_lifecycle_state), dump_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "dump_req_lifecycle_state", PHP_FN(datadog_appsec_testing_dump_req_lifecycle_state), dump_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

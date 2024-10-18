@@ -661,6 +661,7 @@ static int ddloader_api_no_check(int api_no) {
         case 420210902:  // 8.1
         case 420220829:  // 8.2
         case 420230831:  // 8.3
+        case 420240924:  // 8.4
             break;
 
         default:
