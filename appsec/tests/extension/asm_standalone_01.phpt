@@ -4,11 +4,12 @@ Test appsec can still send tracer when tracer is disabled
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_SERVICE=appsec_tests
+DD_TRACE_ENABLED=0
+DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED=1
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
-datadog.trace.enabled=0
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -39,9 +40,9 @@ array(1) {
     ["duration"]=>
     int(%d)
     ["name"]=>
-    string(21) "root_span_add_tag.php"
+    string(21) "asm_standalone_01.php"
     ["resource"]=>
-    string(21) "root_span_add_tag.php"
+    string(21) "asm_standalone_01.php"
     ["service"]=>
     string(12) "appsec_tests"
     ["type"]=>

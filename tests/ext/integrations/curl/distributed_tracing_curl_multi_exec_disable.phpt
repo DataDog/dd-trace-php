@@ -1,12 +1,11 @@
 --TEST--
-Distributed tracing headers do not propagate with curl_multi_exec() after dd_trace_disable_in_request() if appsec_standalone is disabled
+Distributed tracing headers do not propagate with curl_multi_exec() after dd_trace_disable_in_request()
 --SKIPIF--
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 HTTP_X_DATADOG_ORIGIN=phpt-test
-DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED=0
 --FILE--
 <?php
 include 'curl_helper.inc';

@@ -107,7 +107,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                  \
     CONFIG(STRING, DD_ENV, "", .ini_change = ddtrace_alter_dd_env,                                             \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_env)                                   \
-    CONFIG(BOOL, DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED, "true",                                            \
+    CONFIG(BOOL, DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED, "false",                                           \
            .env_config_fallback = ddtrace_conf_otel_traces_exporter)                                           \
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
     CONFIG(BOOL, DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED, "true")                                               \
