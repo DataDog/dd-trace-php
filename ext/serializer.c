@@ -1704,8 +1704,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     array_init(&metrics_zv);
     zend_string *str_key;
     zval *val;
+    bool is_standalone_appsec_span = false;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(metrics, str_key, val) {
         if (str_key) {
+            if (!is_standalone_appsec_span && get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && strcmp("_dd.appsec.enabled", ZSTR_VAL(str_key)) == 0) {
+                is_standalone_appsec_span = true;
+            }
             dd_serialize_array_metrics_recursively(Z_ARRVAL(metrics_zv), str_key, val);
         }
     } ZEND_HASH_FOREACH_END();
@@ -1713,6 +1717,9 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", zval_get_long(&span->root->property_sampling_priority));
+        }
+        if(is_standalone_appsec_span) {
+            add_assoc_bool(&metrics_zv, "_dd.apm.enabled", false);
         }
     }
 

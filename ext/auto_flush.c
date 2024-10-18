@@ -13,6 +13,24 @@
 #include "ddshared.h"
 #include <main/SAPI.h>
 
+static bool trace_contains_appsec_event(zval *trace) {
+    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
+        return false;
+    }
+
+    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
+    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
+        return false;
+    }
+
+    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
+    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
+        return false;
+    }
+
+    return zend_hash_str_exists(Z_ARR_P(meta), ZEND_STRL("appsec.event"));
+}
+
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
 
@@ -42,6 +60,11 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     array_init(&traces);
     zend_hash_index_add(Z_ARR(traces), 0, &trace);
 
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !trace_contains_appsec_event(&trace)) {
+        LOG(DEBUG, "Trace discarded because it has no appsec events and appsec standalone is on");
+        return SUCCESS;
+    }
+
     size_t limit = get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE();
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         if (ddtrace_sidecar) {
@@ -64,7 +87,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                                 .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
                                 .client_computed_top_level = false,
-                                .client_computed_stats = false,
+                                .client_computed_stats = get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED(),
                         };
                         size_t size_hint = written;
                         zend_long n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS();
