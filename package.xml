@@ -70,58 +70,22 @@
         <![CDATA[
 ## Tracer
 
-The default value for datadog.trace.cli_enabled is now set to true (except for composer), meaning that CLI processes will be traced by default.
-
-### Added
-- Dynamic configuration #2796
-- Dynamic instrumentation #2796
-  - Can be enabled with datadog.dynamic_instrumentation.enabled=1.
-- Exception replay #2796
-  - Can be enabled with datadog.exception_replay_enabled=1.
-- Track peak memory usage in root span metrics #2840
-
 ### Changed
-- Enable sidecar trace sender on PHP 8.3 #2729
-- Optimize sending traces via sidecar Datadog/libdatadog#598
-- Add new ini config datadog.crashtracking_enabled #2850
-- Add ionCube to the list of incompatible extensions + add INI setting to ignore incompatible extensions #2858
-- Enable CLI by default #2871
+- Disable sidecar sending on lambda #2904
 
 ### Fixed
-- Crashtracker: fix a use-after-free error #2843
-- Fix curl integration race condition #2847
-- Fix memory leak with sidecar trace sender #2875
-- OpenTelemetry: Missing addLink method and Fiber handling #2849
-- Mongodb: Deprecated exception in v1.20+ #2870
-- Fix leaking sidecar sessions Datadog/libdatadog#642
-- Implement deadlock watchdog for sidecar Datadog/libdatadog#647
-
-### Internal
-- Fix testsuite flakiness #2841, #2846, #2848, #2867
-- Fix telemetry metric name Datadog/libdatadog#666
-
-### SSI Loader changes
-- Add SSI requirements.json file #2813
-- Disable the tracer in case of a potential incompatibility (extension/jit) #2853
-
-## Profiling
-
-### Internal
-- bump to Rust 1.76 #2876
+- Fix exception property offset computation for PHP 8.1+ #2901
+- Prevent Laravel Queue hooks from stacking up #2899
+- Fix crash with missing name in span in debug mode #2893
+- Restrict remote config path to a definite 31 chars DataDog/libdatadog#676
 
 ## Application Security Management
 
 ### Changed
-- Move helper to sidecar remote config #2864
+- Update event obfuscation regex #2897
 
 ### Fixed
-- Fix improper symbol exports in appsec ext/helper #2854
-- Remove gid from socket/lock path of helper #2855
-- appsec ext: retry on connection refused #2860
-- Fix orderly helper appsec shutdown #2859
-
-### Internal changes
-- Add appsec benchmarks #2791
+- Fix abort() call on appsec helper unload #2900
 
 ]]></notes>
     <contents>
