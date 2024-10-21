@@ -13,12 +13,12 @@ class FilesystemIntegration extends Integration
     public function init(): int
     {
         if (!\dd_trace_env_config("DD_APPSEC_RASP_ENABLED")) {
-            return Integration::LOADED;
+            return Integration::NOT_LOADED;
         }
 
         if (!function_exists('datadog\appsec\push_address')) {
             //Dont load Appsec wrappers is not available
-            return Integration::LOADED;
+            return Integration::NOT_LOADED;
         }
 
         \DDTrace\install_hook(
