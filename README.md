@@ -11,7 +11,6 @@
 
 ## Getting Started
 
-
 <img align="right" style="margin-left:10px" src="https://user-images.githubusercontent.com/22597395/203064226-b8e84320-87b3-4c38-8305-9933c4ab4996.svg" alt="bits php" width="200px"/>
 
 The Datadog PHP Tracer (**ddtrace**) brings [APM and distributed tracing](https://docs.datadoghq.com/tracing/) to PHP.

@@ -1103,11 +1103,6 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             root_span_data_changed = true;
             // As per unified service tagging spec if a span is created with a service name different from the global
             // service name it will not inherit the global version value
-            // zval old_value;
-            // ZVAL_COPY(&old_value, &span->property_version);
-            // zval new_value;
-            // ZVAL_NULL(&new_value);
-            // ddtrace_alter_dd_version(&old_value, &new_value, NULL);
             ZVAL_NULL(&span->property_version);
 
         }
