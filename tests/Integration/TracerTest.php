@@ -286,16 +286,13 @@ final class TracerTest extends BaseTestCase
     {
         $this->putEnvAndReloadConfig(["DD_SERVICE=version_test", "DD_VERSION=5.2.0"]);
         $traces = $this->isolateTracer(function (Tracer $tracer) {
-            $scope = $tracer->startRootSpan('custom.root', [
-                'tags' => [
-                    'service' => 'no dd_service',
-                ],
-            ]);
+            $scope = $tracer->startRootSpan('custom.root');
+            $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'no dd_service');
             $scope->close();
         });
 
-        $this->assertTrue(empty($traces[0][0]['meta']['version']));
-        $this->assertTrue('no dd_service', $traces[0][0]['service']);
+        $this->assertSame('null', $traces[0][0]['meta']['version']);
+        $this->assertSame('no dd_service', $traces[0][0]['service']);
     }
 
     public function testTracerReset()
