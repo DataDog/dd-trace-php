@@ -27,7 +27,15 @@ static ddtrace_limiter* dd_limiter;
 
 
 void ddtrace_limiter_create() {
-    uint32_t limit = (uint32_t) get_global_DD_TRACE_RATE_LIMIT();
+    double sample_rate = (double)get_global_DD_TRACE_SAMPLE_RATE(); // Assuming this is accessible
+    uint32_t limit;
+
+    // Set limit based on sample rate
+    if (sample_rate != -1) {
+        limit = 100;  // Set a fixed limit if sample rate is set
+    } else {
+        limit = (uint32_t)get_global_DD_TRACE_RATE_LIMIT(); // Get the global limit
+    }
 
     if (!limit) {
         return;
