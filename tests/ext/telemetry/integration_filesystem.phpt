@@ -1,5 +1,5 @@
 --TEST--
-Signal integration telemetry
+Filesystem integration depends on RASP. If RASP enabled, integration is enabled
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
@@ -11,6 +11,7 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_APPSEC_RASP_ENABLED=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
 --FILE--
@@ -69,7 +70,7 @@ PUBLIC STATIC METHOD
 test_access hook
 array(1) {
   ["integrations"]=>
-  array(3) {
+  array(2) {
     [0]=>
     array(5) {
       ["name"]=>
@@ -84,19 +85,6 @@ array(1) {
       NULL
     }
     [1]=>
-    array(5) {
-      ["name"]=>
-      string(10) "filesystem"
-      ["enabled"]=>
-      bool(false)
-      ["version"]=>
-      string(0) ""
-      ["compatible"]=>
-      NULL
-      ["auto_enabled"]=>
-      NULL
-    }
-    [2]=>
     array(5) {
       ["name"]=>
       string(4) "logs"
