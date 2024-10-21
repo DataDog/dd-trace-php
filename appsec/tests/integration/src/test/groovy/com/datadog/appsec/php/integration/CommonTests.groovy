@@ -218,8 +218,6 @@ trait CommonTests {
                     Arguments.of("readfile", "/tmp/dummy", 15),
                     Arguments.of("file_get_contents", "/tmp/dummy", 15),
                     Arguments.of("fopen", "/tmp/dummy", 12),
-                    Arguments.of("stat", "/tmp/dummy", 15),
-                    Arguments.of("lstat", "/tmp/dummy", 15),
             });
      }
 

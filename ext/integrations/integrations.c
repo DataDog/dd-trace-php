@@ -251,8 +251,6 @@ void ddtrace_integrations_minit(void) {
                                            "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "fopen", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "readfile", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "stat", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "lstat", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
