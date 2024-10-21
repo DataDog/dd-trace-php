@@ -180,6 +180,13 @@ bool ddtrace_config_minit(int module_number) {
         config_entries[DDTRACE_CONFIG_DD_TRACE_AUTO_FLUSH_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
     }
 
+#ifndef _WIN32
+    // Sidecar is currently broken - no traces sent. Investigation pending, background sender just works though.
+    if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
+        config_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
+    }
+#endif
+
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
         ddtrace_log_ginit();
