@@ -45,18 +45,6 @@ class FilesystemIntegration extends Integration
             null
         );
 
-        \DDTrace\install_hook(
-            'stat',
-            self::preHook('stat'),
-            null
-        );
-
-        \DDTrace\install_hook(
-            'lstat',
-            self::preHook('lstat'),
-            null
-        );
-
         return Integration::LOADED;
     }
 

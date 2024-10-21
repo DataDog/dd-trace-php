@@ -61,22 +61,4 @@ final class FilesystemTest extends AppsecTestCase
         });
         $this->assertEvent('./dummy', $traces);
     }
-
-    public function testStat()
-    {
-        $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->call(GetSpec::create('Root', '/?function=stat&path=./dummy'));
-            TestCase::assertSame("OK", $response);
-        });
-        $this->assertEvent('./dummy', $traces);
-    }
-
-    public function testLstat()
-    {
-        $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->call(GetSpec::create('Root', '/?function=lstat&path=./dummy'));
-            TestCase::assertSame("OK", $response);
-        });
-        $this->assertEvent('./dummy', $traces);
-    }
 }
