@@ -26,6 +26,7 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
      */
     public function testResponseStatusCodeSuccess()
     {
+
         $traces = $this->tracesFromWebRequest(
             function () {
                 $this->call(GetSpec::create('Root', '/success'));
