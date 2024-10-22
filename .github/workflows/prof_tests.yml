@@ -41,15 +41,16 @@ jobs:
       options: --user root
 
     steps:
+      - name: Bypass GitHub Alpine detection
+        if: contains(matrix.docker_image, 'alpine')
+        run: |
+          apk add gcompat
+          sed -i "s:ID=alpine:ID=NotpineForGHA:" /etc/os-release
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: true
-
-      - name: Bake me into the base image
-        if: contains(matrix.docker_image, 'alpine')
-        run: |
-          apk add --no-cache tar
 
       - name: Restore Cargo Package Cache
         id: cache
