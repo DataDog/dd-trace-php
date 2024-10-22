@@ -7,6 +7,7 @@
 // NOLINTNEXTLINE(misc-header-include-cycle)
 #include <php.h>
 
+#include "compatibility.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "php_compat.h"
@@ -377,7 +378,7 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), void_ret_array_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "decode_msgpack", PHP_FN(datadog_appsec_testing_decode_msgpack), void_ret_array_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

@@ -25,6 +25,7 @@
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
 #include "commands_ctx.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -542,16 +543,16 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

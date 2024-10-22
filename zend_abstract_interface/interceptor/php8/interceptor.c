@@ -13,7 +13,7 @@
 # include <sanitizer/common_interface_defs.h>
 #endif
 
-#if 1
+#if PHP_VERSION_ID < 80400
 int zai_registered_observers = 0;
 #endif
 
@@ -116,7 +116,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
         void *stack_limit = EG(stack_limit);
 
         EG(stack_base) = stacktarget;
-        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset - EG(reserved_stack_size) * 2);
+        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset
+#ifdef ZEND_CHECK_STACK_LIMIT
+            - EG(reserved_stack_size) * 2
+#endif
+        );
 #endif
 
         zai_hook_finish(ex, rv, hook_data);
@@ -329,8 +333,13 @@ void (*zai_interceptor_replace_observer)(zend_function *func, bool remove, zend_
 void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define ZAI_GENERATOR_YIELD_OFFSET (-1)
+#else
+#define ZAI_GENERATOR_YIELD_OFFSET 0
+#endif
 static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval *retval, zend_generator *generator, zai_frame_memory *frame_memory) {
-    if (generator->execute_data && (generator->execute_data->opline - 1)->opcode == ZEND_YIELD_FROM) {
+    if (generator->execute_data && generator->execute_data->opline[ZAI_GENERATOR_YIELD_OFFSET].opcode == ZEND_YIELD_FROM) {
         // There are two cases here:
         // a) yield from array or iterator
         //    Here we can just wrap the iterator or array into our custom iterator, transparently without observable side effects
@@ -441,12 +450,12 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
 #if PHP_VERSION_ID < 80200
 #define ZEND_OBSERVER_DATA(function) \
     ZEND_OP_ARRAY_EXTENSION((&(function)->op_array), zend_observer_fcall_op_array_extension)
-#else
+#elif PHP_VERSION_ID < 80400
 #define ZEND_OBSERVER_DATA(function) \
     ZEND_OP_ARRAY_EXTENSION((&(function)->common), zend_observer_fcall_op_array_extension)
 #endif
 
-#if 1
+#if PHP_VERSION_ID < 80400
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 #if PHP_VERSION_ID < 80200
@@ -604,7 +613,7 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_obs
 }
 #else
 void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) {
-    if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+    if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !*ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
         return;
     }
 
@@ -616,9 +625,9 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_obs
 
     zend_observer_fcall_handlers handlers = zai_interceptor_determine_handlers(func);
     if (remove) {
-        zend_observer_remove_begin_handler(func, handlers.begin);
-        zend_observer_remove_end_handler(func, handlers.end);
-        // TODO get next end_handler for PHP 8.4
+        zend_observer_fcall_begin_handler next_begin;
+        zend_observer_remove_begin_handler(func, handlers.begin, &next_begin);
+        zend_observer_remove_end_handler(func, handlers.end, next_end_handler);
     } else {
         zend_observer_add_begin_handler(func, handlers.begin);
         zend_observer_add_end_handler(func, handlers.end);
@@ -904,7 +913,7 @@ zend_result zai_interceptor_post_startup(void) {
 
     zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
-#if 1
+#if PHP_VERSION_ID < 80400
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
 #endif
 

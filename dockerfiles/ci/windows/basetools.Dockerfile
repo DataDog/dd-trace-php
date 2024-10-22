@@ -4,21 +4,9 @@ FROM datadog/dd-trace-ci:windows-base-$vsVersion
 RUN powershell.exe "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; $Env:chocolateyVersion = '0.10.15'; $Env:chocolateyUseWindowsCompression = 'false'; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); ''"
 
 # I really need some sane file editing utilities
-ADD https://ftp.nluug.nl/pub/vim/pc/vim90w32.zip /tmp/vim90w32.zip
-RUN powershell.exe Expand-Archive /tmp/vim90w32.zip /tmp
-RUN move C:\tmp\vim\vim90\tee.exe C:\Windows\tee.exe
-RUN move C:\tmp\vim\vim90\vim.exe C:\Windows\vim.exe
-RUN move C:\tmp\vim\vim90\xxd.exe C:\Windows\xxd.exe
+RUN powershell "Invoke-WebRequest https://ftp.nluug.nl/pub/vim/pc/vim90w32.zip -OutFile /tmp/vim90w32.zip; Expand-Archive /tmp/vim90w32.zip /tmp; move C:\tmp\vim\vim90\tee.exe C:\Windows\tee.exe; move C:\tmp\vim\vim90\vim.exe C:\Windows\vim.exe; move C:\tmp\vim\vim90\xxd.exe C:\Windows\xxd.exe; Remove-Item /tmp/vim90w32.zip; Remove-Item -Recurse C:\tmp\vim"
 
-ADD https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.3/Git-2.41.0.3-64-bit.exe /tmp/git-setup.exe
-RUN /tmp/git-setup.exe /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh"
-
-RUN git clone https://github.com/php/php-sdk-binary-tools.git /php-sdk
-# prevent permission confusion
-RUN git config --global --add safe.directory C:/php-sdk
-
-ADD https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe /tmp/rustup-init.exe
-RUN /tmp/rustup-init.exe -y --default-toolchain=1.71.0
+RUN powershell "Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile /tmp/rustup-init.exe; cmd /S /C /tmp/rustup-init.exe --profile minimal -y --default-toolchain=1.76.0; Remove-Item /tmp/rustup-init.exe"
 
 RUN choco install -y cmake
 RUN choco install -y nasm
@@ -28,6 +16,7 @@ RUN powershell "[Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';C:\P
 
 # initial setup
 
-WORKDIR /php-sdk
 ARG sdkVersion
-RUN git checkout php-sdk-%sdkVersion%
+RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
+
+WORKDIR /php-sdk
