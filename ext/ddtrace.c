@@ -1101,10 +1101,14 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
             root_span_data_changed = true;
-            // As per unified service tagging spec if a span is created with a service name different from the global
-            // service name it will not inherit the global version value
-            ZVAL_NULL(&span->property_version);
-
+        }
+        // As per unified service tagging spec if a span is created with a service name different from the global
+        // service name it will not inherit the global version value
+        if (!ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
+            // Free the old value of property_version
+            zval_ptr_dtor(&span->property_version);
+            // Set property_version to empty string
+            ZVAL_EMPTY_STRING(&span->property_version);
         }
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "env")) {
