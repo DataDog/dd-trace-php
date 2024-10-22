@@ -61,9 +61,6 @@ jobs:
       - name: Run cargo tests
         run: |
           set -eux
-          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
-            source -i /root/.bashrc
-          fi
           switch-php "${PHP_VERSION}"
           cd profiling
           cargo test --release --all-features
@@ -71,9 +68,6 @@ jobs:
       - name: Run phpt tests NTS
         run: |
           set -eux
-          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
-            source /root/.bashrc
-          fi
           switch-php "${PHP_VERSION}"
           libdir="/tmp/datadog-profiling"
           cd profiling
@@ -87,9 +81,6 @@ jobs:
       - name: Run phpt tests ZTS
         run: |
           set -eux
-          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
-            source /root/.bashrc
-          fi
           switch-php "${PHP_VERSION}-zts"
           libdir="/tmp/datadog-profiling"
           cd profiling
