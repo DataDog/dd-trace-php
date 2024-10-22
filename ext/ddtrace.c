@@ -371,28 +371,38 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline bool dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
+static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
-        zval *property = (zval*)(prop_offset + (char*)pspan), garbage = *property;
+        zval *property = (zval *) (prop_offset + (char *) pspan), garbage = *property;
         ZVAL_COPY(property, new_value);
         zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
     }
-
-    return true;
 }
 
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    if (DDTRACE_G(request_initialized)) {
+        ddtrace_sidecar_submit_root_span_data_direct(NULL, new_str, get_DD_ENV(), get_DD_VERSION());
+    }
+    return true;
 }
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    if (DDTRACE_G(request_initialized)) {
+        ddtrace_sidecar_submit_root_span_data_direct(NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
+    }
+    return true;
 }
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    if (DDTRACE_G(request_initialized)) {
+        ddtrace_sidecar_submit_root_span_data_direct(NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
+    }
+    return true;
 }
 
 static zend_module_entry *dd_appsec_module() { return zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1); }
@@ -484,7 +494,7 @@ static void ddtrace_activate(void) {
         ddtrace_sidecar_ensure_active();
     }
 
-    ddtrace_sidecar_rinit();
+    ddtrace_sidecar_activate();
 
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
     if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
@@ -1497,6 +1507,8 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
 
+    ddtrace_sidecar_rinit();
+
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
@@ -1692,6 +1704,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     dd_finalize_sidecar_lifecycle();
+    DDTRACE_G(request_initialized) = false;
+
     ddtrace_telemetry_rshutdown();
     ddtrace_sidecar_rshutdown();
 
@@ -1723,7 +1737,6 @@ zend_result ddtrace_post_deactivate(void) {
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
 
-    DDTRACE_G(request_initialized) = false;
     return SUCCESS;
 }
 
@@ -2462,7 +2475,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else
 #endif
             if (ddtrace_sidecar) {
-                ddog_sidecar_flush_traces(&ddtrace_sidecar);
+                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
             }
             RETVAL_TRUE;
 #ifndef _WIN32
@@ -2579,7 +2592,7 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     } else
 #endif
     if (ddtrace_sidecar) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
     }
     RETURN_NULL();
 }

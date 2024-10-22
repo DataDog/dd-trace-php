@@ -546,8 +546,15 @@ void ddtrace_exception_handlers_startup(void) {
 
                     zend_property_info *property_info;
                     ZEND_HASH_MAP_FOREACH_PTR(&ce->properties_info, property_info) {
-                        if (property_info->offset >= parent_info->offset && property_info->ce != base_ce && (property_info->flags & ZEND_ACC_STATIC) == 0) {
-                            property_info->offset += sizeof(zval);
+                        if (property_info->offset >= parent_info->offset && (property_info->flags & ZEND_ACC_STATIC) == 0) {
+#if PHP_VERSION_ID >= 80100
+                            if (property_info->ce == ce)
+#else
+                            if (property_info->ce != base_ce)
+#endif
+                            {
+                                property_info->offset += sizeof(zval);
+                            }
                         }
                     } ZEND_HASH_FOREACH_END();
 

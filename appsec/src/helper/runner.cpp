@@ -123,7 +123,7 @@ void runner::register_for_rc_notifications()
                 std::atomic_load(&RUNNER_FOR_NOTIFICATIONS);
             if (!runner) {
                 // NOLINTNEXTLINE(bugprone-lambda-function-name)
-                SPDLOG_ERROR("No runner to notify of remote config updates");
+                SPDLOG_WARN("No runner to notify of remote config updates");
                 ddog_remote_config_path_free(path);
                 return;
             }
@@ -136,15 +136,19 @@ void runner::register_for_rc_notifications()
         });
 }
 
-runner::~runner() noexcept
+void runner::unregister_for_rc_notifications()
 {
+    SPDLOG_INFO("Unregister runner for RC update callback");
     try {
         std::shared_ptr<runner> expected = shared_from_this();
         std::atomic_compare_exchange_strong(&RUNNER_FOR_NOTIFICATIONS,
             &expected, std::shared_ptr<runner>(nullptr));
     } catch (...) {
-        // can only happened if there is no shared_ptr for the runner
-        // in this case a std::bad_weak_ptr is thrown
+        // can only happen if there is no shared_ptr for the runner
+        // in this case a std::bad_weak_ptr is thrown.
+        // But we only expose runner through a shared pointer, so this would
+        // require extraordinary actions to destroy the shared pointer but not
+        // the object.
         std::abort();
     }
 }

@@ -20,6 +20,7 @@ public:
     void on_update(const config &config) override;
     void on_unapply(const config & /*config*/) override
     {
+        SPDLOG_DEBUG("reset ASM activation status");
         service_config_->unset_asm();
     }
 

@@ -1236,9 +1236,9 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                 if (Z_TYPE_P(tag) == IS_STRING) { // Use the first tag that is found in the span, if any
                     zval *peer_service = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
                     if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
-                        add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
-
                         zend_string *peer = zval_get_string(peer_service);
+
+                        add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
                         if (!dd_set_mapped_peer_service(meta, peer)) {
                             add_assoc_str(meta, "peer.service", peer);
                         }
@@ -1752,7 +1752,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         prop_name = zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("name")); // refetch, array may have been rehashed
         log("Encoding span %" PRIu64 ": trace_id=%s, name='%s', service='%s', resource: '%s', type '%s' with tags: %s; and metrics: %s",
             span->span_id,
-            Z_STRVAL(span->root->property_trace_id), Z_TYPE_P(prop_name) == IS_STRING ? Z_STRVAL_P(prop_name) : "",
+            Z_STRVAL(span->root->property_trace_id), prop_name && Z_TYPE_P(prop_name) == IS_STRING ? Z_STRVAL_P(prop_name) : "",
             Z_TYPE(prop_service_as_string) == IS_STRING ? Z_STRVAL(prop_service_as_string) : "",
             Z_TYPE(prop_resource_as_string) == IS_STRING ? Z_STRVAL(prop_resource_as_string) : "",
             Z_TYPE(prop_type_as_string) == IS_STRING ? Z_STRVAL(prop_type_as_string) : "",
