@@ -1049,6 +1049,16 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
 #endif
     }
 
+    ddtrace_span_data *span = OBJ_SPANDATA(obj);
+    if (span->std.ce == ddtrace_ce_span_data && zend_string_equals_literal(prop_name, "service")) {
+        // As per unified service tagging spec if a span is created with a service name different from the global
+        // service name it will not inherit the global version value
+        if (!zend_is_identical(&span->property_service, value)) {
+            zval_ptr_dtor(&span->property_version);
+            ZVAL_EMPTY_STRING(&span->property_version);
+        }
+    }
+
 #if PHP_VERSION_ID >= 70400
     return zend_std_write_property(object, member, value, cache_slot);
 #else

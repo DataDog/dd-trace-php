@@ -298,7 +298,7 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('5.2.0', $traces[0][0]['meta']['version']);
         $this->assertSame('version_test', $traces[0][0]['service']);
 
-        $this->assertSame('', $traces[0][1]['meta']['version']);
+        $this->assertArrayNotHasKey('version', $traces[0][1]['meta']);
         $this->assertSame('no dd_service', $traces[0][1]['service']);
     }
 
