@@ -44,11 +44,18 @@ RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSIO
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
+FROM build AS php-zts
+ARG TARGETPLATFORM
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION
+COPY build-extensions.sh /home/circleci
+RUN /home/circleci/build-extensions.sh
+
 FROM datadog/dd-trace-ci:buster AS final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $PHP_INSTALL_DIR/debug-zts
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
+COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_DIR/zts
 
 USER root
 
