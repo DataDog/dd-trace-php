@@ -23,7 +23,8 @@ RUN set -eux; \
         libxml2-dev \
         gnu-libiconv-dev \
         oniguruma-dev \
-        cmake
+        cmake \
+        tar
 
 # Profiling deps
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
