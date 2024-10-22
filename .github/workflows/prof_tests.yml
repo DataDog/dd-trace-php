@@ -62,9 +62,9 @@ jobs:
         run: |
           set -eux
           if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
-            switch_php zts
+            switch_php nts
           else
-            switch-php zts
+            switch-php nts
           fi
           cd profiling
           cargo test --release --all-features
