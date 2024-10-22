@@ -61,6 +61,11 @@ jobs:
       - name: Run cargo tests
         run: |
           set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php zts
+          else
+            switch-php zts
+          fi
           cd profiling
           cargo test --release --all-features
 
