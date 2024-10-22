@@ -6,6 +6,8 @@ use crate::zend::{
 use crate::REQUEST_LOCALS;
 use libc::c_char;
 use log::{error, trace};
+#[cfg(php_zts)]
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ptr;
@@ -30,11 +32,17 @@ static mut FRANKENPHP_HANDLE_REQUEST_HANDLER: InternalFunctionHandler = None;
 
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
+    #[cfg(php_zts)]
+    static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
 enum State {
     Idle,
     Sleeping,
+    #[cfg(php_zts)]
+    ThreadStart,
+    #[cfg(php_zts)]
+    ThreadStop,
 }
 
 impl State {
@@ -42,6 +50,10 @@ impl State {
         match self {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
+            #[cfg(php_zts)]
+            State::ThreadStart => "thread start",
+            #[cfg(php_zts)]
+            State::ThreadStop => "thread stop",
         }
     }
 }
@@ -144,9 +156,48 @@ unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
     }
 }
 
+/// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
+#[cfg(zend_error_observer)]
+unsafe extern "C" fn ddog_php_prof_zend_error_observer(
+    _type: i32,
+    #[cfg(zend_error_observer_80)] file: *const c_char,
+    #[cfg(not(zend_error_observer_80))] file: *mut zend::ZendString,
+    line: u32,
+    message: *mut zend::ZendString,
+) {
+    // we are only interested in FATAL errors
+
+    if _type & zend::E_FATAL_ERRORS as i32 == 0 {
+        return;
+    }
+
+    #[cfg(zend_error_observer_80)]
+    let file = unsafe {
+        let mut len = 0;
+        let file = file as *const u8;
+        while *file.add(len) != 0 {
+            len += 1;
+        }
+        std::str::from_utf8_unchecked(std::slice::from_raw_parts(file, len)).to_string()
+    };
+    #[cfg(not(zend_error_observer_80))]
+    let file = unsafe { zend::zai_str_from_zstr(file.as_mut()).into_string() };
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    if let Some(profiler) = Profiler::get() {
+        let now = now.as_nanos() as i64;
+        profiler.collect_fatal(now, file, line, unsafe {
+            zend::zai_str_from_zstr(message.as_mut()).into_string()
+        });
+    }
+}
+
 /// This functions needs to be called in MINIT of the module
 pub fn timeline_minit() {
     unsafe {
+        #[cfg(zend_error_observer)]
+        zend::zend_observer_error_register(Some(ddog_php_prof_zend_error_observer));
+
         // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;
         zend::gc_collect_cycles = Some(ddog_php_prof_gc_collect_cycles);
@@ -231,6 +282,35 @@ pub unsafe fn timeline_rinit() {
             }
         });
     });
+
+    #[cfg(php_zts)]
+    IS_NEW_THREAD.with(|cell| {
+        if !cell.get() {
+            return;
+        }
+        cell.set(false);
+        REQUEST_LOCALS.with(|cell| {
+            let is_timeline_enabled = cell
+                .try_borrow()
+                .map(|locals| locals.system_settings().profiling_timeline_enabled)
+                .unwrap_or(false);
+
+            if !is_timeline_enabled {
+                return;
+            }
+
+            if let Some(profiler) = Profiler::get() {
+                profiler.collect_thread_start_end(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    State::ThreadStart.as_str(),
+                );
+            }
+        });
+    });
 }
 
 /// This function is run during the P-RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
@@ -289,6 +369,43 @@ pub(crate) unsafe fn timeline_mshutdown() {
                 );
             }
         });
+    });
+    #[cfg(php_zts)]
+    timeline_gshutdown();
+}
+
+#[cfg(php_zts)]
+pub(crate) fn timeline_ginit() {
+    // During GINIT in "this" thread, the request locals are not initialized, which happens in
+    // RINIT, so we currently do not know if profile is enabled at all and if, if timeline is
+    // enabled. That's why we raise this flag here and read it in RINIT.
+    IS_NEW_THREAD.with(|cell| {
+        cell.set(true);
+    });
+}
+
+#[cfg(php_zts)]
+pub(crate) fn timeline_gshutdown() {
+    REQUEST_LOCALS.with(|cell| {
+        let is_timeline_enabled = cell
+            .try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false);
+
+        if !is_timeline_enabled {
+            return;
+        }
+
+        if let Some(profiler) = Profiler::get() {
+            profiler.collect_thread_start_end(
+                // Safety: checked for `is_err()` above
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as i64,
+                State::ThreadStop.as_str(),
+            );
+        }
     });
 }
 
