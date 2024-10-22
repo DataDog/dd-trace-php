@@ -61,14 +61,22 @@ jobs:
       - name: Run cargo tests
         run: |
           set -eux
-          switch-php "${PHP_VERSION}"
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php "${PHP_VERSION}"
+          else
+            switch-php "${PHP_VERSION}"
+          fi
           cd profiling
           cargo test --release --all-features
 
       - name: Run phpt tests NTS
         run: |
           set -eux
-          switch-php "${PHP_VERSION}"
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php "${PHP_VERSION}"
+          else
+            switch-php "${PHP_VERSION}"
+          fi
           libdir="/tmp/datadog-profiling"
           cd profiling
           cargo build --release --all-features
@@ -81,7 +89,11 @@ jobs:
       - name: Run phpt tests ZTS
         run: |
           set -eux
-          switch-php "${PHP_VERSION}-zts"
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php "${PHP_VERSION}"
+          else
+            switch-php "${PHP_VERSION}"
+          fi
           libdir="/tmp/datadog-profiling"
           cd profiling
           touch build.rs
