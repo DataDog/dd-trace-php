@@ -13,6 +13,7 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED',
+            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP',
         ]);
         parent::ddSetUp();
     }
@@ -25,6 +26,7 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED',
+            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP',
         ]);
     }
 
@@ -483,6 +485,40 @@ class UriTest extends BaseTestCase
         $this->assertSame(
             '/?foo=page&bar=other',
             \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('?foo=page&bar=other')
+        );
+    }
+
+    public function testObfuscationQueryStringConfigured()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP=\d{3}-\d{2}-\d{4}',
+        ]);
+
+        $this->assertSame(
+            '/?<redacted>',
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/?ssn=123-45-6789')
+        );
+        
+        $this->assertSame(
+            '/?<redacted>',
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/?ssn=123-45-6789')
+        );
+    }
+
+    public function testObfuscationQueryStringWithEmptyRegex()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP=""',
+        ]);
+    
+        $this->assertSame(
+            '/?application_key=123',
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/?application_key=123')
+        );
+        
+        $this->assertSame(
+            '/?application_key=123',
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/?application_key=123')
         );
     }
 

@@ -407,9 +407,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 zend_string *postvalconcat = zend_strpprintf(0, "%s=%s", ZSTR_VAL(postkey), ZSTR_VAL(postvalstr));
                 zend_string_release(postvalstr);
 
-                // Match it with the regex to redact if needed and value is not an empty string
-                zend_string *regex_pattern = get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP();
-                if (strlen(regex_pattern) > 0 && zai_match_regex(regex_pattern, postvalconcat)) {
+                if (zai_match_regex(get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP(), postvalconcat)) {
                     zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
                     dd_add_post_fields_to_meta(meta, type, postkey, replacement);
                     zend_string_release(replacement);
