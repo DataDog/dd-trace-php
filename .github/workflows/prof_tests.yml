@@ -8,7 +8,7 @@ on:
 
 defaults:
   run:
-    shell: bash
+    shell: bash -ieo pipefail
 
 jobs:
   profiling-tests:
@@ -62,7 +62,7 @@ jobs:
         run: |
           set -eux
           if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
-            source /root/.bashrc
+            source -i /root/.bashrc
           fi
           switch-php "${PHP_VERSION}"
           cd profiling
