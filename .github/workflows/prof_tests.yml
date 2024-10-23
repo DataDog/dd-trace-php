@@ -1,0 +1,116 @@
+name: Profiling Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+defaults:
+  run:
+    shell: /bin/bash -eo pipefail {0}
+
+jobs:
+  profiling-tests:
+    strategy:
+      matrix:
+        docker_image:
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-7.1"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-7.2"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-7.3"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-7.4"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-8.0"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-8.1"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-8.2"
+          - "datadog/dd-trace-ci:php-compile-extension-alpine-8.3"
+          - "datadog/dd-trace-ci:php-7.1_buster"
+          - "datadog/dd-trace-ci:php-7.2_buster"
+          - "datadog/dd-trace-ci:php-7.3_buster"
+          - "datadog/dd-trace-ci:php-7.4_buster"
+          - "datadog/dd-trace-ci:php-8.0_buster"
+          - "datadog/dd-trace-ci:php-8.1_buster"
+          - "datadog/dd-trace-ci:php-8.2_buster"
+          - "datadog/dd-trace-ci:php-8.3_buster"
+        architecture:
+          - x86_64
+          - aarch64
+    runs-on: ${{ matrix.architecture == 'aarch64' && 'arm-8core-linux' || 'ubuntu-latest' }}
+
+    container:
+      image: ${{ matrix.docker_image }}
+      options: --user root
+
+    steps:
+      - name: Bypass GitHub Alpine detection and patch native node into runner env
+        if: contains(matrix.docker_image, 'alpine')
+        run: |
+          apk add nodejs
+          sed -i "s:ID=alpine:ID=NotpineForGHA:" /etc/os-release
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Restore Cargo Package Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: cargo-cache-${{ matrix.docker_image }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Run cargo tests
+        run: |
+          set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php nts
+          else
+            switch-php nts
+          fi
+          cd profiling
+          cargo test --release --all-features
+
+      - name: Run phpt tests NTS
+        run: |
+          set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php nts
+          else
+            switch-php nts
+          fi
+          libdir="/tmp/datadog-profiling"
+          cd profiling
+          cargo build --release --all-features
+          cd tests
+          run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+          cp -v "${run_tests_php}" .
+          export TEST_PHP_EXECUTABLE=$(which php)
+          php run-tests.php -d "extension=../../target/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
+
+      - name: Run phpt tests ZTS
+        run: |
+          set -eux
+          if [[ "${{ contains(matrix.docker_image, 'alpine') }}" == "true" ]]; then
+            switch_php zts
+          else
+            switch-php zts
+          fi
+          libdir="/tmp/datadog-profiling"
+          cd profiling
+          touch build.rs
+          cargo build --release --all-features
+          cd tests
+          run_tests_php=$(find $(php-config --prefix) -name run-tests.php)
+          cp -v "${run_tests_php}" .
+          export TEST_PHP_EXECUTABLE=$(which php)
+          php run-tests.php -d "extension=../../target/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt"
+
+      # - name: Run clippy NTS (for select platforms)
+      #   if: matrix.triplet == 'x86_64-unknown-linux-gnu'
+      #   run: |
+      #     set -eux
+      #     switch-php "${PHP_VERSION}"
+      #     cd profiling
+      #     touch build.rs
+      #     sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
+      #     cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
