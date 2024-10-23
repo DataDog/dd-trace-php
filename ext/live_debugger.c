@@ -1263,6 +1263,10 @@ static bool dd_eval_instanceof(void *ctx, const void *zvp, const ddog_CharSlice 
     {
         name = "bool";
     }
+    else if (Z_TYPE_P(zv) == IS_LONG)
+    {
+        name = "int";
+    }
     else
 #endif
     {
