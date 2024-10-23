@@ -46,10 +46,6 @@ jobs:
         run: |
           apk add nodejs
           sed -i "s:ID=alpine:ID=NotpineForGHA:" /etc/os-release
-          cd /host/home/runner/runners/*/externals/
-          rm -rf node20/*
-          mkdir node20/bin
-          ln -s /usr/bin/node node20/bin/node
 
       - name: Checkout repository
         uses: actions/checkout@v4
