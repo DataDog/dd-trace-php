@@ -2,6 +2,7 @@ FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
+COPY php-7.2/0001-Fix-stream_cookie_seeker-signature-under-musl.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
@@ -9,6 +10,7 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force; \
+    git apply /home/circleci/0001-Fix-stream_cookie_seeker-signature-under-musl.patch; \
     patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch;
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build

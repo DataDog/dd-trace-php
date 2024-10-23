@@ -13,7 +13,15 @@ INSTALL_DIR=$BASE_INSTALL_DIR/$INSTALL_VERSION
 
 if [[ ${INSTALL_VERSION} == *asan* ]]; then
   export CFLAGS='-fsanitize=address -DZEND_TRACK_ARENA_ALLOC'
-  export LDFLAGS='-fsanitize=address'
+  export LDFLAGS='-fsanitize=address -shared-libasan'
+fi
+
+if [[ ${PHP_VERSION_ID} -le 73 ]]; then
+  if [[ -z "${CFLAGS:-}" ]]; then
+    export CFLAGS="-Wno-implicit-function-declaration -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0"
+  else
+    export CFLAGS="${CFLAGS} -Wno-implicit-function-declaration -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0"
+  fi
 fi
 
 mkdir -p /tmp/build-php && cd /tmp/build-php
@@ -23,7 +31,7 @@ mkdir -p ${INSTALL_DIR}/conf.d
 HOST_ARCH=$(if [[ $TARGETPLATFORM == "linux/arm64" ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config \
-CC=$HOST_ARCH-linux-gnu-gcc \
+# CC=$HOST_ARCH-linux-gnu-gcc \
 LIBS=-ldl \
 ${PHP_SRC_DIR}/configure \
     $(if [[ $SHARED_BUILD -ne 0 ]]; then echo \

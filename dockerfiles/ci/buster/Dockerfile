@@ -35,7 +35,6 @@ ENV DEVLIBS \
     libzip-dev \
     odbcinst1debian2 \
     zlib1g-dev \
-    libasan5 \
     unixodbc-dev \
     unixodbc
 
@@ -47,7 +46,6 @@ ENV RUNTIME_DEPS \
     clang-format \
     curl \
     debian-goodies \
-    gdb \
     git \
     less \
     lsof \
@@ -69,12 +67,9 @@ ENV PHPIZE_DEPS \
     cmake \
     dpkg-dev \
     file \
-    g++ \
-    gcc \
     gnupg \
     gpg \
     file \
-    lcov \
     libc-dev \
     make \
     pkg-config \
@@ -114,9 +109,6 @@ RUN set -eux; \
 # persistent / runtime deps
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        gcc-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
-        g++-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
-        libc6-dev-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo arm64; else echo amd64; fi)-cross \
         $DEVLIBS \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
@@ -137,9 +129,16 @@ RUN set -eux; \
         echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep; \
     \
 # Allow nginx to be run as non-root for tests
-    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/;
+    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
+    \
+# Make clang the default compiler
+    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100;
 
 ENV CMAKE_VERSION="3.24.4"
+ENV CC=clang-17
+ENV CXX=clang++-17
+ENV LD_LIBRARY_PATH="/usr/lib/llvm-17/lib/clang/17/lib/linux/"
 
 # Install CMake
 RUN set -eux; \
@@ -179,6 +178,19 @@ RUN set -eux; \
     make install; \
     lcov --version; \
     rm -rfv /tmp/*
+
+# Install gdb
+RUN set -eux; \
+    apt install -y libmpfr-dev libgmp-dev; \
+    GDB_VERSION="15.2"; \
+    GDB_SHA256="9d16bc2539a2a20dc3ef99b48b8414d51c51305c8577eb7a1da00996f6dea223";\
+    cd /tmp && curl -OL https://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz; \
+    (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir gdb && cd gdb; \
+    tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
+    ./configure; \
+    make -j "$((`nproc`+1))"; \
+    make install
 
 # Install SqlServer PHP Driver
 # https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
