@@ -13,7 +13,6 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED',
-            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP',
         ]);
         parent::ddSetUp();
     }
@@ -26,7 +25,6 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED',
-            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP',
         ]);
     }
 
@@ -71,24 +69,6 @@ class UriTest extends BaseTestCase
         $this->assertSame(
             '/no_asterisk/?/after',
             \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/no_asterisk/123/after')
-        );
-    }
-
-    public function testMixingFragmentRegexAndPatternMatchingIncoming()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=name/*']);
-        $this->assertSame(
-            '/numeric/?/name/?',
-            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/numeric/123/name/some_name')
-        );
-    }
-
-    public function testMixingFragmentRegexAndPatternMatchingOutgoing()
-    {
-        $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=name/*']);
-        $this->assertSame(
-            '/numeric/?/name/?',
-            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/numeric/123/name/some_name')
         );
     }
 

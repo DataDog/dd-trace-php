@@ -218,13 +218,11 @@ class Normalizer
 
                 // Match it with the regex to redact if needed
                 $obfuscationRegex = \ini_get('datadog.trace.obfuscation_query_string_regexp');
-                if ($obfuscationRegex !== "") {
-                    $obfuscationRegex = '(' . $obfuscationRegex . ')';
-                    if (preg_match($obfuscationRegex, $postField)) {
-                        return [$postKey => '<redacted>'];
-                    } else {
-                        return [$postKey => $postVal];
-                    }
+                $obfuscationRegex = '(' . $obfuscationRegex . ')';
+                if (preg_match($obfuscationRegex, $postField)) {
+                    return [$postKey => '<redacted>'];
+                } else {
+                    return [$postKey => $postVal];
                 }
             } else {
                 // The postkey is not in the whitelist, and no wildcard set, then always use <redacted>
