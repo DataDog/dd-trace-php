@@ -1,8 +1,9 @@
 --TEST--
 Root span with http.url and unobfuscated query string with empty regex
+--INI--
+datadog.trace.obfuscation_query_string_regexp=
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP=''
 HTTPS=off
 HTTP_HOST=localhost:9999
 SCRIPT_NAME=/foo.php
