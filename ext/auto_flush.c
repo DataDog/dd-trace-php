@@ -60,7 +60,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     array_init(&traces);
     zend_hash_index_add(Z_ARR(traces), 0, &trace);
 
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !trace_contains_appsec_event(&trace)) {
+    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !trace_contains_appsec_event(&trace)) {
         LOG(DEBUG, "Trace discarded because it has no appsec events and appsec standalone is on");
         return SUCCESS;
     }
@@ -87,7 +87,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                                 .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
                                 .client_computed_top_level = false,
-                                .client_computed_stats = get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED(),
+                                .client_computed_stats = get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED(),
                         };
                         size_t size_hint = written;
                         zend_long n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS();
