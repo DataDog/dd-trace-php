@@ -62,6 +62,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !trace_contains_appsec_event(&trace)) {
         LOG(DEBUG, "Trace discarded because it has no appsec events and appsec standalone is on");
+        zend_array_destroy(Z_ARR(trace));
+        zval_ptr_dtor(&traces);
         return SUCCESS;
     }
 
