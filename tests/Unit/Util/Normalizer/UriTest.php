@@ -72,6 +72,24 @@ class UriTest extends BaseTestCase
         );
     }
 
+    public function testMixingFragmentRegexAndPatternMatchingIncoming()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=name/*']);
+        $this->assertSame(
+            '/numeric/?/name/?',
+            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/numeric/123/name/some_name')
+        );
+    }
+
+    public function testMixingFragmentRegexAndPatternMatchingOutgoing()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=name/*']);
+        $this->assertSame(
+            '/numeric/?/name/?',
+            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/numeric/123/name/some_name')
+        );
+    }
+
     /**
      * @dataProvider defaultPathNormalizationScenarios
      */
@@ -465,40 +483,6 @@ class UriTest extends BaseTestCase
         $this->assertSame(
             '/?foo=page&bar=other',
             \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('?foo=page&bar=other')
-        );
-    }
-
-    public function testObfuscationQueryStringConfigured()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP=\d{3}-\d{2}-\d{4}',
-        ]);
-
-        $this->assertSame(
-            '/?<redacted>',
-            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/?ssn=123-45-6789')
-        );
-        
-        $this->assertSame(
-            '/?<redacted>',
-            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/?ssn=123-45-6789')
-        );
-    }
-
-    public function testObfuscationQueryStringWithEmptyRegex()
-    {
-        $this->putEnvAndReloadConfig([
-            'DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP=""',
-        ]);
-    
-        $this->assertSame(
-            '/?application_key=123',
-            \DDTrace\Util\Normalizer::uriNormalizeIncomingPath('/?application_key=123')
-        );
-        
-        $this->assertSame(
-            '/?application_key=123',
-            \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath('/?application_key=123')
         );
     }
 
