@@ -7,6 +7,9 @@
 #include <hook/hook.h>
 #include <sandbox/sandbox.h>
 #undef INTEGRATION
+#undef INTEGRATION_CUSTOM_ENABLED
+
+static bool is_filesystem_enabled() { return get_DD_TRACE_FILESYSTEM_ENABLED() && get_DD_APPSEC_RASP_ENABLED(); }
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
     dd_hook_method_and_unhook_on_first_call((zai_str)ZAI_STRL(class), (zai_str)ZAI_STRL(fname), \
@@ -24,13 +27,15 @@
     dd_set_up_deferred_loading_by_method(name, (zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STRL(fname), \
                                          (zai_str)ZAI_STRL(integration), false)
 
-#define INTEGRATION(id, lcname, ...)                                    \
+#define INTEGRATION(id, lcname, ...) INTEGRATION_AUX(id, lcname, get_DD_TRACE_##id##_ENABLED)
+#define INTEGRATION_CUSTOM_ENABLED(id, lcname, is_enabled_func, ...) INTEGRATION_AUX(id, lcname, is_enabled_func)
+#define INTEGRATION_AUX(id, lcname, is_enabled_func)                   \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \
         .name_lcase = (lcname),                                        \
         .name_len = sizeof(lcname) - 1,                                \
-        .is_enabled = get_DD_TRACE_##id##_ENABLED,              \
+        .is_enabled = is_enabled_func,                                 \
         .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
         .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
         .aux = {0},                                                    \
@@ -244,6 +249,13 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "proc_open",
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "file_get_contents",
+                                           "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "file_put_contents",
+                                           "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "fopen", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "readfile", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
