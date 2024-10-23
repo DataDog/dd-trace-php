@@ -30,8 +30,7 @@ void ddtrace_limiter_create() {
     if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index < 0) {
         return;
     }
-
-    uint32_t limit = (uint32_t) get_global_DD_TRACE_RATE_LIMIT();
+    uint32_t limit = get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() ? 1 : (uint32_t)get_global_DD_TRACE_RATE_LIMIT();
 
     if (!limit) {
         return;
@@ -60,31 +59,41 @@ bool ddtrace_limiter_active() {
     return true;
 }
 
+static uint64_t get_interval() {
+    uint64_t interval = ZEND_NANO_IN_SEC;
+    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        interval = interval * 60;  // Nano in min
+    }
+    return interval;
+}
+
 bool ddtrace_limiter_allow() {
     ZEND_ASSERT(dd_limiter);
 
+    uint64_t interval = get_interval();
     uint64_t timeval = zend_hrtime();
 
     uint64_t old_time = atomic_exchange(&dd_limiter->window.last_update, timeval);
     int64_t clear_counter = (int64_t)((long double)(timeval - old_time) * dd_limiter->limit);
 
-    atomic_fetch_add(&dd_limiter->window.recent_total, ZEND_NANO_IN_SEC - (int64_t)((long double)(timeval - old_time) / ZEND_NANO_IN_SEC * atomic_load(&dd_limiter->window.recent_total)));
+    atomic_fetch_add(&dd_limiter->window.recent_total,
+                     interval - (int64_t)((long double)(timeval - old_time) / interval * atomic_load(&dd_limiter->window.recent_total)));
 
     int64_t previous_hits = atomic_fetch_sub(&dd_limiter->window.hit_count, clear_counter);
     if (previous_hits < clear_counter) {
         atomic_fetch_add(&dd_limiter->window.hit_count, previous_hits > 0 ? clear_counter - previous_hits : clear_counter);
     }
 
-    previous_hits = atomic_fetch_add(&dd_limiter->window.hit_count, ZEND_NANO_IN_SEC);
-    if ((long double)previous_hits / ZEND_NANO_IN_SEC >= dd_limiter->limit) {
-        atomic_fetch_sub(&dd_limiter->window.hit_count, ZEND_NANO_IN_SEC);
-        return false; // limit exceeded
+    previous_hits = atomic_fetch_add(&dd_limiter->window.hit_count, interval);
+    if ((long double)previous_hits / interval >= dd_limiter->limit) {
+        atomic_fetch_sub(&dd_limiter->window.hit_count, interval);
+        return false;  // limit exceeded
     }
     return true;
 }
 
 double ddtrace_limiter_rate() {
-    int64_t recent_total = atomic_load(&dd_limiter->window.recent_total) / ZEND_NANO_IN_SEC;
+    int64_t recent_total = atomic_load(&dd_limiter->window.recent_total) / get_interval();
     return dd_limiter->limit > recent_total ? 1 : dd_limiter->limit / (double)recent_total;
 }
 

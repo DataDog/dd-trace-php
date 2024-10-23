@@ -1707,7 +1707,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_standalone_appsec_span = false;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(metrics, str_key, val) {
         if (str_key) {
-            if (!is_standalone_appsec_span && get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && strcmp("_dd.appsec.enabled", ZSTR_VAL(str_key)) == 0) {
+            if (!is_standalone_appsec_span && get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() &&
+                strcmp("_dd.appsec.enabled", ZSTR_VAL(str_key)) == 0) {
                 is_standalone_appsec_span = true;
             }
             dd_serialize_array_metrics_recursively(Z_ARRVAL(metrics_zv), str_key, val);
