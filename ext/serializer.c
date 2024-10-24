@@ -1720,7 +1720,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", zval_get_long(&span->root->property_sampling_priority));
         }
         if(is_standalone_appsec_span) {
-            add_assoc_bool(&metrics_zv, "_dd.apm.enabled", false);
+            add_assoc_long(&metrics_zv, "_dd.apm.enabled", 0);
         }
     }
 
