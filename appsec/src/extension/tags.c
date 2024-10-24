@@ -27,6 +27,7 @@
 #endif
 
 #define DD_TAG_DATA "_dd.appsec.json"
+#define DD_TAG_P_APPSEC "_dd.p.appsec"
 #define DD_TAG_EVENT "appsec.event"
 #define DD_TAG_BLOCKED "appsec.blocked"
 #define DD_TAG_RUNTIME_FAMILY "_dd.runtime_family"
@@ -65,6 +66,7 @@
 static zend_string *_dd_tag_data_zstr;
 static zend_string *_dd_tag_event_zstr;
 static zend_string *_dd_tag_blocked_zstr;
+static zend_string *_dd_tag_p_appsec_zstr;
 static zend_string *_dd_tag_http_method_zstr;
 static zend_string *_dd_tag_http_user_agent_zstr;
 static zend_string *_dd_tag_http_status_code_zstr;
@@ -96,6 +98,7 @@ static zend_string *_key_server_name_zstr;
 static zend_string *_key_http_user_agent_zstr;
 static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
+static zend_string *_1_zstr;
 static zend_string *_true_zstr;
 static zend_string *_false_zstr;
 static zend_string *_track_zstr;
@@ -130,9 +133,12 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_EVENT), 1 /* permanent */);
     _dd_tag_blocked_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_BLOCKED), 1 /* permanent */);
+    _1_zstr = zend_string_init_interned(LSTRARG("1"), 1 /* permanent */);
     _true_zstr = zend_string_init_interned(LSTRARG("true"), 1 /* permanent */);
     _false_zstr =
         zend_string_init_interned(LSTRARG("false"), 1 /* permanent */);
+    _dd_tag_p_appsec_zstr =
+        zend_string_init_interned(LSTRARG(DD_TAG_P_APPSEC), 1 /* permanent */);
 
     _dd_tag_http_method_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_METHOD), 1);
@@ -382,6 +388,10 @@ void dd_tags_add_tags(
         return;
     }
 
+    // Indicate there is a ASM EVENT. This tag is used for any event threats,
+    // business logic events, IAST, etc
+    _add_new_zstr_to_meta(meta_ht, _dd_tag_p_appsec_zstr, _1_zstr, true, false);
+
     // Add tags with request/response information
     if (server) {
         if (!_add_all_ancillary_tags(span, server)) {
@@ -493,23 +503,6 @@ static void _add_basic_tags_to_meta(
     _dd_request_headers(meta_ht, _server, headers);
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static void _add_all_tags_to_meta(
-    zval *nonnull meta, const zend_array *nonnull _server)
-{
-    zend_array *meta_ht = Z_ARRVAL_P(meta);
-    _dd_http_method(meta_ht);
-    _dd_http_url(meta_ht, _server);
-    _dd_http_user_agent(meta_ht, _server);
-    _dd_http_status_code(meta_ht);
-    _dd_http_network_client_ip(meta_ht, _server);
-    _dd_request_headers(meta_ht, _server, &_relevant_headers);
-    _dd_http_client_ip(meta_ht);
-    _dd_response_headers(meta_ht);
-    _dd_event_user_id(meta_ht);
-    _dd_appsec_blocked(meta_ht);
-}
-
 static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
     zend_string *val, bool copy, bool override)
 {
@@ -535,6 +528,24 @@ static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
         zend_string_release(val);
     }
 }
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void _add_all_tags_to_meta(
+    zval *nonnull meta, const zend_array *nonnull _server)
+{
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
+    _dd_http_method(meta_ht);
+    _dd_http_url(meta_ht, _server);
+    _dd_http_user_agent(meta_ht, _server);
+    _dd_http_status_code(meta_ht);
+    _dd_http_network_client_ip(meta_ht, _server);
+    _dd_request_headers(meta_ht, _server, &_relevant_headers);
+    _dd_http_client_ip(meta_ht);
+    _dd_response_headers(meta_ht);
+    _dd_event_user_id(meta_ht);
+    _dd_appsec_blocked(meta_ht);
+}
+
 static void _dd_http_method(zend_array *meta_ht)
 {
     if (zend_hash_exists(meta_ht, _dd_tag_http_method_zstr)) {
