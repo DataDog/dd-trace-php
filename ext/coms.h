@@ -66,6 +66,7 @@ uint32_t ddtrace_coms_next_group_id(void);
 void ddtrace_coms_set_test_session_token(const char *token, size_t token_len);
 
 bool ddtrace_coms_init_and_start_writer(void);
+bool ddtrace_coms_restart_writer(void);
 bool ddtrace_coms_trigger_writer_flush(void);
 bool ddtrace_coms_set_writer_send_on_flush(bool send);
 bool ddtrace_in_writer_thread(void);
