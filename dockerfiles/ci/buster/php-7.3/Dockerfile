@@ -1,12 +1,14 @@
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY php-7.3/0001-fix-build-scripts.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
+    patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
     ./buildconf --force;
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build

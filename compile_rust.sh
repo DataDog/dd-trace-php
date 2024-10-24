@@ -18,7 +18,7 @@ esac
 set -x
 
 if test -n "$COMPILE_ASAN"; then
-  export LDFLAGS="-fsanitize=address"
+  export LDFLAGS="-fsanitize=address $(if cc -v 2>&1 | grep -q clang; then echo "-shared-libsan"; fi)"
   export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
 fi
 

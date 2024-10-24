@@ -26,18 +26,18 @@ extern "C" {
     static zai_hook_test_fixed_t zai_hook_test_fixed_first = {42};
     static zai_hook_test_fixed_t zai_hook_test_fixed_second = {42};
 
-    static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic) {
+    static bool zai_hook_test_begin(zend_ulong invocation, zend_execute_data *ex, void *fixed, void *dynamic) {
         zai_hook_test_begin_fixed   = fixed;
         zai_hook_test_begin_dynamic = dynamic;
 
-        CHECK(dynamic->u == 0);
+        CHECK(((zai_hook_test_dynamic_t *)dynamic)->u == 0);
 
         zai_hook_test_begin_check++;
 
         return zai_hook_test_begin_return;
     }
 
-    static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic) {
+    static void zai_hook_test_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic) {
         zai_hook_test_end_fixed   = fixed;
         zai_hook_test_end_dynamic = dynamic;
 

@@ -91,8 +91,8 @@ if test "$PHP_DDTRACE" != "no"; then
 
   if test "$llvm" = "yes"; then
     AC_MSG_RESULT([yes])
-    CFLAGS="$CFLAGS -fms-extensions -Wmicrosoft-anon-tag"
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions -Wmicrosoft-anon-tag"
+    CFLAGS="$CFLAGS -Wno-microsoft-anon-tag"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
     LDFLAGS="$LDFLAGS -Wl,--undefined-version"
   else
     AC_MSG_RESULT([no])
