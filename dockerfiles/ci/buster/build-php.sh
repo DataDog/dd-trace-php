@@ -13,6 +13,7 @@ INSTALL_DIR=$BASE_INSTALL_DIR/$INSTALL_VERSION
 
 if [[ ${INSTALL_VERSION} == *asan* ]]; then
   export CFLAGS='-fsanitize=address -DZEND_TRACK_ARENA_ALLOC'
+  # GCC has `-shared-libasan` default, clang has '-static-libasan' default
   export LDFLAGS='-fsanitize=address -shared-libasan'
 fi
 
