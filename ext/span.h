@@ -17,8 +17,6 @@
 #define DDTRACE_SPAN_FLAG_OPENTELEMETRY (1 << 0)
 #define DDTRACE_SPAN_FLAG_OPENTRACING (1 << 1)
 
-#pragma GCC diagnostic ignored "-Wmicrosoft-anon-tag"
-
 struct ddtrace_span_stack;
 
 enum ddtrace_span_dataype {
