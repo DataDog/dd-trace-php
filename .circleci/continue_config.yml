@@ -253,7 +253,7 @@ aliases:
         # If it's missing, we're building in the job
         if [ -f ddtrace.a ]; then
           sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace.ldflags
-          gcc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
+          cc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
           mkdir -p tmp/build_extension/modules
           mv ddtrace.so tmp/build_extension/modules/
         fi
@@ -3568,7 +3568,7 @@ jobs:
             pids=()
             for archive in extensions_$(uname -m)/*.a; do
               (
-                gcc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags) libddtrace_php_$(uname -m)<< parameters.libddtrace_suffix >>.a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
+                cc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags) libddtrace_php_$(uname -m)<< parameters.libddtrace_suffix >>.a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
                 objcopy --compress-debug-sections ${archive%.a}.so
               ) &
               pids+=($!)
