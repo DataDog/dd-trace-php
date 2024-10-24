@@ -1146,11 +1146,12 @@ void zai_interceptor_startup(zend_module_entry *module_entry) {
     prev_generator_resumption_handler = zend_get_user_opcode_handler(ZAI_INTERCEPTOR_GENERATOR_RESUMPTION_OP);
     zend_set_user_opcode_handler(ZAI_INTERCEPTOR_GENERATOR_RESUMPTION_OP, zai_interceptor_generator_resumption_handler);
 
-    generator_resumption_op_template.opcode = ZAI_INTERCEPTOR_GENERATOR_RESUMPTION_OP;
+    generator_resumption_op_template.opcode = ZEND_USER_OPCODE;
     SET_UNUSED(generator_resumption_op_template.result);
     SET_UNUSED(generator_resumption_op_template.op1);
     SET_UNUSED(generator_resumption_op_template.op2);
     ZEND_VM_SET_OPCODE_HANDLER(&generator_resumption_op_template);
+    generator_resumption_op_template.opcode = ZAI_INTERCEPTOR_GENERATOR_RESUMPTION_OP;
 
     prev_exception_hook = zend_throw_exception_hook;
     zend_throw_exception_hook = zai_interceptor_exception_hook;
@@ -1171,16 +1172,18 @@ void zai_interceptor_startup(zend_module_entry *module_entry) {
     prev_generator_create_handler = zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE);
     zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, zai_interceptor_generator_create_handler);
 
-    zai_interceptor_generator_create_wrapper[0].opcode = ZAI_INTERCEPTOR_POST_GENERATOR_CREATE_OP;
+    zai_interceptor_generator_create_wrapper[0].opcode = ZEND_USER_OPCODE;
     SET_UNUSED(zai_interceptor_generator_create_wrapper[0].result);
     SET_UNUSED(zai_interceptor_generator_create_wrapper[0].op1);
     SET_UNUSED(zai_interceptor_generator_create_wrapper[0].op2);
     ZEND_VM_SET_OPCODE_HANDLER(&zai_interceptor_generator_create_wrapper[0]);
-    zai_interceptor_generator_create_wrapper[1].opcode = ZAI_INTERCEPTOR_POST_GENERATOR_CREATE_OP;
+    zai_interceptor_generator_create_wrapper[0].opcode = ZAI_INTERCEPTOR_POST_GENERATOR_CREATE_OP;
+    zai_interceptor_generator_create_wrapper[1].opcode = ZEND_USER_OPCODE;
     SET_UNUSED(zai_interceptor_generator_create_wrapper[1].result);
     SET_UNUSED(zai_interceptor_generator_create_wrapper[1].op1);
     SET_UNUSED(zai_interceptor_generator_create_wrapper[1].op2);
     ZEND_VM_SET_OPCODE_HANDLER(&zai_interceptor_generator_create_wrapper[1]);
+    zai_interceptor_generator_create_wrapper[1].opcode = ZAI_INTERCEPTOR_POST_GENERATOR_CREATE_OP;
 #endif
 
     INIT_NS_CLASS_ENTRY(zai_interceptor_bailout_ce, "Zend Abstract Interface", "BailoutHandler", NULL);
