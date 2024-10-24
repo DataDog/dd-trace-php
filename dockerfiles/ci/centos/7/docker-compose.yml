@@ -106,8 +106,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.3"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.3.9.tar.gz
-        phpSha256Hash: "f484dec6ee005c83f899af02fc021e1bc3b1d7b3f143ca062ef66b0fcee96566"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.12.tar.gz
+        phpSha256Hash: "7090e551e05b26384546345d6a162c71b74550febf75bdfd16dfd1f0cfa8647c"
     image: 'datadog/dd-trace-ci:php-8.3_centos-7'
 
   php-8.4:

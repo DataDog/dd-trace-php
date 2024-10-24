@@ -116,8 +116,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.3.9
-        php_sha: f484dec6ee005c83f899af02fc021e1bc3b1d7b3f143ca062ef66b0fcee96566
+        php_version: 8.3.12
+        php_sha: 7090e551e05b26384546345d6a162c71b74550febf75bdfd16dfd1f0cfa8647c
         php_api: 20230831
     volumes:
       - ../../:/app
