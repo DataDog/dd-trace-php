@@ -1926,7 +1926,6 @@ dependencies = [
  "datadog-trace-protobuf",
  "ddcommon 0.0.1",
  "http 0.2.11",
- "hyper 0.14.28",
  "serde",
  "tracing",
 ]
