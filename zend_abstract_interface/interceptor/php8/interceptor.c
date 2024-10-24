@@ -68,21 +68,21 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     const size_t stack_size = 1 << 17;
     const size_t stack_top_offset = 0x400;
     void *volatile stack = malloc(stack_size);
-    if (SETJMP(target) == 0) {
-        void *stacktop = stack + stack_size;
+    void *stacktop = stack + stack_size;
 #if PHP_VERSION_ID >= 80300
-        register
+    register
 #endif
-        void *stacktarget = stacktop - stack_top_offset;
+    void *stacktarget = stacktop - stack_top_offset;
 
 #ifdef __SANITIZE_ADDRESS__
-        void *volatile fake_stack;
-        __sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
+    void *volatile fake_stack;
+    __sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
 #define STACK_REG "5"
 #else
 #define STACK_REG "4"
 #endif
 
+    if (SETJMP(target) == 0) {
         register zend_execute_data *ex = execute_data;
         register zval *rv = retval;
         register zai_hook_memory_t *hook_data = &frame_memory->hook_data;
@@ -93,11 +93,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
 #if defined(__x86_64__)
             "mov %" STACK_REG ", %%rsp"
 #elif defined(__aarch64__)
-#ifdef __SANITIZE_ADDRESS__
+#if defined(__SANITIZE_ADDRESS__) && !defined(__clang__)
             "ldr x7, [sp, #72]\n\t" // magic, but I have no idea what else to do here
 #endif
             "mov sp, %" STACK_REG "\n\t"
-#ifdef __SANITIZE_ADDRESS__
+#if defined(__SANITIZE_ADDRESS__) && !defined(__clang__)
             "str x7, [sp, #72]"
 #endif
 #endif
@@ -112,7 +112,7 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
             );
 
 #ifdef __SANITIZE_ADDRESS__
-        __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
+        __sanitizer_finish_switch_fiber(NULL, &bottom, &capacity);
 #endif
 
 #if PHP_VERSION_ID >= 80300
@@ -142,7 +142,7 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     }
 
 #ifdef __SANITIZE_ADDRESS__
-    __sanitizer_finish_switch_fiber(NULL, &bottom, &capacity);
+    __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
     free(stack);

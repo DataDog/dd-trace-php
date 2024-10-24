@@ -133,12 +133,11 @@ RUN set -eux; \
     \
 # Make clang the default compiler
     sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100;
+    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100; \
+# Include libasan library path
+    echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
 
 ENV CMAKE_VERSION="3.24.4"
-ENV CC=clang-17
-ENV CXX=clang++-17
-ENV LD_LIBRARY_PATH="/usr/lib/llvm-17/lib/clang/17/lib/linux/"
 
 # Install CMake
 RUN set -eux; \

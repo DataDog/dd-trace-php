@@ -65,7 +65,13 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    EXTRA_LDFLAGS="-fsanitize=address -lasan"
+    dnl gcc needs -lasan, clang needs -shared-libsan
+    ac_cflags=$LDFLAGS
+    LDFLAGS=-shared-libsan
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return (0); }]])],[found=yes],[found=no],[found=yes])
+    LDFLAGS=$ac_ldflags
+
+    EXTRA_LDFLAGS="-fsanitize=address $(if test $found = "yes"; then echo "-shared-libsan"; else echo "-lasan"; fi)"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
