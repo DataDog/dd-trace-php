@@ -89,6 +89,7 @@ ${PHP_SRC_DIR}/configure \
     `# https://externals.io/message/118859` \
     $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --disable-zend-signals; fi) \
     $(if [[ $INSTALL_VERSION == *zts* && ${PHP_VERSION_ID} -ge 82 ]]; then echo --enable-zend-max-execution-timers; fi) \
+    $(if [[ $INSTALL_VERSION == *asan* ]]; then echo --without-pcre-jit; fi) \
     --prefix=${INSTALL_DIR} \
     --with-config-file-path=${INSTALL_DIR} \
     --with-config-file-scan-dir=${INSTALL_DIR}/conf.d
