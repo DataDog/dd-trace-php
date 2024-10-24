@@ -75,9 +75,28 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
-  CFLAGS="$CFLAGS -fms-extensions -Wmicrosoft-anon-tag"
-  EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions -Wmicrosoft-anon-tag"
-  LDFLAGS="$LDFLAGS -Wl,--undefined-version"
+  CFLAGS="$CFLAGS -fms-extensions"
+  EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions"
+
+  AC_MSG_CHECKING([whether the compiler is LLVM])
+
+
+  AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) {
+#ifdef __clang__
+  return 0;
+#else
+  return 1;
+#endif
+}]])],[llvm=yes],[llvm=no],[llvm=yes])
+
+  if test "$llvm" = "yes"; then
+    AC_MSG_RESULT([yes])
+    CFLAGS="$CFLAGS -fms-extensions -Wmicrosoft-anon-tag"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions -Wmicrosoft-anon-tag"
+    LDFLAGS="$LDFLAGS -Wl,--undefined-version"
+  else
+    AC_MSG_RESULT([no])
+  fi
 
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \
