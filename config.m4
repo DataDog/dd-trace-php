@@ -71,7 +71,7 @@ if test "$PHP_DDTRACE" != "no"; then
     AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return (0); }]])],[found=yes],[found=no],[found=yes])
     LDFLAGS=$ac_ldflags
 
-    EXTRA_LDFLAGS="-fsanitize=address $(if test $found = "yes"; then echo "-shared-libsan -lclang_rt.asan-x86_64"; else echo "-lasan"; fi)"
+    EXTRA_LDFLAGS="-fsanitize=address $(if test $found = "yes"; then echo "-shared-libsan -lclang_rt.asan-$(uname -m)"; else echo "-lasan"; fi)"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
