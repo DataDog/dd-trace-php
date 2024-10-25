@@ -397,14 +397,14 @@ static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval
 
 static void zai_interceptor_handle_ended_generator(zend_generator *generator, zend_execute_data *ex, zval *retval, zai_frame_memory *frame_memory) {
     if (frame_memory->implicit) {
-        zai_install_address genaddr = zai_hook_install_address_user(&generator->execute_data->func->op_array);
+        zai_install_address genaddr = zai_hook_install_address_user(&ex->func->op_array);
         zval *count = zend_hash_index_find(&zai_interceptor_implicit_generators, genaddr);
         if (count && !--Z_LVAL_P(count)) {
             zend_hash_index_del(&zai_interceptor_implicit_generators, genaddr);
             if (!zend_hash_index_exists(&zai_hook_resolved, genaddr)) {
                 zend_observer_fcall_end_handler next_end_handler = NULL;
-                zai_interceptor_replace_observer(generator->execute_data->func, true, &next_end_handler);
-                if (UNEXPECTED(next_end_handler)) {
+                zai_interceptor_replace_observer(ex->func, true, &next_end_handler);
+                if (UNEXPECTED(next_end_handler) && generator->execute_data == ex /* Not equal within dtor */) {
                     next_end_handler(ex, retval);
                 }
             }
