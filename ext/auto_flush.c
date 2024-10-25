@@ -28,7 +28,7 @@ static bool trace_contains_appsec_event(zval *trace) {
         return false;
     }
 
-    return zend_hash_str_exists(Z_ARR_P(meta), ZEND_STRL("appsec.event"));
+    return zend_hash_str_exists(Z_ARR_P(meta), ZEND_STRL("_dd.p.appsec"));
 }
 
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {

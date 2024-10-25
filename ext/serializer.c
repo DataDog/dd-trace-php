@@ -1698,19 +1698,20 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
 
+    zval *asm_event = NULL;
+    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        asm_event = zend_hash_str_find(meta, ZEND_STRL("_dd.p.appsec"));
+    }
+    bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
+
     _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
     zval metrics_zv;
     array_init(&metrics_zv);
     zend_string *str_key;
     zval *val;
-    bool is_standalone_appsec_span = false;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(metrics, str_key, val) {
         if (str_key) {
-            if (!is_standalone_appsec_span && get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() &&
-                strcmp("_dd.appsec.enabled", ZSTR_VAL(str_key)) == 0) {
-                is_standalone_appsec_span = true;
-            }
             dd_serialize_array_metrics_recursively(Z_ARRVAL(metrics_zv), str_key, val);
         }
     } ZEND_HASH_FOREACH_END();
