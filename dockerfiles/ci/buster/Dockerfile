@@ -55,7 +55,6 @@ ENV RUNTIME_DEPS \
     strace \
     sudo \
     unzip \
-    valgrind \
     vim \
     xz-utils \
     zip
@@ -112,11 +111,6 @@ RUN set -eux; \
         $DEVLIBS \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
-    \
-# valgrind 3.14 has a fatal bug making it unusable with PHP on arm64, manually install valgrind from bullseye \
-    curl -O http://ftp.de.debian.org/debian/pool/main/v/valgrind/valgrind_3.16.1-1_${TARGETPLATFORM#linux/}.deb; \
-    dpkg -i valgrind*.deb; \
-    rm valgrind*.deb; \
     \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
@@ -190,6 +184,18 @@ RUN set -eux; \
     (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
     mkdir gdb && cd gdb; \
     tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
+    ./configure; \
+    make -j "$((`nproc`+1))"; \
+    make install
+
+# Install valgrind
+RUN set -eux; \
+    VALGRIND_VERSION="3.23.0"; \
+    VALGRIND_SHA1="ec410c75d3920d4f9249a5cfa2cac31e1bf6d586"; \
+    cd /tmp && curl -OL https://sourceware.org/pub/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
+    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha1sum -c -); \
+    mkdir valgrind && cd valgrind; \
+    tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
     ./configure; \
     make -j "$((`nproc`+1))"; \
     make install

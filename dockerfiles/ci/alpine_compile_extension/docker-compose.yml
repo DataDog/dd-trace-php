@@ -104,8 +104,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.2.21
-        php_sha: 0c6323699309a4d2e71057f01bc071b199f240973c349287b667a3ab36a496c6
+        php_version: 8.2.25
+        php_sha: 7fe7ba6e3e66cd0e61cfa95341e6aefc8790030a7867333f54aef5fb78aad18b
         php_api: 20220829
     volumes:
       - ../../:/app
@@ -116,8 +116,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.3.12
-        php_sha: 7090e551e05b26384546345d6a162c71b74550febf75bdfd16dfd1f0cfa8647c
+        php_version: 8.3.13
+        php_sha: ffe34317d2688ed3161809c90ca4135c84ebfdfd12a46880a264d7d1e1d7739a
         php_api: 20230831
     volumes:
       - ../../:/app
