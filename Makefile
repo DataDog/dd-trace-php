@@ -261,6 +261,9 @@ build_tea_coverage:
 			-DCMAKE_BUILD_TYPE=Debug \
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 			-DCMAKE_C_FLAGS="-O0 --coverage" \
+			-DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
+			-DCMAKE_MODULE_LINKER_FLAGS="--coverage" \
+			-DCMAKE_EXE_LINKER_FLAGS="--coverage" \
 			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 		$(PROJECT_ROOT)/tea; \
 		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
@@ -301,7 +304,7 @@ build_zai_coverage: install_tea_coverage
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	Tea_ROOT=$(TEA_INSTALL_DIR) \
-	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -315,7 +318,7 @@ build_components_coverage:
 	( \
 	mkdir -p "$(COMPONENTS_BUILD_DIR)"; \
 	cd $(COMPONENTS_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" $(PROJECT_ROOT)/components; \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" $(PROJECT_ROOT)/components; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
