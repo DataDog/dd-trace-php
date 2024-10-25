@@ -13,13 +13,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: true
 
       - name: Restore build cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -45,7 +45,7 @@ jobs:
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Cache build dependencies
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -69,4 +69,3 @@ jobs:
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           php run-tests.php --show-diff --asan -d extension=datadog-profiling.so phpt
-

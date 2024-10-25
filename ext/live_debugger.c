@@ -409,7 +409,7 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
     }
     if (hasThis()) {
         struct ddog_CaptureValue capture_value = {0};
-        ddtrace_create_capture_value(&EX(This), &capture_value, capture_config, capture_config->max_reference_depth);
+        ddtrace_create_capture_value(getThis(), &capture_value, capture_config, capture_config->max_reference_depth);
         ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("this"), capture_value);
     }
 }
@@ -441,7 +441,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         dd_log_probe_capture_snapshot(capture, def, execute_data);
         const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
         struct ddog_CaptureValue capture_value = {0};
-        ddtrace_create_capture_value(&EX(This), &capture_value, capture_config, capture_config->max_reference_depth);
+        ddtrace_create_capture_value(retval, &capture_value, capture_config, capture_config->max_reference_depth);
         ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("@return"), capture_value);
     }
     ddtrace_sidecar_send_debugger_datum(dyn->payload);
