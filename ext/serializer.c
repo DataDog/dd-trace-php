@@ -1236,9 +1236,9 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                 if (Z_TYPE_P(tag) == IS_STRING) { // Use the first tag that is found in the span, if any
                     zval *peer_service = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
                     if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
-                        add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
-
                         zend_string *peer = zval_get_string(peer_service);
+
+                        add_assoc_str(meta, "_dd.peer.service.source", zend_string_copy(Z_STR_P(tag)));
                         if (!dd_set_mapped_peer_service(meta, peer)) {
                             add_assoc_str(meta, "peer.service", peer);
                         }

@@ -526,7 +526,7 @@ static void zai_interceptor_execute_internal(zend_execute_data *execute_data, zv
 
 static zend_generator *zai_interceptor_get_original_executing_generator(zend_generator *gen) {
    if (gen->node.children) {
-       return (zend_generator *)(((char *)gen->execute_data->prev_execute_data) - (uintptr_t)(&((zend_generator*)0)->execute_fake));
+       return (zend_generator *)(((char *)gen->execute_data->prev_execute_data) - (uintptr_t)XtOffsetOf(zend_generator, execute_fake));
    }
     return gen;
 }
