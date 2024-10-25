@@ -33,6 +33,7 @@ ENV DEVLIBS \
     libxml2-dev \
     libxslt1-dev \
     libzip-dev \
+    libc6-dbg \
     odbcinst1debian2 \
     zlib1g-dev \
     unixodbc-dev \
@@ -131,6 +132,7 @@ RUN set -eux; \
     update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100; \
     update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100; \
     update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-17 100; \
+    echo "-L /usr/lib/llvm-17/lib/clang/17/lib/linux" > /usr/lib/llvm-17/bin/clang.cfg; \
 # Include libasan library path
     echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
 
