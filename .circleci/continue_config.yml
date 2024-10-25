@@ -5244,6 +5244,24 @@ workflows:
                 - test_opcache
 
       - test:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+                - "8.4"
+              make_target:
+                - test_coverage
+
+      - test:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           coverage: true
           codecov_flags: tracer-php
@@ -5318,7 +5336,7 @@ workflows:
                 - debug-zts-asan
 
       - coverage:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
+          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
