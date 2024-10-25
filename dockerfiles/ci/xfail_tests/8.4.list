@@ -50,6 +50,7 @@ ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt
 ext/date/tests/bug52113.phpt
 ext/dom/tests/dom_set_attr_node.phpt
 ext/dom/tests/dom003.phpt
+ext/dom/tests/modern/xml/XMLDocument_xpath_errors.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/json/tests/json_decode_exceptions.phpt
 ext/json/tests/json_encode_exceptions.phpt
