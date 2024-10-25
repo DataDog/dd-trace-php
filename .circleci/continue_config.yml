@@ -2884,23 +2884,32 @@ jobs:
               grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
             done
 
-      - run:
-          name: Build and test Zend Abstract Interface (debug + UBSan)
-          command: |
-            switch-php debug
-            mkdir -p /tmp/build/zai-debug-ubsan
-            cd /tmp/build/zai-debug-ubsan
-            CMAKE_PREFIX_PATH=/opt/catch2 \
-            Tea_ROOT=/opt/tea/debug \
-            cmake \
-              -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_ZAI_TESTING=ON \
-              -DPhpConfig_ROOT=$(php-config --prefix) \
-              ~/datadog/zend_abstract_interface
-            make -j all
-            make test
-            grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+      - when:
+          condition: # PHP itself is only really ubsan compatible since 7.4
+            not:
+              or:
+                - equal: [ "7.0", << parameters.php_version >> ]
+                - equal: [ "7.1", << parameters.php_version >> ]
+                - equal: [ "7.2", << parameters.php_version >> ]
+                - equal: [ "7.3", << parameters.php_version >> ]
+          steps:
+            - run:
+                name: Build and test Zend Abstract Interface (debug + UBSan)
+                command: |
+                  switch-php debug
+                  mkdir -p /tmp/build/zai-debug-ubsan
+                  cd /tmp/build/zai-debug-ubsan
+                  CMAKE_PREFIX_PATH=/opt/catch2 \
+                  Tea_ROOT=/opt/tea/debug \
+                  cmake \
+                    -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
+                    -DCMAKE_BUILD_TYPE=Debug \
+                    -DBUILD_ZAI_TESTING=ON \
+                    -DPhpConfig_ROOT=$(php-config --prefix) \
+                    ~/datadog/zend_abstract_interface
+                  make -j all
+                  make test
+                  grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:
           name: Extension Tea Tests
