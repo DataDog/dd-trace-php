@@ -111,6 +111,7 @@ static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
 static THREAD_LOCAL_ON_ZTS bool _blocked;
+static THREAD_LOCAL_ON_ZTS bool _asm_event;
 static THREAD_LOCAL_ON_ZTS bool _force_keep;
 
 static void _init_relevant_headers(void);
@@ -124,6 +125,8 @@ void _set_runtime_family(zend_object *nonnull span);
 static bool _set_appsec_enabled(zval *metrics_zv);
 static void _register_functions(void);
 static void _register_test_functions(void);
+static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
+    zend_string *val, bool copy, bool override);
 
 void dd_tags_startup()
 {
@@ -296,8 +299,12 @@ void dd_tags_rinit()
     // Just in case...
     _event_user_id = NULL;
     _blocked = false;
+    _asm_event = false;
     _force_keep = false;
 }
+
+static void _dd_tags_add_asm_event() { _asm_event = true; }
+
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 {
@@ -328,6 +335,16 @@ void dd_tags_rshutdown()
     if (_event_user_id) {
         zend_string_release(_event_user_id);
         _event_user_id = NULL;
+    }
+}
+
+static void _dd_appsec_asm_event(zend_array *meta_ht)
+{
+    if (meta_ht && _asm_event) {
+        // Indicate there is a ASM EVENT. This tag is used for any event
+        // threats, business logic events, IAST, etc
+        _add_new_zstr_to_meta(
+            meta_ht, _dd_tag_p_appsec_zstr, _1_zstr, true, false);
     }
 }
 
@@ -388,9 +405,7 @@ void dd_tags_add_tags(
         return;
     }
 
-    // Indicate there is a ASM EVENT. This tag is used for any event threats,
-    // business logic events, IAST, etc
-    _add_new_zstr_to_meta(meta_ht, _dd_tag_p_appsec_zstr, _1_zstr, true, false);
+    _dd_tags_add_asm_event();
 
     // Add tags with request/response information
     if (server) {
@@ -503,6 +518,24 @@ static void _add_basic_tags_to_meta(
     _dd_request_headers(meta_ht, _server, headers);
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void _add_all_tags_to_meta(
+    zval *nonnull meta, const zend_array *nonnull _server)
+{
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
+    _dd_http_method(meta_ht);
+    _dd_http_url(meta_ht, _server);
+    _dd_http_user_agent(meta_ht, _server);
+    _dd_http_status_code(meta_ht);
+    _dd_http_network_client_ip(meta_ht, _server);
+    _dd_request_headers(meta_ht, _server, &_relevant_headers);
+    _dd_http_client_ip(meta_ht);
+    _dd_response_headers(meta_ht);
+    _dd_event_user_id(meta_ht);
+    _dd_appsec_blocked(meta_ht);
+    _dd_appsec_asm_event(meta_ht);
+}
+
 static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
     zend_string *val, bool copy, bool override)
 {
@@ -527,23 +560,6 @@ static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
     if (copy && added == NULL) {
         zend_string_release(val);
     }
-}
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-static void _add_all_tags_to_meta(
-    zval *nonnull meta, const zend_array *nonnull _server)
-{
-    zend_array *meta_ht = Z_ARRVAL_P(meta);
-    _dd_http_method(meta_ht);
-    _dd_http_url(meta_ht, _server);
-    _dd_http_user_agent(meta_ht, _server);
-    _dd_http_status_code(meta_ht);
-    _dd_http_network_client_ip(meta_ht, _server);
-    _dd_request_headers(meta_ht, _server, &_relevant_headers);
-    _dd_http_client_ip(meta_ht);
-    _dd_response_headers(meta_ht);
-    _dd_event_user_id(meta_ht);
-    _dd_appsec_blocked(meta_ht);
 }
 
 static void _dd_http_method(zend_array *meta_ht)
