@@ -132,9 +132,11 @@ RUN set -eux; \
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
     \
 # Make clang the default compiler
-    sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
-    sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100; \
-    sudo update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-17 100; \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100; \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100; \
+    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-17 100; \
 # Include libasan library path
     echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
 

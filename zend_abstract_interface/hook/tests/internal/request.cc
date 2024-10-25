@@ -336,7 +336,8 @@ HOOK_TEST_CASE("unresolved removal", {
 extern "C" {
     static zai_hook_test_dynamic_t zai_hook_add_test_begin_dynamic = {42};
 
-    static bool zai_hook_test_hook_add_begin(zend_ulong invocation, zend_execute_data *ex, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic) {
+    static bool zai_hook_test_hook_add_begin(zend_ulong invocation, zend_execute_data *ex, void *fixed, void *dynamic_ptr) {
+        zai_hook_test_dynamic_t *dynamic = (zai_hook_test_dynamic_t *)dynamic_ptr;
         CHECK(dynamic->u == 0);
         dynamic->u = 1;
 
@@ -363,8 +364,8 @@ extern "C" {
         return true;
     }
 
-    static void zai_hook_test_hook_add_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, zai_hook_test_fixed_t *fixed, zai_hook_test_dynamic_t *dynamic) {
-        zai_hook_add_test_begin_dynamic = *dynamic;
+    static void zai_hook_test_hook_add_end(zend_ulong invocation, zend_execute_data *ex, zval *rv, void *fixed, void *dynamic) {
+        zai_hook_add_test_begin_dynamic = *(zai_hook_test_dynamic_t *)dynamic;
 
         CHECK(zai_hook_test_end_check == 2); // called last
         zai_hook_test_end_check++;

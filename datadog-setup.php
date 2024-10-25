@@ -1159,7 +1159,7 @@ function get_architecture()
 /**
  * @return array|false
  */
-function parse_cli_arguments(array $argv = null)
+function parse_cli_arguments($argv = null)
 {
     if (is_null($argv)) {
         $argv = $_SERVER['argv'];

@@ -4992,13 +4992,11 @@ workflows:
           name: "System tests Integration Tests"
           build: |
             cd system-tests
-            git checkout conti/fix-php-errors
             ./build.sh php
           run: |
             export SYSTEM_TESTS_AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
             export SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY=$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
             cd system-tests
-            git checkout conti/fix-php-errors
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
 
       - system_tests:
@@ -5006,13 +5004,11 @@ workflows:
           name: "System tests Crossed Tracer Propagation Tests for Messaging"
           build: |
             cd system-tests
-            git checkout conti/fix-php-errors
             ./build.sh php
           run: |
             export SYSTEM_TESTS_AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
             export SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY=$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
             cd system-tests
-            git checkout conti/fix-php-errors
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - system_tests:

@@ -166,7 +166,7 @@ else
     pecl install redis-4.3.0
     mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-4.3.0.so
   fi
-  if [[ $PHP_VERSION_ID -lt 83 ]]; then
+  if [[ $PHP_VERSION_ID -le 83 ]]; then
     pecl install redis-5.3.7
     # Redis 6.0.0 dropped support for PHP 7.1 and below
     if [[ $PHP_VERSION_ID -gt 71 ]]; then

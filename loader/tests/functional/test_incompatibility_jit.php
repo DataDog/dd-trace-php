@@ -38,7 +38,7 @@ EOT
     ],
     // JIT enabled
     [
-        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M",
+        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
         "must_not_contain" => [],
         "must_contain" => [
             $msg_disabled,
@@ -53,7 +53,7 @@ EOT
     ],
     // JIT enabled + force injection
     [
-        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M",
+        "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
         "env" => ['DD_INJECT_FORCE=1'],
         "must_not_contain" => [],
         "must_contain" => [

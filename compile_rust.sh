@@ -18,7 +18,8 @@ esac
 set -x
 
 if test -n "$COMPILE_ASAN"; then
-  export LDFLAGS="-fsanitize=address $(if cc -v 2>&1 | grep -q clang; then echo "-shared-libsan"; fi)"
+  # We need -lresolv due to https://github.com/llvm/llvm-project/issues/59007
+  export LDFLAGS="-fsanitize=address $(if cc -v 2>&1 | grep -q clang; then echo "-shared-libsan -lresolv"; fi)"
   export CFLAGS="$LDFLAGS -fno-omit-frame-pointer" # the cc buildtools will only pick up CFLAGS it seems
 fi
 
