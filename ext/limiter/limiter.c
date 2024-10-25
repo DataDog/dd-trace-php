@@ -27,11 +27,15 @@ static ddtrace_limiter* dd_limiter;
 
 
 void ddtrace_limiter_create() {
-    if (get_global_DD_TRACE_SAMPLE_RATE() < 0) {
+    if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index < 0) {
         return;
     }
 
     uint32_t limit = (uint32_t) get_global_DD_TRACE_RATE_LIMIT();
+
+    if (!limit) {
+        return;
+    }
 
     // We share the limiter among forks (ie, forks need to write this memory), this requires that we map the memory as shared
     ddog_ShmHandle *shm;
