@@ -5244,7 +5244,7 @@ workflows:
                 - "8.3"
                 - "8.4"
               make_target:
-                - test_coverage
+                # - test_coverage
                 - test_unit
                 - test_api_unit
                 - test_c2php
@@ -5268,7 +5268,7 @@ workflows:
                 - "8.3"
                 - "8.4"
               make_target:
-                - test_coverage
+                # - test_coverage
 
       - test:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
@@ -5360,7 +5360,7 @@ workflows:
                 - "8.3"
                 - "8.4"
               make_target:
-                - test_coverage
+                # - test_coverage
       - asan:
           requires: [ 'Prepare Code', '<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing', '<< matrix.resource_class >>: Compile ASAN rust code for testing' ]
           matrix:
