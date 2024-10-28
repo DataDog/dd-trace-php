@@ -2925,7 +2925,7 @@ jobs:
 
               # build ddtrace.so
               cd ~/datadog
-              make clean
+              rm -rf tmp/build_extension
               make install
 
               # Build ext Tea tests
