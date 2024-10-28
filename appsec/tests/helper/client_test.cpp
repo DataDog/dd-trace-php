@@ -155,7 +155,7 @@ TEST(ClientTest, ClientInit)
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
     EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.0");
+        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.1");
     EXPECT_STREQ(
         msg_res->meta[std::string(tag::event_rules_errors)].c_str(), "{}");
 
@@ -264,7 +264,7 @@ TEST(ClientTest, ClientInitInvalidRules)
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
     EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.0");
+        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.1");
 
     rapidjson::Document doc;
     doc.Parse(msg_res->meta[std::string(tag::event_rules_errors)]);
