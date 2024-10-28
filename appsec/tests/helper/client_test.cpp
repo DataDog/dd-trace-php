@@ -637,8 +637,8 @@ TEST(ClientTest, EventWithMultipleActions)
         EXPECT_EQ(msg_res->actions.size(),
             3); // Block is not generated since there is a redirect
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "redirect");
-        EXPECT_STREQ(
-            msg_res->actions[0].parameters["location"].c_str(), "localhost");
+        EXPECT_STREQ(msg_res->actions[0].parameters["location"].c_str(),
+            "https://localhost");
         EXPECT_STREQ(
             msg_res->actions[0].parameters["status_code"].c_str(), "303");
         EXPECT_STREQ(msg_res->actions[1].verdict.c_str(),

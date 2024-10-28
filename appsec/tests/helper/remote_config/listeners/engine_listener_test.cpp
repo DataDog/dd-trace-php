@@ -6,18 +6,16 @@
 
 #include "../../common.hpp"
 #include "../mocks.hpp"
-#include "base64.h"
 #include "engine.hpp"
 #include "json_helper.hpp"
 #include "remote_config/exception.hpp"
 #include "remote_config/listeners/engine_listener.hpp"
-#include "remote_config/product.hpp"
 #include "subscriber/waf.hpp"
 #include <memory>
 #include <rapidjson/writer.h>
 
 const std::string waf_rule =
-    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":".*"}}]}]})";
+    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"dummy","key_path":[]}],"regex":".*"}}]}]})";
 
 namespace dds::remote_config {
 
@@ -978,7 +976,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
     }
     const std::string update =
         R"({"actions": [{"id": "redirect", "type": "redirect_request", "parameters":
-            {"status_code": "303", "location": "localhost"}}],"rules_override":
+            {"status_code": "303", "location": "https://localhost"}}],"rules_override":
             [{"rules_target": [{"rule_id": "1"}], "on_match": ["redirect"]}]})";
 
     listener.on_update(get_config("ASM", update));
