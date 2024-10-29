@@ -70,9 +70,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     void *volatile stack = malloc(stack_size);
     void *stacktop = stack + stack_size;
 #if PHP_VERSION_ID >= 80300
-    register
+    register void *volatile
+#else
+    void *
 #endif
-    void *stacktarget = stacktop - stack_top_offset;
+    stacktarget = stacktop - stack_top_offset;
 
 #ifdef __SANITIZE_ADDRESS__
     void *volatile fake_stack;
@@ -105,8 +107,12 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
 #ifdef __SANITIZE_ADDRESS__
                 , "+r"(fake_stack)
 #endif
+#if PHP_VERSION_ID >= 80300
+                , "+r"(stacktarget)
+#else
             : "r"(stacktarget)
-#if defined(__SANITIZE_ADDRESS__) && defined(__aarch64__)
+#endif
+#if defined(__SANITIZE_ADDRESS__) && defined(__aarch64__) && !defined(__clang__)
             : "x7"
 #endif
             );
