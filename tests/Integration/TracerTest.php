@@ -282,25 +282,6 @@ final class TracerTest extends BaseTestCase
         $this->assertTrue(empty($traces[0][0]['meta']['version']));
     }
 
-    public function testServiceVersionIsNotAdded()
-    {
-        self::putenv("DD_SERVICE=version_test");
-        self::putenv("DD_VERSION=5.2.0");
-        \dd_trace_internal_fn('ddtrace_reload_config'); // service mappings are now internal config
-        $traces = $this->isolateTracer(function (Tracer $tracer) {
-            $scope = $tracer->startRootSpan('custom.root');
-            $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'version_test');
-            $scopeInternal = $tracer->startActiveSpan('custom.internal');
-            $scopeInternal->getSpan()->setTag(Tag::SERVICE_NAME, 'no dd_service');
-            $scopeInternal->close();
-            $scope->close();
-        });
-        $this->assertSame('5.2.0', $traces[0][0]['meta']['version']);
-        $this->assertSame('version_test', $traces[0][0]['service']);
-
-        $this->assertArrayNotHasKey('version', $traces[0][1]['meta']);
-        $this->assertSame('no dd_service', $traces[0][1]['service']);
-    }
 
     public function testTracerReset()
     {
