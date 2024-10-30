@@ -29,6 +29,7 @@ x-aliases:
         - mongodb_integration
         - mysql_integration
         - memcached_integration
+        - googlespanner_integration
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
@@ -154,6 +155,16 @@ services:
         memlock:
             soft: -1
             hard: -1
+
+  googlespanner_integration:
+    image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+    networks:
+      default:
+        aliases:
+          - spanner.local
 
   mongodb_integration:
     image: "circleci/mongo:4.0"

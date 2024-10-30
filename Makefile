@@ -823,6 +823,7 @@ TEST_INTEGRATIONS_80 := \
 	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_googlespanner \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle7 \
@@ -875,6 +876,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_openai \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
+	test_integrations_googlespanner \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -928,6 +930,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_openai \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
+	test_integrations_googlespanner \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -989,6 +992,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_openai \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
+	test_integrations_googlespanner \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -1264,6 +1268,8 @@ test_integrations_frankenphp: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
+test_integrations_googlespanner: global_test_run_dependencies tests/Integrations/GoogleSpanner/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/GoogleSpanner)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)

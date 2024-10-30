@@ -1,0 +1,64 @@
+[[
+  {
+    "name": "google_spanner.run_transaction",
+    "service": "google_spanner",
+    "resource": "transaction",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "sql",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "672dcad600000000",
+      "component": "google_spanner",
+      "db.system": "spanner",
+      "runtime-id": "6972090a-ec3f-496a-84c7-c68382a58816",
+      "span.kind": "client"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "google_spanner.execute_update",
+       "service": "google_spanner",
+       "resource": "DELETE FROM Users where UserId = 3",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "google_spanner",
+         "db.system": "spanner",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "google_spanner.execute_update",
+       "service": "google_spanner",
+       "resource": "INSERT Users (UserId, FirstName, LastName) VALUES (3, 'Dylan', 'Shaw')",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "google_spanner",
+         "db.system": "spanner",
+         "span.kind": "client"
+       }
+     },
+     {
+       "name": "google_spanner.commit",
+       "service": "google_spanner",
+       "resource": "commit",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "sql",
+       "meta": {
+         "component": "google_spanner",
+         "db.system": "spanner",
+         "span.kind": "client"
+       }
+     }]]

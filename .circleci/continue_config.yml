@@ -96,6 +96,10 @@ aliases:
       - MSSQL_SA_PASSWORD=Password12!
       - MSSQL_PID=Developer
 
+  - &IMAGE_DOCKER_GOOGLESPANNER
+    image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
+    name: googlespanner_integration
+
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
@@ -554,6 +558,8 @@ commands:
                 -e MSSQL_SA_PASSWORD=Password12! \
                 -e MSSQL_PID=Developer \
                 --name sqlsrv_integration mcr.microsoft.com/mssql/server:2022-latest
+              retry_docker run --detach --rm --net net \
+                --name googlespanner_integration gcr.io/cloud-spanner-emulator/emulator:1.5.25
             fi
       - when:
           condition:
@@ -587,6 +593,8 @@ commands:
                 docker_image: mongodb_integration
             - docker_logs:
                 docker_image: sqlsrv_integration
+            - docker_logs:
+                docker_image: googlespanner_integration
       - run:
           name: Setup docker image << parameters.docker_image >>
           command: |
@@ -731,6 +739,7 @@ executors:
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV
+      - <<: *IMAGE_DOCKER_GOOGLESPANNER
   with_redis:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
