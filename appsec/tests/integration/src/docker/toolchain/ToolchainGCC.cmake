@@ -11,4 +11,3 @@ set(CMAKE_CXX_COMPILER_TARGET ${target})
 set(CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN /usr)
 set(CMAKE_NM ${tool_prefix}nm)
 set(CMAKE_RANLIB ${tool_prefix}ranlib)
-

@@ -6,6 +6,6 @@
  #define LC_MESSAGES_MASK (1<<LC_MESSAGES)
 -#define LC_ALL_MASK      0x7fffffff
 +#define LC_ALL_MASK      0x1fbf
- 
+
  locale_t duplocale(locale_t);
  void freelocale(locale_t);

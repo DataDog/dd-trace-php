@@ -33,7 +33,7 @@ tasks.register('buildToolchain', Exec) {
     description = "Build the toolchain image"
     inputs.dir 'src/docker/toolchain'
     outputs.upToDateWhen imageUpToDate(inputs, "$repo:toolchain")
-    commandLine 'docker', 'build', '-t', "$repo:toolchain", 'src/docker/toolchain'
+    commandLine 'docker', 'build', '-t', "$repo:toolchain", 'src/docker/toolchain', "--build-arg", "ARCH=$arch"
 }
 
 tasks.register('buildPhpDeps', Exec) {
