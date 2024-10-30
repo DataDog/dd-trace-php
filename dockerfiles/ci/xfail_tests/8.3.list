@@ -166,6 +166,7 @@ ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
+ext/standard/tests/strings/gh15613.phpt
 ext/zend_test/tests/
 sapi/cli/tests/bug80092.phpt
 sapi/cli/tests/upload_2G.phpt

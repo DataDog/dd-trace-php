@@ -10,6 +10,7 @@ Hence we exec() ourselves on top of a process with no effective capabilities.
 <?php if (getenv("SKIP_ASAN")) die("skip leak sanitizer crashes"); ?>
 <?php if (posix_getuid() != 0 && trim(shell_exec("sudo echo 1")) !== "1") die("skip: user is not root and has no password-less sudo"); ?>
 <?php if (dd_trace_env_config('DD_TRACE_SIDECAR_TRACE_SENDER')) die("skip: background-sender only test"); ?>
+<?php if (strpos((string)getenv('EXTRA_CFLAGS'), "ftest-coverage") !== false) die("skip: does not work with coverage"); ?>
 --FILE--
 <?php
 

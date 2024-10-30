@@ -23,19 +23,39 @@ static zif_handler dd_pcntl_rfork_handler = NULL;
 static zif_handler dd_pcntl_forkx_handler = NULL;
 #endif
 
+#if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
+#define JOIN_BGS_BEFORE_FORK 1
+#endif
+
+static void dd_prefork() {
+#if JOIN_BGS_BEFORE_FORK
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        ddtrace_coms_flush_shutdown_writer_synchronous();
+    }
+#endif
+}
+
 static void dd_handle_fork(zval *return_value) {
     if (Z_LVAL_P(return_value) == 0) {
         dd_internal_handle_fork();
+    } else {
+#if JOIN_BGS_BEFORE_FORK
+        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            ddtrace_coms_restart_writer();
+        }
+#endif
     }
 }
 
 ZEND_FUNCTION(ddtrace_pcntl_fork) {
+    dd_prefork();
     dd_pcntl_fork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     dd_handle_fork(return_value);
 }
 
 #if PHP_VERSION_ID >= 80100
 ZEND_FUNCTION(ddtrace_pcntl_rfork) {
+    dd_prefork();
     dd_pcntl_rfork_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     dd_handle_fork(return_value);
 }
@@ -43,6 +63,7 @@ ZEND_FUNCTION(ddtrace_pcntl_rfork) {
 
 #if PHP_VERSION_ID >= 80200
 ZEND_FUNCTION(ddtrace_pcntl_forkx) {
+    dd_prefork();
     dd_pcntl_forkx_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     dd_handle_fork(return_value);
 }

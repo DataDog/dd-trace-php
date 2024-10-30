@@ -34,6 +34,10 @@ Datadog\negative_function();
 echo "Done.";
 ?>
 --EXPECT--
+Executed negativeMethod
+Executed negative_function
+Executed negativeMethod
 NegativeClass::negative_method
+Executed negative_function
 negative_function
 Done.

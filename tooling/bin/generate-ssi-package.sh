@@ -45,7 +45,7 @@ for architecture in "${architectures[@]}"; do
     # Trace
     ########################
 
-    php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831)
+    php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924)
     for php_api in "${php_apis[@]}"; do
         mkdir -p ${gnu}/trace/ext/$php_api ${musl}/trace/ext/$php_api
         # gnu
