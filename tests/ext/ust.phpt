@@ -3,7 +3,8 @@ Foo
 --ENV--
 DD_SERVICE=version_test
 DD_VERSION=5.2.0
-DD_TRACE_DEBUG=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
@@ -20,10 +21,93 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-[ddtrace] [span] Encoding span %d: trace_id=%s, name='s1', service='version_test', resource: 's1', type 'cli' with tags: runtime-id='%s', _dd.p.dm='-0', version='5.2.0', _dd.p.tid='%s'; and metrics: process_id='%d', _dd.agent_psr='1', _sampling_priority_v1='1'
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://localhost:8126
-[ddtrace] [span] Encoding span %d: trace_id=%s, name='s2', service='no dd_service', resource: 's2', type 'cli' with tags: runtime-id='%s', _dd.p.dm='-0', _dd.p.tid='%s'; and metrics: process_id='%d', _dd.agent_psr='1', _sampling_priority_v1='1'
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://localhost:8126
-array(0) {
+array(2) {
+  [0]=>
+  array(%d) {
+    ["trace_id"]=>
+    string(%d) "%s"
+    ["span_id"]=>
+    string(%d) "%s"
+    ["start"]=>
+    int(%d)
+    ["duration"]=>
+    int(%d)
+    ["name"]=>
+    string(2) "s2"
+    ["resource"]=>
+    string(2) "s2"
+    ["service"]=>
+    string(13) "no dd_service"
+    ["type"]=>
+    string(3) "cli"
+    ["meta"]=>
+    array(%d) {
+      ["runtime-id"]=>
+      string(36) "%s"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
+    }
+    ["metrics"]=>
+    array(%d) {
+      ["process_id"]=>
+      float(%f)
+      ["_dd.agent_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
+    }
+  }
+  [1]=>
+  array(%d) {
+    ["trace_id"]=>
+    string(%d) "%s"
+    ["span_id"]=>
+    string(%d) "%s"
+    ["start"]=>
+    int(%d)
+    ["duration"]=>
+    int(%d)
+    ["name"]=>
+    string(2) "s1"
+    ["resource"]=>
+    string(2) "s1"
+    ["service"]=>
+    string(12) "version_test"
+    ["type"]=>
+    string(3) "cli"
+    ["meta"]=>
+    array(%d) {
+      ["runtime-id"]=>
+      string(36) "%s"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
+      ["version"]=>
+      string(5) "5.2.0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
+    }
+    ["metrics"]=>
+    array(%d) {
+      ["process_id"]=>
+      float(%f)
+      ["_dd.agent_psr"]=>
+      float(1)
+      ["_sampling_priority_v1"]=>
+      float(1)
+      ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
+    }
+  }
 }
-[ddtrace] [info] No finished traces to be sent to the agent

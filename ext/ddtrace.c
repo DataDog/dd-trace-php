@@ -1050,12 +1050,15 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
     }
 
     ddtrace_span_data *span = OBJ_SPANDATA(obj);
-    if ((ZSTR_LEN(get_DD_SERVICE()) || !ddtrace_span_is_entrypoint_root(span)) && zend_string_equals_literal(prop_name, "service")) {
-        // As per unified service tagging spec if a span is created with a service name different from the global
-        // service name it will not inherit the global version value
-        if (!zend_is_identical(&span->property_service, value)) {
-            zval_ptr_dtor(&span->property_version);
-            ZVAL_EMPTY_STRING(&span->property_version);
+    // As per unified service tagging spec if a span is created with a service name different from the global
+    // service name it will not inherit the global version value
+    if (zend_string_equals_literal(prop_name, "service")) {
+        cache_slot = NULL;
+        if (ZSTR_LEN(get_DD_SERVICE()) || !ddtrace_span_is_entrypoint_root(span)) {
+            if (!zend_is_identical(&span->property_service, value)) {
+                zval_ptr_dtor(&span->property_version);
+                ZVAL_EMPTY_STRING(&span->property_version);
+            }
         }
     }
 
