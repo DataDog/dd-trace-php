@@ -821,6 +821,8 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
+
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;

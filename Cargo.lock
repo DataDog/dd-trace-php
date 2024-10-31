@@ -8,7 +8,7 @@ version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfbe277e56a376000877090da837660b4427aad530e3028d44e0bffe4f89a1c1"
 dependencies = [
- "gimli 0.31.1",
+ "gimli",
 ]
 
 [[package]]
@@ -126,6 +126,12 @@ name = "anyhow"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25bdb32cbbdce2b519a9cd7df3a678443100e265d5e25ca763b7572a5104f5f3"
+
+[[package]]
+name = "arc-swap"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
 name = "arrayref"
@@ -583,14 +589,15 @@ checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
 name = "blazesym"
-version = "0.2.0-rc.0"
+version = "0.2.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "519a0f9df086d6c4f44576558523a777c984454daeb124bee79bde69227360c4"
+checksum = "deb42921128af76c2ced7c723edfb0411695a96d2bfcdda21c3a6543f98b715a"
 dependencies = [
  "cpp_demangle",
- "gimli 0.30.0",
+ "gimli",
  "libc 0.2.159",
- "miniz_oxide 0.7.2",
+ "memmap2",
+ "miniz_oxide 0.8.0",
  "rustc-demangle",
 ]
 
@@ -1119,6 +1126,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "csv",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -1282,6 +1290,35 @@ dependencies = [
  "darling_core",
  "quote",
  "syn 2.0.71",
+]
+
+[[package]]
+name = "data-pipeline"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "bytes",
+ "criterion",
+ "datadog-ddsketch",
+ "datadog-trace-normalization",
+ "datadog-trace-obfuscation",
+ "datadog-trace-protobuf",
+ "datadog-trace-utils",
+ "ddcommon 0.0.1",
+ "dogstatsd-client",
+ "either",
+ "futures",
+ "httpmock",
+ "hyper 0.14.28",
+ "log",
+ "rand 0.8.5",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "uuid",
 ]
 
 [[package]]
@@ -1532,6 +1569,7 @@ dependencies = [
  "cadence",
  "chrono",
  "console-subscriber",
+ "data-pipeline",
  "datadog-crashtracker",
  "datadog-dynamic-configuration",
  "datadog-ipc",
@@ -1622,6 +1660,24 @@ dependencies = [
  "datadog-trace-protobuf",
  "duplicate",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "datadog-trace-obfuscation"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "criterion",
+ "datadog-trace-protobuf",
+ "datadog-trace-utils",
+ "ddcommon 0.0.1",
+ "duplicate",
+ "log",
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1961,9 +2017,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.10.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
+checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
 name = "ena"
@@ -2326,20 +2382,14 @@ dependencies = [
 
 [[package]]
 name = "gimli"
-version = "0.30.0"
+version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2e1d97fbe9722ba9bbd0c97051c2956e726562b61f86a25a4360398a40edfc9"
+checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 dependencies = [
  "fallible-iterator",
  "indexmap 2.2.6",
  "stable_deref_trait",
 ]
-
-[[package]]
-name = "gimli"
-version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
 name = "glibc_version"
@@ -3215,7 +3265,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d811f3e15f28568be3407c8e7fdb6514c1cda3cb30683f15b6a1a1dc4ea14a7"
 dependencies = [
  "adler",
- "simd-adler32",
 ]
 
 [[package]]
@@ -3225,6 +3274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2d80299ef12ff69b16a84bb182e3b9df68b5a91574d3d4fa6e41b65deec4df1"
 dependencies = [
  "adler2",
+ "simd-adler32",
 ]
 
 [[package]]
@@ -5648,9 +5698,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.7.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f00cc9702ca12d3c81455259621e676d0f7251cec66a21e98fe2e9a37db93b2a"
+checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 dependencies = [
  "getrandom",
  "serde",

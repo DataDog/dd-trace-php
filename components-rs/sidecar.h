@@ -306,4 +306,19 @@ void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
  */
 ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
 
+/**
+ * Gets an agent info reader.
+ */
+struct ddog_AgentInfoReader *ddog_get_agent_info_reader(const struct ddog_Endpoint *endpoint);
+
+/**
+ * Gets the current agent info environment (or empty if not existing)
+ */
+ddog_CharSlice ddog_get_agent_info_env(struct ddog_AgentInfoReader *reader, bool *changed);
+
+/**
+ * Drops the agent info reader.
+ */
+void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
+
 #endif /* DDOG_SIDECAR_H */

@@ -44,6 +44,7 @@
 #include "sidecar.h"
 #include "live_debugger.h"
 #include "exception_serialize.h"
+#include "agent_info.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

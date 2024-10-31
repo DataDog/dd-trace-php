@@ -78,6 +78,7 @@ define('REQUEST_LOG_FILE', getenv('REQUEST_LOG_FILE') ?: ("$temp_location/reques
 define('REQUEST_RC_CONFIGS_FILE', getenv('REQUEST_RC_CONFIGS_FILE') ?: ("$temp_location/rc_configs.json"));
 define('REQUEST_METRICS_FILE', getenv('REQUEST_METRICS_FILE') ?: ("$temp_location/metrics.json"));
 define('REQUEST_METRICS_LOG_FILE', getenv('REQUEST_METRICS_LOG_FILE') ?: ("$temp_location/metrics-log.txt"));
+define('REQUEST_AGENT_INFO_FILE', getenv('REQUEST_AGENT_INFO_FILE') ?: ("$temp_location/agent-info.txt"));
 
 function logRequest($message, $data = '')
 {
@@ -91,8 +92,8 @@ function logRequest($message, $data = '')
 }
 
 set_error_handler(function ($number, $message, $errfile, $errline) {
-    if (error_reporting() == 0) {
-        return;
+    if (!($number & error_reporting())) {
+        return true;
     }
     logRequest("Triggered error $number $message in $errfile on line $errline: " . (new \Exception)->getTraceAsString());
     trigger_error($message, $number);
@@ -141,6 +142,9 @@ switch ($uri) {
         }
         if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
             unlink(REQUEST_NEXT_RESPONSE_FILE);
+        }
+        if (file_exists(REQUEST_AGENT_INFO_FILE)) {
+            unlink(REQUEST_AGENT_INFO_FILE);
         }
         logRequest('Deleted request log');
         break;
@@ -213,6 +217,16 @@ switch ($uri) {
             $allMetrics[] = $metric;
             file_put_contents(REQUEST_METRICS_FILE, json_encode($allMetrics));
         }
+        break;
+    case '/set-agent-info':
+        $raw = file_get_contents('php://input');
+        file_put_contents(REQUEST_AGENT_INFO_FILE, $raw);
+        break;
+    case '/info':
+        $file = @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: "{}";
+        logRequest('Requested /info endpoint, returning ' . $file);
+        header("datadog-agent-state: " . sha1($file));
+        echo $file;
         break;
     default:
         $headers = getallheaders();
