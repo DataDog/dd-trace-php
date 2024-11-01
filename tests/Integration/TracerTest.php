@@ -282,7 +282,6 @@ final class TracerTest extends BaseTestCase
         $this->assertTrue(empty($traces[0][0]['meta']['version']));
     }
 
-
     public function testTracerReset()
     {
         $traces = $this->isolateTracer(function (Tracer $tracer) {
