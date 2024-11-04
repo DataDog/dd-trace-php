@@ -1,11 +1,23 @@
--- locale.h
-+++ locale.h
-@@ -71,7 +71,7 @@
- #define LC_COLLATE_MASK  (1<<LC_COLLATE)
- #define LC_MONETARY_MASK (1<<LC_MONETARY)
- #define LC_MESSAGES_MASK (1<<LC_MESSAGES)
--#define LC_ALL_MASK      0x7fffffff
-+#define LC_ALL_MASK      0x1fbf
+--- /usr/include/locale.h
++++ /usr/include/locale.h
+@@ -157,19 +157,7 @@
+ # define LC_TELEPHONE_MASK	(1 << __LC_TELEPHONE)
+ # define LC_MEASUREMENT_MASK	(1 << __LC_MEASUREMENT)
+ # define LC_IDENTIFICATION_MASK	(1 << __LC_IDENTIFICATION)
+-# define LC_ALL_MASK		(LC_CTYPE_MASK \
+-				 | LC_NUMERIC_MASK \
+-				 | LC_TIME_MASK \
+-				 | LC_COLLATE_MASK \
+-				 | LC_MONETARY_MASK \
+-				 | LC_MESSAGES_MASK \
+-				 | LC_PAPER_MASK \
+-				 | LC_NAME_MASK \
+-				 | LC_ADDRESS_MASK \
+-				 | LC_TELEPHONE_MASK \
+-				 | LC_MEASUREMENT_MASK \
+-				 | LC_IDENTIFICATION_MASK \
+-				 )
++# define LC_ALL_MASK		0x1fbf
 
- locale_t duplocale(locale_t);
- void freelocale(locale_t);
+ /* Return a duplicate of the set of locale in DATASET.  All usage
+    counters are increased if necessary.  */

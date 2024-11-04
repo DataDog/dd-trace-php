@@ -1,0 +1,11 @@
+--- /usr/include/wchar.h	2024-10-31 15:25:55.995768004 +0000
++++ /usr/include/wchar.h.fix	2024-10-31 15:25:35.478137009 +0000
+@@ -485,7 +485,7 @@
+ 				int __base, locale_t __loc) __THROW;
+ 
+ __extension__
+-extern unsigned long long int wcstoull_l (const wchar_t *__restrict __nptr,
++extern long long wcstoull_l (const wchar_t *__restrict __nptr,
+ 					  wchar_t **__restrict __endptr,
+ 					  int __base, locale_t __loc)
+      __THROW;
