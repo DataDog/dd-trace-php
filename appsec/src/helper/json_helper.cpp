@@ -13,6 +13,7 @@
 #include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
 #include <string_view>
+#include <type_traits>
 
 using namespace std::literals;
 
@@ -176,8 +177,9 @@ json_helper::get_field_of_type(const rapidjson::Value &parent_field,
     }
 
     if (type != output_itr->value.GetType()) {
-        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key, type,
-            output_itr->value.GetType());
+        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key,
+            fmt::underlying(type),
+            fmt::underlying(output_itr->value.GetType()));
         return std::nullopt;
     }
 
