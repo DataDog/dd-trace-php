@@ -15,6 +15,8 @@
 #include "user_tracking.h"
 #include "zai_string/string.h"
 
+#include "compatibility.h"
+
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
 #define APPLY_0(...)
@@ -285,8 +287,8 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_value", PHP_FN(datadog_appsec_testing_zai_config_get_value), set_string_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_global_value", PHP_FN(datadog_appsec_testing_zai_config_get_global_value), set_string_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_value", PHP_FN(datadog_appsec_testing_zai_config_get_value), set_string_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_global_value", PHP_FN(datadog_appsec_testing_zai_config_get_global_value), set_string_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

@@ -6,10 +6,10 @@
 #ifndef DD_MSGPACK_HELPERS_H
 #define DD_MSGPACK_HELPERS_H
 
-#include "attributes.h"
 #include "string_helpers.h"
 #include <mpack.h>
 #include <php.h>
+#include "attributes.h"
 
 // safe against null returning from mpack_node_str because length is checked 1st
 #define dd_mpack_node_lstr_eq(node, lstr)                                      \

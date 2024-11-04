@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "attributes.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -20,6 +20,8 @@
 #include "php_objects.h"
 #include "request_abort.h"
 #include "string_helpers.h"
+
+#include "attributes.h"
 
 #define HTML_CONTENT_TYPE "text/html"
 #define JSON_CONTENT_TYPE "application/json"
@@ -563,7 +565,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(no_params_void_ret, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "abort_static_page", PHP_FN(datadog_appsec_testing_abort_static_page), no_params_void_ret, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "abort_static_page", PHP_FN(datadog_appsec_testing_abort_static_page), no_params_void_ret, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

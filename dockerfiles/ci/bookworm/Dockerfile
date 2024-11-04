@@ -9,15 +9,17 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    libclang-16-dev \
-    llvm-16-dev \
-    lld-16 \
+    libclang-17-dev \
+    libclang-rt-17-dev \
+    llvm-17-dev \
+    lld-17 \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
     libfreetype6-dev \
     libicu-dev \
     libjpeg-dev \
+    libtool \
     libmcrypt-dev \
     libmemcached-dev \
     libodbc1 \
@@ -63,7 +65,7 @@ ENV PHPIZE_DEPS \
     autoconf \
     bison \
     catch2 \
-    clang-16 \
+    clang-17 \
     cmake \
     dpkg-dev \
     g++ \
@@ -90,12 +92,12 @@ RUN set -eux; \
     echo "deb http://deb.debian.org/debian-debug/ bookworm-debug main" | \
         tee -a /etc/apt/sources.list; \
     \
-# Use LLVM from orig vendor (also LLVM 16 is not shipped with bookworm)
+# Use LLVM from orig vendor (also LLVM 17 is not shipped with bookworm)
     apt-get update; \
     apt-get install -y curl gnupg software-properties-common; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
-    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-16 main"; \
-    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-16 main"; \
+    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-17 main"; \
+    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-17 main"; \
     \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
@@ -214,7 +216,7 @@ RUN set -eux; \
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
 
-ARG RUST_VERSION="1.71.1"
+ARG RUST_VERSION="1.76.0"
 # Need a nightly that is at least 1.71.1
 ARG RUST_NIGHTLY_VERSION="-2024-02-27"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something

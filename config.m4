@@ -65,12 +65,38 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    EXTRA_LDFLAGS="-fsanitize=address -lasan"
+    dnl gcc needs -lasan, clang needs -shared-libsan
+    ac_cflags=$LDFLAGS
+    LDFLAGS=-shared-libsan
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return (0); }]])],[found=yes],[found=no],[found=yes])
+    LDFLAGS=$ac_ldflags
+
+    EXTRA_LDFLAGS="-fsanitize=address $(if test $found = "yes"; then echo "-shared-libsan -lclang_rt.asan-$(uname -m)"; else echo "-lasan"; fi)"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
   CFLAGS="$CFLAGS -fms-extensions"
   EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions"
+
+  AC_MSG_CHECKING([whether the compiler is LLVM])
+
+
+  AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) {
+#ifdef __clang__
+  return 0;
+#else
+  return 1;
+#endif
+}]])],[llvm=yes],[llvm=no],[llvm=yes])
+
+  if test "$llvm" = "yes"; then
+    AC_MSG_RESULT([yes])
+    CFLAGS="$CFLAGS -Wno-microsoft-anon-tag"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
+    LDFLAGS="$LDFLAGS -Wl,--undefined-version"
+  else
+    AC_MSG_RESULT([no])
+  fi
 
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \

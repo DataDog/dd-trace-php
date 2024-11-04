@@ -7,6 +7,9 @@ PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 EXTENSION_DIR=$(php-config --extension-dir)
 
+# This make `pecl install` use all available cores
+export MAKEFLAGS="-j $(nproc)"
+
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
   XDEBUG_VERSIONS=(-2.7.2)
@@ -18,8 +21,10 @@ elif [[ $PHP_VERSION_ID -le 81 ]]; then
   XDEBUG_VERSIONS=(-3.1.0)
 elif [[ $PHP_VERSION_ID -le 82 ]]; then
   XDEBUG_VERSIONS=(-3.2.2)
+elif [[ $PHP_VERSION_ID -le 83 ]]; then
+  XDEBUG_VERSIONS=(-3.3.2)
 else
-  XDEBUG_VERSIONS=(-3.3.0)
+  XDEBUG_VERSIONS=(-3.4.0)
 fi
 
 MONGODB_VERSION=
@@ -55,8 +60,8 @@ fi
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
-export CC=$HOST_ARCH-linux-gnu-gcc
-export CXX=$HOST_ARCH-linux-gnu-g++
+# export CC=$HOST_ARCH-linux-gnu-gcc
+# export CXX=$HOST_ARCH-linux-gnu-g++
 
 iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}');
 
@@ -70,7 +75,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
     tar -xf curl.tar.gz && rm curl.tar.gz
     cd curl-${curlVer}
     ./configure --with-openssl --prefix=/opt/curl/${curlVer}
-    make
+    make -j "$((`nproc`+1))"
     make install
   done
 
@@ -81,14 +86,14 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   cd ${PHP_SRC_DIR}/ext/curl
   phpize
   ./configure
-  make
+  make -j "$((`nproc`+1))"
   mv ./modules/*.so $EXTENSION_DIR
   make clean
 
   for curlVer in ${CURL_VERSIONS}; do
     PKG_CONFIG_PATH=/opt/curl/${curlVer}/lib/pkgconfig/
     ./configure
-    make
+    make -j "$((`nproc`+1))"
     mv ./modules/curl.so $EXTENSION_DIR/curl-${curlVer}.so
     make clean
   done
@@ -98,7 +103,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   cd ${PHP_SRC_DIR}/ext/pdo
   phpize
   ./configure
-  make
+  make -j "$((`nproc`+1))"
   mv ./modules/*.so $(php-config --extension-dir)
   make clean;
   phpize --clean
@@ -110,15 +115,25 @@ else
   yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
   pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
   if [[ $PHP_VERSION_ID -ge 71 && $PHP_VERSION_ID -le 80 ]]; then
-    yes '' | pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
+    yes '' | CFLAGS="-Wno-incompatible-function-pointer-types" pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
   fi
   yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
-  pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
+  pecl install sqlsrv$SQLSRV_VERSION;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
-    pecl install xdebug$VERSION;
+    if [[ "${VERSION}" == "-3.4.0" ]]; then
+      curl -LO https://github.com/xdebug/xdebug/archive/12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz
+      tar -xvzf 12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz;
+      cd xdebug-12adc6394adbf14f239429d72cf34faadddd19fb;
+      phpize;
+      ./configure;
+      make -j "$((`nproc`+1))";
+      make install;
+    else
+      pecl install xdebug$VERSION;
+    fi
     cd $(php-config --extension-dir);
     mv xdebug.so xdebug$VERSION.so;
   done
@@ -131,13 +146,15 @@ else
   fi
 
   # ext-swoole needs PHP 8
-  if [[ $PHP_VERSION_ID -ge 80 ]]; then
+  # currently no swoole for PHP 8.4, see https://github.com/swoole/swoole-src/issues/5451
+  if [[ $PHP_VERSION_ID -ge 80 && $PHP_VERSION_ID -lt 84 ]]; then
     pushd /tmp
     pecl download swoole-5.1.2; # we don't install swoole here
     tar xzf swoole-5.1.2.tgz
     cd swoole-5.1.2
     phpize
     ./configure --host=$HOST_ARCH-linux-gnu
+    make -j "$((`nproc`+1))"
     make install
     popd
   fi
@@ -149,13 +166,18 @@ else
     pecl install redis-4.3.0
     mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-4.3.0.so
   fi
-  pecl install redis-5.3.7
-
-  # Redis 6.0.0 dropped support for PHP 7.1 and below
-  if [[ $PHP_VERSION_ID -gt 71 ]]; then
-    mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
-    pecl install redis
-  else
-    ln -s $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
+  if [[ $PHP_VERSION_ID -le 83 ]]; then
+    pecl install redis-5.3.7
+    # Redis 6.0.0 dropped support for PHP 7.1 and below
+    if [[ $PHP_VERSION_ID -gt 71 ]]; then
+        mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
+        pecl install redis-6.0.2
+    else
+        ln -s $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
+    fi
   fi
+  if [[ $PHP_VERSION_ID -ge 84 ]]; then
+    pecl install redis-6.1.0
+  fi
+
 fi

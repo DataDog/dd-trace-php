@@ -82,6 +82,7 @@ services:
   '8.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
   '8.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
   '8.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_buster' }
+  '8.4-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_buster' }
   'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- Bookworm ---
   '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-3' }
@@ -105,6 +106,7 @@ services:
   '8.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.1_windows' }
   '8.2-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.2_windows' }
   '8.3-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.3_windows' }
+  '8.4-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.4_windows' }
 
   rabbitmq_integration:
     image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20

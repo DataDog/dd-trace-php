@@ -1,12 +1,14 @@
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY php-7.3/0001-fix-build-scripts.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
+    patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
     ./buildconf --force;
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
@@ -24,29 +26,36 @@ RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
 COPY build-php.sh /home/circleci
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
-FROM build as php-debug-zts
+FROM build AS php-debug-zts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-debug
+FROM build AS php-debug
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-nts
+FROM build AS php-nts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM datadog/dd-trace-ci:buster as final
+FROM build AS php-zts
+ARG TARGETPLATFORM
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION $SHARED_BUILD
+COPY build-extensions.sh /home/circleci
+RUN /home/circleci/build-extensions.sh
+
+FROM datadog/dd-trace-ci:buster AS final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $PHP_INSTALL_DIR/debug-zts
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
+COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_DIR/zts
 
 USER root
 
