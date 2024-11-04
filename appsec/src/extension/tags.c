@@ -305,7 +305,6 @@ void dd_tags_rinit()
 
 static void _dd_tags_add_asm_event() { _asm_event = true; }
 
-
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 {
     zend_llist_add_element(&_appsec_json_frags, &zstr);
