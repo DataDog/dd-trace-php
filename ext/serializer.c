@@ -1698,11 +1698,11 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
 
-    zval *asm_event = NULL;
-    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
-        asm_event = zend_hash_str_find(meta, ZEND_STRL("_dd.p.appsec"));
-    }
-    bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
+//    zval *asm_event = NULL;
+//    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+//        asm_event = zend_hash_str_find(meta, ZEND_STRL("_dd.p.appsec"));
+//    }
+//    bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
 
     _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
@@ -1720,7 +1720,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", zval_get_long(&span->root->property_sampling_priority));
         }
-        if(is_standalone_appsec_span) {
+        if(get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
             add_assoc_long(&metrics_zv, "_dd.apm.enabled", 0);
         }
     }
