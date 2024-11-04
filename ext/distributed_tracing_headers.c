@@ -493,7 +493,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
     result->meta_tags.pDestructor = NULL; // we moved values directly
     zend_hash_destroy(&result->meta_tags);
 
-    if (result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+    if (result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN && !get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         bool reset_decision_maker = result->conflicting_sampling_priority || !zend_hash_str_exists(root_meta, ZEND_STRL("_dd.p.dm"));
         if (reset_decision_maker) {
             if (result->priority_sampling > 0) {
