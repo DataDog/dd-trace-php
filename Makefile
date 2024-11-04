@@ -2,7 +2,7 @@ Q := @
 , := ,
 PROJECT_ROOT := ${PWD}
 TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
-ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
+ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q asan && echo 1)
 SHELL = /bin/bash
 APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
@@ -45,7 +45,7 @@ RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKE
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -261,6 +261,9 @@ build_tea_coverage:
 			-DCMAKE_BUILD_TYPE=Debug \
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 			-DCMAKE_C_FLAGS="-O0 --coverage" \
+			-DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
+			-DCMAKE_MODULE_LINKER_FLAGS="--coverage" \
+			-DCMAKE_EXE_LINKER_FLAGS="--coverage" \
 			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 		$(PROJECT_ROOT)/tea; \
 		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
@@ -301,7 +304,7 @@ build_zai_coverage: install_tea_coverage
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	Tea_ROOT=$(TEA_INSTALL_DIR) \
-	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -315,7 +318,7 @@ build_components_coverage:
 	( \
 	mkdir -p "$(COMPONENTS_BUILD_DIR)"; \
 	cd $(COMPONENTS_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" $(PROJECT_ROOT)/components; \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" $(PROJECT_ROOT)/components; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -1262,7 +1265,9 @@ test_integrations_frankenphp: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_sqlsrv: global_test_run_dependencies
+	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
+	$(eval TEST_EXTRA_INI=)
 test_integrations_swoole_5: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)

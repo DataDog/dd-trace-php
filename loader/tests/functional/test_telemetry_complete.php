@@ -20,9 +20,9 @@ $format = <<<EOS
 {
     "metadata": {
         "runtime_name": "php",
-        "runtime_version": "%d.%d.%d",
+        "runtime_version": "%d.%d.%d%S",
         "language_name": "php",
-        "language_version": "%d.%d.%d",
+        "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
         "pid": %d
     },

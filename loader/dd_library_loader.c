@@ -114,7 +114,7 @@ static bool ddloader_is_opcache_jit_enabled() {
             return false;
         }
     }
-    if (php_api_no > 20230831) { // PHP > 8.3 (https://php.watch/versions/8.4/opcache-jit-ini-default-changes)
+    if (php_api_no > 20230831) { // PHP > 8.3 (https://wiki.php.net/rfc/jit_config_defaults)
         // opcache.jit == disable (default: disable)
         zval *opcache_jit = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit"));
         if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0) {
@@ -661,6 +661,7 @@ static int ddloader_api_no_check(int api_no) {
         case 420210902:  // 8.1
         case 420220829:  // 8.2
         case 420230831:  // 8.3
+        case 420240924:  // 8.4
             break;
 
         default:

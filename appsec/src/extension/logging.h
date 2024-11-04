@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "attributes.h"
 #include "configuration.h"
 #include "php_helpers.h"
 #include <stdbool.h>
+#include "attributes.h"
 
 /* log levels - the first argument to the mlog helper
  * The lower the number, the higher the priority */
