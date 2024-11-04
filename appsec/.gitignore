@@ -68,4 +68,3 @@ cscope.*
 cmake/local.cmake
 
 hunter-cache.id
-.hunter/*
