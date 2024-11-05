@@ -1,18 +1,13 @@
-FROM debian:latest AS toolchain
-
-ARG LLVM_VERSION=16.0.6
-ARG ARCH
-
-COPY Toolchain.cmake /build/Toolchain.cmake
-COPY CHECKSUMS /CHECKSUMS
-
-RUN echo "Building LLVM ${LLVM_VERSION} on ${ARCH}"
+FROM debian@sha256:08db48d59c0a91afb802ebafc921be3154e200c452e4d0b19634b426b03e0e25 AS toolchain
 
 RUN apt-get update && apt-get install -y \
-  build-essential wget cmake binutils lld libncurses5-dev git patchelf xz-utils curl lsb-release wget software-properties-common gnupg
+  build-essential wget binutils lld libncurses5-dev git patchelf xz-utils curl lsb-release wget software-properties-common gnupg
 
-RUN wget https://apt.llvm.org/llvm.sh && \
-  chmod +x llvm.sh && \
-  ./llvm.sh 16 all
+RUN ln -s /bin/sed /usr/bin/sed
+RUN mkdir /build
+ADD . /build/
 
-RUN ln -s /usr/bin/cmake /usr/local/bin/cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \
+    grep -F "cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz" ./build/CHECKSUMS | sha512sum --check && \
+    tar --strip-components=1 -C /usr/local -xvzf cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \
+    rm cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz

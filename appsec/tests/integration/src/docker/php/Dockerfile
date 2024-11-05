@@ -35,4 +35,7 @@ ENV CARGO_HOME=/root/.cargo
 ENV RUSTUP_HOME=/root/.rustup
 ENV LD_LIBRARY_PATH=/root/php/icu-60/lib
 
+RUN groupadd -g 1000 linux_users && \
+    useradd -G linux_users -u 1000 linux_user
+
 ENTRYPOINT ["php"]
