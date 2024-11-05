@@ -7,7 +7,7 @@ jobs:
   prof-asan:
     runs-on: ubuntu-latest
     container:
-      image: datadog/dd-trace-ci:php-8.3_bookworm-4
+      image: datadog/dd-trace-ci:php-8.3_bookworm-5
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root --privileged
 
