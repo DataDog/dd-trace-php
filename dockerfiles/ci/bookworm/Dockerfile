@@ -217,8 +217,7 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 ARG RUST_VERSION="1.76.0"
-# Need a nightly that is at least 1.71.1
-ARG RUST_NIGHTLY_VERSION="-2024-02-27"
+ARG RUST_NIGHTLY_VERSION="-2024-11-04"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
