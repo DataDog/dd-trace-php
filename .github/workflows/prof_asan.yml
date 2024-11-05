@@ -40,7 +40,7 @@ jobs:
           export LDFLAGS='-fsanitize=address'
           export RUSTC_LINKER=lld-17
           triplet=$(uname -m)-unknown-linux-gnu
-          RUST_NIGHTLY_VERSION="-2024-02-27"
+          RUST_NIGHTLY_VERSION="-2024-11-04"
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
