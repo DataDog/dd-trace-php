@@ -260,7 +260,7 @@ EOD;
     public function testGlobalTagsWrongValueJustResultsInNoTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);
-        $this->assertEquals([], \dd_trace_env_config("DD_TAGS"));
+        $this->assertEquals(['wrong_key_value' => 'wrong_key_value'], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testHttpHeadersDefaultsToEmpty()
@@ -279,10 +279,11 @@ EOD;
     public function testHttpHeadersCanSetMultiple()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_HEADER_TAGS=A-Header   ,Any-Name    ,    cOn7aining-!spe_cial?:ch/ars    ',
+            'DD_TRACE_HEADER_TAGS=A-Header   ,Any-Name    ,    cOn7aining-!spe_cial?:ch/ars    , Some-Heather:with-colon-Key',
         ]);
         // Same behavior as python tracer:
         // https://github.com/DataDog/dd-trace-py/blob/f1298cb8100f146059f978b58c88641bd7424af8/ddtrace/http/headers.py
-        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?:ch/ars'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
+        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?', 'some-heather'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
+        $this->assertEquals(['a-header' => 'a-header', 'any-name' => 'any-name', 'con7aining-!spe_cial?' => 'ch/ars', 'some-heather' => 'with-colon-Key'], \dd_trace_env_config("DD_TRACE_HEADER_TAGS"));
     }
 }
