@@ -105,7 +105,7 @@ static bool zai_config_decode_int(zai_str value, zval *decoded_value) {
     return true;
 }
 
-static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persistent, bool lowercase) {
+static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persistent, bool lowercase, bool map_keyless) {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
@@ -165,7 +165,7 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                 }
 
                 // Handle case without a colon (standalone key) only when lowercase is true which is current use case
-                if (lowercase && !has_colon && key_end) {
+                if (map_keyless && !has_colon && key_end) {
                     size_t key_len = key_end - key_start + 1;
                     zend_string *key = zend_string_init(key_start, key_len, persistent);
                     if (lowercase) {
@@ -264,9 +264,9 @@ bool zai_config_decode_value(zai_str value, zai_config_type type, zai_custom_par
         case ZAI_CONFIG_TYPE_INT:
             return zai_config_decode_int(value, decoded_value);
         case ZAI_CONFIG_TYPE_MAP:
-            return zai_config_decode_map(value, decoded_value, persistent, false);
-        case ZAI_CONFIG_TYPE_MAP_LOWERCASE:
-            return zai_config_decode_map(value, decoded_value, persistent, true);
+            return zai_config_decode_map(value, decoded_value, persistent, false, false);
+        case ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE:
+            return zai_config_decode_map(value, decoded_value, persistent, true, true);
         case ZAI_CONFIG_TYPE_SET:
             return zai_config_decode_set(value, decoded_value, persistent, false);
         case ZAI_CONFIG_TYPE_SET_LOWERCASE:
