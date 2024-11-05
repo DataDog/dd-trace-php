@@ -157,7 +157,7 @@ static zend_module_entry *_find_ddtrace_module()
 void dd_trace_shutdown()
 {
     zend_module_entry *mod = _find_ddtrace_module();
-    if (mod) {
+    if (mod && _orig_ddtrace_shutdown) {
         mod->request_shutdown_func = _orig_ddtrace_shutdown;
     }
     _orig_ddtrace_shutdown = NULL;
