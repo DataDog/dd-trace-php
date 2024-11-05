@@ -157,7 +157,7 @@ zend_string *zai_filter_query_string(zai_str queryString, zend_array *whitelist,
         zend_hash_get_current_key(whitelist, &str, &numkey);
         if (zend_string_equals_literal(str, "*")) {
             zend_string *qs = zend_string_init(queryString.ptr, queryString.len, 0);
-            if (ZSTR_LEN(pattern)) {
+            if (pattern && ZSTR_LEN(pattern)) {
                 zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
 
                 smart_str regex = {0};
