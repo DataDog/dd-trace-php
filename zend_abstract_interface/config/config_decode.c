@@ -164,8 +164,8 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                     data++;
                 }
 
-                // Handle case without a colon (standalone key)
-                if (!has_colon && key_end) {
+                // Handle case without a colon (standalone key) only when lowercase is true which is current use case
+                if (lowercase && !has_colon && key_end) {
                     size_t key_len = key_end - key_start + 1;
                     zend_string *key = zend_string_init(key_start, key_len, persistent);
                     if (lowercase) {
@@ -173,7 +173,7 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                     }
 
                     zval val;
-                    ZVAL_NEW_STR(&val, zend_string_copy(key));
+                    ZVAL_EMPTY_STRING(&val);
                     zend_hash_update(Z_ARRVAL(tmp), key, &val);
                     zend_string_release(key);
                 }

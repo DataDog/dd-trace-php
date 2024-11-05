@@ -328,13 +328,13 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     if (header_config != NULL && Z_TYPE_P(header_config) == IS_STRING) {
         zend_string *header_config_str = Z_STR_P(header_config);
         zend_string *headertag;
-        if (zend_string_equals(header_config_str, lowerheader)) {
-            for (char *ptr = ZSTR_VAL(header_config_str); *ptr; ++ptr) {
+        if (ZSTR_LEN(header_config_str) == 0) {
+            for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
                 if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
                     *ptr = '_';
                 }
             }
-            headertag = zend_strpprintf(0, "http.%s.headers.%s", type, ZSTR_VAL(header_config_str));
+            headertag = zend_strpprintf(0, "http.%s.headers.%s", type, ZSTR_VAL(lowerheader));
         } else {
             headertag = zend_string_copy(header_config_str);
         }
