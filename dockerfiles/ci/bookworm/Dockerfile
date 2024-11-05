@@ -68,10 +68,7 @@ ENV PHPIZE_DEPS \
     clang-17 \
     cmake \
     dpkg-dev \
-    g++ \
-    gcc \
     file \
-    lcov \
     libc-dev \
     make \
     pkg-config \
@@ -128,7 +125,54 @@ RUN set -eux; \
         echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep; \
     \
 # Allow nginx to be run as non-root for tests
-    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/;
+    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
+    \
+# Make clang the default compiler
+    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100; \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100; \
+    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-17 100; \
+    echo "-L /usr/lib/llvm-17/lib/clang/17/lib/linux" > /usr/lib/llvm-17/bin/clang.cfg; \
+# Include libasan library path
+    echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
+
+# Install lcov
+RUN set -eux; \
+    LCOV_VERSION="1.15"; \
+    LCOV_SHA256="c1cda2fa33bec9aa2c2c73c87226cfe97de0831887176b45ee523c5e30f8053a"; \
+    cd /tmp && curl -OL https://github.com/linux-test-project/lcov/releases/download/v${LCOV_VERSION}/lcov-${LCOV_VERSION}.tar.gz; \
+    (echo "${LCOV_SHA256} lcov-${LCOV_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir lcov && cd lcov; \
+    tar -xf ../lcov-${LCOV_VERSION}.tar.gz --strip 1; \
+    make install; \
+    lcov --version; \
+    rm -rfv /tmp/*
+
+# Install gdb
+RUN set -eux; \
+    apt install -y libmpfr-dev libgmp-dev; \
+    GDB_VERSION="15.2"; \
+    GDB_SHA256="9d16bc2539a2a20dc3ef99b48b8414d51c51305c8577eb7a1da00996f6dea223";\
+    cd /tmp && curl -OL https://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz; \
+    (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir gdb && cd gdb; \
+    tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
+    ./configure; \
+    make -j "$((`nproc`+1))"; \
+    make install
+
+# Install valgrind
+RUN set -eux; \
+    VALGRIND_VERSION="3.23.0"; \
+    VALGRIND_SHA1="ec410c75d3920d4f9249a5cfa2cac31e1bf6d586"; \
+    cd /tmp && curl -OL https://sourceware.org/pub/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
+    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha1sum -c -); \
+    mkdir valgrind && cd valgrind; \
+    tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
+    ./configure; \
+    make -j "$((`nproc`+1))"; \
+    make install
 
 # Install SqlServer PHP Driver
 # https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server

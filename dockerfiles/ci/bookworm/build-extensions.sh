@@ -6,6 +6,9 @@ SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 
+# This make `pecl install` use all available cores
+export MAKEFLAGS="-j $(nproc)"
+
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
   XDEBUG_VERSIONS=(-2.7.2)
@@ -56,8 +59,8 @@ fi
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
-export CC=$HOST_ARCH-linux-gnu-gcc
-export CXX=$HOST_ARCH-linux-gnu-g++
+# export CC=$HOST_ARCH-linux-gnu-gcc
+# export CXX=$HOST_ARCH-linux-gnu-g++
 
 iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}');
 
