@@ -329,10 +329,9 @@ def buildAppSecTask = { String version, String variant ->
                     '''
                     git config --global --add safe.directory '*'
                     cd /appsec
-                        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
+                    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
-                              -DCMAKE_TOOLCHAIN_FILE=/build/Toolchain.cmake \\
                               -DDD_APPSEC_TESTING=ON /project/appsec
                     make -j extension ddappsec-helper && \\
                         touch ddappsec.so libddappsec-helper.so
