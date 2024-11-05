@@ -7,10 +7,9 @@
 #pragma once
 
 #include "../utils.hpp"
-#include <algorithm>
-#include <cstdint>
 #include <msgpack.hpp>
 #include <ostream>
+#include <spdlog/fmt/bundled/base.h>
 #include <string>
 
 namespace dds::remote_config {
@@ -32,7 +31,19 @@ struct settings {
 
     MSGPACK_DEFINE_MAP(enabled, shmem_path);
 };
+
 } // namespace dds::remote_config
+
+template <> struct fmt::formatter<dds::remote_config::settings> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const dds::remote_config::settings &s, FormatContext &ctx) const
+    {
+        return fmt::format_to(ctx.out(), "{{enabled={}, shmem_path={}}}",
+            s.enabled, s.shmem_path);
+    }
+};
 
 namespace std {
 template <> struct hash<dds::remote_config::settings> {

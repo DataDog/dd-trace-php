@@ -9,12 +9,9 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
-#include <thread>
 
 #include "action.hpp"
-#include "base64.h"
 #include "client.hpp"
-#include "compression.hpp"
 #include "exception.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
