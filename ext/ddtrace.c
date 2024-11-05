@@ -1049,6 +1049,19 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
 #endif
     }
 
+    ddtrace_span_data *span = OBJ_SPANDATA(obj);
+    // As per unified service tagging spec if a span is created with a service name different from the global
+    // service name it will not inherit the global version value
+    if (zend_string_equals_literal(prop_name, "service")) {
+        cache_slot = NULL;
+        if (ZSTR_LEN(get_DD_SERVICE()) || !ddtrace_span_is_entrypoint_root(span)) {
+            if (!zend_is_identical(&span->property_service, value)) {
+                zval_ptr_dtor(&span->property_version);
+                ZVAL_EMPTY_STRING(&span->property_version);
+            }
+        }
+    }
+
 #if PHP_VERSION_ID >= 70400
     return zend_std_write_property(object, member, value, cache_slot);
 #else
@@ -1076,14 +1089,18 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
             span->parent_id = (uint64_t) Z_LVAL_P(value);
             ZVAL_STR(&zv, zend_strpprintf(0, "%" PRIu64, span->parent_id));
+            Z_DELREF(zv); // zend_std_write_property will incref itself
             value = &zv;
         } else {
             span->parent_id = ddtrace_parse_userland_span_id(value);
             if (!span->parent_id) {
+                zval_ptr_dtor(value);
                 ZVAL_EMPTY_STRING(&zv);
+                Z_TRY_DELREF(zv);
                 value = &zv;
             }
         }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "traceId")) {
         span->trace_id = Z_TYPE_P(value) == IS_STRING ? ddtrace_parse_hex_trace_id(Z_STRVAL_P(value), Z_STRLEN_P(value)) : (ddtrace_trace_id){ 0 };
         if (!span->trace_id.low && !span->trace_id.high) {
@@ -1093,20 +1110,25 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             };
             value = &span->property_id;
         }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
             root_span_data_changed = true;
         }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "env")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_env, value)) {
             root_span_data_changed = true;
         }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "version")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_version, value)) {
             root_span_data_changed = true;
         }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        cache_slot = NULL;
     }
 
 #if PHP_VERSION_ID >= 70400

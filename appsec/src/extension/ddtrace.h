@@ -5,9 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "attributes.h"
 #include <stdbool.h>
 #include <zend.h>
+#include "attributes.h"
 
 static const int PRIORITY_SAMPLING_AUTO_KEEP = 1;
 static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;

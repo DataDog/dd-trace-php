@@ -6,14 +6,37 @@
 #pragma once
 
 #include <atomic>
-#include <map>
-#include <optional>
 #include <spdlog/spdlog.h>
-#include <unordered_map>
 
 namespace dds {
-
 enum class enable_asm_status : unsigned { NOT_SET = 0, ENABLED, DISABLED };
+} // namespace dds
+
+template <>
+struct fmt::formatter<std::atomic<dds::enable_asm_status>>
+    : fmt::formatter<std::string_view> {
+    auto format(const std::atomic<dds::enable_asm_status> &status,
+        format_context &ctx) const
+    {
+        auto val = status.load();
+        std::string_view name{"UNKNOWN"};
+        switch (val) {
+        case dds::enable_asm_status::NOT_SET:
+            name = "NOT_SET";
+            break;
+        case dds::enable_asm_status::ENABLED:
+            name = "ENABLED";
+            break;
+        case dds::enable_asm_status::DISABLED:
+            name = "DISABLED";
+            break;
+        }
+
+        return fmt::formatter<std::string_view>::format(name, ctx);
+    }
+};
+
+namespace dds {
 
 inline std::string_view to_string_view(enable_asm_status status)
 {

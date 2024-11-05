@@ -456,10 +456,12 @@ static zend_object *ddtrace_custom_exception_new(zend_class_entry *class_type) {
 
 static zend_property_info *dd_add_exception_locals_property(zend_class_entry *ce) {
     zend_string *key = zend_string_init(ZEND_STRL("locals"), 1);
+    zval zv;
+    ZVAL_UNDEF(&zv);
 #if PHP_VERSION_ID >= 80000
-    zend_property_info *prop = zend_declare_typed_property(ce, key, &EG(uninitialized_zval), ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+    zend_property_info *prop = zend_declare_typed_property(ce, key, &zv, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 #else
-    zend_declare_property_ex(ce, key, &EG(uninitialized_zval), ZEND_ACC_PRIVATE, NULL);
+    zend_declare_property_ex(ce, key, &zv, ZEND_ACC_PRIVATE, NULL);
     zend_property_info *prop = zend_hash_find_ptr(&ce->properties_info, key);
 #endif
     zend_string_release(key);

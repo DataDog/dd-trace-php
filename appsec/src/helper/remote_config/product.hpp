@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../config.hpp"
 #include "../utils.hpp"
+#include <spdlog/spdlog.h>
 #include <string_view>
 
 namespace dds::remote_config {
@@ -18,11 +18,6 @@ public:
     [[nodiscard]] const std::string_view &name() const { return name_; }
 
     bool operator==(const product &other) const { return name_ == other.name_; }
-
-    friend std::ostream &operator<<(std::ostream &os, const product &p)
-    {
-        return os << p.name_;
-    }
 
 private:
     std::string_view name_;
@@ -55,6 +50,17 @@ struct known_products {
     }
 };
 } // namespace dds::remote_config
+
+template <>
+struct fmt::formatter<dds::remote_config::product>
+    : fmt::formatter<std::string_view> {
+
+    auto format(const dds::remote_config::product &p, format_context &ctx) const
+    {
+        auto name = p.name();
+        return formatter<std::string_view>::format(name, ctx);
+    }
+};
 
 namespace std {
 template <> struct hash<dds::remote_config::product> {

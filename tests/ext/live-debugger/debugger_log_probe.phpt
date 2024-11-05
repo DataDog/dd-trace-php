@@ -138,32 +138,9 @@ array(5) {
             ["@return"]=>
             array(2) {
               ["type"]=>
-              string(3) "Bar"
-              ["fields"]=>
-              array(1) {
-                ["prop"]=>
-                array(2) {
-                  ["type"]=>
-                  string(5) "array"
-                  ["elements"]=>
-                  array(2) {
-                    [0]=>
-                    array(2) {
-                      ["type"]=>
-                      string(3) "int"
-                      ["value"]=>
-                      string(1) "1"
-                    }
-                    [1]=>
-                    array(2) {
-                      ["type"]=>
-                      string(3) "int"
-                      ["value"]=>
-                      string(1) "2"
-                    }
-                  }
-                }
-              }
+              string(3) "int"
+              ["value"]=>
+              string(2) "30"
             }
             ["arg1"]=>
             array(2) {

@@ -2,6 +2,13 @@ use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
 use std::borrow::Cow;
 use std::str::Utf8Error;
 
+#[cfg(php_frameless)]
+use crate::bindings::zend_flf_functions;
+#[cfg(php_frameless)]
+use crate::bindings::{
+    ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
+};
+
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 
@@ -199,21 +206,46 @@ mod detail {
             let mut execute_data_ptr = top_execute_data;
 
             while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-                let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
-                if let Some(frame) = maybe_frame {
-                    samples.push(frame);
+                // allowed because it's only used on the frameless path
+                #[allow(unused_variables)]
+                if let Some(func) = unsafe { execute_data.func.as_ref() } {
+                    #[cfg(php_frameless)]
+                    if !func.is_internal() {
+                        let opline = unsafe { &*execute_data.opline };
+                        match opline.opcode as u32 {
+                            ZEND_FRAMELESS_ICALL_0
+                            | ZEND_FRAMELESS_ICALL_1
+                            | ZEND_FRAMELESS_ICALL_2
+                            | ZEND_FRAMELESS_ICALL_3 => {
+                                let func = unsafe {
+                                    &**zend_flf_functions.offset(opline.extended_value as isize)
+                                };
+                                samples.push(ZendFrame {
+                                    function: extract_function_name(func).map(Cow::Owned).unwrap(),
+                                    file: None,
+                                    line: 0,
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
 
-                    /* -1 to reserve room for the [truncated] message. In case the
-                     * backend and/or frontend have the same limit, without the -1
-                     * then ironically the [truncated] message would be truncated.
-                     */
-                    if samples.len() == max_depth - 1 {
-                        samples.push(ZendFrame {
-                            function: COW_TRUNCATED,
-                            file: None,
-                            line: 0,
-                        });
-                        break;
+                    let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
+                    if let Some(frame) = maybe_frame {
+                        samples.push(frame);
+
+                        /* -1 to reserve room for the [truncated] message. In case the
+                         * backend and/or frontend have the same limit, without the -1
+                         * then ironically the [truncated] message would be truncated.
+                         */
+                        if samples.len() == max_depth - 1 {
+                            samples.push(ZendFrame {
+                                function: COW_TRUNCATED,
+                                file: None,
+                                line: 0,
+                            });
+                            break;
+                        }
                     }
                 }
 

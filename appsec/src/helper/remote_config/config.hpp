@@ -7,9 +7,9 @@
 
 #include "../utils.hpp"
 #include "product.hpp"
+#include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
-#include <vector>
 
 extern "C" {
 #include <sys/mman.h>
@@ -70,14 +70,18 @@ struct config {
     {
         return shm_path == b.shm_path && rc_path == b.rc_path;
     }
-
-    friend std::ostream &operator<<(std::ostream &os, const config &c)
-    {
-        return os << c.shm_path << ":" << c.rc_path;
-    }
 };
 
 } // namespace dds::remote_config
+
+template <> struct fmt::formatter<dds::remote_config::config> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    auto format(const dds::remote_config::config &c, format_context &ctx) const
+    {
+        return fmt::format_to(ctx.out(), "{}:{}", c.shm_path, c.rc_path);
+    }
+};
 
 namespace std {
 template <> struct hash<dds::remote_config::config> {

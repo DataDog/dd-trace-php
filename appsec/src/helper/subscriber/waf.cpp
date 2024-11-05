@@ -218,7 +218,8 @@ void instance::listener::call(dds::parameter_view &data, event &event)
             parameter_to_json(parameter_view{res.events}),
             res.total_runtime / millis);
         SPDLOG_DEBUG("Waf response: code {} - actions {} - derivatives {}",
-            code, parameter_to_json(parameter_view{res.actions}),
+            fmt::underlying(code),
+            parameter_to_json(parameter_view{res.actions}),
             parameter_to_json(parameter_view{res.derivatives}));
 
     } else {
