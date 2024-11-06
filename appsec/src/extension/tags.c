@@ -127,6 +127,7 @@ static void _register_functions(void);
 static void _register_test_functions(void);
 static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
     zend_string *val, bool copy, bool override);
+static zval *nullable _root_span_get_meta();
 
 void dd_tags_startup()
 {
@@ -303,8 +304,6 @@ void dd_tags_rinit()
     _force_keep = false;
 }
 
-static void _dd_tags_add_asm_event() { _asm_event = true; }
-
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 {
     zend_llist_add_element(&_appsec_json_frags, &zstr);
@@ -337,9 +336,11 @@ void dd_tags_rshutdown()
     }
 }
 
-static void _dd_appsec_asm_event(zend_array *meta_ht)
+void dd_appsec_add_asm_event()
 {
-    if (meta_ht && _asm_event) {
+    zval *nullable meta = _root_span_get_meta();
+    if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
+        zend_array *meta_ht = Z_ARRVAL_P(meta);
         // Indicate there is a ASM EVENT. This tag is used for any event
         // threats, business logic events, IAST, etc
         _add_new_zstr_to_meta(
@@ -403,8 +404,6 @@ void dd_tags_add_tags(
         mlog(dd_log_info, "Failed adding tag " DD_TAG_EVENT " to root span");
         return;
     }
-
-    _dd_tags_add_asm_event();
 
     // Add tags with request/response information
     if (server) {
@@ -532,7 +531,6 @@ static void _add_all_tags_to_meta(
     _dd_response_headers(meta_ht);
     _dd_event_user_id(meta_ht);
     _dd_appsec_blocked(meta_ht);
-    _dd_appsec_asm_event(meta_ht);
 }
 
 static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
