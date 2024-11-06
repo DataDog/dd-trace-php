@@ -153,7 +153,7 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
 
                             zval val;
                             if (value_end) {
-                                size_t value_len = value_end ? (value_end - value_start + 1) : 0;
+                                size_t value_len = value_end - value_start + 1;
                                 ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
                             } else {
                                 if (persistent) {
