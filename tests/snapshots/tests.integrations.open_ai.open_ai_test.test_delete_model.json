@@ -46,6 +46,7 @@
          "http.status_code": "200",
          "http.url": "https://api.openai.com/v1/models/curie:ft-acmeco-2021-03-03-21-44-20?foo=bar",
          "network.destination.name": "api.openai.com",
-         "span.kind": "client"
+         "span.kind": "client",
+         "version": "1.0"
        }
      }]]

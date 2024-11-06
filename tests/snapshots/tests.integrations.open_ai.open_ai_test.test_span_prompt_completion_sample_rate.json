@@ -53,6 +53,7 @@
          "http.status_code": "200",
          "http.url": "https://api.openai.com/v1/completions?foo=bar",
          "network.destination.name": "api.openai.com",
-         "span.kind": "client"
+         "span.kind": "client",
+         "version": "1.0"
        }
      }]]
