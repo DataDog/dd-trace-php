@@ -113,7 +113,7 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
     char *data = (char *)value.ptr;
     if (data && *data) {  // non-empty
         const char *key_start, *key_end, *value_start, *value_end;
-        
+
         do {
             while (*data == ',' || *data == ' ' || *data == '\t' || *data == '\n') {
                 data++;
@@ -127,45 +127,59 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                 while (*data && *data != ',') {
                     if (*data == ':') {
                         has_colon = true;
-    
                         data++;
+                        
                         while (*data == ' ' || *data == '\t' || *data == '\n') data++;
 
-                        value_start = data;
-                        value_end = value_start;
+                        if (*data == ',' || *data == '\0') {
+                            value_start = value_end = NULL;
+                        } else {
+                            value_start = data;
+                            value_end = value_start;
 
-                        while (*data && *data != ',') {
-                            if (*data != ' ' && *data != '\t' && *data != '\n') {
-                                value_end = data;
+                            while (*data && *data != ',') {
+                                if (*data != ' ' && *data != '\t' && *data != '\n') {
+                                    value_end = data;
+                                }
+                                data++;
                             }
-                            data++;
                         }
 
-                        size_t key_len = key_end - key_start + 1;
-                        size_t value_len = value_end - value_start + 1;
+                        if (key_end && key_start) {
+                            size_t key_len = key_end - key_start + 1;
+                            size_t value_len = (value_end && value_start) ? (value_end - value_start + 1) : 0;
 
-                        if (key_len > 0 && value_len > 0) {
                             zend_string *key = zend_string_init(key_start, key_len, persistent);
                             if (lowercase) {
                                 zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
                             }
 
                             zval val;
-                            ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
+                            if (value_len > 0) {
+                                ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
+                            } else {
+                                if (persistent) {
+                                    ZVAL_EMPTY_PSTRING(&val);
+                                } else {
+                                    ZVAL_EMPTY_STRING(&val);
+                                }
+                            }
                             zend_hash_update(Z_ARRVAL(tmp), key, &val);
                             zend_string_release(key);
                         }
+
                         break;
                     }
 
+                    // Set key_end to the last valid non-whitespace character of the key
                     if (*data != ' ' && *data != '\t' && *data != '\n') {
                         key_end = data;
                     }
                     data++;
                 }
 
-                // Handle case without a colon (standalone key) only when lowercase is true which is current use case
-                if (map_keyless && !has_colon && key_end) {
+                // Handle standalone keys (without a colon) if map_keyless is enabled
+                if (map_keyless && !has_colon && key_end && key_start) {
                     size_t key_len = key_end - key_start + 1;
                     zend_string *key = zend_string_init(key_start, key_len, persistent);
                     if (lowercase) {
@@ -173,13 +187,18 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                     }
 
                     zval val;
-                    ZVAL_EMPTY_STRING(&val);
+                    if (persistent) {
+                        ZVAL_EMPTY_PSTRING(&val);
+                    } else {
+                        ZVAL_EMPTY_STRING(&val);
+                    }
                     zend_hash_update(Z_ARRVAL(tmp), key, &val);
                     zend_string_release(key);
                 }
             }
         } while (*data);
 
+        // Check if the array has any elements; if not, cleanup
         if (zend_hash_num_elements(Z_ARRVAL(tmp)) == 0) {
             zend_hash_destroy(Z_ARRVAL(tmp));
             pefree(Z_ARRVAL(tmp), persistent);
