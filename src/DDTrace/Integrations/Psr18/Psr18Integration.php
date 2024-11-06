@@ -27,7 +27,6 @@ class Psr18Integration extends Integration
             function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'sendRequest';
                 $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
-                $span->service = 'psr18';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
                 $span->meta[Tag::COMPONENT] = Psr18Integration::NAME;
