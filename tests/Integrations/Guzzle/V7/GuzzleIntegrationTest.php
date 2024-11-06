@@ -18,7 +18,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
             $this->getMockedClient()->sendRequest($request);
         });
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('Psr\Http\Client\ClientInterface.sendRequest', 'psr18', 'http', 'sendRequest')
+            SpanAssertion::build('Psr\Http\Client\ClientInterface.sendRequest', 'phpunit', 'http', 'sendRequest')
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
@@ -36,7 +36,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                             'network.destination.name' => 'example.com',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
-                            '_dd.base_service' => 'psr18'
+                            '_dd.base_service' => 'phpunit'
                         ]),
                 ])
         ]);

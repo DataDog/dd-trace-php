@@ -31,20 +31,20 @@
   },
      {
        "name": "Psr\\Http\\Client\\ClientInterface.sendRequest",
-       "service": "psr18",
+       "service": "openai-test",
        "resource": "sendRequest",
        "trace_id": 0,
        "span_id": 2,
        "parent_id": 1,
        "type": "http",
        "meta": {
-         "_dd.base_service": "openai-test",
          "component": "psr18",
          "env": "test",
          "http.method": "GET",
          "http.status_code": "429",
          "http.url": "https://api.openai.com/v1/models?foo=bar",
          "network.destination.name": "api.openai.com",
-         "span.kind": "client"
+         "span.kind": "client",
+         "version": "1.0"
        }
      }]]
