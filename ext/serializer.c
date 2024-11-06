@@ -324,14 +324,20 @@ static zend_result dd_add_meta_array(void *context, ddtrace_string key, ddtrace_
 
 static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_string *lowerheader,
                                   zend_string *headerval) {
-    if (zend_hash_exists(get_DD_TRACE_HEADER_TAGS(), lowerheader)) {
-        for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
-            if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
-                *ptr = '_';
+    zval *header_config = zend_hash_find(get_DD_TRACE_HEADER_TAGS(), lowerheader);
+    if (header_config != NULL && Z_TYPE_P(header_config) == IS_STRING) {
+        zend_string *header_config_str = Z_STR_P(header_config);
+        zend_string *headertag;
+        if (ZSTR_LEN(header_config_str) == 0) {
+            for (char *ptr = ZSTR_VAL(lowerheader); *ptr; ++ptr) {
+                if ((*ptr < 'a' || *ptr > 'z') && *ptr != '-' && (*ptr < '0' || *ptr > '9')) {
+                    *ptr = '_';
+                }
             }
+            headertag = zend_strpprintf(0, "http.%s.headers.%s", type, ZSTR_VAL(lowerheader));
+        } else {
+            headertag = zend_string_copy(header_config_str);
         }
-
-        zend_string *headertag = zend_strpprintf(0, "http.%s.headers.%s", type, ZSTR_VAL(lowerheader));
         zval headerzv;
         ZVAL_STR_COPY(&headerzv, headerval);
         zend_hash_update(meta, headertag, &headerzv);

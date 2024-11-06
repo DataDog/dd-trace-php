@@ -105,7 +105,7 @@ static bool zai_config_decode_int(zai_str value, zval *decoded_value) {
     return true;
 }
 
-static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persistent) {
+static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persistent, bool lowercase, bool map_keyless) {
     zval tmp;
     ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARRVAL(tmp), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
@@ -113,41 +113,90 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
     char *data = (char *)value.ptr;
     if (data && *data) {  // non-empty
         const char *key_start, *key_end, *value_start, *value_end;
-        do {
-            if (*data != ',' && *data != ' ' && *data != '\t' && *data != '\n') {
-                key_start = key_end = data;
-                while (*++data) {
-                    if (*data == ':') {
-                        while (*++data && (*data == ' ' || *data == '\t' || *data == '\n'))
-                            ;
 
-                        value_start = value_end = data;
-                        if (!*data || *data == ',') {
-                            --value_end;  // empty string instead of single char
+        do {
+            while (*data == ',' || *data == ' ' || *data == '\t' || *data == '\n') {
+                data++;
+            }
+
+            if (*data) {
+                key_start = data;
+                key_end = NULL;
+                bool has_colon = false;
+
+                while (*data && *data != ',') {
+                    if (*data == ':') {
+                        has_colon = true;
+                        data++;
+                        
+                        while (*data == ' ' || *data == '\t' || *data == '\n') data++;
+
+                        if (*data == ',' || !*data) {
+                            value_end = NULL;
                         } else {
-                            while (*++data && *data != ',') {
+                            value_start = value_end = data;
+                            do {
                                 if (*data != ' ' && *data != '\t' && *data != '\n') {
                                     value_end = data;
                                 }
-                            }
+                                data++;
+                            } while (*data && *data != ',');
                         }
 
-                        size_t key_len = key_end - key_start + 1;
-                        size_t value_len = value_end - value_start + 1;
-                        zval val;
-                        ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
-                        zend_hash_str_update(Z_ARRVAL(tmp), key_start, key_len, &val);
+                        if (key_end && key_start) {
+                            size_t key_len = key_end - key_start + 1;
+
+                            zend_string *key = zend_string_init(key_start, key_len, persistent);
+                            if (lowercase) {
+                                zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
+                            }
+
+                            zval val;
+                            if (value_end) {
+                                size_t value_len = value_end - value_start + 1;
+                                ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
+                            } else {
+                                if (persistent) {
+                                    ZVAL_EMPTY_PSTRING(&val);
+                                } else {
+                                    ZVAL_EMPTY_STRING(&val);
+                                }
+                            }
+                            zend_hash_update(Z_ARRVAL(tmp), key, &val);
+                            zend_string_release(key);
+                        }
+
                         break;
                     }
+
+                    // Set key_end to the last valid non-whitespace character of the key
                     if (*data != ' ' && *data != '\t' && *data != '\n') {
                         key_end = data;
                     }
+                    data++;
                 }
-            } else {
-                ++data;
+
+                // Handle standalone keys (without a colon) if map_keyless is enabled
+                if (map_keyless && !has_colon && key_end) {
+                    size_t key_len = key_end - key_start + 1;
+                    zend_string *key = zend_string_init(key_start, key_len, persistent);
+                    if (lowercase) {
+                        zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key));
+                    }
+
+                    zval val;
+                    if (persistent) {
+                        ZVAL_EMPTY_PSTRING(&val);
+                    } else {
+                        ZVAL_EMPTY_STRING(&val);
+                    }
+                    zend_hash_update(Z_ARRVAL(tmp), key, &val);
+                    zend_string_release(key);
+                }
             }
         } while (*data);
 
+        // Check if the array has any elements; if not, cleanup
         if (zend_hash_num_elements(Z_ARRVAL(tmp)) == 0) {
             zend_hash_destroy(Z_ARRVAL(tmp));
             pefree(Z_ARRVAL(tmp), persistent);
@@ -232,7 +281,9 @@ bool zai_config_decode_value(zai_str value, zai_config_type type, zai_custom_par
         case ZAI_CONFIG_TYPE_INT:
             return zai_config_decode_int(value, decoded_value);
         case ZAI_CONFIG_TYPE_MAP:
-            return zai_config_decode_map(value, decoded_value, persistent);
+            return zai_config_decode_map(value, decoded_value, persistent, false, false);
+        case ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE:
+            return zai_config_decode_map(value, decoded_value, persistent, true, true);
         case ZAI_CONFIG_TYPE_SET:
             return zai_config_decode_set(value, decoded_value, persistent, false);
         case ZAI_CONFIG_TYPE_SET_LOWERCASE:
