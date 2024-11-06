@@ -131,23 +131,20 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                         
                         while (*data == ' ' || *data == '\t' || *data == '\n') data++;
 
-                        if (*data == ',' || *data == '\0') {
-                            value_start = value_end = NULL;
+                        if (*data == ',' || !*data) {
+                            value_end = NULL;
                         } else {
-                            value_start = data;
-                            value_end = value_start;
-
-                            while (*data && *data != ',') {
+                            value_start = value_end = data;
+                            do {
                                 if (*data != ' ' && *data != '\t' && *data != '\n') {
                                     value_end = data;
                                 }
                                 data++;
-                            }
+                            } while (*data && *data != ',');
                         }
 
                         if (key_end && key_start) {
                             size_t key_len = key_end - key_start + 1;
-                            size_t value_len = (value_end && value_start) ? (value_end - value_start + 1) : 0;
 
                             zend_string *key = zend_string_init(key_start, key_len, persistent);
                             if (lowercase) {
@@ -155,7 +152,8 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                             }
 
                             zval val;
-                            if (value_len > 0) {
+                            if (value_end) {
+                                size_t value_len = value_end ? (value_end - value_start + 1) : 0;
                                 ZVAL_NEW_STR(&val, zend_string_init(value_start, value_len, persistent));
                             } else {
                                 if (persistent) {
@@ -179,7 +177,7 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                 }
 
                 // Handle standalone keys (without a colon) if map_keyless is enabled
-                if (map_keyless && !has_colon && key_end && key_start) {
+                if (map_keyless && !has_colon && key_end) {
                     size_t key_len = key_end - key_start + 1;
                     zend_string *key = zend_string_init(key_start, key_len, persistent);
                     if (lowercase) {
