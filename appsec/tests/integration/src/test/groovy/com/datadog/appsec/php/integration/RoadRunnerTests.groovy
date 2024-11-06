@@ -132,7 +132,7 @@ class RoadRunnerTests {
                 .header('X-Forwarded-For', '80.80.80.81').GET().build()
         def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 303
-            assert re.headers().firstValue('Location').get() == 'datadoghq.com'
+            assert re.headers().firstValue('Location').get() == 'https://datadoghq.com'
         }
 
         Span span = trace.first()
@@ -156,7 +156,7 @@ class RoadRunnerTests {
         HttpRequest req = CONTAINER.buildReq('/?user=user2023').GET().build()
         def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> it ->
             assert it.statusCode() == 303
-            assert it.headers().firstValue('Location').get() == 'datadoghq.com'
+            assert it.headers().firstValue('Location').get() == 'https://datadoghq.com'
         }
         assert trace.first().meta."appsec.blocked" == "true"
     }
