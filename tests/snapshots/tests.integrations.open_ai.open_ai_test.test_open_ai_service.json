@@ -19,8 +19,7 @@
       "openai.response.object": "list",
       "openai.user.api_key": "sk-...9d5d",
       "runtime-id": "0a784015-fb27-4c52-9df3-dedf7130fbcb",
-      "span.kind": "client",
-      "version": "1.0"
+      "span.kind": "client"
     },
     "metrics": {
       "_dd.agent_psr": 1,
@@ -46,7 +45,6 @@
          "http.status_code": "200",
          "http.url": "https://api.openai.com/v1/models?foo=bar",
          "network.destination.name": "api.openai.com",
-         "span.kind": "client",
-         "version": "1.0"
+         "span.kind": "client"
        }
      }]]
