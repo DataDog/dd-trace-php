@@ -405,14 +405,15 @@ bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
     return true;
 }
 
-static zend_module_entry *dd_appsec_module() { return zend_hash_str_find_ptr(&module_registry, "ddappsec", sizeof("ddappsec") - 1); }
-
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
     ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
+        bool appsec_features = false;
+        bool appsec_config = false;
+
 #ifndef _WIN32
         // Only disable sidecar sender when explicitly disabled
         bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
@@ -428,13 +429,19 @@ static void dd_activate_once(void) {
                 bgs_service = ddtrace_default_service_name();
             }
         }
-        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
-            (dd_appsec_module() != NULL && !get_global_DD_APPSEC_TESTING() && get_global_DD_APPSEC_ENABLED()))
+
+        // if we're to enable appsec, we need to enable sidecar
+        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_features, &appsec_config);
+        if (!enable_sidecar) {
+            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
+        }
+
+        if (enable_sidecar)
 #endif
         {
             bool request_startup = PG(during_request_startup);
             PG(during_request_startup) = false;
-            ddtrace_sidecar_setup();
+            ddtrace_sidecar_setup(appsec_features, appsec_config);
             PG(during_request_startup) = request_startup;
         }
 #ifndef _WIN32

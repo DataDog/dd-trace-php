@@ -241,7 +241,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-static void _rinit_once() { dd_config_first_rinit(); }
+static void _rinit_once()
+{
+    dd_config_first_rinit();
+    _check_enabled();
+}
 
 void dd_appsec_rinit_once()
 {
@@ -260,7 +264,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
 
     dd_appsec_rinit_once();
     zai_config_rinit();
-    _check_enabled();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         return SUCCESS;
@@ -381,23 +384,6 @@ static void _check_enabled()
         DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
         // leave DDAPPSEC_G(active) as is
     };
-}
-
-__attribute__((visibility("default"))) void dd_appsec_rc_conf(
-    bool *nonnull appsec_features, bool *nonnull appsec_conf) // NOLINT
-{
-    bool prev_enabled = DDAPPSEC_G(enabled);
-    bool prev_active = DDAPPSEC_G(active);
-    bool prev_to_be_configured = DDAPPSEC_G(to_be_configured);
-    _check_enabled();
-
-    *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
-    // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
-    *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
-
-    DDAPPSEC_G(enabled) = prev_enabled;
-    DDAPPSEC_G(active) = prev_active;
-    DDAPPSEC_G(to_be_configured) = prev_to_be_configured;
 }
 
 static PHP_FUNCTION(datadog_appsec_is_enabled)

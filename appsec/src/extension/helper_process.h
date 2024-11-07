@@ -14,8 +14,9 @@
 
 typedef typeof(&ddog_sidecar_enable_appsec) sidecar_enable_appsec_t;
 
-__attribute__((visibility("default")))
-void dd_appsec_maybe_enable_helper(sidecar_enable_appsec_t nonnull enable_appsec);
+__attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
+    sidecar_enable_appsec_t nonnull enable_appsec,
+    bool *nonnull appsec_features, bool *nonnull appsec_conf);
 
 void dd_helper_startup(void);
 void dd_helper_shutdown(void);

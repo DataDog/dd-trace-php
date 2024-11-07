@@ -173,16 +173,24 @@ static void _read_settings()
         return;
     }
 
-    dd_appsec_rinit_once();
-
     zval runtime_path;
     ZVAL_STR(&runtime_path, get_DD_APPSEC_HELPER_RUNTIME_PATH());
     dd_on_runtime_path_update(NULL, &runtime_path, NULL);
 }
 
-__attribute__((visibility("default"))) void dd_appsec_maybe_enable_helper(
-    sidecar_enable_appsec_t nonnull enable_appsec)
+__attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
+    sidecar_enable_appsec_t nonnull enable_appsec,
+    bool *nonnull appsec_features, bool *nonnull appsec_conf)
 {
+    dd_appsec_rinit_once();
+
+    if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED ||
+        get_global_DD_APPSEC_TESTING()) {
+        *appsec_features = false;
+        *appsec_conf = false;
+        return false;
+    }
+
     _read_settings();
 
     ddog_CharSlice helper_path = to_char_slice(get_DD_APPSEC_HELPER_PATH());
@@ -195,12 +203,13 @@ __attribute__((visibility("default"))) void dd_appsec_maybe_enable_helper(
     ddog_CharSlice log_level =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_LEVEL());
 
-    ddog_MaybeError res =
-        enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
-    if (res.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        mlog_err(dd_log_error, "Failed to enable helper in sidecar: %.*s",
-            (int)res.some.message.len, res.some.message.ptr);
-    }
+    enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
+
+    *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
+    // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
+    *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
+
+    return true;
 }
 
 void dd_helper_close_conn()

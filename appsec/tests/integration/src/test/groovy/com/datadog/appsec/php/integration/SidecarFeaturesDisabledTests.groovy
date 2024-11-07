@@ -42,6 +42,7 @@ class SidecarFeaturesDisabledTests {
                 @Override
                 void configure() {
                     super.configure()
+                    // these force sidecar to run
                     withEnv('DD_INSTRUMENTATION_TELEMETRY_ENABLED', 'false')
                     withEnv('DD_TRACE_SIDECAR_TRACE_SENDER', 'false')
                 }
@@ -98,6 +99,39 @@ class SidecarFeaturesDisabledTests {
                 '/bin/bash', '-ce', 'ps auxww; ! pgrep -f [d]atadog-ipc-helper')
         if (res.exitCode != 0) {
             throw new AssertionError("Found helper when not expected: $res.stdout\n$res.stderr")
+        }
+    }
+
+    @Order(3)
+    @Test
+    void 'sidecar is enabled but not appsec'() {
+        ExecResult res = CONTAINER.execInContainer(
+                'sed', '-i', 's/^datadog.appsec.enabled.*$/datadog.appsec.enabled=false/', '/etc/php/php.ini')
+        assert res.exitCode == 0
+
+        res = CONTAINER.execInContainer(
+                '/bin/bash', '-c', '''
+                    pid=`pgrep -f [d]atadog-ipc-helper`;
+                    if [ -n "$pid" ]; then echo "Helper is running: $pid";
+                    kill -9 $pid; fi''')
+        assert res.exitCode == 0
+
+        res = CONTAINER.execInContainer('/bin/bash', '-c',
+            'echo DD_INSTRUMENTATION_TELEMETRY_ENABLED=true >> /etc/apache2/envvars; service apache2 restart')
+        assert res.exitCode == 0
+
+        HttpRequest req = CONTAINER.buildReq('/hello.php')
+                .GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        assert !trace.first().metrics.containsKey('_dd.appsec.enabled')
+
+        res = CONTAINER.execInContainer(
+                '/bin/bash', '-ce', 'ps auxww; pgrep -f [d]atadog-ipc-helper')
+        if (res.exitCode != 0) {
+            throw new AssertionError("Could not find helper: $res.stdout\n$res.stderr")
         }
     }
 }

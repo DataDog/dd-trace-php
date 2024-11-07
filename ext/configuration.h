@@ -220,8 +220,6 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level,                \
            .env_config_fallback = ddtrace_conf_otel_log_level)                                                 \
     CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
-    CONFIG(BOOL, DD_APPSEC_ENABLED, "true", .ini_change = zai_config_system_ini_change)                        \
-    CONFIG(BOOL, DD_APPSEC_TESTING, "false", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_TRACE_GIT_METADATA_ENABLED, "true")                                                        \
     CONFIG(STRING, DD_GIT_COMMIT_SHA, "")                                                                      \
     CONFIG(STRING, DD_GIT_REPOSITORY_URL, "")                                                                  \
