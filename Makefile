@@ -512,6 +512,11 @@ generate:
 	@composer -dtooling/generation generate
 	@composer -dtooling/generation verify
 
+# Generates the stubs file for the public API
+generate_stubs:
+	@composer -dtooling/stubs update
+	@composer -dtooling/stubs generate
+
 # Find all generated core dumps, sorted by date descending
 cores:
 	find . -path "./*/vendor" -prune -false -o \( -type f -regex ".*\/core\.?[0-9]*" \) -printf "%T@ %Tc %p\n" | sort -n -r
