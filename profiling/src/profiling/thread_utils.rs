@@ -89,13 +89,13 @@ pub fn get_current_thread_name() -> String {
         // If successful, convert the result to a Rust String
         let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
         let str_slice: &str = cstr.to_str().unwrap();
-        if str_slice.len() > 0 {
+        if !str_slice.is_empty() {
             thread_name.push_str(": ");
             thread_name.push_str(str_slice);
         }
     }
 
-    return thread_name;
+    thread_name
 }
 
 #[cfg(test)]
@@ -110,7 +110,7 @@ mod tests {
             libc::pthread_setname_np(
                 #[cfg(target_os = "linux")]
                 libc::pthread_self(),
-                b"\0".as_ptr() as *const c_char,
+                b"\0".as_ptr() as *const c_char
             );
         }
         assert_eq!(get_current_thread_name(), "unknown");
@@ -119,7 +119,7 @@ mod tests {
             libc::pthread_setname_np(
                 #[cfg(target_os = "linux")]
                 libc::pthread_self(),
-                b"foo\0".as_ptr() as *const c_char,
+                b"foo\0".as_ptr() as *const c_char
             );
         }
         assert_eq!(get_current_thread_name(), "unknown: foo");
@@ -128,7 +128,7 @@ mod tests {
             libc::pthread_setname_np(
                 #[cfg(target_os = "linux")]
                 libc::pthread_self(),
-                b"bar\0".as_ptr() as *const c_char,
+                b"bar\0".as_ptr() as *const c_char
             );
         }
         assert_eq!(get_current_thread_name(), "unknown: bar");
