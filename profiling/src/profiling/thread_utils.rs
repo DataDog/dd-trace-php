@@ -107,17 +107,29 @@ mod tests {
         unsafe {
             // When running `cargo test`, the thread name for this test will be set to
             // `profiling::thread_utils::tests:` which would interfer with this test
-            libc::pthread_setname_np(b"\0".as_ptr() as *mut c_char);
+            libc::pthread_setname_np(
+                #[cfg(target_os = "linux")]
+                libc::pthread_self(),
+                b"\0".as_ptr() as *const c_char,
+            );
         }
         assert_eq!(get_current_thread_name(), "unknown");
 
         unsafe {
-            libc::pthread_setname_np(b"foo\0".as_ptr() as *const c_char);
+            libc::pthread_setname_np(
+                #[cfg(target_os = "linux")]
+                libc::pthread_self(),
+                b"foo\0".as_ptr() as *const c_char,
+            );
         }
         assert_eq!(get_current_thread_name(), "unknown: foo");
 
         unsafe {
-            libc::pthread_setname_np(b"bar\0".as_ptr() as *const c_char);
+            libc::pthread_setname_np(
+                #[cfg(target_os = "linux")]
+                libc::pthread_self(),
+                b"bar\0".as_ptr() as *const c_char,
+            );
         }
         assert_eq!(get_current_thread_name(), "unknown: bar");
     }
