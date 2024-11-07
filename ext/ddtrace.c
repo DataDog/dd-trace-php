@@ -429,7 +429,7 @@ static void dd_activate_once(void) {
             }
         }
         if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
-            (dd_appsec_module() != NULL && !get_global_DD_APPSEC_TESTING()))
+            (dd_appsec_module() != NULL && !get_global_DD_APPSEC_TESTING() && get_global_DD_APPSEC_ENABLED()))
 #endif
         {
             bool request_startup = PG(during_request_startup);

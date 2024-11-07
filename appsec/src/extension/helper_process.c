@@ -19,6 +19,7 @@
 #include "network.h"
 #include "php_compat.h"
 #include "php_objects.h"
+#include "version.h"
 
 typedef struct _dd_helper_mgr {
     dd_conn conn;
@@ -194,7 +195,12 @@ __attribute__((visibility("default"))) void dd_appsec_maybe_enable_helper(
     ddog_CharSlice log_level =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_LEVEL());
 
-    enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
+    ddog_MaybeError res =
+        enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
+    if (res.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+        mlog_err(dd_log_error, "Failed to enable helper in sidecar: %.*s",
+            (int)res.some.message.len, res.some.message.ptr);
+    }
 }
 
 void dd_helper_close_conn()

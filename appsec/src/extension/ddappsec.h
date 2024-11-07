@@ -9,14 +9,13 @@
 // This header MUST be included in files that use EG/PG/OG/...
 // See https://bugs.php.net/bug.php?id=81634
 
-#include "logging.h"
-#include "version.h"
+#include "attributes.h"
 #include <php.h>
 #include <stdbool.h>
-#include "attributes.h"
 
 typedef enum _enabled_configuration {
-    APPSEC_ENABLED_VIA_REMCFG = 0,
+    APPSEC_UNSET_STATE = 0,
+    APPSEC_ENABLED_VIA_REMCFG,
     APPSEC_FULLY_ENABLED,
     APPSEC_FULLY_DISABLED
 } enabled_configuration;
