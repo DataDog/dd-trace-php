@@ -18,6 +18,8 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_REMOTE_RATE = 2,
     DD_MECHANISM_RULE = 3,
     DD_MECHANISM_MANUAL = 4,
+    DD_MECHANISM_REMOTE_USER_RULE = 11,
+    DD_MECHANISM_REMOTE_DYNAMIC_RULE = 12,
 };
 
 void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);

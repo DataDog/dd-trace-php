@@ -2,7 +2,6 @@
 Starting a trace in a prehook and closing it in the posthook while an active one exists does not confuse the limiter
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
-DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=1
 DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--

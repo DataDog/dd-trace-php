@@ -5,50 +5,68 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "config.hpp"
-#include "listeners/listener.hpp"
-#include "remote_config/protocol/client.hpp"
-#include <algorithm>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "../utils.hpp"
+#include <spdlog/spdlog.h>
+#include <string_view>
 
 namespace dds::remote_config {
 
 class product {
 public:
-    explicit product(std::string_view name, listener_base::shared_ptr listener)
-        : name_(name), listener_(std::move(listener))
-    {
-        if (listener_ == nullptr) {
-            throw std::runtime_error("invalid listener");
-        }
-    }
+    explicit constexpr product(std::string_view name) : name_{name} {}
 
-    void assign_configs(const std::unordered_map<std::string, config> &configs);
-    [[nodiscard]] const std::unordered_map<std::string, config> &
-    get_configs() const
-    {
-        return configs_;
-    };
-    bool operator==(product const &b) const
-    {
-        return name_ == b.name_ && configs_ == b.configs_;
-    }
-    [[nodiscard]] const std::string &get_name() const { return name_; }
+    [[nodiscard]] const std::string_view &name() const { return name_; }
 
-protected:
-    void update_configs(
-        std::unordered_map<std::string, dds::remote_config::config> &to_update);
-    void unapply_configs(
-        std::unordered_map<std::string, dds::remote_config::config>
-            &to_unapply);
+    bool operator==(const product &other) const { return name_ == other.name_; }
 
-    std::string name_;
-    std::unordered_map<std::string, config> configs_;
-    std::shared_ptr<listener_base> listener_;
+private:
+    std::string_view name_;
 };
 
+struct known_products {
+    static inline constexpr product ASM{std::string_view{"ASM"}};
+    static inline constexpr product ASM_DD{std::string_view{"ASM_DD"}};
+    static inline constexpr product ASM_DATA{std::string_view{"ASM_DATA"}};
+    static inline constexpr product ASM_FEATURES{
+        std::string_view{"ASM_FEATURES"}};
+    static inline constexpr product UNKNOWN{std::string_view{"UNKOWN"}};
+
+    static product for_name(std::string_view name)
+    {
+        if (name == ASM.name()) {
+            return ASM;
+        }
+        if (name == ASM_DD.name()) {
+            return ASM_DD;
+        }
+        if (name == ASM_DATA.name()) {
+            return ASM_DATA;
+        }
+        if (name == ASM_FEATURES.name()) {
+            return ASM_FEATURES;
+        }
+
+        return UNKNOWN;
+    }
+};
 } // namespace dds::remote_config
+
+template <>
+struct fmt::formatter<dds::remote_config::product>
+    : fmt::formatter<std::string_view> {
+
+    auto format(const dds::remote_config::product &p, format_context &ctx) const
+    {
+        auto name = p.name();
+        return formatter<std::string_view>::format(name, ctx);
+    }
+};
+
+namespace std {
+template <> struct hash<dds::remote_config::product> {
+    std::size_t operator()(const dds::remote_config::product &product) const
+    {
+        return dds::hash(product.name());
+    }
+};
+} // namespace std

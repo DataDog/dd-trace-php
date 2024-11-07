@@ -26,6 +26,14 @@ services:
       context: .
       dockerfile: vs16.Dockerfile
 
+  vs17-base:
+    image: datadog/dd-trace-ci:windows-base-vs17
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: vs17.Dockerfile
+
   vc14:
     image: datadog/dd-trace-ci:windows-vc14
     build:
@@ -58,6 +66,29 @@ services:
       args:
         vsVersion: "vs16"
         sdkVersion: "2.2.0"
+
+  vs17:
+    image: datadog/dd-trace-ci:windows-vs17
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: basetools.Dockerfile
+      args:
+        vsVersion: "vs17"
+        sdkVersion: "2.3.0"
+
+  php-8.4:
+    image: datadog/dd-trace-ci:php-8.4_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        phpVersion: "8.4.0RC3"
+        vsVersion: "vs17"
+        phpTarGzUrl: https://downloads.php.net/~saki/php-8.4.0RC3.tar.gz
+        phpSha256Hash: "1937d125c9bb42bc4d8dcd3b8bb25d377814aea50be492bbc64b3554b73af371"
 
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_windows

@@ -65,12 +65,38 @@ if test "$PHP_DDTRACE" != "no"; then
   fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    EXTRA_LDFLAGS="-fsanitize=address"
+    dnl gcc needs -lasan, clang needs -shared-libsan
+    ac_cflags=$LDFLAGS
+    LDFLAGS=-shared-libsan
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) { return (0); }]])],[found=yes],[found=no],[found=yes])
+    LDFLAGS=$ac_ldflags
+
+    EXTRA_LDFLAGS="-fsanitize=address $(if test $found = "yes"; then echo "-shared-libsan -lclang_rt.asan-$(uname -m)"; else echo "-lasan"; fi)"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
   fi
 
   CFLAGS="$CFLAGS -fms-extensions"
   EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions"
+
+  AC_MSG_CHECKING([whether the compiler is LLVM])
+
+
+  AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) {
+#ifdef __clang__
+  return 0;
+#else
+  return 1;
+#endif
+}]])],[llvm=yes],[llvm=no],[llvm=yes])
+
+  if test "$llvm" = "yes"; then
+    AC_MSG_RESULT([yes])
+    CFLAGS="$CFLAGS -Wno-microsoft-anon-tag"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
+    LDFLAGS="$LDFLAGS -Wl,--undefined-version"
+  else
+    AC_MSG_RESULT([no])
+  fi
 
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \
@@ -141,6 +167,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/arrays.c \
     ext/auto_flush.c \
     ext/autoload_php_files.c \
+    ext/collect_backtrace.c \
     ext/comms_php.c \
     ext/compat_string.c \
     ext/coms.c \
@@ -151,6 +178,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/dogstatsd_client.c \
     ext/engine_api.c \
     ext/engine_hooks.c \
+    ext/exception_serialize.c \
     ext/excluded_modules.c \
     ext/git.c \
     ext/handlers_api.c \
@@ -160,6 +188,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/integrations/exec_integration.c \
     ext/integrations/integrations.c \
     ext/ip_extraction.c \
+    ext/live_debugger.c \
     ext/logging.c \
     ext/limiter/limiter.c \
     ext/memory_limit.c \
@@ -167,12 +196,14 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/priority_sampling/priority_sampling.c \
     ext/profiling.c \
     ext/random.c \
+    ext/remote_config.c \
     ext/serializer.c \
     ext/sidecar.c \
     ext/signals.c \
     ext/span.c \
     ext/startup_logging.c \
     ext/telemetry.c \
+    ext/threads.c \
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
     ext/user_request.c \
     ext/hook/uhook.c \
@@ -303,7 +334,7 @@ EOT
     pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
       popdef([PHP_GEN_GLOBAL_MAKEFILE])
       PHP_GEN_GLOBAL_MAKEFILE
-      sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/^distclean:/a\'$'\n\t''rm -rf target/' -e '/.*\.a /{s/| xargs rm -f/! -path ".\/target\/*" | xargs rm -f/'$'\n}' Makefile
+      [sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/.*\.[ao] /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' -e '/^distclean:/a\'$'\n\t''rm -rf target/ target_mockgen/' Makefile]
       DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
     ])
   ])
@@ -324,7 +355,7 @@ EOT
     ddtrace_rust_lib="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a"
 
     cat <<EOT >> Makefile.fragments
-$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | xargs )
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
 	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
@@ -336,7 +367,7 @@ EOT
     if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
       ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
     else
-      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target/ \$(DDTRACE_CARGO) run"
+      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run"
     fi
     cat <<EOT >> Makefile.fragments
 

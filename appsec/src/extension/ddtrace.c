@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "logging.h"
@@ -44,6 +45,8 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
     ddtrace_user_req_listeners *listeners);
 
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
+
+static const char *nullable (*_ddtrace_remote_config_get_path)(void);
 
 static void dd_trace_load_symbols(void)
 {
@@ -98,6 +101,14 @@ static void dd_trace_load_symbols(void)
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
+    _ddtrace_remote_config_get_path =
+        dlsym(handle, "ddtrace_remote_config_get_path");
+    if (_ddtrace_remote_config_get_path == NULL && !testing) {
+        mlog(dd_log_error,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            "Failed to load ddtrace_remote_config_get_path: %s", dlerror());
+    }
+
     dlclose(handle);
 }
 
@@ -146,7 +157,7 @@ static zend_module_entry *_find_ddtrace_module()
 void dd_trace_shutdown()
 {
     zend_module_entry *mod = _find_ddtrace_module();
-    if (mod) {
+    if (mod && _orig_ddtrace_shutdown) {
         mod->request_shutdown_func = _orig_ddtrace_shutdown;
     }
     _orig_ddtrace_shutdown = NULL;
@@ -358,6 +369,16 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
     return _ddtrace_ip_extraction_find(server);
 }
 
+const char *nullable dd_trace_remote_config_get_path()
+{
+    if (!_ddtrace_remote_config_get_path) {
+        return NULL;
+    }
+    __auto_type path = _ddtrace_remote_config_get_path();
+    mlog(dd_log_trace, "Remote config path: %s", path ? path : "(unset)");
+    return path;
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -484,12 +505,12 @@ ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta_struct", PHP_FN(datadog_appsec_testing_root_span_get_meta_struct), void_ret_nullable_array, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "ddtrace_rshutdown", PHP_FN(datadog_appsec_testing_ddtrace_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_add_tag", PHP_FN(datadog_appsec_testing_root_span_add_tag), arginfo_root_span_add_tag, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta", PHP_FN(datadog_appsec_testing_root_span_get_meta), void_ret_nullable_array, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta_struct", PHP_FN(datadog_appsec_testing_root_span_get_meta_struct), void_ret_nullable_array, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

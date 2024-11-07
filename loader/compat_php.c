@@ -190,3 +190,14 @@ zval *ddloader_zend_hash_update(HashTable *ht, zend_string *key, zval *pData) {
 
     return NULL;
 }
+
+// From PHP 8.0
+bool ddloader_zend_ini_parse_bool(zend_string *str) {
+	if ((ZSTR_LEN(str) == 4 && strcasecmp(ZSTR_VAL(str), "true") == 0)
+	  || (ZSTR_LEN(str) == 3 && strcasecmp(ZSTR_VAL(str), "yes") == 0)
+	  || (ZSTR_LEN(str) == 2 && strcasecmp(ZSTR_VAL(str), "on") == 0)) {
+		return true;
+	} else {
+		return atoi(ZSTR_VAL(str)) != 0;
+	}
+}

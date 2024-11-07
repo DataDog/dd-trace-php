@@ -13,6 +13,7 @@
 #include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
 #include <string_view>
+#include <type_traits>
 
 using namespace std::literals;
 
@@ -176,8 +177,9 @@ json_helper::get_field_of_type(const rapidjson::Value &parent_field,
     }
 
     if (type != output_itr->value.GetType()) {
-        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key, type,
-            output_itr->value.GetType());
+        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key,
+            fmt::underlying(type),
+            fmt::underlying(output_itr->value.GetType()));
         return std::nullopt;
     }
 
@@ -200,19 +202,10 @@ json_helper::get_field_of_type(
     return get_field_of_type(*parent_field, key, type);
 }
 
-bool json_helper::get_json_base64_encoded_content(
-    const std::string &content, rapidjson::Document &output)
+bool json_helper::parse_json(
+    std::string_view content, rapidjson::Document &output)
 {
-    std::string base64_decoded;
-    try {
-        base64_decoded = base64_decode(content, true);
-    } catch (const std::runtime_error &error) {
-        SPDLOG_DEBUG(
-            "Invalid base64 encoded content: " + std::string(error.what()));
-        return false;
-    }
-
-    if (output.Parse(base64_decoded).HasParseError()) {
+    if (output.Parse(content.data(), content.size()).HasParseError()) {
         SPDLOG_DEBUG("Invalid json: " + std::string(rapidjson::GetParseError_En(
                                             output.GetParseError())));
         return false;

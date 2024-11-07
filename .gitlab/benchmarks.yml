@@ -63,8 +63,33 @@ benchmarks-tracer:
         compare_to: "master"
       when: on_success
     - when: manual
+  artifacts:
+    name: "logs"
+    paths:
+      - candidate.tar.gz
+      - baseline.tar.gz
+    expire_in: 2 days
   variables:
     SCENARIO: "tracer"
+
+benchmarks-appsec:
+  extends: .microbenchmarks
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        paths:
+          - appsec/src/**/*
+        compare_to: "master"
+      when: on_success
+    - when: manual
+  artifacts:
+    name: "logs"
+    paths:
+      - candidate.tar.gz
+      - baseline.tar.gz
+    expire_in: 2 days
+  variables:
+    SCENARIO: "appsec"
 
 
 download_circle_ci_release:

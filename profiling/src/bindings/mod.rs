@@ -169,12 +169,25 @@ pub struct ModuleEntry {
         Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
     pub info_func: Option<unsafe extern "C" fn(zend_module: *mut ModuleEntry)>,
     pub version: *const u8,
+    /// Size of the module globals in bytes. In ZTS this will be the size TSRM will allocate per
+    /// thread for module globals. The function pointers in [`ModuleEntry::globals_ctor`] and
+    /// [`ModuleEntry::globals_dtor`] will only be called if this is a non-zero.
     pub globals_size: size_t,
     #[cfg(php_zts)]
+    /// Pointer to a `ts_rsrc_id` (which is a [`i32`]). For C-Extension this is created using the
+    /// `ZEND_DECLARE_MODULE_GLOBALS(module_name)` macro.
+    /// See <https://heap.space/xref/PHP-8.3/Zend/zend_API.h?r=a89d22cc#249>
     pub globals_id_ptr: *mut ts_rsrc_id,
     #[cfg(not(php_zts))]
+    /// Pointer to the module globals struct in NTS mode
     pub globals_ptr: *mut c_void,
+    /// Constructor for module globals.
+    /// Be aware this will only be called in case [`ModuleEntry::globals_size`] is non-zero and for
+    /// ZTS you need to make sure [`ModuleEntry::globals_id_ptr`] is a valid, non-null pointer.
     pub globals_ctor: Option<unsafe extern "C" fn(global: *mut c_void)>,
+    /// Destructor for module globals.
+    /// Be aware this will only be called in case [`ModuleEntry::globals_size`] is non-zero and for
+    /// ZTS you need to make sure [`ModuleEntry::globals_id_ptr`] is a valid, non-null pointer.
     pub globals_dtor: Option<unsafe extern "C" fn(global: *mut c_void)>,
     pub post_deactivate_func: Option<unsafe extern "C" fn() -> ZendResult>,
     pub module_started: c_int,

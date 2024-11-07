@@ -6,6 +6,9 @@ SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 
+# This make `pecl install` use all available cores
+export MAKEFLAGS="-j $(nproc)"
+
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
   XDEBUG_VERSIONS=(-2.7.2)
@@ -17,8 +20,10 @@ elif [[ $PHP_VERSION_ID -le 81 ]]; then
   XDEBUG_VERSIONS=(-3.1.0)
 elif [[ $PHP_VERSION_ID -le 82 ]]; then
   XDEBUG_VERSIONS=(-3.2.2)
+elif [[ $PHP_VERSION_ID -le 83 ]]; then
+  XDEBUG_VERSIONS=(-3.3.2)
 else
-  XDEBUG_VERSIONS=(-3.3.0)
+  XDEBUG_VERSIONS=(-3.4.0)
 fi
 
 MONGODB_VERSION=
@@ -54,8 +59,8 @@ fi
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
-export CC=$HOST_ARCH-linux-gnu-gcc
-export CXX=$HOST_ARCH-linux-gnu-g++
+# export CC=$HOST_ARCH-linux-gnu-gcc
+# export CXX=$HOST_ARCH-linux-gnu-g++
 
 iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}');
 
@@ -119,7 +124,16 @@ else
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
-    pecl install xdebug$VERSION;
+    if [[ "${VERSION}" == "-3.4.0" ]]; then
+      curl -LO https://github.com/xdebug/xdebug/archive/12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz
+      tar -xvzf 12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz;
+      cd xdebug-12adc6394adbf14f239429d72cf34faadddd19fb;
+      phpize;
+      ./configure;
+      make && make install;
+    else
+      pecl install xdebug$VERSION;
+    fi
     cd $(php-config --extension-dir);
     mv xdebug.so xdebug$VERSION.so;
   done

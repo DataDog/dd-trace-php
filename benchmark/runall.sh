@@ -30,5 +30,17 @@ elif [ "$SCENARIO" = "tracer" ]; then
 
   ## Request Startup/Shutdown Benchmarks
   make benchmarks_tea
-  cp tea/benchmarks/reports/tea-bench-results.json "$ARTIFACTS_DIR/tracer-tea-bench-results.json"
+  cp tea/benchmarks/reports/tracer-tea-bench-results.json "$ARTIFACTS_DIR/tracer-tea-bench-results.json"
+elif [ "$SCENARIO" = "appsec" ]; then
+  # Run Appsec Benchmarks
+  cd ..
+  make composer_tests_update
+  make benchmarks_run_dependencies
+  make install_appsec
+
+  ## Non-OPCache Benchmarks
+  BENCHMARK_EXTRA="--group=frameworks" make call_benchmarks
+  cp tests/Benchmarks/reports/tracer-bench-results.csv "$ARTIFACTS_DIR/appsec-bench-results.csv"
+
+  make delete_ini
 fi

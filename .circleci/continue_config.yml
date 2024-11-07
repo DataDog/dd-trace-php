@@ -253,7 +253,7 @@ aliases:
         # If it's missing, we're building in the job
         if [ -f ddtrace.a ]; then
           sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace.ldflags
-          gcc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
+          cc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
           mkdir -p tmp/build_extension/modules
           mv ddtrace.so tmp/build_extension/modules/
         fi
@@ -605,7 +605,7 @@ commands:
                   -e DD_AGENT_HOST=127.0.0.1 \
                   -e DATADOG_HAVE_DEV_ENV=1 \
                   -e BASH_ENV=/home/circleci/bashenv/bash.sh \
-                  -e ASAN_OPTIONS=abort_on_error=1 \
+                  -e ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1" \
                   -e CIRCLE_SHA1 \
                   -e CIRCLE_BRANCH \
                   -e CODECOV_TOKEN \
@@ -650,7 +650,9 @@ commands:
     steps:
       - run:
           name: Build Profiler NTS
+          shell: /bin/bash -ieo pipefail
           command: |
+            source "$BASH_ENV"
             if [ -d '/opt/rh/devtoolset-7' ] ; then
                 set +eo pipefail
                 source scl_source enable devtoolset-7
@@ -659,7 +661,7 @@ commands:
             set -u
             prefix="<< parameters.prefix >>"
             mkdir -vp "${prefix}"
-            command -v switch-php && switch-php "${PHP_VERSION}"
+            switch-php "${PHP_VERSION}"
             cd profiling
             echo "${CARGO_TARGET_DIR}"
             cargo build --release
@@ -668,7 +670,9 @@ commands:
             objcopy --compress-debug-sections "${prefix}/datadog-profiling.so"
       - run:
           name: Build Profiler ZTS
+          shell: /bin/bash -ieo pipefail
           command: |
+            source "$BASH_ENV"
             if [ -d '/opt/rh/devtoolset-7' ] ; then
                 set +eo pipefail
                 source scl_source enable devtoolset-7
@@ -677,7 +681,7 @@ commands:
             set -u
             prefix="<< parameters.prefix >>"
             mkdir -vp "${prefix}"
-            command -v switch-php && switch-php "${PHP_VERSION}-zts"
+            switch-php "${PHP_VERSION}-zts"
             cd profiling
             echo "${CARGO_TARGET_DIR}"
             touch build.rs #make sure `build.rs` gets executed after `switch-php` call
@@ -820,6 +824,7 @@ jobs:
     executor:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
+    resource_class: medium
     steps:
       - restore_cache:
           keys:
@@ -835,7 +840,6 @@ jobs:
           name: Run xdebug tests
           command: |
             export REPORT_EXIT_STATUS=1
-            export DD_TRACE_CLI_ENABLED=1
             targetdir() {
               if [[ ${1:0:1} -eq 2 ]]; then
                 echo $1
@@ -843,6 +847,9 @@ jobs:
                 echo "3.0.0"
               fi
             }
+            if [[ "<<parameters.xdebug_version_one>>" == "3.4.0" ]]; then
+              ln -s $(php-config --extension-dir)/xdebug-3.4.0.so $(php-config --extension-dir)/xdebug-3.4.0alpha2-dev.so
+            fi
             php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
               php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_two >>)
@@ -960,7 +967,7 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            DD_TRACE_SIDECAR_TRACE_SENDER=1 make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            DD_TRACE_SIDECAR_TRACE_SENDER=1 _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make test_c RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" TESTS=tests/ext/background-sender 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -1013,12 +1020,13 @@ jobs:
           name: Run tests
           command: |
             set -euo pipefail
-            make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make test_c_observer RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -1089,12 +1097,17 @@ jobs:
             sudo chown -R docker-circleci . tests
       # - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - run:
           name: Run tests
           command: |
             docker-compose run --rm \
               -e DDAGENT_HOSTNAME=127.0.0.1 \
               -e DD_AGENT_HOST=127.0.0.1 \
               -e DATADOG_HAVE_DEV_ENV=1 \
+              -e ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1" \
               -e PHP_VARIANT=<< parameters.switch_php_version >> \
               -e PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" \
               << parameters.php_major_minor >>-buster-arm64 \
@@ -1107,12 +1120,12 @@ jobs:
       #     name: Run tests
       #     command: |
       #       set -euo pipefail
-      #        make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+      #       _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1147,12 +1160,12 @@ jobs:
           name: Set test environment variables
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DD_TRACE_CLI_ENABLED 1; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0'
+            docker exec php powershell.exe 'setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0'
       - run:
           name: Run extension tests
           shell: powershell.exe
           command: |
-            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+            docker exec php powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
 #      - run:
 #          name: Install the extension and setup composer
 #          shell: powershell.exe
@@ -1198,6 +1211,10 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Set core pattern
+          command: |
+            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -1214,7 +1231,7 @@ jobs:
           command: |
             set -euo pipefail
             if [[ << parameters.switch_php_version >> == *asan* ]]; then export TEST_PHP_JUNIT=$(pwd)/asan-extension-test.xml; fi
-            make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+            _DD_DEBUG_SIDECAR_LOG_LEVEL=trace _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log" make << parameters.make_target >> RUST_DEBUG_BUILD=1 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
       - when:
           # codecov uploader only on amd64
           condition:
@@ -1234,7 +1251,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1401,7 +1418,14 @@ jobs:
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi cargo
+            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi
+      - run:
+          name: Install rust
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh
+            chmod +x /tmp/rustup.sh
+            /tmp/rustup.sh -y --default-toolchain 1.76
+            sudo ln -s $HOME/.cargo/bin/* /usr/bin/
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
       - run:
           name: CMake
@@ -1412,7 +1436,7 @@ jobs:
       - run:
           name: Test
           command: |
-            make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
+            PATH=$PATH:$HOME/.cargo/bin make -C appsec/build -j $(nproc) xtest ddappsec_helper_test
             ./appsec/build/tests/helper/ddappsec_helper_test
       - run:
           name: Generate XML coverage
@@ -1806,6 +1830,7 @@ jobs:
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>
+    resource_class: medium
     steps:
       - restore_cache:
           keys:
@@ -1831,7 +1856,6 @@ jobs:
               )
             fi
             cd /usr/local/src/php
-            export DD_TRACE_CLI_ENABLED=true
             export DD_TRACE_STARTUP_LOGS=0
             export DD_TRACE_WARN_CALL_STACK_DEPTH=0
             export DD_TRACE_WARN_LEGACY_DD_TRACE=0
@@ -1990,6 +2014,8 @@ jobs:
       - run:
           name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
           command: |
+            export _DD_DEBUG_SIDECAR_LOG_LEVEL=trace
+            export _DD_DEBUG_SIDECAR_LOG_METHOD="file://$(pwd)/tmp/build_extension/tests/ext/sidecar.log"
             make test_extension_ci \
               RUST_DEBUG_BUILD=1 \
               BUILD_DIR=$(pwd)/tmp/build_extension \
@@ -2055,11 +2081,11 @@ jobs:
           command: |
             switch-php debug
             export DDTRACE_PKG_SO="/opt/datadog-php/extensions/ddtrace-$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')-debug.so"
-            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO'"
+            make run_tests TESTS="-d 'extension=$DDTRACE_PKG_SO' tests/ext" MAX_TEST_PARALLELISM=8
       - run:
           name: Run phpt tests against build from source
           command: |
-            make test_c
+            make test_c MAX_TEST_PARALLELISM=8
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -2570,7 +2596,6 @@ jobs:
             TERM=dumb \
             HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME} \
             DATADOG_HAVE_DEV_ENV=1 \
-            DD_TRACE_CLI_ENABLED=1 \
             DD_TRACE_GIT_METADATA_ENABLED=0 \
             pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d datadog.trace.sources_path=" -p datadog_trace
       - run:
@@ -2859,23 +2884,32 @@ jobs:
               grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
             done
 
-      - run:
-          name: Build and test Zend Abstract Interface (debug + UBSan)
-          command: |
-            switch-php debug
-            mkdir -p /tmp/build/zai-debug-ubsan
-            cd /tmp/build/zai-debug-ubsan
-            CMAKE_PREFIX_PATH=/opt/catch2 \
-            Tea_ROOT=/opt/tea/debug \
-            cmake \
-              -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_ZAI_TESTING=ON \
-              -DPhpConfig_ROOT=$(php-config --prefix) \
-              ~/datadog/zend_abstract_interface
-            make -j all
-            make test
-            grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+      - when:
+          condition: # PHP itself is only really ubsan compatible since 7.4
+            not:
+              or:
+                - equal: [ "7.0", << parameters.php_version >> ]
+                - equal: [ "7.1", << parameters.php_version >> ]
+                - equal: [ "7.2", << parameters.php_version >> ]
+                - equal: [ "7.3", << parameters.php_version >> ]
+          steps:
+            - run:
+                name: Build and test Zend Abstract Interface (debug + UBSan)
+                command: |
+                  switch-php debug
+                  mkdir -p /tmp/build/zai-debug-ubsan
+                  cd /tmp/build/zai-debug-ubsan
+                  CMAKE_PREFIX_PATH=/opt/catch2 \
+                  Tea_ROOT=/opt/tea/debug \
+                  cmake \
+                    -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
+                    -DCMAKE_BUILD_TYPE=Debug \
+                    -DBUILD_ZAI_TESTING=ON \
+                    -DPhpConfig_ROOT=$(php-config --prefix) \
+                    ~/datadog/zend_abstract_interface
+                  make -j all
+                  make test
+                  grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 
       - run:
           name: Extension Tea Tests
@@ -2891,7 +2925,7 @@ jobs:
 
               # build ddtrace.so
               cd ~/datadog
-              make clean
+              rm -rf tmp/build_extension
               make install
 
               # Build ext Tea tests
@@ -3332,6 +3366,9 @@ jobs:
       switch_php_version:
         type: string
         default: none
+      use_valgrind:
+        type: boolean
+        default: false
       resource_class:
         type: string
         default: medium
@@ -3354,6 +3391,20 @@ jobs:
           command: |
             set -xeuo pipefail
 
+            if [[ "<< parameters.php_major_minor >>" == "8.4" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.4.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.3.2.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.2" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.2.2.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.1" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.1.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "8.0" ]]; then
+              export XDEBUG_SO_NAME=xdebug-3.0.0.so
+            elif [[ "<< parameters.php_major_minor >>" == "7.4" ]]; then
+              export XDEBUG_SO_NAME=xdebug-2.9.5.so
+            fi
+
             rm -rf dd-library-php-ssi
             tar -xzf dd-library-php-ssi-*-linux.tar.gz
             export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
@@ -3362,6 +3413,10 @@ jobs:
             mkdir -p modules
             cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
             ./bin/test.sh
+            if [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
+              true
+              <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
+            fi
             ./bin/check_glibc_version.sh
 
   "test_loader_alpine":
@@ -3394,6 +3449,7 @@ jobs:
             set -xeuo pipefail
 
             apk add --no-cache curl-dev << parameters.alpine_packages >>
+            export XDEBUG_SO_NAME=xdebug.so
 
             rm -rf dd-library-php-ssi
             tar -xzf dd-library-php-ssi-*-linux.tar.gz
@@ -3518,13 +3574,17 @@ jobs:
           name: Link sidecar and extension
           command: |
             sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags
+            pids=()
             for archive in extensions_$(uname -m)/*.a; do
               (
-                gcc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags) libddtrace_php_$(uname -m)<< parameters.libddtrace_suffix >>.a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
+                cc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive $(cat ddtrace_$(uname -m)<< parameters.libddtrace_suffix >>.ldflags) libddtrace_php_$(uname -m)<< parameters.libddtrace_suffix >>.a -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
                 objcopy --compress-debug-sections ${archive%.a}.so
               ) &
+              pids+=($!)
             done
-            wait
+            for pid in "${pids[@]}"; do
+              wait $pid
+            done
       - persist_to_workspace:
           root: '.'
           paths: [ './extensions_*' ]
@@ -3820,7 +3880,7 @@ jobs:
               php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
               # run phpize just to get run-tests.php
               phpize
-              php run-tests.php -p $(which php) --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+              php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
   "cbindgen up-to-date":
     working_directory: ~/datadog
@@ -3947,6 +4007,7 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               cmake_version:
                 - "3.24.4"
               catch2_version:
@@ -4071,6 +4132,17 @@ workflows:
           abi_no: "20230831"
           triplet: "aarch64-alpine-linux-musl"
           resource_class: "arm.medium"
+      - "cargo build --release":
+          name: "Profiler PHP v8.4 - x86_64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.4"
+          abi_no: "20240924"
+          triplet: "x86_64-alpine-linux-musl"
+      - "cargo build --release":
+          name: "Profiler PHP v8.4 - aarch64-alpine-linux-musl"
+          docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.4"
+          abi_no: "20240924"
+          triplet: "aarch64-alpine-linux-musl"
+          resource_class: "arm.medium"
 
       - "cache cargo deps":
           name: "cache cargo deps - x86_64-unknown-linux-gnu"
@@ -4169,6 +4241,17 @@ workflows:
           abi_no: "20230831"
           triplet: "aarch64-unknown-linux-gnu"
           resource_class: "arm.medium"
+      - "cargo build --release":
+          name: "Profiler PHP v8.4 - x86_64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
+          abi_no: "20240924"
+          triplet: "x86_64-unknown-linux-gnu"
+      - "cargo build --release":
+          name: "Profiler PHP v8.4 - aarch64-unknown-linux-gnu"
+          docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
+          abi_no: "20240924"
+          triplet: "aarch64-unknown-linux-gnu"
+          resource_class: "arm.medium"
 
       - compile_appsec_extension_centos:
           matrix:
@@ -4183,6 +4266,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
               resource_class:
                 - "medium"
                 - "arm.medium"
@@ -4200,6 +4284,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
               resource_class:
                 - "medium"
                 - "arm.medium"
@@ -4224,6 +4309,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
           resource_class: "medium"
           name: "Compile alpine x86_64 PHP << matrix.php_major_minor >>"
       - compile_alpine:
@@ -4239,6 +4325,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
           resource_class: "arm.medium"
           name: "Compile alpine aarch64 PHP << matrix.php_major_minor >>"
       - compile_rust_alpine:
@@ -4261,8 +4348,9 @@ workflows:
             - "Compile alpine x86_64 PHP 8.1"
             - "Compile alpine x86_64 PHP 8.2"
             - "Compile alpine x86_64 PHP 8.3"
+            - "Compile alpine x86_64 PHP 8.4"
           libddtrace_suffix: "-alpine"
-          resource_class: "medium"
+          resource_class: "large"
           name: "Link x86_64 alpine"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - link_extension:
@@ -4277,8 +4365,9 @@ workflows:
             - "Compile alpine aarch64 PHP 8.1"
             - "Compile alpine aarch64 PHP 8.2"
             - "Compile alpine aarch64 PHP 8.3"
+            - "Compile alpine aarch64 PHP 8.4"
           libddtrace_suffix: "-alpine"
-          resource_class: "arm.medium"
+          resource_class: "arm.large"
           name: "Link aarch64 alpine"
           docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine"
       - compile_extension_centos:
@@ -4419,6 +4508,25 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.3_windows"
           php_version: "8.3"
           so_suffix: "20230831"
+      - compile_extension_centos:
+          requires: [ 'Prepare Code' ]
+          name: "Compile x86_64 PHP 84 nts + zts + debug"
+          docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
+          php_version: "8.4"
+          so_suffix: "20240924"
+      - compile_extension_centos:
+          requires: [ 'Prepare Code' ]
+          name: "Compile aarch64 PHP 84 nts + zts + debug"
+          docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
+          php_version: "8.4"
+          so_suffix: "20240924"
+          resource_class: "arm.medium"
+      - compile_extension_windows:
+          requires: [ 'Prepare Code' ]
+          name: "Compile Windows PHP 84 nts + zts"
+          docker_image: "datadog/dd-trace-ci:php-8.4_windows"
+          php_version: "8.4"
+          so_suffix: "20240924"
 
       - compile_rust_centos:
           name: "Compile x86_64 rust"
@@ -4440,6 +4548,7 @@ workflows:
             - "Compile x86_64 PHP 81 nts + zts + debug"
             - "Compile x86_64 PHP 82 nts + zts + debug"
             - "Compile x86_64 PHP 83 nts + zts + debug"
+            - "Compile x86_64 PHP 84 nts + zts + debug"
           name: "Link x86_64 PHP"
           docker_image: "datadog/dd-trace-ci:centos-7"
       - link_extension:
@@ -4454,6 +4563,7 @@ workflows:
             - "Compile aarch64 PHP 81 nts + zts + debug"
             - "Compile aarch64 PHP 82 nts + zts + debug"
             - "Compile aarch64 PHP 83 nts + zts + debug"
+            - "Compile aarch64 PHP 84 nts + zts + debug"
           name: "Link aarch64 PHP"
           docker_image: "datadog/dd-trace-ci:centos-7"
           resource_class: "arm.xlarge"
@@ -4476,6 +4586,7 @@ workflows:
             - "Compile Windows PHP 81 nts + zts"
             - "Compile Windows PHP 82 nts + zts"
             - "Compile Windows PHP 83 nts + zts"
+            - "Compile Windows PHP 84 nts + zts"
             - "Build PECL"
 
             - "Profiler PHP v7.1 - x86_64-alpine-linux-musl"
@@ -4486,6 +4597,7 @@ workflows:
             - "Profiler PHP v8.1 - x86_64-alpine-linux-musl"
             - "Profiler PHP v8.2 - x86_64-alpine-linux-musl"
             - "Profiler PHP v8.3 - x86_64-alpine-linux-musl"
+            - "Profiler PHP v8.4 - x86_64-alpine-linux-musl"
 
             - "Profiler PHP v7.1 - x86_64-unknown-linux-gnu"
             - "Profiler PHP v7.2 - x86_64-unknown-linux-gnu"
@@ -4495,6 +4607,7 @@ workflows:
             - "Profiler PHP v8.1 - x86_64-unknown-linux-gnu"
             - "Profiler PHP v8.2 - x86_64-unknown-linux-gnu"
             - "Profiler PHP v8.3 - x86_64-unknown-linux-gnu"
+            - "Profiler PHP v8.4 - x86_64-unknown-linux-gnu"
 
             - "Profiler PHP v7.1 - aarch64-alpine-linux-musl"
             - "Profiler PHP v7.2 - aarch64-alpine-linux-musl"
@@ -4504,6 +4617,7 @@ workflows:
             - "Profiler PHP v8.1 - aarch64-alpine-linux-musl"
             - "Profiler PHP v8.2 - aarch64-alpine-linux-musl"
             - "Profiler PHP v8.3 - aarch64-alpine-linux-musl"
+            - "Profiler PHP v8.4 - aarch64-alpine-linux-musl"
 
             - "Profiler PHP v7.1 - aarch64-unknown-linux-gnu"
             - "Profiler PHP v7.2 - aarch64-unknown-linux-gnu"
@@ -4513,6 +4627,7 @@ workflows:
             - "Profiler PHP v8.1 - aarch64-unknown-linux-gnu"
             - "Profiler PHP v8.2 - aarch64-unknown-linux-gnu"
             - "Profiler PHP v8.3 - aarch64-unknown-linux-gnu"
+            - "Profiler PHP v8.4 - aarch64-unknown-linux-gnu"
 
             - "Compile Loader Linux x86_64"
             - "Compile Loader Linux aarch64"
@@ -4568,6 +4683,17 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           so_suffix: "20230831"
           resource_class: "arm.medium"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile x86_64 PHP 84 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
+          so_suffix: "20240924"
+      - compile_extension_asan:
+          requires: [ 'Prepare Code' ]
+          name: "Compile aarch64 PHP 84 debug-zts-asan"
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
+          so_suffix: "20240924"
+          resource_class: "arm.medium"
 
       - "package extension":
           name: "package extension zts-debug-asan"
@@ -4584,6 +4710,8 @@ workflows:
             - "Compile aarch64 PHP 82 debug-zts-asan"
             - "Compile x86_64 PHP 83 debug-zts-asan"
             - "Compile aarch64 PHP 83 debug-zts-asan"
+            - "Compile x86_64 PHP 84 debug-zts-asan"
+            - "Compile aarch64 PHP 84 debug-zts-asan"
 
       - "x-profiling phpt tests on Alpine":
           requires: [ 'package extension' ]
@@ -4598,6 +4726,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
 
       - randomized_tests:
           requires: [ 'package extension' ]
@@ -4748,6 +4877,7 @@ workflows:
                 - php:8.1-fpm-alpine
                 - php:8.2-fpm-alpine
                 - php:8.3-fpm-alpine
+                - php:8.4-rc-fpm-alpine
       - verify_centos:
           requires: [ "package extension" ]
           matrix:
@@ -4767,6 +4897,7 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=1
                 - PHP_MAJOR=8 PHP_MINOR=2
                 - PHP_MAJOR=8 PHP_MINOR=3
+                # - PHP_MAJOR=8 PHP_MINOR=4
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
@@ -4789,6 +4920,7 @@ workflows:
                 - PHP_VERSION=8.1
                 - PHP_VERSION=8.2
                 - PHP_VERSION=8.3
+                # - PHP_VERSION=8.4
 
       - verify_tar_gz:
           requires: [ "package extension" ]
@@ -4841,6 +4973,10 @@ workflows:
           requires: [ "Build PECL" ]
           name: "PHP 83 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 84 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
 
       - min_install_tests:
           requires: [ 'package extension' ]
@@ -4859,6 +4995,30 @@ workflows:
           run: |
             cd system-tests
             DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "System tests Integration Tests"
+          build: |
+            cd system-tests
+            ./build.sh php
+          run: |
+            export SYSTEM_TESTS_AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            export SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY=$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh INTEGRATIONS
+
+      - system_tests:
+          requires: [ 'package extension' ]
+          name: "System tests Crossed Tracer Propagation Tests for Messaging"
+          build: |
+            cd system-tests
+            ./build.sh php
+          run: |
+            export SYSTEM_TESTS_AWS_ACCESS_KEY_ID=$SYSTEM_TESTS_IDM_AWS_ACCESS_KEY_ID
+            export SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY=$SYSTEM_TESTS_IDM_AWS_SECRET_ACCESS_KEY
+            cd system-tests
+            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh CROSSED_TRACING_LIBRARIES
 
       - system_tests:
           requires: [ 'package extension' ]
@@ -4921,6 +5081,7 @@ workflows:
           name: "[Linux/x86_64] Loader PHP << matrix.php_major_minor >>-<< matrix.switch_php_version >>"
           docker_image: "datadog/dd-trace-ci:php-<< matrix.php_major_minor >>_buster"
           resource_class: "medium"
+          use_valgrind: true
           matrix:
             parameters:
               php_major_minor:
@@ -4929,6 +5090,7 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               switch_php_version:
                 - debug
                 - zts
@@ -4965,6 +5127,7 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               switch_php_version:
                 - debug
                 - zts
@@ -4976,7 +5139,7 @@ workflows:
           name: "[Alpine/x86_64] Loader PHP Alpine << matrix.alpine_version >>"
           docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "medium"
-          alpine_packages: "php83 php83-dev"
+          alpine_packages: "php83 php83-dev php83-pecl-xdebug"
           matrix:
             parameters:
               alpine_version:
@@ -4990,7 +5153,7 @@ workflows:
           name: "[Alpine/aarch64] Loader PHP Alpine << matrix.alpine_version >>"
           docker_image: "alpine:<< matrix.alpine_version >>"
           resource_class: "arm.medium"
-          alpine_packages: "php83 php83-dev"
+          alpine_packages: "php83 php83-dev php83-pecl-xdebug"
           matrix:
             parameters:
               alpine_version:
@@ -5044,6 +5207,7 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               switch_php_version:
                 - debug
 
@@ -5057,6 +5221,7 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               switch_php_version:
                 - debug-zts-asan
               resource_class:
@@ -5077,14 +5242,33 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               make_target:
-                - test_coverage
+                # - test_coverage
                 - test_unit
                 - test_api_unit
                 - test_c2php
                 - test_c_disabled
                 - test_internal_api_randomized
                 - test_opcache
+
+      - test:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+                - "8.1"
+                - "8.2"
+                - "8.3"
+                - "8.4"
+              make_target:
+                # - test_coverage
 
       - test:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
@@ -5122,6 +5306,7 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               make_target:
                 - test_extension_ci
 
@@ -5137,6 +5322,7 @@ workflows:
                 - "datadog/dd-trace-ci:php-8.1_windows"
                 - "datadog/dd-trace-ci:php-8.2_windows"
                 - "datadog/dd-trace-ci:php-8.3_windows"
+                - "datadog/dd-trace-ci:php-8.4_windows"
 
       # sidecar is version independent
       - test_sidecar_sender:
@@ -5154,11 +5340,12 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               switch_php_version:
                 - debug-zts-asan
 
       - coverage:
-          requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
+          requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               php_major_minor:
@@ -5171,8 +5358,9 @@ workflows:
                 - "8.1"
                 - "8.2"
                 - "8.3"
+                - "8.4"
               make_target:
-                - test_coverage
+                # - test_coverage
       - asan:
           requires: [ 'Prepare Code', '<< matrix.resource_class >>: Compile << matrix.php_major_minor >> ZTS asan extension for testing', '<< matrix.resource_class >>: Compile ASAN rust code for testing' ]
           matrix:
@@ -5183,6 +5371,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
               switch_php_version:
                 - debug-zts-asan
               resource_class:
@@ -5202,7 +5391,7 @@ workflows:
 
       - integration:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
-          resource_class: medium+
+          resource_class: large
           matrix:
             parameters:
               php_major_minor:
@@ -5215,6 +5404,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
               make_target:
                 - test_auto_instrumentation
                 - test_composer
@@ -5251,6 +5441,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
               make_target:
                 - test_web
                 - test_integrations
@@ -5288,6 +5479,7 @@ workflows:
                 - '8.1'
                 - '8.2'
                 - '8.3'
+                - '8.4'
               make_target:
                 - test_distributed_tracing
 
@@ -5380,6 +5572,22 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
           php_major_minor: "8.3"
       - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.4 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 84 web tests with apache (+ opcache)"
+          resource_class: medium+
+          sapi: apache2handler
+          make_target: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
+          php_major_minor: "8.4"
+      - integration_tests:
+          requires: [ 'Prepare Code', 'Compile 8.4 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 84 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          make_target: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
+          php_major_minor: "8.4"
+      - integration_tests:
           requires: [ 'Prepare Code', 'Compile 7.4 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
@@ -5452,8 +5660,19 @@ workflows:
           requires: [ 'Prepare Code', 'Compile 8.3 extension for testing', 'Compile rust code for testing' ]
           name: "PHP 83 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.3_buster"
-          xdebug_version_one: "3.3.0"
+          xdebug_version_one: "3.3.2"
+      - xdebug_tests:
+          requires: [ 'Prepare Code', 'Compile 8.4 extension for testing', 'Compile rust code for testing' ]
+          name: "PHP 84 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
+          xdebug_version_one: "3.4.0"
 
+      - php_language_tests:
+          requires: [ 'Compile rust code for testing', 'Compile 8.4 extension for testing' ]
+          name: "PHP 84 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/8.4.list
+          docker_image: "datadog/dd-trace-ci:php-8.4_buster"
+          parallel_workers: true
       - php_language_tests:
           requires: [ 'Compile rust code for testing', 'Compile 8.3 extension for testing' ]
           name: "PHP 83 language tests"
@@ -5557,6 +5776,7 @@ workflows:
               - "8.1"
               - "8.2"
               - "8.3"
+              - "8.4"
             resource_class:
               - medium
               - arm.medium
@@ -5588,6 +5808,7 @@ workflows:
               - "8.1"
               - "8.2"
               - "8.3"
+              - "8.4"
             resource_class:
               - medium
               - arm.medium
@@ -5602,7 +5823,7 @@ workflows:
             targets:
               - test7.0-release test7.0-release-zts test7.1-release test7.1-release-zts test7.2-release test7.2-release-zts
               - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
-              - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts
+              - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
 
     - coverage_appsec:
         requires: [ hunter_cache_ubuntu ]
@@ -5706,6 +5927,15 @@ workflows:
         docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.3"
         triplet: "aarch64-alpine-linux-musl"
         resource_class: "arm.medium"
+    - "profiling tests":
+        name: "Profiler test PHP v8.4 - x86_64-alpine-linux-musl"
+        docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.4"
+        triplet: "x86_64-alpine-linux-musl"
+    - "profiling tests":
+        name: "Profiler test PHP v8.4 - aarch64-alpine-linux-musl"
+        docker_image: "datadog/dd-trace-ci:php-compile-extension-alpine-8.4"
+        triplet: "aarch64-alpine-linux-musl"
+        resource_class: "arm.medium"
 
     - "profiling tests":
         name: "Profiler test PHP v7.1 - x86_64-unknown-linux-gnu"
@@ -5777,5 +6007,14 @@ workflows:
     - "profiling tests":
         name: "Profiler test PHP v8.3 - aarch64-unknown-linux-gnu"
         docker_image: "datadog/dd-trace-ci:php-8.3_centos-7"
+        triplet: "aarch64-unknown-linux-gnu"
+        resource_class: "arm.medium"
+    - "profiling tests":
+        name: "Profiler test PHP v8.4 - x86_64-unknown-linux-gnu"
+        docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
+        triplet: "x86_64-unknown-linux-gnu"
+    - "profiling tests":
+        name: "Profiler test PHP v8.4 - aarch64-unknown-linux-gnu"
+        docker_image: "datadog/dd-trace-ci:php-8.4_centos-7"
         triplet: "aarch64-unknown-linux-gnu"
         resource_class: "arm.medium"

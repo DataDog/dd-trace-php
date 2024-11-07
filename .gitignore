@@ -46,7 +46,7 @@ modules/*
 php_test_results*
 results.bin
 run-tests.php
-/target
+/target*
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff

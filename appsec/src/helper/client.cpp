@@ -5,15 +5,13 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include <chrono>
+#include <map>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
-#include <thread>
 
 #include "action.hpp"
-#include "base64.h"
 #include "client.hpp"
-#include "compression.hpp"
 #include "exception.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
@@ -146,12 +144,11 @@ bool handle_message(client &client, const network::base_broker &broker,
 bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
-                 "runtime_version={}, service={}, engine_settings={}, "
+                 "runtime_version={}, engine_settings={}, "
                  "remote_config_settings={}",
         command.pid, command.client_version, command.runtime_version,
-        command.service, command.engine_settings, command.rc_settings);
+        command.engine_settings, command.rc_settings);
 
-    auto service_id = command.service;
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
 
@@ -162,19 +159,15 @@ bool client::handle_command(const network::client_init::request &command)
     bool has_errors = false;
 
     client_enabled_conf = command.enabled_configuration;
-    if (service_id.runtime_id.empty()) {
-        service_id.runtime_id = generate_random_uuid();
-    }
-    runtime_id_ = service_id.runtime_id;
 
     try {
-        service_ = service_manager_->create_service(std::move(service_id),
-            eng_settings, command.rc_settings, meta, metrics,
-            !client_enabled_conf.has_value());
-        if (service_) {
-            // This null check is only needed due to some tests
-            service_->register_runtime_id(runtime_id_);
-        }
+        service_ =
+            service_manager_->create_service(eng_settings, command.rc_settings,
+                meta, metrics, !client_enabled_conf.has_value());
+
+        // save engine settings so we can recreate the service if rc path
+        // changes
+        engine_settings_ = eng_settings;
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
@@ -340,13 +333,22 @@ bool client::compute_client_status()
     return request_enabled_;
 }
 
-bool client::handle_command(network::config_sync::request & /* command */)
+bool client::handle_command(network::config_sync::request &command)
 {
     if (!service_guard<network::config_sync>()) {
         return false;
     }
 
-    SPDLOG_DEBUG("received command config_sync");
+    SPDLOG_DEBUG(
+        "received command config_sync with path {}", command.rem_cfg_path);
+
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    update_remote_config_path(command.rem_cfg_path, meta, metrics);
+
+    // TODO: meta/metrics not transmitted fwd
+    // wait for new interface; see
+    // https://github.com/DataDog/dd-trace-php/pull/2735
 
     if (compute_client_status()) {
         auto response_cf =
@@ -363,7 +365,7 @@ bool client::handle_command(network::config_sync::request & /* command */)
         return true;
     }
 
-    SPDLOG_DEBUG("sending config_sync to config_sync");
+    SPDLOG_DEBUG("sending response to config_sync");
     try {
         return broker_->send(
             std::make_shared<network::config_sync::response>());
@@ -434,6 +436,31 @@ bool client::handle_command(network::request_shutdown::request &command)
     return send_message<network::request_shutdown>(response);
 }
 
+void client::update_remote_config_path(std::string_view path,
+    std::map<std::string, std::string> &meta,
+    std::map<std::string_view, double> &metrics)
+{
+    if (service_->is_remote_config_shmem_path(path) ||
+        !engine_settings_.has_value()) {
+        return;
+    }
+
+    remote_config::settings rc_settings;
+    if (path.empty()) {
+        SPDLOG_INFO("Remote config path is empty, recreating service with "
+                    "disabled remote config");
+        rc_settings.enabled = false;
+    } else {
+        SPDLOG_INFO(
+            "Remote config path changed to {}, recreating service", path);
+        rc_settings.enabled = true;
+        rc_settings.shmem_path = path;
+    }
+
+    service_ = service_manager_->create_service(
+        *engine_settings_, rc_settings, meta, metrics, true);
+}
+
 bool client::run_client_init()
 {
     static constexpr auto client_init_timeout{std::chrono::milliseconds{500}};
@@ -457,12 +484,6 @@ bool client::run_request()
 
 void client::run(worker::queue_consumer &q)
 {
-    const defer on_exit{[this]() {
-        if (this->service_) {
-            this->service_->unregister_runtime_id(this->runtime_id_);
-        }
-    }};
-
     if (q.running()) {
         if (!run_client_init()) {
             SPDLOG_DEBUG("Finished handling client (client_init failed)");

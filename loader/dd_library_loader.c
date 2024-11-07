@@ -8,6 +8,7 @@
 #include <php.h>
 #include <php_ini.h>
 #include <stdbool.h>
+#include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
 
 #include "compat_php.h"
@@ -27,6 +28,8 @@ static bool injection_forced = false;
 #else
 # define OS_PATH "linux-gnu/"
 #endif
+
+static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...);
 
 static char *ddtrace_pre_load_hook(void) {
     char *libddtrace_php;
@@ -60,6 +63,74 @@ static char *ddtrace_pre_load_hook(void) {
     return NULL;
 }
 
+static bool ddloader_is_ext_loaded(const char *name) {
+    return zend_hash_str_find_ptr(&module_registry, name, strlen(name))
+        || zend_get_extension(name)
+    ;
+}
+
+static zval *ddloader_ini_get_configuration(const char *name, size_t name_len) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (!configuration_hash) {
+        return NULL;
+    }
+    zend_string *ini = ddloader_zend_string_init(php_api_no, name, name_len, 1);
+    zval *val = zend_hash_find(configuration_hash, ini);
+    ddloader_zend_string_release(php_api_no, ini);
+
+    return val;
+}
+
+static void ddloader_ini_set_configuration(const char *name, size_t name_len, const char *value, size_t value_len) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (!configuration_hash) {
+        return;
+    }
+
+    zend_string *zstr_name = ddloader_zend_string_init(php_api_no, name, name_len, 1);
+    zend_string *zstr_value = ddloader_zend_string_init(php_api_no, value, value_len, 1);
+
+    zval tmp;
+    ZVAL_STR(&tmp, zstr_value);
+    ddloader_zend_hash_update(configuration_hash, zstr_name, &tmp);
+    ddloader_zend_string_release(php_api_no, zstr_name);
+}
+
+static bool ddloader_is_opcache_jit_enabled() {
+    // JIT is only PHP 8.0+
+    if (php_api_no < 20200930 || !ddloader_is_ext_loaded("Zend OPcache")) {
+        return false;
+    }
+
+    // opcache.enable = false (default: true)
+    zval *opcache_enable = ddloader_ini_get_configuration(ZEND_STRL("opcache.enable"));
+    if (opcache_enable && Z_TYPE_P(opcache_enable) == IS_STRING && !ddloader_zend_ini_parse_bool(Z_STR_P(opcache_enable))) {
+        return false;
+    }
+    if (strcmp("cli", sapi_module.name) == 0) {
+        // opcache.enable_cli = false (default: false)
+        zval *opcache_enable_cli = ddloader_ini_get_configuration(ZEND_STRL("opcache.enable_cli"));
+        if (!opcache_enable_cli || Z_TYPE_P(opcache_enable_cli) != IS_STRING || !ddloader_zend_ini_parse_bool(Z_STR_P(opcache_enable_cli))) {
+            return false;
+        }
+    }
+    if (php_api_no > 20230831) { // PHP > 8.3 (https://wiki.php.net/rfc/jit_config_defaults)
+        // opcache.jit == disable (default: disable)
+        zval *opcache_jit = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit"));
+        if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0) {
+            return false;
+        }
+    } else {
+        // opcache.jit_buffer_size = 0 (default: 0)
+        zval *opcache_jit_buffer_size = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit_buffer_size"));
+        if (!opcache_jit_buffer_size || Z_TYPE_P(opcache_jit_buffer_size) != IS_STRING || strcmp(Z_STRVAL_P(opcache_jit_buffer_size), "0") == 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void ddtrace_pre_minit_hook(void) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
@@ -69,13 +140,36 @@ static void ddtrace_pre_minit_hook(void) {
         }
 
         // Set 'datadog.trace.sources_path' setting
-        zend_string *name = ddloader_zend_string_init(php_api_no, ZEND_STRL("datadog.trace.sources_path"), 1);
-        zend_string *value = ddloader_zend_string_init(php_api_no, sources_path, strlen(sources_path), 1);
+        ddloader_ini_set_configuration(ZEND_STRL("datadog.trace.sources_path"), sources_path, strlen(sources_path));
         free(sources_path);
+    }
 
-        zval tmp;
-        ZVAL_STR(&tmp, value);
-        ddloader_zend_hash_update(configuration_hash, name, &tmp);
+    // Load, but disable the tracer if runtime configuration is not safe for auto-injection
+    bool disable_tracer = false;
+
+    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
+    for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
+        if (ddloader_is_ext_loaded(incompatible_exts[i])) {
+            if (force_load) {
+                LOG(WARN, "Potentially incompatible extension detected: %s. Ignoring as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
+            } else {
+                LOG(WARN, "Potentially incompatible extension detected: %s. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'", incompatible_exts[i]);
+                disable_tracer = true;
+            }
+        }
+    }
+
+    if (ddloader_is_opcache_jit_enabled()) {
+        if (force_load) {
+            LOG(WARN, "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled");
+        } else {
+            LOG(WARN, "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'");
+            disable_tracer = true;
+        }
+    }
+
+    if (disable_tracer) {
+        ddloader_ini_set_configuration(ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
 }
 
@@ -460,24 +554,17 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     config->module_number = module_entry->module_number;
     config->version = (char *)module_entry->version;
 
-    return SUCCESS;
+    goto ok;
 
 abort_and_unload:
     LOG(INFO, "Unloading the library");
     DL_UNLOAD(handle);
 abort:
     LOG(INFO, "Abort the loader");
+ok:
     free(ext_path);
 
     return SUCCESS;
-}
-
-static void ddloader_strtolower(char *dest, char *src) {
-    while (*src) {
-        *dest = (char)tolower((int)*src);
-        ++dest;
-        ++src;
-    }
 }
 
 static bool ddloader_is_truthy(char *str) {
@@ -490,10 +577,7 @@ static bool ddloader_is_truthy(char *str) {
         return false;
     }
 
-    char lower[5] = {0};
-    ddloader_strtolower(lower, str);
-
-    return (strcmp(lower, "1") == 0 || strcmp(lower, "true") == 0 || strcmp(lower, "yes") == 0 || strcmp(lower, "on") == 0);
+    return (strcasecmp(str, "1") == 0 || strcasecmp(str, "true") == 0 || strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0);
 }
 
 static inline void ddloader_configure() {
@@ -577,6 +661,7 @@ static int ddloader_api_no_check(int api_no) {
         case 420210902:  // 8.1
         case 420220829:  // 8.2
         case 420230831:  // 8.3
+        case 420240924:  // 8.4
             break;
 
         default:

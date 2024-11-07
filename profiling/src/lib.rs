@@ -31,6 +31,8 @@ use core::ptr;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
 use libc::c_char;
+#[cfg(php_zts)]
+use libc::c_void;
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -128,6 +130,13 @@ extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
 }
 
+/// We do not have any globals, but we need TSRM to call into GINIT and GSHUTDOWN to observe
+/// spawning and joining threads. This will be pointed to by the [`ModuleEntry::globals_id_ptr`] in
+/// the `zend_module_entry` and the TSRM will store it's thread-safe-resource id here.
+/// See: <https://heap.space/xref/PHP-8.3/Zend/zend_API.c?r=d41e97ae#2303>
+#[cfg(php_zts)]
+static mut GLOBALS_ID_PTR: i32 = 0;
+
 /// The function `get_module` is what makes this a PHP module. Please do not
 /// call this directly; only let it be called by the engine. Generally it is
 /// only called once, but if someone accidentally loads the module twice then
@@ -160,11 +169,31 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         version: PROFILER_VERSION.as_ptr(),
         post_deactivate_func: Some(prshutdown),
         deps: DEPS.as_ptr(),
+        #[cfg(php_zts)]
+        globals_ctor: Some(ginit),
+        #[cfg(php_zts)]
+        globals_dtor: Some(gshutdown),
+        #[cfg(php_zts)]
+        globals_size: 1,
+        #[cfg(php_zts)]
+        globals_id_ptr: unsafe { &mut GLOBALS_ID_PTR },
         ..Default::default()
     });
 
     // SAFETY: well, it's at least as safe as what every single C extension does.
     unsafe { &mut *ptr::addr_of_mut!(MODULE) }
+}
+
+#[cfg(php_zts)]
+unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
+    #[cfg(all(feature = "timeline", php_zts))]
+    timeline::timeline_ginit();
+}
+
+#[cfg(php_zts)]
+unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
+    #[cfg(all(feature = "timeline", php_zts))]
+    timeline::timeline_gshutdown();
 }
 
 /* Important note on the PHP lifecycle:

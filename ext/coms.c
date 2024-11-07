@@ -1072,6 +1072,11 @@ static void *_dd_writer_loop(void *_) {
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
         struct curl_slist *headers = curl_slist_append(NULL, "Content-Type: application/json");
+        if (*ddtrace_coms_globals.test_session_token) {
+            char buffer[300];
+            sprintf(buffer, "x-datadog-test-session-token: %s", ddtrace_coms_globals.test_session_token);
+            headers = curl_slist_append(headers, buffer);
+        }
         curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
         ddtrace_curl_set_telemetry_url(writer->curl);
         curl_easy_perform(writer->curl);
@@ -1199,9 +1204,24 @@ static struct _writer_thread_variables_t *_dd_create_thread_variables() {
     return thread;
 }
 
-bool ddtrace_coms_init_and_start_writer(void) {
+static bool _dd_coms_start_writer(void) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
     _dd_writer_set_operational_state(writer);
+    struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
+    writer->thread = thread;
+    writer->set_secbit = get_global_DD_TRACE_RETAIN_THREAD_CAPABILITIES();
+    atomic_store(&writer->starting_up, true);
+    return pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0;
+}
+
+bool ddtrace_coms_restart_writer(void) {
+    ddtrace_coms_minit(ddtrace_coms_globals.initial_stack_size, ddtrace_coms_globals.max_payload_size, ddtrace_coms_globals.max_backlog_size, NULL);
+    return _dd_coms_start_writer();
+}
+
+
+bool ddtrace_coms_init_and_start_writer(void) {
+    struct _writer_loop_data_t *writer = _dd_get_writer();
     atomic_store(&writer->current_pid, getpid());
 
     dd_agent_curl_headers = dd_agent_headers_alloc();
@@ -1211,16 +1231,7 @@ bool ddtrace_coms_init_and_start_writer(void) {
     }
 
     ddtrace_ffi_try("error creating config writer", ddog_create_agent_remote_config_writer(&dd_agent_config_writer, &ddtrace_coms_agent_config_handle));
-
-    struct _writer_thread_variables_t *thread = _dd_create_thread_variables();
-    writer->thread = thread;
-    writer->set_secbit = get_global_DD_TRACE_RETAIN_THREAD_CAPABILITIES();
-    atomic_store(&writer->starting_up, true);
-    if (pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    return _dd_coms_start_writer();
 }
 
 static bool _dd_has_pid_changed(void) {

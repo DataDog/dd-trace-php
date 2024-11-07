@@ -5,9 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "attributes.h"
 #include <stdbool.h>
 #include <zend.h>
+#include "attributes.h"
 
 static const int PRIORITY_SAMPLING_AUTO_KEEP = 1;
 static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
@@ -79,3 +79,5 @@ bool dd_trace_user_req_add_listeners(
     ddtrace_user_req_listeners *nonnull listeners);
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
+
+const char *nullable dd_trace_remote_config_get_path(void);

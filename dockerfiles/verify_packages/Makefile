@@ -128,6 +128,11 @@ test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
 
+test_alpine_zts_no_zend_signals.sh \
+	: global_test_dependencies
+	@echo "################### $(@) ###################"
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
+
 test_alpine_no_libexecinfo.sh: global_test_dependencies
 	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)

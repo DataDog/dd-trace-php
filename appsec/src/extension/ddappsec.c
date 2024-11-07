@@ -25,6 +25,7 @@
 #include "commands/request_init.h"
 #include "commands/request_shutdown.h"
 #include "commands_ctx.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -45,6 +46,7 @@
 #include "user_tracking.h"
 
 #include <json/json.h>
+#include <zend_string.h>
 
 #if ZTS
 static atomic_int _thread_count;
@@ -100,7 +102,7 @@ static zend_extension ddappsec_extension_entry = {
     PHP_DDAPPSEC_EXTNAME,
     PHP_DDAPPSEC_VERSION,
     "Datadog",
-    "https://github.com/DataDog/dd-appsec-php",
+    "https://github.com/DataDog/dd-trace-php",
     "Copyright Datadog",
     ddappsec_startup,
     NULL,
@@ -378,6 +380,23 @@ static void _check_enabled()
     };
 }
 
+__attribute__((visibility("default"))) void dd_appsec_rc_conf(
+    bool *nonnull appsec_features, bool *nonnull appsec_conf) // NOLINT
+{
+    bool prev_enabled = DDAPPSEC_G(enabled);
+    bool prev_active = DDAPPSEC_G(active);
+    bool prev_to_be_configured = DDAPPSEC_G(to_be_configured);
+    _check_enabled();
+
+    *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
+    // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
+    *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
+
+    DDAPPSEC_G(enabled) = prev_enabled;
+    DDAPPSEC_G(active) = prev_active;
+    DDAPPSEC_G(to_be_configured) = prev_to_be_configured;
+}
+
 static PHP_FUNCTION(datadog_appsec_is_enabled)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -524,16 +543,16 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

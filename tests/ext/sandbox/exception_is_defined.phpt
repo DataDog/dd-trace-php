@@ -2,6 +2,7 @@
 Exceptions in the tracing closure callback are always defined
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_APPSEC_ENABLED=0
 --FILE--
 <?php
 

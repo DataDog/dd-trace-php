@@ -1,6 +1,7 @@
 --TEST--
 deferred loading only happens once, even if dispatch is not overwritten
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--

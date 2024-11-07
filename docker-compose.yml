@@ -13,9 +13,10 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
         - agent-socket:/var/run/datadog
         - .cargo-registry:/rust/cargo/registry
-      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec,size=12G' ]
       depends_on:
         - agent
+        #- staging_agent
         - ddagent_integration
         - request-replayer
         - test-agent
@@ -81,9 +82,11 @@ services:
   '8.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
   '8.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
   '8.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_buster' }
+  '8.4-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_buster' }
   'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- Bookworm ---
-  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-3' }
+  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-5' }
+  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-5' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
   '7.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
@@ -103,6 +106,7 @@ services:
   '8.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.1_windows' }
   '8.2-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.2_windows' }
   '8.3-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.3_windows' }
+  '8.4-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.4_windows' }
 
   rabbitmq_integration:
     image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
@@ -199,8 +203,28 @@ services:
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
       - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
     ports:
       - "8126:8126"
+
+  staging_agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - agent-socket:/var/run/datadog
+    environment:
+      - DD_API_KEY=${DATADOG_STAGING_API_KEY}
+      - DD_SITE=datad0g.com
+      - DD_APM_ENABLED=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+      - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
+      - DD_REMOTE_CONFIGURATION_REFRESH_INTERVAL=5s
+      - DD_APM_RECEIVER_PORT=8125
+    ports:
+      - "8125:8125"
 
   packager:
     image: datadog/docker-library:ddtrace_php_fpm_packaging

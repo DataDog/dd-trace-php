@@ -1,10 +1,14 @@
 Q := @
+, := ,
 PROJECT_ROOT := ${PWD}
 TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
-ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q libasan && echo 1)
+ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q asan && echo 1)
 SHELL = /bin/bash
+APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
 BUILD_SUFFIX = extension
-BUILD_DIR = $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR_NAME = tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR = $(PROJECT_ROOT)/$(BUILD_DIR_NAME)
+BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
 ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
 TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
 TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
@@ -13,7 +17,8 @@ TEA_BUILD_BENCHMARKS ?= OFF
 TEA_BENCHMARK_REPETITIONS ?= 10
 # Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
 TEA_BENCHMARK_FORMAT ?= json
-TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tracer-tea-bench-results.$(TEA_BENCHMARK_FORMAT)
+BENCHMARK_EXTRA ?=
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
 SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
 AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
@@ -27,6 +32,7 @@ QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
+MAX_TEST_PARALLELISM ?= $(shell nproc)
 
 VERSION := $(shell cat VERSION)
 
@@ -35,11 +41,11 @@ INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
 # shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(shell nproc))
+RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dynamic-configuration,ipc,remote-config,sidecar,sidecar-ffi,spawn_worker,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -127,13 +133,31 @@ $(INI_FILE):
 
 install_ini: $(INI_FILE)
 
+delete_ini:
+	$(SUDO) rm $(INI_FILE)
+
+install_appsec:
+	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
+	cd $(BUILD_DIR_APPSEC);make extension ddappsec-helper
+	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
+	cp $(BUILD_DIR_APPSEC)/libddappsec-helper.so $(PHP_EXTENSION_DIR)/libddappsec-helper.so
+	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
+	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
+	$(Q) echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" | $(SUDO) tee -a $(INI_FILE)
+
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(RUN_TESTS_CMD) $(BUILD_DIR)/$(TESTS)
+	DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -145,20 +169,19 @@ test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-te
 	)
 
 test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
 
-test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
 
 test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
+	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	sed -i 's/stream_socket_accept($$listenSock, 5)/stream_socket_accept($$listenSock, 20)/' $(BUILD_DIR)/run-tests.php; \
-	export DD_TRACE_CLI_ENABLED=1; \
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
@@ -166,13 +189,12 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_CLI_ENABLED=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
-	export DD_TRACE_CLI_ENABLED=1; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	export DD_TRACE_GIT_METADATA_ENABLED=0; \
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
@@ -239,6 +261,9 @@ build_tea_coverage:
 			-DCMAKE_BUILD_TYPE=Debug \
 			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
 			-DCMAKE_C_FLAGS="-O0 --coverage" \
+			-DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
+			-DCMAKE_MODULE_LINKER_FLAGS="--coverage" \
+			-DCMAKE_EXE_LINKER_FLAGS="--coverage" \
 			-DPhpConfig_ROOT=$(shell php-config --prefix) \
 		$(PROJECT_ROOT)/tea; \
 		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
@@ -279,7 +304,7 @@ build_zai_coverage: install_tea_coverage
 	cd $(ZAI_BUILD_DIR); \
 	CMAKE_PREFIX_PATH=/opt/catch2 \
 	Tea_ROOT=$(TEA_INSTALL_DIR) \
-	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
+	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -293,7 +318,7 @@ build_components_coverage:
 	( \
 	mkdir -p "$(COMPONENTS_BUILD_DIR)"; \
 	cd $(COMPONENTS_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" $(PROJECT_ROOT)/components; \
+	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" $(PROJECT_ROOT)/components; \
 	$(MAKE) $(MAKEFLAGS); \
 	)
 
@@ -381,9 +406,9 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
+	rm -f components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 
-generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
+generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
 	( \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
 			--config cbindgen.toml \
@@ -392,6 +417,9 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
 			--config ddcommon-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
+			--config live-debugger-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
 			--config ddtelemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
@@ -405,7 +433,7 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
 	)
 
 cbindgen_binary:
@@ -492,7 +520,7 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 DD_TRACE_CLI_ENABLED=true DD_TRACE_GIT_METADATA_ENABLED=false
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 DD_TRACE_GIT_METADATA_ENABLED=false
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
@@ -1016,7 +1044,7 @@ define run_composer_with_retry
 endef
 
 define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 84 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 84 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
+	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 83 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 83 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
 endef
 
 define run_tests_with_coverage
@@ -1040,11 +1068,11 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_composer_with_lock
@@ -1115,7 +1143,7 @@ test_distributed_tracing_coverage:
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
-benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_8_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
+benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 
 call_benchmarks:
@@ -1237,7 +1265,9 @@ test_integrations_frankenphp: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_sqlsrv: global_test_run_dependencies
+	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
+	$(eval TEST_EXTRA_INI=)
 test_integrations_swoole_5: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1381,7 +1411,7 @@ test_api_unit: composer.lock global_test_run_dependencies
 
 # Just test it does not crash, i.e. the exit code
 test_internal_api_randomized: $(SO_FILE)
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) php -n -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2> >(grep -A 1000 ==============)
+	$(if $(ASAN), DD_TRACE_DEBUG=1 USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) php -n -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2> >(grep -A 1000 ==============)
 
 composer.lock: composer.json
 	$(call run_composer_with_retry,,)

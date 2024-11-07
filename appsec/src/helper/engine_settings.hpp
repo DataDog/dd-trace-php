@@ -9,7 +9,7 @@
 #include "utils.hpp"
 #include <cstdint>
 #include <msgpack.hpp>
-#include <ostream>
+#include <spdlog/spdlog.h>
 #include <string>
 
 namespace dds {
@@ -39,6 +39,11 @@ struct engine_settings {
     std::string obfuscator_value_regex;
     schema_extraction_settings schema_extraction;
 
+    engine_settings() = default;
+    engine_settings(const engine_settings &) = default;
+    engine_settings(engine_settings &&) = default;
+    engine_settings &operator=(const engine_settings &) = default;
+    engine_settings &operator=(engine_settings &&) = default;
     virtual ~engine_settings() = default;
 
     static const std::string &default_rules_file();
@@ -66,27 +71,33 @@ struct engine_settings {
                schema_extraction.sample_rate ==
                    oth.schema_extraction.sample_rate;
     }
-
-    friend auto &operator<<(std::ostream &os, const engine_settings &c)
-    {
-        return os << "{rules_file=" << c.rules_file
-                  << ", waf_timeout_us=" << c.waf_timeout_us
-                  << ", trace_rate_limit=" << c.trace_rate_limit
-                  << ", obfuscator_key_regex=" << c.obfuscator_key_regex
-                  << ", obfuscator_value_regex=" << c.obfuscator_value_regex
-                  << ", schema_extraction.enabled="
-                  << c.schema_extraction.enabled
-                  << ", schema_extraction.sample_rate=" << std::fixed
-                  << c.schema_extraction.sample_rate << "}";
-    }
-
-    struct settings_hash {
-        std::size_t operator()(const engine_settings &s) const noexcept
-        {
-            return hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
-                s.obfuscator_key_regex, s.obfuscator_value_regex,
-                s.schema_extraction.enabled, s.schema_extraction.sample_rate);
-        }
-    };
 };
+
 } // namespace dds
+
+template <> struct fmt::formatter<dds::engine_settings> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const dds::engine_settings &c, FormatContext &ctx) const
+    {
+        return format_to(ctx.out(),
+            "{{rules_file={}, waf_timeout_us={}, trace_rate_limit={}, "
+            "obfuscator_key_regex={}, obfuscator_value_regex={}, "
+            "schema_extraction.enabled={}, schema_extraction.sample_rate={}}}",
+            c.rules_file, c.waf_timeout_us, c.trace_rate_limit,
+            c.obfuscator_key_regex, c.obfuscator_value_regex,
+            c.schema_extraction.enabled, c.schema_extraction.sample_rate);
+    }
+};
+
+namespace std {
+template <> struct hash<dds::engine_settings> {
+    std::size_t operator()(const dds::engine_settings &s) const noexcept
+    {
+        return dds::hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
+            s.obfuscator_key_regex, s.obfuscator_value_regex,
+            s.schema_extraction.enabled, s.schema_extraction.sample_rate);
+    }
+};
+} // namespace std

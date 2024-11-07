@@ -104,6 +104,7 @@ ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/ftp/tests
 ext/gd/tests/bug70976.phpt
+ext/intl/tests/bug60192-sort.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/bug77843.phpt
 ext/json/tests/pass001.phpt
@@ -156,7 +157,9 @@ ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
 ext/phar/tests/bug69720.phpt
 ext/phar/tests/bug70433.phpt
+ext/phar/tests/cache_list/frontcontroller29.phpt
 ext/phar/tests/fatal_error_webphar.phpt
+ext/phar/tests/frontcontroller29.phpt
 ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
 ext/phar/tests/phar_oo_002.phpt
@@ -319,3 +322,12 @@ tests/classes/clone_004.phpt
 tests/lang/bug45392.phpt
 tests/lang/type_hints_002.phpt
 tests/output/ob_start_basic_002.phpt
+
+Zend/tests/dval_to_lval_64.phpt
+Zend/tests/int_overflow_64bit.phpt
+ext/standard/tests/math/decbin_variation1_64bit.phpt
+ext/standard/tests/math/dechex_variation1_64bit.phpt
+ext/standard/tests/math/decoct_variation1_64bit.phpt
+ext/standard/tests/strings/bug47842.phpt
+ext/standard/tests/strings/vprintf_variation15_64bit.phpt
+ext/standard/tests/strings/vsprintf_variation15_64bit.phpt

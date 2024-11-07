@@ -8,32 +8,41 @@
 #include <php.h>
 
 #include "../commands_helpers.h"
+#include "../ddtrace.h"
+#include "../logging.h"
+#include "../msgpack_helpers.h"
+#include "config_sync.h"
 #include <mpack.h>
 
-static dd_result _request_pack(
-    mpack_writer_t *nonnull w, void *nullable ATTR_UNUSED ctx);
+static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
 dd_result dd_command_process_config_sync(
     mpack_node_t root, ATTR_UNUSED void *unspecnull ctx);
 
 static const dd_command_spec _spec = {
     .name = "config_sync",
     .name_len = sizeof("config_sync") - 1,
-    .num_args = 0, // a single map
+    .num_args = 1,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_process_config_sync,
     .config_features_cb = dd_command_process_config_features,
 };
 
-dd_result dd_config_sync(dd_conn *nonnull conn)
+dd_result dd_config_sync(
+    dd_conn *nonnull conn, const struct config_sync_data *nonnull data)
 {
-    return dd_command_exec(conn, &_spec, NULL);
+    mlog_g(dd_log_debug,
+        "Sending config sync request to the helper with path %s",
+        data->rem_cfg_path);
+
+    return dd_command_exec(conn, &_spec, (void *)data);
 }
 
-static dd_result _request_pack(
-    mpack_writer_t *nonnull w, void *nullable ATTR_UNUSED ctx)
+static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx_)
 {
-    UNUSED(ctx);
-    UNUSED(w);
+    const struct config_sync_data *nonnull data =
+        (struct config_sync_data *)ctx_;
+
+    dd_mpack_write_nullable_cstr(w, data->rem_cfg_path);
 
     return dd_success;
 }

@@ -81,7 +81,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                 }
                 zai_json_dtor_pzval(&new_zv);
 
-                parsed_ini_value = zend_string_copy(ini_str);
+                parsed_ini_value = ini_str;
                 name_index = i;
                 break;
             }
@@ -93,7 +93,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
 
     for (int16_t i = 0; i < ini_count; ++i) {
         if (entries[i]->modified && !runtime_value && (is_minit || entries[i]->modifiable == PHP_INI_SYSTEM)) {
-            runtime_value = zend_string_copy(entries[i]->value);
+            runtime_value = entries[i]->value;
         }
         zval *inizv = cfg_get_entry(ZSTR_VAL(entries[i]->name), ZSTR_LEN(entries[i]->name));
         if (inizv != NULL && !parsed_ini_value) {
@@ -105,7 +105,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
             }
             zai_json_dtor_pzval(&new_zv);
 
-            parsed_ini_value = zend_string_copy(Z_STR_P(inizv));
+            parsed_ini_value = Z_STR_P(inizv);
             name_index = i;
             break;
         }
@@ -123,19 +123,27 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                 continue;
             }
 
-            zend_string **target = entries[i]->modified ? &entries[i]->orig_value : &entries[i]->value;
+            zend_string *new_value = NULL;
             if (i > 0) {
-                zend_string_release(*target);
-                *target = zend_string_copy(entries[0]->modified ? entries[0]->orig_value : entries[0]->value);
+                new_value = zend_string_copy(entries[0]->modified ? entries[0]->orig_value : entries[0]->value);
             } else if (zai_option_str_is_some(*buf)) {
-                zend_string_release(*target);
-                *target = zend_string_init(buf->ptr, buf->len, 1);
+                new_value = zend_string_init(buf->ptr, buf->len, 1);
             } else if (parsed_ini_value != NULL) {
+                new_value = zend_string_copy(parsed_ini_value);
+            }
+            if (new_value) {
+                zend_string **target = entries[i]->modified ? &entries[i]->orig_value : &entries[i]->value;
                 zend_string_release(*target);
-                *target = zend_string_copy(parsed_ini_value);
+                if (entries[i]->modified && entries[i]->orig_value == entries[i]->value) {
+                    // Handle edge case where a value was previously attempted to be modified, but on_modify failed.
+                    // In that case orig_value == value, but without a refcount increase. Update it to avoid running into a use after free.
+                    entries[i]->value = new_value;
+                }
+                *target = new_value;
             }
 
             if (runtime_value) {
+                new_value = zend_string_copy(runtime_value);
                 if (entries[i]->modified) {
                     if (entries[i]->value != entries[i]->orig_value) {
                         zend_string_release(entries[i]->value);
@@ -146,7 +154,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
                     entries[i]->orig_modifiable = entries[i]->modifiable;
                     zend_hash_add_ptr(EG(modified_ini_directives), entries[i]->name, entries[i]);
                 }
-                entries[i]->value = zend_string_copy(runtime_value);
+                entries[i]->value = new_value;
             }
         }
     }
@@ -154,14 +162,9 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
     if (runtime_value) {
         buf->ptr = ZSTR_VAL(runtime_value);
         buf->len = ZSTR_LEN(runtime_value);
-        zend_string_release(runtime_value);
     } else if (parsed_ini_value && zai_option_str_is_none(*buf)) {
         buf->ptr = ZSTR_VAL(parsed_ini_value);
         buf->len = ZSTR_LEN(parsed_ini_value);
-    }
-
-    if (parsed_ini_value) {
-        zend_string_release(parsed_ini_value);
     }
 
 #if ZTS
@@ -216,7 +219,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
         return SUCCESS;
     }
 
-    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv)) {
+    if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv, new_value)) {
         zval_dtor(&new_zv);
         return FAILURE;
     }

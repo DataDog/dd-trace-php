@@ -1,6 +1,7 @@
 --TEST--
 DDTrace\trace_function() can trace internal functions with internal spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
