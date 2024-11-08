@@ -376,7 +376,9 @@ class MysqliIntegration extends Integration
     {
         $errorCode = mysqli_connect_errno();
         if ($errorCode > 0) {
-            $span->exception = new \Exception(mysqli_connect_error());
+            $span->meta[Tag::ERROR_MSG] = mysqli_connect_error();
+            $span->meta[Tag::ERROR_TYPE] = 'mysqli error';
+            $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 2);
         }
     }
 }
