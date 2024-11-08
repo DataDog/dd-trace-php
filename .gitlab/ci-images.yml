@@ -35,7 +35,7 @@ CentOS:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
-Alpine Compile Extension:
+Alpine:
   stage: ci-build
   rules:
     - when: manual
@@ -62,7 +62,7 @@ Alpine Compile Extension:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
-Ubuntu Bookworm:
+Bookworm:
   stage: ci-build
   rules:
     - when: manual
@@ -91,7 +91,7 @@ Ubuntu Bookworm:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
-Ubuntu Buster:
+Buster:
   stage: ci-build
   rules:
     - when: manual
