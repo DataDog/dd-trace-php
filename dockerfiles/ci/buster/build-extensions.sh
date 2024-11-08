@@ -159,6 +159,12 @@ else
     popd
   fi
 
+  # ext-grpc is needed for google spanner
+  if [[ $PHP_VERSION_ID -ge 80 ]]; then
+    pecl install grpc;
+    echo "extension=grpc" >> ${iniDir}/grpc.ini;
+  fi
+
   # We don't install any redis.so to inis, but allow selection at runtime.
   if [[ $PHP_VERSION_ID -lt 80 ]]; then
     pecl install redis-3.1.6
