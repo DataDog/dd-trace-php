@@ -36,6 +36,8 @@ function download_php {
   local download_url
   if [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
+  elif [[ $version_id -ge 80400 ]]; then
+    download_url="https://downloads.php.net/~saki/php-8.4.0RC3.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
   fi
@@ -85,10 +87,10 @@ function get_xdebug_version {
     echo '2.8.1'
   elif [[ $version_id -lt 80000 ]]; then
     echo '2.9.8'
-  elif [[ $version_id -ge 80300 ]]; then
+  elif [[ $version_id -lt 80400 ]]; then
     echo '3.3.1'
-  else
-    echo '3.2.2'
+  elif [[ $version_id -ge 80400 ]]; then
+    echo '3.4.0beta1'
   fi
 }
 

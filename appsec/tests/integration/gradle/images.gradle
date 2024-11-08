@@ -11,6 +11,7 @@ def phpVersions = [
         '8.1': '8.1.26',
         '8.2': '8.2.13',
         '8.3': '8.3.0',
+        '8.4': '8.4.0',
 ]
 
 def arch = System.getProperty('os.arch')
