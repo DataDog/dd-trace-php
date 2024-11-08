@@ -491,7 +491,7 @@ static void dd_uhook_dtor(void *data) {
 #define _error_code error_code
 #endif
 
-/* {{{ proto int DDTrace\install_hook(string|Closure|Generator target, ?Closure begin = null, ?Closure end = null) */
+/* {{{ proto int DDTrace\install_hook(string|Closure|Generator target, ?Closure begin = null, ?Closure end = null, int flags = 0) */
 PHP_FUNCTION(DDTrace_install_hook) {
     zend_string *name = NULL;
     zend_function *resolved = NULL;
@@ -583,17 +583,29 @@ type_error:
         def->function = NULL;
 
         // Fetch the base function for fake closures: we need to do fake closure operations on the proper original function:
-        // - inheritance handling requires having an op_array which stays alive for the whole remainder of the rquest
+        // - inheritance handling requires having an op_array which stays alive for the whole remainder of the request
         // - internal functions are referenced by their zend_internal_function, not the closure copy
         if ((resolved->common.fn_flags & ZEND_ACC_FAKE_CLOSURE) && !(flags & HOOK_INSTANCE)) {
-            HashTable *baseTable = resolved->common.scope ? &resolved->common.scope->function_table : EG(function_table);
+            zend_class_entry *resolved_ce = resolved->common.scope;
+            HashTable *baseTable = resolved_ce ? &resolved_ce->function_table : EG(function_table);
             zend_function *original = zend_hash_find_ptr(baseTable, resolved->common.function_name);
+            if (!ZEND_USER_CODE(resolved->type)) {
+                if (original && original->type != resolved->type /* check for trampoline */) {
+                    original = NULL; // this may happen with e.g. __call() where the function is defined as private
+                }
+                if (!original && resolved_ce) {
+                    // Assume it's a __call or __callStatic trampoline
+                    // Execute logic from zend_closure_call_magic here.
+                    original = (resolved->common.fn_flags & ZEND_ACC_STATIC) ? resolved_ce->__callstatic : resolved_ce->__call;
+                }
+            }
             if (!original) {
-                LOG(ERROR,
-                        "Could not find original function for fake closure ",
+                LOG(WARN,
+                        "Could not find original function for fake closure %s%s%s at %s:%d",
                         resolved->common.scope ? ZSTR_VAL(resolved->common.scope->name) : "",
                         resolved->common.scope ? "::" : "",
-                        ZSTR_VAL(resolved->common.function_name));
+                        ZSTR_VAL(resolved->common.function_name),
+                        zend_get_executed_filename(), zend_get_executed_lineno());
                 goto error;
             }
             resolved = original;

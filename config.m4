@@ -14,7 +14,7 @@ PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
   [  --with-ddtrace-cargo Location to cargo binary for rust compilation], cargo, not found)
 
 PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
-  [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$($GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h && echo yes || echo no)]], [no])
+  [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$( (if test x"$ext_shared" = x"yes"; then $GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h; else test x"$PHP_DEBUG" = x"yes"; fi) && echo yes || echo no)]], [no])
 
 PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to not link the rust library against the extension at compile time,
   [  --enable-ddtrace-rust-library-split Do not build nor link against the rust code], no, no)
@@ -78,25 +78,23 @@ if test "$PHP_DDTRACE" != "no"; then
   CFLAGS="$CFLAGS -fms-extensions"
   EXTRA_CFLAGS="$EXTRA_CFLAGS -fms-extensions"
 
-  AC_MSG_CHECKING([whether the compiler is LLVM])
+  rm="rm -f"
+  lt_simple_link_test_code='int main(void){return(0);}'
+  AC_MSG_CHECKING([whether --undefined-version is a valid linker argument])
+  AC_LIBTOOL_LINKER_OPTION([whether --undefined-version is a valid linker argument],
+    lt_cv_ddtrace_undefined_version,
+    [-Wl,--undefined-version],
+    [LDFLAGS="$LDFLAGS -Wl,--undefined-version"])
 
-
-  AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(void) {
-#ifdef __clang__
-  return 0;
-#else
-  return 1;
-#endif
-}]])],[llvm=yes],[llvm=no],[llvm=yes])
-
-  if test "$llvm" = "yes"; then
-    AC_MSG_RESULT([yes])
-    CFLAGS="$CFLAGS -Wno-microsoft-anon-tag"
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
-    LDFLAGS="$LDFLAGS -Wl,--undefined-version"
-  else
-    AC_MSG_RESULT([no])
-  fi
+  lt_simple_compile_test_code="int some_variable = 0;"
+  Xsed="$SED -e 1s/^X//"
+  AC_LIBTOOL_COMPILER_OPTION([whether -Wno-microsoft-anon-tag is a valid compiler argument],
+    lt_cv_ddtrace_no_microsoft_anon_tag,
+    [-Wno-microsoft-anon-tag], [],
+    [
+      CFLAGS="$CFLAGS -Wno-microsoft-anon-tag"
+      EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
+    ])
 
   DD_TRACE_VENDOR_SOURCES="\
     ext/vendor/mpack/mpack.c \

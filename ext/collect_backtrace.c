@@ -12,6 +12,12 @@
 void ddtrace_call_get_locals(zend_execute_data *call, zval *locals_array, bool skip_args) {
     zend_op_array *op_array = &call->func->op_array;
 
+#if PHP_VERSION_ID >= 80000 // Pre-PHP 8 there was "safe destruction" of CVs, whereby they were ZVAL_NULL()'ed, avoiding the need for this handling.
+    if (UNEXPECTED((ZEND_CALL_INFO(call) & ZEND_CALL_GENERATOR) != 0) && ((zend_generator*)call->return_value)->execute_data == NULL) {
+        return; // Prevent locals collection in generator close, they may already be freed now.
+    }
+#endif
+
 #if PHP_VERSION_ID >= 70100
     if (ZEND_CALL_INFO(call) & ZEND_CALL_HAS_SYMBOL_TABLE)
 #else
