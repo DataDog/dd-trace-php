@@ -25,7 +25,9 @@
             },
             {
               "key": "thread name",
-              "values_regex": "^cli.*$"
+              "values": [
+                "cli"
+              ]
             }
           ]
         }

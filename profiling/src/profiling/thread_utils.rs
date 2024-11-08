@@ -1,10 +1,13 @@
-use libc::{c_char, sched_yield};
+#[cfg(php_zts)]
+use libc::c_char;
+use libc::sched_yield;
 use log::warn;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-
 use crate::SAPI;
+#[cfg(php_zts)]
+use crate::sapi::Sapi;
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -73,27 +76,33 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
 }
 
 pub fn get_current_thread_name() -> String {
+    #[cfg(php_zts)]
     let mut thread_name = SAPI.to_string();
+    #[cfg(not(php_zts))]
+    let thread_name = SAPI.to_string();
 
     #[cfg(php_zts)]
     {
-        let mut name = [0u8; 32];
+        // So far, only FrankenPHP sets meaningful thread names
+        if *SAPI == Sapi::FrankenPHP {
+            let mut name = [0u8; 32];
 
-        let result = unsafe {
-            libc::pthread_getname_np(
-                libc::pthread_self(),
-                name.as_mut_ptr() as *mut c_char,
-                name.len(),
-            )
-        };
+            let result = unsafe {
+                libc::pthread_getname_np(
+                    libc::pthread_self(),
+                    name.as_mut_ptr() as *mut c_char,
+                    name.len(),
+                )
+            };
 
-        if result == 0 {
-            // If successful, convert the result to a Rust String
-            let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
-            let str_slice: &str = cstr.to_str().unwrap();
-            if !str_slice.is_empty() {
-                thread_name.push_str(": ");
-                thread_name.push_str(str_slice);
+            if result == 0 {
+                // If successful, convert the result to a Rust String
+                let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
+                let str_slice: &str = cstr.to_str().unwrap();
+                if !str_slice.is_empty() {
+                    thread_name.push_str(": ");
+                    thread_name.push_str(str_slice);
+                }
             }
         }
     }
@@ -104,6 +113,7 @@ pub fn get_current_thread_name() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libc::c_char;
 
     #[test]
     fn test_get_current_thread_name() {
@@ -117,23 +127,5 @@ mod tests {
             );
         }
         assert_eq!(get_current_thread_name(), "unknown");
-
-        unsafe {
-            libc::pthread_setname_np(
-                #[cfg(target_os = "linux")]
-                libc::pthread_self(),
-                b"foo\0".as_ptr() as *const c_char,
-            );
-        }
-        assert_eq!(get_current_thread_name(), "unknown: foo");
-
-        unsafe {
-            libc::pthread_setname_np(
-                #[cfg(target_os = "linux")]
-                libc::pthread_self(),
-                b"bar\0".as_ptr() as *const c_char,
-            );
-        }
-        assert_eq!(get_current_thread_name(), "unknown: bar");
     }
 }
