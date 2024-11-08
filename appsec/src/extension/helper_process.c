@@ -180,6 +180,7 @@ static void _read_settings()
 
 __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     sidecar_enable_appsec_t nonnull enable_appsec,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     bool *nonnull appsec_features, bool *nonnull appsec_conf)
 {
     dd_appsec_rinit_once();
