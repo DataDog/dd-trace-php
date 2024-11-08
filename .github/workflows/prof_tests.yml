@@ -43,15 +43,20 @@ jobs:
         - /:/host  # Jailbreak!
 
     steps:
-      - name: Bypass GitHub Alpine detection and patch native node into runner env
+      - name: Patch native Alpine NodeJS into Runner environment
         if: contains(matrix.docker_image, 'alpine')
         run: |
-          apk add nodejs
+          set -eux
+          apk add docker nodejs
           sed -i "s:ID=alpine:ID=NotpineForGHA:" /etc/os-release
+          cd /host/home/runner
+          ls -lah
+          cd /host/home/runner/runners
+          cd /host/home/runner/actions-runner
+          ls -lah
+          ls -lah /host/home/runner/actions-runner
+          ls -lah
           cd /host/home/runner/runners/*/externals/
-          rm -rf node20/*
-          mkdir node20/bin
-          ln -s /usr/bin/node node20/bin/node
         shell: sh  # No bash in Alpine by default
 
       - name: Checkout repository
