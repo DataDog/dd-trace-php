@@ -166,8 +166,7 @@ for architecture in "${architectures[@]}"; do
     foreach ($stubs as $stub) {
         $content = file_get_contents($stub);
         $content = preg_replace('/^<\?php/', '', $content);
-        $mergedStubs .= "\n### " . basename($stub) . " ###"
-        $merg$mergedStubsed .= $content;
+        $mergedStubs .= $content;
     }
 
     $stub = "<?php\n" . $mergedStubs;
