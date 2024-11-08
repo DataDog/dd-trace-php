@@ -328,12 +328,13 @@ pub fn alloc_prof_startup() {
 
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
 /// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
-/// functions alter behaviour in case custom handlers are installed.
+/// functions alter behaviour in case custom handlers are installed:
 /// - `zend_mm_gc()` will not do anything anymore.
-/// - `zend_mm_shutdown()` wont cleanup chunks anymore, leading to memory leaks
+/// - `zend_mm_shutdown()` wont cleanup chunks anymore, leading to memory leaks.
+///
 /// The `_zend_mm_heap`-struct itself is private, but we are lucky, as the `use_custom_heap` flag
-/// is the first element and thus the first 4 bytes.
-/// Take care and call `restore_zend_heap()` afterwards!
+/// is the first element and thus the first 4 bytes. Take care and call `restore_zend_heap()`
+/// afterwards!
 unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
     let custom_heap: c_int = ptr::read(heap as *const c_int);
     ptr::write(heap as *mut c_int, zend::ZEND_MM_CUSTOM_HEAP_NONE as c_int);
