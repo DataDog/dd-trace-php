@@ -118,6 +118,16 @@ ddtrace_trace_id ddtrace_peek_trace_id(void) {
     return pspan ? SPANDATA(pspan)->root->trace_id : DDTRACE_G(distributed_trace_id);
 }
 
+bool ddtrace_has_asm_avent(void) {
+    ddtrace_span_properties *pspan = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
+    if(!pspan) {
+        return false;
+    }
+    zend_array *meta = ddtrace_property_array(&pspan->property_meta);
+
+    return zend_hash_str_exists(meta, ZEND_STRL("_dd.p.appsec"));
+}
+
 int ddtrace_conv10_trace_id(ddtrace_trace_id id, uint8_t reverse[DD_TRACE_MAX_ID_LEN]) {
     reverse[0] = 0;
     int i = 0;

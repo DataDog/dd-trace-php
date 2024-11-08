@@ -135,6 +135,28 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_b3single = zend_hash_str_exists(inject, ZEND_STRL("b3 single header"));
 
     zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
+    ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
+    uint64_t span_id = ddtrace_peek_span_id();
+
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !ddtrace_has_asm_avent()) {
+        if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+            if (send_datadog) {
+                ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);
+            }
+            if (trace_id.low || trace_id.high) {
+                if (send_datadog) {
+                    ADD_HEADER("x-datadog-trace-id", "%" PRIu64, trace_id.low);
+                }
+                if (span_id) {
+                    if (send_datadog) {
+                        ADD_HEADER("x-datadog-parent-id", "%" PRIu64, span_id);
+                    }
+                }
+            }
+        }
+        goto injection_finished;
+    }
+
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         if (send_datadog) {
             ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);
@@ -158,8 +180,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             ADD_HEADER("x-datadog-origin", "%s", ZSTR_VAL(origin));
         }
     }
-    ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
-    uint64_t span_id = ddtrace_peek_span_id();
+
     if (trace_id.low || trace_id.high) {
         if (send_datadog) {
             ADD_HEADER("x-datadog-trace-id", "%" PRIu64, trace_id.low);
@@ -228,7 +249,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             ADD_HEADER("b3", "%s", b3_sampling_decision);
         }
     }
-
+injection_finished:
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
