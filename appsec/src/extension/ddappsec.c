@@ -264,6 +264,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
 
     dd_appsec_rinit_once();
     zai_config_rinit();
+    _check_enabled();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         return SUCCESS;
