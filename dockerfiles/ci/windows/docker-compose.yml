@@ -87,8 +87,8 @@ services:
       args:
         phpVersion: "8.4.0RC3"
         vsVersion: "vs17"
-        phpTarGzUrl: https://downloads.php.net/~saki/php-8.4.0RC3.tar.gz
-        phpSha256Hash: "1937d125c9bb42bc4d8dcd3b8bb25d377814aea50be492bbc64b3554b73af371"
+        phpTarGzUrl: https://downloads.php.net/~calvinb/php-8.4.0RC4.tar.gz
+        phpSha256Hash: "3964fee49465e6fcae77ad030ae31aa720ade0a51c53df6e255e36eb867fd4b2"
 
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_windows

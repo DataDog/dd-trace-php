@@ -6,8 +6,11 @@ on:
 jobs:
   prof-asan:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: [8.3, 8.4]
     container:
-      image: datadog/dd-trace-ci:php-8.3_bookworm-4
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-5
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root --privileged
 
@@ -33,14 +36,15 @@ jobs:
         run: |
           set -eux
           switch-php nts-asan
+          rm $(php-config --ini-dir)/sqlsrv.ini #sqlsrv leaks memory and triggers asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
           export CC=clang-17
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
-          export LDFLAGS='-fsanitize=address'
+          export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-17
           triplet=$(uname -m)-unknown-linux-gnu
-          RUST_NIGHTLY_VERSION="-2024-02-27"
+          RUST_NIGHTLY_VERSION="-2024-11-04"
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 

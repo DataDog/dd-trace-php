@@ -9,7 +9,7 @@
 #include "utils.hpp"
 #include <cstdint>
 #include <msgpack.hpp>
-#include <ostream>
+#include <spdlog/spdlog.h>
 #include <string>
 
 namespace dds {
@@ -71,21 +71,25 @@ struct engine_settings {
                schema_extraction.sample_rate ==
                    oth.schema_extraction.sample_rate;
     }
+};
 
-    friend auto &operator<<(std::ostream &os, const engine_settings &c)
+} // namespace dds
+
+template <> struct fmt::formatter<dds::engine_settings> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const dds::engine_settings &c, FormatContext &ctx) const
     {
-        return os << "{rules_file=" << c.rules_file
-                  << ", waf_timeout_us=" << c.waf_timeout_us
-                  << ", trace_rate_limit=" << c.trace_rate_limit
-                  << ", obfuscator_key_regex=" << c.obfuscator_key_regex
-                  << ", obfuscator_value_regex=" << c.obfuscator_value_regex
-                  << ", schema_extraction.enabled="
-                  << c.schema_extraction.enabled
-                  << ", schema_extraction.sample_rate=" << std::fixed
-                  << c.schema_extraction.sample_rate << "}";
+        return format_to(ctx.out(),
+            "{{rules_file={}, waf_timeout_us={}, trace_rate_limit={}, "
+            "obfuscator_key_regex={}, obfuscator_value_regex={}, "
+            "schema_extraction.enabled={}, schema_extraction.sample_rate={}}}",
+            c.rules_file, c.waf_timeout_us, c.trace_rate_limit,
+            c.obfuscator_key_regex, c.obfuscator_value_regex,
+            c.schema_extraction.enabled, c.schema_extraction.sample_rate);
     }
 };
-} // namespace dds
 
 namespace std {
 template <> struct hash<dds::engine_settings> {

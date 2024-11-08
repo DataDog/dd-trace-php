@@ -149,14 +149,14 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED, "")                                                 \
     CONFIG(SET, DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED, "*")                                                    \
     CONFIG(SET, DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED, "")                                                     \
-    CONFIG(INT, DD_TRACE_RATE_LIMIT, "0", .ini_change = zai_config_system_ini_change)                          \
+    CONFIG(INT, DD_TRACE_RATE_LIMIT, "100", .ini_change = zai_config_system_ini_change)                        \
     CONFIG(DOUBLE, DD_TRACE_SAMPLE_RATE, "-1", .ini_change = ddtrace_alter_DD_TRACE_SAMPLE_RATE,               \
            .env_config_fallback = ddtrace_conf_otel_sample_rate)                                               \
     CONFIG(JSON, DD_TRACE_SAMPLING_RULES, "[]")                                                                \
     CONFIG(CUSTOM(INT), DD_TRACE_SAMPLING_RULES_FORMAT, "glob", .parser = dd_parse_sampling_rules_format)      \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
-    CONFIG(SET_LOWERCASE, DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS)          \
+    CONFIG(SET_OR_MAP_LOWERCASE, DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS)   \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
     CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
@@ -274,6 +274,7 @@ typedef enum { DD_CONFIGURATION } ddtrace_config_id;
     }
 #define SET MAP
 #define SET_LOWERCASE MAP
+#define SET_OR_MAP_LOWERCASE MAP
 #define JSON MAP
 #define MAP(id)                                                                                             \
     static inline zend_array *get_##id(void) { return Z_ARR_P(zai_config_get_value(DDTRACE_CONFIG_##id)); } \
@@ -294,6 +295,7 @@ static inline bool get_global_DD_TRACE_SIDECAR_TRACE_SENDER(void) { return true;
 #undef MAP
 #undef SET
 #undef SET_LOWERCASE
+#undef SET_OR_MAP_LOWERCASE
 #undef JSON
 #undef BOOL
 #undef INT
