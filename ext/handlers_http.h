@@ -154,7 +154,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                 }
             }
         }
-        goto injection_finished;
+        return;
     }
 
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
@@ -249,12 +249,10 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             ADD_HEADER("b3", "%s", b3_sampling_decision);
         }
     }
-injection_finished:
+
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
-
-#undef ADD_HEADER
 }
 
 static inline void ddtrace_inject_distributed_headers(zend_array *array, bool key_value_pairs) {
