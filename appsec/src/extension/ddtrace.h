@@ -53,6 +53,7 @@ void dd_trace_close_all_spans_and_flush(void);
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
+void dd_trace_span_add_propagated_tags(zend_string *nonnull key, zval *nonnull value);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 
 // Set sampling priority on root span

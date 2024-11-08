@@ -33,6 +33,7 @@ static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static zend_string *_meta_struct_propname;
+static zend_string *_propagated_tags_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
@@ -46,6 +47,8 @@ static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
     zend_object *nonnull zobj, zend_long priority,
     enum dd_sampling_mechanism mechanism);
+static void (*nullable _ddtrace_add_propagated_tag_on_span_zobj)(
+    zend_string *nonnull key, zval *nonnull value);
 
 static bool (*nullable _ddtrace_user_req_add_listeners)(
     ddtrace_user_req_listeners *listeners);
@@ -99,6 +102,14 @@ static void dd_trace_load_symbols(void)
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
+    _ddtrace_add_propagated_tag_on_span_zobj =
+        dlsym(handle, "ddtrace_add_propagated_tag_on_span_zobj");
+    if (_ddtrace_add_propagated_tag_on_span_zobj == NULL) {
+        mlog(dd_log_error,
+            "Failed to load ddtrace_add_propagated_tag_on_span_zobj: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
     _ddtrace_user_req_add_listeners =
         dlsym(handle, "ddtrace_user_req_add_listeners");
     if (_ddtrace_user_req_add_listeners == NULL) {
@@ -144,6 +155,8 @@ void dd_trace_startup()
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
     _meta_struct_propname =
         zend_string_init_interned(LSTRARG("meta_struct"), 1);
+    _propagated_tags_propname =
+        zend_string_init_interned(LSTRARG("propagated_tags"), 1);
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
@@ -339,6 +352,11 @@ zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
     return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
 }
 
+zval *nullable dd_trace_span_get_propagated_tags(zend_object *nonnull zobj)
+{
+    return _get_span_modifiable_array_property(zobj, _propagated_tags_propname);
+}
+
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
@@ -412,6 +430,16 @@ const char *nullable dd_trace_remote_config_get_path()
     __auto_type path = _ddtrace_remote_config_get_path();
     mlog(dd_log_trace, "Remote config path: %s", path ? path : "(unset)");
     return path;
+}
+
+void dd_trace_span_add_propagated_tags(
+    zend_string *nonnull key, zval *nonnull value)
+{
+    if (UNEXPECTED(_ddtrace_add_propagated_tag_on_span_zobj == NULL)) {
+        return;
+    }
+
+    _ddtrace_add_propagated_tag_on_span_zobj(key, value);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

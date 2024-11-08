@@ -111,7 +111,7 @@ static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
 static THREAD_LOCAL_ON_ZTS bool _blocked;
-static THREAD_LOCAL_ON_ZTS bool _asm_event;
+static THREAD_LOCAL_ON_ZTS bool _asm_event_propagated;
 static THREAD_LOCAL_ON_ZTS bool _force_keep;
 
 static void _init_relevant_headers(void);
@@ -300,8 +300,8 @@ void dd_tags_rinit()
     // Just in case...
     _event_user_id = NULL;
     _blocked = false;
-    _asm_event = false;
     _force_keep = false;
+    _asm_event_propagated = false;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -338,6 +338,9 @@ void dd_tags_rshutdown()
 
 void dd_appsec_add_asm_event()
 {
+    if (_asm_event_propagated) {
+        return;
+    }
     zval *nullable meta = _root_span_get_meta();
     if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
         zend_array *meta_ht = Z_ARRVAL_P(meta);
@@ -346,6 +349,11 @@ void dd_appsec_add_asm_event()
         _add_new_zstr_to_meta(
             meta_ht, _dd_tag_p_appsec_zstr, _1_zstr, true, false);
     }
+
+    zval _1_zval;
+    ZVAL_STR(&_1_zval, _1_zstr);
+    dd_trace_span_add_propagated_tags(_dd_tag_p_appsec_zstr, &_1_zval);
+    _asm_event_propagated = true;
 }
 
 void dd_tags_add_tags(
@@ -907,13 +915,15 @@ static zval *nullable _root_span_get_meta()
 {
     zend_object *nullable span = dd_req_lifecycle_get_cur_span();
     if (!span) {
-        mlog(dd_log_warning, "No root span being tracked by appsec");
+//        TODO Uncomment this
+//        mlog(dd_log_warning, "No root span being tracked by appsec");
         return NULL;
     }
 
     zval *nullable meta = dd_trace_span_get_meta(span);
     if (!meta) {
-        mlog(dd_log_warning, "Failed to retrieve root span meta");
+//        TODO Uncomment this
+//        mlog(dd_log_warning, "Failed to retrieve root span meta");
     }
     return meta;
 }
