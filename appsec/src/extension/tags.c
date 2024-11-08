@@ -375,12 +375,6 @@ void dd_tags_add_tags(
     // tag _dd.runtime_family
     _set_runtime_family(span);
 
-    if (_force_keep) {
-        dd_trace_set_priority_sampling_on_span_zobj(
-            span, PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_MANUAL);
-        mlog(dd_log_debug, "Updated sampling priority to user_keep");
-    }
-
     if (zend_llist_count(&_appsec_json_frags) == 0) {
         if (!server) {
             return;
@@ -423,7 +417,19 @@ void dd_tags_add_tags(
 
 void dd_tags_add_blocked() { _blocked = true; }
 
-void dd_tags_set_sampling_priority() { _force_keep = true; }
+void dd_tags_set_sampling_priority()
+{
+    if (_force_keep) {
+        return;
+    }
+
+    zend_object *nullable span = dd_req_lifecycle_get_cur_span();
+    dd_trace_set_priority_sampling_on_span_zobj(
+        span, PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_MANUAL);
+    mlog(dd_log_debug, "Updated sampling priority to user_keep");
+
+    _force_keep = true;
+}
 
 static void _zend_string_release_indirect(void *s)
 {
