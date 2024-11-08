@@ -64,7 +64,7 @@ static char *ddtrace_pre_load_hook(void) {
 }
 
 static bool ddloader_is_ext_loaded(const char *name) {
-    return zend_hash_str_find_ptr(&module_registry, name, strlen(name))
+    return ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, name, strlen(name))
         || zend_get_extension(name)
     ;
 }
@@ -390,14 +390,14 @@ static bool ddloader_check_deps(const zend_module_dep *deps) {
 }
 
 static void ddloader_unregister_module(const char *name) {
-    zend_module_entry *injected = zend_hash_str_find_ptr(&module_registry, name, strlen(name));
+    zend_module_entry *injected = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, name, strlen(name));
     if (!injected) {
         return;
     }
 
     // Set the MSHUTDOWN function to NULL to avoid it being called by zend_hash_str_del
     injected->module_shutdown_func = NULL;
-    zend_hash_str_del(&module_registry, name, strlen(name));
+    ddloader_zend_hash_str_del(php_api_no, &module_registry, name, strlen(name));
 }
 
 static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
@@ -414,7 +414,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         return SUCCESS;
     }
 
-    zend_module_entry *module = zend_hash_str_find_ptr(&module_registry, config->ext_name, strlen(config->ext_name));
+    zend_module_entry *module = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, config->ext_name, strlen(config->ext_name));
     if (module) {
         LOG(INFO, "Extension '%s' is already loaded, unregister the injected extension", config->ext_name);
         ddloader_unregister_module(config->tmp_name);
@@ -446,7 +446,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
     ddloader_zend_string_release(php_api_no, new_name);
 
-    module = zend_hash_str_find_ptr(&module_registry, config->ext_name, strlen(config->ext_name));
+    module = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, config->ext_name, strlen(config->ext_name));
     if (!module) {
         TELEMETRY(REASON_ERROR, "Extension '%s' not found after renaming. Something wrong happened", config->ext_name);
         return SUCCESS;

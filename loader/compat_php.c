@@ -9,9 +9,11 @@
 #define PHP_70_71_72_IS_STR_INTERNED (1 << 1)
 
 ZEND_API zval *ZEND_FASTCALL zend_hash_set_bucket_key(HashTable *ht, Bucket *b, zend_string *key) __attribute__((weak));
-
 ZEND_API zval *ZEND_FASTCALL zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
 ZEND_API zval *ZEND_FASTCALL _zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
+ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del(HashTable *ht, const char *str, size_t len) __attribute__((weak));
+ZEND_API zval* ZEND_FASTCALL zend_hash_str_find(const HashTable *ht, const char *key, size_t len) __attribute__((weak));
+ZEND_API void * __zend_malloc(size_t len) __attribute__((weak));
 
 static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
@@ -64,6 +66,29 @@ void ddloader_zend_string_release(int php_api_no, zend_string *s) {
     }
 
     zend_string_release(s);
+}
+
+void *ddloader_zend_hash_str_find_ptr(int php_api_no, const HashTable *ht, const char *str, size_t len) {
+    UNUSED(php_api_no);
+    zval *zv;
+
+    if (!zend_hash_str_find) {
+        return NULL;
+    }
+
+    zv = zend_hash_str_find(ht, str, len);
+    if (zv) {
+        return Z_PTR_P(zv);
+    } else {
+        return NULL;
+    }
+}
+
+void ddloader_zend_hash_str_del(int php_api_no, HashTable *ht, const char *str, size_t len) {
+    UNUSED(php_api_no);
+    if (zend_hash_str_del) {
+        zend_hash_str_del(ht, str, len);
+    }
 }
 
 // This is an adaptation of zend_hash_set_bucket_key which is only available only starting from PHP 7.4
