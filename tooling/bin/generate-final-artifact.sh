@@ -156,10 +156,10 @@ for architecture in "${architectures[@]}"; do
     # PHP Stubs
     ########################
     stubs=(
-        "/home/circleci/app/src/ddtrace_php_api.stubs.php"
-        "/home/circleci/app/ext/ddtrace.stub.php"
-        "/home/circleci/app/ext/hook/uhook.stub.php"
-        "/home/circleci/app/ext/hook/uhook_attributes.stub.php"
+        "/home/circleci/datadog/src/ddtrace_php_api.stubs.php"
+        "/home/circleci/datadog/ext/ddtrace.stub.php"
+        "/home/circleci/datadog/ext/hook/uhook.stub.php"
+        "/home/circleci/datadog/ext/hook/uhook_attributes.stub.php"
     )
 
     mergedStubs=""
