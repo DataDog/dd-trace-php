@@ -182,3 +182,18 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
     smart_str_0(&taglist);
     return taglist.s;
 }
+
+DDTRACE_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) {
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
+    zend_array *propagated_tags = &DDTRACE_G(propagated_root_span_tags);
+    if (root_span) {
+        root_meta = ddtrace_property_array(&root_span->property_meta);
+        propagated_tags = ddtrace_property_array(&root_span->property_propagated_tags);
+    }
+
+    zval tagstr;
+    ddtrace_convert_to_string(&tagstr, value);
+    zend_hash_update(root_meta, key, &tagstr);
+    zend_hash_add_empty_element(propagated_tags, key);
+}
