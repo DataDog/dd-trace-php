@@ -68,6 +68,7 @@
 #include "sidecar.h"
 #ifndef _WIN32
 #include "signals.h"
+#include "alloc_debug.h"
 #endif
 #include "span.h"
 #include "startup_logging.h"
@@ -575,6 +576,11 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
     zai_hook_ginit();
     zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, (dtor_func_t)ddtrace_git_metadata_dtor, 1);
+#if !defined(_WIN32) && ZTS
+    if (get_global_DD_TRACE_DEBUG_MEMORY_PAGES()) {
+        ddtrace_set_debug_memory_handler();
+    }
+#endif
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
@@ -1393,6 +1399,13 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (ddtrace_disable) {
         return SUCCESS;
     }
+
+#ifndef _WIN32
+    if (get_global_DD_TRACE_DEBUG_MEMORY_PAGES()) {
+        ddtrace_verify_max_count_get_limit();
+        ddtrace_set_debug_memory_handler();
+    }
+#endif
 
 #if PHP_VERSION_ID >= 80100
     ddtrace_setup_fiber_observers();
