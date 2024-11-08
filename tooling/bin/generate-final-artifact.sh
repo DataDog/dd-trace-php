@@ -153,6 +153,34 @@ for architecture in "${architectures[@]}"; do
     fi
 
     ########################
+    # PHP Stubs
+    ########################
+    $stubs = [
+        '/home/circleci/app/src/ddtrace_php_api.stubs.php',
+        '/home/circleci/app/ext/ddtrace.stub.php',
+        '/home/circleci/app/ext/hook/uhook.stub.php',
+        '/home/circleci/app/ext/hook/uhook_attributes.stub.php',
+    ];
+
+    $mergedStubs = '';
+    foreach ($stubs as $stub) {
+        $content = file_get_contents($stub);
+        $content = preg_replace('/^<\?php/', '', $content);
+        $mergedStubs .= "\n### " . basename($stub) . " ###"
+        $merg$mergedStubsed .= $content;
+    }
+
+    $stub = "<?php\n" . $mergedStubs;
+
+    echo "$stub" > $tmp_folder_final_gnu/dd-library-php/ddtrace_api.stubs.php
+    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
+        echo "$stub" > $tmp_folder_final_musl/dd-library-php/ddtrace_api.stubs.php
+        if [[ $architecture == "x86_64" ]]; then
+            echo "$stub" > $tmp_folder_final_windows/dd-library-php/ddtrace_api.stubs.php
+        fi
+    fi
+
+    ########################
     # Final archives
     ########################
     echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION
