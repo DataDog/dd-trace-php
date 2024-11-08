@@ -21,5 +21,6 @@ ddtrace_trace_id ddtrace_parse_hex_trace_id(char *trace_id, ssize_t trace_id_len
 uint64_t ddtrace_parse_hex_span_id_str(const char *id, size_t len);
 uint64_t ddtrace_parse_hex_span_id(zval *zid);
 int ddtrace_conv10_trace_id(ddtrace_trace_id id, uint8_t reverse[DD_TRACE_MAX_ID_LEN]);
+bool ddtrace_has_asm_avent(void);
 
 #endif  // DD_RANDOM_H
