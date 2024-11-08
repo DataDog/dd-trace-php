@@ -39,6 +39,8 @@ jobs:
     container:
       image: ${{ matrix.docker_image }}
       options: --user root
+      volumes:
+        - /:/host  # Jailbreak!
 
     steps:
       - name: Bypass GitHub Alpine detection and patch native node into runner env
@@ -46,6 +48,11 @@ jobs:
         run: |
           apk add nodejs
           sed -i "s:ID=alpine:ID=NotpineForGHA:" /etc/os-release
+          cd /host/home/runner/runners/*/externals/
+          rm -rf node20/*
+          mkdir node20/bin
+          ln -s /usr/bin/node node20/bin/node
+        shell: sh  # No bash in Alpine by default
 
       - name: Checkout repository
         uses: actions/checkout@v4
