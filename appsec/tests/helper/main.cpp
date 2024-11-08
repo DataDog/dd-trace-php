@@ -190,7 +190,7 @@ std::string create_sample_rules_ok()
       "id": "redirect",
       "type": "redirect_request",
       "parameters": {
-        "location": "localhost"
+        "location": "https://localhost"
       }
     }
   ]

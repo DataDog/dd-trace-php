@@ -6881,7 +6881,7 @@
       "type": "redirect_request",
       "parameters": {
         "status_code": "303",
-        "location": "datadoghq.com"
+        "location": "https://datadoghq.com"
       }
     }
   ]

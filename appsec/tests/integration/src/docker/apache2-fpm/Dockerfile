@@ -3,8 +3,10 @@ ARG VARIANT
 FROM datadog/dd-appsec-php-ci:php-$PHP_VERSION-$VARIANT
 
 RUN apt-get update && apt-get install -y \
-	apache2 \
-	&& rm -rf /var/lib/apt/lists/*
+    apache2 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN usermod -a -G linux_users www-data
 
 RUN rm -rf /var/www/html
 RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
