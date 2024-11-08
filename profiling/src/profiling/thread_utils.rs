@@ -1,13 +1,14 @@
 #[cfg(php_zts)]
+use crate::sapi::Sapi;
+use crate::SAPI;
+#[cfg(php_zts)]
 use libc::c_char;
 use libc::sched_yield;
 use log::warn;
+use once_cell::sync::OnceCell;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use crate::SAPI;
-#[cfg(php_zts)]
-use crate::sapi::Sapi;
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -75,39 +76,48 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
     }
 }
 
+thread_local! {
+    static THREAD_NAME: OnceCell<String> = const { OnceCell::new() };
+}
+
 pub fn get_current_thread_name() -> String {
-    #[cfg(php_zts)]
-    let mut thread_name = SAPI.to_string();
-    #[cfg(not(php_zts))]
-    let thread_name = SAPI.to_string();
+    THREAD_NAME.with(|name| {
+        name.get_or_init(|| {
+            #[cfg(php_zts)]
+            let mut thread_name = SAPI.to_string();
+            #[cfg(not(php_zts))]
+            let thread_name = SAPI.to_string();
 
-    #[cfg(php_zts)]
-    {
-        // So far, only FrankenPHP sets meaningful thread names
-        if *SAPI == Sapi::FrankenPHP {
-            let mut name = [0u8; 32];
+            #[cfg(php_zts)]
+            {
+                // So far, only FrankenPHP sets meaningful thread names
+                if *SAPI == Sapi::FrankenPHP {
+                    let mut name = [0u8; 32];
 
-            let result = unsafe {
-                libc::pthread_getname_np(
-                    libc::pthread_self(),
-                    name.as_mut_ptr() as *mut c_char,
-                    name.len(),
-                )
-            };
+                    let result = unsafe {
+                        libc::pthread_getname_np(
+                            libc::pthread_self(),
+                            name.as_mut_ptr() as *mut c_char,
+                            name.len(),
+                        )
+                    };
 
-            if result == 0 {
-                // If successful, convert the result to a Rust String
-                let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
-                let str_slice: &str = cstr.to_str().unwrap();
-                if !str_slice.is_empty() {
-                    thread_name.push_str(": ");
-                    thread_name.push_str(str_slice);
+                    if result == 0 {
+                        // If successful, convert the result to a Rust String
+                        let cstr =
+                            unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
+                        let str_slice: &str = cstr.to_str().unwrap();
+                        if !str_slice.is_empty() {
+                            thread_name.push_str(": ");
+                            thread_name.push_str(str_slice);
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    thread_name
+            thread_name
+        }).clone()
+    })
 }
 
 #[cfg(test)]
