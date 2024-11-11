@@ -23,7 +23,12 @@ ARG VARIANT
 
 ENV NO_APX_WRAPPER=1
 
+# PHP 8.4 checks if /usr/sbin/apache2 exists
+RUN touch /usr/sbin/apache2
+RUN chmod +x /usr/sbin/apache2
 RUN USER=root /build/php/build_dev_php.sh "$PHP_VERSION" "$VARIANT"
+RUN rm /usr/sbin/apache2
+
 ADD php.ini /root/php/php.ini
 ENV PHPRC=/root/php/php.ini
 
@@ -34,5 +39,8 @@ ENV HUNTER_ROOT=/root/.hunter
 ENV CARGO_HOME=/root/.cargo
 ENV RUSTUP_HOME=/root/.rustup
 ENV LD_LIBRARY_PATH=/root/php/icu-60/lib
+
+RUN groupadd -g 1000 linux_users && \
+    useradd -G linux_users -u 1000 linux_user
 
 ENTRYPOINT ["php"]

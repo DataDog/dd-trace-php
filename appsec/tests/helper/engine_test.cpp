@@ -4,14 +4,13 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
-#include "json_helper.hpp"
 #include <engine.hpp>
 #include <memory>
 #include <rapidjson/document.h>
 #include <subscriber/waf.hpp>
 
 const std::string waf_rule =
-    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]}]})";
+    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^string.*"}}]}]})";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -704,7 +703,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "on_match": ["redirect"]}], "actions": [{"id": "redirect",
              "type": "redirect_request", "parameters": {"status_code": "303",
-             "location": "localhost"}}]})");
+             "location": "https://localhost"}}]})");
         e->update(update, meta, metrics);
     }
 

@@ -155,7 +155,7 @@ TEST(ClientTest, ClientInit)
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
     EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.18.0");
+        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.1");
     EXPECT_STREQ(
         msg_res->meta[std::string(tag::event_rules_errors)].c_str(), "{}");
 
@@ -264,7 +264,7 @@ TEST(ClientTest, ClientInitInvalidRules)
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
     EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.18.0");
+        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.1");
 
     rapidjson::Document doc;
     doc.Parse(msg_res->meta[std::string(tag::event_rules_errors)]);
@@ -637,8 +637,8 @@ TEST(ClientTest, EventWithMultipleActions)
         EXPECT_EQ(msg_res->actions.size(),
             3); // Block is not generated since there is a redirect
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "redirect");
-        EXPECT_STREQ(
-            msg_res->actions[0].parameters["location"].c_str(), "localhost");
+        EXPECT_STREQ(msg_res->actions[0].parameters["location"].c_str(),
+            "https://localhost");
         EXPECT_STREQ(
             msg_res->actions[0].parameters["status_code"].c_str(), "303");
         EXPECT_STREQ(msg_res->actions[1].verdict.c_str(),

@@ -3,8 +3,10 @@ ARG VARIANT
 FROM datadog/dd-appsec-php-ci:php-$PHP_VERSION-$VARIANT
 
 RUN apt-get update && apt-get install -y \
-	apache2 \
-	&& rm -rf /var/lib/apt/lists/*
+    apache2 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN usermod -a -G linux_users www-data
 
 RUN rm -rf /var/www/html
 RUN sed -i 's@/var/www/html@/var/www/public@' /etc/apache2/sites-available/000-default.conf
