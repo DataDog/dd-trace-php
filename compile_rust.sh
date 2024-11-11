@@ -1,4 +1,11 @@
 #!/bin/sh
+
+if [ -n "$host_os" ]; then
+    # cc-rs is checking for rust triplets since
+    # https://github.com/rust-lang/cc-rs/blob/5835783f0e3a02cc343ed02e272b54988ee8a423/src/target.rs#L53-L66
+    host_os=$(echo "$host_os" | sed 's/alpine-linux-musl/unknown-linux/')
+fi
+
 cd components-rs
 
 RUSTFLAGS="${RUSTFLAGS:-} --cfg tokio_unstable"
