@@ -284,13 +284,57 @@ foo.bar = Off',
         $tempFile = tempnam(sys_get_temp_dir(), 'test');
         file_put_contents($tempFile, $before);
 
-        $count = update_ini_setting(['foo.bar', 'Off'], $tempFile, $promoteComment);
+        $count = \update_ini_setting(['foo.bar', 'Off'], $tempFile, $promoteComment);
 
         $output = file_get_contents($tempFile);
         $this->assertSame($after, $output);
         $this->assertSame($count, $expCount);
 
         unlink($tempFile);
+    }
+
+    public function iniFilePathsProvider()
+    {
+        return [
+            [
+                [
+                    'Scan this dir for additional .ini files' => '/opt/php/8.4/etc/conf.d',
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/conf.d/98-ddtrace.ini',
+                ]
+            ], [
+                [
+                    'Scan this dir for additional .ini files' => '/opt/php/8.4/etc/conf.d'.\PATH_SEPARATOR.'/opt/php/8.4/etc/override-conf.d',
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/conf.d/98-ddtrace.ini',
+                ]
+            ], [
+                [
+                    'Scan this dir for additional .ini files' => \PATH_SEPARATOR.'/opt/php/8.4/etc/override-conf.d',
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/override-conf.d/98-ddtrace.ini',
+                ]
+            ], [
+                [
+                    'Scan this dir for additional .ini files' => '/opt/php/8.4/etc/override-conf.d'.\PATH_SEPARATOR,
+                    'Loaded Configuration File' => '',
+                ], [
+                    '/opt/php/8.4/etc/override-conf.d/98-ddtrace.ini',
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * @dataProvider iniFilePathsProvider
+     */
+    public function testFindIniFilePath($props, $expected)
+    {
+        $dirs = \find_main_ini_files($props);
+        $this->assertSame($expected, $dirs);
     }
 
     private static function getTmpRootPath()
