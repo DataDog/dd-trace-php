@@ -831,7 +831,7 @@ function find_main_ini_files(array $phpProperties)
         $pos = strpos($phpProperties[INI_SCANDIR], \PATH_SEPARATOR);
         if ($pos !== false) {
             // https://www.php.net/manual/en/configuration.file.php#configuration.file.scandir
-            $phpProperties[INI_SCANDIR] = current(array_filter(explode(':', $phpProperties[INI_SCANDIR])));
+            $phpProperties[INI_SCANDIR] = current(array_filter(explode(\PATH_SEPARATOR, $phpProperties[INI_SCANDIR])));
         }
 
         $iniFileName = '98-ddtrace.ini';
