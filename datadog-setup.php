@@ -827,6 +827,13 @@ function find_all_ini_files(array $phpProperties)
 function find_main_ini_files(array $phpProperties)
 {
     if (isset($phpProperties[INI_SCANDIR])) {
+
+        $pos = strpos($phpProperties[INI_SCANDIR], \PATH_SEPARATOR);
+        if ($pos !== false) {
+            // https://www.php.net/manual/en/configuration.file.php#configuration.file.scandir
+            $phpProperties[INI_SCANDIR] = current(array_filter(explode(':', $phpProperties[INI_SCANDIR])));
+        }
+
         $iniFileName = '98-ddtrace.ini';
         // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
         // See issue https://github.com/DataDog/dd-trace-php/issues/1833
