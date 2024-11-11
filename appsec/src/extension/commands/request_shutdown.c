@@ -8,6 +8,7 @@
 #include "../commands_helpers.h"
 #include "../ddappsec.h"
 #include "../entity_body.h"
+#include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "../php_compat.h"
 #include "../php_objects.h"

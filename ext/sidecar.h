@@ -8,7 +8,8 @@ extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 
-void ddtrace_sidecar_setup(void);
+void ddtrace_sidecar_setup(bool appsec_features, bool appsec_config);
+bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_features, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar_globals(void);

@@ -69,7 +69,7 @@ pub extern "C" fn ddog_sidecar_enable_appsec(
     lock_file_path: CharSlice,
     log_file_path: CharSlice,
     log_level: CharSlice,
-) -> MaybeError {
+) -> () {
     let mut appsec_config_guard = APPSEC_CONFIG.lock().unwrap();
     let shared_lib_path_os: std::ffi::OsString;
     let socket_file_path_os: std::ffi::OsString;
@@ -99,8 +99,6 @@ pub extern "C" fn ddog_sidecar_enable_appsec(
         log_file_path: log_file_path_os,
         log_level: log_level.to_utf8_lossy().to_string(),
     });
-
-    MaybeError::None
 }
 
 #[no_mangle]
