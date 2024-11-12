@@ -1,159 +1,352 @@
 <?php
 
-namespace DDTrace\Contracts;
+namespace OpenTelemetry\Context;
 
-interface Tracer
+/**
+ * @see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/README.md#context
+ */
+final class Context implements \OpenTelemetry\Context\ContextInterface
+{
+    public static function createKey(string $key) : \OpenTelemetry\Context\ContextKeyInterface
+    {
+    }
+    /**
+     * @param ContextStorageInterface&ExecutionContextAwareInterface $storage
+     */
+    public static function setStorage(\OpenTelemetry\Context\ContextStorageInterface $storage) : void
+    {
+    }
+    /**
+     * @return ContextStorageInterface&ExecutionContextAwareInterface
+     */
+    public static function storage() : \OpenTelemetry\Context\ContextStorageInterface
+    {
+    }
+    /**
+     * @param ContextInterface|false|null $context
+     *
+     * @internal OpenTelemetry
+     */
+    public static function resolve($context, ?\OpenTelemetry\Context\ContextStorageInterface $contextStorage = null) : \OpenTelemetry\Context\ContextInterface
+    {
+    }
+    /**
+     * @internal
+     */
+    public static function getRoot() : \OpenTelemetry\Context\ContextInterface
+    {
+    }
+    public static function getCurrent() : \OpenTelemetry\Context\ContextInterface
+    {
+    }
+    public function activate() : \OpenTelemetry\Context\ScopeInterface
+    {
+    }
+    public function withContextValue(\OpenTelemetry\Context\ImplicitContextKeyedInterface $value) : \OpenTelemetry\Context\ContextInterface
+    {
+    }
+    public function with(\OpenTelemetry\Context\ContextKeyInterface $key, $value) : self
+    {
+    }
+    public function get(\OpenTelemetry\Context\ContextKeyInterface $key)
+    {
+    }
+}
+namespace DDTrace\OpenTelemetry;
+
+// Operation Name Conventions
+class Convention
+{
+    public static function defaultOperationName(\DDTrace\SpanData $span) : string
+    {
+    }
+}
+namespace OpenTelemetry\SDK\Trace;
+
+final class Span extends \OpenTelemetry\API\Trace\Span implements \OpenTelemetry\SDK\Trace\ReadWriteSpanInterface
 {
     /**
-     * Checks if Tracer is in limited mode.
+     * This method _MUST_ not be used directly.
+     * End users should use a {@see API\TracerInterface} in order to create spans.
      *
-     * Tracer needs to handle any operation even if its in limited mode,
-     * however users can opt not to use tracer when its in limited mode.
+     * @param non-empty-string $name
+     * @psalm-param API\SpanKind::KIND_* $kind
+     * @param list<LinkInterface> $links
      *
-     * @return bool
+     * @internal
+     * @psalm-internal OpenTelemetry
      */
-    public function limited();
+    public static function startSpan(\DDTrace\SpanData $span, \OpenTelemetry\API\Trace\SpanContextInterface $context, \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface $instrumentationScope, int $kind, \OpenTelemetry\API\Trace\SpanInterface $parentSpan, \OpenTelemetry\Context\ContextInterface $parentContext, \OpenTelemetry\SDK\Trace\SpanProcessorInterface $spanProcessor, \OpenTelemetry\SDK\Resource\ResourceInfo $resource, array $attributes, array $links, int $totalRecordedLinks, array $events, bool $isRemapped = true) : self
+    {
+    }
+    public function getName() : string
+    {
+    }
     /**
-     * Returns the current {@link ScopeManager}, which may be a noop but may not be null.
-     *
-     * @return ScopeManager
+     * @inheritDoc
      */
-    public function getScopeManager();
+    public function getContext() : \OpenTelemetry\API\Trace\SpanContextInterface
+    {
+    }
+    public function getParentContext() : \OpenTelemetry\API\Trace\SpanContextInterface
+    {
+    }
+    public function getInstrumentationScope() : \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface
+    {
+    }
+    public function hasEnded() : bool
+    {
+    }
     /**
-     * Returns the active {@link Span}. This is a shorthand for
-     * Tracer::getScopeManager()->getActive()->getSpan(),
-     * and null will be returned if {@link Scope#active()} is null.
-     *
-     * @return Span|null
+     * @inheritDoc
      */
-    public function getActiveSpan();
+    public function toSpanData() : \OpenTelemetry\SDK\Trace\SpanDataInterface
+    {
+    }
     /**
-     * Starts a new span that is activated on a scope manager.
-     *
-     * It's also possible to not finish the {@see \DDTrace\Contracts\Span} when
-     * {@see \DDTrace\Contracts\Scope} context expires:
-     *
-     *     $scope = $tracer->startActiveSpan('...', [
-     *         'finish_span_on_close' => false,
-     *     ]);
-     *     $span = $scope->getSpan();
-     *     try {
-     *         $span->setTag(Tags\HTTP_METHOD, 'GET');
-     *         // ...
-     *     } finally {
-     *         $scope->close();
-     *     }
-     *     // $span->finish() is not called as part of Scope deactivation as
-     *     // finish_span_on_close is false
-     *
-     * @param string $operationName
-     * @param array|StartSpanOptions $options Same as for startSpan() with
-     *     aditional option of `finish_span_on_close` that enables finishing
-     *     of span whenever a scope is closed. It is true by default.
-     *
-     * @return Scope A Scope that holds newly created Span and is activated on
-     *               a ScopeManager.
+     * @inheritDoc
      */
-    public function startActiveSpan($operationName, $options = []);
+    public function getDuration() : int
+    {
+    }
     /**
-     * Starts and returns a new span representing a unit of work.
-     *
-     * Whenever `child_of` reference is not passed then
-     * {@see \DDTrace\Contracts\ScopeManager::getActive()} span is used as `child_of`
-     * reference. In order to ignore implicit parent span pass in
-     * `ignore_active_span` option set to true.
-     *
-     * Starting a span with explicit parent:
-     *
-     *     $tracer->startSpan('...', [
-     *         'child_of' => $parentSpan,
-     *     ]);
-     *
-     * @see \DDTrace\StartSpanOptions
-     *
-     * @param string $operationName
-     * @param array|StartSpanOptions $options See StartSpanOptions for
-     *                                        available options.
-     *
-     * @return Span
-     *
-     * @throws InvalidSpanOption for invalid option
-     * @throws InvalidReferencesSet for invalid references set
+     * @inheritDoc
      */
-    public function startSpan($operationName, $options = []);
+    public function getKind() : int
+    {
+    }
     /**
-     * @param SpanContext $spanContext
-     * @param string $format
-     * @param mixed $carrier
-     *
-     * @see Formats
-     *
-     * @throws UnsupportedFormat when the format is not recognized by the tracer
-     * implementation
+     * @inheritDoc
      */
-    public function inject(\DDTrace\Contracts\SpanContext $spanContext, $format, &$carrier);
+    public function getAttribute(string $key)
+    {
+    }
+    public function getStartEpochNanos() : int
+    {
+    }
+    public function getTotalRecordedLinks() : int
+    {
+    }
+    public function getTotalRecordedEvents() : int
+    {
+    }
     /**
-     * @param string $format
-     * @param mixed $carrier
-     * @return SpanContext|null
-     *
-     * @see Formats
-     *
-     * @throws UnsupportedFormat when the format is not recognized by the tracer
-     * implementation
+     * @inheritDoc
      */
-    public function extract($format, $carrier);
+    public function isRecording() : bool
+    {
+    }
     /**
-     * Allow tracer to send span data to be instrumented.
+     * @inheritDoc
+     */
+    public function setAttribute(string $key, $value) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function setAttributes(iterable $attributes) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function updateName(string $name) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function setStatus(string $code, string $description = null) : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function end(int $endEpochNanos = null) : void
+    {
+    }
+    public function endOTelSpan(int $endEpochNanos = null) : void
+    {
+    }
+    public function getResource() : \OpenTelemetry\SDK\Resource\ResourceInfo
+    {
+    }
+    /**
+     * @internal
+     * @return SpanData
+     */
+    public function getDDSpan() : \DDTrace\SpanData
+    {
+    }
+}
+final class SpanBuilder implements \OpenTelemetry\API\Trace\SpanBuilderInterface
+{
+    /** @param non-empty-string $spanName */
+    public function __construct(string $spanName, \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface $instrumentationScope, \OpenTelemetry\SDK\Trace\TracerSharedState $tracerSharedState)
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function setParent($context) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    /** @inheritDoc */
+    public function setAttribute(string $key, $value) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    /** @inheritDoc */
+    public function setAttributes(iterable $attributes) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function setStartTimestamp(int $timestampNanos) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function setSpanKind(int $spanKind) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function startSpan() : \OpenTelemetry\API\Trace\SpanInterface
+    {
+    }
+}
+namespace DDTrace\OpenTelemetry\API\Trace;
+
+final class SpanContext implements \OpenTelemetry\API\Trace\SpanContextInterface
+{
+    /**
+     * @inheritDoc
+     */
+    public function getTraceId() : string
+    {
+    }
+    public function getTraceIdBinary() : string
+    {
+    }
+    /**
+     * @inheritDoc
+     */
+    public function getSpanId() : string
+    {
+    }
+    public function getSpanIdBinary() : string
+    {
+    }
+    public function getTraceState() : ?\OpenTelemetry\API\Trace\TraceStateInterface
+    {
+    }
+    public function isSampled() : bool
+    {
+    }
+    public function isValid() : bool
+    {
+    }
+    public function isRemote() : bool
+    {
+    }
+    public function getTraceFlags() : int
+    {
+    }
+    /** @inheritDoc */
+    public static function createFromRemoteParent(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null) : \OpenTelemetry\API\Trace\SpanContextInterface
+    {
+    }
+    /** @inheritDoc */
+    public static function create(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null) : \OpenTelemetry\API\Trace\SpanContextInterface
+    {
+    }
+    /** @inheritDoc */
+    public static function getInvalid() : \OpenTelemetry\API\Trace\SpanContextInterface
+    {
+    }
+    public static function createFromLocalSpan(\DDTrace\SpanData $span, bool $sampled, ?string $traceId = null, ?string $spanId = null)
+    {
+    }
+}
+namespace DDTrace\Processing;
+
+/**
+ * A span processor in charge of adding the trace analytics client config metric when appropriate.
+ *
+ * NOTE: this may be transformer into a filter for consistency with other tracers, but for now we did not implement
+ * any filtering functionality so giving it such name as of now might be misleading.
+ */
+final class TraceAnalyticsProcessor
+{
+    /**
+     * @param array $metrics
+     * @param bool|float $value
+     */
+    public static function normalizeAnalyticsValue(&$metrics, $value)
+    {
+    }
+}
+namespace DDTrace;
+
+/**
+ * Propagator implementations should be able to inject and extract
+ * SpanContexts into an implementation specific carrier.
+ */
+interface Propagator
+{
+    const DEFAULT_BAGGAGE_HEADER_PREFIX = 'ot-baggage-';
+    const DEFAULT_TRACE_ID_HEADER = 'x-datadog-trace-id';
+    const DEFAULT_PARENT_ID_HEADER = 'x-datadog-parent-id';
+    const DEFAULT_SAMPLING_PRIORITY_HEADER = 'x-datadog-sampling-priority';
+    const DEFAULT_ORIGIN_HEADER = 'x-datadog-origin';
+    /**
+     * Inject takes the SpanContext and injects it into the carrier using
+     * an implementation specific method.
      *
-     * This method might not be needed depending on the tracing implementation
-     * but one should make sure this method is called after the request is delivered
-     * to the client.
+     * @param SpanContextInterface $spanContext
+     * @param array|\ArrayAccess $carrier
+     * @return void
+     */
+    public function inject(\DDTrace\Contracts\SpanContext $spanContext, &$carrier);
+    /**
+     * Extract returns the SpanContext from the given carrier using an
+     * implementation specific method.
      *
-     * As an implementor, a good idea would be to use {@see register_shutdown_function}
-     * or {@see fastcgi_finish_request} in order to not to delay the end of the request
-     * to the client.
+     * @param array|\ArrayAccess $carrier
+     * @return SpanContextInterface
      */
-    public function flush();
-    /**
-     * @param mixed $prioritySampling
-     */
-    public function setPrioritySampling($prioritySampling);
-    /**
-     * @return int|null
-     */
-    public function getPrioritySampling();
-    /**
-     * This behaves just like Tracer::startActiveSpan(), but it saves the Scope instance
-     * on the tracer to be accessed later by Tracer::getRootScope().
-     *
-     * @param string $operationName
-     * @param array $options
-     * @return Scope
-     */
-    public function startRootSpan($operationName, $options = []);
-    /**
-     * @return Scope|null
-     */
-    public function getRootScope();
-    /**
-     * Returns the root span or null and never throws an exception.
-     *
-     * @return Span|null
-     */
-    public function getSafeRootSpan();
-    /**
-     * Returns the entire trace encoded as a plain-old PHP array.
-     *
-     * @return array
-     */
-    public function getTracesAsArray();
-    /**
-     * Returns the count of currently stored traces
-     *
-     * @return int
-     */
-    public function getTracesCount();
+    public function extract($carrier);
 }
 namespace DDTrace\Log;
 
@@ -193,178 +386,158 @@ trait LoggingTrait
     {
     }
 }
-namespace DDTrace;
+namespace DDTrace\Propagators;
 
-final class Tracer implements \DDTrace\Contracts\Tracer
+final class TextMap implements \DDTrace\Propagator
 {
     use \DDTrace\Log\LoggingTrait;
     /**
-     * @param Transport $transport
-     * @param Propagator[] $propagators
-     * @param array $config
+     * @param Tracer $tracer
      */
-    public function __construct(\DDTrace\Transport $transport = null, array $propagators = null, array $config = [])
-    {
-    }
-    public function limited()
-    {
-    }
-    /**
-     * Resets this tracer to its original state.
-     */
-    public function reset()
-    {
-    }
-    /**
-     * @return Tracer
-     */
-    public static function noop()
+    public function __construct(\DDTrace\Contracts\Tracer $tracer)
     {
     }
     /**
      * {@inheritdoc}
      */
-    public function startSpan($operationName, $options = [])
+    public function inject(\DDTrace\Contracts\SpanContext $spanContext, &$carrier)
     {
     }
     /**
      * {@inheritdoc}
      */
-    public function startRootSpan($operationName, $options = [])
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function getRootScope()
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function startActiveSpan($operationName, $options = [])
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function inject(\DDTrace\Contracts\SpanContext $spanContext, $format, &$carrier)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function extract($format, $carrier)
-    {
-    }
-    /**
-     * @return void
-     */
-    public function flush()
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function getScopeManager()
-    {
-    }
-    /**
-     * @return null|Span
-     */
-    public function getActiveSpan()
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function getTracesAsArray()
-    {
-    }
-    public function addUrlAsResourceNameToSpan(\DDTrace\Contracts\Span $span)
-    {
-    }
-    /**
-     * @param mixed $prioritySampling
-     */
-    public function setPrioritySampling($prioritySampling)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function getPrioritySampling()
-    {
-    }
-    /**
-     * Returns the root span or null and never throws an exception.
-     *
-     * @return SpanInterface|null
-     */
-    public function getSafeRootSpan()
-    {
-    }
-    /**
-     * @return string
-     */
-    public static function version()
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function getTracesCount()
+    public function extract($carrier)
     {
     }
 }
-/**
- * Although DataDog uses nanotime to report spans PHP does not support nanotime
- * plus, nanotime is a uint64 which is not supported either. Microtime will be used
- * and there will be transformations in reporting in order to send nanotime.
- */
-class Time
-{
-    /**
-     * @return int
-     */
-    public static function now()
-    {
-    }
-    /**
-     * @return int
-     */
-    public static function fromMicrotime($microtime)
-    {
-    }
-    /**
-     * @param mixed $time
-     * @return bool
-     */
-    public static function isValid($time)
-    {
-    }
-}
-interface Transport
-{
-    /**
-     * @param TracerInterface $tracer
-     */
-    public function send(\DDTrace\Contracts\Tracer $tracer);
-    /**
-     * @param string $key
-     * @param string $value
-     * @return void
-     */
-    public function setHeader($key, $value);
-}
-namespace DDTrace\Transport;
+namespace DDTrace\Contracts;
 
-final class Internal implements \DDTrace\Transport
+/**
+ * Ported from opentracing/opentracing
+ * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Scope.php
+ */
+/**
+ * A {@link Scope} formalizes the activation and deactivation of a {@link Span}, usually from a CPU standpoint.
+ *
+ * Many times a {@link Span} will be extant (in that {@link Span#finish()} has not been called) despite being in a
+ * non-runnable state from a CPU/scheduler standpoint. For instance, a {@link Span} representing the client side of an
+ * RPC will be unfinished but blocked on IO while the RPC is still outstanding. A {@link Scope} defines when a given
+ * {@link Span} <em>is</em> scheduled and on the path.
+ */
+interface Scope
 {
-    public function send(\DDTrace\Contracts\Tracer $tracer)
+    /**
+     * Mark the end of the active period for the current thread and {@link Scope},
+     * updating the {@link ScopeManager#active()} in the process.
+     *
+     * NOTE: Calling {@link #close} more than once on a single {@link Scope} instance leads to undefined
+     * behavior.
+     */
+    public function close();
+    /**
+     * @return Span the {@link Span} that's been scoped by this {@link Scope}
+     */
+    public function getSpan();
+}
+namespace DDTrace;
+
+final class Scope implements \DDTrace\Contracts\Scope
+{
+    public function __construct(\DDTrace\ScopeManager $scopeManager, \DDTrace\Contracts\Span $span, $finishSpanOnClose)
     {
     }
-    public function setHeader($key, $value)
+    /**
+     * {@inheritdoc}
+     */
+    public function close()
+    {
+    }
+    /**
+     * {@inheritdoc}
+     *
+     * @return SpanInterface
+     */
+    public function getSpan()
+    {
+    }
+}
+namespace DDTrace\Contracts;
+
+/**
+ * Ported from opentracing/opentracing
+ * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/ScopeManager.php
+ */
+/**
+ * Keeps track of the current active `Span`.
+ */
+interface ScopeManager
+{
+    const DEFAULT_FINISH_SPAN_ON_CLOSE = true;
+    /**
+     * Activates an `Span`, so that it is used as a parent when creating new spans.
+     * The implementation must keep track of the active spans sequence, so
+     * that previous spans can be resumed after a deactivation.
+     *
+     * @param Span $span the {@link Span} that should become the {@link #active()}
+     * @param bool $finishSpanOnClose whether span should automatically be finished
+     * when {@link Scope#close()} is called. Its default value is true.
+     *
+     * @return Scope instance to control the end of the active period for the {@link Span}. It is a
+     * programming error to neglect to call {@link Scope#close()} on the returned instance.
+     */
+    public function activate(\DDTrace\Contracts\Span $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE);
+    /**
+     * Return the currently active {@link Scope} which can be used to access the
+     * currently active {@link Scope#getSpan()}.
+     *
+     * If there is an {@link Scope non-null scope}, its wrapped {@link Span} becomes an implicit parent
+     * (as {@link References#CHILD_OF} reference) of any
+     * newly-created {@link Span} at {@link Tracer.SpanBuilder#startActive(boolean)} or {@link SpanBuilder#start()}
+     * time rather than at {@link Tracer#buildSpan(String)} time.
+     *
+     * @return Scope|null
+     */
+    public function getActive();
+    /**
+     * Closes all the current request root spans. Typically there only will be one.
+     */
+    public function close();
+}
+namespace DDTrace;
+
+final class ScopeManager implements \DDTrace\Contracts\ScopeManager
+{
+    public function __construct(\DDTrace\SpanContext $rootContext = null)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     * @param Span|SpanInterface $span
+     */
+    public function activate(\DDTrace\Contracts\Span $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getActive()
+    {
+    }
+    public function deactivate(\DDTrace\Scope $scope)
+    {
+    }
+    /** @internal */
+    public function getPrimaryRoot()
+    {
+    }
+    /** @internal */
+    public function getTopScope()
+    {
+    }
+    /**
+     * Closes all the current request root spans. Typically there only will be one.
+     */
+    public function close()
     {
     }
 }
@@ -771,507 +944,6 @@ class Span extends \DDTrace\Data\Span
     {
     }
 }
-namespace DDTrace\Processing;
-
-/**
- * A span processor in charge of adding the trace analytics client config metric when appropriate.
- *
- * NOTE: this may be transformer into a filter for consistency with other tracers, but for now we did not implement
- * any filtering functionality so giving it such name as of now might be misleading.
- */
-final class TraceAnalyticsProcessor
-{
-    /**
-     * @param array $metrics
-     * @param bool|float $value
-     */
-    public static function normalizeAnalyticsValue(&$metrics, $value)
-    {
-    }
-}
-namespace OpenTelemetry\SDK\Trace;
-
-final class SpanBuilder implements \OpenTelemetry\API\Trace\SpanBuilderInterface
-{
-    /** @param non-empty-string $spanName */
-    public function __construct(string $spanName, \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface $instrumentationScope, \OpenTelemetry\SDK\Trace\TracerSharedState $tracerSharedState)
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function setParent($context) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    /** @inheritDoc */
-    public function setAttribute(string $key, $value) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    /** @inheritDoc */
-    public function setAttributes(iterable $attributes) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function setStartTimestamp(int $timestampNanos) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function setSpanKind(int $spanKind) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function startSpan() : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-}
-final class Span extends \OpenTelemetry\API\Trace\Span implements \OpenTelemetry\SDK\Trace\ReadWriteSpanInterface
-{
-    /**
-     * This method _MUST_ not be used directly.
-     * End users should use a {@see API\TracerInterface} in order to create spans.
-     *
-     * @param non-empty-string $name
-     * @psalm-param API\SpanKind::KIND_* $kind
-     * @param list<LinkInterface> $links
-     *
-     * @internal
-     * @psalm-internal OpenTelemetry
-     */
-    public static function startSpan(\DDTrace\SpanData $span, \OpenTelemetry\API\Trace\SpanContextInterface $context, \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface $instrumentationScope, int $kind, \OpenTelemetry\API\Trace\SpanInterface $parentSpan, \OpenTelemetry\Context\ContextInterface $parentContext, \OpenTelemetry\SDK\Trace\SpanProcessorInterface $spanProcessor, \OpenTelemetry\SDK\Resource\ResourceInfo $resource, array $attributes, array $links, int $totalRecordedLinks, array $events, bool $isRemapped = true) : self
-    {
-    }
-    public function getName() : string
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function getContext() : \OpenTelemetry\API\Trace\SpanContextInterface
-    {
-    }
-    public function getParentContext() : \OpenTelemetry\API\Trace\SpanContextInterface
-    {
-    }
-    public function getInstrumentationScope() : \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface
-    {
-    }
-    public function hasEnded() : bool
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function toSpanData() : \OpenTelemetry\SDK\Trace\SpanDataInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function getDuration() : int
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function getKind() : int
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function getAttribute(string $key)
-    {
-    }
-    public function getStartEpochNanos() : int
-    {
-    }
-    public function getTotalRecordedLinks() : int
-    {
-    }
-    public function getTotalRecordedEvents() : int
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function isRecording() : bool
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function setAttribute(string $key, $value) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function setAttributes(iterable $attributes) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function updateName(string $name) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function setStatus(string $code, string $description = null) : \OpenTelemetry\API\Trace\SpanInterface
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function end(int $endEpochNanos = null) : void
-    {
-    }
-    public function endOTelSpan(int $endEpochNanos = null) : void
-    {
-    }
-    public function getResource() : \OpenTelemetry\SDK\Resource\ResourceInfo
-    {
-    }
-    /**
-     * @internal
-     * @return SpanData
-     */
-    public function getDDSpan() : \DDTrace\SpanData
-    {
-    }
-}
-namespace OpenTelemetry\Context;
-
-/**
- * @see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/context/README.md#context
- */
-final class Context implements \OpenTelemetry\Context\ContextInterface
-{
-    public static function createKey(string $key) : \OpenTelemetry\Context\ContextKeyInterface
-    {
-    }
-    /**
-     * @param ContextStorageInterface&ExecutionContextAwareInterface $storage
-     */
-    public static function setStorage(\OpenTelemetry\Context\ContextStorageInterface $storage) : void
-    {
-    }
-    /**
-     * @return ContextStorageInterface&ExecutionContextAwareInterface
-     */
-    public static function storage() : \OpenTelemetry\Context\ContextStorageInterface
-    {
-    }
-    /**
-     * @param ContextInterface|false|null $context
-     *
-     * @internal OpenTelemetry
-     */
-    public static function resolve($context, ?\OpenTelemetry\Context\ContextStorageInterface $contextStorage = null) : \OpenTelemetry\Context\ContextInterface
-    {
-    }
-    /**
-     * @internal
-     */
-    public static function getRoot() : \OpenTelemetry\Context\ContextInterface
-    {
-    }
-    public static function getCurrent() : \OpenTelemetry\Context\ContextInterface
-    {
-    }
-    public function activate() : \OpenTelemetry\Context\ScopeInterface
-    {
-    }
-    public function withContextValue(\OpenTelemetry\Context\ImplicitContextKeyedInterface $value) : \OpenTelemetry\Context\ContextInterface
-    {
-    }
-    public function with(\OpenTelemetry\Context\ContextKeyInterface $key, $value) : self
-    {
-    }
-    public function get(\OpenTelemetry\Context\ContextKeyInterface $key)
-    {
-    }
-}
-namespace DDTrace\OpenTelemetry;
-
-// Operation Name Conventions
-class Convention
-{
-    public static function defaultOperationName(\DDTrace\SpanData $span) : string
-    {
-    }
-}
-namespace DDTrace\OpenTelemetry\API\Trace;
-
-final class SpanContext implements \OpenTelemetry\API\Trace\SpanContextInterface
-{
-    /**
-     * @inheritDoc
-     */
-    public function getTraceId() : string
-    {
-    }
-    public function getTraceIdBinary() : string
-    {
-    }
-    /**
-     * @inheritDoc
-     */
-    public function getSpanId() : string
-    {
-    }
-    public function getSpanIdBinary() : string
-    {
-    }
-    public function getTraceState() : ?\OpenTelemetry\API\Trace\TraceStateInterface
-    {
-    }
-    public function isSampled() : bool
-    {
-    }
-    public function isValid() : bool
-    {
-    }
-    public function isRemote() : bool
-    {
-    }
-    public function getTraceFlags() : int
-    {
-    }
-    /** @inheritDoc */
-    public static function createFromRemoteParent(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null) : \OpenTelemetry\API\Trace\SpanContextInterface
-    {
-    }
-    /** @inheritDoc */
-    public static function create(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null) : \OpenTelemetry\API\Trace\SpanContextInterface
-    {
-    }
-    /** @inheritDoc */
-    public static function getInvalid() : \OpenTelemetry\API\Trace\SpanContextInterface
-    {
-    }
-    public static function createFromLocalSpan(\DDTrace\SpanData $span, bool $sampled, ?string $traceId = null, ?string $spanId = null)
-    {
-    }
-}
-namespace DDTrace\Contracts;
-
-/**
- * Ported from opentracing/opentracing
- * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Scope.php
- */
-/**
- * A {@link Scope} formalizes the activation and deactivation of a {@link Span}, usually from a CPU standpoint.
- *
- * Many times a {@link Span} will be extant (in that {@link Span#finish()} has not been called) despite being in a
- * non-runnable state from a CPU/scheduler standpoint. For instance, a {@link Span} representing the client side of an
- * RPC will be unfinished but blocked on IO while the RPC is still outstanding. A {@link Scope} defines when a given
- * {@link Span} <em>is</em> scheduled and on the path.
- */
-interface Scope
-{
-    /**
-     * Mark the end of the active period for the current thread and {@link Scope},
-     * updating the {@link ScopeManager#active()} in the process.
-     *
-     * NOTE: Calling {@link #close} more than once on a single {@link Scope} instance leads to undefined
-     * behavior.
-     */
-    public function close();
-    /**
-     * @return Span the {@link Span} that's been scoped by this {@link Scope}
-     */
-    public function getSpan();
-}
-namespace DDTrace;
-
-final class Scope implements \DDTrace\Contracts\Scope
-{
-    public function __construct(\DDTrace\ScopeManager $scopeManager, \DDTrace\Contracts\Span $span, $finishSpanOnClose)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function close()
-    {
-    }
-    /**
-     * {@inheritdoc}
-     *
-     * @return SpanInterface
-     */
-    public function getSpan()
-    {
-    }
-}
-/**
- * Propagator implementations should be able to inject and extract
- * SpanContexts into an implementation specific carrier.
- */
-interface Propagator
-{
-    const DEFAULT_BAGGAGE_HEADER_PREFIX = 'ot-baggage-';
-    const DEFAULT_TRACE_ID_HEADER = 'x-datadog-trace-id';
-    const DEFAULT_PARENT_ID_HEADER = 'x-datadog-parent-id';
-    const DEFAULT_SAMPLING_PRIORITY_HEADER = 'x-datadog-sampling-priority';
-    const DEFAULT_ORIGIN_HEADER = 'x-datadog-origin';
-    /**
-     * Inject takes the SpanContext and injects it into the carrier using
-     * an implementation specific method.
-     *
-     * @param SpanContextInterface $spanContext
-     * @param array|\ArrayAccess $carrier
-     * @return void
-     */
-    public function inject(\DDTrace\Contracts\SpanContext $spanContext, &$carrier);
-    /**
-     * Extract returns the SpanContext from the given carrier using an
-     * implementation specific method.
-     *
-     * @param array|\ArrayAccess $carrier
-     * @return SpanContextInterface
-     */
-    public function extract($carrier);
-}
-namespace DDTrace\Propagators;
-
-final class TextMap implements \DDTrace\Propagator
-{
-    use \DDTrace\Log\LoggingTrait;
-    /**
-     * @param Tracer $tracer
-     */
-    public function __construct(\DDTrace\Contracts\Tracer $tracer)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function inject(\DDTrace\Contracts\SpanContext $spanContext, &$carrier)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function extract($carrier)
-    {
-    }
-}
-namespace DDTrace\Contracts;
-
-/**
- * Ported from opentracing/opentracing
- * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/ScopeManager.php
- */
-/**
- * Keeps track of the current active `Span`.
- */
-interface ScopeManager
-{
-    const DEFAULT_FINISH_SPAN_ON_CLOSE = true;
-    /**
-     * Activates an `Span`, so that it is used as a parent when creating new spans.
-     * The implementation must keep track of the active spans sequence, so
-     * that previous spans can be resumed after a deactivation.
-     *
-     * @param Span $span the {@link Span} that should become the {@link #active()}
-     * @param bool $finishSpanOnClose whether span should automatically be finished
-     * when {@link Scope#close()} is called. Its default value is true.
-     *
-     * @return Scope instance to control the end of the active period for the {@link Span}. It is a
-     * programming error to neglect to call {@link Scope#close()} on the returned instance.
-     */
-    public function activate(\DDTrace\Contracts\Span $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE);
-    /**
-     * Return the currently active {@link Scope} which can be used to access the
-     * currently active {@link Scope#getSpan()}.
-     *
-     * If there is an {@link Scope non-null scope}, its wrapped {@link Span} becomes an implicit parent
-     * (as {@link References#CHILD_OF} reference) of any
-     * newly-created {@link Span} at {@link Tracer.SpanBuilder#startActive(boolean)} or {@link SpanBuilder#start()}
-     * time rather than at {@link Tracer#buildSpan(String)} time.
-     *
-     * @return Scope|null
-     */
-    public function getActive();
-    /**
-     * Closes all the current request root spans. Typically there only will be one.
-     */
-    public function close();
-}
-namespace DDTrace;
-
-final class ScopeManager implements \DDTrace\Contracts\ScopeManager
-{
-    public function __construct(\DDTrace\SpanContext $rootContext = null)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     * @param Span|SpanInterface $span
-     */
-    public function activate(\DDTrace\Contracts\Span $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE)
-    {
-    }
-    /**
-     * {@inheritdoc}
-     */
-    public function getActive()
-    {
-    }
-    public function deactivate(\DDTrace\Scope $scope)
-    {
-    }
-    /** @internal */
-    public function getPrimaryRoot()
-    {
-    }
-    /** @internal */
-    public function getTopScope()
-    {
-    }
-    /**
-     * Closes all the current request root spans. Typically there only will be one.
-     */
-    public function close()
-    {
-    }
-}
 namespace DDTrace\Contracts;
 
 /**
@@ -1478,181 +1150,333 @@ final class SpanContext extends \DDTrace\Data\SpanContext
     {
     }
 }
-class Type
-{
-    const CACHE = 'cache';
-    const HTTP_CLIENT = 'http';
-    const WEB_SERVLET = 'web';
-    const CLI = 'cli';
-    const SQL = 'sql';
-    const MESSAGE_CONSUMER = 'queue';
-    const MESSAGE_PRODUCER = 'queue';
-    const CASSANDRA = 'cassandra';
-    const ELASTICSEARCH = 'elasticsearch';
-    const MEMCACHED = 'memcached';
-    const MONGO = 'mongodb';
-    const OPENAI = 'openai';
-    const REDIS = 'redis';
-    const SYSTEM = 'system';
-}
-class Tag
-{
-    // Generic
-    const ENV = 'env';
-    const SPAN_TYPE = 'span.type';
-    const SPAN_KIND = 'span.kind';
-    const SPAN_KIND_VALUE_SERVER = 'server';
-    const SPAN_KIND_VALUE_CLIENT = 'client';
-    const SPAN_KIND_VALUE_PRODUCER = 'producer';
-    const SPAN_KIND_VALUE_CONSUMER = 'consumer';
-    const SPAN_KIND_VALUE_INTERNAL = 'internal';
-    const COMPONENT = 'component';
-    const SERVICE_NAME = 'service.name';
-    const MANUAL_KEEP = 'manual.keep';
-    const MANUAL_DROP = 'manual.drop';
-    const PID = 'process_id';
-    const RESOURCE_NAME = 'resource.name';
-    const DB_STATEMENT = 'sql.query';
-    const ERROR = 'error';
-    const ERROR_MSG = 'error.message';
-    // string representing the error message
-    const ERROR_TYPE = 'error.type';
-    // string representing the type of the error
-    const ERROR_STACK = 'error.stack';
-    // human readable version of the stack
-    const HTTP_METHOD = 'http.method';
-    const HTTP_ROUTE = 'http.route';
-    const HTTP_STATUS_CODE = 'http.status_code';
-    const HTTP_URL = 'http.url';
-    const HTTP_VERSION = 'http.version';
-    const LOG_EVENT = 'event';
-    const LOG_ERROR = 'error';
-    const LOG_ERROR_OBJECT = 'error.object';
-    const LOG_MESSAGE = 'message';
-    const LOG_STACK = 'stack';
-    const NETWORK_DESTINATION_NAME = 'network.destination.name';
-    const TARGET_HOST = 'out.host';
-    const TARGET_PORT = 'out.port';
-    const BYTES_OUT = 'net.out.bytes';
-    const ANALYTICS_KEY = '_dd1.sr.eausr';
-    const HOSTNAME = '_dd.hostname';
-    const ORIGIN = '_dd.origin';
-    const VERSION = 'version';
-    const SERVICE_VERSION = 'service.version';
-    // OpenTelemetry compatible tag
-    // Elasticsearch
-    const ELASTICSEARCH_BODY = 'elasticsearch.body';
-    const ELASTICSEARCH_METHOD = 'elasticsearch.method';
-    const ELASTICSEARCH_PARAMS = 'elasticsearch.params';
-    const ELASTICSEARCH_URL = 'elasticsearch.url';
-    // Database
-    const DB_NAME = 'db.name';
-    const DB_CHARSET = 'db.charset';
-    const DB_INSTANCE = 'db.instance';
-    const DB_TYPE = 'db.type';
-    const DB_SYSTEM = 'db.system';
-    const DB_ROW_COUNT = 'db.row_count';
-    const DB_STMT = 'db.statement';
-    const DB_USER = 'db.user';
-    // Laravel Queue
-    const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';
-    const LARAVELQ_BATCH_ID = 'messaging.laravel.batch_id';
-    const LARAVELQ_CONNECTION = 'messaging.laravel.connection';
-    const LARAVELQ_MAX_TRIES = 'messaging.laravel.max_tries';
-    const LARAVELQ_NAME = 'messaging.laravel.name';
-    const LARAVELQ_TIMEOUT = 'messaging.laravel.timeout';
-    // MongoDB
-    const MONGODB_BSON_ID = 'mongodb.bson.id';
-    const MONGODB_COLLECTION = 'mongodb.collection';
-    const MONGODB_DATABASE = 'mongodb.db';
-    const MONGODB_PROFILING_LEVEL = 'mongodb.profiling_level';
-    const MONGODB_READ_PREFERENCE = 'mongodb.read_preference';
-    const MONGODB_SERVER = 'mongodb.server';
-    const MONGODB_TIMEOUT = 'mongodb.timeout';
-    const MONGODB_QUERY = 'mongodb.query';
-    // REDIS
-    const REDIS_RAW_COMMAND = 'redis.raw_command';
-    // Message Queue
-    const MQ_SYSTEM = 'messaging.system';
-    const MQ_DESTINATION = 'messaging.destination';
-    const MQ_DESTINATION_KIND = 'messaging.destination_kind';
-    const MQ_TEMP_DESTINATION = 'messaging.temp_destination';
-    const MQ_PROTOCOL = 'messaging.protocol';
-    const MQ_PROTOCOL_VERSION = 'messaging.protocol_version';
-    const MQ_URL = 'messaging.url';
-    const MQ_MESSAGE_ID = 'messaging.message_id';
-    const MQ_CONVERSATION_ID = 'messaging.conversation_id';
-    const MQ_MESSAGE_PAYLOAD_SIZE = 'messaging.message_payload_size_bytes';
-    const MQ_OPERATION = 'messaging.operation';
-    const MQ_CONSUMER_ID = 'messaging.consumer_id';
-    // RabbitMQ
-    const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';
-    const RABBITMQ_EXCHANGE = 'messaging.rabbitmq.exchange';
-    const RABBITMQ_ROUTING_KEY = 'messaging.rabbitmq.routing_key';
-    // Exec
-    const EXEC_CMDLINE_EXEC = 'cmd.exec';
-    const EXEC_CMDLINE_SHELL = 'cmd.shell';
-    const EXEC_TRUNCATED = 'cmd.truncated';
-    const EXEC_EXIT_CODE = 'cmd.exit_code';
-}
-final class Reference
+/**
+ * Although DataDog uses nanotime to report spans PHP does not support nanotime
+ * plus, nanotime is a uint64 which is not supported either. Microtime will be used
+ * and there will be transformations in reporting in order to send nanotime.
+ */
+class Time
 {
     /**
-     * A Span may be the ChildOf a parent Span. In a ChildOf reference,
-     * the parent Span depends on the child Span in some capacity.
+     * @return int
      */
-    const CHILD_OF = 'child_of';
-    /**
-     * Some parent Spans do not depend in any way on the result of their
-     * child Spans. In these cases, we say merely that the child Span
-     * FollowsFrom the parent Span in a causal sense.
-     */
-    const FOLLOWS_FROM = 'follows_from';
-    /**
-     * @param SpanContextInterface|SpanInterface $context
-     * @param string $type
-     * @throws InvalidReferenceArgument on empty type
-     * @return Reference when context is invalid
-     */
-    public static function create($type, $context)
+    public static function now()
     {
     }
     /**
-     * @return SpanContextInterface
+     * @return int
      */
-    public function getContext()
+    public static function fromMicrotime($microtime)
     {
     }
     /**
-     * Checks whether a Reference is of one type.
-     *
-     * @param string $type the type for the reference
+     * @param mixed $time
      * @return bool
      */
-    public function isType($type)
+    public static function isValid($time)
     {
     }
 }
-namespace DDTrace\Sampling;
+namespace DDTrace\Contracts;
 
-class PrioritySampling
+interface Tracer
 {
-    // The Agent will drop the trace, as instructed by any mechanism that is not the sampler.
-    const USER_REJECT = -1;
-    // Automatic sampling decision. The Agent should drop the trace.
-    const AUTO_REJECT = 0;
-    // Automatic sampling decision. The Agent should keep the trace.
-    const AUTO_KEEP = 1;
-    // The Agent should keep the trace, as instructed by any mechanism that is not the sampler.
-    // The backend will only apply sampling if above maximum volume allowed.
-    const USER_KEEP = 2;
-    // It was not possible to parse
-    const UNKNOWN = null;
     /**
-     * @param mixed|string $value
+     * Checks if Tracer is in limited mode.
+     *
+     * Tracer needs to handle any operation even if its in limited mode,
+     * however users can opt not to use tracer when its in limited mode.
+     *
+     * @return bool
+     */
+    public function limited();
+    /**
+     * Returns the current {@link ScopeManager}, which may be a noop but may not be null.
+     *
+     * @return ScopeManager
+     */
+    public function getScopeManager();
+    /**
+     * Returns the active {@link Span}. This is a shorthand for
+     * Tracer::getScopeManager()->getActive()->getSpan(),
+     * and null will be returned if {@link Scope#active()} is null.
+     *
+     * @return Span|null
+     */
+    public function getActiveSpan();
+    /**
+     * Starts a new span that is activated on a scope manager.
+     *
+     * It's also possible to not finish the {@see \DDTrace\Contracts\Span} when
+     * {@see \DDTrace\Contracts\Scope} context expires:
+     *
+     *     $scope = $tracer->startActiveSpan('...', [
+     *         'finish_span_on_close' => false,
+     *     ]);
+     *     $span = $scope->getSpan();
+     *     try {
+     *         $span->setTag(Tags\HTTP_METHOD, 'GET');
+     *         // ...
+     *     } finally {
+     *         $scope->close();
+     *     }
+     *     // $span->finish() is not called as part of Scope deactivation as
+     *     // finish_span_on_close is false
+     *
+     * @param string $operationName
+     * @param array|StartSpanOptions $options Same as for startSpan() with
+     *     aditional option of `finish_span_on_close` that enables finishing
+     *     of span whenever a scope is closed. It is true by default.
+     *
+     * @return Scope A Scope that holds newly created Span and is activated on
+     *               a ScopeManager.
+     */
+    public function startActiveSpan($operationName, $options = []);
+    /**
+     * Starts and returns a new span representing a unit of work.
+     *
+     * Whenever `child_of` reference is not passed then
+     * {@see \DDTrace\Contracts\ScopeManager::getActive()} span is used as `child_of`
+     * reference. In order to ignore implicit parent span pass in
+     * `ignore_active_span` option set to true.
+     *
+     * Starting a span with explicit parent:
+     *
+     *     $tracer->startSpan('...', [
+     *         'child_of' => $parentSpan,
+     *     ]);
+     *
+     * @see \DDTrace\StartSpanOptions
+     *
+     * @param string $operationName
+     * @param array|StartSpanOptions $options See StartSpanOptions for
+     *                                        available options.
+     *
+     * @return Span
+     *
+     * @throws InvalidSpanOption for invalid option
+     * @throws InvalidReferencesSet for invalid references set
+     */
+    public function startSpan($operationName, $options = []);
+    /**
+     * @param SpanContext $spanContext
+     * @param string $format
+     * @param mixed $carrier
+     *
+     * @see Formats
+     *
+     * @throws UnsupportedFormat when the format is not recognized by the tracer
+     * implementation
+     */
+    public function inject(\DDTrace\Contracts\SpanContext $spanContext, $format, &$carrier);
+    /**
+     * @param string $format
+     * @param mixed $carrier
+     * @return SpanContext|null
+     *
+     * @see Formats
+     *
+     * @throws UnsupportedFormat when the format is not recognized by the tracer
+     * implementation
+     */
+    public function extract($format, $carrier);
+    /**
+     * Allow tracer to send span data to be instrumented.
+     *
+     * This method might not be needed depending on the tracing implementation
+     * but one should make sure this method is called after the request is delivered
+     * to the client.
+     *
+     * As an implementor, a good idea would be to use {@see register_shutdown_function}
+     * or {@see fastcgi_finish_request} in order to not to delay the end of the request
+     * to the client.
+     */
+    public function flush();
+    /**
+     * @param mixed $prioritySampling
+     */
+    public function setPrioritySampling($prioritySampling);
+    /**
      * @return int|null
      */
-    public static function parse($value)
+    public function getPrioritySampling();
+    /**
+     * This behaves just like Tracer::startActiveSpan(), but it saves the Scope instance
+     * on the tracer to be accessed later by Tracer::getRootScope().
+     *
+     * @param string $operationName
+     * @param array $options
+     * @return Scope
+     */
+    public function startRootSpan($operationName, $options = []);
+    /**
+     * @return Scope|null
+     */
+    public function getRootScope();
+    /**
+     * Returns the root span or null and never throws an exception.
+     *
+     * @return Span|null
+     */
+    public function getSafeRootSpan();
+    /**
+     * Returns the entire trace encoded as a plain-old PHP array.
+     *
+     * @return array
+     */
+    public function getTracesAsArray();
+    /**
+     * Returns the count of currently stored traces
+     *
+     * @return int
+     */
+    public function getTracesCount();
+}
+namespace DDTrace;
+
+final class Tracer implements \DDTrace\Contracts\Tracer
+{
+    use \DDTrace\Log\LoggingTrait;
+    /**
+     * @param Transport $transport
+     * @param Propagator[] $propagators
+     * @param array $config
+     */
+    public function __construct(\DDTrace\Transport $transport = null, array $propagators = null, array $config = [])
+    {
+    }
+    public function limited()
+    {
+    }
+    /**
+     * Resets this tracer to its original state.
+     */
+    public function reset()
+    {
+    }
+    /**
+     * @return Tracer
+     */
+    public static function noop()
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function startSpan($operationName, $options = [])
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function startRootSpan($operationName, $options = [])
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getRootScope()
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function startActiveSpan($operationName, $options = [])
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function inject(\DDTrace\Contracts\SpanContext $spanContext, $format, &$carrier)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function extract($format, $carrier)
+    {
+    }
+    /**
+     * @return void
+     */
+    public function flush()
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getScopeManager()
+    {
+    }
+    /**
+     * @return null|Span
+     */
+    public function getActiveSpan()
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getTracesAsArray()
+    {
+    }
+    public function addUrlAsResourceNameToSpan(\DDTrace\Contracts\Span $span)
+    {
+    }
+    /**
+     * @param mixed $prioritySampling
+     */
+    public function setPrioritySampling($prioritySampling)
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getPrioritySampling()
+    {
+    }
+    /**
+     * Returns the root span or null and never throws an exception.
+     *
+     * @return SpanInterface|null
+     */
+    public function getSafeRootSpan()
+    {
+    }
+    /**
+     * @return string
+     */
+    public static function version()
+    {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function getTracesCount()
+    {
+    }
+}
+interface Transport
+{
+    /**
+     * @param TracerInterface $tracer
+     */
+    public function send(\DDTrace\Contracts\Tracer $tracer);
+    /**
+     * @param string $key
+     * @param string $value
+     * @return void
+     */
+    public function setHeader($key, $value);
+}
+namespace DDTrace\Transport;
+
+final class Internal implements \DDTrace\Transport
+{
+    public function send(\DDTrace\Contracts\Tracer $tracer)
+    {
+    }
+    public function setHeader($key, $value)
     {
     }
 }
@@ -1678,28 +1502,6 @@ final class InvalidReferenceArgument extends \InvalidArgumentException
     }
 }
 /**
- * Thrown when trying to inject or extract in an invalid format
- */
-final class UnsupportedFormat extends \UnexpectedValueException
-{
-    /**
-     * @param string $format
-     * @return UnsupportedFormat
-     */
-    public static function forFormat($format)
-    {
-    }
-}
-final class InvalidSpanArgument extends \InvalidArgumentException
-{
-    public static function forTagKey($key)
-    {
-    }
-    public static function forError($error)
-    {
-    }
-}
-/**
  * Thrown when a reference has more than one parent in the SpanOptions
  */
 final class InvalidReferencesSet extends \DomainException
@@ -1715,6 +1517,15 @@ final class InvalidReferencesSet extends \DomainException
      * @return InvalidReferencesSet
      */
     public static function forMoreThanOneParent()
+    {
+    }
+}
+final class InvalidSpanArgument extends \InvalidArgumentException
+{
+    public static function forTagKey($key)
+    {
+    }
+    public static function forError($error)
     {
     }
 }
@@ -1795,8 +1606,65 @@ final class InvalidSpanOption extends \InvalidArgumentException
     {
     }
 }
+/**
+ * Thrown when trying to inject or extract in an invalid format
+ */
+final class UnsupportedFormat extends \UnexpectedValueException
+{
+    /**
+     * @param string $format
+     * @return UnsupportedFormat
+     */
+    public static function forFormat($format)
+    {
+    }
+}
 namespace DDTrace;
 
+class Format
+{
+    /**
+     * Used a (single) arbitrary binary blob representing a SpanContext
+     *
+     * For both Tracer::inject() and Tracer::extract() the carrier must be a `string`.
+     */
+    const BINARY = 'binary';
+    /**
+     * Used for an arbitrary string-to-string map with an unrestricted character set for both keys and values
+     *
+     * Unlike `HTTP_HEADERS`, the `TEXT_MAP` format does not restrict the key or
+     * value character sets in any way.
+     *
+     * For both Tracer::inject() and Tracer::extract() the carrier must be a `array|ArrayObject`.
+     */
+    const TEXT_MAP = 'text_map';
+    /**
+     * Used for a string-to-string map with keys and values that are suitable for use in HTTP headers (a la RFC 7230.
+     * In practice, since there is such "diversity" in the way that HTTP headers are treated in the wild, it is strongly
+     * recommended that Tracer implementations use a limited HTTP header key space and escape values conservatively.
+     *
+     * Unlike `TEXT_MAP`, the `HTTP_HEADERS` format requires that the keys and values be valid as HTTP headers as-is
+     * (i.e., character casing may be unstable and special characters are disallowed in keys, values should be
+     * URL-escaped, etc).
+     *
+     * For both Tracer::inject() and Tracer::extract() the carrier must be a `array|ArrayObject`.
+     *
+     * For example, Tracer::inject():
+     *
+     *    $headers = []
+     *    $tracer->inject($span->getContext(), Format::HTTP_HEADERS, $headers)
+     *    $request = new GuzzleHttp\Psr7\Request($uri, $body, $headers);
+     *
+     * Or Tracer::extract():
+     *
+     *    $headers = $request->getHeaders()
+     *    $clientContext = $tracer->extract(Formats::HTTP_HEADERS, $headers)
+     *
+     * @see http://www.php-fig.org/psr/psr-7/#12-http-headers
+     * @see http://php.net/manual/en/function.getallheaders.php
+     */
+    const HTTP_HEADERS = 'http_headers';
+}
 final class GlobalTracer
 {
     /**
@@ -1884,55 +1752,59 @@ class Urls
 namespace DDTrace\Log;
 
 /**
- * A global logger holder. Can be configured to use a specific logger. If not configured, it returns a NullLogger.
+ * Defines logging methods as used in DDTrace code.
  */
-final class Logger
+interface LoggerInterface
 {
     /**
-     * Sets the global logger instance.
+     * Logs a message at the debug level.
      *
-     * @param LoggerInterface $logger
-     */
-    public static function set(\DDTrace\Log\LoggerInterface $logger)
-    {
-    }
-    /**
-     * Retrieves the global logger instance. If not set, it falls back to a NullLogger.
+     * @param string $message
+     * @param array  $context
      *
-     * @return LoggerInterface
+     * @return void
      */
-    public static function get()
-    {
-    }
+    public function debug($message, array $context = array());
     /**
-     * Reset the logger.
+     * Logs a warning at the debug level.
+     *
+     * @param string $message
+     * @param array  $context
+     *
+     * @return void
      */
-    public static function reset()
-    {
-    }
+    public function warning($message, array $context = []);
+    /**
+     * Logs a error at the debug level.
+     *
+     * @param string $message
+     * @param array  $context
+     *
+     * @return void
+     */
+    public function error($message, array $context = array());
+    /**
+     * @param string $level
+     * @return bool
+     */
+    public function isLevelActive($level);
 }
 /**
- * Known log levels.
+ * An abstract logger.
  */
-final class LogLevel
+abstract class AbstractLogger implements \DDTrace\Log\LoggerInterface
 {
     /**
-     * Const list from https://www.php-fig.org/psr/psr-3/
+     * @param string $level
      */
-    const EMERGENCY = 'emergency';
-    const ALERT = 'alert';
-    const CRITICAL = 'critical';
-    const ERROR = 'error';
-    const WARNING = 'warning';
-    const NOTICE = 'notice';
-    const INFO = 'info';
-    const DEBUG = 'debug';
+    public function __construct($level)
+    {
+    }
     /**
-     * All the log levels.
-     *
-     * @return string[]
+     * @param string $level
+     * @return bool
      */
-    public static function all()
+    public function isLevelActive($level)
     {
     }
 }
@@ -2043,63 +1915,6 @@ final class DatadogLogger
     }
 }
 /**
- * Defines logging methods as used in DDTrace code.
- */
-interface LoggerInterface
-{
-    /**
-     * Logs a message at the debug level.
-     *
-     * @param string $message
-     * @param array  $context
-     *
-     * @return void
-     */
-    public function debug($message, array $context = array());
-    /**
-     * Logs a warning at the debug level.
-     *
-     * @param string $message
-     * @param array  $context
-     *
-     * @return void
-     */
-    public function warning($message, array $context = []);
-    /**
-     * Logs a error at the debug level.
-     *
-     * @param string $message
-     * @param array  $context
-     *
-     * @return void
-     */
-    public function error($message, array $context = array());
-    /**
-     * @param string $level
-     * @return bool
-     */
-    public function isLevelActive($level);
-}
-/**
- * An abstract logger.
- */
-abstract class AbstractLogger implements \DDTrace\Log\LoggerInterface
-{
-    /**
-     * @param string $level
-     */
-    public function __construct($level)
-    {
-    }
-    /**
-     * @param string $level
-     * @return bool
-     */
-    public function isLevelActive($level)
-    {
-    }
-}
-/**
  * An implementation of the DDTrace\LoggerInterface that logs to the error_log.
  */
 class ErrorLogLogger extends \DDTrace\Log\AbstractLogger
@@ -2135,6 +1950,59 @@ class ErrorLogLogger extends \DDTrace\Log\AbstractLogger
      * @return void
      */
     public function error($message, array $context = [])
+    {
+    }
+}
+/**
+ * Known log levels.
+ */
+final class LogLevel
+{
+    /**
+     * Const list from https://www.php-fig.org/psr/psr-3/
+     */
+    const EMERGENCY = 'emergency';
+    const ALERT = 'alert';
+    const CRITICAL = 'critical';
+    const ERROR = 'error';
+    const WARNING = 'warning';
+    const NOTICE = 'notice';
+    const INFO = 'info';
+    const DEBUG = 'debug';
+    /**
+     * All the log levels.
+     *
+     * @return string[]
+     */
+    public static function all()
+    {
+    }
+}
+/**
+ * A global logger holder. Can be configured to use a specific logger. If not configured, it returns a NullLogger.
+ */
+final class Logger
+{
+    /**
+     * Sets the global logger instance.
+     *
+     * @param LoggerInterface $logger
+     */
+    public static function set(\DDTrace\Log\LoggerInterface $logger)
+    {
+    }
+    /**
+     * Retrieves the global logger instance. If not set, it falls back to a NullLogger.
+     *
+     * @return LoggerInterface
+     */
+    public static function get()
+    {
+    }
+    /**
+     * Reset the logger.
+     */
+    public static function reset()
     {
     }
 }
@@ -2209,50 +2077,69 @@ final class WildcardToRegex
 }
 namespace DDTrace;
 
-class Format
+final class Reference
 {
     /**
-     * Used a (single) arbitrary binary blob representing a SpanContext
-     *
-     * For both Tracer::inject() and Tracer::extract() the carrier must be a `string`.
+     * A Span may be the ChildOf a parent Span. In a ChildOf reference,
+     * the parent Span depends on the child Span in some capacity.
      */
-    const BINARY = 'binary';
+    const CHILD_OF = 'child_of';
     /**
-     * Used for an arbitrary string-to-string map with an unrestricted character set for both keys and values
-     *
-     * Unlike `HTTP_HEADERS`, the `TEXT_MAP` format does not restrict the key or
-     * value character sets in any way.
-     *
-     * For both Tracer::inject() and Tracer::extract() the carrier must be a `array|ArrayObject`.
+     * Some parent Spans do not depend in any way on the result of their
+     * child Spans. In these cases, we say merely that the child Span
+     * FollowsFrom the parent Span in a causal sense.
      */
-    const TEXT_MAP = 'text_map';
+    const FOLLOWS_FROM = 'follows_from';
     /**
-     * Used for a string-to-string map with keys and values that are suitable for use in HTTP headers (a la RFC 7230.
-     * In practice, since there is such "diversity" in the way that HTTP headers are treated in the wild, it is strongly
-     * recommended that Tracer implementations use a limited HTTP header key space and escape values conservatively.
-     *
-     * Unlike `TEXT_MAP`, the `HTTP_HEADERS` format requires that the keys and values be valid as HTTP headers as-is
-     * (i.e., character casing may be unstable and special characters are disallowed in keys, values should be
-     * URL-escaped, etc).
-     *
-     * For both Tracer::inject() and Tracer::extract() the carrier must be a `array|ArrayObject`.
-     *
-     * For example, Tracer::inject():
-     *
-     *    $headers = []
-     *    $tracer->inject($span->getContext(), Format::HTTP_HEADERS, $headers)
-     *    $request = new GuzzleHttp\Psr7\Request($uri, $body, $headers);
-     *
-     * Or Tracer::extract():
-     *
-     *    $headers = $request->getHeaders()
-     *    $clientContext = $tracer->extract(Formats::HTTP_HEADERS, $headers)
-     *
-     * @see http://www.php-fig.org/psr/psr-7/#12-http-headers
-     * @see http://php.net/manual/en/function.getallheaders.php
+     * @param SpanContextInterface|SpanInterface $context
+     * @param string $type
+     * @throws InvalidReferenceArgument on empty type
+     * @return Reference when context is invalid
      */
-    const HTTP_HEADERS = 'http_headers';
+    public static function create($type, $context)
+    {
+    }
+    /**
+     * @return SpanContextInterface
+     */
+    public function getContext()
+    {
+    }
+    /**
+     * Checks whether a Reference is of one type.
+     *
+     * @param string $type the type for the reference
+     * @return bool
+     */
+    public function isType($type)
+    {
+    }
 }
+namespace DDTrace\Sampling;
+
+class PrioritySampling
+{
+    // The Agent will drop the trace, as instructed by any mechanism that is not the sampler.
+    const USER_REJECT = -1;
+    // Automatic sampling decision. The Agent should drop the trace.
+    const AUTO_REJECT = 0;
+    // Automatic sampling decision. The Agent should keep the trace.
+    const AUTO_KEEP = 1;
+    // The Agent should keep the trace, as instructed by any mechanism that is not the sampler.
+    // The backend will only apply sampling if above maximum volume allowed.
+    const USER_KEEP = 2;
+    // It was not possible to parse
+    const UNKNOWN = null;
+    /**
+     * @param mixed|string $value
+     * @return int|null
+     */
+    public static function parse($value)
+    {
+    }
+}
+namespace DDTrace;
+
 final class StartSpanOptions
 {
     /**
@@ -2302,4 +2189,121 @@ final class StartSpanOptions
     public function shouldIgnoreActiveSpan()
     {
     }
+}
+class Tag
+{
+    // Generic
+    const ENV = 'env';
+    const SPAN_TYPE = 'span.type';
+    const SPAN_KIND = 'span.kind';
+    const SPAN_KIND_VALUE_SERVER = 'server';
+    const SPAN_KIND_VALUE_CLIENT = 'client';
+    const SPAN_KIND_VALUE_PRODUCER = 'producer';
+    const SPAN_KIND_VALUE_CONSUMER = 'consumer';
+    const SPAN_KIND_VALUE_INTERNAL = 'internal';
+    const COMPONENT = 'component';
+    const SERVICE_NAME = 'service.name';
+    const MANUAL_KEEP = 'manual.keep';
+    const MANUAL_DROP = 'manual.drop';
+    const PID = 'process_id';
+    const RESOURCE_NAME = 'resource.name';
+    const DB_STATEMENT = 'sql.query';
+    const ERROR = 'error';
+    const ERROR_MSG = 'error.message';
+    // string representing the error message
+    const ERROR_TYPE = 'error.type';
+    // string representing the type of the error
+    const ERROR_STACK = 'error.stack';
+    // human readable version of the stack
+    const HTTP_METHOD = 'http.method';
+    const HTTP_ROUTE = 'http.route';
+    const HTTP_STATUS_CODE = 'http.status_code';
+    const HTTP_URL = 'http.url';
+    const HTTP_VERSION = 'http.version';
+    const LOG_EVENT = 'event';
+    const LOG_ERROR = 'error';
+    const LOG_ERROR_OBJECT = 'error.object';
+    const LOG_MESSAGE = 'message';
+    const LOG_STACK = 'stack';
+    const NETWORK_DESTINATION_NAME = 'network.destination.name';
+    const TARGET_HOST = 'out.host';
+    const TARGET_PORT = 'out.port';
+    const BYTES_OUT = 'net.out.bytes';
+    const ANALYTICS_KEY = '_dd1.sr.eausr';
+    const HOSTNAME = '_dd.hostname';
+    const ORIGIN = '_dd.origin';
+    const VERSION = 'version';
+    const SERVICE_VERSION = 'service.version';
+    // OpenTelemetry compatible tag
+    // Elasticsearch
+    const ELASTICSEARCH_BODY = 'elasticsearch.body';
+    const ELASTICSEARCH_METHOD = 'elasticsearch.method';
+    const ELASTICSEARCH_PARAMS = 'elasticsearch.params';
+    const ELASTICSEARCH_URL = 'elasticsearch.url';
+    // Database
+    const DB_NAME = 'db.name';
+    const DB_CHARSET = 'db.charset';
+    const DB_INSTANCE = 'db.instance';
+    const DB_TYPE = 'db.type';
+    const DB_SYSTEM = 'db.system';
+    const DB_ROW_COUNT = 'db.row_count';
+    const DB_STMT = 'db.statement';
+    const DB_USER = 'db.user';
+    // Laravel Queue
+    const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';
+    const LARAVELQ_BATCH_ID = 'messaging.laravel.batch_id';
+    const LARAVELQ_CONNECTION = 'messaging.laravel.connection';
+    const LARAVELQ_MAX_TRIES = 'messaging.laravel.max_tries';
+    const LARAVELQ_NAME = 'messaging.laravel.name';
+    const LARAVELQ_TIMEOUT = 'messaging.laravel.timeout';
+    // MongoDB
+    const MONGODB_BSON_ID = 'mongodb.bson.id';
+    const MONGODB_COLLECTION = 'mongodb.collection';
+    const MONGODB_DATABASE = 'mongodb.db';
+    const MONGODB_PROFILING_LEVEL = 'mongodb.profiling_level';
+    const MONGODB_READ_PREFERENCE = 'mongodb.read_preference';
+    const MONGODB_SERVER = 'mongodb.server';
+    const MONGODB_TIMEOUT = 'mongodb.timeout';
+    const MONGODB_QUERY = 'mongodb.query';
+    // REDIS
+    const REDIS_RAW_COMMAND = 'redis.raw_command';
+    // Message Queue
+    const MQ_SYSTEM = 'messaging.system';
+    const MQ_DESTINATION = 'messaging.destination';
+    const MQ_DESTINATION_KIND = 'messaging.destination_kind';
+    const MQ_TEMP_DESTINATION = 'messaging.temp_destination';
+    const MQ_PROTOCOL = 'messaging.protocol';
+    const MQ_PROTOCOL_VERSION = 'messaging.protocol_version';
+    const MQ_URL = 'messaging.url';
+    const MQ_MESSAGE_ID = 'messaging.message_id';
+    const MQ_CONVERSATION_ID = 'messaging.conversation_id';
+    const MQ_MESSAGE_PAYLOAD_SIZE = 'messaging.message_payload_size_bytes';
+    const MQ_OPERATION = 'messaging.operation';
+    const MQ_CONSUMER_ID = 'messaging.consumer_id';
+    // RabbitMQ
+    const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';
+    const RABBITMQ_EXCHANGE = 'messaging.rabbitmq.exchange';
+    const RABBITMQ_ROUTING_KEY = 'messaging.rabbitmq.routing_key';
+    // Exec
+    const EXEC_CMDLINE_EXEC = 'cmd.exec';
+    const EXEC_CMDLINE_SHELL = 'cmd.shell';
+    const EXEC_TRUNCATED = 'cmd.truncated';
+    const EXEC_EXIT_CODE = 'cmd.exit_code';
+}
+class Type
+{
+    const CACHE = 'cache';
+    const HTTP_CLIENT = 'http';
+    const WEB_SERVLET = 'web';
+    const CLI = 'cli';
+    const SQL = 'sql';
+    const MESSAGE_CONSUMER = 'queue';
+    const MESSAGE_PRODUCER = 'queue';
+    const CASSANDRA = 'cassandra';
+    const ELASTICSEARCH = 'elasticsearch';
+    const MEMCACHED = 'memcached';
+    const MONGO = 'mongodb';
+    const OPENAI = 'openai';
+    const REDIS = 'redis';
+    const SYSTEM = 'system';
 }
