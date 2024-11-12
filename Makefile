@@ -1269,7 +1269,9 @@ test_integrations_frankenphp: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_googlespanner: global_test_run_dependencies tests/Integrations/GoogleSpanner/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(eval TEST_EXTRA_INI=-d extension=grpc.so)
 	$(call run_tests_debug,tests/Integrations/GoogleSpanner)
+	$(eval TEST_EXTRA_INI=)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)

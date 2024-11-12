@@ -162,7 +162,7 @@ else
   # ext-grpc is needed for google spanner
   if [[ $PHP_VERSION_ID -ge 80 ]]; then
     pecl install grpc;
-    echo "extension=grpc" >> ${iniDir}/grpc.ini;
+    # avoid installing it by default, it seems to stall some testsuites.
   fi
 
   # We don't install any redis.so to inis, but allow selection at runtime.
