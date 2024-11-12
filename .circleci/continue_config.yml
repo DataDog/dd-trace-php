@@ -3885,7 +3885,7 @@ jobs:
   "generated files up-to-date":
     working_directory: ~/datadog
     docker:
-      - image: datadog/dd-trace-ci:8.3-buster
+      - image: datadog/dd-trace-ci:php-8.3_buster
     steps:
       - restore_cache:
           keys:
