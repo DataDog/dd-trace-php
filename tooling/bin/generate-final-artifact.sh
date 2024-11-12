@@ -170,7 +170,7 @@ for architecture in "${architectures[@]}"; do
     done
 
     stub="<?php\n$mergedStubs"
-    echo -e "$stub" > "$packages_build_dir/ddtrace_api.stubs.php"
+    echo -e "$stub" > "$packages_build_dir/datadog_tracer.stubs.php"
 
     ########################
     # Final archives

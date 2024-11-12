@@ -4,7 +4,7 @@ require 'vendor/autoload.php';
 
 use StubsGenerator\{StubsGenerator, Finder};
 
-$SRC_DIR = dirname(__DIR__, 4) . "/src/";
+$SRC_DIR = implode('/', array_slice(explode('/', __DIR__), 0, 3)) . '/src/';
 const FILES_TO_LOAD = [
     "../../src/bridge/_files_api.php",
     "../../src/bridge/_files_tracer.php",
