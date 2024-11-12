@@ -5744,7 +5744,7 @@ workflows:
           name: "Static Analysis 80"
           docker_image: datadog/dd-trace-ci:php-8.0_buster
           scenario: opentracing10
-      - "cbindgen up-to-date"
+      - "generated files up-to-date"
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
 
