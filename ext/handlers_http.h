@@ -138,6 +138,37 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
     uint64_t span_id = ddtrace_peek_span_id();
 
+    zval tags;
+    array_init(&tags);
+    ddtrace_get_propagated_tags(Z_ARR(tags));
+    zval *ddtrace_has_appsec_propagation_tag = zend_hash_str_find(Z_ARR(tags), ZEND_STRL("_dd.p.appsec"));
+
+    zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (root_span) {
+        root_meta = ddtrace_property_array(&root_span->property_meta);
+    }
+    zval *ddtrace_has_asm_avent = zend_hash_str_find(root_meta, ZEND_STRL("_dd.p.appsec"));
+
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && ddtrace_has_asm_avent == NULL) {
+        if (ddtrace_has_appsec_propagation_tag != NULL) {
+            if (send_datadog) {
+                ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);
+            }
+            if (trace_id.low || trace_id.high) {
+                if (send_datadog) {
+                    ADD_HEADER("x-datadog-trace-id", "%" PRIu64, trace_id.low);
+                }
+                if (span_id) {
+                    if (send_datadog) {
+                        ADD_HEADER("x-datadog-parent-id", "%" PRIu64, span_id);
+                    }
+                }
+            }
+        }
+        return;
+    }
+
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         if (send_datadog) {
             ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);
