@@ -14,7 +14,7 @@ use datadog_remote_config::{
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
-use datadog_sidecar_ffi::ddog_sidecar_send_debugger_data;
+use datadog_sidecar_ffi::{ddog_sidecar_send_debugger_data, ddog_sidecar_send_debugger_diagnostics};
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, MaybeError};
@@ -531,5 +531,6 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
         "Submitting debugger diagnostics data: {:?}",
         serde_json::to_string(&payload).unwrap()
     );
-    ddog_sidecar_send_debugger_data(transport, instance_id, queue_id, vec![payload])
+
+    ddog_sidecar_send_debugger_diagnostics(transport, instance_id, queue_id, payload)
 }
