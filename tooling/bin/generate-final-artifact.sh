@@ -170,14 +170,7 @@ for architecture in "${architectures[@]}"; do
     done
 
     stub="<?php\n$mergedStubs"
-
-    echo -e "$stub" > "$tmp_folder_final_gnu/dd-library-php/ddtrace_api.stubs.php"
-    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-        echo -e "$stub" > "$tmp_folder_final_musl/dd-library-php/ddtrace_api.stubs.php"
-        if [[ $architecture == "x86_64" ]]; then
-            echo -e "$stub" > "$tmp_folder_final_windows/dd-library-php/ddtrace_api.stubs.php"
-        fi
-    fi
+    echo -e "$stub" > "$packages_build_dir/ddtrace_api.stubs.php"
 
     ########################
     # Final archives
