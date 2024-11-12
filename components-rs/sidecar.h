@@ -223,6 +223,11 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  ddog_QueueId queue_id,
                                                  struct ddog_DebuggerPayload *payload);
 
+ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
+                                                       const struct ddog_InstanceId *instance_id,
+                                                       ddog_QueueId queue_id,
+                                                       struct ddog_DebuggerPayload diagnostics_payload);
+
 ddog_MaybeError ddog_sidecar_set_remote_config_data(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
