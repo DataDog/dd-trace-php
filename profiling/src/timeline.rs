@@ -33,6 +33,7 @@ thread_local! {
 enum State {
     Idle,
     Sleeping,
+    Select,
     #[cfg(php_zts)]
     ThreadStart,
     #[cfg(php_zts)]
@@ -44,6 +45,7 @@ impl State {
         match self {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
+            State::Select => "select",
             #[cfg(php_zts)]
             State::ThreadStart => "thread start",
             #[cfg(php_zts)]
@@ -96,7 +98,7 @@ fn sleeping_fn(
 }
 
 macro_rules! create_sleeping_fn {
-    ($fn_name:ident, $handler:ident) => {
+    ($fn_name:ident, $handler:ident, $state:expr) => {
         static mut $handler: InternalFunctionHandler = None;
 
         #[no_mangle]
@@ -105,17 +107,30 @@ macro_rules! create_sleeping_fn {
             return_value: *mut zval,
         ) {
             if let Some(func) = $handler {
-                sleeping_fn(func, execute_data, return_value, State::Sleeping)
+                sleeping_fn(func, execute_data, return_value, $state)
             }
         }
     };
 }
 
-create_sleeping_fn!(ddog_php_prof_sleep, SLEEP_HANDLER);
-create_sleeping_fn!(ddog_php_prof_usleep, USLEEP_HANDLER);
-create_sleeping_fn!(ddog_php_prof_time_nanosleep, TIME_NANOSLEEP_HANDLER);
-create_sleeping_fn!(ddog_php_prof_time_sleep_until, TIME_SLEEP_UNTIL_HANDLER);
-create_sleeping_fn!(ddog_php_prof_frankenphp_handle_request, FRANKENPHP_HANDLE_REQUEST_HANDLER);
+// Functions that are sleeping
+create_sleeping_fn!(ddog_php_prof_sleep, SLEEP_HANDLER, State::Sleeping);
+create_sleeping_fn!(ddog_php_prof_usleep, USLEEP_HANDLER, State::Sleeping);
+create_sleeping_fn!(ddog_php_prof_time_nanosleep, TIME_NANOSLEEP_HANDLER, State::Sleeping);
+create_sleeping_fn!(ddog_php_prof_time_sleep_until, TIME_SLEEP_UNTIL_HANDLER, State::Sleeping);
+
+// Idle functions: these are functions which are like RSHUTDOWN -> RINIT
+create_sleeping_fn!(ddog_php_prof_frankenphp_handle_request, FRANKENPHP_HANDLE_REQUEST_HANDLER, State::Idle);
+
+// Functions that are blocking on I/O
+create_sleeping_fn!(ddog_php_prof_stream_select, STREAM_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_socket_select, SOCKET_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_socket_accept, SOCKET_ACCEPT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_curl_multi_select, CURL_MULTI_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_uv_run, UV_RUN_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_event_base_loop, EVENT_BASE_LOOP_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_eventbase_loop, EVENTBASE_LOOP_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_ev_loop_run, EV_LOOP_RUN_HANDLER, State::Select);
 
 /// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
 #[cfg(zend_error_observer)]
@@ -202,11 +217,65 @@ pub unsafe fn timeline_startup() {
             ptr::addr_of_mut!(FRANKENPHP_HANDLE_REQUEST_HANDLER),
             Some(ddog_php_prof_frankenphp_handle_request),
         ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"stream_select\0"),
+            ptr::addr_of_mut!(STREAM_SELECT_HANDLER),
+            Some(ddog_php_prof_stream_select),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"socket_select\0"),
+            ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
+            Some(ddog_php_prof_socket_select),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"socket_accept\0"),
+            ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
+            Some(ddog_php_prof_socket_select),
+        ),
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"curl_multi_select\0"),
+            ptr::addr_of_mut!(CURL_MULTI_SELECT_HANDLER),
+            Some(ddog_php_prof_curl_multi_select),
+        ),
+        // provided by `ext-uv` from https://pecl.php.net/package/uv
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"uv_run\0"),
+            ptr::addr_of_mut!(UV_RUN_HANDLER),
+            Some(ddog_php_prof_uv_run),
+        ),
+        // provided by `ext-libevent` from https://pecl.php.net/package/libevent
+        zend::datadog_php_zif_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"event_base_loop\0"),
+            ptr::addr_of_mut!(EVENT_BASE_LOOP_HANDLER),
+            Some(ddog_php_prof_event_base_loop),
+        ),
     ];
 
     for handler in handlers.into_iter() {
         // Safety: we've set all the parameters correctly for this C call.
         zend::datadog_php_install_handler(handler);
+    }
+
+    let handlers = [
+        // provided by `ext-ev` from https://pecl.php.net/package/ev
+        zend::datadog_php_zim_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"evloop\0"),
+            CStr::from_bytes_with_nul_unchecked(b"run\0"),
+            ptr::addr_of_mut!(EV_LOOP_RUN_HANDLER),
+            Some(ddog_php_prof_ev_loop_run),
+        ),
+        // provided by `ext-event` from https://pecl.php.net/package/event
+        zend::datadog_php_zim_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"eventbase\0"),
+            CStr::from_bytes_with_nul_unchecked(b"loop\0"),
+            ptr::addr_of_mut!(EVENTBASE_LOOP_HANDLER),
+            Some(ddog_php_prof_eventbase_loop),
+        ),
+    ];
+
+    for handler in handlers.into_iter() {
+        // Safety: we've set all the parameters correctly for this C call.
+        zend::datadog_php_install_method_handler(handler);
     }
 }
 

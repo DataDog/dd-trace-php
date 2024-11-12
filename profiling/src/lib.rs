@@ -144,10 +144,16 @@ static mut GLOBALS_ID_PTR: i32 = 0;
 /// consecutive return value.
 #[no_mangle]
 pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
-    static DEPS: [zend::ModuleDep; 4] = [
+    static DEPS: [zend::ModuleDep; 8] = [
         zend::ModuleDep::required(cstr!("standard")),
         zend::ModuleDep::required(cstr!("json")),
         zend::ModuleDep::optional(cstr!("ddtrace")),
+        // Optionally, be dependent on these event extensions so that the functions they provide
+        // are registered in the function table and we can hook into them.
+        zend::ModuleDep::optional(cstr!("ev")),
+        zend::ModuleDep::optional(cstr!("event")),
+        zend::ModuleDep::optional(cstr!("libevent")),
+        zend::ModuleDep::optional(cstr!("uv")),
         zend::ModuleDep::end(),
     ];
 
