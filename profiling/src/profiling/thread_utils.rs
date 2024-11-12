@@ -77,6 +77,9 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
 }
 
 thread_local! {
+    /// This is a cache for the thread name. It will not change after the thread has been
+    /// created, as SAPI's do not change thread names and ext-pthreads / ext-parallel do not
+    /// provide an interface for renaming a thread.
     static THREAD_NAME: OnceCell<String> = const { OnceCell::new() };
 }
 
@@ -106,7 +109,7 @@ pub fn get_current_thread_name() -> String {
                         // If successful, convert the result to a Rust String
                         let cstr =
                             unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
-                        let str_slice: &str = cstr.to_str().unwrap();
+                        let str_slice: &str = cstr.to_str().unwrap_or_default();
                         if !str_slice.is_empty() {
                             thread_name.push_str(": ");
                             thread_name.push_str(str_slice);
