@@ -3882,7 +3882,7 @@ jobs:
               phpize
               php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
-  "cbindgen up-to-date":
+  "generated files up-to-date":
     working_directory: ~/datadog
     docker:
       - image: datadog/dd-trace-ci:buster
