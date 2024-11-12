@@ -16,7 +16,7 @@ $files = array_merge(...array_map(fn($file) => require $file, FILES_TO_LOAD));
 $files = array_map(fn($file) => str_replace($SRC_DIR . "bridge/../", "", $file), $files);
 
 $generator = new StubsGenerator();
-$finder = Finder::create()->in($SRC_DIR)->path($files);
+$finder = Finder::create()->in($SRC_DIR)->path($files)->sortByName();
 
 $stubs = $generator->generate($finder)->prettyPrint();
 
