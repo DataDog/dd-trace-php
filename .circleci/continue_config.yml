@@ -3885,7 +3885,7 @@ jobs:
   "generated files up-to-date":
     working_directory: ~/datadog
     docker:
-      - image: datadog/dd-trace-ci:buster
+      - image: datadog/dd-trace-ci:8.3-buster
     steps:
       - restore_cache:
           keys:
@@ -3900,6 +3900,12 @@ jobs:
             set -eu
             make cbindgen
             git diff --exit-code components-rs
+      - run:
+          name: Regenerate PHP stubs and compare them
+          command: |
+            set -eu
+            make generate_stubs
+            git diff --exit-code src/ddtrace_php_api.stubs.php
       - run:
           name: Ensure no non-bundled rust git dependencies are used
           command: |
