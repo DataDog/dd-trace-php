@@ -1,0 +1,23 @@
+[[
+  {
+    "name": "google_spanner.database",
+    "service": "google_spanner",
+    "resource": "test-database",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "sql",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "672dc9ef00000000",
+      "component": "google_spanner",
+      "db.name": "test-database",
+      "db.system": "spanner",
+      "runtime-id": "a1457750-ef22-437f-a295-10f334f6b7fe",
+      "span.kind": "client"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  }]]

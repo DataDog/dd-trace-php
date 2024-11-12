@@ -273,6 +273,11 @@ void ddtrace_integrations_minit(void) {
                                           "DDTrace\\Integrations\\Frankenphp\\FrankenphpIntegration");
 #endif
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GOOGLESPANNER, "Google\\Cloud\\Spanner\\SpannerClient", "__construct",
+                                         "DDTrace\\Integrations\\GoogleSpanner\\GoogleSpannerIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GOOGLESPANNER, "Google\\Cloud\\Spanner\\Database", "__construct",
+                                         "DDTrace\\Integrations\\GoogleSpanner\\GoogleSpannerIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");
 

@@ -21,6 +21,7 @@
     INTEGRATION(ELASTICSEARCH, "elasticsearch")                                                                          \
     INTEGRATION(ELOQUENT, "eloquent")                                                                                    \
     INTEGRATION(FRANKENPHP, "frankenphp")                                                                                \
+    INTEGRATION(GOOGLESPANNER, "googlespanner")                                                                          \
     INTEGRATION(GUZZLE, "guzzle")                                                                                        \
     INTEGRATION(LAMINAS, "laminas")                                                                                      \
     INTEGRATION(LARAVEL, "laravel")                                                                                      \
