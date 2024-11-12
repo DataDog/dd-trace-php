@@ -22,6 +22,12 @@
             {
               "key": "thread id",
               "values_regex": "^[0-9]+$"
+            },
+            {
+              "key": "thread name",
+              "values": [
+                "cli"
+              ]
             }
           ]
         }
