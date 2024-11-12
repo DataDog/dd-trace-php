@@ -24,12 +24,6 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
-static mut SLEEP_HANDLER: InternalFunctionHandler = None;
-static mut USLEEP_HANDLER: InternalFunctionHandler = None;
-static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
-static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
-static mut FRANKENPHP_HANDLE_REQUEST_HANDLER: InternalFunctionHandler = None;
-
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
     #[cfg(php_zts)]
@@ -101,60 +95,27 @@ fn sleeping_fn(
     }
 }
 
-/// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_sleep(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = SLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
+macro_rules! create_sleeping_fn {
+    ($fn_name:ident, $handler:ident) => {
+        static mut $handler: InternalFunctionHandler = None;
+
+        #[no_mangle]
+        unsafe extern "C" fn $fn_name(
+            execute_data: *mut zend_execute_data,
+            return_value: *mut zval,
+        ) {
+            if let Some(func) = $handler {
+                sleeping_fn(func, execute_data, return_value, State::Sleeping)
+            }
+        }
+    };
 }
 
-/// Wrapping the PHP `usleep()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_usleep(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = USLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
-}
-
-/// Wrapping the PHP `time_nanosleep()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_time_nanosleep(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = TIME_NANOSLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
-}
-
-/// Wrapping the PHP `time_sleep_until()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_time_sleep_until(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = TIME_SLEEP_UNTIL_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
-}
-
-/// Wrapping the FrankenPHP `frankenphp_handle_request()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = FRANKENPHP_HANDLE_REQUEST_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Idle)
-    }
-}
+create_sleeping_fn!(ddog_php_prof_sleep, SLEEP_HANDLER);
+create_sleeping_fn!(ddog_php_prof_usleep, USLEEP_HANDLER);
+create_sleeping_fn!(ddog_php_prof_time_nanosleep, TIME_NANOSLEEP_HANDLER);
+create_sleeping_fn!(ddog_php_prof_time_sleep_until, TIME_SLEEP_UNTIL_HANDLER);
+create_sleeping_fn!(ddog_php_prof_frankenphp_handle_request, FRANKENPHP_HANDLE_REQUEST_HANDLER);
 
 /// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
 #[cfg(zend_error_observer)]
