@@ -1,9 +1,11 @@
 --TEST--
-DDTrace\ExceptionSpanEvent serialization with overridden attributes
+Assert that the default environment can be read from agent info
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
-echo "nocache\n";
+if (PHP_VERSION_ID >= 80100) {
+    echo "nocache\n";
+}
 $ctx = stream_context_create([
     'http' => [
         'method' => 'PUT',
@@ -28,7 +30,11 @@ datadog.trace.agent_test_session_token=dd_trace_agent_env
 <?php
 
 $span = \DDTrace\start_span();
-usleep(500000);
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) {
+    sleep(3); // timing sensitive
+} else {
+    sleep(1);
+}
 \DDTrace\close_span();
 var_dump($span->env);
 

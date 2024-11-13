@@ -33,6 +33,10 @@ void ddog_ph_file_drop(struct ddog_NativeFile ph);
 
 ddog_MaybeError ddog_alloc_anon_shm_handle(uintptr_t size, struct ddog_ShmHandle **handle);
 
+ddog_MaybeError ddog_alloc_anon_shm_handle_named(uintptr_t size,
+                                                 struct ddog_ShmHandle **handle,
+                                                 ddog_CharSlice name);
+
 ddog_MaybeError ddog_map_shm(struct ddog_ShmHandle *handle,
                              struct ddog_MappedMem_ShmHandle **mapped,
                              void **pointer,
