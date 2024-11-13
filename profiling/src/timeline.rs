@@ -131,6 +131,7 @@ create_sleeping_fn!(ddog_php_prof_uv_run, UV_RUN_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_event_base_loop, EVENT_BASE_LOOP_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_eventbase_loop, EVENTBASE_LOOP_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_ev_loop_run, EV_LOOP_RUN_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_parallel_events_poll, PARALLEL_EVENTS_POLL_HANDLER, State::Select);
 
 /// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
 #[cfg(zend_error_observer)]
@@ -270,6 +271,13 @@ pub unsafe fn timeline_startup() {
             CStr::from_bytes_with_nul_unchecked(b"loop\0"),
             ptr::addr_of_mut!(EVENTBASE_LOOP_HANDLER),
             Some(ddog_php_prof_eventbase_loop),
+        ),
+        // provided by `ext-parallel` from https://pecl.php.net/package/parallel
+        zend::datadog_php_zim_handler::new(
+            CStr::from_bytes_with_nul_unchecked(b"parallel\\events\0"),
+            CStr::from_bytes_with_nul_unchecked(b"poll\0"),
+            ptr::addr_of_mut!(PARALLEL_EVENTS_POLL_HANDLER),
+            Some(ddog_php_prof_parallel_events_poll),
         ),
     ];
 
