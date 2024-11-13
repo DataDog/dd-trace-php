@@ -169,8 +169,8 @@ for architecture in "${architectures[@]}"; do
         mergedStubs+="$content"
     done
 
-    stub="<?php\n$mergedStubs"
-    echo -e "$stub" > "$packages_build_dir/datadog-tracer.stubs.php"
+    stub=$'<?php\n'"$mergedStubs"
+    echo "$stub" > "$packages_build_dir/datadog-tracer.stubs.php"
 
     ########################
     # Final archives
