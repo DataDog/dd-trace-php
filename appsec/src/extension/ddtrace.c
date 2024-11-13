@@ -121,8 +121,7 @@ static void dd_trace_load_symbols(void)
             "Failed to load ddtrace_remote_config_get_path: %s", dlerror());
     }
 
-    _ddtrace_emit_asm_event =
-        dlsym(handle, "ddtrace_emit_asm_event");
+    _ddtrace_emit_asm_event = dlsym(handle, "ddtrace_emit_asm_event");
     if (_ddtrace_emit_asm_event == NULL) {
         mlog(dd_log_error,
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
