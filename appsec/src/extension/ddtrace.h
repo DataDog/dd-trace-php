@@ -48,6 +48,8 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull zobj,
 // Flush the tracer spans, can be used on RINIT
 void dd_trace_close_all_spans_and_flush(void);
 
+void dd_trace_emit_asm_event(void);
+
 // Provides the array zval representing $root_span->meta, if any.
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
