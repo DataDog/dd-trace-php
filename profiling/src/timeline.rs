@@ -24,6 +24,12 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 
+/// The engine's original (or neighbouring extensions) `zend_accel_schedule_restart_hook()`
+/// function
+#[cfg(php_opcache_restart_hook)]
+static mut PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK: Option<zend::VmZendAccelScheduleRestartHook> =
+    None;
+
 static mut SLEEP_HANDLER: InternalFunctionHandler = None;
 static mut USLEEP_HANDLER: InternalFunctionHandler = None;
 static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
@@ -192,11 +198,62 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     }
 }
 
+/// Will be called by the opcache extension when a restart is scheduled. The `reason` is this enum:
+/// ```C
+/// typedef enum _zend_accel_restart_reason {
+///     ACCEL_RESTART_OOM,    /* restart because of out of memory */
+///     ACCEL_RESTART_HASH,   /* restart because of hash overflow */
+///     ACCEL_RESTART_USER    /* restart scheduled by opcache_reset() */
+/// } zend_accel_restart_reason;
+/// ```
+#[no_mangle]
+#[cfg(php_opcache_restart_hook)]
+unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32) {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if timeline_enabled {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        if let Some(profiler) = Profiler::get() {
+            let now = now.as_nanos() as i64;
+            let file = unsafe {
+                zend::zai_str_from_zstr(zend::zend_get_executed_filename_ex().as_mut())
+                    .into_string()
+            };
+            profiler.collect_opcache_restart(
+                now,
+                file,
+                zend::zend_get_executed_lineno(),
+                match reason {
+                    0 => "out of memory",
+                    1 => "hash overflow",
+                    2 => "`opcache_restart()` called",
+                    _ => "unknown",
+                },
+            );
+        }
+    }
+
+    if let Some(prev) = PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK {
+        prev(reason);
+    }
+}
+
 /// This functions needs to be called in MINIT of the module
 pub fn timeline_minit() {
     unsafe {
         #[cfg(zend_error_observer)]
         zend::zend_observer_error_register(Some(ddog_php_prof_zend_error_observer));
+
+        #[cfg(php_opcache_restart_hook)]
+        {
+            PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK = zend::zend_accel_schedule_restart_hook;
+            zend::zend_accel_schedule_restart_hook =
+                Some(ddog_php_prof_zend_accel_schedule_restart_hook);
+        }
 
         // register our function in the `gc_collect_cycles` pointer
         PREV_GC_COLLECT_CYCLES = zend::gc_collect_cycles;

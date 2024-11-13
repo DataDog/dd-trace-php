@@ -20,6 +20,8 @@ pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
 #[cfg(feature = "timeline")]
 pub type VmZendCompileFile =
     unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
+#[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+pub type VmZendAccelScheduleRestartHook = unsafe extern "C" fn(i32);
 #[cfg(all(feature = "timeline", php_zend_compile_string_has_position))]
 pub type VmZendCompileString = unsafe extern "C" fn(
     *mut zend_string,
