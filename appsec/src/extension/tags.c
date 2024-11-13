@@ -370,11 +370,18 @@ void dd_tags_add_tags(
     zval true_zv;
     ZVAL_STR_COPY(&true_zv, _true_zstr);
 
-    // tag _dd.p.appsec
-    bool res = dd_trace_span_add_tag(span, _dd_tag_p_appsec_zstr, &true_zv);
-    if (!res) {
-        mlog(dd_log_info, "Failed adding tag " DD_TAG_P_APPSEC " to root span");
-        return;
+    zval *meta = dd_trace_span_get_meta(span);
+    if (meta &&
+        zend_hash_find(Z_ARRVAL_P(meta), _dd_tag_p_appsec_zstr) == NULL) {
+        // tag _dd.p.appsec
+        if (!dd_trace_span_add_tag(span, _dd_tag_p_appsec_zstr, &true_zv)) {
+            mlog(dd_log_info,
+                "Failed adding tag " DD_TAG_P_APPSEC " to root span");
+            return;
+        }
+    } else {
+        mlog(dd_log_info,
+            "Skipping adding " DD_TAG_P_APPSEC " as it was already added");
     }
 
     zval _1_zval;
@@ -387,7 +394,7 @@ void dd_tags_add_tags(
     ZVAL_STR(&tag_value_zv, tag_value);
 
     // tag _dd.appsec.json
-    res = dd_trace_span_add_tag(span, _dd_tag_data_zstr, &tag_value_zv);
+    bool res = dd_trace_span_add_tag(span, _dd_tag_data_zstr, &tag_value_zv);
     if (!res) {
         mlog(dd_log_info, "Failed adding tag " DD_TAG_DATA " to root span");
         return;
