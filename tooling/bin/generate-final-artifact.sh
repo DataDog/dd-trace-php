@@ -11,6 +11,69 @@ tmp_folder_final=$tmp_folder/final
 
 architectures=(x86_64 aarch64)
 
+php_apis=(20190902 20200930 20210902 20220829 20230831 20240924)
+if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
+    php_apis+=(20151012 20160303 20170718 20180731)
+fi
+
+targets=(unknown-linux-gnu alpine-linux-musl)
+if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
+    targets+=(windows)
+fi
+
+configs=("" -zts -debug -debug-zts)
+
+ln_with_dir() {
+    mkdir -p $(dirname $2)
+    ln $1 $2
+}
+
+for architecture in "${architectures[@]}"; do
+    for php_api in "${php_apis[@]}"; do
+        for full_target in "${targets[@]}"; do
+            target=${full_target#*-}
+            alpine=$(if [[ $target == "linux-musl" ]]; then echo -alpine; fi)
+            ext=$([[ $target == "windows" ]] && echo dll || echo so)
+            for config in "${configs[@]}"; do
+                ddtrace_ext_path=./extensions_${architecture}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace-${php_api}${alpine}${config}.${ext}
+                if [[ -f ${ddtrace_ext_path} ]]; then
+                    rm -rf $tmp_folder
+                    mkdir -p $tmp_folder_final
+
+                    trace_base_dir=${tmp_folder_final}/dd-library-php/trace
+                    ln_with_dir ${ddtrace_ext_path} ${trace_base_dir}/ext/${php_api}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace${config}.${ext}
+                    cp -r ./src ${trace_base_dir}
+
+                    profiling_ext_path=./datadog-profiling/${architecture}-${full_target}/lib/php/${php_api}/datadog-profiling${config}.${ext}
+                    if [[ -f ${profiling_ext_path} ]]; then
+                        profiling_base_dir=${tmp_folder_final}/dd-library-php/profiling
+                        ln_with_dir ${profiling_ext_path} ${profiling_base_dir}/ext/${php_api}/datadog-profiling${config}.${ext}
+
+                        # Licenses
+                        ln \
+                            ./profiling/LICENSE* \
+                            ./profiling/NOTICE \
+                            ${profiling_base_dir}/
+                    fi
+
+                    appsec_ext_path=./appsec_${architecture}/ddappsec-${php_api}${alpine}${config}.${ext}
+                    if [[ -f ${appsec_ext_path} ]]; then
+                        appsec_base_dir=${tmp_folder_final}/dd-library-php/appsec
+                        ln_with_dir ${appsec_ext_path} ${appsec_base_dir}/ext/$php_api/ddappsec${config}.${ext}
+                        ln_with_dir ./appsec_${architecture}/libddappsec-helper.so ${appsec_base_dir}/lib/libddappsec-helper.so
+                        ln_with_dir ./appsec_${architecture}/recommended.json ${appsec_base_dir}/etc/recommended.json
+                    fi
+
+                    echo "$release_version" > ${tmp_folder_final}/dd-library-php/VERSION
+                    tar -czv \
+                        -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-$target-${php_api}${config}.tar.gz \
+                        -C ${tmp_folder_final} . --owner=0 --group=0
+                fi
+            done
+        done
+    done
+done
+
 for architecture in "${architectures[@]}"; do
     tmp_folder_final_gnu=$tmp_folder_final/$architecture-linux-gnu
     tmp_folder_final_musl=$tmp_folder_final/$architecture-linux-musl
@@ -33,10 +96,6 @@ for architecture in "${architectures[@]}"; do
     tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
     tmp_folder_final_windows_trace=$tmp_folder_final_windows/dd-library-php/trace
 
-    php_apis=(20190902 20200930 20210902 20220829 20230831 20240924)
-    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-        php_apis+=(20151012 20160303 20170718 20180731)
-    fi
     for php_api in "${php_apis[@]}"; do
         mkdir -p ${tmp_folder_final_gnu_trace}/ext/$php_api ${tmp_folder_final_musl_trace}/ext/$php_api;
         if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
@@ -44,13 +103,11 @@ for architecture in "${architectures[@]}"; do
             ln ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-zts.so;
             ln ./extensions_${architecture}/ddtrace-$php_api-debug.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug.so;
             ln ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
-            if [[ ${php_api} -ge 20151012 ]]; then # zts on alpine starting 7.0
-                ln ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
-            fi
+            ln ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
             if [[ ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
                 mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
-                ln ./extensions_windows_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
-                ln ./extensions_windows_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
+                ln ./extensions_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
+                ln ./extensions_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
             fi
         else
             ln ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
