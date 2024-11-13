@@ -144,8 +144,7 @@ static void dd_trace_load_symbols(void)
         mlog(dd_log_error, "Failed to load ddtrace_metric_add_point: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
 
-    _ddtrace_emit_asm_event =
-        dlsym(handle, "ddtrace_emit_asm_event");
+    _ddtrace_emit_asm_event = dlsym(handle, "ddtrace_emit_asm_event");
     if (_ddtrace_emit_asm_event == NULL) {
         mlog(dd_log_error,
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
