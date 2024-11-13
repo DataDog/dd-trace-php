@@ -28,7 +28,6 @@ static zend_string *_ddtrace_root_span_fname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static zend_string *_meta_struct_propname;
-static zend_string *_propagated_tags_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id = NULL;
 
@@ -50,6 +49,8 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 
 static const char *nullable (*_ddtrace_remote_config_get_path)(void);
+
+static void *(*nullable _ddtrace_emit_asm_event)(void);
 
 static void dd_trace_load_symbols(void)
 {
@@ -120,6 +121,14 @@ static void dd_trace_load_symbols(void)
             "Failed to load ddtrace_remote_config_get_path: %s", dlerror());
     }
 
+    _ddtrace_emit_asm_event =
+        dlsym(handle, "ddtrace_emit_asm_event");
+    if (_ddtrace_emit_asm_event == NULL) {
+        mlog(dd_log_error,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            "Failed to load ddtrace_emit_asm_event: %s", dlerror());
+    }
+
     dlclose(handle);
 }
 
@@ -131,8 +140,6 @@ void dd_trace_startup()
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
     _meta_struct_propname =
         zend_string_init_interned(LSTRARG("meta_struct"), 1);
-    _propagated_tags_propname =
-        zend_string_init_interned(LSTRARG("propagated_tags"), 1);
 
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
@@ -317,11 +324,6 @@ zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
     return _get_span_modifiable_array_property(zobj, _meta_struct_propname);
 }
 
-zval *nullable dd_trace_span_get_propagated_tags(zend_object *nonnull zobj)
-{
-    return _get_span_modifiable_array_property(zobj, _propagated_tags_propname);
-}
-
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
@@ -405,6 +407,15 @@ void dd_trace_span_add_propagated_tags(
     }
 
     _ddtrace_add_propagated_tag_on_span_zobj(key, value);
+}
+
+void dd_trace_emit_asm_event(void)
+{
+    if (UNEXPECTED(_ddtrace_emit_asm_event == NULL)) {
+        return;
+    }
+
+    _ddtrace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

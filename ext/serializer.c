@@ -32,6 +32,7 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
+#include "ddappsec.h"
 #include "git.h"
 #include "ip_extraction.h"
 #include <components/log/log.h>
@@ -1700,7 +1701,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     zval *asm_event = NULL;
     if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
-        asm_event = zend_hash_str_find(meta, ZEND_STRL("_dd.p.appsec"));
+        asm_event = zend_hash_str_find(meta, ZEND_STRL(DD_TAG_P_APPSEC));
     }
     bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
 

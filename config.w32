@@ -36,6 +36,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " handlers_internal.c";
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
 	DDTRACE_EXT_SOURCES += " ip_extraction.c";
+	DDTRACE_EXT_SOURCES += " ddappsec.c";
 	DDTRACE_EXT_SOURCES += " live_debugger.c";
 	DDTRACE_EXT_SOURCES += " logging.c";
 	DDTRACE_EXT_SOURCES += " memory_limit.c";
