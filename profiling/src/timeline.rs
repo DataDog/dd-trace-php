@@ -125,7 +125,6 @@ create_sleeping_fn!(ddog_php_prof_frankenphp_handle_request, FRANKENPHP_HANDLE_R
 // Functions that are blocking on I/O
 create_sleeping_fn!(ddog_php_prof_stream_select, STREAM_SELECT_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_socket_select, SOCKET_SELECT_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_socket_accept, SOCKET_ACCEPT_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_curl_multi_select, CURL_MULTI_SELECT_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_uv_run, UV_RUN_HANDLER, State::Select);
 create_sleeping_fn!(ddog_php_prof_event_base_loop, EVENT_BASE_LOOP_HANDLER, State::Select);
@@ -225,11 +224,6 @@ pub unsafe fn timeline_startup() {
         ),
         zend::datadog_php_zif_handler::new(
             CStr::from_bytes_with_nul_unchecked(b"socket_select\0"),
-            ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
-            Some(ddog_php_prof_socket_select),
-        ),
-        zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"socket_accept\0"),
             ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
             Some(ddog_php_prof_socket_select),
         ),
