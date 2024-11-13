@@ -4,12 +4,12 @@ use crate::zend::{
     InternalFunctionHandler,
 };
 use crate::REQUEST_LOCALS;
+use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
 #[cfg(php_zts)]
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::ffi::CStr;
 use std::ptr;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -193,54 +193,54 @@ pub fn timeline_minit() {
 pub unsafe fn timeline_startup() {
     let handlers = [
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"sleep\0"),
+            cstr!("sleep"),
             ptr::addr_of_mut!(SLEEP_HANDLER),
             Some(ddog_php_prof_sleep),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
+            cstr!("usleep"),
             ptr::addr_of_mut!(USLEEP_HANDLER),
             Some(ddog_php_prof_usleep),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"time_nanosleep\0"),
+            cstr!("time_nanosleep"),
             ptr::addr_of_mut!(TIME_NANOSLEEP_HANDLER),
             Some(ddog_php_prof_time_nanosleep),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"time_sleep_until\0"),
+            cstr!("time_sleep_until"),
             ptr::addr_of_mut!(TIME_SLEEP_UNTIL_HANDLER),
             Some(ddog_php_prof_time_sleep_until),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"frankenphp_handle_request\0"),
+            cstr!("frankenphp_handle_request"),
             ptr::addr_of_mut!(FRANKENPHP_HANDLE_REQUEST_HANDLER),
             Some(ddog_php_prof_frankenphp_handle_request),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"stream_select\0"),
+            cstr!("stream_select"),
             ptr::addr_of_mut!(STREAM_SELECT_HANDLER),
             Some(ddog_php_prof_stream_select),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"socket_select\0"),
+            cstr!("socket_select"),
             ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
             Some(ddog_php_prof_socket_select),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"curl_multi_select\0"),
+            cstr!("curl_multi_select"),
             ptr::addr_of_mut!(CURL_MULTI_SELECT_HANDLER),
             Some(ddog_php_prof_curl_multi_select),
         ),
         // provided by `ext-uv` from https://pecl.php.net/package/uv
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"uv_run\0"),
+            cstr!("uv_run"),
             ptr::addr_of_mut!(UV_RUN_HANDLER),
             Some(ddog_php_prof_uv_run),
         ),
         // provided by `ext-libevent` from https://pecl.php.net/package/libevent
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"event_base_loop\0"),
+            cstr!("event_base_loop"),
             ptr::addr_of_mut!(EVENT_BASE_LOOP_HANDLER),
             Some(ddog_php_prof_event_base_loop),
         ),
@@ -254,22 +254,22 @@ pub unsafe fn timeline_startup() {
     let handlers = [
         // provided by `ext-ev` from https://pecl.php.net/package/ev
         zend::datadog_php_zim_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"evloop\0"),
-            CStr::from_bytes_with_nul_unchecked(b"run\0"),
+            cstr!("evloop"),
+            cstr!("run"),
             ptr::addr_of_mut!(EV_LOOP_RUN_HANDLER),
             Some(ddog_php_prof_ev_loop_run),
         ),
         // provided by `ext-event` from https://pecl.php.net/package/event
         zend::datadog_php_zim_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"eventbase\0"),
-            CStr::from_bytes_with_nul_unchecked(b"loop\0"),
+            cstr!("eventbase"),
+            cstr!("loop"),
             ptr::addr_of_mut!(EVENTBASE_LOOP_HANDLER),
             Some(ddog_php_prof_eventbase_loop),
         ),
         // provided by `ext-parallel` from https://pecl.php.net/package/parallel
         zend::datadog_php_zim_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"parallel\\events\0"),
-            CStr::from_bytes_with_nul_unchecked(b"poll\0"),
+            cstr!("parallel\\events"),
+            cstr!("poll"),
             ptr::addr_of_mut!(PARALLEL_EVENTS_POLL_HANDLER),
             Some(ddog_php_prof_parallel_events_poll),
         ),
