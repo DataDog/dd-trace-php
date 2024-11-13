@@ -959,14 +959,23 @@ typedef struct ddog_crasht_Slice_CharSlice {
 typedef struct ddog_crasht_Config {
   struct ddog_crasht_Slice_CharSlice additional_files;
   bool create_alt_stack;
+  bool use_alt_stack;
   /**
    * The endpoint to send the crash report to (can be a file://).
    * If None, the crashtracker will infer the agent host from env variables.
    */
   const struct ddog_Endpoint *endpoint;
   enum ddog_crasht_StacktraceCollection resolve_frames;
-  uint64_t timeout_secs;
-  bool wait_for_receiver;
+  /**
+   * Timeout in milliseconds before the signal handler starts tearing things down to return.
+   * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
+   * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.
+   */
+  uint32_t timeout_ms;
+  /**
+   * Optional filename for a unix domain socket if the receiver is used asynchonously
+   */
+  ddog_CharSlice optional_unix_socket_filename;
 } ddog_crasht_Config;
 
 typedef struct ddog_crasht_EnvVar {

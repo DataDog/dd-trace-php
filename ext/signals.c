@@ -120,11 +120,10 @@ static void ddtrace_init_crashtracker() {
 
     ddog_crasht_Config config = {
         .endpoint = agent_endpoint,
-        .timeout_secs = 5,
+        .timeout_ms = 5000,
         .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        // Likely running in a container, so wait until the report is uploaded.
-        // Otherwise, the container shutdown may stop the sidecar before it has finished uploading the crash report.
-        .wait_for_receiver = getpid() == 1,
+        .optional_unix_socket_filename = socket_path,
+        .additional_files = {0},
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
@@ -151,9 +150,8 @@ static void ddtrace_init_crashtracker() {
     };
 
     ddtrace_crashtracker_check_result(
-        ddog_crasht_init_with_unix_socket(
+        ddog_crasht_init_without_receiver(
             config,
-            socket_path,
             metadata
         ),
         "Cannot initialize CrashTracker"
