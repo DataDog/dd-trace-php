@@ -16,7 +16,7 @@ void ddtrace_check_agent_info_env() {
 }
 
 void ddtrace_agent_info_rinit() {
-    if (ddtrace_endpoint && !ZSTR_LEN(get_global_DD_ENV())) {
+    if (ddtrace_endpoint && !DDTRACE_G(agent_info_reader) && !ZSTR_LEN(get_global_DD_ENV())) {
         DDTRACE_G(agent_info_reader) = ddog_get_agent_info_reader(ddtrace_endpoint);
     }
 }
