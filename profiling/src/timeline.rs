@@ -171,6 +171,16 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
         return;
     }
 
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if !timeline_enabled {
+        return;
+    }
+
     #[cfg(zend_error_observer_80)]
     let file = unsafe {
         let mut len = 0;
