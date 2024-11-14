@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: eccfac3f3ffe92ae1390f729e053a3e161bdab4b */
+ * Stub hash: 4b2f667462bc9e7bed94b2c9a479b85f3086b521 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
@@ -41,7 +41,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_getSourceFile, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-
 ZEND_FUNCTION(DDTrace_install_hook);
 ZEND_FUNCTION(DDTrace_remove_hook);
 ZEND_METHOD(DDTrace_HookData, span);
@@ -54,13 +53,11 @@ ZEND_METHOD(DDTrace_HookData, suppressCall);
 ZEND_METHOD(DDTrace_HookData, allowNestedHook);
 ZEND_METHOD(DDTrace_HookData, getSourceFile);
 
-
 static const zend_function_entry ext_functions[] = {
-	ZEND_NS_FALIAS("DDTrace", install_hook, DDTrace_install_hook, arginfo_DDTrace_install_hook)
-	ZEND_NS_FALIAS("DDTrace", remove_hook, DDTrace_remove_hook, arginfo_DDTrace_remove_hook)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "install_hook"), zif_DDTrace_install_hook, arginfo_DDTrace_install_hook, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "remove_hook"), zif_DDTrace_remove_hook, arginfo_DDTrace_remove_hook, 0, NULL, NULL)
 	ZEND_FE_END
 };
-
 
 static const zend_function_entry class_DDTrace_HookData_methods[] = {
 	ZEND_ME(DDTrace_HookData, span, arginfo_class_DDTrace_HookData_span, ZEND_ACC_PUBLIC)

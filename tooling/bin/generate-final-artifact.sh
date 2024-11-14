@@ -153,6 +153,26 @@ for architecture in "${architectures[@]}"; do
     fi
 
     ########################
+    # PHP Stubs
+    ########################
+    stubs=(
+        "$3/src/ddtrace_php_api.stubs.php"
+        "$3/ext/ddtrace.stub.php"
+        "$3/ext/hook/uhook.stub.php"
+        "$3/ext/hook/uhook_attributes.stub.php"
+    )
+
+    mergedStubs=""
+    for stub in "${stubs[@]}"; do
+        content=$(<"$stub")
+        content="${content#<?php}"
+        mergedStubs+="$content"
+    done
+
+    stub=$'<?php\n'"$mergedStubs"
+    echo "$stub" > "$packages_build_dir/datadog-tracer.stubs.php"
+
+    ########################
     # Final archives
     ########################
     echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION

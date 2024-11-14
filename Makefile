@@ -478,7 +478,8 @@ $(PACKAGES_BUILD_DIR):
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
 		$(VERSION) \
-		$(PACKAGES_BUILD_DIR)
+		$(PACKAGES_BUILD_DIR) \
+		$(PROJECT_ROOT)
 
 $(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-installers.sh \
@@ -511,6 +512,11 @@ generate:
 	@composer -dtooling/generation update
 	@composer -dtooling/generation generate
 	@composer -dtooling/generation verify
+
+# Generates the stubs file for the public API
+generate_stubs:
+	@composer -dtooling/stubs update
+	@composer -dtooling/stubs generate
 
 # Find all generated core dumps, sorted by date descending
 cores:
