@@ -814,7 +814,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         );
 
         let key = b"Profiling Agent Endpoint\0".as_ptr();
-        let agent_endpoint = format!("{}\0", system_settings.uri);
+        let agent_endpoint = format!("{}\0", system_settings.agent_uri);
         zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
 
         let vars = [

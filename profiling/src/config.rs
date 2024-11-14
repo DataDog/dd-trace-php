@@ -6,15 +6,15 @@ use crate::bindings::{
     zai_config_system_ini_change, zend_long, zval, StringError, ZaiStr, IS_LONG,
     ZAI_CONFIG_ENTRIES_COUNT_MAX,
 };
-use core::fmt::{Display, Formatter};
 use core::mem::{swap, transmute, MaybeUninit};
 use core::ptr;
 use core::str::FromStr;
 pub use datadog_profiling::exporter::Uri;
+use ddcommon_net::dep::hex;
 use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Clone, Debug)]
 pub struct SystemSettings {
@@ -32,7 +32,7 @@ pub struct SystemSettings {
     pub output_pprof: Option<Cow<'static, str>>,
     pub profiling_exception_sampling_distance: u32,
     pub profiling_log_level: LevelFilter,
-    pub uri: AgentEndpoint,
+    pub agent_uri: Uri,
 }
 
 impl SystemSettings {
@@ -70,7 +70,7 @@ impl SystemSettings {
             output_pprof: profiling_output_pprof(),
             profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
             profiling_log_level: profiling_log_level(),
-            uri,
+            agent_uri: uri,
         }
     }
 }
@@ -132,7 +132,7 @@ impl SystemSettings {
             output_pprof: None,
             profiling_exception_sampling_distance: 0,
             profiling_log_level: LevelFilter::Off,
-            uri: Default::default(),
+            agent_uri: Default::default(),
         };
     }
 
@@ -149,61 +149,71 @@ impl SystemSettings {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum AgentEndpoint {
-    Uri(Uri),
-    Socket(PathBuf),
+fn try_decode_trace_agent_uds(
+    trace_agent_url: &str,
+    unencoded: &str,
+) -> Result<Uri, Box<dyn std::error::Error>> {
+    // The `unencoded` bit is the part after `unix://` in `trace_agent_url`.
+    debug_assert_eq!(trace_agent_url.strip_prefix("unix://"), Some(unencoded));
+
+    let encoded = if Path::new(unencoded).exists() {
+        hex::encode(unencoded)
+    } else {
+        // Let's see if the user already encoded the socket path properly.
+        // Only done on Unix because it's unlikely on Windows, and OsStr on
+        // Windows cannot be made from Vec<u8>.
+        #[allow(unused_mut)]
+        let mut encoded = None;
+
+        #[cfg(unix)]
+        {
+            use std::ffi::OsStr;
+            use std::os::unix::prelude::*;
+
+            let decoded = hex::decode(unencoded);
+            if let Ok(decoded) = decoded {
+                let os_str = OsStr::from_bytes(&decoded);
+                if Path::new(os_str).exists() {
+                    // "unencoded" turned out to be encoded already!
+                    encoded = Some(String::from(unencoded));
+                }
+            }
+        }
+
+        match encoded {
+            Some(encoded) => encoded,
+            None => return Err(format!("socket path did not exist: {trace_agent_url}").into()),
+        }
+    };
+
+    Ok(Uri::builder()
+        .scheme("unix")
+        .authority(encoded)
+        .path_and_query("/")
+        .build()?)
 }
 
-impl Default for AgentEndpoint {
-    /// Returns a socket configuration if the default socket exists, otherwise
-    /// it returns http://localhost:8126/. This does not consult environment
-    /// variables.
-    fn default() -> Self {
-        let path = Path::new("/var/run/datadog/apm.socket");
-        if path.exists() {
-            return AgentEndpoint::Socket(path.into());
-        }
-        AgentEndpoint::Uri(Uri::from_static("http://localhost:8126"))
-    }
-}
+pub fn default_agent_uri() -> Uri {
+    const SOCKET_PATH: &str = "/var/run/datadog/apm.socket";
+    const SOCKET_URI: &str = "unix://2f7661722f72756e2f64617461646f672f61706d2e736f636b6574";
+    debug_assert_eq!(
+        hex::encode(SOCKET_PATH),
+        SOCKET_URI.strip_prefix("unix://").unwrap()
+    );
 
-impl TryFrom<AgentEndpoint> for ddcommon::Endpoint {
-    type Error = anyhow::Error;
+    const LOCALHOST: &str = "http://localhost:8126";
 
-    fn try_from(value: AgentEndpoint) -> Result<Self, Self::Error> {
-        match value {
-            AgentEndpoint::Uri(uri) => datadog_profiling::exporter::config::agent(uri),
-            AgentEndpoint::Socket(path) => datadog_profiling::exporter::config::agent_uds(&path),
-        }
-    }
-}
-
-impl TryFrom<&AgentEndpoint> for ddcommon::Endpoint {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &AgentEndpoint) -> Result<Self, Self::Error> {
-        match value {
-            AgentEndpoint::Uri(uri) => datadog_profiling::exporter::config::agent(uri.clone()),
-            AgentEndpoint::Socket(path) => datadog_profiling::exporter::config::agent_uds(path),
-        }
-    }
-}
-
-impl Display for AgentEndpoint {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AgentEndpoint::Uri(uri) => write!(f, "{}", uri),
-            AgentEndpoint::Socket(path) => write!(f, "unix://{}", path.to_string_lossy()),
-        }
-    }
+    let path = Path::new(SOCKET_PATH);
+    let uri = if path.exists() { SOCKET_URI } else { LOCALHOST };
+    // PANIC: these static uris are both valid.
+    Uri::from_static(uri)
 }
 
 fn detect_uri_from_config(
     url: Option<Cow<'static, str>>,
     host: Option<Cow<'static, str>>,
     port: Option<u16>,
-) -> AgentEndpoint {
+) -> Uri {
     /* Priority:
      *  1. DD_TRACE_AGENT_URL
      *     - RFC allows unix:///path/to/some/socket so parse these out.
@@ -213,26 +223,29 @@ fn detect_uri_from_config(
      *  3. Unix Domain Socket at /var/run/datadog/apm.socket
      *  4. http://localhost:8126
      */
-    if let Some(trace_agent_url) = url {
-        // check for UDS first
-        if let Some(path) = trace_agent_url.strip_prefix("unix://") {
-            let path = PathBuf::from(path);
-            if path.exists() {
-                return AgentEndpoint::Socket(path);
-            } else {
-                warn!(
-                    "Unix socket specified in DD_TRACE_AGENT_URL does not exist: {} ",
-                    path.to_string_lossy()
-                );
+
+    // 1. DD_TRACE_AGENT_URL
+    if let Some(cow_str) = url {
+        let trace_agent_url = cow_str.as_ref();
+        if let Some(unencoded) = trace_agent_url.strip_prefix("unix://") {
+            match try_decode_trace_agent_uds(trace_agent_url, unencoded) {
+                Ok(uds_uri) => return uds_uri,
+                Err(err) => {
+                    warn!("Invalid unix socket in DD_TRACE_AGENT_URL: {err}");
+                }
             }
         } else {
-            match Uri::from_str(trace_agent_url.as_ref()) {
-                Ok(uri) => return AgentEndpoint::Uri(uri),
-                Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {err}"),
+            match Uri::from_str(trace_agent_url) {
+                Ok(uri) => return uri,
+                Err(err) => {
+                    warn!("Invalid URI in DD_TRACE_AGENT_URL: {err}");
+                }
             }
         }
         // continue down priority list
     }
+
+    // 2. DD_AGENT_HOST and/or DD_TRACE_AGENT_PORT.
     if port.is_some() || host.is_some() {
         let host = host.unwrap_or(Cow::Borrowed("localhost"));
         let port = port.unwrap_or(8126u16);
@@ -243,7 +256,7 @@ fn detect_uri_from_config(
         };
 
         match Uri::from_str(url.as_str()) {
-            Ok(uri) => return AgentEndpoint::Uri(uri),
+            Ok(uri) => return uri,
             Err(err) => {
                 warn!("The combination of DD_AGENT_HOST({host}) and DD_TRACE_AGENT_PORT({port}) was not a valid URL: {err}")
             }
@@ -251,7 +264,8 @@ fn detect_uri_from_config(
         // continue down priority list
     }
 
-    AgentEndpoint::default()
+    //  3. Unix Domain Socket and 4. http://localhost:8126.
+    default_agent_uri()
 }
 
 unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config_name) {
@@ -416,7 +430,7 @@ lazy_static::lazy_static! {
         output_pprof: None,
         profiling_exception_sampling_distance: u32::MAX,
         profiling_log_level: LevelFilter::Off,
-        uri: Default::default(),
+        agent_uri: Default::default(),
     };
 
     /// Keep these in sync with the INI defaults.
@@ -433,7 +447,7 @@ lazy_static::lazy_static! {
         output_pprof: None,
         profiling_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
-        uri: Default::default(),
+        agent_uri: Default::default(),
     };
 }
 
@@ -1107,37 +1121,68 @@ mod tests {
     fn detect_uri_from_config_works() {
         // expected
         let endpoint = detect_uri_from_config(None, None, None);
-        let expected = AgentEndpoint::default();
+        let expected = default_agent_uri();
         assert_eq!(endpoint, expected);
 
         // ipv4 host
         let endpoint = detect_uri_from_config(None, Some(Cow::Owned("127.0.0.1".to_owned())), None);
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://127.0.0.1:8126"));
+        let expected = Uri::from_static("http://127.0.0.1:8126");
         assert_eq!(endpoint, expected);
 
         // ipv6 host
         let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), None);
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        let expected = Uri::from_static("http://[::1]:8126");
         assert_eq!(endpoint, expected);
 
         // ipv6 host, custom port
         let endpoint = detect_uri_from_config(None, Some(Cow::Owned("::1".to_owned())), Some(9000));
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:9000"));
+        let expected = Uri::from_static("http://[::1]:9000");
         assert_eq!(endpoint, expected);
 
         // agent_url
         let endpoint =
             detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
-        let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        let expected = Uri::from_static("http://[::1]:8126");
         assert_eq!(endpoint, expected);
 
-        // fallback on non existing UDS
+        // fallback on non-existing UDS
         let endpoint = detect_uri_from_config(
             Some(Cow::Owned("unix://foo/bar/baz/I/do/not/exist".to_owned())),
             None,
             None,
         );
-        let expected = AgentEndpoint::default();
+        let expected = default_agent_uri();
         assert_eq!(endpoint, expected);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn uds_config_works() -> Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::prelude::*;
+
+        let tmp = tempdir::TempDir::new("")?;
+
+        // This isn't a "socket", but the code just checks for if it exists
+        // (at least for now) so this is adequate.
+        let path = tmp.path();
+
+        let unencoded = std::str::from_utf8(path.as_os_str().as_bytes())?;
+        let raw_uri_str = format!("unix://{unencoded}");
+
+        let mut encoded = hex::encode(unencoded.as_bytes());
+        encoded.insert_str(0, "unix://");
+
+        let expected = Uri::from_str(&encoded)?;
+        {
+            let actual = detect_uri_from_config(Some(Cow::Owned(raw_uri_str)), None, None);
+            assert_eq!(expected, actual);
+        }
+
+        {
+            let actual = detect_uri_from_config(Some(Cow::Owned(encoded)), None, None);
+            assert_eq!(expected, actual);
+        }
+
+        Ok(tmp.close()?)
     }
 }
