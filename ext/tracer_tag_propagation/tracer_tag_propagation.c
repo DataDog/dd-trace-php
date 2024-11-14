@@ -103,11 +103,16 @@ zval *ddtrace_propagated_tags_get_tag(const char *tag) {
     zend_array *propagated = ddtrace_get_propagated();
     zend_array *root_meta = ddtrace_get_root_meta();
 
-    if (!zend_hash_str_find(propagated, ZEND_STRL(tag))) {
+    if (!tag) {
+        return NULL;
+    }
+    size_t tag_len = strlen(tag);
+
+    if (!zend_hash_str_find(propagated, tag, tag_len)) {
         return NULL;
     }
 
-    return zend_hash_str_find(root_meta, ZEND_STRL(tag));
+    return zend_hash_str_find(root_meta, tag, tag_len);
 }
 
 void ddtrace_get_propagated_tags(zend_array *tags) {
