@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6e695ec08c44692b1b361afd99a4521067cfb6de */
+ * Stub hash: 90919c9c350e86acd6fe3c8d06753918d5e0572b */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_Trace___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, name, IS_STRING, 0, "\"\"")
@@ -11,9 +11,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_Trace___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, run_if_limited, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-
 ZEND_METHOD(DDTrace_Trace, __construct);
-
 
 static const zend_function_entry class_DDTrace_Trace_methods[] = {
 	ZEND_ME(DDTrace_Trace, __construct, arginfo_class_DDTrace_Trace___construct, ZEND_ACC_PUBLIC)
@@ -28,12 +26,12 @@ static zend_class_entry *register_class_DDTrace_Trace(void)
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
 	class_entry->ce_flags |= ZEND_ACC_FINAL;
 
-	zend_string *attribute_name_Attribute_class_DDTrace_Trace = zend_string_init_interned("Attribute", sizeof("Attribute") - 1, 1);
-	zend_attribute *attribute_Attribute_class_DDTrace_Trace = zend_add_class_attribute(class_entry, attribute_name_Attribute_class_DDTrace_Trace, 1);
-	zend_string_release(attribute_name_Attribute_class_DDTrace_Trace);
-	zval attribute_Attribute_class_DDTrace_Trace_arg0;
-	ZVAL_LONG(&attribute_Attribute_class_DDTrace_Trace_arg0, ZEND_ATTRIBUTE_TARGET_FUNCTION | ZEND_ATTRIBUTE_TARGET_METHOD);
-	ZVAL_COPY_VALUE(&attribute_Attribute_class_DDTrace_Trace->args[0].value, &attribute_Attribute_class_DDTrace_Trace_arg0);
+	zend_string *attribute_name_Attribute_class_DDTrace_Trace_0 = zend_string_init_interned("Attribute", sizeof("Attribute") - 1, 1);
+	zend_attribute *attribute_Attribute_class_DDTrace_Trace_0 = zend_add_class_attribute(class_entry, attribute_name_Attribute_class_DDTrace_Trace_0, 1);
+	zend_string_release(attribute_name_Attribute_class_DDTrace_Trace_0);
+	zval attribute_Attribute_class_DDTrace_Trace_0_arg0;
+	ZVAL_LONG(&attribute_Attribute_class_DDTrace_Trace_0_arg0, ZEND_ATTRIBUTE_TARGET_FUNCTION | ZEND_ATTRIBUTE_TARGET_METHOD);
+	ZVAL_COPY_VALUE(&attribute_Attribute_class_DDTrace_Trace_0->args[0].value, &attribute_Attribute_class_DDTrace_Trace_0_arg0);
 
 	return class_entry;
 }
