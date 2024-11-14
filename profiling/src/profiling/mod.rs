@@ -1087,10 +1087,10 @@ impl Profiler {
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'idle' with {n_labels} labels to profiler.")
+                trace!("Sent event 'opcache_restart' with {n_labels} labels to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'idle' with {n_labels} labels to profiler: {err}")
+                warn!("Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}")
             }
         }
     }
