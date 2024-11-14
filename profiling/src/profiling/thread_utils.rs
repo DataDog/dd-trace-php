@@ -119,7 +119,8 @@ pub fn get_current_thread_name() -> String {
             }
 
             thread_name
-        }).clone()
+        })
+        .clone()
     })
 }
 
