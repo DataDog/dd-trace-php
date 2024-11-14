@@ -398,6 +398,8 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
 
     add_meta(context, DDTRACE_STRING_LITERAL("_dd.debug.error.exception_capture_id"), (ddtrace_string){exception_id, uuid_len});
 
+    memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
+
     zval *frame;
     int frame_num = 0;
     ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARR_P(trace), frame_num, frame) {
@@ -468,6 +470,13 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         if (locals && Z_TYPE_P(locals) == IS_ARRAY) {
             dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num + 1, DDOG_CHARSLICE_C(""), DDOG_CHARSLICE_C(""), locals, service_name, &capture_config, time, context, add_meta);
         }
+    }
+
+    // Note: We MUST immediately send this, and not defer, as stuff may be freed during span processing. Including stuff potentially contained within the exception debugger payload.
+    ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));
+    if (DDTRACE_G(debugger_capture_arena)) {
+        zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
+        DDTRACE_G(debugger_capture_arena) = NULL;
     }
 
     zend_string_release(key_locals);

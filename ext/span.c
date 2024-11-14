@@ -725,8 +725,6 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 
 void ddtrace_serialize_closed_spans(zval *serialized) {
     if (DDTRACE_G(top_closed_stack)) {
-        memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
-
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
         do {
@@ -759,14 +757,6 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 }
             } while (stack);
         } while (rootstack);
-
-        if (ddtrace_exception_debugging_is_active()) {
-            ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));
-            if (DDTRACE_G(debugger_capture_arena)) {
-                zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
-                DDTRACE_G(debugger_capture_arena) = NULL;
-            }
-        }
     }
 
     // Reset closed span counter for limit-refresh, don't touch open spans

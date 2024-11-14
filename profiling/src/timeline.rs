@@ -4,12 +4,12 @@ use crate::zend::{
     InternalFunctionHandler,
 };
 use crate::REQUEST_LOCALS;
+use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
 #[cfg(php_zts)]
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::ffi::CStr;
 use std::ptr;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -30,12 +30,6 @@ static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 static mut PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK: Option<zend::VmZendAccelScheduleRestartHook> =
     None;
 
-static mut SLEEP_HANDLER: InternalFunctionHandler = None;
-static mut USLEEP_HANDLER: InternalFunctionHandler = None;
-static mut TIME_NANOSLEEP_HANDLER: InternalFunctionHandler = None;
-static mut TIME_SLEEP_UNTIL_HANDLER: InternalFunctionHandler = None;
-static mut FRANKENPHP_HANDLE_REQUEST_HANDLER: InternalFunctionHandler = None;
-
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
     #[cfg(php_zts)]
@@ -45,6 +39,7 @@ thread_local! {
 enum State {
     Idle,
     Sleeping,
+    Select,
     #[cfg(php_zts)]
     ThreadStart,
     #[cfg(php_zts)]
@@ -56,6 +51,7 @@ impl State {
         match self {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
+            State::Select => "select",
             #[cfg(php_zts)]
             State::ThreadStart => "thread start",
             #[cfg(php_zts)]
@@ -107,60 +103,40 @@ fn sleeping_fn(
     }
 }
 
-/// Wrapping the PHP `sleep()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_sleep(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = SLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
+macro_rules! create_sleeping_fn {
+    ($fn_name:ident, $handler:ident, $state:expr) => {
+        static mut $handler: InternalFunctionHandler = None;
+
+        #[no_mangle]
+        unsafe extern "C" fn $fn_name(
+            execute_data: *mut zend_execute_data,
+            return_value: *mut zval,
+        ) {
+            if let Some(func) = $handler {
+                sleeping_fn(func, execute_data, return_value, $state)
+            }
+        }
+    };
 }
 
-/// Wrapping the PHP `usleep()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_usleep(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = USLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
-}
+// Functions that are sleeping
+create_sleeping_fn!(ddog_php_prof_sleep, SLEEP_HANDLER, State::Sleeping);
+create_sleeping_fn!(ddog_php_prof_usleep, USLEEP_HANDLER, State::Sleeping);
+create_sleeping_fn!(ddog_php_prof_time_nanosleep, TIME_NANOSLEEP_HANDLER, State::Sleeping);
+create_sleeping_fn!(ddog_php_prof_time_sleep_until, TIME_SLEEP_UNTIL_HANDLER, State::Sleeping);
 
-/// Wrapping the PHP `time_nanosleep()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_time_nanosleep(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = TIME_NANOSLEEP_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
-}
+// Idle functions: these are functions which are like RSHUTDOWN -> RINIT
+create_sleeping_fn!(ddog_php_prof_frankenphp_handle_request, FRANKENPHP_HANDLE_REQUEST_HANDLER, State::Idle);
 
-/// Wrapping the PHP `time_sleep_until()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_time_sleep_until(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = TIME_SLEEP_UNTIL_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Sleeping)
-    }
-}
-
-/// Wrapping the FrankenPHP `frankenphp_handle_request()` function to take the time it is blocking the current thread
-#[no_mangle]
-unsafe extern "C" fn ddog_php_prof_frankenphp_handle_request(
-    execute_data: *mut zend_execute_data,
-    return_value: *mut zval,
-) {
-    if let Some(func) = FRANKENPHP_HANDLE_REQUEST_HANDLER {
-        sleeping_fn(func, execute_data, return_value, State::Idle)
-    }
-}
+// Functions that are blocking on I/O
+create_sleeping_fn!(ddog_php_prof_stream_select, STREAM_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_socket_select, SOCKET_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_curl_multi_select, CURL_MULTI_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_uv_run, UV_RUN_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_event_base_loop, EVENT_BASE_LOOP_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_eventbase_loop, EVENTBASE_LOOP_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_ev_loop_run, EV_LOOP_RUN_HANDLER, State::Select);
+create_sleeping_fn!(ddog_php_prof_parallel_events_poll, PARALLEL_EVENTS_POLL_HANDLER, State::Select);
 
 /// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
 #[cfg(zend_error_observer)]
@@ -174,6 +150,16 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     // we are only interested in FATAL errors
 
     if _type & zend::E_FATAL_ERRORS as i32 == 0 {
+        return;
+    }
+
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if !timeline_enabled {
         return;
     }
 
@@ -274,35 +260,91 @@ pub fn timeline_minit() {
 pub unsafe fn timeline_startup() {
     let handlers = [
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"sleep\0"),
+            cstr!("sleep"),
             ptr::addr_of_mut!(SLEEP_HANDLER),
             Some(ddog_php_prof_sleep),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"usleep\0"),
+            cstr!("usleep"),
             ptr::addr_of_mut!(USLEEP_HANDLER),
             Some(ddog_php_prof_usleep),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"time_nanosleep\0"),
+            cstr!("time_nanosleep"),
             ptr::addr_of_mut!(TIME_NANOSLEEP_HANDLER),
             Some(ddog_php_prof_time_nanosleep),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"time_sleep_until\0"),
+            cstr!("time_sleep_until"),
             ptr::addr_of_mut!(TIME_SLEEP_UNTIL_HANDLER),
             Some(ddog_php_prof_time_sleep_until),
         ),
         zend::datadog_php_zif_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"frankenphp_handle_request\0"),
+            cstr!("frankenphp_handle_request"),
             ptr::addr_of_mut!(FRANKENPHP_HANDLE_REQUEST_HANDLER),
             Some(ddog_php_prof_frankenphp_handle_request),
+        ),
+        zend::datadog_php_zif_handler::new(
+            cstr!("stream_select"),
+            ptr::addr_of_mut!(STREAM_SELECT_HANDLER),
+            Some(ddog_php_prof_stream_select),
+        ),
+        zend::datadog_php_zif_handler::new(
+            cstr!("socket_select"),
+            ptr::addr_of_mut!(SOCKET_SELECT_HANDLER),
+            Some(ddog_php_prof_socket_select),
+        ),
+        zend::datadog_php_zif_handler::new(
+            cstr!("curl_multi_select"),
+            ptr::addr_of_mut!(CURL_MULTI_SELECT_HANDLER),
+            Some(ddog_php_prof_curl_multi_select),
+        ),
+        // provided by `ext-uv` from https://pecl.php.net/package/uv
+        zend::datadog_php_zif_handler::new(
+            cstr!("uv_run"),
+            ptr::addr_of_mut!(UV_RUN_HANDLER),
+            Some(ddog_php_prof_uv_run),
+        ),
+        // provided by `ext-libevent` from https://pecl.php.net/package/libevent
+        zend::datadog_php_zif_handler::new(
+            cstr!("event_base_loop"),
+            ptr::addr_of_mut!(EVENT_BASE_LOOP_HANDLER),
+            Some(ddog_php_prof_event_base_loop),
         ),
     ];
 
     for handler in handlers.into_iter() {
         // Safety: we've set all the parameters correctly for this C call.
         zend::datadog_php_install_handler(handler);
+    }
+
+    let handlers = [
+        // provided by `ext-ev` from https://pecl.php.net/package/ev
+        zend::datadog_php_zim_handler::new(
+            cstr!("evloop"),
+            cstr!("run"),
+            ptr::addr_of_mut!(EV_LOOP_RUN_HANDLER),
+            Some(ddog_php_prof_ev_loop_run),
+        ),
+        // provided by `ext-event` from https://pecl.php.net/package/event
+        zend::datadog_php_zim_handler::new(
+            cstr!("eventbase"),
+            cstr!("loop"),
+            ptr::addr_of_mut!(EVENTBASE_LOOP_HANDLER),
+            Some(ddog_php_prof_eventbase_loop),
+        ),
+        // provided by `ext-parallel` from https://pecl.php.net/package/parallel
+        zend::datadog_php_zim_handler::new(
+            cstr!("parallel\\events"),
+            cstr!("poll"),
+            ptr::addr_of_mut!(PARALLEL_EVENTS_POLL_HANDLER),
+            Some(ddog_php_prof_parallel_events_poll),
+        ),
+    ];
+
+    for handler in handlers.into_iter() {
+        // Safety: we've set all the parameters correctly for this C call.
+        zend::datadog_php_install_method_handler(handler);
     }
 }
 
