@@ -50,6 +50,31 @@ class SymfonyMessengerIntegration extends Integration
             }
         );
 
+        install_hook(
+            'Symfony\Component\Messenger\Transport\Serialization\Serializer::encode',
+            null,
+            function (HookData $hook) {
+                $stampName = 'X-Message-Stamp-' . DDTraceStamp::class;
+                if (isset($hook->returned["headers"][$stampName])) {
+                    $hook->returned["headers"]["DD-" . $stampName] = $hook->returned["headers"][$stampName];
+                    unset($hook->returned["headers"][$stampName]);
+                    $hook->overrideReturnValue($hook->returned);
+                }
+            }
+        );
+
+        install_hook(
+            'Symfony\Component\Messenger\Transport\Serialization\Serializer::decodeStamps',
+            function (HookData $hook) {
+                $stampName = 'X-Message-Stamp-' . DDTraceStamp::class;
+                if (isset($hook->args[0]["headers"]["DD-" . $stampName])) {
+                    $hook->args[0]["headers"][$stampName] = $hook->args[0]["headers"]["DD-" . $stampName];
+                    unset($hook->args[0]["headers"]["DD-" . $stampName]);
+                    $hook->overrideArguments($hook->args);
+                }
+            }
+        );
+
         // Attach current context to Envelope before sender sends it to remote queue
         install_hook(
             'Symfony\Component\Messenger\Transport\Sender\SenderInterface::send',
