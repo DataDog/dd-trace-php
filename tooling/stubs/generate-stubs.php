@@ -1,6 +1,7 @@
 <?php
 
 require 'vendor/autoload.php';
+require 'CustomPrinter.php';
 
 use StubsGenerator\{StubsGenerator, Finder};
 
@@ -18,7 +19,7 @@ $files = array_map(fn($file) => str_replace($SRC_DIR . "bridge/../", "", $file),
 $generator = new StubsGenerator();
 $finder = Finder::create()->in($SRC_DIR)->path($files)->sortByName();
 
-$stubs = $generator->generate($finder)->prettyPrint();
+$stubs = $generator->generate($finder)->prettyPrint(new CustomPrinter());
 
 $outputFile = $SRC_DIR . "ddtrace_php_api.stubs.php";
 file_put_contents($outputFile, $stubs);
