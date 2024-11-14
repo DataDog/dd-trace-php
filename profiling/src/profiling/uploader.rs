@@ -1,25 +1,22 @@
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
-use crate::config::AgentEndpoint;
 use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use datadog_profiling::exporter::File;
-use ddcommon::Endpoint;
+use datadog_profiling::exporter::{Endpoint, File, Uri};
 use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
-use std::time::Duration;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
     receiver: Receiver<UploadMessage>,
     output_pprof: Option<Cow<'static, str>>,
-    endpoint: AgentEndpoint,
+    agent_endpoint: Uri,
     start_time: String,
 }
 
@@ -28,14 +25,14 @@ impl Uploader {
         fork_barrier: Arc<Barrier>,
         receiver: Receiver<UploadMessage>,
         output_pprof: Option<Cow<'static, str>>,
-        endpoint: AgentEndpoint,
+        agent_endpoint: Uri,
         start_time: DateTime<Utc>,
     ) -> Self {
         Self {
             fork_barrier,
             receiver,
             output_pprof,
-            endpoint,
+            agent_endpoint,
             start_time: start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         }
     }
@@ -66,8 +63,10 @@ impl Uploader {
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;
         let profiling_library_version: &str = &PROFILER_VERSION_STR;
-        let agent_endpoint = &self.endpoint;
-        let endpoint = Endpoint::try_from(agent_endpoint)?;
+        let agent_endpoint = &self.agent_endpoint;
+        let mut endpoint = Endpoint::from(agent_endpoint.clone());
+        const TIMEOUT_S: u64 = 10;
+        endpoint.timeout_ms = TIMEOUT_S * 1000;
 
         let tags = Some(Arc::unwrap_or_clone(index.tags));
         let exporter = datadog_profiling::exporter::ProfileExporter::new(
@@ -87,7 +86,6 @@ impl Uploader {
             name: "profile.pprof",
             bytes: serialized.buffer.as_slice(),
         }];
-        let timeout = Duration::from_secs(10);
         let request = exporter.build(
             start,
             end,
@@ -97,7 +95,6 @@ impl Uploader {
             endpoint_counts,
             Self::create_internal_metadata(),
             self.create_profiler_info(),
-            timeout,
         )?;
         debug!("Sending profile to: {agent_endpoint}");
         let result = exporter.send(request, None)?;

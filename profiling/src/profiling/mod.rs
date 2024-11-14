@@ -553,7 +553,7 @@ impl Profiler {
             fork_barrier.clone(),
             upload_receiver,
             system_settings.output_pprof.clone(),
-            system_settings.uri.clone(),
+            system_settings.agent_uri.clone(),
             Utc::now(),
         );
 
@@ -1285,8 +1285,7 @@ impl Profiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AgentEndpoint;
-    use datadog_profiling::exporter::Uri;
+    use crate::config::default_agent_uri;
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
@@ -1311,7 +1310,7 @@ mod tests {
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
-            uri: AgentEndpoint::Uri(Uri::default()),
+            agent_uri: default_agent_uri(),
         }
     }
 
