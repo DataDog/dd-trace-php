@@ -62,7 +62,7 @@ namespace DDTrace {
          * @param array $attributes Optional attributes for the event.
          */
         public function __construct(\Throwable $exception, array $attributes = []) {}
-        
+
         /**
          * @var \Throwable
          */
@@ -798,7 +798,7 @@ namespace DDTrace\UserRequest {
      * @param string|resource|null $body the body of the request (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
      */
-    function notify_start(\DDTrace\RootSpanData $span, array $data, ?mixed $body = null): ?array {}
+    function notify_start(\DDTrace\RootSpanData $span, array $data, mixed $body = null): ?array {}
 
     /**
      * Notifies the user request listeners of the imminence of a commit, and allows for the replacement of the response.
