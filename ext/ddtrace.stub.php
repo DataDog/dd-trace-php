@@ -808,7 +808,7 @@ namespace DDTrace\UserRequest {
      * @param string|resource|null $body the body of the response (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
      */
-    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers, ?mixed $body = null): ?array {}
+    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers, mixed $body = null): ?array {}
 
     /**
      * Sets a function to be called when blocking a request midway.
