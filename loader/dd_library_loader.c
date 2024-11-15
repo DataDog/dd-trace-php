@@ -23,6 +23,8 @@ static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 
+static bool already_done = false;
+
 #if defined(__MUSL__)
 # define OS_PATH "linux-musl/"
 #else
@@ -554,6 +556,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     config->module_number = module_entry->module_number;
     config->version = (char *)module_entry->version;
 
+    LOG(INFO, "Extension '%s' loaded", config->ext_name);
     goto ok;
 
 abort_and_unload:
@@ -614,6 +617,11 @@ static bool ddloader_libc_check() {
 
 static int ddloader_api_no_check(int api_no) {
     if (!ddloader_libc_check()) {
+        return SUCCESS;
+    }
+
+    if (already_done) {
+        LOG(WARN, "dd_library_loader has been loaded multiple times, aborting");
         return SUCCESS;
     }
 
@@ -687,9 +695,11 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) {
     // Guardrail
-    if (!ddloader_libc_check() || !php_api_no) {
+    if (!ddloader_libc_check() || !php_api_no || already_done) {
         return SUCCESS;
     }
+
+    already_done = true;
 
     bool is_zts = (strstr(build_id, "NTS") == NULL);
     bool is_debug = (strstr(build_id, "debug") != NULL);
