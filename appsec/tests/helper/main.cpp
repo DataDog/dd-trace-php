@@ -122,9 +122,9 @@ std::string create_sample_rules_ok()
                 "address": "server.response.code"
               }
             ],
-            "regex":1991,
+            "regex": 1991,
             "options": {
-                "case_sensitive": "false"
+              "case_sensitive": "false"
             }
           },
           "operator": "match_regex"
@@ -164,19 +164,69 @@ std::string create_sample_rules_ok()
             "output": "_dd.appsec.s.req.headers.no_cookies"
           },
           {
-           "inputs": [
-             {
-               "address": "server.request.body"
-             }
-           ],
-           "output": "_dd.appsec.s.req.body"
-         }
+            "inputs": [ {
+                "address": "server.request.body"
+              }
+            ],
+            "output": "_dd.appsec.s.req.body"
+          }
         ],
         "scanners": [
           {
             "tags": {
               "category": "pii"
             }
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "http-endpoint-fingerprint",
+      "generator": "http_endpoint_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "method": [
+              {
+                "address": "server.request.method"
+              }
+            ],
+            "uri_raw": [
+              {
+                "address": "server.request.uri.raw"
+              }
+            ],
+            "body": [
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "query": [
+              {
+                "address": "server.request.query"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.endpoint"
           }
         ]
       },

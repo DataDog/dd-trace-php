@@ -7,6 +7,7 @@
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
+#include <gtest/gtest.h>
 #include <json_helper.hpp>
 #include <network/broker.hpp>
 #include <rapidjson/document.h>
@@ -1760,6 +1761,69 @@ TEST(ClientTest, RequestExecWithAttack)
         EXPECT_STREQ(
             msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
+    }
+}
+
+TEST(ClientTest, RequestShutdownWithAttackAndFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+
+        msg.data = parameter::map();
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+        EXPECT_EQ(msg_res->triggers.size(), 0);
+    }
+
+    // Request Execution
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+        msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_FALSE(std::regex_match(
+            msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            std::regex(
+                "http-get-[A-Za-z0-9]{8}-[A-Za-z0-9]{8}-([A-Za-z0-9]{8})?")));
     }
 }
 
