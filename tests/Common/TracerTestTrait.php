@@ -228,7 +228,7 @@ trait TracerTestTrait
         return $out;
     }
 
-    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $skipSyncFlush = false)
+    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $skipSyncFlush = false, $withExitCode = false)
     {
         $envs = (string) new EnvSerializer(array_merge(
             [
@@ -267,16 +267,14 @@ trait TracerTestTrait
             $arguments = implode(' ', array_map('escapeshellarg', $arguments));
         }
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
-        if ($withOutput) {
-            $ret = (string) `$commandToExecute 2>&1`;
-        } else {
-            `$commandToExecute`;
-            $ret = null;
-        }
+        $output = [];
+        $exitCode = 0;
+        exec($commandToExecute . ' 2>&1', $output, $exitCode);
+        $ret = $withOutput ? implode("\n", $output) : null;
         if (!$skipSyncFlush && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
             \dd_trace_synchronous_flush();
         }
-        return $ret;
+        return $withExitCode ? [$ret, $exitCode] : $ret;
     }
 
     /**

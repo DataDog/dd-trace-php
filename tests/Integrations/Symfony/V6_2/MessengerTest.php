@@ -89,4 +89,26 @@ class MessengerTest extends WebFrameworkTestCase
             true
         );
     }
+
+    public function testAsyncWithTracerDisabledOnConsume()
+    {
+        // GH Issue: https://github.com/DataDog/dd-trace-php/pull/2749#issuecomment-2467409884
+
+        $this->tracesFromWebRequestSnapshot(function () {
+            $spec = GetSpec::create('Lucky number', '/lucky/number');
+            $this->call($spec);
+        }, self::FIELDS_TO_IGNORE);
+
+        list($output, $exitCode) = $this->executeCli(
+            self::getConsoleScript(),
+            [],
+            ['ddtrace.disable' => 'true'],
+            ['messenger:consume', 'async', '--limit=1'],
+            true,
+            true,
+            true
+        );
+
+        $this->assertEquals(0, $exitCode, "Command failed with exit code 1. Output: $output");
+    }
 }

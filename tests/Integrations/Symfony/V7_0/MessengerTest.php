@@ -8,6 +8,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class MessengerTest extends WebFrameworkTestCase
 {
+    public static $database = "symfony70";
+
     const FIELDS_TO_IGNORE = [
         'metrics.php.compilation.total_time_ms',
         'metrics.php.memory.peak_usage_bytes',
@@ -85,5 +87,27 @@ class MessengerTest extends WebFrameworkTestCase
             'tests.integrations.symfony.v7_0.messenger_test.test_async_failure_consumer',
             true
         );
+    }
+
+    public function testAsyncWithTracerDisabledOnConsume()
+    {
+        // GH Issue: https://github.com/DataDog/dd-trace-php/pull/2749#issuecomment-2467409884
+
+        $this->tracesFromWebRequestSnapshot(function () {
+            $spec = GetSpec::create('Lucky number', '/lucky/number');
+            $this->call($spec);
+        }, self::FIELDS_TO_IGNORE);
+
+        list($output, $exitCode) = $this->executeCli(
+            self::getConsoleScript(),
+            [],
+            ['ddtrace.disable' => 'true'],
+            ['messenger:consume', 'async', '--limit=1'],
+            true,
+            true,
+            true
+        );
+
+        $this->assertEquals(0, $exitCode, "Command failed with exit code 1. Output: $output");
     }
 }
