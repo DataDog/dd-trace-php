@@ -1493,9 +1493,11 @@ function download($url, $destination, $retry = false)
         $progress_counter = 0;
         $return = curl_exec($ch);
 
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($httpCode == 404) {
-            return false;
+        if ($retry) {
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($httpCode == 404) {
+                return false;
+            }
         }
 
         curl_close($ch);
