@@ -88,6 +88,10 @@ typedef union _zend_op_trace_info {
 
 #define ZEND_OP_TRACE_INFO(opline, offset) \
 	((zend_op_trace_info*)(((char*)opline) + offset))
+
+#ifndef _WIN32
+static int dd_probe_pipes[2];
+#endif
 #endif
 
 #define ZEND_FUNC_INFO(op_array) \
@@ -103,6 +107,9 @@ static void zai_jit_find_opcache_handle(void *ext) {
 
 // opcache startup NULLs its handle. MINIT is executed before extension startup.
 void zai_jit_minit(void) {
+#if PHP_VERSION_ID < 80400 && !defined(_WIN32)
+    pipe(dd_probe_pipes);
+#endif
     zend_llist_apply(&zend_extensions, zai_jit_find_opcache_handle);
 }
 
@@ -188,7 +195,7 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
     if (zai_get_zend_func_rid(op_array) < 0) {
         return;
     }
-    // now in PHP < 8.1, zend_func_info_rid is set
+    // now in PHP < 8.1, zend_func_info_rid is set (on newer versions it's in zend_func_info.h)
 
     zend_jit_op_array_trace_extension *jit_extension = (zend_jit_op_array_trace_extension *)ZEND_FUNC_INFO(op_array);
     if (!jit_extension) {
@@ -202,6 +209,16 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
     }
 
     size_t offset = jit_extension->offset;
+
+#ifndef _WIN32
+    // check whether the op_trace_info is actually readable or EFAULTing
+    // we can't trust opcache too much here...
+    char dummy_buf[sizeof(zend_op_trace_info)];
+    if (write(dd_probe_pipes[1], ZEND_OP_TRACE_INFO(opline, offset), sizeof(zend_op_trace_info)) < 0) {
+        return;
+    }
+    read(dd_probe_pipes[0], dummy_buf, sizeof(zend_op_trace_info));
+#endif
 
     if (!(ZEND_OP_TRACE_INFO(opline, offset)->trace_flags & ZEND_JIT_TRACE_BLACKLISTED)) {
         bool is_protected_memory = false;
