@@ -5,16 +5,16 @@
     "resource": "lucky_number",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1821185153506234818,
+    "parent_id": 5489395288500191465,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "66c6f8cf00000000",
+      "_dd.p.tid": "6737688900000000",
       "component": "symfony",
       "http.method": "GET",
       "http.status_code": "200",
       "http.url": "http://localhost/lucky/number",
-      "runtime-id": "d07cb84d-0e78-4f60-bbe6-25954de69a8a",
+      "runtime-id": "5fe9f332-5cdf-4438-a2c1-35f9245e4015",
       "span.kind": "server",
       "symfony.route.action": "App\\Controller\\LuckyController@number",
       "symfony.route.name": "lucky_number"
@@ -127,9 +127,9 @@
                   "messaging.system": "symfony"
                 },
                 "metrics": {
-                  "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1.0,
                   "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
                   "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2.0,
                   "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
                 }
               },
@@ -260,9 +260,9 @@
                                        "span.kind": "producer"
                                      },
                                      "metrics": {
-                                       "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1.0,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2.0,
                                        "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
                                      }
                                    },

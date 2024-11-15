@@ -18,6 +18,7 @@ use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Stamp\SentStamp;
+use Symfony\Component\Messenger\Stamp\SerializerStamp;
 use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 use function DDTrace\hook_method;
@@ -58,15 +59,11 @@ class SymfonyMessengerIntegration extends Integration
                 $envelope = $hook->args[0];
 
                 if (\ddtrace_config_distributed_tracing_enabled()) {
-                    $ddTraceStamp = $envelope->last(DDTraceStamp::class);
-
-                    // Add distributed tracing stamp only if not already on the envelope
-                    if ($ddTraceStamp === null) {
-                        $tracingHeaders = \DDTrace\generate_distributed_tracing_headers();
-                        $hook->overrideArguments([
-                            $envelope->with(new DDTraceStamp($tracingHeaders))
-                        ]);
-                    }
+                    $tracingHeaders = \DDTrace\generate_distributed_tracing_headers();
+                    $datadogHeaders = ['datadog' => $tracingHeaders];
+                    $hook->overrideArguments([
+                        $envelope->with(new SerializerStamp($datadogHeaders))
+                    ]);
                 }
             }
         );
@@ -101,13 +98,17 @@ class SymfonyMessengerIntegration extends Integration
                         'receive'
                     );
 
-                    $ddTraceStamp = $envelope->last(DDTraceStamp::class);
-                    if ($ddTraceStamp instanceof DDTraceStamp) {
-                        $tracingHeaders = $ddTraceStamp->getHeaders();
-                        if (\dd_trace_env_config('DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING')) {
-                            \DDTrace\consume_distributed_tracing_headers($tracingHeaders);
-                        } else {
-                            $span->links[] = \DDTrace\SpanLink::fromHeaders($tracingHeaders);
+                    $serializerStamps = $envelope->all(SerializerStamp::class);
+                    foreach ($serializerStamps as $serializerStamp) {
+                        $context = $serializerStamp->getContext();
+                        if (isset($context['datadog'])) {
+                            $tracingHeaders = $context['datadog'];
+                            if (\dd_trace_env_config('DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING')) {
+                                \DDTrace\consume_distributed_tracing_headers($tracingHeaders);
+                            } else {
+                                $span->links[] = \DDTrace\SpanLink::fromHeaders($tracingHeaders);
+                            }
+                            break;
                         }
                     }
                 },

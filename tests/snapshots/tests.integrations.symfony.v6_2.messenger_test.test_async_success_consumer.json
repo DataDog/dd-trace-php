@@ -5,11 +5,11 @@
     "resource": "async -> App\\Message\\LuckyNumberNotification",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 2618824753639377523,
+    "parent_id": 147070678965658335,
     "type": "queue",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "66c6f8cf00000000",
+      "_dd.p.tid": "6737688900000000",
       "component": "symfonymessenger",
       "messaging.destination": "async",
       "messaging.destination_kind": "queue",
@@ -18,7 +18,7 @@
       "messaging.symfony.bus": "messenger.bus.default",
       "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
       "messaging.system": "symfony",
-      "runtime-id": "3f23a876-79a6-4ac2-b1e9-5e25bed8870f",
+      "runtime-id": "24079214-6dc0-402f-9e61-5511fe51978f",
       "span.kind": "consumer"
     },
     "metrics": {
@@ -57,13 +57,13 @@
          "messaging.system": "symfony"
        },
        "metrics": {
-         "messaging.symfony.stamps.DDTrace\\Integrations\\SymfonyMessenger\\DDTraceStamp": 1,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineReceivedStamp": 1,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\AckStamp": 1,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ConsumedByWorkerStamp": 1,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\HandledStamp": 1,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
+         "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2,
          "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1
        }
      },
