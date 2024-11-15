@@ -492,7 +492,7 @@ build_pecl_package:
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
 dbgsym.tar.gz:
-	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_windows_x86_64_debugsymbols --owner=0 --group=0)
+	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)
 
 installer_packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
 	tar --use-compress-program=pigz --exclude='dd-library-php-ssi-*' -cf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0

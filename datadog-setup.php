@@ -95,10 +95,11 @@ Options:
                                 option can be provided multiple times.
     --install-dir <path>        Install to a specific directory. Default: '$installdir'
     --uninstall                 Uninstall the library from the specified binaries.
+    --file <path to .tar.gz>    Path to a dd-library-php-*.tar.gz file. Can be used for offline installation.
     --extension-dir <path>      Specify the extension directory. Default: PHP's extension directory.
     --ini <path>                Specify the INI file to use. Default: <ini-dir>/98-ddtrace.ini
     --enable-appsec             Enable the application security monitoring module.
-    --enable-profiling           Enable the profiling module.
+    --enable-profiling          Enable the profiling module.
     -d setting[=value]          Used in conjunction with `config <set|get>`
                                 command to specify the INI setting to get or set.
 
@@ -462,9 +463,58 @@ function install($options)
     $selectedBinaries = require_binaries_or_exit($options);
     $interactive = empty($options[OPT_PHP_BIN]);
 
+    $commandExtensionSuffixes = [];
+    $downloadVersions = [];
+    foreach ($selectedBinaries as $command => $fullPath) {
+        $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
+        echo "Checking for binary: $binaryForLog\n";
+
+        check_php_ext_prerequisite_or_exit($fullPath, 'json');
+
+        $phpProperties = ini_values($fullPath);
+        if (!isset($phpProperties[INI_SCANDIR])) {
+            if (!isset($phpProperties[INI_MAIN])) {
+                if (IS_WINDOWS) {
+                    $phpProperties[INI_MAIN] = dirname($fullPath) . "/php.ini";
+                } else {
+                    print_error_and_exit(
+                        "It is not possible to perform installation on this "
+                        . "system because there is no scan directory and no "
+                        . "configuration file loaded."
+                    );
+                }
+            }
+
+            print_warning(
+                "Performing an installation without a scan directory may "
+                . "result in fragile installations that are broken by normal "
+                . "system upgrades. It is advisable to use the configure "
+                . "switch --with-config-file-scan-dir when building PHP."
+            );
+        }
+
+        // Suffix (zts/debug)
+        $extensionSuffix = '';
+        if (is_truthy($phpProperties[IS_DEBUG])) {
+            $extensionSuffix .= '-debug';
+        }
+        if (is_truthy($phpProperties[THREAD_SAFETY])) {
+            $extensionSuffix .= '-zts';
+        }
+
+        $commandExtensionSuffixes[$command] = $extensionSuffix;
+
+        $extensionVersion = $phpProperties[PHP_API];
+        $downloadVersions["$extensionVersion$extensionSuffix"] = true;
+    }
+
+    $tar_gz_suffix = "";
+    if (count($downloadVersions) === 1) {
+        $tar_gz_suffix = "-" . key($downloadVersions);
+    }
+
     // Preparing clean tmp folder to extract files
     $tmpDir = sys_get_temp_dir() . '/dd-install';
-    $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}.tar.gz";
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
@@ -490,8 +540,14 @@ function install($options)
         print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $url = RELEASE_URL_PREFIX . "dd-library-php-" . RELEASE_VERSION . "-{$platform}.tar.gz";
-        download($url, $tmpDirTarGz);
+        for (;;) {
+            $url = RELEASE_URL_PREFIX . "dd-library-php-" . RELEASE_VERSION . "-{$platform}{$tar_gz_suffix}.tar.gz";
+            $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}{$tar_gz_suffix}.tar.gz";
+            if (download($url, $tmpDirTarGz, $tar_gz_suffix != "")) {
+                break;
+            }
+            $tar_gz_suffix = ""; // retry with the full archive if the original download failed
+        }
     }
     if (!IS_WINDOWS || `where tar 2> nul` !== null) {
         execute_or_exit(
@@ -574,15 +630,7 @@ function install($options)
 
         // Copying the extension
         $extensionVersion = $phpProperties[PHP_API];
-
-        // Suffix (zts/debug/alpine)
-        $extensionSuffix = '';
-        if (is_truthy($phpProperties[IS_DEBUG])) {
-            $extensionSuffix .= '-debug';
-        }
-        if (is_truthy($phpProperties[THREAD_SAFETY])) {
-            $extensionSuffix .= '-zts';
-        }
+        $extensionSuffix = $commandExtensionSuffixes[$command];
 
         $extDir = isset($options[OPT_EXTENSION_DIR]) ? $options[OPT_EXTENSION_DIR] : $phpProperties[EXTENSION_DIR];
         echo "Installing extension to $extDir\n";
@@ -1416,7 +1464,7 @@ function execute_or_exit($exitMessage, $command)
  * @param string $url
  * @param string $destination
  */
-function download($url, $destination)
+function download($url, $destination, $retry = false)
 {
     echo "Downloading installable archive from $url.\n";
     echo "This operation might take a while.\n";
@@ -1444,12 +1492,20 @@ function download($url, $destination)
         curl_setopt($ch, CURLOPT_NOPROGRESS, false);
         $progress_counter = 0;
         $return = curl_exec($ch);
+
+        if ($retry) {
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($httpCode == 404) {
+                return false;
+            }
+        }
+
         curl_close($ch);
         fclose($fp);
 
         if (false !== $return) {
             echo $okMessage;
-            return;
+            return true;
         }
         // Otherwise we attempt other methods
     }
@@ -1461,20 +1517,20 @@ function download($url, $destination)
     if (!IS_WINDOWS && false !== exec('curl --version', $output, $statusCode) && $statusCode === 0) {
         $curlInvocationStatusCode = 0;
         system(
-            'curl -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
+            'curl -f -L --output ' . escapeshellarg($destination) . ' ' . escapeshellarg($url),
             $curlInvocationStatusCode
         );
 
         if ($curlInvocationStatusCode === 0) {
             echo $okMessage;
-            return;
+            return true;
         }
         // Otherwise we attempt other methods
     }
 
     // file_get_contents
     if (is_truthy(ini_get('allow_url_fopen')) && extension_loaded('openssl')) {
-        ini_set("memory_limit", "1G"); // increase memory limit otherwise we may run OOM here.
+        ini_set("memory_limit", "2G"); // increase memory limit otherwise we may run OOM here.
         $data = @file_get_contents($url);
         // PHP doesn't like too long location headers, and on PHP 7.3 and older they weren't read at all.
         // But this only really matters for CircleCI artifacts, so not too bad.
@@ -1491,11 +1547,14 @@ function download($url, $destination)
         }
         got_data: ;
         if ($data == "" || false === file_put_contents($destination, $data)) {
+            if ($retry) {
+                return false;
+            }
             print_error_and_exit("Error while downloading the installable archive from $url\n");
         }
 
         echo $okMessage;
-        return;
+        return true;
 
         next_method:
     }
@@ -1508,11 +1567,14 @@ function download($url, $destination)
         );
         if ($webRequestInvocationStatusCode === 0) {
             echo $okMessage;
-            return;
+            return true;
         }
         // Otherwise we attempt other methods
     }
 
+    if ($retry) {
+        return false;
+    }
 
     echo "Error: Cannot download the installable archive.\n";
     echo "  One of the following prerequisites must be satisfied:\n";
