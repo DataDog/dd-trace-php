@@ -183,7 +183,9 @@ bool ddtrace_config_minit(int module_number) {
 #ifndef _WIN32
     // Sidecar is currently broken - no traces sent. Investigation pending, background sender just works though.
     if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
+        config_entries[DDTRACE_CONFIG_DD_REMOTE_CONFIG_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
         config_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
+        config_entries[DDTRACE_CONFIG_DD_INSTRUMENTATION_TELEMETRY_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
     }
 #endif
 
