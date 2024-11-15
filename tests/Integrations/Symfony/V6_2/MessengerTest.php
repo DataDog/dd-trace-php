@@ -49,7 +49,7 @@ class MessengerTest extends WebFrameworkTestCase
             $this->call($spec);
         }, self::FIELDS_TO_IGNORE);
 
-        list($consumerTraces, $output) = $this->inCli(self::getConsoleScript(), [
+        list($consumerTraces) = $this->inCli(self::getConsoleScript(), [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_SERVICE' => 'symfony_messenger_test',
@@ -58,7 +58,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_DEBUG' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
             'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
-        ], [], ['mess:cons', 'async', '--limit=1'], true);
+        ], [], ['mess:cons', 'async', '--limit=1']);
 
         $this->snapshotFromTraces(
             $consumerTraces,
@@ -75,7 +75,7 @@ class MessengerTest extends WebFrameworkTestCase
             $this->call($spec);
         }, self::FIELDS_TO_IGNORE);
 
-        list($consumerTraces, $output) = $this->inCli(self::getConsoleScript(), [
+        list($consumerTraces) = $this->inCli(self::getConsoleScript(), [
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_SERVICE' => 'symfony_messenger_test',
@@ -83,7 +83,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
             'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
-        ], [], ['messenger:consume', 'async', '--limit=1'], true);
+        ], [], ['messenger:consume', 'async', '--limit=1']);
 
         $this->snapshotFromTraces(
             $consumerTraces,
