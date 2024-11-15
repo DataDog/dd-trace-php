@@ -57,6 +57,13 @@ DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void) {
 #endif
 }
 
+void ddtrace_check_for_new_config_now(void) {
+    if (DDTRACE_G(remote_config_state) && !DDTRACE_G(reread_remote_configuration) && ddog_process_remote_configs(DDTRACE_G(remote_config_state))) {
+        // If we blocked the signal, notify the other threads too
+        ddtrace_set_all_thread_vm_interrupt();
+    }
+}
+
 DDTRACE_PUBLIC const char *ddtrace_remote_config_get_path() {
     if (DDTRACE_G(remote_config_state)) {
         return ddog_remote_config_get_path(DDTRACE_G(remote_config_state));

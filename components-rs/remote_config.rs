@@ -243,7 +243,8 @@ pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState)
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) {
+pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) -> bool {
+    let mut has_updates = false;
     loop {
         match remote_config.manager.fetch_update() {
             RemoteConfigUpdate::None => break,
@@ -292,7 +293,9 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 _ => (),
             },
         }
+        has_updates = true
     }
+    has_updates
 }
 
 fn apply_config(
