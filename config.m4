@@ -162,6 +162,7 @@ if test "$PHP_DDTRACE" != "no"; then
   dnl ddtrace.c comes first, then everything else alphabetically
   DD_TRACE_PHP_SOURCES="$EXTRA_PHP_SOURCES \
     ext/ddtrace.c \
+    ext/agent_info.c \
     ext/arrays.c \
     ext/auto_flush.c \
     ext/autoload_php_files.c \

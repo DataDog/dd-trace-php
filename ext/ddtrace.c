@@ -99,6 +99,7 @@
 #include "ddtrace_arginfo.h"
 #include "distributed_tracing_headers.h"
 #include "live_debugger.h"
+#include "agent_info.h"
 
 #if PHP_VERSION_ID < 70200
 #pragma pop_macro("ZVAL_EMPTY_STRING")
@@ -661,6 +662,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     }
     if (ddtrace_globals->remote_config_state) {
         ddog_shutdown_remote_config(ddtrace_globals->remote_config_state);
+    }
+    if (ddtrace_globals->agent_info_reader) {
+        ddog_drop_agent_info_reader(ddtrace_globals->agent_info_reader);
     }
     zai_hook_gshutdown();
     if (ddtrace_globals->telemetry_buffer) {
@@ -1526,7 +1530,6 @@ static void dd_rinit_once(void) {
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request(void) {
-    DDTRACE_G(request_initialized) = true;
     DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
@@ -1535,6 +1538,12 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
+
+    // Check for the env first, before the first RC
+    ddtrace_check_agent_info_env();
+
+    // Do after env check, so that RC data is not updated before RC init
+    DDTRACE_G(request_initialized) = true;
 
     ddtrace_sidecar_rinit();
 
@@ -1574,6 +1583,8 @@ static void dd_initialize_request(void) {
         ddtrace_coms_on_pid_change();
     }
 #endif
+
+    ddtrace_agent_info_rinit();
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -2268,6 +2279,10 @@ void dd_internal_handle_fork(void) {
     if (DDTRACE_G(remote_config_state)) {
         ddog_shutdown_remote_config(DDTRACE_G(remote_config_state));
         DDTRACE_G(remote_config_state) = NULL;
+    }
+    if (DDTRACE_G(agent_info_reader)) {
+        ddog_drop_agent_info_reader(DDTRACE_G(agent_info_reader));
+        DDTRACE_G(agent_info_reader) = NULL;
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();

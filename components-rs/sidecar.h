@@ -33,6 +33,10 @@ void ddog_ph_file_drop(struct ddog_NativeFile ph);
 
 ddog_MaybeError ddog_alloc_anon_shm_handle(uintptr_t size, struct ddog_ShmHandle **handle);
 
+ddog_MaybeError ddog_alloc_anon_shm_handle_named(uintptr_t size,
+                                                 struct ddog_ShmHandle **handle,
+                                                 ddog_CharSlice name);
+
 ddog_MaybeError ddog_map_shm(struct ddog_ShmHandle *handle,
                              struct ddog_MappedMem_ShmHandle **mapped,
                              void **pointer,
@@ -305,5 +309,20 @@ void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
  * Return the path of the crashtracker unix domain socket.
  */
 ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
+
+/**
+ * Gets an agent info reader.
+ */
+struct ddog_AgentInfoReader *ddog_get_agent_info_reader(const struct ddog_Endpoint *endpoint);
+
+/**
+ * Gets the current agent info environment (or empty if not existing)
+ */
+ddog_CharSlice ddog_get_agent_info_env(struct ddog_AgentInfoReader *reader, bool *changed);
+
+/**
+ * Drops the agent info reader.
+ */
+void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
 
 #endif /* DDOG_SIDECAR_H */

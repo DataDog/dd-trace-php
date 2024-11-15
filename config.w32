@@ -15,7 +15,8 @@ if (PHP_DDTRACE != 'no') {
 
 	var version = PHP_VERSION * 100 + PHP_MINOR_VERSION;
 
-	var DDTRACE_EXT_SOURCES = "arrays.c";
+	var DDTRACE_EXT_SOURCES = "agent_info.c";
+	DDTRACE_EXT_SOURCES += " arrays.c";
 	DDTRACE_EXT_SOURCES += " auto_flush.c";
 	DDTRACE_EXT_SOURCES += " autoload_php_files.c";
 	DDTRACE_EXT_SOURCES += " collect_backtrace.c";

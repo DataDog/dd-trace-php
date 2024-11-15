@@ -13,6 +13,7 @@
 #include "ddtrace.h"
 #include "span.h"
 #include "components/log/log.h"
+#include "agent_info.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -217,6 +218,9 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     bool explicit_rule = true;
 
     if (is_trace_root) {
+        // when we sample, we need to fetch the env first
+        ddtrace_check_agent_info_env();
+
         double default_sample_rate = get_DD_TRACE_SAMPLE_RATE();
         sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;
 
@@ -227,16 +231,22 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         } else {
             explicit_rule = false;
 
+            zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
+            if (!env) {
+                env = &span->property_env;
+            }
+
             ddtrace_try_read_agent_rate();
+            // if we have an empty env... we can default to the cluster env.
+            if (ZSTR_LEN(get_DD_ENV()) && Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) == 0) {
+                zval_ptr_dtor(env);
+                ZVAL_STR_COPY(env, get_DD_ENV());
+            }
 
             if (DDTRACE_G(agent_rate_by_service)) {
-                zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
-                if (!env) {
-                    env = &span->property_env;
-                }
                 zval *sample_rate_zv = NULL;
                 zval *service = &span->property_service;
-                if (Z_TYPE_P(service) == IS_STRING && env && Z_TYPE_P(env) == IS_STRING) {
+                if (Z_TYPE_P(service) == IS_STRING && Z_TYPE_P(env) == IS_STRING) {
                     zend_string *sample_key = zend_strpprintf(0, "service:%.*s,env:%.*s", (int) Z_STRLEN_P(service), Z_STRVAL_P(service),
                                                               (int) Z_STRLEN_P(env), Z_STRVAL_P(env));
                     sample_rate_zv = zend_hash_find(DDTRACE_G(agent_rate_by_service), sample_key);

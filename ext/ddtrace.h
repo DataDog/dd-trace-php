@@ -133,6 +133,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_QueueId sidecar_queue_id;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
+    ddog_AgentInfoReader *agent_info_reader;
     zend_arena *debugger_capture_arena;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;

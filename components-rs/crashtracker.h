@@ -39,8 +39,7 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_shutdown(void);
  * Reinitialize the crash-tracking infrastructure after a fork.
  * This should be one of the first things done after a fork, to minimize the
  * chance that a crash occurs between the fork, and this call.
- * In particular, reset the counters that track the profiler state machine,
- * and start a new receiver to collect data from this fork.
+ * In particular, reset the counters that track the profiler state machine.
  * NOTE: An alternative design would be to have a 1:many sidecar listening on a
  * socket instead of 1:1 receiver listening on a pipe, but the only real
  * advantage would be to have fewer processes in `ps -a`.
@@ -73,15 +72,15 @@ struct ddog_crasht_Result ddog_crasht_update_on_fork(struct ddog_crasht_Config c
  *   unexpected crash-handling behaviour.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_init_with_receiver(struct ddog_crasht_Config config,
-                                                         struct ddog_crasht_ReceiverConfig receiver_config,
-                                                         struct ddog_crasht_Metadata metadata);
+struct ddog_crasht_Result ddog_crasht_init(struct ddog_crasht_Config config,
+                                           struct ddog_crasht_ReceiverConfig receiver_config,
+                                           struct ddog_crasht_Metadata metadata);
 
 /**
- * Initialize the crash-tracking infrastructure, writing to an unix socket in case of crash.
+ * Initialize the crash-tracking infrastructure without launching the receiver.
  *
  * # Preconditions
- *   None.
+ *   Requires `config` to be given with a `unix_socket_path`, which is normally optional.
  * # Safety
  *   Crash-tracking functions are not reentrant.
  *   No other crash-handler functions should be called concurrently.
@@ -90,8 +89,7 @@ struct ddog_crasht_Result ddog_crasht_init_with_receiver(struct ddog_crasht_Conf
  *   unexpected crash-handling behaviour.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_init_with_unix_socket(struct ddog_crasht_Config config,
-                                                            ddog_CharSlice socket_path,
+struct ddog_crasht_Result ddog_crasht_init_without_receiver(struct ddog_crasht_Config config,
                                                             struct ddog_crasht_Metadata metadata);
 
 /**
