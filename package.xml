@@ -70,58 +70,66 @@
         <![CDATA[
 ## Tracer
 
-The default value for datadog.trace.cli_enabled is now set to true (except for composer), meaning that CLI processes will be traced by default.
-
 ### Added
-- Dynamic configuration #2796
-- Dynamic instrumentation #2796
-  - Can be enabled with datadog.dynamic_instrumentation.enabled=1.
-- Exception replay #2796
-  - Can be enabled with datadog.exception_replay_enabled=1.
-- Track peak memory usage in root span metrics #2840
+- PHP 8.4 support #2758
+- Support Tag Keys for DD_TRACE_HEADER_TAGS #2922
+- Add stubs for the Public PHP API #2933
+ - These are available as datadog_tracer.stubs.php release asset
+- Collect agent info and apply the env for remote config #2930
 
 ### Changed
-- Enable sidecar trace sender on PHP 8.3 #2729
-- Optimize sending traces via sidecar Datadog/libdatadog#598
-- Add new ini config datadog.crashtracking_enabled #2850
-- Add ionCube to the list of incompatible extensions + add INI setting to ignore incompatible extensions #2858
-- Enable CLI by default #2871
+- Increase read timeout of sidecar for synchronous flushes #2910
+- Implement Universal Service Tracking Consistency #2896
+- Updating Default Rate Limit Value and Usage Based on Sample Rate #2912
 
 ### Fixed
-- Crashtracker: fix a use-after-free error #2843
-- Fix curl integration race condition #2847
-- Fix memory leak with sidecar trace sender #2875
-- OpenTelemetry: Missing addLink method and Fiber handling #2849
-- Mongodb: Deprecated exception in v1.20+ #2870
-- Fix leaking sidecar sessions Datadog/libdatadog#642
-- Implement deadlock watchdog for sidecar Datadog/libdatadog#647
+- Fix a possible crash in zai config #2906
+- Fix crash when yielding from generators are destroyed #2908
+- Fix bad hasThis() check on PHP 7.0 #2911
+- Fix RootSpanData writer interception on consecutive calls #2919
+- Fix DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP Empty Value Behavior #2909
+- Handle hooks on trampoline fake closures #2925
+- Fix crash with locals collection in generator close sequence #2932
+- Avoid the hook frame in mysqli connection error tracking #2937
+- Support multiple PHP_INI_SCAN_DIR's #2941
+- Fix use-after-free in exception replay #2947
+- Fully disable the sidecar on lambda by setting all related configs to false #2948
+- Fix Symfony Messenger propagation to non-instrumented clients #2956
+- Fix JIT crash: There may or may not be a readable ZEND_TRACE_OP_INFO() #2942
+- Block remote config signals during ftp functions #2957
+- Deduplicate Debugger diagnostics in sidecar Datadog/libdatadog#736
+- Handle case where the applictaion is stopped without other telemetry sent Datadog/libdatadog#743
 
 ### Internal
-- Fix testsuite flakiness #2841, #2846, #2848, #2867
-- Fix telemetry metric name Datadog/libdatadog#666
+- Create many tiny artifacts for faster download #2951
+ - Using datadog-setup.php will now download less than 50 MB for a single PHP version
+- Add names to memfds Datadog/libdatadog#714
+- Allow attaching to the sidecar via gdb Datadog/libdatadog#687
 
 ### SSI Loader changes
-- Add SSI requirements.json file #2813
-- Disable the tracer in case of a potential incompatibility (extension/jit) #2853
+- Fix compatilibity with PHP 5 #2939
+- Fix crash when the loader is loaded multiple times #2954
 
 ## Profiling
 
-### Internal
-- bump to Rust 1.76 #2876
+### Added
+- Add fatals and thread start/end events to timeline #2820
+- Add thread names #2934
+- Add timeline active check for fatals #2945
+- Add stream_select()-type functions to timeline #2943
+- Visualise opcache restarts in the timeline #2946
 
 ## Application Security Management
 
 ### Changed
-- Move helper to sidecar remote config #2864
+- Disable helper when appsec is fully disabled #2935
 
 ### Fixed
-- Fix improper symbol exports in appsec ext/helper #2854
-- Remove gid from socket/lock path of helper #2855
-- appsec ext: retry on connection refused #2860
-- Fix orderly helper appsec shutdown #2859
+- Fix heap corruption after apache reloads (appsec) #2928
 
 ### Internal changes
-- Add appsec benchmarks #2791
+- Update spdlog so it works with recent musls #2921
+- Bump libddwaf to 1.20.1 #2913
 
 ]]></notes>
     <contents>
