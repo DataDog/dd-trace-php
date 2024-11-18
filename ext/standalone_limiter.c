@@ -54,7 +54,7 @@ bool ddtrace_standalone_limiter_allow() {
     uint64_t timeval = zend_hrtime();
     uint64_t old_time = atomic_load(&dd_limiter->window.last_hit);
 
-    if (old_time - timeval < 60000000000) {
+    if (timeval - old_time < 60000000000) {
         return false;
     }
 
