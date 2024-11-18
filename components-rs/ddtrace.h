@@ -171,7 +171,7 @@ struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_E
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
-void ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
 
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);

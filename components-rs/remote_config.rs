@@ -14,7 +14,7 @@ use datadog_remote_config::{
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
-use datadog_sidecar_ffi::ddog_sidecar_send_debugger_data;
+use datadog_sidecar_ffi::{ddog_sidecar_send_debugger_data, ddog_sidecar_send_debugger_diagnostics};
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, MaybeError};
@@ -243,7 +243,8 @@ pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState)
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) {
+pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigState) -> bool {
+    let mut has_updates = false;
     loop {
         match remote_config.manager.fetch_update() {
             RemoteConfigUpdate::None => break,
@@ -292,7 +293,9 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 _ => (),
             },
         }
+        has_updates = true
     }
+    has_updates
 }
 
 fn apply_config(
@@ -531,5 +534,6 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
         "Submitting debugger diagnostics data: {:?}",
         serde_json::to_string(&payload).unwrap()
     );
-    ddog_sidecar_send_debugger_data(transport, instance_id, queue_id, vec![payload])
+
+    ddog_sidecar_send_debugger_diagnostics(transport, instance_id, queue_id, payload)
 }
