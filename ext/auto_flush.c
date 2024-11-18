@@ -11,7 +11,29 @@
 #include "span.h"
 #include "sidecar.h"
 #include "ddshared.h"
+#include "ddappsec.h"
+#include "standalone_limiter.h"
 #include <main/SAPI.h>
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+static bool trace_contains_appsec_event(zval *trace) {
+    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
+        return false;
+    }
+
+    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
+    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
+        return false;
+    }
+
+    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
+    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
+        return false;
+    }
+
+    return zend_hash_str_exists(Z_ARR_P(meta), DD_TAG_P_APPSEC, strlen(DD_TAG_P_APPSEC));
+}
 
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
@@ -36,6 +58,16 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         zend_array_destroy(Z_ARR(trace));
         LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
+    }
+
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
+            zend_array_destroy(Z_ARR(trace));
+            LOG(DEBUG, "Trace discarded. DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED is on and no ASM event neither appsec propagation");
+            return SUCCESS;
+        } else {
+            ddtrace_standalone_limiter_hit();
+        }
     }
 
     // background sender only wants a singular trace
