@@ -60,6 +60,7 @@
 #include "logging.h"
 #include "memory_limit.h"
 #include "limiter/limiter.h"
+#include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
 #include "autoload_php_files.h"
@@ -1424,6 +1425,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
+    ddtrace_standalone_limiter_create();
 
     ddtrace_log_minit();
 
@@ -1498,6 +1500,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
+    ddtrace_standalone_limiter_destroy();
     zai_config_mshutdown();
     zai_json_shutdown_bindings();
 

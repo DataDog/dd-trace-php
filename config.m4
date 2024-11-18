@@ -189,6 +189,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/integrations/integrations.c \
     ext/ip_extraction.c \
     ext/ddappsec.c \
+    ext/standalone_limiter.c \
     ext/live_debugger.c \
     ext/logging.c \
     ext/limiter/limiter.c \
