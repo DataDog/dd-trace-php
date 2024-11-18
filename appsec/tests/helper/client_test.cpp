@@ -1801,7 +1801,7 @@ TEST(ClientTest, RequestShutdownWithAttackAndFingerprint)
         EXPECT_EQ(msg_res->triggers.size(), 0);
     }
 
-    // Request Execution
+    // Request Shutdown
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();

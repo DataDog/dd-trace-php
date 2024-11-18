@@ -266,7 +266,9 @@ void instance::listener::get_meta_and_metrics(
 
     for (const auto &[key, value] : schemas_) {
         std::string schema = value;
-        if (value.length() > max_plain_schema_allowed) {
+        if (value.length() > max_plain_schema_allowed &&
+            key.starts_with("_dd.appsec.s")) {
+
             auto encoded = compress(schema);
             if (encoded) {
                 schema = base64_encode(encoded.value(), false);
