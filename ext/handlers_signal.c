@@ -16,7 +16,10 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     original_function(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
     sigprocmask(SIG_UNBLOCK, &x, NULL);
+#ifndef __linux__
+    // At least on linux unblocking causes immediate signal delivery.
     ddtrace_check_for_new_config_now();
+#endif
 }
 
 #define BLOCKSIGFN(function) \
