@@ -1771,7 +1771,22 @@ TEST(ClientTest, RequestShutdownWithFingerprints)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+    // Set Extension Configuration
+    {
+        auto fn = create_sample_rules_ok_with_fingerprint();
+        network::client_init::request msg;
+        msg.pid = 1729;
+        msg.enabled_configuration = true;
+        msg.runtime_version = "1.0";
+        msg.client_version = "2.0";
+        msg.engine_settings.rules_file = fn;
+        msg.engine_settings.waf_timeout_us = 1000000;
+        msg.engine_settings.schema_extraction.enabled = false;
+        msg.engine_settings.schema_extraction.sample_rate = 1;
+
+        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
+        send_client_init(broker, c, std::move(msg));
+    }
 
     // Request Init
     {
