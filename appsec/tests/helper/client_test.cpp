@@ -1764,7 +1764,7 @@ TEST(ClientTest, RequestExecWithAttack)
     }
 }
 
-TEST(ClientTest, RequestShutdownWithAttackAndFingerprint)
+TEST(ClientTest, RequestShutdownWithWithAttackAndFingerprint)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -1776,14 +1776,7 @@ TEST(ClientTest, RequestShutdownWithAttackAndFingerprint)
     // Request Init
     {
         network::request_init::request msg;
-
-        auto query = parameter::map();
-        query.add("query", parameter::string("asdfds"sv));
-
         msg.data = parameter::map();
-        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
-        msg.data.add("server.request.method", parameter::string("GET"sv));
-        msg.data.add("server.request.query", std::move(query));
 
         network::request req(std::move(msg));
 
@@ -1804,8 +1797,15 @@ TEST(ClientTest, RequestShutdownWithAttackAndFingerprint)
     // Request Shutdown
     {
         network::request_shutdown::request msg;
+
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+
         msg.data = parameter::map();
         msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
 
         network::request req(std::move(msg));
 
@@ -1820,10 +1820,9 @@ TEST(ClientTest, RequestShutdownWithAttackAndFingerprint)
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
-        EXPECT_FALSE(std::regex_match(
+        EXPECT_TRUE(std::regex_match(
             msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
-            std::regex(
-                "http-get-[A-Za-z0-9]{8}-[A-Za-z0-9]{8}-([A-Za-z0-9]{8})?")));
+            std::regex("\"http-get(-[A-Za-z0-9]*){2,3}\"")));
     }
 }
 
