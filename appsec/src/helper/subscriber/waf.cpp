@@ -233,9 +233,10 @@ void instance::listener::call(dds::parameter_view &data, event &event)
     // NOLINTNEXTLINE
     total_runtime_ += res.total_runtime / 1000.0;
 
-    const parameter_view schemas{res.derivatives};
-    for (const auto &schema : schemas) {
-        schemas_.emplace(schema.key(), std::move(parameter_to_json(schema)));
+    const parameter_view derivatives{res.derivatives};
+    for (const auto &derivative : derivatives) {
+        derivatives_.emplace(
+            derivative.key(), std::move(parameter_to_json(derivative)));
     }
 
     switch (code) {
@@ -264,19 +265,19 @@ void instance::listener::get_meta_and_metrics(
     meta[std::string(tag::event_rules_version)] = ruleset_version_;
     metrics[tag::waf_duration] = total_runtime_;
 
-    for (const auto &[key, value] : schemas_) {
-        std::string schema = value;
+    for (const auto &[key, value] : derivatives_) {
+        std::string derivative = value;
         if (value.length() > max_plain_schema_allowed &&
             key.starts_with("_dd.appsec.s")) {
 
-            auto encoded = compress(schema);
+            auto encoded = compress(derivative);
             if (encoded) {
-                schema = base64_encode(encoded.value(), false);
+                derivative = base64_encode(encoded.value(), false);
             }
         }
 
-        if (schema.length() <= max_schema_size) {
-            meta.emplace(key, std::move(schema));
+        if (derivative.length() <= max_schema_size) {
+            meta.emplace(key, std::move(derivative));
         }
     }
 }
