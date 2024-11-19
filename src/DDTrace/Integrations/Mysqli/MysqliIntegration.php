@@ -127,6 +127,24 @@ class MysqliIntegration extends Integration
             }
         });
 
+        \DDTrace\install_hook('mysqli_real_query', function (HookData $hook) use ($integration) {
+            list($mysqli, $query) = $hook->args;
+
+            $span = $hook->span();
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            $integration->setDefaultAttributes($span, 'mysqli_real_query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, $mysqli);
+
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+        }, function (HookData $hook) use ($integration) {
+            list($mysqli, $query) = $hook->args;
+            $span = $hook->span();
+            $integration->setConnectionInfo($span, $mysqli);
+
+            MysqliCommon::storeQuery($mysqli, $query);
+        });
+
         \DDTrace\install_hook('mysqli_prepare', function (HookData $hook) use ($integration) {
             list(, $query) = $hook->args;
 
@@ -172,6 +190,24 @@ class MysqliIntegration extends Integration
             if (is_object($hook->returned) && property_exists($hook->returned, 'num_rows')) {
                 $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->num_rows;
             }
+        });
+
+        \DDTrace\install_hook('mysqli::real_query', function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
+
+            $span = $hook->span();
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            $integration->setDefaultAttributes($span, 'mysqli.real_query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, $this);
+
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+        }, function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
+            $span = $hook->span();
+            $integration->setConnectionInfo($span, $this);
+
+            MysqliCommon::storeQuery($this, $query);
         });
 
         \DDTrace\install_hook('mysqli::prepare', function (HookData $hook) use ($integration) {
