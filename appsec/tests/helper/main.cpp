@@ -13,7 +13,9 @@ std::string create_sample_rules_ok()
 {
     const static char data[] = R"({
   "version": "2.1",
-  "metadata": { "rules_version" : "1.2.3" },
+  "metadata": {
+    "rules_version": "1.2.3"
+  },
   "rules": [
     {
       "id": "blk-001-001",
@@ -30,7 +32,9 @@ std::string create_sample_rules_ok()
                 "address": "http.client_ip"
               }
             ],
-            "list": ["192.168.1.1"]
+            "list": [
+              "192.168.1.1"
+            ]
           },
           "operator": "ip_match"
         }
@@ -55,7 +59,9 @@ std::string create_sample_rules_ok()
                 "address": "http.client_ip"
               }
             ],
-            "list": ["192.168.1.2"]
+            "list": [
+              "192.168.1.2"
+            ]
           },
           "operator": "ip_match"
         }
@@ -91,7 +97,9 @@ std::string create_sample_rules_ok()
           "operator": "phrase_match"
         }
       ],
-      "transformers": ["lowercase"]
+      "transformers": [
+        "lowercase"
+      ]
     },
     {
       "id": "req_shutdown_rule",
@@ -164,7 +172,8 @@ std::string create_sample_rules_ok()
             "output": "_dd.appsec.s.req.headers.no_cookies"
           },
           {
-            "inputs": [ {
+            "inputs": [
+              {
                 "address": "server.request.body"
               }
             ],
@@ -232,6 +241,124 @@ std::string create_sample_rules_ok()
       },
       "evaluate": false,
       "output": true
+    },
+    {
+      "id": "http-header-fingerprint",
+      "generator": "http_header_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "headers": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.header"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "http-network-fingerprint",
+      "generator": "http_network_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "headers": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.network"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "session-fingerprint",
+      "generator": "session_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "cookies": [
+              {
+                "address": "server.request.cookies"
+              }
+            ],
+            "session_id": [
+              {
+                "address": "usr.session_id"
+              }
+            ],
+            "user_id": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "output": "_dd.appsec.fp.session"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
     }
   ],
   "scanners": [],
@@ -244,7 +371,8 @@ std::string create_sample_rules_ok()
       }
     }
   ]
-})";
+}
+)";
 
     char tmpl[] = "/tmp/test_ddappsec_XXXXXX";
     int fd = mkstemp(tmpl);

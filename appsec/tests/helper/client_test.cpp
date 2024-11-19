@@ -1764,7 +1764,7 @@ TEST(ClientTest, RequestExecWithAttack)
     }
 }
 
-TEST(ClientTest, RequestShutdownWithWithAttackAndFingerprint)
+TEST(ClientTest, RequestShutdownWithFingerprints)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -1798,14 +1798,24 @@ TEST(ClientTest, RequestShutdownWithWithAttackAndFingerprint)
     {
         network::request_shutdown::request msg;
 
-        auto query = parameter::map();
-        query.add("query", parameter::string("asdfds"sv));
-
         msg.data = parameter::map();
         msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
         msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
         msg.data.add("server.request.method", parameter::string("GET"sv));
         msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        msg.data.add(
+            "server.request.headers.no_cookies", parameter::string(""sv));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
 
         network::request req(std::move(msg));
 
@@ -1820,9 +1830,22 @@ TEST(ClientTest, RequestShutdownWithWithAttackAndFingerprint)
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+
         EXPECT_TRUE(std::regex_match(
             msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
-            std::regex("\"http-get(-[A-Za-z0-9]*){2,3}\"")));
+            std::regex("\"http-get(-[A-Za-z0-9]*){3}\"")));
+
+        EXPECT_TRUE(std::regex_match(
+            msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            std::regex("\"net-[0-9]*-[a-zA-Z0-9]*\"")));
+
+        EXPECT_TRUE(
+            std::regex_match(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+                std::regex("\"hdr(-[0-9]*-[a-zA-Z0-9]*){2}\"")));
+
+        EXPECT_TRUE(
+            std::regex_match(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+                std::regex("\"ssn(-[a-zA-Z0-9]*){4}\"")));
     }
 }
 
