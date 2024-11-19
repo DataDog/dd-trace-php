@@ -5087,7 +5087,6 @@ workflows:
                 - "7.2"
                 - "7.3"
               switch_php_version:
-                - debug
                 - nts
 
       - "test_loader_linux":
@@ -5107,7 +5106,6 @@ workflows:
                 - "8.3"
                 - "8.4"
               switch_php_version:
-                - debug
                 - zts
                 - nts
 
@@ -5125,7 +5123,6 @@ workflows:
                 - "7.2"
                 - "7.3"
               switch_php_version:
-                - debug
                 - nts
 
       - "test_loader_linux":
@@ -5144,7 +5141,6 @@ workflows:
                 - "8.3"
                 - "8.4"
               switch_php_version:
-                - debug
                 - zts
                 - nts
 

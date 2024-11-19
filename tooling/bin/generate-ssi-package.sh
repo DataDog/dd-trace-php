@@ -51,13 +51,10 @@ for architecture in "${architectures[@]}"; do
         # gnu
         ln ./standalone_${architecture}/ddtrace-$php_api.so ${gnu}/trace/ext/$php_api/ddtrace.so
         ln ./standalone_${architecture}/ddtrace-$php_api-zts.so ${gnu}/trace/ext/$php_api/ddtrace-zts.so
-        ln ./standalone_${architecture}/ddtrace-$php_api-debug.so ${gnu}/trace/ext/$php_api/ddtrace-debug.so
 
         # musl
         ln ./standalone_${architecture}/ddtrace-$php_api-alpine.so ${musl}/trace/ext/$php_api/ddtrace.so
-        if [[ ${php_api} -ge 20151012 ]]; then # zts on alpine starting 7.0
-            ln ./standalone_${architecture}/ddtrace-$php_api-alpine-zts.so ${musl}/trace/ext/$php_api/ddtrace-zts.so
-        fi
+        ln ./standalone_${architecture}/ddtrace-$php_api-alpine-zts.so ${musl}/trace/ext/$php_api/ddtrace-zts.so
     done;
 
     cp -r ./src ${trace}/
