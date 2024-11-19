@@ -126,6 +126,25 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testProceduralRealQuery()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$database);
+            \mysqli_real_query($mysqli, 'SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_real_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactTags(self::baseTags(true, false))
+                ->withExactMetrics([
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
+        ]);
+    }
+
     public function testProceduralQueryPeerServiceEnabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
@@ -247,6 +266,25 @@ class MysqliTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
+        ]);
+    }
+
+    public function testConstructorRealQuery()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $mysqli->real_query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.real_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactTags(self::baseTags())
+                ->withExactMetrics([
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
