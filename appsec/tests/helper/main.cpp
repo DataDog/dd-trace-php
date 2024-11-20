@@ -191,211 +191,6 @@ std::string create_sample_rules_ok()
       },
       "evaluate": false,
       "output": true
-    }
-  ],
-  "scanners": [],
-  "actions": [
-    {
-      "id": "redirect",
-      "type": "redirect_request",
-      "parameters": {
-        "location": "https://localhost"
-      }
-    }
-  ]
-})";
-
-    char tmpl[] = "/tmp/test_ddappsec_XXXXXX";
-    int fd = mkstemp(tmpl);
-    std::FILE *tmpf = fdopen(fd, "wb+");
-    std::fwrite(data, sizeof(data) - 1, 1, tmpf);
-    std::fclose(tmpf);
-
-    return tmpl;
-}
-
-std::string create_sample_rules_ok_with_fingerprint()
-{
-    const static char data[] =
-        R"({
-  "version": "2.1",
-  "metadata": {
-    "rules_version": "1.2.3"
-  },
-  "rules": [
-    {
-      "id": "blk-001-001",
-      "name": "BlockIPAddresses",
-      "tags": {
-        "type": "block_ip",
-        "category": "security_response"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "http.client_ip"
-              }
-            ],
-            "list": [
-              "192.168.1.1"
-            ]
-          },
-          "operator": "ip_match"
-        }
-      ],
-      "transformers": [],
-      "on_match": [
-        "block"
-      ]
-    },
-    {
-      "id": "blk-001-002",
-      "name": "BlockIPAddresseswithallactions",
-      "tags": {
-        "type": "block_ip",
-        "category": "security_response"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "http.client_ip"
-              }
-            ],
-            "list": [
-              "192.168.1.2"
-            ]
-          },
-          "operator": "ip_match"
-        }
-      ],
-      "transformers": [],
-      "on_match": [
-        "block",
-        "redirect",
-        "stack_trace",
-        "extract_schema"
-      ]
-    },
-    {
-      "id": "crs-913-110",
-      "name": "FoundrequestheaderassociatedwithAcunetixsecurityscanner",
-      "tags": {
-        "type": "security_scanner",
-        "crs_id": "913110",
-        "category": "attack_attempt"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies"
-              }
-            ],
-            "list": [
-              "acunetix-product"
-            ]
-          },
-          "operator": "phrase_match"
-        }
-      ],
-      "transformers": [
-        "lowercase"
-      ]
-    },
-    {
-      "id": "req_shutdown_rule",
-      "name": "Rulematchonresponsecode",
-      "tags": {
-        "type": "req_shutdown_type",
-        "crs_id": "none",
-        "category": "attack_attempt"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies"
-              }
-            ],
-            "list": [
-              "Arachni"
-            ]
-          },
-          "operator": "phrase_match"
-        },
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.response.code"
-              }
-            ],
-            "regex": 1991,
-            "options": {
-              "case_sensitive": "false"
-            }
-          },
-          "operator": "match_regex"
-        }
-      ]
-    }
-  ],
-  "processors": [
-    {
-      "id": "processor-001",
-      "generator": "extract_schema",
-      "conditions": [
-        {
-          "operator": "equals",
-          "parameters": {
-            "inputs": [
-              {
-                "address": "waf.context.processor",
-                "key_path": [
-                  "extract-schema"
-                ]
-              }
-            ],
-            "type": "boolean",
-            "value": true
-          }
-        }
-      ],
-      "parameters": {
-        "mappings": [
-          {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies"
-              }
-            ],
-            "output": "_dd.appsec.s.req.headers.no_cookies"
-          },
-          {
-            "inputs": [
-              {
-                "address": "server.request.body"
-              }
-            ],
-            "output": "_dd.appsec.s.req.body"
-          }
-        ],
-        "scanners": [
-          {
-            "tags": {
-              "category": "pii"
-            }
-          }
-        ]
-      },
-      "evaluate": false,
-      "output": true
     },
     {
       "id": "http-endpoint-fingerprint",
@@ -474,7 +269,7 @@ std::string create_sample_rules_ok_with_fingerprint()
           {
             "headers": [
               {
-                "address": "server.request.headers.no_cookies"
+                "address": "server.request.headers.no_cookies_fp"
               }
             ],
             "output": "_dd.appsec.fp.http.header"
@@ -510,7 +305,7 @@ std::string create_sample_rules_ok_with_fingerprint()
           {
             "headers": [
               {
-                "address": "server.request.headers.no_cookies"
+                "address": "server.request.headers.no_cookies_fp"
               }
             ],
             "output": "_dd.appsec.fp.http.network"

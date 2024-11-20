@@ -1772,11 +1772,7 @@ TEST(ClientTest, RequestInitWithFingerprint)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    network::client_init::request msg = get_default_client_init_msg();
-    msg.engine_settings.rules_file = create_sample_rules_ok_with_fingerprint();
-    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
-
-    send_client_init(broker, c, std::move(msg));
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
 
     // Request Init
     {
@@ -1794,7 +1790,7 @@ TEST(ClientTest, RequestInitWithFingerprint)
 
         // Network and Headers Fingerprint inputs
         msg.data.add(
-            "server.request.headers.no_cookies", parameter::string(""sv));
+            "server.request.headers.no_cookies_fp", parameter::string(""sv));
 
         // Session Fingerprint inputs
         msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
@@ -1861,11 +1857,7 @@ TEST(ClientTest, RequestExecWithFingerprint)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    network::client_init::request msg = get_default_client_init_msg();
-    msg.engine_settings.rules_file = create_sample_rules_ok_with_fingerprint();
-    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
-
-    send_client_init(broker, c, std::move(msg));
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
     request_init(broker, c);
 
     // Request Exec
@@ -1883,7 +1875,7 @@ TEST(ClientTest, RequestExecWithFingerprint)
 
         // Network and Headers Fingerprint inputs
         msg.data.add(
-            "server.request.headers.no_cookies", parameter::string(""sv));
+            "server.request.headers.no_cookies_fp", parameter::string(""sv));
 
         // Session Fingerprint inputs
         msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
@@ -1949,11 +1941,7 @@ TEST(ClientTest, RequestShutdownWithFingerprint)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    network::client_init::request msg = get_default_client_init_msg();
-    msg.engine_settings.rules_file = create_sample_rules_ok_with_fingerprint();
-    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
-
-    send_client_init(broker, c, std::move(msg));
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
     request_init(broker, c);
 
     // Request Shutdown
@@ -1972,7 +1960,7 @@ TEST(ClientTest, RequestShutdownWithFingerprint)
 
         // Network and Headers Fingerprint inputs
         msg.data.add(
-            "server.request.headers.no_cookies", parameter::string(""sv));
+            "server.request.headers.no_cookies_fp", parameter::string(""sv));
 
         // Session Fingerprint inputs
         msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
