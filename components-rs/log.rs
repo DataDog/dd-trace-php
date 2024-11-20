@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::c_char;
+use std::ffi::CString;
 use std::fmt::Debug;
 use std::str::FromStr;
 use tracing::Level;
@@ -39,6 +40,7 @@ pub static mut ddog_log_callback: Option<extern "C" fn(CharSlice)> = None;
 // Avoid RefCell for performance
 std::thread_local! {
     static LOGGED_MSGS: RefCell<BTreeSet<String>> = RefCell::default();
+    static INTEGRATION_ERROR_LOGS: RefCell<Vec<String>> = RefCell::default();
     static TRACING_GUARDS: RefCell<Option<tracing_core::dispatcher::DefaultGuard>> = RefCell::default();
     static COUNTERS: RefCell<HashMap<Level, u32>> = RefCell::default();
 }
@@ -211,3 +213,28 @@ pub extern "C" fn ddog_get_logs_count(level: CharSlice) -> u32 {
         *counter.entry(level).or_default()
     });
 }
+
+#[no_mangle]
+pub extern "C" fn ddog_get_integration_error_log() -> *const c_char {
+    return INTEGRATION_ERROR_LOGS.with(|logs| {
+        let mut logs = logs.borrow_mut();
+        if !logs.is_empty() {
+            match CString::new(logs.pop().unwrap().as_str()) {
+                Ok(c_string) => {
+                    c_string.into_raw()
+                }
+                Err(_) => std::ptr::null(),
+            }
+        } else {
+            std::ptr::null()
+        }
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_add_integration_error_log(log: CharSlice) {
+    INTEGRATION_ERROR_LOGS.with(|logs| {
+        logs.borrow_mut().push(log.to_utf8_lossy().to_string());
+    });
+}
+
