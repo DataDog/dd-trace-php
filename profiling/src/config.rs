@@ -1,3 +1,4 @@
+#[cfg(not(php_new_zendmm_hooks))]
 use crate::allocation;
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
@@ -101,6 +102,7 @@ impl SystemSettings {
         }
 
         // Work around version-specific issues.
+        #[cfg(not(php_new_zendmm_hooks))]
         if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
             system_settings.profiling_allocation_enabled = false;
         }
