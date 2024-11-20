@@ -62,9 +62,29 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
-            zend_array_destroy(Z_ARR(trace));
-            LOG(DEBUG, "Trace discarded. DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED is on and no ASM event neither appsec propagation");
-            return SUCCESS;
+            if (Z_TYPE(trace) != IS_ARRAY) {
+                LOG(ERROR, "Unexpected trace type. Dropping trace");
+                return SUCCESS;
+            }
+
+            zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
+            if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
+                LOG(ERROR, "Root span not found. Dropping trace");
+                return SUCCESS;
+            }
+
+            zval *metrics = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("metrics"));
+            if (!metrics || Z_TYPE_P(metrics) != IS_ARRAY) {
+                LOG(ERROR, "Metrics not found. Dropping trace");
+                return SUCCESS;
+            }
+
+            zval *sampling_priority = zend_hash_str_find(Z_ARR_P(metrics), ZEND_STRL("_sampling_priority_v1"));
+            if (!sampling_priority || (Z_TYPE_P(sampling_priority) != IS_DOUBLE && Z_TYPE_P(sampling_priority) != IS_LONG)) {
+                LOG(ERROR, "Invalid sampling priority. Dropping trace");
+                return SUCCESS;
+            }
+            ZVAL_LONG(sampling_priority, PRIORITY_SAMPLING_AUTO_REJECT);
         } else {
             ddtrace_standalone_limiter_hit();
         }
