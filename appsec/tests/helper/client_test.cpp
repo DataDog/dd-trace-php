@@ -4,9 +4,11 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "parameter.hpp"
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <json_helper.hpp>
 #include <network/broker.hpp>
@@ -75,9 +77,17 @@ int count_schemas(const std::map<std::string, std::string> &meta)
     return schemas;
 }
 
-network::client_init::request get_default_client_init_msg()
+network::client_init::request get_default_client_init_msg(
+    std::string rule_config = "valid")
 {
-    auto fn = create_sample_rules_ok();
+    std::string fn;
+    if (rule_config == "valid")
+        fn = create_sample_rules_ok();
+    else if (rule_config == "fingerprint")
+        fn = create_sample_rules_ok_with_fingerprint();
+    else
+        fn = create_sample_rules_invalid();
+
     network::client_init::request msg;
     msg.pid = 1729;
     msg.enabled_configuration = true;
@@ -91,10 +101,11 @@ network::client_init::request get_default_client_init_msg()
     return msg;
 }
 
-void set_extension_configuration_to(
-    mock::broker *broker, client &c, std::optional<bool> status)
+void set_extension_configuration_to(mock::broker *broker, client &c,
+    std::optional<bool> status, std::string rule_config = "valid")
 {
-    network::client_init::request msg = get_default_client_init_msg();
+    network::client_init::request msg =
+        get_default_client_init_msg(rule_config);
     msg.enabled_configuration = status;
 
     send_client_init(broker, c, std::move(msg));
@@ -104,9 +115,6 @@ void request_init(mock::broker *broker, client &c)
 {
     network::request_init::request msg;
     msg.data = parameter::map();
-    msg.data.add(
-        "server.request.headers.no_cookies", parameter::string("Arachni"sv));
-    msg.data.add("server.request.body", parameter::string("asdfds"sv));
 
     network::request req(std::move(msg));
 
@@ -787,6 +795,8 @@ TEST(ClientTest, RequestShutdown)
         network::request_shutdown::request msg;
         msg.data = parameter::map();
         msg.data.add("server.response.code", parameter::string("1991"sv));
+        msg.data.add("server.request.headers.no_cookies",
+            parameter::string("Arachni"sv));
 
         network::request req(std::move(msg));
 
@@ -1764,34 +1774,38 @@ TEST(ClientTest, RequestExecWithAttack)
     }
 }
 
-TEST(ClientTest, RequestShutdownWithFingerprints)
+TEST(ClientTest, RequestInitWithFingerprint)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    // Set Extension Configuration
-    {
-        auto fn = create_sample_rules_ok_with_fingerprint();
-        network::client_init::request msg;
-        msg.pid = 1729;
-        msg.enabled_configuration = true;
-        msg.runtime_version = "1.0";
-        msg.client_version = "2.0";
-        msg.engine_settings.rules_file = fn;
-        msg.engine_settings.waf_timeout_us = 1000000;
-        msg.engine_settings.schema_extraction.enabled = false;
-        msg.engine_settings.schema_extraction.sample_rate = 1;
-
-        msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
-        send_client_init(broker, c, std::move(msg));
-    }
+    set_extension_configuration_to(
+        broker, c, EXTENSION_CONFIGURATION_ENABLED, "fingerprint");
 
     // Request Init
     {
         network::request_init::request msg;
+
         msg.data = parameter::map();
+        msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        msg.data.add(
+            "server.request.headers.no_cookies", parameter::string(""sv));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
 
         network::request req(std::move(msg));
 
@@ -1805,9 +1819,144 @@ TEST(ClientTest, RequestShutdownWithFingerprints)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
         EXPECT_EQ(msg_res->triggers.size(), 0);
+
+        EXPECT_TRUE(std::regex_match(
+            msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            std::regex("\"http-get(-[A-Za-z0-9]*){3}\"")));
+
+        EXPECT_TRUE(std::regex_match(
+            msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            std::regex("\"net-[0-9]*-[a-zA-Z0-9]*\"")));
+
+        EXPECT_TRUE(
+            std::regex_match(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+                std::regex("\"hdr(-[0-9]*-[a-zA-Z0-9]*){2}\"")));
+
+        EXPECT_TRUE(
+            std::regex_match(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+                std::regex("\"ssn(-[a-zA-Z0-9]*){4}\"")));
     }
+}
+
+TEST(ClientTest, RequestExecWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(
+        broker, c, EXTENSION_CONFIGURATION_ENABLED, "fingerprint");
+
+    request_init(broker, c);
+
+    // Request Exec
+    {
+        network::request_exec::request msg;
+        msg.data = parameter::map();
+        msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        msg.data.add(
+            "server.request.headers.no_cookies", parameter::string(""sv));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_exec::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+
+        EXPECT_TRUE(std::regex_match(
+            msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            std::regex("\"http-get(-[A-Za-z0-9]*){3}\"")));
+
+        EXPECT_TRUE(std::regex_match(
+            msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            std::regex("\"net-[0-9]*-[a-zA-Z0-9]*\"")));
+
+        EXPECT_TRUE(
+            std::regex_match(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+                std::regex("\"hdr(-[0-9]*-[a-zA-Z0-9]*){2}\"")));
+
+        EXPECT_TRUE(
+            std::regex_match(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+                std::regex("\"ssn(-[a-zA-Z0-9]*){4}\"")));
+    }
+}
+
+TEST(ClientTest, RequestShutdownWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(
+        broker, c, EXTENSION_CONFIGURATION_ENABLED, "fingerprint");
+
+    request_init(broker, c);
 
     // Request Shutdown
     {
