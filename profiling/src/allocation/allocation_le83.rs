@@ -1,4 +1,6 @@
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE, ALLOCATION_PROFILING_STATS};
+use crate::allocation::{
+    ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE, ALLOCATION_PROFILING_STATS,
+};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,

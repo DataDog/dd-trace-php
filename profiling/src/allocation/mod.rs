@@ -8,6 +8,9 @@ use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
 use std::sync::atomic::AtomicU64;
 
+#[cfg(php_new_zendmm_hooks)]
+mod allocation_ge84;
+#[cfg(not(php_new_zendmm_hooks))]
 pub mod allocation_le83;
 
 /// take a sample every 4096 KiB
@@ -75,10 +78,12 @@ thread_local! {
 }
 
 pub fn alloc_prof_minit() {
+    #[cfg(not(php_new_zendmm_hooks))]
     allocation_le83::alloc_prof_minit();
 }
 
 pub fn alloc_prof_startup() {
+    #[cfg(not(php_new_zendmm_hooks))]
     allocation_le83::alloc_prof_startup();
 }
 
@@ -100,7 +105,10 @@ pub fn alloc_prof_rinit() {
         return;
     }
 
+    #[cfg(not(php_new_zendmm_hooks))]
     allocation_le83::alloc_prof_rinit();
+    #[cfg(php_new_zendmm_hooks)]
+    allocation_ge84::alloc_prof_rinit();
 
     trace!("Memory allocation profiling enabled.")
 }
@@ -116,5 +124,8 @@ pub fn alloc_prof_rshutdown() {
         return;
     }
 
+    #[cfg(not(php_new_zendmm_hooks))]
     allocation_le83::alloc_prof_rshutdown();
+    #[cfg(php_new_zendmm_hooks)]
+    allocation_ge84::alloc_prof_rshutdown();
 }
