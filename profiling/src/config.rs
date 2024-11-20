@@ -101,7 +101,7 @@ impl SystemSettings {
         }
 
         // Work around version-specific issues.
-        if allocation::first_rinit_should_disable_due_to_jit() {
+        if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
             system_settings.profiling_allocation_enabled = false;
         }
         swap(&mut system_settings, SYSTEM_SETTINGS.assume_init_mut());
