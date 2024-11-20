@@ -246,10 +246,10 @@ trait CommonTests {
         }
 
         Span span = trace.first()
-        assert span.meta."_dd.appsec.fp.http.endpoint" ==~ /^"http-get(-[a-zA-Z0-9]*){3}"$/
-        assert span.meta."_dd.appsec.fp.http.header" ==~ /^"hdr(-[0-9]*-[a-zA-Z0-9]*){2}"$/
-        assert span.meta."_dd.appsec.fp.http.network" ==~ /^"net-[0-9]*-[a-zA-Z0-9]*"$/
-        assert span.meta."_dd.appsec.fp.session" ==~ /^"ssn(-[a-zA-Z0-9]*){4}"$/
+        assert span.meta."_dd.appsec.fp.http.endpoint" ==~ /^http-get(-[a-zA-Z0-9]*){3}$/
+        assert span.meta."_dd.appsec.fp.http.header" ==~ /^hdr(-[0-9]*-[a-zA-Z0-9]*){2}$/
+        assert span.meta."_dd.appsec.fp.http.network" ==~ /^net-[0-9]*-[a-zA-Z0-9]*$/
+        assert span.meta."_dd.appsec.fp.session" ==~ /^ssn(-[a-zA-Z0-9]*){4}$/
     }
 
     @Test

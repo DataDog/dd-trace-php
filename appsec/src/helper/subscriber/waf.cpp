@@ -235,8 +235,12 @@ void instance::listener::call(dds::parameter_view &data, event &event)
 
     const parameter_view derivatives{res.derivatives};
     for (const auto &derivative : derivatives) {
-        derivatives_.emplace(
-            derivative.key(), std::move(parameter_to_json(derivative)));
+        if (derivative.key().starts_with("_dd.appsec.s.")) {
+            derivatives_.emplace(
+                derivative.key(), std::move(parameter_to_json(derivative)));
+        } else {
+            derivatives_.emplace(derivative.key(), std::move(derivative));
+        }
     }
 
     switch (code) {
@@ -268,7 +272,7 @@ void instance::listener::get_meta_and_metrics(
     for (const auto &[key, value] : derivatives_) {
         std::string derivative = value;
         if (value.length() > max_plain_schema_allowed &&
-            key.starts_with("_dd.appsec.s")) {
+            key.starts_with("_dd.appsec.s.")) {
 
             auto encoded = compress(derivative);
             if (encoded) {
