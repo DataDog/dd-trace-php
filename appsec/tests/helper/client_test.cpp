@@ -77,17 +77,9 @@ int count_schemas(const std::map<std::string, std::string> &meta)
     return schemas;
 }
 
-network::client_init::request get_default_client_init_msg(
-    std::string rule_config = "valid")
+network::client_init::request get_default_client_init_msg()
 {
-    std::string fn;
-    if (rule_config == "valid")
-        fn = create_sample_rules_ok();
-    else if (rule_config == "fingerprint")
-        fn = create_sample_rules_ok_with_fingerprint();
-    else
-        fn = create_sample_rules_invalid();
-
+    auto fn = create_sample_rules_ok();
     network::client_init::request msg;
     msg.pid = 1729;
     msg.enabled_configuration = true;
@@ -101,11 +93,10 @@ network::client_init::request get_default_client_init_msg(
     return msg;
 }
 
-void set_extension_configuration_to(mock::broker *broker, client &c,
-    std::optional<bool> status, std::string rule_config = "valid")
+void set_extension_configuration_to(
+    mock::broker *broker, client &c, std::optional<bool> status)
 {
-    network::client_init::request msg =
-        get_default_client_init_msg(rule_config);
+    network::client_init::request msg = get_default_client_init_msg();
     msg.enabled_configuration = status;
 
     send_client_init(broker, c, std::move(msg));
@@ -1781,8 +1772,11 @@ TEST(ClientTest, RequestInitWithFingerprint)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    set_extension_configuration_to(
-        broker, c, EXTENSION_CONFIGURATION_ENABLED, "fingerprint");
+    network::client_init::request msg = get_default_client_init_msg();
+    msg.engine_settings.rules_file = create_sample_rules_ok_with_fingerprint();
+    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
+
+    send_client_init(broker, c, std::move(msg));
 
     // Request Init
     {
@@ -1867,9 +1861,11 @@ TEST(ClientTest, RequestExecWithFingerprint)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    set_extension_configuration_to(
-        broker, c, EXTENSION_CONFIGURATION_ENABLED, "fingerprint");
+    network::client_init::request msg = get_default_client_init_msg();
+    msg.engine_settings.rules_file = create_sample_rules_ok_with_fingerprint();
+    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
+    send_client_init(broker, c, std::move(msg));
     request_init(broker, c);
 
     // Request Exec
@@ -1953,9 +1949,11 @@ TEST(ClientTest, RequestShutdownWithFingerprint)
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
 
-    set_extension_configuration_to(
-        broker, c, EXTENSION_CONFIGURATION_ENABLED, "fingerprint");
+    network::client_init::request msg = get_default_client_init_msg();
+    msg.engine_settings.rules_file = create_sample_rules_ok_with_fingerprint();
+    msg.enabled_configuration = EXTENSION_CONFIGURATION_ENABLED;
 
+    send_client_init(broker, c, std::move(msg));
     request_init(broker, c);
 
     // Request Shutdown

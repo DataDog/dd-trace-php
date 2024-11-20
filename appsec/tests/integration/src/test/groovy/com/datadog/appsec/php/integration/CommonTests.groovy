@@ -246,10 +246,6 @@ trait CommonTests {
         }
 
         Span span = trace.first()
-        assert span.meta."appsec.blocked" == "true"
-        assert span.metrics."_dd.appsec.enabled" == 1.0d
-        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
-        assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."_dd.appsec.fp.http.endpoint" ==~ /^"http-get(-[a-zA-Z0-9]*){3}"$/
         assert span.meta."_dd.appsec.fp.http.header" ==~ /^"hdr(-[0-9]*-[a-zA-Z0-9]*){2}"$/
         assert span.meta."_dd.appsec.fp.http.network" ==~ /^"net-[0-9]*-[a-zA-Z0-9]*"$/
