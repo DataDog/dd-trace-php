@@ -7,11 +7,16 @@ use ddtelemetry::data;
 use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::metrics::MetricContext;
-use ddtelemetry::worker::TelemetryActions;
+use ddtelemetry::worker::{TelemetryActions};
 use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
+use ddtelemetry::worker::LogIdentifier;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -165,4 +170,25 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
         metric_value,
         tags,
     )));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    log: CharSlice
+) {
+    let mut hasher = DefaultHasher::new();
+    log.hash(&mut hasher);
+    let action = TelemetryActions::AddLog((
+        LogIdentifier {indentifier: hasher.finish()},
+        data::Log {
+            message: log.to_utf8_lossy().into_owned(),
+            level: data::LogLevel::Warn,
+            stack_trace: None,
+            count: 1,
+            tags: String::new(),
+            is_sensitive: false,
+        })
+    );
+    buffer.buffer.push(SidecarAction::Telemetry(action));
 }

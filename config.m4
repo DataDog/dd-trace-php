@@ -105,6 +105,7 @@ if test "$PHP_DDTRACE" != "no"; then
   DD_TRACE_COMPONENT_SOURCES="\
     components/container_id/container_id.c \
     components/log/log.c \
+    components/telemetry/telemetry.c
     components/sapi/sapi.c \
     components/string_view/string_view.c \
   "
