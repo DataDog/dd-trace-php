@@ -1,40 +1,17 @@
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE, ALLOCATION_PROFILING_STATS};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
 };
-use crate::profiling::Profiler;
 use crate::{PROFILER_NAME, REQUEST_LOCALS};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
-use rand::rngs::ThreadRng;
-use rand_distr::{Distribution, Poisson};
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::ptr;
-use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst};
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
-
-/// take a sample every 4096 KiB
-pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
-
-/// This will store the count of allocations (including reallocations) during
-/// a profiling period. This will overflow when doing more than u64::MAX
-/// allocations, which seems big enough to ignore.
-pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
-
-/// This will store the accumulated size of all allocations in bytes during the
-/// profiling period. This will overflow when allocating more than 18 exabyte
-/// of memory (u64::MAX) which might not happen, so we can ignore this.
-pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
-
-pub struct AllocationProfilingStats {
-    /// number of bytes until next sample collection
-    next_sample: i64,
-    poisson: Poisson<f64>,
-    rng: ThreadRng,
-}
 
 type ZendHeapPrepareFn = unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int;
 type ZendHeapRestoreFn = unsafe fn(heap: *mut zend::_zend_mm_heap, custom_heap: c_int);
@@ -69,49 +46,7 @@ struct ZendMMState {
     free: unsafe fn(*mut c_void),
 }
 
-impl AllocationProfilingStats {
-    fn new() -> AllocationProfilingStats {
-        // Safety: this will only error if lambda <= 0
-        let poisson = Poisson::new(ALLOCATION_PROFILING_INTERVAL).unwrap();
-        let mut stats = AllocationProfilingStats {
-            next_sample: 0,
-            poisson,
-            rng: rand::thread_rng(),
-        };
-        stats.next_sampling_interval();
-        stats
-    }
-
-    fn next_sampling_interval(&mut self) {
-        self.next_sample = self.poisson.sample(&mut self.rng) as i64;
-    }
-
-    fn track_allocation(&mut self, len: size_t) {
-        self.next_sample -= len as i64;
-
-        if self.next_sample > 0 {
-            return;
-        }
-
-        self.next_sampling_interval();
-
-        if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_allocations(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    1_i64,
-                    len as i64,
-                )
-            };
-        }
-    }
-}
-
 thread_local! {
-    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> =
-        RefCell::new(AllocationProfilingStats::new());
-
     /// Using an `UnsafeCell` here should be okay. There might not be any
     /// synchronisation issues, as it is used in as thread local and only
     /// mutated in RINIT and RSHUTDOWN.
@@ -167,23 +102,6 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
 }
 
 pub fn alloc_prof_rinit() {
-    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        match cell.try_borrow() {
-            Ok(locals) => {
-                let system_settings = locals.system_settings();
-                system_settings.profiling_allocation_enabled
-            },
-            Err(_err) => {
-                error!("Memory allocation was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                false
-            }
-        }
-    });
-
-    if !allocation_profiling {
-        return;
-    }
-
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
 
@@ -247,16 +165,6 @@ pub fn alloc_prof_rinit() {
 }
 
 pub fn alloc_prof_rshutdown() {
-    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_allocation_enabled)
-            .unwrap_or(false)
-    });
-
-    if !allocation_profiling {
-        return;
-    }
-
     // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
     // already. This is unexpected, therefore we will not touch the ZendMM
     // handlers anymore as resetting to prev handlers might result in segfaults
