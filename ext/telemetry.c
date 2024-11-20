@@ -6,6 +6,7 @@
 #include "telemetry.h"
 #include "serializer.h"
 #include "sidecar.h"
+#include <string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -140,6 +141,16 @@ void ddtrace_telemetry_finalize(void) {
     for (size_t i = 0; i < sizeof(log_levels) / sizeof(log_levels[0]); ++i) {
         if ((count = ddog_get_logs_count(log_levels[i].level)) > 0) {
             ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, (double)count, log_levels[i].tags);
+        }
+    }
+
+    // Send integration error logs
+    if (get_global_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+        char* log = (char*) ddog_get_integration_log();
+        while (log != NULL) {
+            ddog_CharSlice logSlice = (ddog_CharSlice){ .ptr = log, .len = strlen(log) };
+            ddog_sidecar_telemetry_add_integration_log_buffer(buffer, logSlice);
+            log = (char*) ddog_get_integration_log();
         }
     }
 
