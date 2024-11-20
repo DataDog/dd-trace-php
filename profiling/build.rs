@@ -366,6 +366,7 @@ fn cfg_php_feature_flags(vernum: u64) {
 
 fn cfg_zts() {
     let output = Command::new("php")
+        .arg("-n")
         .arg("-r")
         .arg("echo PHP_ZTS, PHP_EOL;")
         .output()
