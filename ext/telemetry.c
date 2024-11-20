@@ -6,6 +6,7 @@
 #include "telemetry.h"
 #include "serializer.h"
 #include "sidecar.h"
+#include <string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -149,6 +150,15 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     dd_commit_metrics();
+    // Send integration error logs
+    if (get_global_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+        char* log = (char*) ddog_get_integration_log();
+        while (log != NULL) {
+            ddog_CharSlice logSlice = (ddog_CharSlice){ .ptr = log, .len = strlen(log) };
+            ddog_sidecar_telemetry_add_integration_log_buffer(buffer, logSlice);
+            log = (char*) ddog_get_integration_log();
+        }
+    }
 
     ddtrace_ffi_try("Failed flushing telemetry buffer",
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
