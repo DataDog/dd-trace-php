@@ -122,21 +122,61 @@ macro_rules! create_sleeping_fn {
 // Functions that are sleeping
 create_sleeping_fn!(ddog_php_prof_sleep, SLEEP_HANDLER, State::Sleeping);
 create_sleeping_fn!(ddog_php_prof_usleep, USLEEP_HANDLER, State::Sleeping);
-create_sleeping_fn!(ddog_php_prof_time_nanosleep, TIME_NANOSLEEP_HANDLER, State::Sleeping);
-create_sleeping_fn!(ddog_php_prof_time_sleep_until, TIME_SLEEP_UNTIL_HANDLER, State::Sleeping);
+create_sleeping_fn!(
+    ddog_php_prof_time_nanosleep,
+    TIME_NANOSLEEP_HANDLER,
+    State::Sleeping
+);
+create_sleeping_fn!(
+    ddog_php_prof_time_sleep_until,
+    TIME_SLEEP_UNTIL_HANDLER,
+    State::Sleeping
+);
 
 // Idle functions: these are functions which are like RSHUTDOWN -> RINIT
-create_sleeping_fn!(ddog_php_prof_frankenphp_handle_request, FRANKENPHP_HANDLE_REQUEST_HANDLER, State::Idle);
+create_sleeping_fn!(
+    ddog_php_prof_frankenphp_handle_request,
+    FRANKENPHP_HANDLE_REQUEST_HANDLER,
+    State::Idle
+);
 
 // Functions that are blocking on I/O
-create_sleeping_fn!(ddog_php_prof_stream_select, STREAM_SELECT_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_socket_select, SOCKET_SELECT_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_curl_multi_select, CURL_MULTI_SELECT_HANDLER, State::Select);
+create_sleeping_fn!(
+    ddog_php_prof_stream_select,
+    STREAM_SELECT_HANDLER,
+    State::Select
+);
+create_sleeping_fn!(
+    ddog_php_prof_socket_select,
+    SOCKET_SELECT_HANDLER,
+    State::Select
+);
+create_sleeping_fn!(
+    ddog_php_prof_curl_multi_select,
+    CURL_MULTI_SELECT_HANDLER,
+    State::Select
+);
 create_sleeping_fn!(ddog_php_prof_uv_run, UV_RUN_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_event_base_loop, EVENT_BASE_LOOP_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_eventbase_loop, EVENTBASE_LOOP_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_ev_loop_run, EV_LOOP_RUN_HANDLER, State::Select);
-create_sleeping_fn!(ddog_php_prof_parallel_events_poll, PARALLEL_EVENTS_POLL_HANDLER, State::Select);
+create_sleeping_fn!(
+    ddog_php_prof_event_base_loop,
+    EVENT_BASE_LOOP_HANDLER,
+    State::Select
+);
+create_sleeping_fn!(
+    ddog_php_prof_eventbase_loop,
+    EVENTBASE_LOOP_HANDLER,
+    State::Select
+);
+create_sleeping_fn!(
+    ddog_php_prof_ev_loop_run,
+    EV_LOOP_RUN_HANDLER,
+    State::Select
+);
+create_sleeping_fn!(
+    ddog_php_prof_parallel_events_poll,
+    PARALLEL_EVENTS_POLL_HANDLER,
+    State::Select
+);
 
 /// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
 #[cfg(zend_error_observer)]
