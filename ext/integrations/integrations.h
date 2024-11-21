@@ -11,7 +11,7 @@
 
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 16  // "symfonymessenger" FTW!
 
-#define DD_INTEGRATIONS                                                                                                  \
+#define DD_INTEGRATIONS                                                                                                   \
     INTEGRATION(AMQP, "amqp")                                                                                            \
     INTEGRATION(CAKEPHP, "cakephp")                                                                                      \
     INTEGRATION(CODEIGNITER, "codeigniter")                                                                              \
@@ -38,6 +38,7 @@
     INTEGRATION(OPENAI, "openai")                                                                                        \
     INTEGRATION(PCNTL, "pcntl")                                                                                          \
     INTEGRATION(PDO, "pdo")                                                                                              \
+    INTEGRATION(PECLAMQP, "peclamqp")                                                                                    \
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \
