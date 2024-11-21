@@ -311,7 +311,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
-    // Safety: `ALLOCATION_PROFILING_ALLOC` will be initialised in
+    // Safety: `ZEND_MM_STATE.prev_custom_mm_alloc` will be initialised in
     // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_alloc` is also initialised
     let alloc = tls_zend_mm_state!(prev_custom_mm_alloc).unwrap();
@@ -336,8 +336,8 @@ unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
 }
 
 unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
-    // Safety: `ALLOCATION_PROFILING_FREE` will be initialised in
-    // `alloc_prof_free()` and only point to this function when
+    // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
+    // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_free` is also initialised
     let free = tls_zend_mm_state!(prev_custom_mm_free).unwrap();
     free(ptr)
@@ -369,8 +369,8 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 }
 
 unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    // Safety: `ALLOCATION_PROFILING_REALLOC` will be initialised in
-    // `alloc_prof_realloc()` and only point to this function when
+    // Safety: `ZEND_MM_STATE.prev_custom_mm_realloc` will be initialised in
+    // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_realloc` is also initialised
     let realloc = tls_zend_mm_state!(prev_custom_mm_realloc).unwrap();
     realloc(prev_ptr, len)
