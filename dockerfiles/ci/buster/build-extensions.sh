@@ -36,6 +36,13 @@ elif [[ $PHP_VERSION_ID -le 73 ]]; then
   MONGODB_VERSION=-1.16.2
 fi
 
+AMQP_VERSION=
+if [[ $PHP_VERSION_ID -le 73 ]]; then
+  AMQP_VERSION=-1.11.0
+else
+  AMQP_VERSION=-2.1.2
+fi
+
 AST_VERSION=
 if [[ $PHP_VERSION_ID -le 71 ]]; then
   AST_VERSION=-1.0.16
@@ -112,6 +119,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
 else
   pecl channel-update pecl.php.net;
 
+  pecl install amqp$AMQP_VERSION; echo "extension=amqp.so" >> ${iniDir}/amqp.ini;
   yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
   pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
   if [[ $PHP_VERSION_ID -ge 71 && $PHP_VERSION_ID -le 80 ]]; then
