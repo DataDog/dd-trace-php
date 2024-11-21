@@ -26,6 +26,7 @@ ENV DEVLIBS \
     libonig-dev \
     libpq-dev \
     libpng-dev \
+    librabbitmq-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \
