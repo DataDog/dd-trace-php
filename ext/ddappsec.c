@@ -21,3 +21,11 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
     ZVAL_STR(&_1_zval, _1_zstr);
     ddtrace_add_propagated_tag(_dd_tag_p_appsec_zstr, &_1_zval);
 }
+
+PHP_FUNCTION(DDTrace_Testing_emit_asm_event) {
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_THROWS();
+    }
+
+    ddtrace_emit_asm_event();
+}

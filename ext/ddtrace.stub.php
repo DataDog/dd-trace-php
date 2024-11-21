@@ -830,6 +830,10 @@ namespace DDTrace\Testing {
      * E_DEPRECATED, E_USER_DEPRECATED
      */
     function trigger_error(string $message, int $errorType): void {}
+    /**
+     * Simulate appsec has emit an asm event
+     */
+    function emit_asm_event(): void {}
 }
 
 namespace DDTrace\Internal {
