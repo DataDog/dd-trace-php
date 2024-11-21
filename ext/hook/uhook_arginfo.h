@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4b2f667462bc9e7bed94b2c9a479b85f3086b521 */
+ * Stub hash: 74ab08e7f09c564fabb646706cb9ba0371026875 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
@@ -83,7 +83,7 @@ static zend_class_entry *register_class_DDTrace_HookData(void)
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "HookData", class_DDTrace_HookData_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 
 	zval property_data_default_value;
 	ZVAL_UNDEF(&property_data_default_value);
@@ -99,9 +99,7 @@ static zend_class_entry *register_class_DDTrace_HookData(void)
 
 	zval property_args_default_value;
 	ZVAL_UNDEF(&property_args_default_value);
-	zend_string *property_args_name = zend_string_init("args", sizeof("args") - 1, 1);
-	zend_declare_typed_property(class_entry, property_args_name, &property_args_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
-	zend_string_release(property_args_name);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_ARGS), &property_args_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 
 	zval property_returned_default_value;
 	ZVAL_UNDEF(&property_returned_default_value);

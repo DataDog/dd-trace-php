@@ -95,31 +95,6 @@ static inline zend_long zval_get_long(zval *op) {
 #define PHP_DOUBLE_MAX_LENGTH 1080
 #endif
 
-enum {
-    ZEND_STR_TRACE,
-    ZEND_STR_LINE,
-    ZEND_STR_FILE,
-    ZEND_STR_MESSAGE,
-    ZEND_STR_CODE,
-    ZEND_STR_TYPE,
-    ZEND_STR_FUNCTION,
-    ZEND_STR_OBJECT,
-    ZEND_STR_CLASS,
-    ZEND_STR_OBJECT_OPERATOR,
-    ZEND_STR_PAAMAYIM_NEKUDOTAYIM,
-    ZEND_STR_ARGS,
-    ZEND_STR_UNKNOWN,
-    ZEND_STR_EVAL,
-    ZEND_STR_INCLUDE,
-    ZEND_STR_REQUIRE,
-    ZEND_STR_INCLUDE_ONCE,
-    ZEND_STR_REQUIRE_ONCE,
-    ZEND_STR_PREVIOUS,
-    ZEND_STR__LAST
-};
-extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
-#define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
-
 #define zend_declare_class_constant_ex(ce, name, value, access_type, doc_comment) zend_declare_class_constant(ce, ZSTR_VAL(name), ZSTR_LEN(name), value)
 
 // copied from PHP-7.0 source, but converting zend_long * to uint32_t * - assuming little endian
@@ -210,14 +185,58 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
     _key = _p->key; \
     _val = _z;
 
-#if PHP_VERSION_ID >= 70100
-#define ZSTR_KNOWN(idx) CG(known_strings)[idx]
-#endif
 #else
 #define DD_PARAM_PROLOGUE Z_PARAM_PROLOGUE
 #endif
 
 #if PHP_VERSION_ID < 70300
+enum {
+#if PHP_VERSION_ID < 70300
+    ZEND_STR_NAME,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_NAME (-1 - ZEND_STR_NAME)
+#endif
+#endif
+#if PHP_VERSION_ID < 70200
+    ZEND_STR_RESOURCE,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_RESOURCE (-1 - ZEND_STR_RESOURCE)
+#endif
+#endif
+#if PHP_VERSION_ID < 70100
+    ZEND_STR_TRACE,
+    ZEND_STR_LINE,
+    ZEND_STR_FILE,
+    ZEND_STR_MESSAGE,
+    ZEND_STR_CODE,
+    ZEND_STR_TYPE,
+    ZEND_STR_FUNCTION,
+    ZEND_STR_OBJECT,
+    ZEND_STR_CLASS,
+    ZEND_STR_OBJECT_OPERATOR,
+    ZEND_STR_PAAMAYIM_NEKUDOTAYIM,
+    ZEND_STR_ARGS,
+    ZEND_STR_UNKNOWN,
+    ZEND_STR_EVAL,
+    ZEND_STR_INCLUDE,
+    ZEND_STR_REQUIRE,
+    ZEND_STR_INCLUDE_ONCE,
+    ZEND_STR_REQUIRE_ONCE,
+    ZEND_STR_PREVIOUS,
+#endif
+    ZEND_STR__LAST
+};
+extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
+
+#undef ZSTR_KNOWN
+#if PHP_VERSION_ID >= 70200
+#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : zend_known_strings[idx])
+#elif PHP_VERSION_ID >= 70100
+#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : CG(known_strings)[idx])
+#else
+#define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
+#endif
+
 #define GC_ADDREF(x) (++GC_REFCOUNT(x))
 #define GC_DELREF(x) (--GC_REFCOUNT(x))
 #define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
@@ -625,6 +644,12 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 #else
 #define hasThis() (Z_TYPE_P(ZEND_THIS) == IS_OBJECT)
 #endif
+
+static inline zend_class_entry *zend_register_internal_class_with_flags(zend_class_entry *class_entry, zend_class_entry *parent_ce, uint32_t ce_flags) {
+    zend_class_entry *register_class = zend_register_internal_class_ex(class_entry, parent_ce);
+    register_class->ce_flags |= ce_flags;
+    return register_class;
+}
 #endif
 
 #endif  // DD_COMPATIBILITY_H
