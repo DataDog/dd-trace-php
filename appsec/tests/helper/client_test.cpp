@@ -1790,7 +1790,6 @@ TEST(ClientTest, RequestInitWithFingerprint)
         network::request_init::request msg;
 
         msg.data = parameter::map();
-        msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
         // Endpoint Fingerprint inputs
         auto query = parameter::map();
@@ -1822,7 +1821,7 @@ TEST(ClientTest, RequestInitWithFingerprint)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_init::response *>(res.get());
-        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
     }
 
     // Request Shutdown
@@ -1845,21 +1844,17 @@ TEST(ClientTest, RequestInitWithFingerprint)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
         EXPECT_EQ(msg_res->triggers.size(), 0);
 
-        EXPECT_TRUE(std::regex_match(
-            msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
-            std::regex("http-get(-[A-Za-z0-9]*){3}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
 
-        EXPECT_TRUE(std::regex_match(
-            msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
-            std::regex("net-[0-9]*-[a-zA-Z0-9]*")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
 
-        EXPECT_TRUE(
-            std::regex_match(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
-                std::regex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
 
-        EXPECT_TRUE(
-            std::regex_match(msg_res->meta["_dd.appsec.fp.session"].c_str(),
-                std::regex("ssn(-[a-zA-Z0-9]*){4}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
     }
 }
 
@@ -1877,7 +1872,6 @@ TEST(ClientTest, RequestExecWithFingerprint)
     {
         network::request_exec::request msg;
         msg.data = parameter::map();
-        msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
         // Endpoint Fingerprint inputs
         auto query = parameter::map();
@@ -1909,7 +1903,7 @@ TEST(ClientTest, RequestExecWithFingerprint)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
     }
 
     // Request Shutdown
@@ -1931,21 +1925,17 @@ TEST(ClientTest, RequestExecWithFingerprint)
             dynamic_cast<network::request_shutdown::response *>(res.get());
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
 
-        EXPECT_TRUE(std::regex_match(
-            msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
-            std::regex("http-get(-[A-Za-z0-9]*){3}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
 
-        EXPECT_TRUE(std::regex_match(
-            msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
-            std::regex("net-[0-9]*-[a-zA-Z0-9]*")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
 
-        EXPECT_TRUE(
-            std::regex_match(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
-                std::regex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
 
-        EXPECT_TRUE(
-            std::regex_match(msg_res->meta["_dd.appsec.fp.session"].c_str(),
-                std::regex("ssn(-[a-zA-Z0-9]*){4}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
     }
 }
 
@@ -1964,7 +1954,6 @@ TEST(ClientTest, RequestShutdownWithFingerprint)
         network::request_shutdown::request msg;
 
         msg.data = parameter::map();
-        msg.data.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
         // Endpoint Fingerprint inputs
         auto query = parameter::map();
@@ -1996,23 +1985,19 @@ TEST(ClientTest, RequestShutdownWithFingerprint)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
 
-        EXPECT_TRUE(std::regex_match(
-            msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
-            std::regex("http-get(-[A-Za-z0-9]*){3}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
 
-        EXPECT_TRUE(std::regex_match(
-            msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
-            std::regex("net-[0-9]*-[a-zA-Z0-9]*")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
 
-        EXPECT_TRUE(
-            std::regex_match(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
-                std::regex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
 
-        EXPECT_TRUE(
-            std::regex_match(msg_res->meta["_dd.appsec.fp.session"].c_str(),
-                std::regex("ssn(-[a-zA-Z0-9]*){4}")));
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
     }
 }
 

@@ -11,8 +11,7 @@
 
 std::string create_sample_rules_ok()
 {
-    const static char data[] =
-        R"({
+    const static char data[] = R"({
   "version": "2.1",
   "metadata": {
     "rules_version": "1.2.3"
@@ -20,7 +19,7 @@ std::string create_sample_rules_ok()
   "rules": [
     {
       "id": "blk-001-001",
-      "name": "BlockIPAddresses",
+      "name": "Block IP Addresses",
       "tags": {
         "type": "block_ip",
         "category": "security_response"
@@ -47,7 +46,7 @@ std::string create_sample_rules_ok()
     },
     {
       "id": "blk-001-002",
-      "name": "BlockIPAddresseswithallactions",
+      "name": "Block IP Addresses with all actions",
       "tags": {
         "type": "block_ip",
         "category": "security_response"
@@ -77,7 +76,7 @@ std::string create_sample_rules_ok()
     },
     {
       "id": "crs-913-110",
-      "name": "FoundrequestheaderassociatedwithAcunetixsecurityscanner",
+      "name": "Found request header associated with Acunetix security scanner",
       "tags": {
         "type": "security_scanner",
         "crs_id": "913110",
@@ -104,7 +103,7 @@ std::string create_sample_rules_ok()
     },
     {
       "id": "req_shutdown_rule",
-      "name": "Rulematchonresponsecode",
+      "name": "Rule match on response code",
       "tags": {
         "type": "req_shutdown_type",
         "crs_id": "none",

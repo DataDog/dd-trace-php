@@ -404,17 +404,17 @@ TEST(WafTest, FingerprintAreAdded)
 
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_FALSE(meta.empty());
-    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.http.endpoint"].c_str(),
-        std::regex("http-get(-[A-Za-z0-9]*){3}")));
+    EXPECT_THAT(meta["_dd.appsec.fp.http.endpoint"].c_str(),
+        MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
 
-    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.http.network"].c_str(),
-        std::regex("net-[0-9]*-[a-zA-Z0-9]*")));
+    EXPECT_THAT(meta["_dd.appsec.fp.http.network"].c_str(),
+        MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
 
-    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.http.header"].c_str(),
-        std::regex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}")));
+    EXPECT_THAT(meta["_dd.appsec.fp.http.header"].c_str(),
+        MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
 
-    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.session"].c_str(),
-        std::regex("ssn(-[a-zA-Z0-9]*){4}")));
+    EXPECT_THAT(meta["_dd.appsec.fp.session"].c_str(),
+        MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
 }
 
 TEST(WafTest, ActionsAreSentAndParsed)
