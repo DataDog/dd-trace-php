@@ -269,7 +269,7 @@ std::string create_sample_rules_ok()
           {
             "headers": [
               {
-                "address": "server.request.headers.no_cookies_fp"
+                "address": "server.request.headers.no_cookies"
               }
             ],
             "output": "_dd.appsec.fp.http.header"
@@ -305,7 +305,7 @@ std::string create_sample_rules_ok()
           {
             "headers": [
               {
-                "address": "server.request.headers.no_cookies_fp"
+                "address": "server.request.headers.no_cookies"
               }
             ],
             "output": "_dd.appsec.fp.http.network"
