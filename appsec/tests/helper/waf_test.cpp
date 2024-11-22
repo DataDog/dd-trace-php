@@ -6,7 +6,9 @@
 #include "common.hpp"
 #include "engine_settings.hpp"
 #include "json_helper.hpp"
+#include <gtest/gtest.h>
 #include <rapidjson/document.h>
+#include <regex>
 #include <spdlog/details/null_mutex.h>
 #include <spdlog/sinks/base_sink.h>
 #include <subscriber/waf.hpp>
@@ -334,6 +336,85 @@ TEST(WafTest, SchemasAreAdded)
     ctx->get_meta_and_metrics(meta, metrics);
     EXPECT_FALSE(meta.empty());
     EXPECT_STREQ(meta["_dd.appsec.s.arg2"].c_str(), "[8]");
+}
+
+TEST(WafTest, FingerprintAreNotAdded)
+{
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    engine_settings settings;
+    settings.rules_file = create_sample_rules_ok();
+    auto ruleset = engine_ruleset::from_path(settings.rules_file);
+
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_settings(settings, ruleset, meta, metrics)};
+    auto ctx = wi->get_listener();
+
+    auto p = parameter::map();
+
+    parameter_view pv(p);
+    dds::event e;
+    ctx->call(pv, e);
+
+    ctx->get_meta_and_metrics(meta, metrics);
+    EXPECT_FALSE(meta.empty());
+    EXPECT_STREQ(meta["_dd.appsec.fp.http.endpoint"].c_str(), "");
+    EXPECT_STREQ(meta["_dd.appsec.fp.http.network"].c_str(), "");
+    EXPECT_STREQ(meta["_dd.appsec.fp.http.header"].c_str(), "");
+    EXPECT_STREQ(meta["_dd.appsec.fp.fp.session"].c_str(), "");
+}
+
+TEST(WafTest, FingerprintAreAdded)
+{
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+
+    engine_settings settings;
+    settings.rules_file = create_sample_rules_ok();
+    auto ruleset = engine_ruleset::from_path(settings.rules_file);
+
+    std::shared_ptr<subscriber> wi{
+        waf::instance::from_settings(settings, ruleset, meta, metrics)};
+    auto ctx = wi->get_listener();
+
+    auto p = parameter::map();
+
+    // Endpoint Fingerprint inputs
+    auto query = parameter::map();
+    query.add("query", parameter::string("asdfds"sv));
+    p.add("server.request.uri.raw", parameter::string("asdfds"sv));
+    p.add("server.request.method", parameter::string("GET"sv));
+    p.add("server.request.query", std::move(query));
+
+    // Network and Headers Fingerprint inputs
+    auto headers = parameter::map();
+    headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+    headers.add("user-agent", parameter::string("acunetix-product"sv));
+    p.add("server.request.headers.no_cookies", std::move(headers));
+
+    // Session Fingerprint inputs
+    p.add("server.request.cookies", parameter::string("asdfds"sv));
+    p.add("usr.session_id", parameter::string("asdfds"sv));
+    p.add("usr.id", parameter::string("asdfds"sv));
+
+    parameter_view pv(p);
+    dds::event e;
+    ctx->call(pv, e);
+
+    ctx->get_meta_and_metrics(meta, metrics);
+    EXPECT_FALSE(meta.empty());
+    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.http.endpoint"].c_str(),
+        std::regex("http-get(-[A-Za-z0-9]*){3}")));
+
+    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.http.network"].c_str(),
+        std::regex("net-[0-9]*-[a-zA-Z0-9]*")));
+
+    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.http.header"].c_str(),
+        std::regex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}")));
+
+    EXPECT_TRUE(std::regex_match(meta["_dd.appsec.fp.session"].c_str(),
+        std::regex("ssn(-[a-zA-Z0-9]*){4}")));
 }
 
 TEST(WafTest, ActionsAreSentAndParsed)
