@@ -1,0 +1,28 @@
+[[
+  {
+    "name": "send.php",
+    "service": "send.php",
+    "resource": "send.php",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "674054cc00000000",
+      "runtime-id": "95dc4d55-9d1b-4a6a-9935-55a40fd4b5c6"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "amqp.init",
+       "service": "send.php",
+       "resource": "amqp.init",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "cli"
+     }]]

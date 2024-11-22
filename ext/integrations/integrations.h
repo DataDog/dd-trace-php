@@ -38,6 +38,7 @@
     INTEGRATION(OPENAI, "openai")                                                                                        \
     INTEGRATION(PCNTL, "pcntl")                                                                                          \
     INTEGRATION(PDO, "pdo")                                                                                              \
+    INTEGRATION(PECLAMQP, "peclamqp")                                                                                    \
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \

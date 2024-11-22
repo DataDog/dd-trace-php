@@ -1,0 +1,19 @@
+[[
+  {
+    "name": "amqp.init",
+    "service": "phpunit",
+    "resource": "amqp.init",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "6740511400000000",
+      "runtime-id": "bc507622-97d2-4dae-81da-76100f53b9e3"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  }]]

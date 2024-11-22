@@ -384,6 +384,9 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PECLAMQP, "AMQPConnection", "__construct",
+                                            "DDTrace\\Integrations\\PeclAMQP\\PeclAMQPIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
                                          "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
 
