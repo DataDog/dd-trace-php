@@ -1300,9 +1300,16 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
-#if PHP_VERSION_ID < 70100
+#if PHP_VERSION_ID < 70300
 zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 void ddtrace_init_known_strings(void) {
+#undef ZEND_STR_NAME
+    ddtrace_known_strings[ZEND_STR_NAME] = zend_string_init_interned(ZEND_STRL("name"), 1);
+#if PHP_VERSION_ID < 70200
+#undef ZEND_STR_RESOURCE
+    ddtrace_known_strings[ZEND_STR_RESOURCE] = zend_string_init_interned(ZEND_STRL("resource"), 1);
+#endif
+#if PHP_VERSION_ID < 70100
     ddtrace_known_strings[ZEND_STR_TRACE] = zend_string_init_interned(ZEND_STRL("trace"), 1);
     ddtrace_known_strings[ZEND_STR_LINE] = zend_string_init_interned(ZEND_STRL("line"), 1);
     ddtrace_known_strings[ZEND_STR_FILE] = zend_string_init_interned(ZEND_STRL("file"), 1);
@@ -1322,6 +1329,7 @@ void ddtrace_init_known_strings(void) {
     ddtrace_known_strings[ZEND_STR_INCLUDE_ONCE] = zend_string_init_interned(ZEND_STRL("include_once"), 1);
     ddtrace_known_strings[ZEND_STR_REQUIRE_ONCE] = zend_string_init_interned(ZEND_STRL("require_once"), 1);
     ddtrace_known_strings[ZEND_STR_PREVIOUS] = zend_string_init_interned(ZEND_STRL("previous"), 1);
+#endif
 }
 #endif
 
@@ -1342,6 +1350,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 
+#if PHP_VERSION_ID < 70300
+    ddtrace_init_known_strings();
+#endif
+
     zai_hook_minit();
     zai_uhook_minit(module_number);
 #if PHP_VERSION_ID >= 80000
@@ -1353,10 +1365,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
 #if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     ddtrace_startup_hrtime();
-#endif
-
-#if PHP_VERSION_ID < 70100
-    ddtrace_init_known_strings();
 #endif
 
     register_ddtrace_symbols(module_number);

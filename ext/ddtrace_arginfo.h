@@ -477,23 +477,11 @@ static const zend_function_entry class_DDTrace_SpanLink_methods[] = {
 	ZEND_FE_END
 };
 
-static const zend_function_entry class_DDTrace_GitMetadata_methods[] = {
-	ZEND_FE_END
-};
-
 static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getDuration, arginfo_class_DDTrace_SpanData_getDuration, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getLink, arginfo_class_DDTrace_SpanData_getLink, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, hexId, arginfo_class_DDTrace_SpanData_hexId, ZEND_ACC_PUBLIC)
-	ZEND_FE_END
-};
-
-static const zend_function_entry class_DDTrace_RootSpanData_methods[] = {
-	ZEND_FE_END
-};
-
-static const zend_function_entry class_DDTrace_SpanStack_methods[] = {
 	ZEND_FE_END
 };
 
@@ -523,14 +511,12 @@ static zend_class_entry *register_class_DDTrace_SpanEvent(zend_class_entry *clas
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanEvent", class_DDTrace_SpanEvent_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 	zend_class_implements(class_entry, 1, class_entry_JsonSerializable);
 
 	zval property_name_default_value;
 	ZVAL_UNDEF(&property_name_default_value);
-	zend_string *property_name_name = zend_string_init("name", sizeof("name") - 1, 1);
-	zend_declare_typed_property(class_entry, property_name_name, &property_name_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
-	zend_string_release(property_name_name);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_NAME), &property_name_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
 
 	zval property_attributes_default_value;
 	ZVAL_UNDEF(&property_attributes_default_value);
@@ -552,7 +538,7 @@ static zend_class_entry *register_class_DDTrace_ExceptionSpanEvent(zend_class_en
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "ExceptionSpanEvent", class_DDTrace_ExceptionSpanEvent_methods);
-	class_entry = zend_register_internal_class_ex(&ce, class_entry_DDTrace_SpanEvent);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_DDTrace_SpanEvent, 0);
 
 	zval property_exception_default_value;
 	ZVAL_UNDEF(&property_exception_default_value);
@@ -569,7 +555,7 @@ static zend_class_entry *register_class_DDTrace_SpanLink(zend_class_entry *class
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanLink", class_DDTrace_SpanLink_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 	zend_class_implements(class_entry, 1, class_entry_JsonSerializable);
 
 	zval property_traceId_default_value;
@@ -609,8 +595,8 @@ static zend_class_entry *register_class_DDTrace_GitMetadata(void)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "GitMetadata", class_DDTrace_GitMetadata_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "GitMetadata", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 
 	zval property_commitSha_default_value;
 	ZVAL_EMPTY_STRING(&property_commitSha_default_value);
@@ -632,19 +618,15 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanData", class_DDTrace_SpanData_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 
 	zval property_name_default_value;
 	ZVAL_EMPTY_STRING(&property_name_default_value);
-	zend_string *property_name_name = zend_string_init("name", sizeof("name") - 1, 1);
-	zend_declare_typed_property(class_entry, property_name_name, &property_name_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
-	zend_string_release(property_name_name);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_NAME), &property_name_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
 
 	zval property_resource_default_value;
 	ZVAL_EMPTY_STRING(&property_resource_default_value);
-	zend_string *property_resource_name = zend_string_init("resource", sizeof("resource") - 1, 1);
-	zend_declare_typed_property(class_entry, property_resource_name, &property_resource_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
-	zend_string_release(property_resource_name);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_RESOURCE), &property_resource_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
 
 	zval property_service_default_value;
 	ZVAL_EMPTY_STRING(&property_service_default_value);
@@ -672,9 +654,7 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 
 	zval property_type_default_value;
 	ZVAL_EMPTY_STRING(&property_type_default_value);
-	zend_string *property_type_name = zend_string_init("type", sizeof("type") - 1, 1);
-	zend_declare_typed_property(class_entry, property_type_name, &property_type_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
-	zend_string_release(property_type_name);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_TYPE), &property_type_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
 
 	zval property_meta_default_value;
 	ZVAL_EMPTY_ARRAY(&property_meta_default_value);
@@ -740,8 +720,8 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "RootSpanData", class_DDTrace_RootSpanData_methods);
-	class_entry = zend_register_internal_class_ex(&ce, class_entry_DDTrace_SpanData);
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "RootSpanData", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_DDTrace_SpanData, 0);
 
 	zval property_origin_default_value;
 	ZVAL_UNDEF(&property_origin_default_value);
@@ -805,8 +785,8 @@ static zend_class_entry *register_class_DDTrace_SpanStack(void)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanStack", class_DDTrace_SpanStack_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "SpanStack", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 
 	zval property_parent_default_value;
 	ZVAL_UNDEF(&property_parent_default_value);

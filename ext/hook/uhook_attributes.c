@@ -1,9 +1,9 @@
 #include <php.h>
 #include <Zend/zend_attributes.h>
 #include <Zend/zend_smart_str.h>
-#include "uhook_attributes_arginfo.h"
 #include "../ddtrace.h"
 #include "../configuration.h"
+#include "uhook_attributes_arginfo.h"
 #include "uhook.h"
 
 #include <hook/hook.h>

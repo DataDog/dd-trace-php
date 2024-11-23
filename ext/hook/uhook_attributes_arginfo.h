@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 90919c9c350e86acd6fe3c8d06753918d5e0572b */
+ * Stub hash: 39cf4bf2cf4b4ec1c18f3ff8643b3ba7b4ad69a1 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DDTrace_Trace___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, name, IS_STRING, 0, "\"\"")
@@ -23,8 +23,7 @@ static zend_class_entry *register_class_DDTrace_Trace(void)
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "Trace", class_DDTrace_Trace_methods);
-	class_entry = zend_register_internal_class_ex(&ce, NULL);
-	class_entry->ce_flags |= ZEND_ACC_FINAL;
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
 
 	zend_string *attribute_name_Attribute_class_DDTrace_Trace_0 = zend_string_init_interned("Attribute", sizeof("Attribute") - 1, 1);
 	zend_attribute *attribute_Attribute_class_DDTrace_Trace_0 = zend_add_class_attribute(class_entry, attribute_name_Attribute_class_DDTrace_Trace_0, 1);
