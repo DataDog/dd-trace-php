@@ -247,7 +247,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
         let zend_mm_state = cell.get();
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
-        // Safety: `ZEND_MM_STATE.alloc` will be initialised in
+        // Safety: `ZEND_MM_STATE.prev_custom_mm_alloc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_alloc` is also initialised
         let ptr = ((*zend_mm_state).prev_custom_mm_alloc.unwrap())(len);
@@ -275,7 +275,7 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
         let zend_mm_state = cell.get();
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
-        // Safety: `ZEND_MM_STATE.free` will be initialised in
+        // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_free` is also initialised
         ((*zend_mm_state).prev_custom_mm_free.unwrap())(ptr);
@@ -313,7 +313,7 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
         let zend_mm_state = cell.get();
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
-        // Safety: `ZEND_MM_STATE.realloc` will be initialised in
+        // Safety: `ZEND_MM_STATE.prev_custom_mm_realloc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_realloc` is also initialised
         let ptr = ((*zend_mm_state).prev_custom_mm_realloc.unwrap())(prev_ptr, len);
@@ -336,7 +336,7 @@ unsafe fn alloc_prof_prev_gc() -> size_t {
         let zend_mm_state = cell.get();
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
-        // Safety: `ZEND_MM_STATE.gc` will be initialised in
+        // Safety: `ZEND_MM_STATE.prev_custom_mm_gc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_gc` is also initialised
         let freed = ((*zend_mm_state).prev_custom_mm_gc.unwrap())();
@@ -359,7 +359,7 @@ unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
         let zend_mm_state = cell.get();
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
-        // Safety: `ZEND_MM_STATE.shutdown` will be initialised in
+        // Safety: `ZEND_MM_STATE.prev_custom_mm_shutdown` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_shutdown` is also initialised
         ((*zend_mm_state).prev_custom_mm_shutdown.unwrap())(full, silent);
