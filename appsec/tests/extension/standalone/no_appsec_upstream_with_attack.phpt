@@ -20,9 +20,7 @@ datadog.trace.agent_test_session_token=background-sender/agent_sampling_b
 include __DIR__ . '/simulate_request.inc';
 include __DIR__ . '/../inc/mock_helper.php';
 
-$helper = Helper::createInitedRun([
-    ...request_with_events()
-]);
+$helper = Helper::createInitedRun(request_with_events());
 
 $rr = new RequestReplayer();
 $result = simulate_request($rr);
