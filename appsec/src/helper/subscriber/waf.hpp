@@ -46,7 +46,7 @@ public:
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
         std::string_view ruleset_version_;
-        std::map<std::string, std::string> schemas_;
+        std::map<std::string, std::string> derivatives_;
     };
 
     // NOLINTNEXTLINE(google-runtime-references)

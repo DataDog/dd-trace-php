@@ -6754,15 +6754,15 @@
           "parameters": {
             "inputs": [
               {
-                  "address": "server.request.body",
-                  "key_path": [
-                      "message"
-                  ]
+                "address": "server.request.body",
+                "key_path": [
+                  "message"
+                ]
               },
               {
                 "address": "server.response.body",
                 "key_path": [
-                    "message"
+                  "message"
                 ]
               }
             ],
@@ -6777,24 +6777,24 @@
       "id": "poison-in-json-block",
       "name": "poison-in-json-block",
       "tags": {
-          "type": "security_scanner",
-          "category": "attack_attempt"
+        "type": "security_scanner",
+        "category": "attack_attempt"
       },
       "conditions": [
-          {
-              "parameters": {
-                  "inputs": [
-                      {
-                          "address": "server.response.body",
-                          "key_path": [
-                              "message"
-                          ]
-                      }
-                  ],
-                  "regex": "(?i)block_this"
-              },
-              "operator": "match_regex"
-          }
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.body",
+                "key_path": [
+                  "message"
+                ]
+              }
+            ],
+            "regex": "(?i)block_this"
+          },
+          "operator": "match_regex"
+        }
       ],
       "transformers": [],
       "on_match": [
@@ -6802,35 +6802,35 @@
       ]
     },
     {
-        "id": "poison-in-xml",
-        "name": "poison-in-xml",
-        "tags": {
-            "type": "security_scanner",
-            "category": "attack_attempt"
-        },
-        "conditions": [
-            {
-                "parameters": {
-                    "inputs": [
-                        {
-                            "address": "server.request.body",
-                            "key_path": [
-                                "note"
-                            ]
-                        },
-                        {
-                            "address": "server.response.body",
-                            "key_path": [
-                                "note"
-                            ]
-                        }
-                    ],
-                    "regex": "(?i).*poison.*"
-                },
-                "operator": "match_regex"
-            }
-        ],
-        "transformers": []
+      "id": "poison-in-xml",
+      "name": "poison-in-xml",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.body",
+                "key_path": [
+                  "note"
+                ]
+              },
+              {
+                "address": "server.response.body",
+                "key_path": [
+                  "note"
+                ]
+              }
+            ],
+            "regex": "(?i).*poison.*"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
     }
   ],
   "rules_data": [
@@ -6883,6 +6883,177 @@
         "status_code": "303",
         "location": "https://datadoghq.com"
       }
+    }
+  ],
+  "processors": [
+    {
+      "id": "http-endpoint-fingerprint",
+      "generator": "http_endpoint_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "method": [
+              {
+                "address": "server.request.method"
+              }
+            ],
+            "uri_raw": [
+              {
+                "address": "server.request.uri.raw"
+              }
+            ],
+            "body": [
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "query": [
+              {
+                "address": "server.request.query"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.endpoint"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "http-header-fingerprint",
+      "generator": "http_header_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "headers": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.header"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "http-network-fingerprint",
+      "generator": "http_network_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "headers": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.network"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "session-fingerprint",
+      "generator": "session_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "cookies": [
+              {
+                "address": "server.request.cookies"
+              }
+            ],
+            "session_id": [
+              {
+                "address": "usr.session_id"
+              }
+            ],
+            "user_id": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "output": "_dd.appsec.fp.session"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
     }
   ]
 }

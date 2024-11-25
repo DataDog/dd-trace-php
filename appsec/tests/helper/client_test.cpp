@@ -4,14 +4,19 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "parameter.hpp"
+#include <algorithm>
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
+#include <cstring>
+#include <gtest/gtest.h>
 #include <json_helper.hpp>
 #include <network/broker.hpp>
 #include <rapidjson/document.h>
 #include <regex>
 #include <tags.hpp>
+#include <utility>
 
 namespace dds {
 
@@ -103,9 +108,6 @@ void request_init(mock::broker *broker, client &c)
 {
     network::request_init::request msg;
     msg.data = parameter::map();
-    msg.data.add(
-        "server.request.headers.no_cookies", parameter::string("Arachni"sv));
-    msg.data.add("server.request.body", parameter::string("asdfds"sv));
 
     network::request req(std::move(msg));
 
@@ -491,8 +493,11 @@ TEST(ClientTest, RequestInit)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -529,8 +534,11 @@ TEST(ClientTest, RequestInitLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -785,7 +793,12 @@ TEST(ClientTest, RequestShutdown)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("Arachni"sv));
+
         msg.data.add("server.response.code", parameter::string("1991"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -804,7 +817,7 @@ TEST(ClientTest, RequestShutdown)
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
         EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
-        EXPECT_EQ(msg_res->meta.size(), 1);
+        EXPECT_EQ(msg_res->meta.size(), 3);
         EXPECT_STREQ(
             msg_res->meta[std::string(tag::event_rules_version)].c_str(),
             "1.2.3");
@@ -1763,6 +1776,231 @@ TEST(ClientTest, RequestExecWithAttack)
     }
 }
 
+TEST(ClientTest, RequestInitWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+
+        msg.data = parameter::map();
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        auto headers = parameter::map();
+        headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+        EXPECT_EQ(msg_res->triggers.size(), 0);
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
+    }
+}
+
+TEST(ClientTest, RequestExecWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+    request_init(broker, c);
+
+    // Request Exec
+    {
+        network::request_exec::request msg;
+        msg.data = parameter::map();
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        auto headers = parameter::map();
+        headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_exec::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
+    }
+}
+
+TEST(ClientTest, RequestShutdownWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+    request_init(broker, c);
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+
+        msg.data = parameter::map();
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        auto headers = parameter::map();
+        headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
+    }
+}
+
 TEST(ClientTest, RequestExecWithoutClientInit)
 {
     auto smanager = std::make_shared<service_manager>();
@@ -2105,8 +2343,10 @@ TEST(ClientTest, RequestShutdownLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("Arachni"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("Arachni"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -2210,8 +2450,10 @@ TEST(ClientTest, RequestExecLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("Arachni"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("Arachni"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -2315,8 +2557,11 @@ TEST(ClientTest, SchemasAreAddedOnRequestShutdownWhenEnabled)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -2334,7 +2579,7 @@ TEST(ClientTest, SchemasAreAddedOnRequestShutdownWhenEnabled)
         EXPECT_GT(count_schemas(msg_res->meta), 0);
         EXPECT_STREQ(
             msg_res->meta["_dd.appsec.s.req.headers.no_cookies"].c_str(),
-            "[8]");
+            "[{\"user-agent\":[8]}]");
     }
 }
 
@@ -2393,8 +2638,10 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         auto body = parameter::map();
         auto expected_schemas = parameter::map();
