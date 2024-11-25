@@ -1332,6 +1332,8 @@ jobs:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
       - run:
           name: Install cmake 3.24.4
           command: |
@@ -5775,6 +5777,7 @@ workflows:
 
     - test_appsec_extension:
         requires: [ hunter_cache_debian ]
+        with_executor: 'with_httpbin_and_request_replayer'
         matrix:
           parameters:
             php_major_minor:
@@ -5796,6 +5799,7 @@ workflows:
 
     - test_appsec_extension:
         requires: [ hunter_cache_debian ]
+        with_executor: 'with_httpbin_and_request_replayer'
         matrix:
           parameters:
             php_major_minor:
@@ -5811,6 +5815,7 @@ workflows:
 
     - test_appsec_extension:
         requires: [ hunter_cache_debian ]
+        with_executor: 'with_httpbin_and_request_replayer'
         matrix:
           parameters:
             php_major_minor:
