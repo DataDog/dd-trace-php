@@ -250,7 +250,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
         // Safety: `ZEND_MM_STATE.prev_custom_mm_alloc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_alloc` is also initialised
-        let ptr = ((*zend_mm_state).prev_custom_mm_alloc.unwrap())(len);
+        let ptr = ((*zend_mm_state).prev_custom_mm_alloc.unwrap_unchecked())(len);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).heap);
         ptr
@@ -278,7 +278,7 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
         // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_free` is also initialised
-        ((*zend_mm_state).prev_custom_mm_free.unwrap())(ptr);
+        ((*zend_mm_state).prev_custom_mm_free.unwrap_unchecked())(ptr);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).heap);
     })
@@ -316,7 +316,7 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
         // Safety: `ZEND_MM_STATE.prev_custom_mm_realloc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_realloc` is also initialised
-        let ptr = ((*zend_mm_state).prev_custom_mm_realloc.unwrap())(prev_ptr, len);
+        let ptr = ((*zend_mm_state).prev_custom_mm_realloc.unwrap_unchecked())(prev_ptr, len);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).heap);
         ptr
@@ -339,7 +339,7 @@ unsafe fn alloc_prof_prev_gc() -> size_t {
         // Safety: `ZEND_MM_STATE.prev_custom_mm_gc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_gc` is also initialised
-        let freed = ((*zend_mm_state).prev_custom_mm_gc.unwrap())();
+        let freed = ((*zend_mm_state).prev_custom_mm_gc.unwrap_unchecked())();
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).heap);
         freed
@@ -362,7 +362,7 @@ unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
         // Safety: `ZEND_MM_STATE.prev_custom_mm_shutdown` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_shutdown` is also initialised
-        ((*zend_mm_state).prev_custom_mm_shutdown.unwrap())(full, silent);
+        ((*zend_mm_state).prev_custom_mm_shutdown.unwrap_unchecked())(full, silent);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
         zend::zend_mm_set_heap((*zend_mm_state).heap);
     })
