@@ -23,10 +23,7 @@ datadog.trace.agent_test_session_token=background-sender/agent_sampling_a
 include __DIR__ . '/simulate_request.inc';
 include __DIR__ . '/../inc/mock_helper.php';
 
-$helper = Helper::createInitedRun([
-    ...request_without_events(),
-    ...request_without_events(),
-]);
+$helper = Helper::createInitedRun(array_merge(request_without_events(), request_without_events()));
 $rr = new RequestReplayer();
 
 //We need to make two requests. The first one is allow by the sampler, but not the second
