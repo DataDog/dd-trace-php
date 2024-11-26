@@ -1,5 +1,5 @@
 --TEST--
-Filesystem integration depends on RASP. If RASP enabled, integration is enabled
+Filesystem integration depends on RASP. If RASP is enabled and wrapped function are used, then it is enabled
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
@@ -16,32 +16,10 @@ DD_APPSEC_RASP_ENABLED=1
 datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
 --FILE--
 <?php
-
-namespace DDTrace\Test
-{
-    class TestSandboxedIntegration implements \DDTrace\Integration
-    {
-        function init(): int
-        {
-            dd_trace_method("Test", "public_static_method", function() {
-                echo "test_access hook" . PHP_EOL;
-            });
-            return self::LOADED;
-        }
-    }
-}
-
 namespace
 {
-    class Test
-    {
-        public static function public_static_method()
-        {
-            echo "PUBLIC STATIC METHOD\n";
-        }
-    }
-
-    Test::public_static_method();
+    //Here we use one wrapped function
+    file_put_contents('/tmp/dummy', 'foo');
 
     dd_trace_internal_fn("finalize_telemetry");
 
@@ -66,15 +44,13 @@ namespace
 
 ?>
 --EXPECT--
-PUBLIC STATIC METHOD
-test_access hook
 array(1) {
   ["integrations"]=>
   array(2) {
     [0]=>
     array(5) {
       ["name"]=>
-      string(37) "ddtrace\test\testsandboxedintegration"
+      string(10) "filesystem"
       ["enabled"]=>
       bool(true)
       ["version"]=>
