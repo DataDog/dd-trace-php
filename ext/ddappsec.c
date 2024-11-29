@@ -1,6 +1,5 @@
 #include "ddappsec.h"
 
-#include "configuration.h"
 #include "ddtrace.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 

@@ -3,11 +3,9 @@
 
 #include <stdbool.h>
 
-#include "php.h"
-
-void ddtrace_standalone_limiter_create();
-void ddtrace_standalone_limiter_destroy();
-void ddtrace_standalone_limiter_hit();
-bool ddtrace_standalone_limiter_allow();
+void ddtrace_standalone_limiter_create(void);
+void ddtrace_standalone_limiter_destroy(void);
+void ddtrace_standalone_limiter_hit(void);
+bool ddtrace_standalone_limiter_allow(void);
 
 #endif  // DDTRACE_STANDALONE_LIMITER_H
