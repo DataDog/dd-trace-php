@@ -139,9 +139,15 @@ else
   # ext-swoole needs PHP 8
   if [[ $PHP_VERSION_ID -ge 80 ]]; then
     pushd /tmp
-    pecl download swoole-6.0.0RC1; # we don't install swoole here
-    tar xzf swoole-6.0.0RC1.tgz
-    cd swoole-6.0.0RC1
+    if [[ $PHP_VERSION_ID -ge 83 ]]; then
+      pecl download swoole-6.0.0RC1;
+      tar xzf swoole-6.0.0RC1.tgz
+      cd swoole-6.0.0RC1
+    else
+      pecl download swoole-5.1.6;
+      tar xzf swoole-5.1.6.tgz
+      cd swoole-5.1.6
+    fi
     phpize
     ./configure --host=$HOST_ARCH-linux-gnu
     make -j "$((`nproc`+1))"
