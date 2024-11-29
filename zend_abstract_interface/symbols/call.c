@@ -103,9 +103,6 @@ static inline int zai_symbol_try_call(zend_fcall_info *fci, zend_fcall_info_cach
         ret = zend_call_function(fci, fcc);
     } zend_catch {
         ret = 2;
-        if (PG(last_error_message) && strstr(ZSTR_VAL(PG(last_error_message)), "Datadog blocked the request")) {
-            zend_bailout();
-        }
     } zend_end_try();
     return ret;
 }
