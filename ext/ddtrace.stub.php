@@ -831,7 +831,7 @@ namespace DDTrace\Testing {
      */
     function trigger_error(string $message, int $errorType): void {}
     /**
-     * Simulate appsec has emit an asm event
+     * Emits an asm event
      */
     function emit_asm_event(): void {}
 }
