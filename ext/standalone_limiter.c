@@ -40,28 +40,18 @@ void ddtrace_standalone_limiter_create() {
     memset(&dd_limiter->window, 0, sizeof(dd_limiter->window));
 }
 
-void ddtrace_standalone_limiter_hit() {
+static bool tick() {
     ZEND_ASSERT(dd_limiter);
 
-    uint64_t timeval = zend_hrtime();
+    uint64_t timeval = zend_hrtime() / 60000000000;
+    uint64_t old_time = atomic_exchange(&dd_limiter->window.last_hit, timeval);
 
-    atomic_store(&dd_limiter->window.last_hit, timeval);
+    return timeval != old_time;
 }
 
-bool ddtrace_standalone_limiter_allow() {
-    ZEND_ASSERT(dd_limiter);
+void ddtrace_standalone_limiter_hit() { tick(); }
 
-    uint64_t timeval = zend_hrtime();
-    uint64_t old_time = atomic_load(&dd_limiter->window.last_hit);
-
-    if (timeval - old_time < 60000000000) {
-        return false;
-    }
-
-    atomic_store(&dd_limiter->window.last_hit, timeval);
-
-    return true;
-}
+bool ddtrace_standalone_limiter_allow() { return tick(); }
 
 void ddtrace_standalone_limiter_destroy() {
     if (dd_limiter_mapped_shm) {
