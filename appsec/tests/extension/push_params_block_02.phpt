@@ -35,7 +35,6 @@ $integration = new SomeIntegration();
 $integration->init();
 var_dump(ltrim("     Calling wrapped function"));
 var_dump("THIS SHOULD NOT GET IN THE OUTPUT");
-
 ?>
 --EXPECTHEADERS--
 Status: 404 Not Found
