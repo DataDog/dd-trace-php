@@ -24,7 +24,7 @@ static ddog_MappedMem_ShmHandle *dd_limiter_mapped_shm;
 static ddtrace_standalone_limiter *dd_limiter;
 
 void ddtrace_standalone_limiter_create() {
-    uint32_t limit = (uint32_t) 1;
+    uint32_t limit = 1;
 
     ddog_ShmHandle *shm;
     if (!ddtrace_ffi_try("Failed allocating shared memory", ddog_alloc_anon_shm_handle(limit, &shm))) {

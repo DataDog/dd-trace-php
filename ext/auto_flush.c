@@ -62,11 +62,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
         if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
-            if (Z_TYPE(trace) != IS_ARRAY) {
-                LOG(ERROR, "Unexpected trace type. Dropping trace");
-                return SUCCESS;
-            }
-
             zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
             if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
                 LOG(ERROR, "Root span not found. Dropping trace");
