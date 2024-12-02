@@ -203,12 +203,18 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_ginit();
+
+    #[cfg(feature = "allocation_profiling")]
+    allocation::alloc_prof_ginit();
 }
 
 #[cfg(php_zts)]
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_gshutdown();
+
+    #[cfg(feature = "allocation_profiling")]
+    allocation::alloc_prof_gshutdown();
 }
 
 /* Important note on the PHP lifecycle:
@@ -337,14 +343,14 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
      */
     unsafe { zend::zend_register_extension(&extension, handle) };
 
-    #[cfg(feature = "allocation_profiling")]
-    allocation::alloc_prof_minit();
-
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_minit();
+
+    #[cfg(feature = "allocation_profiling")]
+    allocation::alloc_prof_minit();
 
     // There are a few things which need to do something on the first rinit of
     // each minit/mshutdown cycle. In Apache, when doing `apachectl graceful`,
@@ -850,6 +856,9 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
+
+    #[cfg(feature = "allocation_profiling")]
+    allocation::alloc_prof_mshutdown();
 
     Profiler::stop(Duration::from_secs(1));
 

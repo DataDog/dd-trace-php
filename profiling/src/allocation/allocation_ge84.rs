@@ -87,12 +87,24 @@ macro_rules! tls_zend_mm_state {
     };
 }
 
-pub fn alloc_prof_rinit() {
+#[allow(dead_code)]
+pub fn alloc_prof_minit() {
+    #[cfg(not(php_zts))]
+    alloc_prof_ginit();
+}
+
+#[allow(dead_code)]
+pub fn alloc_prof_mshutdown() {
+    #[cfg(not(php_zts))]
+    alloc_prof_gshutdown();
+}
+
+pub fn alloc_prof_ginit() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
 
         // Only need to create an observed heap once per thread. When we have it, we can just
-        // install the observed hook via `zend::zend_mm_set_heap()`
+        // install the observed heap via `zend::zend_mm_set_heap()`
         if unsafe { (*zend_mm_state).heap.is_null() } {
             // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
             let prev_heap = unsafe { zend::zend_mm_get_heap() };
@@ -130,7 +142,7 @@ pub fn alloc_prof_rinit() {
                 }
             }
 
-            // Create our observed heap and prepare custom handlers
+            // Create a new (to be observed) heap and prepare custom handlers
             let heap = unsafe { zend::zend_mm_startup() };
             unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(heap) };
 
@@ -145,10 +157,55 @@ pub fn alloc_prof_rinit() {
                     Some(alloc_prof_shutdown),
                 );
             }
+            debug!("New observed heap created");
         }
+    });
+}
 
-        // install the observed heap into ZendMM
+pub fn alloc_prof_gshutdown() {
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
         unsafe {
+            // remove custom handlers to allow for ZendMM internal shutdown
+            zend::zend_mm_set_custom_handlers_ex(
+                (*zend_mm_state).heap,
+                None,
+                None,
+                None,
+                None,
+                None,
+            );
+
+            // reset to defaults
+            ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_orig_alloc);
+            ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_orig_free);
+            ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_orig_realloc);
+            ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_orig_gc);
+            ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_orig_shutdown);
+            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_alloc).write(None);
+            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_free).write(None);
+            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_realloc).write(None);
+            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_gc).write(None);
+            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_shutdown).write(None);
+
+            // This shutdown will free the observed heap we created in minit
+            zend::zend_mm_shutdown((*zend_mm_state).heap, true, true);
+
+            ptr::addr_of_mut!((*zend_mm_state).heap).write(ptr::null_mut());
+            ptr::addr_of_mut!((*zend_mm_state).prev_heap).write(ptr::null_mut());
+
+            debug!("Observed heap was freed and `zend_mm_state` reset");
+        }
+    });
+}
+
+pub fn alloc_prof_rinit() {
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        // Safety: `zend_mm_state.heap` got initialized in `MINIT` and is guaranteed to
+        // be a non null pointer to a valid `zend::zend_mm_heap` struct
+        unsafe {
+            // Install our observed heap into ZendMM
             zend::zend_mm_set_heap((*zend_mm_state).heap);
         }
     });
@@ -181,7 +238,7 @@ pub fn alloc_prof_rshutdown() {
         let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
         let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
 
-        // Safety: `unwrap()` is safe here, as `heap` is initialized in `RINIT`
+        // Safety: `unwrap()` is safe here, as `heap` is initialized in `MINIT`
         let heap = unsafe { (*zend_mm_state).heap };
         unsafe {
             zend::zend_mm_get_custom_handlers_ex(
