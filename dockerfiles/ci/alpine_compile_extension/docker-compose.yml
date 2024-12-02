@@ -20,9 +20,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.0.33
-        php_sha: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
-        php_api: 20151012
+        phpVersion: 7.0.33
+        phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
+        phpApi: 20151012
     volumes:
         - ../../:/app
 
@@ -32,9 +32,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.1.33
-        php_sha: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
-        php_api: 20160303
+        phpVersion: 7.1.33
+        phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
+        phpApi: 20160303
     volumes:
         - ../../:/app
 
@@ -44,9 +44,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.2.34
-        php_sha: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
-        php_api: 20170718
+        phpVersion: 7.2.34
+        phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
+        phpApi: 20170718
     volumes:
         - ../../:/app
 
@@ -56,9 +56,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.3.33
-        php_sha: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
-        php_api: 20180731
+        phpVersion: 7.3.33
+        phpSha256Hash: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
+        phpApi: 20180731
     volumes:
         - ../../:/app
 
@@ -68,9 +68,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 7.4.33
-        php_sha: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
-        php_api: 20190902
+        phpVersion: 7.4.33
+        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+        phpApi: 20190902
     volumes:
         - ../../:/app
 
@@ -80,9 +80,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.0.30
-        php_sha: 449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c
-        php_api: 20200930
+        phpVersion: 8.0.30
+        phpSha256Hash: 449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c
+        phpApi: 20200930
     volumes:
       - ../../:/app
 
@@ -92,9 +92,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.1.31
-        php_sha: 618923b407c4575bfee085f00c4aaa16a5cc86d4b1eb893c0f352d61541bbfb1
-        php_api: 20210902
+        phpVersion: 8.1.31
+        phpSha256Hash: 618923b407c4575bfee085f00c4aaa16a5cc86d4b1eb893c0f352d61541bbfb1
+        phpApi: 20210902
     volumes:
       - ../../:/app
 
@@ -104,9 +104,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.2.26
-        php_sha: 04e47b46b347ed6404dcc9e9989486710b075eafc8490500fd271aeeac5d83cb
-        php_api: 20220829
+        phpVersion: 8.2.26
+        phpSha256Hash: 04e47b46b347ed6404dcc9e9989486710b075eafc8490500fd271aeeac5d83cb
+        phpApi: 20220829
     volumes:
       - ../../:/app
 
@@ -116,9 +116,9 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.3.14
-        php_sha: e4ee602c31e2f701c9f0209a2902dd4802727431246a9155bf56dda7bcf7fb4a
-        php_api: 20230831
+        phpVersion: 8.3.14
+        phpSha256Hash: e4ee602c31e2f701c9f0209a2902dd4802727431246a9155bf56dda7bcf7fb4a
+        phpApi: 20230831
     volumes:
       - ../../:/app
 
@@ -128,8 +128,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        php_version: 8.4.1
-        php_sha: c3d1ce4157463ea43004289c01172deb54ce9c5894d8722f4e805461bf9feaec
-        php_api: 20240924
+        phpVersion: 8.4.1
+        phpSha256Hash: c3d1ce4157463ea43004289c01172deb54ce9c5894d8722f4e805461bf9feaec
+        phpApi: 20240924
     volumes:
       - ../../:/app

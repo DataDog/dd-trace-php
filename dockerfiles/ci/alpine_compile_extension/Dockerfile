@@ -3,19 +3,19 @@ FROM datadog/dd-trace-ci:php-compile-extension-alpine
 ADD ./docker-php-source /usr/bin/docker-php-source
 ADD ./install-php /usr/bin/install-php
 
-ARG php_version
-ARG php_url
-ARG php_sha
-ARG php_api
+ARG phpVersion
+ARG phpTarGzUrl
+ARG phpSha256Hash
+ARG phpApi
 
 ENV SRC_DIR=/usr/src
-ENV PHP_VERSION=${php_version}
-ENV PHP_API=${php_api}
-ENV PHP_URL=${php_url:-https://www.php.net/distributions/php-${php_version}.tar.gz}
-ENV PHP_SHA256=${php_sha}
+ENV PHP_VERSION=${phpVersion}
+ENV PHP_API=${phpApi}
+ENV PHP_URL=${phpTarGzUrl:-https://www.php.net/distributions/php-${phpVersion}.tar.gz}
+ENV PHP_SHA256=${phpSha256Hash}
 ENV PHP_SRC_DIR=${SRC_DIR}/php
-ENV PHP_INI_DIR /usr/local/etc/php-${php_version}
-ENV PHP_INSTALL_DIR=/usr/local/php-${php_version}
+ENV PHP_INI_DIR /usr/local/etc/php-${phpVersion}
+ENV PHP_INSTALL_DIR=/usr/local/php-${phpVersion}
 
 RUN install-php
 ENV PATH ${PATH}:${PHP_INSTALL_DIR}/bin

@@ -235,7 +235,9 @@ static bool is_mapped(void *addr, size_t size) {
     return true;
 }
 #else
-static inline bool is_mapped(...) {
+static inline bool is_mapped(void *addr, size_t size) {
+    (void)addr;
+    (void)size;
     return true;
 }
 #endif

@@ -124,16 +124,7 @@ else
   pecl install sqlsrv$SQLSRV_VERSION; echo "extension=sqlsrv.so" >> ${iniDir}/sqlsrv.ini;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
-    if [[ "${VERSION}" == "-3.4.0" ]]; then
-      curl -LO https://github.com/xdebug/xdebug/archive/12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz
-      tar -xvzf 12adc6394adbf14f239429d72cf34faadddd19fb.tar.gz;
-      cd xdebug-12adc6394adbf14f239429d72cf34faadddd19fb;
-      phpize;
-      ./configure;
-      make && make install;
-    else
-      pecl install xdebug$VERSION;
-    fi
+    pecl install xdebug$VERSION;
     cd $(php-config --extension-dir);
     mv xdebug.so xdebug$VERSION.so;
   done
@@ -143,5 +134,24 @@ else
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_ZTS -eq 1 ]]; then
     pecl install parallel;
     echo "extension=parallel" >> ${iniDir}/parallel.ini;
+  fi
+
+  # ext-swoole needs PHP 8
+  if [[ $PHP_VERSION_ID -ge 80 ]]; then
+    pushd /tmp
+    if [[ $PHP_VERSION_ID -ge 83 ]]; then
+      pecl download swoole-6.0.0RC1;
+      tar xzf swoole-6.0.0RC1.tgz
+      cd swoole-6.0.0RC1
+    else
+      pecl download swoole-5.1.6;
+      tar xzf swoole-5.1.6.tgz
+      cd swoole-5.1.6
+    fi
+    phpize
+    ./configure --host=$HOST_ARCH-linux-gnu
+    make -j "$((`nproc`+1))"
+    make install
+    popd
   fi
 fi
