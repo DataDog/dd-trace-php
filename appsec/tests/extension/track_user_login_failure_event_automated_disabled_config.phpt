@@ -14,7 +14,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("Admin", true,
+track_user_login_failure_event("Admin", "login", true,
 [
     "value" => "something",
     "metadata" => "some other metadata",

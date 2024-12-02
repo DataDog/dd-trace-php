@@ -426,7 +426,7 @@ static zend_string *_concat_json_fragments()
 
     zend_llist_position pos;
     for (zend_string **sp = zend_llist_get_first_ex(&_appsec_json_frags, &pos);
-         sp != NULL; sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos)) {
+        sp != NULL; sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos)) {
         zend_string *s = *sp;
         needed_len += ZSTR_LEN(s);
     }
@@ -438,8 +438,8 @@ static zend_string *_concat_json_fragments()
 
     size_t i = 0;
     for (zend_string **sp = zend_llist_get_first_ex(&_appsec_json_frags, &pos);
-         sp != NULL;
-         sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos), i++) {
+        sp != NULL;
+        sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos), i++) {
         if (i != 0) {
             *buf++ = ',';
         }
@@ -750,7 +750,7 @@ static void _dd_response_headers(zend_array *meta_ht)
     zend_llist *l = &SG(sapi_headers).headers;
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(l, &pos); header;
-         header = zend_llist_get_next_ex(l, &pos)) {
+        header = zend_llist_get_next_ex(l, &pos)) {
         const char *pcol = memchr(header->header, ':', header->header_len);
         if (!pcol) {
             if (header->header_len <= INT_MAX) {
@@ -919,11 +919,12 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     }
 
     zend_string *user_id = NULL;
+    zend_string *user_login = NULL;
     HashTable *metadata = NULL;
     zend_bool automated = false; // Don't document. Only internal usage
     zend_bool copy_user_id = true;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata,
-            &automated) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|hb", &user_id, &user_login,
+            &metadata, &automated) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_id, metadata)");
         return;
@@ -1008,11 +1009,12 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     }
 
     zend_string *user_id = NULL;
+    zend_string *user_login = NULL;
     HashTable *metadata = NULL;
     zend_bool automated = false; // Don't document. Only internal usage
     zend_bool copy_user_id = true;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata,
-            &automated) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|hb", &user_id, &user_login,
+            &metadata, &automated) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_id, metadata)");
         return;
@@ -1096,11 +1098,12 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     }
 
     zend_string *user_id = NULL;
+    zend_string *user_login = NULL;
     zend_bool exists = false;
     HashTable *metadata = NULL;
     zend_bool automated = false; // Don't document. Only internal usage
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sb|hb", &user_id, &exists,
-            &metadata, &automated) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSb|hb", &user_id, &user_login,
+            &exists, &metadata, &automated) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_id, exists, metadata)");
         return;
@@ -1162,7 +1165,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
                 dd_get_user_collection_mode_zstr(), true, override);
         }
     } else {
-        // _dd.appsec.events.users.login.success.sdk = true
+        // _dd.appsec.events.users.login.failure.sdk = true
         _add_new_zstr_to_meta(
             meta_ht, _dd_login_failure_event_sdk, _true_zstr, true, override);
 
@@ -1283,20 +1286,23 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(add_ancillary_tags, 0, 1, IS_VOID, 0)
     ZEND_ARG_TYPE_INFO(2, "_server", IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_arginfo, 0, 0, IS_VOID, 3)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_arginfo, 0, 0, IS_VOID, 4)
 ZEND_ARG_INFO(0, user_id)
+ZEND_ARG_INFO(0, user_login)
 ZEND_ARG_INFO(0, metadata)
 ZEND_ARG_INFO(0, automated)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(datadog_appsec_track_user_signup_event_arginfo, 0, 0, IS_VOID, 3)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(datadog_appsec_track_user_signup_event_arginfo, 0, 0, IS_VOID, 4)
 ZEND_ARG_INFO(0, user_id)
+ZEND_ARG_INFO(0, user_login)
 ZEND_ARG_INFO(0, metadata)
 ZEND_ARG_INFO(0, automated)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_arginfo, 0, 0, IS_VOID, 4)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_arginfo, 0, 0, IS_VOID, 5)
 ZEND_ARG_INFO(0, user_id)
+ZEND_ARG_INFO(0, user_login)
 ZEND_ARG_INFO(0, exists)
 ZEND_ARG_INFO(0, metadata)
 ZEND_ARG_INFO(0, automated)
