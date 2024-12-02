@@ -361,7 +361,7 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80400 {
         println!("cargo:rustc-cfg=php_frameless");
         println!("cargo:rustc-cfg=php_opcache_restart_hook");
-        println!("cargo:rustc-cfg=php_new_zendmm_hooks");
+        println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
     }
 }
 

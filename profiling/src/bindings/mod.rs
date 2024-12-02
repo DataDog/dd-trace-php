@@ -46,9 +46,9 @@ pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
-#[cfg(all(feature = "allocation_profiling", php_new_zendmm_hooks))]
+#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
 pub type VmMmCustomGcFn = unsafe extern "C" fn() -> size_t;
-#[cfg(all(feature = "allocation_profiling", php_new_zendmm_hooks))]
+#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
 pub type VmMmCustomShutdownFn = unsafe extern "C" fn(bool, bool);
 
 // todo: this a lie on some PHP versions; is it a problem even though zend_bool
