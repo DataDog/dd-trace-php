@@ -12,12 +12,12 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("Admin", false,
+track_user_login_failure_event("Admin", "login", false,
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-]);
+], false);
 
 rshutdown();
 
@@ -41,6 +41,9 @@ Array
     [appsec.events.users.login.failure.metadata] => some other metadata
     [appsec.events.users.login.failure.email] => noneofyour@business.com
     [appsec.events.users.login.failure.usr.exists] => false
+    [appsec.events.users.login.failure.usr.login] => login
+    [_dd.appsec.usr.login] => login
+    [_dd.appsec.usr.id] => Admin
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

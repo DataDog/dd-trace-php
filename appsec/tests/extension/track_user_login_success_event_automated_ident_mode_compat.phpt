@@ -13,7 +13,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_success_event("1234", ['email' => 'some@email.com'], true);
+track_user_login_success_event("1234", "5678", ['email' => 'some@email.com'], true);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -26,4 +26,7 @@ Array
     [usr.id] => 1234
     [_dd.appsec.events.users.login.success.auto.mode] => identification
     [appsec.events.users.login.success.track] => true
+    [_dd.appsec.usr.id] => 1234
+    [appsec.events.users.login.success.usr.login] => 5678
+    [_dd.appsec.usr.login] => 5678
 )
