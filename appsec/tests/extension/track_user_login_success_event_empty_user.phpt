@@ -14,12 +14,12 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_success_event("",
+track_user_login_success_event("", "login",
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-]);
+], false);
 
 require __DIR__ . '/inc/logging.php';
 match_log("/Unexpected empty user id/");
