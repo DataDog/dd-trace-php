@@ -13,7 +13,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_signup_event("1234",
+track_user_signup_event("1234", "1234",
 [
     "value" => "something",
     "metadata" => "some other metadata",
@@ -32,4 +32,8 @@ Array
     [usr.id] => anon_03ac674216f3e15c761ee1a5e255f067
     [_dd.appsec.events.users.signup.auto.mode] => anonymization
     [appsec.events.users.signup.track] => true
+    [_dd.appsec.usr.id] => anon_03ac674216f3e15c761ee1a5e255f067
+    [appsec.events.users.signup.usr.id] => anon_03ac674216f3e15c761ee1a5e255f067
+    [_dd.appsec.usr.login] => anon_03ac674216f3e15c761ee1a5e255f067
+    [appsec.events.users.signup.usr.login] => anon_03ac674216f3e15c761ee1a5e255f067
 )

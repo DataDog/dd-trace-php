@@ -12,12 +12,12 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_signup_event("Admin",
+track_user_signup_event("Admin", "1234",
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-]);
+], false);
 
 rshutdown();
 

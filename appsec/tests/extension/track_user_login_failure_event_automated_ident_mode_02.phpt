@@ -27,4 +27,7 @@ Array
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.usr.exists] => true
+    [appsec.events.users.login.failure.usr.login] => login
+    [_dd.appsec.usr.login] => login
+    [_dd.appsec.usr.id] => sensitiveId
 )

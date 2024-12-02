@@ -13,7 +13,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("1234", true, ['email' => 'some@email.com'], true);
+track_user_login_failure_event("1234", "5678", true, ['email' => 'some@email.com'], true);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -27,4 +27,7 @@ Array
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.usr.exists] => true
+    [appsec.events.users.login.failure.usr.login] => 5678
+    [_dd.appsec.usr.login] => 5678
+    [_dd.appsec.usr.id] => 1234
 )
