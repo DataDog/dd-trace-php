@@ -9,7 +9,7 @@ ARG phpSha256Hash
 ARG phpApi
 
 ENV SRC_DIR=/usr/src
-ENV phpVersion=${phpVersion}
+ENV PHP_VERSION=${phpVersion}
 ENV PHP_API=${phpApi}
 ENV PHP_URL=${phpTarGzUrl:-https://www.php.net/distributions/php-${phpVersion}.tar.gz}
 ENV PHP_SHA256=${phpSha256Hash}
