@@ -367,14 +367,15 @@ void dd_tags_add_tags(
         return;
     }
 
-    zval true_zv;
-    ZVAL_STR_COPY(&true_zv, _true_zstr);
+    // If we reach this point, there are asm events
+    zval _1_zval;
+    ZVAL_STR(&_1_zval, _1_zstr);
 
     zval *meta = dd_trace_span_get_meta(span);
     if (meta &&
         zend_hash_find(Z_ARRVAL_P(meta), _dd_tag_p_appsec_zstr) == NULL) {
         // tag _dd.p.appsec
-        if (!dd_trace_span_add_tag(span, _dd_tag_p_appsec_zstr, &true_zv)) {
+        if (!dd_trace_span_add_tag(span, _dd_tag_p_appsec_zstr, &_1_zval)) {
             mlog(dd_log_info,
                 "Failed adding tag " DD_TAG_P_APPSEC " to root span");
             return;
@@ -384,8 +385,6 @@ void dd_tags_add_tags(
             "Skipping adding " DD_TAG_P_APPSEC " as it was already added");
     }
 
-    zval _1_zval;
-    ZVAL_STR(&_1_zval, _1_zstr);
     dd_trace_span_add_propagated_tags(_dd_tag_p_appsec_zstr, &_1_zval);
 
     zend_string *tag_value = _concat_json_fragments();
@@ -401,7 +400,9 @@ void dd_tags_add_tags(
     }
 
     // tag appsec.event
-    res = dd_trace_span_add_tag(span, _dd_tag_event_zstr, &true_zv);
+    zval _true_zval;
+    ZVAL_STR(&_true_zval, _true_zstr);
+    res = dd_trace_span_add_tag(span, _dd_tag_event_zstr, &_true_zval);
     if (!res) {
         mlog(dd_log_info, "Failed adding tag " DD_TAG_EVENT " to root span");
         return;
