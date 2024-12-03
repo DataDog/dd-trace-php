@@ -7,7 +7,7 @@ on:
 
 jobs:
   prof-correctness:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         php-version: [8.0, 8.1, 8.2, 8.3, 8.4]
