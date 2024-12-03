@@ -10,7 +10,7 @@ on:
 jobs:
   add_to_milestone:
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, '[Version Bump]') == false
-    runs-on: ubuntu-24.02
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pull-requests: write # need to modify existing PR
