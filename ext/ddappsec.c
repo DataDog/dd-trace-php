@@ -14,6 +14,10 @@ void ddtrace_appsec_minit() {
 }
 
 DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
+    if (!DDTRACE_G(active_stack)) {
+        return;
+    }
+
     DDTRACE_G(asm_event_emitted) = true;
 
     zval _1_zval;

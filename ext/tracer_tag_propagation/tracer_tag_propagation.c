@@ -100,12 +100,11 @@ static zend_array *ddtrace_get_root_meta() {
 }
 
 zval *ddtrace_propagated_tags_get_tag(const char *tag) {
-    zend_array *propagated = ddtrace_get_propagated();
-    zend_array *root_meta = ddtrace_get_root_meta();
-
     if (!tag) {
         return NULL;
     }
+    zend_array *propagated = ddtrace_get_propagated();
+    zend_array *root_meta = ddtrace_get_root_meta();
     size_t tag_len = strlen(tag);
 
     if (!zend_hash_str_find(propagated, tag, tag_len)) {
