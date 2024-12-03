@@ -1386,7 +1386,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1421,7 +1421,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1494,7 +1494,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1532,7 +1532,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1572,7 +1572,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
