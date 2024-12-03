@@ -12,12 +12,12 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_signup_event("Admin", "1234",
+track_user_signup_event("sdkID",
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-], false);
+]);
 
 rshutdown();
 
@@ -34,7 +34,7 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => Admin
+    [usr.id] => sdkID
     [_dd.appsec.events.users.signup.sdk] => true
     [appsec.events.users.signup.value] => something
     [appsec.events.users.signup.metadata] => some other metadata

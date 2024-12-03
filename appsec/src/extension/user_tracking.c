@@ -181,7 +181,7 @@ bool dd_parse_user_collection_mode(
     return true;
 }
 
-zend_string *nullable dd_user_id_anonymize(zend_string *nonnull user_id)
+zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_id)
 {
     zend_string *digest;
     const php_hash_ops *ops;

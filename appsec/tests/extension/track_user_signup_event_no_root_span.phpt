@@ -9,18 +9,17 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
 use function datadog\appsec\track_user_signup_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_signup_event("Admin", "login",
+track_user_signup_event("sdkID",
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-], false);
+]);
 
 
 require __DIR__ . '/inc/logging.php';
