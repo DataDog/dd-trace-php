@@ -51,12 +51,9 @@ struct ZendMMState {
     shutdown: unsafe fn(bool, bool),
 }
 
-thread_local! {
-    /// Using an `UnsafeCell` here should be okay. There might not be any
-    /// synchronisation issues, as it is used in as thread local and only
-    /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
-        UnsafeCell::new(ZendMMState {
+impl ZendMMState {
+    const fn new() -> ZendMMState {
+        ZendMMState {
             // Safety: Using `ptr::null_mut()` might seem dangerous but actually it is okay in this
             // case. The `heap` and `prev_heap` fields will be initialized in the first call to
             // RINIT and only used after that. By using this "trick" we can get rid of all
@@ -74,7 +71,18 @@ thread_local! {
             free: alloc_prof_orig_free,
             gc: alloc_prof_orig_gc,
             shutdown: alloc_prof_orig_shutdown,
-        })
+        }
+    }
+}
+
+impl ZendMMState {}
+
+thread_local! {
+    /// Using an `UnsafeCell` here should be okay. There might not be any
+    /// synchronisation issues, as it is used in as thread local and only
+    /// mutated in RINIT and RSHUTDOWN.
+    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
+        UnsafeCell::new(ZendMMState::new())
     };
 }
 
@@ -90,16 +98,28 @@ macro_rules! tls_zend_mm_state {
 #[allow(dead_code)]
 pub fn alloc_prof_minit() {
     #[cfg(not(php_zts))]
-    alloc_prof_ginit();
+    alloc_prof_hook();
 }
 
 #[allow(dead_code)]
 pub fn alloc_prof_mshutdown() {
     #[cfg(not(php_zts))]
-    alloc_prof_gshutdown();
+    alloc_prof_unhook();
 }
 
+#[allow(dead_code)]
 pub fn alloc_prof_ginit() {
+    #[cfg(php_zts)]
+    alloc_prof_hook();
+}
+
+#[allow(dead_code)]
+pub fn alloc_prof_gshutdown() {
+    #[cfg(php_zts)]
+    alloc_prof_unhook();
+}
+
+fn alloc_prof_hook() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
 
@@ -162,7 +182,7 @@ pub fn alloc_prof_ginit() {
     });
 }
 
-pub fn alloc_prof_gshutdown() {
+fn alloc_prof_unhook() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
         unsafe {
