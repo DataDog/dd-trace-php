@@ -239,7 +239,7 @@ void instance::listener::call(dds::parameter_view &data, event &event)
             derivatives_.emplace(
                 derivative.key(), std::move(parameter_to_json(derivative)));
         } else {
-            derivatives_.emplace(derivative.key(), std::move(derivative));
+            derivatives_.emplace(derivative.key(), derivative);
         }
     }
 
