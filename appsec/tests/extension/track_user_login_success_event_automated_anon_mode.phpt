@@ -8,12 +8,12 @@ DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anon
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
-use function datadog\appsec\track_user_login_success_event;
+use function datadog\appsec\track_user_login_success_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_success_event("admin", "login", ['something' => 'discarded'], true);
+track_user_login_success_event_automated("login", "automatedID", ['something' => 'discarded']);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -23,10 +23,10 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => anon_8c6976e5b5410415bde908bd4dee15df
+    [usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
+    [_dd.appsec.usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
     [_dd.appsec.events.users.login.success.auto.mode] => anonymization
+    [appsec.events.users.login.success.usr.login] => anon_428821350e9691491f616b754cd8315f
+    [_dd.appsec.usr.login] => anon_428821350e9691491f616b754cd8315f
     [appsec.events.users.login.success.track] => true
-    [_dd.appsec.usr.id] => anon_8c6976e5b5410415bde908bd4dee15df
-    [appsec.events.users.login.success.usr.login] => anon_8c6976e5b5410415bde908bd4dee15df
-    [_dd.appsec.usr.login] => anon_8c6976e5b5410415bde908bd4dee15df
 )
