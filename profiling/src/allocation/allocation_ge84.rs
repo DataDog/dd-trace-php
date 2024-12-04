@@ -98,95 +98,105 @@ macro_rules! tls_zend_mm_state {
 #[allow(dead_code)]
 pub fn alloc_prof_minit() {
     #[cfg(not(php_zts))]
-    alloc_prof_hook();
+    alloc_prof_custom_heap_init();
 }
 
 #[allow(dead_code)]
 pub fn alloc_prof_mshutdown() {
     #[cfg(not(php_zts))]
-    alloc_prof_unhook();
+    alloc_prof_custom_heap_reset();
 }
 
 #[allow(dead_code)]
 pub fn alloc_prof_ginit() {
     #[cfg(php_zts)]
-    alloc_prof_hook();
+    alloc_prof_custom_heap_init();
 }
 
 #[allow(dead_code)]
 pub fn alloc_prof_gshutdown() {
     #[cfg(php_zts)]
-    alloc_prof_unhook();
+    alloc_prof_custom_heap_reset();
 }
 
-fn alloc_prof_hook() {
+/// This initializes the thread locale variable `ZEND_MM_STATE` with respect to the currently
+/// installed `zend_mm_heap` in ZendMM. It guarantees compliance with the safety guarantees
+/// described in the `ZendMMState` structure, specifically for `ZendMMState::alloc`,
+/// `ZendMMState::realloc`, `ZendMMState::free`, `ZendMMState::gc` and `ZendMMState::shutdown`.
+/// This function may panic if called out of order!
+fn alloc_prof_custom_heap_init() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
 
         // Only need to create an observed heap once per thread. When we have it, we can just
         // install the observed heap via `zend::zend_mm_set_heap()`
-        if unsafe { (*zend_mm_state).heap.is_null() } {
-            // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
-            let prev_heap = unsafe { zend::zend_mm_get_heap() };
-            unsafe { ptr::addr_of_mut!((*zend_mm_state).prev_heap).write(prev_heap) };
+        if unsafe { !(*zend_mm_state).heap.is_null() } {
+            // This can only happen if either MINIT or GINIT is being called out of order.
+            panic!("MINIT/GINIT was called with an already initialized allocation profiler. Most likely the SAPI did this without going through MSHUTDOWN/GSHUTDOWN before.");
+        }
 
-            if !is_zend_mm() {
-                // Neighboring custom memory handlers found in the currently used ZendMM heap
-                debug!("Found another extension using the ZendMM custom handler hook");
-                unsafe {
-                    zend::zend_mm_get_custom_handlers_ex(
-                        prev_heap,
-                        ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_alloc),
-                        ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_free),
-                        ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_realloc),
-                        ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_gc),
-                        ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_shutdown),
-                    );
-                    ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_prev_alloc);
-                    ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_prev_free);
-                    ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_prev_realloc);
-                    // `gc` handler can be NULL
-                    if (*zend_mm_state).prev_custom_mm_gc.is_none() {
-                        ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_orig_gc);
-                    } else {
-                        ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_prev_gc);
-                    }
-                    // `shutdown` handler can be NULL
-                    if (*zend_mm_state).prev_custom_mm_shutdown.is_none() {
-                        ptr::addr_of_mut!((*zend_mm_state).shutdown)
-                            .write(alloc_prof_orig_shutdown);
-                    } else {
-                        ptr::addr_of_mut!((*zend_mm_state).shutdown)
-                            .write(alloc_prof_prev_shutdown);
-                    }
+        // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
+        let prev_heap = unsafe { zend::zend_mm_get_heap() };
+        unsafe { ptr::addr_of_mut!((*zend_mm_state).prev_heap).write(prev_heap) };
+
+        if !is_zend_mm() {
+            // Neighboring custom memory handlers found in the currently used ZendMM heap
+            debug!("Found another extension using the ZendMM custom handler hook");
+            unsafe {
+                zend::zend_mm_get_custom_handlers_ex(
+                    prev_heap,
+                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_alloc),
+                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_free),
+                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_realloc),
+                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_gc),
+                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_shutdown),
+                );
+                ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_prev_alloc);
+                ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_prev_free);
+                ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_prev_realloc);
+                // `gc` handler can be NULL
+                if (*zend_mm_state).prev_custom_mm_gc.is_none() {
+                    ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_orig_gc);
+                } else {
+                    ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_prev_gc);
+                }
+                // `shutdown` handler can be NULL
+                if (*zend_mm_state).prev_custom_mm_shutdown.is_none() {
+                    ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_orig_shutdown);
+                } else {
+                    ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_prev_shutdown);
                 }
             }
-
-            // Create a new (to be observed) heap and prepare custom handlers
-            let heap = unsafe { zend::zend_mm_startup() };
-            unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(heap) };
-
-            // install our custom handler to ZendMM
-            unsafe {
-                zend::zend_mm_set_custom_handlers_ex(
-                    (*zend_mm_state).heap,
-                    Some(alloc_prof_malloc),
-                    Some(alloc_prof_free),
-                    Some(alloc_prof_realloc),
-                    Some(alloc_prof_gc),
-                    Some(alloc_prof_shutdown),
-                );
-            }
-            debug!("New observed heap created");
         }
+
+        // Create a new (to be observed) heap and prepare custom handlers
+        let heap = unsafe { zend::zend_mm_startup() };
+        unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(heap) };
+
+        // install our custom handler to ZendMM
+        unsafe {
+            zend::zend_mm_set_custom_handlers_ex(
+                (*zend_mm_state).heap,
+                Some(alloc_prof_malloc),
+                Some(alloc_prof_free),
+                Some(alloc_prof_realloc),
+                Some(alloc_prof_gc),
+                Some(alloc_prof_shutdown),
+            );
+        }
+        debug!("New observed heap created");
     });
 }
 
-fn alloc_prof_unhook() {
+/// This resets the thread locale variable `ZEND_MM_STATE` and frees allocated memory. It
+/// guarantees compliance with the safety guarantees described in the `ZendMMState` structure,
+/// specifically for `ZendMMState::alloc`, `ZendMMState::realloc`, `ZendMMState::free`,
+/// `ZendMMState::gc` and `ZendMMState::shutdown`.
+fn alloc_prof_custom_heap_reset() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
         unsafe {
-            // remove custom handlers to allow for ZendMM internal shutdown
+            // Remove custom handlers to allow for ZendMM internal shutdown
             zend::zend_mm_set_custom_handlers_ex(
                 (*zend_mm_state).heap,
                 None,
@@ -196,7 +206,8 @@ fn alloc_prof_unhook() {
                 None,
             );
 
-            // reset to defaults
+            // Reset ZEND_MM_STATE to defaults, now that the pointer are not know to the observed
+            // heap anymore.
             ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_orig_alloc);
             ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_orig_free);
             ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_orig_realloc);
@@ -208,14 +219,14 @@ fn alloc_prof_unhook() {
             ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_gc).write(None);
             ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_shutdown).write(None);
 
-            // This shutdown will free the observed heap we created in minit
+            // This shutdown call will free the observed heap we created in `alloc_prof_custom_heap_init`
             zend::zend_mm_shutdown((*zend_mm_state).heap, true, true);
 
+            // Now that the heap is gone, we need to NULL the pointer
             ptr::addr_of_mut!((*zend_mm_state).heap).write(ptr::null_mut());
             ptr::addr_of_mut!((*zend_mm_state).prev_heap).write(ptr::null_mut());
-
-            debug!("Observed heap was freed and `zend_mm_state` reset");
         }
+        trace!("Observed heap was freed and `zend_mm_state` reset");
     });
 }
 
