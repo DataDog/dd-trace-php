@@ -316,9 +316,12 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
     snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, points);
 
     char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
-    if (execv(telemetry_forwarder_path, argv)) {
-        LOG(ERROR, "Telemetry: cannot execv")
-    }
+
+    execv(telemetry_forwarder_path, argv);
+
+    // If execv failed, exit immediately
+    LOG(ERROR, "Telemetry: cannot execv")
+    exit(127);
 }
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
