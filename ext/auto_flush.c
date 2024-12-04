@@ -1,5 +1,6 @@
 #include "auto_flush.h"
 
+#include "asm_event.h"
 #ifndef _WIN32
 #include "comms_php.h"
 #include "coms.h"
@@ -11,7 +12,6 @@
 #include "span.h"
 #include "sidecar.h"
 #include "ddshared.h"
-#include "ddappsec.h"
 #include "standalone_limiter.h"
 #include <main/SAPI.h>
 
