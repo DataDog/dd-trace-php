@@ -76,7 +76,9 @@
  *
  * This function should be invoked when a bailout has been caught.
  *
- * It will restore engine state and continue in all but the case of a timeout
+ * It will restore engine state and continue in all cases except:
+ * - Timeout
+ * - Request is blocked by the extension
  */
 
 /* ######### Timeout ##########
@@ -218,8 +220,25 @@ inline bool zai_sandbox_timed_out(void) {
     return false;
 }
 
+inline bool zai_is_request_blocked(void)
+{
+    if (!PG(last_error_message)) {
+        return false;
+    }
+
+    if (strcmp("Datadog blocked the request and presented a static error page", ZSTR_VAL(PG(last_error_message))) == 0) {
+        return true;
+    }
+
+    if (strcmp("Datadog blocked the request, but the response has already been partially committed", ZSTR_VAL(PG(last_error_message))) == 0) {
+        return true;
+    }
+
+    return false;
+}
+
 inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
-    if (!zai_sandbox_timed_out()) {
+    if (!zai_sandbox_timed_out() && !zai_is_request_blocked()) {
         zai_sandbox_engine_state_restore(&sandbox->engine_state);
 
         return;
@@ -356,8 +375,25 @@ inline bool zai_sandbox_timed_out(void) {
     return false;
 }
 
+inline bool zai_is_request_blocked(void)
+{
+    if (!PG(last_error_message)) {
+        return false;
+    }
+
+    if (strcmp("Datadog blocked the request and presented a static error page", ZSTR_VAL(PG(last_error_message))) == 0) {
+        return true;
+    }
+
+    if (strcmp("Datadog blocked the request, but the response has already been partially committed", ZSTR_VAL(PG(last_error_message))) == 0) {
+        return true;
+    }
+
+    return false;
+}
+
 inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
-    if (!zai_sandbox_timed_out()) {
+    if (!zai_sandbox_timed_out() && !zai_is_request_blocked()) {
         zai_sandbox_engine_state_restore(&sandbox->engine_state);
 
         return;
