@@ -20,6 +20,7 @@
     INTEGRATION(DRUPAL, "drupal")                                                                                        \
     INTEGRATION(ELASTICSEARCH, "elasticsearch")                                                                          \
     INTEGRATION(ELOQUENT, "eloquent")                                                                                    \
+    INTEGRATION_CUSTOM_ENABLED(FILESYSTEM, "filesystem", is_filesystem_enabled)                                          \
     INTEGRATION(FRANKENPHP, "frankenphp")                                                                                \
     INTEGRATION(GOOGLESPANNER, "googlespanner")                                                                          \
     INTEGRATION(GUZZLE, "guzzle")                                                                                        \
@@ -53,6 +54,7 @@
     INTEGRATION(ZENDFRAMEWORK, "zendframework")
 
 #define INTEGRATION(id, ...) DDTRACE_INTEGRATION_##id,
+#define INTEGRATION_CUSTOM_ENABLED(id, ...) INTEGRATION(id)
 typedef enum { DD_INTEGRATIONS } ddtrace_integration_name;
 #undef INTEGRATION
 

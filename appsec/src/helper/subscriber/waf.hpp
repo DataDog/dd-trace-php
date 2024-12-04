@@ -35,7 +35,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        void call(dds::parameter_view &data, event &event) override;
+        void call(dds::parameter_view &data, event &event, bool rasp) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void get_meta_and_metrics(std::map<std::string, std::string> &meta,
@@ -45,6 +45,9 @@ public:
         ddwaf_context handle_{};
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
+        double rasp_runtime_{0.0};
+        unsigned rasp_calls_{0};
+        unsigned rasp_timeouts_{0};
         std::string_view ruleset_version_;
         std::map<std::string, std::string> derivatives_;
     };
