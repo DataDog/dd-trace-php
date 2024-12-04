@@ -44,6 +44,19 @@ class LaravelIntegration extends Integration
             ]);
     }
 
+    public function getLoginFromArgs($args): string
+    {
+        $allowList = ["email", "username"];
+
+        foreach ($allowList as $key) {
+            if (isset($args[$key])) {
+                return $args[$key];
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return int
      */
@@ -195,11 +208,13 @@ class LaravelIntegration extends Integration
                         ) {
                             return;
                         }
+
                         $id = null;
                         if (isset($args[1]['id'])) {
                             $id = $args[1]['id'];
                         }
-                        \datadog\appsec\track_user_signup_event($id, [], true);
+
+                        \datadog\appsec\track_user_signup_event($id, $this->getLoginFromArgs($args[1]), [], true);
                     }
                 },
                 'recurse' => true,
@@ -344,7 +359,8 @@ class LaravelIntegration extends Integration
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+
+                \datadog\appsec\track_user_login_failure_event(null, $this->getLoginFromArgs($args[0]),  false, [], true);
             }
         );
 
@@ -362,15 +378,20 @@ class LaravelIntegration extends Integration
                 ) {
                     return;
                 }
+
                 $metadata = [];
+
                 if (isset($args[1]['name'])) {
                     $metadata['name'] = $args[1]['name'];
                 }
+
                 if (isset($args[1]['email'])) {
                     $metadata['email'] = $args[1]['email'];
                 }
+
                 \datadog\appsec\track_user_login_success_event(
                     \method_exists($args[1], 'getAuthIdentifier') ? $args[1]->getAuthIdentifier() : '',
+                    $this->getLoginFromArgs($args[1]),
                     $metadata,
                     true
                 );
@@ -393,15 +414,18 @@ class LaravelIntegration extends Integration
                 }
 
                 $metadata = [];
+
                 if (isset($args[0]['name'])) {
                     $metadata['name'] = $args[0]['name'];
                 }
+
                 if (isset($args[0]['email'])) {
                     $metadata['email'] = $args[0]['email'];
                 }
 
                 \datadog\appsec\track_user_login_success_event(
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    $this->getLoginFromArgs($args[0]),
                     $metadata,
                     true
                 );
@@ -417,7 +441,8 @@ class LaravelIntegration extends Integration
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+
+                \datadog\appsec\track_user_login_failure_event(null, $this->getLoginFromArgs($args[0]),  false, [], true);
             }
         );
 
@@ -435,8 +460,10 @@ class LaravelIntegration extends Integration
                 ) {
                     return;
                 }
+
                 \datadog\appsec\track_user_signup_event(
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    $this->getLoginFromArgs($args[0]),
                     [],
                     true
                 );
