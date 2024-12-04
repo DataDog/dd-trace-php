@@ -20,6 +20,7 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_REMOTE_RATE = 2,
     DD_MECHANISM_RULE = 3,
     DD_MECHANISM_MANUAL = 4,
+    DD_MECHANISM_ASM = 5,
 };
 
 typedef zend_object root_span_t;

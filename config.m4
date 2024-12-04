@@ -163,6 +163,7 @@ if test "$PHP_DDTRACE" != "no"; then
   DD_TRACE_PHP_SOURCES="$EXTRA_PHP_SOURCES \
     ext/ddtrace.c \
     ext/agent_info.c \
+    ext/asm_event.c \
     ext/arrays.c \
     ext/auto_flush.c \
     ext/autoload_php_files.c \
@@ -188,7 +189,6 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/integrations/exec_integration.c \
     ext/integrations/integrations.c \
     ext/ip_extraction.c \
-    ext/ddappsec.c \
     ext/standalone_limiter.c \
     ext/live_debugger.c \
     ext/logging.c \

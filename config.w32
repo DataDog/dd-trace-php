@@ -17,6 +17,7 @@ if (PHP_DDTRACE != 'no') {
 
 	var DDTRACE_EXT_SOURCES = "agent_info.c";
 	DDTRACE_EXT_SOURCES += " arrays.c";
+	DDTRACE_EXT_SOURCES += " asm_event.c";
 	DDTRACE_EXT_SOURCES += " auto_flush.c";
 	DDTRACE_EXT_SOURCES += " autoload_php_files.c";
 	DDTRACE_EXT_SOURCES += " collect_backtrace.c";
@@ -36,7 +37,6 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " handlers_internal.c";
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
 	DDTRACE_EXT_SOURCES += " ip_extraction.c";
-	DDTRACE_EXT_SOURCES += " ddappsec.c";
 	DDTRACE_EXT_SOURCES += " standalone_limiter.c";
 	DDTRACE_EXT_SOURCES += " live_debugger.c";
 	DDTRACE_EXT_SOURCES += " logging.c";
