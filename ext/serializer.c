@@ -28,11 +28,11 @@
 #include <zend_abstract_interface/symbols/symbols.h>
 
 #include "arrays.h"
+#include "asm_event.h"
 #include "compat_string.h"
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "engine_hooks.h"
-#include "ddappsec.h"
 #include "git.h"
 #include "ip_extraction.h"
 #include <components/log/log.h>

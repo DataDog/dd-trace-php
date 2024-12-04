@@ -37,6 +37,7 @@
 #include <components-rs/ddtrace.h>
 #include <components/log/log.h>
 
+#include "asm_event.h"
 #include "auto_flush.h"
 #include "compatibility.h"
 #ifndef _WIN32
@@ -66,7 +67,6 @@
 #include "autoload_php_files.h"
 #include "remote_config.h"
 #include "serializer.h"
-#include "ddappsec.h"
 #include "sidecar.h"
 #ifndef _WIN32
 #include "signals.h"

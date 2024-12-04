@@ -1,9 +1,9 @@
+#include "asm_event.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
-#include "ddappsec.h"
 #include <Zend/zend_smart_str.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
