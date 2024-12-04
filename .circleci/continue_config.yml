@@ -1386,7 +1386,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1421,13 +1421,13 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
             export DEBIAN_FRONTEND=noninteractive
             apt update
-            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.2-xml php-cgi
+            apt install -y wget sudo git g++ gcc gcovr cmake make curl libcurl4-gnutls-dev clang clang-tidy clang-format git php-dev php8.3-xml php-cgi
       - run:
           name: Install rust
           command: |
@@ -1494,7 +1494,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1532,7 +1532,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |
@@ -1572,7 +1572,7 @@ jobs:
           keys:
             - hunter-cache-ubuntu-<< parameters.resource_class >>-
       - setup_docker:
-          docker_image: ubuntu:23.10
+          docker_image: ubuntu:24.04
       - run:
           name: Install dependencies
           command: |

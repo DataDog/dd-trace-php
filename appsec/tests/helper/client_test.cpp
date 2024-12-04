@@ -559,8 +559,9 @@ TEST(ClientTest, RequestInitLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -763,9 +764,9 @@ TEST(ClientTest, RequestInitBrokerThrows)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
-
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
         network::request req(std::move(msg));
 
         std::shared_ptr<network::base_response> res;
@@ -2602,8 +2603,9 @@ TEST(ClientTest, SchemasAreNotAddedOnRequestShutdownWhenDisabled)
     { // Request Shutdown
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
