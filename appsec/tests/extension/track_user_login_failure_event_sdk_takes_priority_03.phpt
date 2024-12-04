@@ -8,14 +8,15 @@ DD_APPSEC_ENABLED=1
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
 use function datadog\appsec\track_user_login_failure_event;
+use function datadog\appsec\track_user_login_failure_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("1234", "5678", false, ["value" => "something-from-automated"], true); //Automated
-track_user_login_failure_event("Admin", "login", true, ["value" => "something-from-sdk"], false); //Sdk
-track_user_login_failure_event("Other", "OtherLogin", true, ["value" => "something-from-sdk-2"], false); //Sdk
-track_user_login_failure_event("4567", "890", false, ["value" => "something-from-automated-2"], true); //Automated
+track_user_login_failure_event_automated("login", "automatedID", false, ["value" => "something-from-automated"]);
+track_user_login_failure_event("sdkID", true, ["value" => "something-from-sdk"]);
+track_user_login_failure_event("otherSdkID", true, ["value" => "something-from-sdk-2"]);
+track_user_login_failure_event_automated("otherLogin", "otherAutomatedID", false, ["value" => "something-from-automated-2"]);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -25,13 +26,13 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [appsec.events.users.login.failure.usr.id] => Other
-    [appsec.events.users.login.failure.track] => true
+    [appsec.events.users.login.failure.usr.id] => otherSdkID
+    [_dd.appsec.usr.id] => otherAutomatedID
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
+    [appsec.events.users.login.failure.usr.login] => otherLogin
+    [_dd.appsec.usr.login] => otherLogin
+    [appsec.events.users.login.failure.track] => true
     [appsec.events.users.login.failure.usr.exists] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
     [appsec.events.users.login.failure.value] => something-from-sdk-2
-    [appsec.events.users.login.failure.usr.login] => OtherLogin
-    [_dd.appsec.usr.login] => OtherLogin
-    [_dd.appsec.usr.id] => Other
 )
