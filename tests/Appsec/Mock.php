@@ -96,20 +96,37 @@ if (!function_exists('datadog\appsec\appsecMockEnabled')) {
     }
 }
 
+if (!function_exists('datadog\appsec\track_user_login_success_event_automated')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     */
+    function track_user_login_success_event_automated($userLogin, $userId, $metadata)
+    {
+        if (!appsecMockEnabled()) {
+            return;
+        }
+        $event = [
+            'userLogin' => $userLogin,
+            'userId' => $userId,
+            'metadata' => $metadata,
+
+        ];
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event');
+    }
+}
+
 if (!function_exists('datadog\appsec\track_user_login_success_event')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_login_success_event($userId, $userLogin, $metadata, $automated)
+    function track_user_login_success_event($userId, $metadata)
     {
         if (!appsecMockEnabled()) {
             return;
         }
         $event = [
             'userId' => $userId,
-            'userLogin' => $userLogin,
             'metadata' => $metadata,
-            'automated' => $automated
 
         ];
         AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event');
