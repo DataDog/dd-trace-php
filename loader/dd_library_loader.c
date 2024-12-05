@@ -8,6 +8,7 @@
 #include <php.h>
 #include <php_ini.h>
 #include <stdbool.h>
+#include <errno.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
 
@@ -318,9 +319,10 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *format, ...
     char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
 
     execv(telemetry_forwarder_path, argv);
+    LOG(ERROR, "Telemetry: cannot execv: %s", strerror(errno))
 
     // If execv failed, exit immediately
-    LOG(ERROR, "Telemetry: cannot execv")
+    // Return 127 for the most likely case of a missing file
     exit(127);
 }
 
