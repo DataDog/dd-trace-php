@@ -87,7 +87,7 @@ lazy_static! {
     static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
 }
 
-pub fn alloc_prof_minit() {
+pub fn alloc_prof_ginit() {
     unsafe { zend::ddog_php_opcache_init_handle() };
 }
 

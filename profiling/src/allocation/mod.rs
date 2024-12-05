@@ -77,36 +77,20 @@ thread_local! {
         RefCell::new(AllocationProfilingStats::new());
 }
 
-pub fn alloc_prof_minit() {
-    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_minit();
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_minit();
-}
-
-#[allow(dead_code)]
-pub fn alloc_prof_mshutdown() {
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_mshutdown();
-}
-
-#[allow(dead_code)]
-#[cfg(php_zts)]
 pub fn alloc_prof_ginit() {
+    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+    allocation_le83::alloc_prof_ginit();
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_ginit();
 }
 
-#[allow(dead_code)]
-#[cfg(php_zts)]
 pub fn alloc_prof_gshutdown() {
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_gshutdown();
 }
 
-#[allow(dead_code)]
+#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub fn alloc_prof_startup() {
-    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation_le83::alloc_prof_startup();
 }
 
