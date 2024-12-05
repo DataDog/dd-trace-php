@@ -31,7 +31,6 @@ use core::ptr;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
 use libc::c_char;
-#[cfg(php_zts)]
 use libc::c_void;
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
@@ -184,14 +183,13 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         version: PROFILER_VERSION.as_ptr(),
         post_deactivate_func: Some(prshutdown),
         deps: DEPS.as_ptr(),
-        #[cfg(php_zts)]
         globals_ctor: Some(ginit),
-        #[cfg(php_zts)]
         globals_dtor: Some(gshutdown),
-        #[cfg(php_zts)]
         globals_size: 1,
         #[cfg(php_zts)]
         globals_id_ptr: unsafe { &mut GLOBALS_ID_PTR },
+        #[cfg(not(php_zts))]
+        globals_ptr: ptr::null_mut(),
         ..Default::default()
     });
 
@@ -199,7 +197,6 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
     unsafe { &mut *ptr::addr_of_mut!(MODULE) }
 }
 
-#[cfg(php_zts)]
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_ginit();
@@ -208,7 +205,6 @@ unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     allocation::alloc_prof_ginit();
 }
 
-#[cfg(php_zts)]
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_gshutdown();
@@ -348,9 +344,6 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_minit();
-
-    #[cfg(feature = "allocation_profiling")]
-    allocation::alloc_prof_minit();
 
     // There are a few things which need to do something on the first rinit of
     // each minit/mshutdown cycle. In Apache, when doing `apachectl graceful`,
@@ -857,9 +850,6 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
 
-    #[cfg(feature = "allocation_profiling")]
-    allocation::alloc_prof_mshutdown();
-
     Profiler::stop(Duration::from_secs(1));
 
     ZendResult::Success
@@ -884,7 +874,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         timeline::timeline_startup();
     }
 
-    #[cfg(feature = "allocation_profiling")]
+    #[cfg(all(feature = "allocation_profiling", not(php_zend_mm_set_custom_handlers_ex)))]
     allocation::alloc_prof_startup();
 
     ZendResult::Success

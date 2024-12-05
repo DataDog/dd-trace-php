@@ -95,36 +95,12 @@ macro_rules! tls_zend_mm_state {
     };
 }
 
-#[allow(dead_code)]
-pub fn alloc_prof_minit() {
-    #[cfg(not(php_zts))]
-    alloc_prof_custom_heap_init();
-}
-
-#[allow(dead_code)]
-pub fn alloc_prof_mshutdown() {
-    #[cfg(not(php_zts))]
-    alloc_prof_custom_heap_reset();
-}
-
-#[allow(dead_code)]
-pub fn alloc_prof_ginit() {
-    #[cfg(php_zts)]
-    alloc_prof_custom_heap_init();
-}
-
-#[allow(dead_code)]
-pub fn alloc_prof_gshutdown() {
-    #[cfg(php_zts)]
-    alloc_prof_custom_heap_reset();
-}
-
 /// This initializes the thread locale variable `ZEND_MM_STATE` with respect to the currently
 /// installed `zend_mm_heap` in ZendMM. It guarantees compliance with the safety guarantees
 /// described in the `ZendMMState` structure, specifically for `ZendMMState::alloc`,
 /// `ZendMMState::realloc`, `ZendMMState::free`, `ZendMMState::gc` and `ZendMMState::shutdown`.
 /// This function may panic if called out of order!
-fn alloc_prof_custom_heap_init() {
+pub fn alloc_prof_ginit() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
 
@@ -192,7 +168,7 @@ fn alloc_prof_custom_heap_init() {
 /// guarantees compliance with the safety guarantees described in the `ZendMMState` structure,
 /// specifically for `ZendMMState::alloc`, `ZendMMState::realloc`, `ZendMMState::free`,
 /// `ZendMMState::gc` and `ZendMMState::shutdown`.
-fn alloc_prof_custom_heap_reset() {
+pub fn alloc_prof_gshutdown() {
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
         unsafe {
