@@ -9,6 +9,7 @@ jobs:
     strategy:
       matrix:
         php-version: [8.3, 8.4]
+        phpts: [nts, zts]
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-5
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
@@ -30,12 +31,12 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.phpts }}
 
       - name: Build and install profiler
         run: |
           set -eux
-          switch-php nts-asan
+          switch-php ${{ matrix.phpts }}-asan
           rm $(php-config --ini-dir)/sqlsrv.ini #sqlsrv leaks memory and triggers asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
@@ -57,12 +58,12 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             /tmp/build-cargo/
-          key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.phpts }}
 
       - name: Run phpt tests
         run: |
           set -eux
-          switch-php nts-asan
+          switch-php ${{ matrix.phpts }}-asan
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
