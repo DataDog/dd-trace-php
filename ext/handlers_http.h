@@ -1,3 +1,4 @@
+#include "asm_event.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
@@ -135,6 +136,15 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_b3single = zend_hash_str_exists(inject, ZEND_STRL("b3 single header"));
 
     zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == true) {
+        sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
+    }
+
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == false &&
+        ddtrace_propagated_tags_get_tag(DD_TAG_P_APPSEC) == NULL) {
+        return;
+    }
+
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         if (send_datadog) {
             ADD_HEADER("x-datadog-sampling-priority", ZEND_LONG_FMT, sampling_priority);

@@ -124,36 +124,38 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
     }
 
     zval *rule;
-    ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
-        if (++index >= skip_at) {
-            break;
-        }
+    if (!get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {  // APPSEC_STANDALONE enabled, override sampling rules to be empty
+        ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
+            if (++index >= skip_at) {
+                break;
+            }
 
-        if (Z_TYPE_P(rule) != IS_ARRAY) {
-            continue;
-        }
-
-        if (!eval_root) {
-            zval *applies = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("target_span"));
-            if (!applies || Z_TYPE_P(applies) != IS_STRING || !zend_string_equals_literal(Z_STR_P(applies), "any")) {
+            if (Z_TYPE_P(rule) != IS_ARRAY) {
                 continue;
             }
-        }
 
-        if (dd_check_sampling_rule(Z_ARR_P(rule), span)) {
-            zval *sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate"));
-            zval *provenance_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("_provenance"));
-            enum dd_sampling_mechanism mechanism = DD_MECHANISM_RULE;
-            if (provenance_zv && Z_TYPE_P(provenance_zv) == IS_STRING) {
-                if (zend_string_equals_literal(Z_STR_P(provenance_zv), "customer")) {
-                    mechanism = DD_MECHANISM_REMOTE_USER_RULE;
-                } else if (zend_string_equals_literal(Z_STR_P(provenance_zv), "dynamic")) {
-                    mechanism = DD_MECHANISM_REMOTE_DYNAMIC_RULE;
+            if (!eval_root) {
+                zval *applies = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("target_span"));
+                if (!applies || Z_TYPE_P(applies) != IS_STRING || !zend_string_equals_literal(Z_STR_P(applies), "any")) {
+                    continue;
                 }
             }
-            return (ddtrace_rule_result){ .sampling_rate = sample_rate_zv ? zval_get_double(sample_rate_zv) : 1, .rule = index, .mechanism = mechanism };
-        }
-    } ZEND_HASH_FOREACH_END();
+
+            if (dd_check_sampling_rule(Z_ARR_P(rule), span)) {
+                zval *sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate"));
+                zval *provenance_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("_provenance"));
+                enum dd_sampling_mechanism mechanism = DD_MECHANISM_RULE;
+                if (provenance_zv && Z_TYPE_P(provenance_zv) == IS_STRING) {
+                    if (zend_string_equals_literal(Z_STR_P(provenance_zv), "customer")) {
+                        mechanism = DD_MECHANISM_REMOTE_USER_RULE;
+                    } else if (zend_string_equals_literal(Z_STR_P(provenance_zv), "dynamic")) {
+                        mechanism = DD_MECHANISM_REMOTE_DYNAMIC_RULE;
+                    }
+                }
+                return (ddtrace_rule_result){ .sampling_rate = sample_rate_zv ? zval_get_double(sample_rate_zv) : 1, .rule = index, .mechanism = mechanism };
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
 
     return (ddtrace_rule_result){ .sampling_rate = 0, .rule = INT32_MAX, .mechanism = DD_MECHANISM_RULE };
 }

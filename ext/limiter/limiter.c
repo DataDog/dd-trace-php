@@ -61,6 +61,9 @@ bool ddtrace_limiter_active() {
 }
 
 bool ddtrace_limiter_allow() {
+    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        return true;
+    }
     ZEND_ASSERT(dd_limiter);
 
     uint64_t timeval = zend_hrtime();

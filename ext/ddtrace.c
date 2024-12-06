@@ -37,6 +37,7 @@
 #include <components-rs/ddtrace.h>
 #include <components/log/log.h>
 
+#include "asm_event.h"
 #include "auto_flush.h"
 #include "compatibility.h"
 #ifndef _WIN32
@@ -60,6 +61,7 @@
 #include "logging.h"
 #include "memory_limit.h"
 #include "limiter/limiter.h"
+#include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
 #include "autoload_php_files.h"
@@ -1423,6 +1425,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
+    ddtrace_standalone_limiter_create();
 
     ddtrace_log_minit();
 
@@ -1452,6 +1455,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
+    ddtrace_appsec_minit();
 
     return SUCCESS;
 }
@@ -1496,6 +1500,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
+    ddtrace_standalone_limiter_destroy();
     zai_config_mshutdown();
     zai_json_shutdown_bindings();
 
@@ -1543,6 +1548,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
+    DDTRACE_G(asm_event_emitted) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
