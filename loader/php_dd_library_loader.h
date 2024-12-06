@@ -24,10 +24,11 @@ typedef enum {
     REASON_ERROR,
     REASON_EOL_RUNTIME,
     REASON_INCOMPATIBLE_RUNTIME,
+    REASON_ALREADY_LOADED,
     REASON_COMPLETE,
 } telemetry_reason;
 
-#define TELEMETRY(reason, format, ...) ddloader_telemetryf(reason, format, ##__VA_ARGS__);
+#define TELEMETRY(reason, error, format, ...) ddloader_telemetryf(reason, error, format, ##__VA_ARGS__);
 
 #define DECLARE_INJECTED_EXT(name, dir, _pre_load_hook, _pre_minit_hook, deps)                      \
     {                                                                                               \
