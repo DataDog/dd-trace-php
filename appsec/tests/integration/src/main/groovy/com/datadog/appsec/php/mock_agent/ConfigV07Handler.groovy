@@ -1,7 +1,7 @@
 package com.datadog.appsec.php.mock_agent
 
-import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.google.common.collect.Lists
 import groovy.transform.CompileStatic
@@ -47,6 +47,16 @@ class ConfigV07Handler implements Handler {
     }
 
     RemoteConfigRequest waitForVersion(Target target, long version, long timeoutInMs) {
+        if (timeoutInMs <= 5) {
+            synchronized (capturedRequests) {
+                RemoteConfigRequest request = capturedRequests[target]
+                if (request != null && request.client.clientState.targetsVersion == version) {
+                    return request
+                }
+            }
+            throw new AssertionError("No request with version $version is stord at this point" as Object)
+        }
+
         log.debug("waitForVersion start")
         long deadline = System.currentTimeMillis() + timeoutInMs
         synchronized (capturedRequests) {

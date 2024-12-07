@@ -14,6 +14,8 @@
 #include "request_abort.h"
 #include "tags.h"
 #include <ext/standard/base64.h>
+#include <mpack.h>
+#include <stdatomic.h>
 
 typedef struct _dd_omsg {
     zend_llist iovecs;
@@ -437,7 +439,71 @@ static void _command_process_stack_trace_parameters(mpack_node_t root)
     }
 }
 
-dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
+static dd_result _command_process_actions(
+    mpack_node_t root, struct req_info *ctx);
+
+/*
+ * array(
+ *    0: [<"ok" / "record" / "block" / "redirect">,
+ *         [if block/redirect parameters: (map)]]
+ *    1: [if block/redirect/record: appsec span data (array of strings: json
+ *        fragments)],
+ *    2: [force keep: bool]
+ *    3: [meta: map]
+ *    4: [metrics: map]
+ *    5: [telemetry metrics: map string ->
+ *         array(array(value: double, tags: string)])
+ * )
+ */
+#define RESP_INDEX_ACTION_PARAMS 0
+#define RESP_INDEX_APPSEC_SPAN_DATA 1
+#define RESP_INDEX_FORCE_KEEP 2
+#define RESP_INDEX_SPAN_META 3
+#define RESP_INDEX_SPAN_METRICS 4
+#define RESP_INDEX_TELEMETRY_METRICS 5
+
+dd_result dd_command_proc_resp_verd_span_data(
+    mpack_node_t root, void *unspecnull _ctx)
+{
+    struct req_info *ctx = _ctx;
+    assert(ctx != NULL);
+
+    mpack_node_t actions = mpack_node_array_at(root, RESP_INDEX_ACTION_PARAMS);
+    dd_result res = _command_process_actions(actions, ctx);
+
+    if (res == dd_should_block || res == dd_should_redirect ||
+        res == dd_should_record) {
+        _set_appsec_span_data(
+            mpack_node_array_at(root, RESP_INDEX_APPSEC_SPAN_DATA));
+    }
+
+    mpack_node_t force_keep = mpack_node_array_at(root, RESP_INDEX_FORCE_KEEP);
+    if (mpack_node_type(force_keep) == mpack_type_bool &&
+        mpack_node_bool(force_keep)) {
+        dd_tags_set_sampling_priority();
+    }
+
+    if (mpack_node_array_length(root) >= RESP_INDEX_SPAN_METRICS + 1 &&
+        ctx->root_span) {
+        zend_object *span = ctx->root_span;
+
+        mpack_node_t meta = mpack_node_array_at(root, RESP_INDEX_SPAN_META);
+        dd_command_process_meta(meta, span);
+        mpack_node_t metrics =
+            mpack_node_array_at(root, RESP_INDEX_SPAN_METRICS);
+        dd_command_process_metrics(metrics, span);
+    }
+
+    if (mpack_node_array_length(root) >= RESP_INDEX_TELEMETRY_METRICS + 1) {
+        dd_command_process_telemetry_metrics(
+            mpack_node_array_at(root, RESP_INDEX_TELEMETRY_METRICS));
+    }
+
+    return res;
+}
+
+static dd_result _command_process_actions(
+    mpack_node_t root, struct req_info *ctx)
 {
     size_t actions = mpack_node_array_length(root);
     dd_result res = dd_success;
@@ -477,42 +543,6 @@ dd_result _command_process_actions(mpack_node_t root, struct req_info *ctx)
             _command_process_stack_trace_parameters(
                 mpack_node_array_at(action, 1));
         }
-    }
-
-    return res;
-}
-
-dd_result dd_command_proc_resp_verd_span_data(
-    mpack_node_t root, void *unspecnull _ctx)
-{
-    struct req_info *ctx = _ctx;
-    assert(ctx != NULL);
-
-    mpack_node_t actions = mpack_node_array_at(root, 0);
-
-    dd_result res = _command_process_actions(actions, ctx);
-
-    if (res == dd_should_block || res == dd_should_redirect ||
-        res == dd_should_record) {
-        _set_appsec_span_data(mpack_node_array_at(root, 1));
-    }
-
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    mpack_node_t force_keep = mpack_node_array_at(root, 2);
-    if (mpack_node_type(force_keep) == mpack_type_bool &&
-        mpack_node_bool(force_keep)) {
-        dd_tags_set_sampling_priority();
-    }
-
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    if (mpack_node_array_length(root) >= 5 && ctx->root_span) {
-        zend_object *span = ctx->root_span;
-
-        mpack_node_t meta = mpack_node_array_at(root, 3);
-        dd_command_process_meta(meta, span);
-        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        mpack_node_t metrics = mpack_node_array_at(root, 4);
-        dd_command_process_metrics(metrics, span);
     }
 
     return res;
@@ -646,6 +676,103 @@ bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span)
     }
 
     return true;
+}
+
+static void _handle_telemetry_metric(const char *nonnull key_str,
+    size_t key_len, double value, const char *nonnull tags_str,
+    size_t tags_len);
+
+bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
+{
+    if (mpack_node_type(metrics) != mpack_type_map) {
+        return false;
+    }
+
+    if (!ddtrace_metric_register_buffer) {
+        mlog_g(dd_log_debug, "ddtrace_metric_register_buffer unavailable");
+        return true;
+    }
+
+    for (size_t i = 0; i < mpack_node_map_count(metrics); i++) {
+        mpack_node_t key = mpack_node_map_key_at(metrics, i);
+
+        const char *key_str = mpack_node_str(key);
+        if (!key_str) {
+            continue;
+        }
+
+        size_t key_len = mpack_node_strlen(key);
+        mpack_node_t arr_value = mpack_node_map_value_at(metrics, i);
+
+        for (size_t j = 0; j < mpack_node_array_length(arr_value); j++) {
+            mpack_node_t value = mpack_node_array_at(arr_value, j);
+            mpack_node_t dval_node = mpack_node_array_at(value, 0);
+            double dval = mpack_node_double(dval_node);
+
+            const char *tags_str = "";
+            size_t tags_len = 0;
+            if (mpack_node_array_length(value) >= 2) {
+                mpack_node_t tags = mpack_node_array_at(value, 1);
+                tags_str = mpack_node_str(tags);
+                tags_len = mpack_node_strlen(tags);
+            }
+            if (mpack_node_error(metrics) != mpack_ok) {
+                break;
+            }
+
+            _handle_telemetry_metric(
+                key_str, key_len, dval, tags_str, tags_len);
+        }
+    }
+
+    return true;
+}
+
+static void _init_zstr(
+    zend_string *_Atomic *nonnull zstr, const char *nonnull str, size_t len)
+{
+    zend_string *zstr_cur = atomic_load_explicit(zstr, memory_order_acquire);
+    if (zstr_cur != NULL) {
+        return;
+    }
+    zend_string *zstr_new = zend_string_init(str, len, 1);
+    if (atomic_compare_exchange_strong_explicit(zstr, &(zend_string *){NULL},
+            zstr_new, memory_order_release, memory_order_relaxed)) {
+        return;
+    }
+    zend_string_release(zstr_new);
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
+    double value, const char *nonnull tags_str, size_t tags_len)
+{
+#define HANDLE_METRIC(name, type)                                              \
+    do {                                                                       \
+        if (key_len == LSTRLEN(name) && memcmp(key_str, name, key_len) == 0) { \
+            static zend_string *_Atomic key_zstr;                              \
+            _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
+            zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 1);  \
+            ddtrace_metric_register_buffer(                                    \
+                key_zstr, type, DDTRACE_METRIC_NAMESPACE_APPSEC);              \
+            ddtrace_metric_add_point(key_zstr, value, tags_zstr);              \
+            zend_string_release(tags_zstr);                                    \
+            mlog_g(dd_log_debug,                                               \
+                "Telemetry metric %.*s added with tags %.*s and value %f",     \
+                (int)key_len, key_str, (int)tags_len, tags_str, value);        \
+            return;                                                            \
+        }                                                                      \
+    } while (0)
+
+    HANDLE_METRIC("waf.requests", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("waf.updates", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("waf.init", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("waf.config_errors", DDTRACE_METRIC_TYPE_COUNT);
+
+    HANDLE_METRIC("remote_config.first_pull", DDTRACE_METRIC_TYPE_GAUGE);
+    HANDLE_METRIC("remote_config.last_success", DDTRACE_METRIC_TYPE_GAUGE);
+
+    mlog_g(dd_log_info, "Unknown telemetry metric %.*s", (int)key_len, key_str);
 }
 
 static void _dump_in_msg(

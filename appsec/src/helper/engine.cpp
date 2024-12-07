@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <spdlog/spdlog.h>
 
@@ -11,6 +12,7 @@
 #include "engine_settings.hpp"
 #include "exception.hpp"
 #include "json_helper.hpp"
+#include "metrics.hpp"
 #include "parameter_view.hpp"
 #include "std_logging.hpp"
 #include "subscriber/waf.hpp"
@@ -22,16 +24,17 @@ void engine::subscribe(std::unique_ptr<subscriber> sub)
     common_->subscribers.emplace_back(std::move(sub));
 }
 
-void engine::update(engine_ruleset &ruleset,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+void engine::update(
+    engine_ruleset &ruleset, metrics::telemetry_submitter &submit_metric)
 {
     std::vector<std::unique_ptr<subscriber>> new_subscribers;
-    new_subscribers.reserve(common_->subscribers.size());
+    auto old_common =
+        std::atomic_load_explicit(&common_, std::memory_order_acquire);
+    new_subscribers.reserve(old_common->subscribers.size());
     dds::parameter param = json_to_parameter(ruleset.get_document());
-    for (auto &sub : common_->subscribers) {
+    for (auto &sub : old_common->subscribers) {
         try {
-            new_subscribers.emplace_back(sub->update(param, meta, metrics));
+            new_subscribers.emplace_back(sub->update(param, submit_metric));
         } catch (const std::exception &e) {
             SPDLOG_WARN("Failed to update subscriber {}: {}", sub->get_name(),
                 e.what());
@@ -65,7 +68,9 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
 
     event event_;
 
-    for (auto &sub : common_->subscribers) {
+    auto common =
+        std::atomic_load_explicit(&common_, std::memory_order_acquire);
+    for (auto &sub : common->subscribers) {
         auto it = listeners_.find(sub.get());
         if (it == listeners_.end()) {
             auto listener = sub->get_listener();
@@ -109,19 +114,16 @@ std::optional<engine::result> engine::context::publish(parameter &&param)
     return res;
 }
 
-void engine::context::get_meta_and_metrics(
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+void engine::context::get_metrics(metrics::telemetry_submitter &msubmitter)
 {
     for (const auto &[subscriber, listener] : listeners_) {
-        listener->get_meta_and_metrics(meta, metrics);
+        listener->submit_metrics(msubmitter);
     }
 }
 
 std::unique_ptr<engine> engine::from_settings(
     const dds::engine_settings &eng_settings,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics)
+    metrics::telemetry_submitter &msubmitter)
 {
     auto &&rules_path = eng_settings.rules_file_or_default();
     auto ruleset = engine_ruleset::from_path(rules_path);
@@ -132,7 +134,7 @@ std::unique_ptr<engine> engine::from_settings(
         SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
         // may throw std::exception
         auto waf =
-            waf::instance::from_settings(eng_settings, ruleset, meta, metrics);
+            waf::instance::from_settings(eng_settings, ruleset, msubmitter);
         engine_ptr->subscribe(std::move(waf));
     } catch (...) {
         DD_STDLOG(DD_STDLOG_WAF_INIT_FAILED, rules_path);

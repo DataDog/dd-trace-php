@@ -5,8 +5,10 @@ import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
-import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -20,6 +22,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 @Testcontainers
 @EnabledIf('isExpectedVersion')
+@TestMethodOrder(MethodOrderer.OrderAnnotation)
 class Symfony62Tests {
     static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
 
@@ -41,6 +44,12 @@ class Symfony62Tests {
                     phpVariant: variant,
                     www: 'symfony62',
             )
+
+    @Test
+    @Order(1)
+    void 'reported telemetry integrations are not repeated'() {
+
+    }
 
     @Test
     void 'login success automated event'() {

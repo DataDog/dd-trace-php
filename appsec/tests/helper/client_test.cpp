@@ -5,17 +5,18 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
 #include "parameter.hpp"
-#include <algorithm>
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
 #include <cstring>
+#include <ddwaf.h>
 #include <gtest/gtest.h>
 #include <json_helper.hpp>
+#include <memory>
+#include <metrics.hpp>
 #include <network/broker.hpp>
 #include <rapidjson/document.h>
 #include <regex>
-#include <tags.hpp>
 #include <utility>
 
 namespace dds {
@@ -37,8 +38,6 @@ public:
     MOCK_METHOD(std::shared_ptr<dds::service>, create_service,
         (const dds::engine_settings &settings,
             const dds::remote_config::settings &rc_settings,
-            (std::map<std::string, std::string> & meta),
-            (std::map<std::string_view, double> & metrics),
             bool dynamic_enablement),
         (override));
 };
@@ -47,7 +46,8 @@ class service : public dds::service {
 public:
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config)
-        : dds::service(engine, service_config, {}, "/rc_path")
+        : dds::service{engine, service_config, {},
+              dds::service::create_shared_metrics(), "/rc_path"}
     {}
 };
 
@@ -156,16 +156,16 @@ TEST(ClientTest, ClientInit)
 
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
+    EXPECT_STREQ(msg_res->meta[std::string(metrics::waf_version)].c_str(),
+        ddwaf_get_version());
     EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.1");
-    EXPECT_STREQ(
-        msg_res->meta[std::string(tag::event_rules_errors)].c_str(), "{}");
+        msg_res->meta[std::string(metrics::event_rules_errors)].c_str(), "{}");
 
     EXPECT_EQ(msg_res->metrics.size(), 2);
     // For small enough integers this comparison should work, otherwise replace
     // with EXPECT_NEAR.
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_loaded], 4.0);
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_failed], 0.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 4.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_failed], 0.0);
 }
 
 TEST(ClientTest, ClientInitRegisterRuntimeId)
@@ -195,7 +195,7 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, _, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _, true))
         .Times(1)
         .WillOnce(Return(service));
 
@@ -229,7 +229,7 @@ TEST(ClientTest, ClientInitGeneratesRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, _, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _, true))
         .Times(1)
         .WillOnce(Return(service));
 
@@ -265,11 +265,11 @@ TEST(ClientTest, ClientInitInvalidRules)
 
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
-    EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.20.1");
+    EXPECT_STREQ(msg_res->meta[std::string(metrics::waf_version)].c_str(),
+        ddwaf_get_version());
 
     rapidjson::Document doc;
-    doc.Parse(msg_res->meta[std::string(tag::event_rules_errors)]);
+    doc.Parse(msg_res->meta[std::string(metrics::event_rules_errors)]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
@@ -279,8 +279,8 @@ TEST(ClientTest, ClientInitInvalidRules)
     EXPECT_EQ(msg_res->metrics.size(), 2);
     // For small enough integers this comparison should work, otherwise replace
     // with EXPECT_NEAR.
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_loaded], 1.0);
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_failed], 4.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 1.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_failed], 4.0);
 }
 
 TEST(ClientTest, ClientInitResponseFail)
@@ -817,10 +817,10 @@ TEST(ClientTest, RequestShutdown)
         EXPECT_EQ(msg_res->triggers.size(), 1);
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
-        EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
         EXPECT_EQ(msg_res->meta.size(), 3);
         EXPECT_STREQ(
-            msg_res->meta[std::string(tag::event_rules_version)].c_str(),
+            msg_res->meta[std::string(metrics::event_rules_version)].c_str(),
             "1.2.3");
     }
 }
@@ -861,10 +861,10 @@ TEST(ClientTest, RequestShutdownBlock)
         EXPECT_EQ(msg_res->triggers.size(), 1);
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
-        EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
         EXPECT_EQ(msg_res->meta.size(), 1);
         EXPECT_STREQ(
-            msg_res->meta[std::string(tag::event_rules_version)].c_str(),
+            msg_res->meta[std::string(metrics::event_rules_version)].c_str(),
             "1.2.3");
     }
 }
@@ -2069,7 +2069,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
 
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, true))
+        EXPECT_CALL(*smanager, create_service(_, _, true))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -2085,7 +2085,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _, false))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -2101,7 +2101,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _, false))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));

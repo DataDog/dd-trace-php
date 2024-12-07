@@ -26,6 +26,10 @@ RUN if echo $VARIANT | grep -q zts; \
 	else sed -i "s/%MPM/prefork/" /etc/apache2/mods-available/php.load; \
 	fi
 RUN if ! { echo $VARIANT | grep -q zts; }; then a2dismod mpm_event; a2enmod mpm_prefork; fi
+
+RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_prefork.conf
+RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_worker.conf
+
 RUN a2enmod php
 
 RUN chmod a+rx /root

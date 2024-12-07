@@ -3,8 +3,13 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
 #include "common.hpp"
+#include "ddwaf.h"
+#include "json_helper.hpp"
+#include "metrics.hpp"
 #include <engine.hpp>
+#include <gmock/gmock-nice-strict.h>
 #include <memory>
 #include <rapidjson/document.h>
 #include <subscriber/waf.hpp>
@@ -20,9 +25,7 @@ namespace mock {
 class listener : public dds::subscriber::listener {
 public:
     MOCK_METHOD2(call, void(dds::parameter_view &, dds::event &));
-    MOCK_METHOD2(
-        get_meta_and_metrics, void(std::map<std::string, std::string> &,
-                                  std::map<std::string_view, double> &));
+    MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
 };
 
 class subscriber : public dds::subscriber {
@@ -30,9 +33,20 @@ public:
     MOCK_METHOD0(get_name, std::string_view());
     MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
-    MOCK_METHOD3(update, std::unique_ptr<dds::subscriber>(dds::parameter &,
-                             std::map<std::string, std::string> &meta,
-                             std::map<std::string_view, double> &metrics));
+    MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(
+                             dds::parameter &, metrics::telemetry_submitter &));
+};
+
+class tel_submitter : public metrics::telemetry_submitter {
+public:
+    MOCK_METHOD(void, submit_metric,
+        (std::string_view, double, metrics::telemetry_tags), (override));
+    MOCK_METHOD(
+        void, submit_span_metric, (std::string_view, double), (override));
+    MOCK_METHOD(
+        void, submit_span_meta, (std::string_view, std::string), (override));
+    MOCK_METHOD(void, submit_span_meta_copy_key, (std::string, std::string),
+        (override));
 };
 } // namespace mock
 
@@ -339,15 +353,22 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
 
 TEST(EngineTest, WafSubscriptorBasic)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     auto e{engine::create()};
+    auto msubmitter = mock::tel_submitter{};
 
-    auto waf_uniq_ptr = waf::instance::from_string(waf_rule, meta, metrics);
-    auto *waf_ptr = waf_uniq_ptr.get();
+    // the number of loaded rules is 2 due to rules added unconditionally by us
+    EXPECT_CALL(
+        msubmitter, submit_span_metric("_dd.appsec.event_rules.loaded"sv, 2.0));
+    EXPECT_CALL(msubmitter,
+        submit_span_metric("_dd.appsec.event_rules.error_count"sv, 0.0));
+    EXPECT_CALL(msubmitter,
+        submit_span_meta("_dd.appsec.event_rules.errors"sv, std::string{"{}"}));
+    EXPECT_CALL(msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
+    EXPECT_CALL(msubmitter, submit_metric("waf.init"sv, 1, _));
 
-    e->subscribe(std::move(waf_uniq_ptr));
+    auto waf_uptr = waf::instance::from_string(waf_rule, msubmitter);
+    auto *waf_ptr = waf_uptr.get();
+    e->subscribe(static_cast<decltype(waf_uptr) &&>(waf_uptr));
 
     EXPECT_STREQ(waf_ptr->get_name().data(), "waf");
 
@@ -358,6 +379,7 @@ TEST(EngineTest, WafSubscriptorBasic)
     p.add("arg2", parameter::string("string 3"sv));
 
     auto res = ctx.publish(std::move(p));
+    Mock::VerifyAndClearExpectations(&msubmitter);
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     EXPECT_EQ(res->events.size(), 1);
@@ -371,11 +393,10 @@ TEST(EngineTest, WafSubscriptorBasic)
 
 TEST(EngineTest, WafSubscriptorInvalidParam)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto mock_msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, mock_msubmitter));
 
     auto ctx = e->get_context();
 
@@ -386,11 +407,10 @@ TEST(EngineTest, WafSubscriptorInvalidParam)
 
 TEST(EngineTest, WafSubscriptorTimeout)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto mock_msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics, 0));
+    e->subscribe(waf::instance::from_string(waf_rule, mock_msubmitter, 0));
 
     auto ctx = e->get_context();
 
@@ -404,6 +424,7 @@ TEST(EngineTest, WafSubscriptorTimeout)
 
 TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 {
+    auto mock_submitter = mock::tel_submitter{};
     auto e{engine::create()};
 
     auto ignorer = []() {
@@ -418,7 +439,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     }));
 
     auto sub1 = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub1, update(_, _, _)).WillOnce(Invoke([&]() {
+    EXPECT_CALL(*sub1, update(_, _)).WillOnce(Invoke([&]() {
         return std::move(new_sub1);
     }));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
@@ -429,7 +450,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     }));
 
     auto sub2 = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub2, update(_, _, _)).WillOnce(Invoke([&]() {
+    EXPECT_CALL(*sub2, update(_, _)).WillOnce(Invoke([&]() {
         return std::move(new_sub2);
     }));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
@@ -437,12 +458,9 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     e->subscribe(std::move(sub1));
     e->subscribe(std::move(sub2));
 
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     engine_ruleset ruleset(
         R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-    e->update(ruleset, meta, metrics);
+    e->update(ruleset, mock_submitter);
 
     // Ensure after the update we still have the same number of subscribers
     auto ctx = e->get_context();
@@ -456,6 +474,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 
 TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 {
+    auto msubmitter = mock::tel_submitter{};
     auto e{engine::create()};
 
     auto ignorer = []() {
@@ -465,14 +484,14 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
     };
 
     auto sub1 = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub1, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
+    EXPECT_CALL(*sub1, update(_, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
     EXPECT_CALL(*sub1, get_listener()).WillOnce(Invoke([&]() {
         return ignorer();
     }));
 
     auto sub2 = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub2, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
+    EXPECT_CALL(*sub2, update(_, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
     EXPECT_CALL(*sub2, get_listener()).WillOnce(Invoke([&]() {
         return ignorer();
@@ -486,7 +505,7 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 
     engine_ruleset ruleset(R"({})");
     // All subscribers should be called regardless of failures
-    e->update(ruleset, meta, metrics);
+    e->update(ruleset, msubmitter);
 
     // Ensure after the update we still have the same number of subscribers
     auto ctx = e->get_context();
@@ -500,11 +519,10 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleData)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -517,10 +535,20 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
     }
 
     {
+        EXPECT_CALL(
+            msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
+        EXPECT_CALL(msubmitter,
+            submit_metric("waf.updates"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{
+                        "success:true,event_rules_version:,waf_version:"} +
+                    ddwaf_get_version())));
 
         engine_ruleset rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-        e->update(rule_data, meta, metrics);
+        e->update(rule_data, msubmitter);
+
+        Mock::VerifyAndClear(&msubmitter);
     }
 
     {
@@ -536,9 +564,20 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
     }
 
     {
+        EXPECT_CALL(
+            msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
+        EXPECT_CALL(msubmitter,
+            submit_metric("waf.updates"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{
+                        "success:true,event_rules_version:,waf_version:"} +
+                    ddwaf_get_version())));
+
         engine_ruleset rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}]})");
-        e->update(rule_data, meta, metrics);
+        e->update(rule_data, msubmitter);
+
+        Mock::VerifyAndClearExpectations(&msubmitter);
     }
 
     {
@@ -554,11 +593,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
 TEST(EngineTest, WafSubscriptorInvalidRuleData)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto submitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, submitter));
 
     {
         auto ctx = e->get_context();
@@ -571,9 +609,18 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
     }
 
     {
+        EXPECT_CALL(submitter,
+            submit_metric("waf.updates"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{
+                        "success:false,event_rules_version:,waf_version:"} +
+                    ddwaf_get_version())));
+
         engine_ruleset rule_data(
             R"({"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]})");
-        e->update(rule_data, meta, metrics);
+        e->update(rule_data, submitter);
+
+        Mock::VerifyAndClearExpectations(&submitter);
     }
 
     {
@@ -589,11 +636,10 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
 
 TEST(EngineTest, WafSubscriptorUpdateRules)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto submitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, submitter));
 
     {
         auto ctx = e->get_context();
@@ -608,7 +654,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
     {
         engine_ruleset update(
             R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/some-url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })");
-        e->update(update, meta, metrics);
+        e->update(update, submitter);
     }
 
     {
@@ -626,11 +672,10 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -647,7 +692,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
         engine_ruleset update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "enabled": "false"}]})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -663,7 +708,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 
     {
         engine_ruleset update(R"({"rules_override": []})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -680,11 +725,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -704,7 +748,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
              "on_match": ["redirect"]}], "actions": [{"id": "redirect",
              "type": "redirect_request", "parameters": {"status_code": "303",
              "location": "https://localhost"}}]})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -723,7 +767,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         engine_ruleset update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "on_match": ["redirect"]}], "actions": []})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -741,11 +785,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
 TEST(EngineTest, WafSubscriptorExclusions)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -763,7 +806,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
         engine_ruleset update(
             R"({"exclusions": [{"id": "1",
              "rules_target":[{"rule_id":"1"}]}]})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -779,7 +822,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
     {
         engine_ruleset update(R"({"exclusions": []})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -796,11 +839,9 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
 TEST(EngineTest, WafSubscriptorCustomRules)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -827,7 +868,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
     {
         engine_ruleset update(
             R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {
@@ -856,7 +897,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
     {
         engine_ruleset update(R"({"custom_rules": []})");
-        e->update(update, meta, metrics);
+        e->update(update, msubmitter);
     }
 
     {

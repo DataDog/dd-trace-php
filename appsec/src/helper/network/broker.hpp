@@ -13,8 +13,6 @@ namespace dds::network {
 
 class base_broker {
 public:
-    using ptr = std::unique_ptr<base_broker>;
-
     base_broker() = default;
     base_broker(const base_broker &) = delete;
     base_broker &operator=(const base_broker &) = delete;
@@ -43,7 +41,9 @@ public:
     // other limits
     static constexpr std::size_t max_msg_body_size = 65536;
 
-    explicit broker(base_socket::ptr &&socket) : socket_(std::move(socket)) {}
+    explicit broker(std::unique_ptr<base_socket> &&socket)
+        : socket_(std::move(socket))
+    {}
     broker(const broker &) = delete;
     broker &operator=(const broker &) = delete;
     broker(broker &&) = default;
@@ -59,7 +59,7 @@ public:
         const std::shared_ptr<base_response> &message) const override;
 
 protected:
-    base_socket::ptr socket_;
+    std::unique_ptr<base_socket> socket_;
 };
 
 } // namespace dds::network

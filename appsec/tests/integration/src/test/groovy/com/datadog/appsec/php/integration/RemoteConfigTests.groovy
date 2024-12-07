@@ -4,9 +4,7 @@ import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.mock_agent.rem_cfg.Capability
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
-import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
-import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -16,8 +14,6 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
-import java.time.Instant
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
@@ -50,7 +46,7 @@ class RemoteConfigTests {
                 'bash', '-c',
                 '''sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' /etc/php/php.ini > /etc/php/php-rc.ini;
                    kill -9 `pgrep php-fpm`;
-                   export _DD_DEBUG_SIDECAR_RC_POLL_INTERVAL_MILLIS=1000 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1 DD_ENV=;
+                   export  DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1 DD_ENV=;
                    php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
         assert res.exitCode == 0
     }
@@ -350,55 +346,10 @@ class RemoteConfigTests {
     }
 
     private RemoteConfigRequest applyRemoteConfig(Target target, Map<String, Map> files) {
-        Map<String, byte[]> encodedFiles = files
-                .findAll { it.value != null }
-                .collectEntries {
-                    [
-                            it.key,
-                            JsonOutput.toJson(it.value).getBytes(StandardCharsets.UTF_8)
-                    ]
-                }
-        long newVersion = Instant.now().epochSecond
-        def rcr = new RemoteConfigResponse()
-        rcr.clientConfigs = files.keySet() as List
-        rcr.targetFiles = encodedFiles.collect {
-            new RemoteConfigResponse.TargetFile(
-                    path: it.key,
-                    raw: new String(
-                            Base64.encoder.encode(it.value),
-                            StandardCharsets.ISO_8859_1)
-            )
-        }
-        rcr.targets = new RemoteConfigResponse.Targets(
-                signatures: [],
-                targetsSigned: new RemoteConfigResponse.Targets.TargetsSigned(
-                        type: 'root',
-                        custom: new RemoteConfigResponse.Targets.TargetsSigned.TargetsCustom(
-                                opaqueBackendState: 'ABCDEF'
-                        ),
-                        specVersion:'1.0.0',
-                        expires: Instant.parse('2030-01-01T00:00:00Z'),
-                        version: newVersion,
-                        targets: encodedFiles.collectEntries {
-                            [
-                                    it.key,
-                                    new RemoteConfigResponse.Targets.ConfigTarget(
-                                            hashes: [sha256: RemoteConfigResponse.sha256(it.value).toString(16).padLeft(64, '0')],
-                                            length: it.value.size(),
-                                            custom: new RemoteConfigResponse.Targets.ConfigTarget.ConfigTargetCustom(
-                                                    version: newVersion
-                                            )
-                                    )
-                            ]
-                        }
-                ),
-        )
-
-        CONTAINER.setNextRCResponse(target, rcr)
-        CONTAINER.waitForRCVersion(target, newVersion, 5_000)
+        CONTAINER.applyRemoteConfig(target, files).get()
     }
 
-    RemoteConfigRequest dropRemoteConfig(Target target) {
+    private RemoteConfigRequest dropRemoteConfig(Target target) {
         applyRemoteConfig(target, [:])
     }
 
