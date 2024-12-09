@@ -15,6 +15,9 @@ mod string_set;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+//#[cfg(all(feature = "io_profiling", target_os = "linux"))]
+mod io;
+
 #[cfg(feature = "exception_profiling")]
 mod exception;
 
@@ -338,6 +341,9 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
      * Note that on PHP 7 this never fails, and on PHP 8 it returns void.
      */
     unsafe { zend::zend_register_extension(&extension, handle) };
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    io::io_prof_minit();
 
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
@@ -879,7 +885,10 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         timeline::timeline_startup();
     }
 
-    #[cfg(all(feature = "allocation_profiling", not(php_zend_mm_set_custom_handlers_ex)))]
+    #[cfg(all(
+        feature = "allocation_profiling",
+        not(php_zend_mm_set_custom_handlers_ex)
+    ))]
     allocation::alloc_prof_startup();
 
     ZendResult::Success
