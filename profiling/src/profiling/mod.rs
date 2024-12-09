@@ -76,6 +76,14 @@ pub struct SampleValues {
     alloc_size: i64,
     timeline: i64,
     exception: i64,
+    socket_io_read_time: i64,
+    socket_io_write_time: i64,
+    file_io_read_time: i64,
+    file_io_write_time: i64,
+    socket_io_read_size: i64,
+    socket_io_write_size: i64,
+    file_io_read_size: i64,
+    file_io_write_size: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -1193,6 +1201,98 @@ impl Profiler {
             }
             Err(err) => {
                 warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
+            }
+        }
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_io_read_time = socket_io_read_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_io_write_time = socket_io_write_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_io_read_time = file_io_read_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_io_write_time = file_io_write_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_io_read_size = socket_io_read_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_io_write_size = socket_io_write_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_io_read_size = file_io_read_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_io_write_size = file_io_write_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
+    where
+        F: FnOnce(&mut SampleValues),
+    {
+        let result = collect_stack_sample(execute_data);
+        match result {
+            Ok(frames) => {
+                let depth = frames.len();
+                let labels = Profiler::common_labels(0);
+
+                let n_labels = labels.len();
+
+                let mut values = SampleValues::default();
+                set_value(&mut values);
+
+                match self.prepare_and_send_message(
+                    frames,
+                    values,
+                    labels,
+                    NO_TIMESTAMP,
+                ) {
+                    Ok(_) => println!(
+                        "Sent stack sample of {depth} frames, {n_labels} labels with to profiler."
+                    ),
+                    Err(err) => warn!(
+                        "Failed to send stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
+                    ),
+                }
+            }
+            Err(err) => {
+                warn!("Failed to collect stack sample: {err}")
             }
         }
     }
