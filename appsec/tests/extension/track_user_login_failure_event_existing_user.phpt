@@ -34,4 +34,5 @@ Array
     [appsec.events.users.login.failure.metadata] => some other metadata
     [appsec.events.users.login.failure.email] => noneofyour@business.com
     [appsec.events.users.login.failure.usr.exists] => true
+    [appsec.events.users.login.failure] => null
 )
