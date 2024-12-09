@@ -1,5 +1,5 @@
 --TEST--
-All headers are collected when track_user_login_success_event is triggered by user
+When user event is triggered by user first and then the event is triggered by automation, all headers are sent
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
@@ -43,7 +43,7 @@ key=val
 <?php
 use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,rshutdown,mlog};
 use const datadog\appsec\testing\log_level\DEBUG;
-use function datadog\appsec\track_user_login_success_event;
+use function datadog\appsec\track_user_login_failure_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
@@ -59,7 +59,8 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-track_user_login_success_event("1234", []);
+track_user_login_failure_event_automated("login", "1234", true, ['email' => 'some@email.com']);
+track_user_login_failure_event_automated("login", "1234", true, ['email' => 'some@email.com']);
 
 rshutdown();
 $helper->get_commands(); //ignore
