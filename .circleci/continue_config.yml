@@ -4892,7 +4892,7 @@ workflows:
                 - php:8.1-fpm-alpine
                 - php:8.2-fpm-alpine
                 - php:8.3-fpm-alpine
-                - php:8.4-rc-fpm-alpine
+                - php:8.4-fpm-alpine
       - verify_centos:
           requires: [ "package extension" ]
           matrix:
@@ -4912,7 +4912,7 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=1
                 - PHP_MAJOR=8 PHP_MINOR=2
                 - PHP_MAJOR=8 PHP_MINOR=3
-                # - PHP_MAJOR=8 PHP_MINOR=4
+                - PHP_MAJOR=8 PHP_MINOR=4
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
@@ -4935,7 +4935,7 @@ workflows:
                 - PHP_VERSION=8.1
                 - PHP_VERSION=8.2
                 - PHP_VERSION=8.3
-                # - PHP_VERSION=8.4
+                - PHP_VERSION=8.4
 
       - verify_tar_gz:
           requires: [ "package extension" ]

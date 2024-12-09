@@ -88,6 +88,7 @@ services:
   # --- Bookworm ---
   '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-5' }
   '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-5' }
+  '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-5' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
   '7.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
@@ -97,6 +98,8 @@ services:
   '8.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-7' }
   '8.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-7' }
   '8.2-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
+  '8.3-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_centos-7' }
+  '8.4-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_centos-7' }
   # --- Windows ---
   '7.0-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.0_windows' }
   '7.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.1_windows' }
