@@ -28,6 +28,7 @@ Array
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.value] => something-from-sdk
     [appsec.events.users.login.success.track] => true
+    [appsec.events.users.login.success] => null
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.events.users.login.success.auto.mode] => identification
     [appsec.events.users.login.success.usr.login] => login

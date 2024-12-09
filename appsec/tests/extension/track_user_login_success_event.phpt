@@ -40,6 +40,7 @@ Array
     [appsec.events.users.login.success.metadata] => some other metadata
     [appsec.events.users.login.success.email] => noneofyour@business.com
     [appsec.events.users.login.success.track] => true
+    [appsec.events.users.login.success] => null
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

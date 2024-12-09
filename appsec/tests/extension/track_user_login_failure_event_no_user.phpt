@@ -25,4 +25,5 @@ Array
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [appsec.events.users.login.failure.track] => true
     [appsec.events.users.login.failure.usr.exists] => false
+    [appsec.events.users.login.failure] => null
 )

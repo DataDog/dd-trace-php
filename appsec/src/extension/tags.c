@@ -116,6 +116,7 @@ static zend_string *_key_http_user_agent_zstr;
 static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
 static zend_string *_1_zstr;
+static zend_string *_null_zstr;
 static zend_string *_true_zstr;
 static zend_string *_false_zstr;
 static zend_string *_track_zstr;
@@ -151,6 +152,7 @@ void dd_tags_startup()
     _dd_tag_blocked_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_BLOCKED), 1 /* permanent */);
     _1_zstr = zend_string_init_interned(LSTRARG("1"), 1 /* permanent */);
+    _null_zstr = zend_string_init_interned(LSTRARG("null"), 1 /* permanent */);
     _true_zstr = zend_string_init_interned(LSTRARG("true"), 1 /* permanent */);
     _false_zstr =
         zend_string_init_interned(LSTRARG("false"), 1 /* permanent */);
@@ -1029,6 +1031,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     _add_custom_event_keyval(
         meta_ht, _dd_signup_event, _track_zstr, _true_zstr, true, false);
 
+    // appsec.events.users.signup = null
+    _add_new_zstr_to_meta(meta_ht, _dd_signup_event, _null_zstr, true, true);
+
     dd_tags_set_sampling_priority();
 }
 
@@ -1076,6 +1081,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     // appsec.events.users.signup.success.track = true
     _add_custom_event_keyval(
         meta_ht, _dd_signup_event, _track_zstr, _true_zstr, true, true);
+
+    // appsec.events.users.signup = null
+    _add_new_zstr_to_meta(meta_ht, _dd_signup_event, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1170,6 +1178,10 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     _add_custom_event_keyval(
         meta_ht, _dd_login_success_event, _track_zstr, _true_zstr, true, false);
 
+    // appsec.events.users.login.success = null
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_login_success_event, _null_zstr, true, true);
+
     dd_tags_set_sampling_priority();
 }
 
@@ -1223,6 +1235,10 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     // appsec.events.users.login.success.track = true
     _add_custom_event_keyval(
         meta_ht, _dd_login_success_event, _track_zstr, _true_zstr, true, true);
+
+    // appsec.events.users.login.success = null
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_login_success_event, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1321,6 +1337,10 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     _add_custom_event_keyval(meta_ht, _dd_login_failure_event, _usr_exists_zstr,
         exists ? _true_zstr : _false_zstr, true, false);
 
+    // appsec.events.users.login.failure = null
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_login_failure_event, _null_zstr, true, true);
+
     dd_tags_set_sampling_priority();
 }
 
@@ -1372,6 +1392,10 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     // appsec.events.users.login.failure.usr.exists = <exists>
     _add_custom_event_keyval(meta_ht, _dd_login_failure_event, _usr_exists_zstr,
         exists ? _true_zstr : _false_zstr, true, true);
+
+    // appsec.events.users.login.failure = null
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_login_failure_event, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
