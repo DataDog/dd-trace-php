@@ -34,4 +34,5 @@ Array
     [appsec.events.users.signup.usr.login] => anon_428821350e9691491f616b754cd8315f
     [_dd.appsec.usr.login] => anon_428821350e9691491f616b754cd8315f
     [appsec.events.users.signup.track] => true
+    [appsec.events.users.signup] => null
 )
