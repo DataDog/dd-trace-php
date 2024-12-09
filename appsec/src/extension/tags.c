@@ -250,14 +250,17 @@ void dd_tags_startup()
         _register_test_functions();
     }
 }
+
 static void _init_relevant_headers()
 {
     zend_hash_init(&_relevant_headers, 32, NULL, NULL, 1);
     zend_hash_init(&_relevant_basic_headers, 32, NULL, NULL, 1);
     zval nullzv;
     ZVAL_NULL(&nullzv);
+
 #define ADD_RELEVANT_HEADER(str)                                               \
     zend_hash_str_add_new(&_relevant_headers, str "", sizeof(str) - 1, &nullzv);
+
 #define ADD_RELEVANT_BASIC_HEADER(str)                                         \
     zend_hash_str_add_new(                                                     \
         &_relevant_basic_headers, str "", sizeof(str) - 1, &nullzv);           \
@@ -295,6 +298,7 @@ static void _init_relevant_headers()
     ADD_RELEVANT_HEADER("accept-language");
 
 #undef ADD_RELEVANT_HEADER
+#undef ADD_RELEVANT_BASIC_HEADER
 
     zend_hash_copy(
         &_relevant_headers, get_global_DD_APPSEC_EXTRA_HEADERS(), NULL);
@@ -583,6 +587,7 @@ static void _add_new_zstr_to_meta(zend_array *meta_ht, zend_string *key,
         zend_string_release(val);
     }
 }
+
 static void _dd_http_method(zend_array *meta_ht)
 {
     if (zend_hash_exists(meta_ht, _dd_tag_http_method_zstr)) {
@@ -954,7 +959,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     zend_string *user_login = NULL;
     zend_string *user_id = NULL;
     HashTable *metadata = NULL;
-    zend_bool copy_user_info = true;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
@@ -967,6 +971,14 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
         return;
     }
 
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        return;
+    }
+
+    _user_event_triggered = true;
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
+
     user_collection_mode mode = dd_get_user_collection_mode();
     if (mode == user_mode_disabled ||
         !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
@@ -974,7 +986,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        // Anonymize the user ID and ensure it isn't copied twice
         user_id = dd_user_info_anonymize(user_id);
         if (user_id == NULL) {
             mlog(dd_log_debug, "Failed to anonymize user ID");
@@ -986,46 +997,31 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
             mlog(dd_log_debug, "Failed to anonymize user login");
             return;
         }
-
-        copy_user_info = false;
     }
-
-    zval *nullable meta = _root_span_get_meta();
-    if (!meta) {
-        if (!copy_user_info) {
-            zend_string_release(user_id);
-            zend_string_release(user_login);
-        }
-        return;
-    }
-
-    _user_event_triggered = true;
-    zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     if (user_id && ZSTR_LEN(user_id) > 0) {
         // usr.id = <user_id>
-        _add_new_zstr_to_meta(
-            meta_ht, _dd_tag_user_id, user_id, copy_user_info, false);
+        _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
+        // We avoid copy on anonymized data to ensure memory is freed.
         _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_id, user_id, copy_user_info, true);
+            meta_ht, _dd_appsec_user_id, user_id, mode != user_mode_anon, true);
     }
 
     // _dd.appsec.events.users.signup.auto.mode =
     // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
-    if (mode != user_mode_disabled) {
-        _add_new_zstr_to_meta(meta_ht, _dd_signup_event_auto_mode,
-            dd_get_user_collection_mode_zstr(), true, false);
-    }
+    _add_new_zstr_to_meta(meta_ht, _dd_signup_event_auto_mode,
+        dd_get_user_collection_mode_zstr(), true, false);
 
     // _dd.appsec.events.users.signup.usr.login = <user_login>
     _add_new_zstr_to_meta(
-        meta_ht, _dd_signup_event_login, user_login, copy_user_info, true);
+        meta_ht, _dd_signup_event_login, user_login, true, true);
 
     // _dd.appsec.usr.login = <user_login>
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_appsec_user_login, user_login, copy_user_info, true);
+    // We avoid copy on anonymized data to ensure memory is freed.
+    _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login, user_login,
+        mode != user_mode_anon, true);
 
     // appsec.events.users.signup.success.track = true
     _add_custom_event_keyval(
@@ -1100,7 +1096,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     zend_string *user_login = NULL;
     zend_string *user_id = NULL;
     HashTable *metadata = NULL;
-    zend_bool *copy_user_info = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
@@ -1112,6 +1107,14 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         mlog(dd_log_warning, "Unexpected empty user login");
         return;
     }
+
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        return;
+    }
+
+    _user_event_triggered = true;
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     user_collection_mode mode = dd_get_user_collection_mode();
     if (mode == user_mode_disabled ||
@@ -1131,48 +1134,33 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
             mlog(dd_log_debug, "Failed to anonymize user login");
             return;
         }
-
-        copy_user_info = false;
     }
 
-    zval *nullable meta = _root_span_get_meta();
-    if (!meta) {
-        if (!copy_user_info) {
-            zend_string_release(user_id);
-            zend_string_release(user_login);
-        }
-        return;
-    }
-
-    _user_event_triggered = true;
-    zend_array *meta_ht = Z_ARRVAL_P(meta);
+    dd_find_and_apply_verdict_for_user(user_id);
 
     if (user_id && ZSTR_LEN(user_id) > 0) {
-        dd_find_and_apply_verdict_for_user(user_id);
-
         // usr.id = <user_id>
-        _add_new_zstr_to_meta(
-            meta_ht, _dd_tag_user_id, user_id, copy_user_info, false);
+        _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
+        // We avoid copy on anonymized data to ensure memory is freed.
         _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_id, user_id, copy_user_info, true);
+            meta_ht, _dd_appsec_user_id, user_id, mode != user_mode_anon, true);
     }
 
     // _dd.appsec.events.users.login.success.auto.mode =
     // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
-    if (mode != user_mode_disabled) {
-        _add_new_zstr_to_meta(meta_ht, _dd_login_success_event_auto_mode,
-            dd_get_user_collection_mode_zstr(), true, false);
-    }
+    _add_new_zstr_to_meta(meta_ht, _dd_login_success_event_auto_mode,
+        dd_get_user_collection_mode_zstr(), true, false);
 
     // _dd.appsec.events.users.login.success.usr.login = <user_login>
+    // We avoid copy on anonymized data to ensure memory is freed.
     _add_new_zstr_to_meta(meta_ht, _dd_login_success_event_login, user_login,
-        copy_user_info, true);
+        mode != user_mode_anon, true);
 
     // _dd.appsec.usr.login = <user_login>
     _add_new_zstr_to_meta(
-        meta_ht, _dd_appsec_user_login, user_login, copy_user_info, true);
+        meta_ht, _dd_appsec_user_login, user_login, true, true);
 
     // appsec.events.users.login.success.track = true
     _add_custom_event_keyval(
@@ -1256,13 +1244,20 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     zend_string *user_id = NULL;
     zend_bool exists = false;
     HashTable *metadata = NULL;
-    zend_bool copy_user_info = true;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSb|h", &user_login, &user_id,
             &exists, &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_login, user_id, exists, metadata)");
         return;
     }
+
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        return;
+    }
+
+    _user_event_triggered = true;
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     user_collection_mode mode = dd_get_user_collection_mode();
     if (mode == user_mode_disabled ||
@@ -1283,50 +1278,36 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
             return;
         }
 
-        copy_user_info = false;
-
         if (metadata != NULL && zend_array_count(metadata) > 0) {
             metadata = NULL;
         }
     }
 
-    zval *nullable meta = _root_span_get_meta();
-    if (!meta) {
-        if (!copy_user_info) {
-            zend_string_release(user_id);
-            zend_string_release(user_login);
-        }
-        return;
-    }
-
-    _user_event_triggered = true;
-    zend_array *meta_ht = Z_ARRVAL_P(meta);
-
     if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
         // appsec.events.users.login.failure.usr.id = <user_id>
         _add_custom_event_keyval(meta_ht, _dd_login_failure_event,
-            _dd_tag_user_id, user_id, copy_user_info, false);
+            _dd_tag_user_id, user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
+        // We avoid copy on anonymized data to ensure memory is freed.
         _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_id, user_id, copy_user_info, true);
+            meta_ht, _dd_appsec_user_id, user_id, mode != user_mode_anon, true);
     }
 
     // _dd.appsec.events.users.login.failure.auto.mode =
     // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
-    if (mode != user_mode_disabled) {
-        _add_new_zstr_to_meta(meta_ht, _dd_login_failure_event_auto_mode,
-            dd_get_user_collection_mode_zstr(), true, false);
-    }
+    _add_new_zstr_to_meta(meta_ht, _dd_login_failure_event_auto_mode,
+        dd_get_user_collection_mode_zstr(), true, false);
 
     if (user_login != NULL && ZSTR_LEN(user_login) > 0) {
         // _dd.appsec.events.users.login.failure.usr.login = <user_login>
-        _add_new_zstr_to_meta(meta_ht, _dd_login_failure_event_login,
-            user_login, copy_user_info, true);
+        _add_new_zstr_to_meta(
+            meta_ht, _dd_login_failure_event_login, user_login, true, true);
 
         // _dd.appsec.usr.login = <user_login>
-        _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_login, user_login, copy_user_info, true);
+        // We avoid copy on anonymized data to ensure memory is freed.
+        _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login, user_login,
+            mode != user_mode_anon, true);
     }
 
     // appsec.events.users.login.failure.track = true
