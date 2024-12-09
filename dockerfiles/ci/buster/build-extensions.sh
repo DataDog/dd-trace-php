@@ -128,6 +128,7 @@ else
   yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
   yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
   pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
+  pecl install rdkafka; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
   pecl install sqlsrv$SQLSRV_VERSION;
   # Xdebug is disabled by default
   for VERSION in "${XDEBUG_VERSIONS[@]}"; do
