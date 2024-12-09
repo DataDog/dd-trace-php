@@ -15,6 +15,9 @@ mod string_set;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
+#[cfg(all(feature = "io_profiling", target_os = "linux"))]
+mod io;
+
 #[cfg(feature = "exception_profiling")]
 mod exception;
 
@@ -339,6 +342,9 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_minit();
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    io::io_prof_minit();
 
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();

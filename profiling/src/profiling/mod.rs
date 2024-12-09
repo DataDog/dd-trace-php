@@ -76,6 +76,8 @@ pub struct SampleValues {
     alloc_size: i64,
     timeline: i64,
     exception: i64,
+    io_time: i64,
+    io_bytes: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -1181,6 +1183,47 @@ impl Profiler {
             }
             Err(err) => {
                 warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
+            }
+        }
+    }
+
+    /// This function can be called to collect any kind of inactivity that is happening
+    //#[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_io(
+        &self,
+        execute_data: *mut zend_execute_data,
+        now: i64,
+        duration: i64,
+        io_bytes: i64,
+    ) {
+        let result = collect_stack_sample(execute_data);
+        match result {
+            Ok(frames) => {
+                let depth = frames.len();
+                let labels = Profiler::common_labels(0);
+
+                let n_labels = labels.len();
+
+                match self.prepare_and_send_message(
+                    frames,
+                    SampleValues {
+                        io_time: duration,
+                        io_bytes,
+                        ..Default::default()
+                    },
+                    labels,
+                    now,
+                ) {
+                    Ok(_) => println!(
+                        "Sent stack sample of {depth} frames, {n_labels} labels with to profiler."
+                    ),
+                    Err(err) => warn!(
+                        "Failed to send stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
+                    ),
+                }
+            }
+            Err(err) => {
+                warn!("Failed to collect stack sample: {err}")
             }
         }
     }

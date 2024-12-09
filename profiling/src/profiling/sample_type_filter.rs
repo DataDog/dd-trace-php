@@ -1,7 +1,7 @@
 use crate::config::SystemSettings;
 use crate::profiling::{SampleValues, ValueType};
 
-const MAX_SAMPLE_TYPES: usize = 7;
+const MAX_SAMPLE_TYPES: usize = 9;
 
 pub struct SampleTypeFilter {
     sample_types: Vec<ValueType>,
@@ -19,6 +19,8 @@ impl SampleTypeFilter {
             ValueType::new("alloc-size", "bytes"),
             ValueType::new("timeline", "nanoseconds"),
             ValueType::new("exception-samples", "count"),
+            ValueType::new("io-time", "nanoseconds"),
+            ValueType::new("io-bytes", "bytes"),
         ];
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
@@ -50,6 +52,14 @@ impl SampleTypeFilter {
                 sample_types.push(SAMPLE_TYPES[6]);
                 sample_types_mask[6] = true;
             }
+
+            #[cfg(feature = "io_profiling")]
+            if system_settings.profiling_exception_enabled {
+                sample_types.push(SAMPLE_TYPES[7]);
+                sample_types_mask[7] = true;
+                sample_types.push(SAMPLE_TYPES[8]);
+                sample_types_mask[8] = true;
+            }
         }
 
         Self {
@@ -76,6 +86,8 @@ impl SampleTypeFilter {
             sample_values.alloc_size,
             sample_values.timeline,
             sample_values.exception,
+            sample_values.io_time,
+            sample_values.io_bytes,
         ];
 
         for (value, enabled) in values.into_iter().zip(self.sample_types_mask.iter()) {

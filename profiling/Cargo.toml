@@ -47,11 +47,12 @@ name = "stack_walking"
 harness = false
 
 [features]
-default = ["allocation_profiling", "timeline", "exception_profiling"]
+default = ["allocation_profiling", "timeline", "exception_profiling", "io_profiling"]
 allocation_profiling = []
 timeline = []
 exception_profiling = []
 stack_walking_tests = []
+io_profiling = []
 
 # only for testing:
 trigger_time_sample = []
