@@ -181,7 +181,7 @@ bool dd_parse_user_collection_mode(
     return true;
 }
 
-zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_id)
+zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info)
 {
     zend_string *digest;
     const php_hash_ops *ops;
@@ -215,7 +215,7 @@ zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_id)
 #endif
 
     ops->hash_update(
-        context, (unsigned char *)ZSTR_VAL(user_id), ZSTR_LEN(user_id));
+        context, (unsigned char *)ZSTR_VAL(user_info), ZSTR_LEN(user_info));
 
     digest = zend_string_alloc(ops->digest_size, 0);
     ops->hash_final((unsigned char *)ZSTR_VAL(digest), context);
