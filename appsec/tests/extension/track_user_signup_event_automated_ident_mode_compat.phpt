@@ -29,4 +29,5 @@ Array
     [appsec.events.users.signup.usr.login] => login
     [_dd.appsec.usr.login] => login
     [appsec.events.users.signup.track] => true
+    [appsec.events.users.signup] => null
 )
