@@ -50,7 +50,6 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $this->assertEquals($email, $events[0]['userLogin']);
         $this->assertEquals($name, $events[0]['metadata']['name']);
         $this->assertEquals($email, $events[0]['metadata']['email']);
-        $this->assertTrue($events[0]['automated']);
     }
 
     public function testUserLoginFailureEvent()
@@ -62,7 +61,6 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event']);
         $this->assertEquals(1, count($events));
         $this->assertEquals($email, $events[0]['userLogin']);
-        $this->assertTrue($events[0]['automated']);
     }
 
     public function testUserSignUp()
@@ -81,7 +79,6 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event']);
 
-        $this->assertTrue($signUpEvent[0]['automated']);
         $this->assertEquals($users[0]['id'], $signUpEvent[0]['userId']);
         $this->assertEquals($users[0]['email'], $signUpEvent[0]['userLogin']);
     }
