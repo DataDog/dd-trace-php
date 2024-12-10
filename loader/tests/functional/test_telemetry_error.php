@@ -3,26 +3,13 @@
 require_once __DIR__."/includes/autoload.php";
 skip_if_php5();
 
-$output = runCLI('-v', true, ['DD_TRACE_DEBUG=1']);
-assertContains($output, 'Found extension file');
-assertContains($output, 'Extension \'ddtrace\' is not loaded');
-
-preg_match('/Found extension file: ([^\n]*)/', $output, $matches);
-$ext = $matches[1];
-$tmp = tempnam(sys_get_temp_dir(), 'test_loader_');
-copy($ext, $tmp);
-
 $telemetryLogPath = tempnam(sys_get_temp_dir(), 'test_loader_');
 
-$output = runCLI('-dextension='.$tmp.' -v', true, [
-    'DD_TRACE_DEBUG=1',
+$output = runCLI('-v', true, [
     'FAKE_FORWARDER_LOG_PATH='.$telemetryLogPath,
     'DD_TELEMETRY_FORWARDER_PATH='.__DIR__.'/../../bin/fake_forwarder.sh',
+    'DD_LOADER_PACKAGE_PATH=/foo/bar'
 ]);
-assertContains($output, 'Found extension file');
-assertContains($output, 'Extension \'ddtrace\' is already loaded, unregister the injected extension');
-assertContains($output, 'with ddtrace v');
-assertContains($output, 'with dd_library_loader v');
 
 // Let time to the fork to write the telemetry log
 usleep(5000);
@@ -42,9 +29,9 @@ $format = <<<EOS
     },
     "points": [
         {
-            "name": "library_entrypoint.abort",
+            "name": "library_entrypoint.error",
             "tags": [
-                "reason:already_loaded"
+                "error_type:so_not_found"
             ]
         }
     ]
