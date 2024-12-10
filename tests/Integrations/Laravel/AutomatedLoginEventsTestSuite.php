@@ -25,13 +25,14 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
     protected function login($email)
     {
         $this->call(
-            GetSpec::create('Login success event', '/login/auth?email='.$email)
+            GetSpec::create('Login success event', '/login/auth?email=' . $email)
         );
     }
 
-    protected function createUser($id, $name, $email) {
+    protected function createUser($id, $name, $email)
+    {
         //Password is password
-        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+        $this->connection()->exec("insert into users (id, name, email, password) VALUES (" . $id . ", '" . $name . "', '" . $email . "', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
     }
 
     public function testUserLoginSuccessEvent()
@@ -46,9 +47,9 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event']);
         $this->assertEquals(1, count($events));
         $this->assertEquals($id, $events[0]['userId']);
+        $this->assertEquals($email, $events[0]['userLogin']);
         $this->assertEquals($name, $events[0]['metadata']['name']);
         $this->assertEquals($email, $events[0]['metadata']['email']);
-        $this->assertTrue($events[0]['automated']);
     }
 
     public function testUserLoginFailureEvent()
@@ -59,7 +60,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event']);
         $this->assertEquals(1, count($events));
-        $this->assertTrue($events[0]['automated']);
+        $this->assertEquals($email, $events[0]['userLogin']);
     }
 
     public function testUserSignUp()
@@ -68,18 +69,18 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $name = 'somename';
         $password = 'somepassword';
 
-       $this->call(
-           GetSpec::create('Signup', sprintf('/login/signup?email=%s&name=%s&password=%s',$email, $email, $password))
-       );
+        $this->call(
+            GetSpec::create('Signup', sprintf('/login/signup?email=%s&name=%s&password=%s', $email, $name, $password))
+        );
 
-       $users = $this->connection()->query("SELECT * FROM users where email='".$email."'")->fetchAll();
+        $users = $this->connection()->query("SELECT * FROM users where email='" . $email . "'")->fetchAll();
 
         $this->assertEquals(1, count($users));
 
         $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event']);
 
-        $this->assertTrue($signUpEvent[0]['automated']);
         $this->assertEquals($users[0]['id'], $signUpEvent[0]['userId']);
+        $this->assertEquals($users[0]['email'], $signUpEvent[0]['userLogin']);
     }
 
     public function testLoggedInCalls()
@@ -98,7 +99,10 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $this->call(GetSpec::create('Behind auth', '/behind_auth'));
 
         $events = AppsecStatus::getInstance()->getEvents([
-            'track_user_login_success_event','track_user_login_failure_event', 'track_user_signup_event']);
+            'track_user_login_success_event',
+            'track_user_login_failure_event',
+            'track_user_signup_event'
+        ]);
         $this->assertEquals(0, count($events)); //Auth does not generate appsec events
         $this->disableSession();
     }

@@ -3,13 +3,13 @@
 namespace datadog\appsec;
 
 if (!class_exists('datadog\appsec\AppsecStatus')) {
-    class AppsecStatus {
+    class AppsecStatus
+    {
 
         private static $instance = null;
         private $connection;
 
-        protected function __construct() {
-        }
+        protected function __construct() {}
 
         public static function getInstance()
         {
@@ -31,8 +31,8 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         }
 
         /**
-        * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
-        */
+         * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
+         */
         private function initiated()
         {
             return $this->getDbPdo()
@@ -75,8 +75,10 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 
             foreach ($events as $event) {
                 $new = json_decode($event['event'], true);
-                if (empty($names) || in_array($new['eventName'], $names) &&
-                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))) {
+                if (
+                    empty($names) || in_array($new['eventName'], $names) &&
+                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))
+                ) {
                     $result[] = $new;
                 }
             }
@@ -87,8 +89,28 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 }
 
 if (!function_exists('datadog\appsec\appsecMockEnabled')) {
-    function appsecMockEnabled() {
+    function appsecMockEnabled()
+    {
         return getenv('APPSEC_MOCK_ENABLED') === "true";
+    }
+}
+
+if (!function_exists('datadog\appsec\track_user_login_success_event_automated')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     */
+    function track_user_login_success_event_automated($userLogin, $userId, $metadata)
+    {
+        if (!appsecMockEnabled()) {
+            return;
+        }
+        $event = [
+            'userLogin' => $userLogin,
+            'userId' => $userId,
+            'metadata' => $metadata,
+
+        ];
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event');
     }
 }
 
@@ -96,17 +118,37 @@ if (!function_exists('datadog\appsec\track_user_login_success_event')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_login_success_event($userId, $metadata, $automated) {
-        if(!appsecMockEnabled()) {
+    function track_user_login_success_event($userId, $metadata)
+    {
+        if (!appsecMockEnabled()) {
             return;
         }
         $event = [
             'userId' => $userId,
             'metadata' => $metadata,
-            'automated' => $automated
 
         ];
         AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event');
+    }
+}
+
+if (!function_exists('datadog\appsec\track_user_login_failure_event_automated')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     */
+    function track_user_login_failure_event_automated($userLogin, $userId, $exists, $metadata)
+    {
+        if (!appsecMockEnabled()) {
+            return;
+        }
+        $event = [
+            'userLogin' => $userLogin,
+            'userId' => $userId,
+            'exists' => $exists,
+            'metadata' => $metadata,
+
+        ];
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event');
     }
 }
 
@@ -114,18 +156,36 @@ if (!function_exists('datadog\appsec\track_user_login_failure_event')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_login_failure_event($userId, $exists, $metadata, $automated) {
-        if(!appsecMockEnabled()) {
+    function track_user_login_failure_event($userId, $exists, $metadata)
+    {
+        if (!appsecMockEnabled()) {
             return;
         }
         $event = [
             'userId' => $userId,
             'exists' => $exists,
             'metadata' => $metadata,
-            'automated' => $automated
-
         ];
         AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event');
+    }
+}
+
+if (!function_exists('datadog\appsec\track_user_signup_event_automated')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     */
+    function track_user_signup_event_automated($userLogin, $userId, $metadata)
+    {
+        if (!appsecMockEnabled()) {
+            return;
+        }
+        $event = [
+            'userLogin' => $userLogin,
+            'userId' => $userId,
+            'metadata' => $metadata,
+
+        ];
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event');
     }
 }
 
@@ -133,15 +193,15 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_signup_event($userId, $metadata, $automated) {
-        if(!appsecMockEnabled()) {
+    function track_user_signup_event($userId, $metadata)
+
+    {
+        if (!appsecMockEnabled()) {
             return;
         }
         $event = [
             'userId' => $userId,
             'metadata' => $metadata,
-            'automated' => $automated
-
         ];
         AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event');
     }
@@ -152,9 +212,10 @@ if (!function_exists('datadog\appsec\push_address')) {
      * This function is exposed by appsec but here we are mocking it for tests
      * @param array $params
      */
-    function push_address($key, $value) {
-        if(!appsecMockEnabled()) {
-           return;
+    function push_address($key, $value)
+    {
+        if (!appsecMockEnabled()) {
+            return;
         }
         AppsecStatus::getInstance()->addEvent([$key => $value], 'push_address');
     }
