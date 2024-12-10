@@ -217,6 +217,9 @@ void ddloader_logf(log_level level, const char *format, ...) {
     va_end(va);
 }
 
+/**
+ * @param error The c-string this is pointing to must not exceed 150 bytes
+ */
 static void ddloader_telemetryf(telemetry_reason reason, const char *error, const char *format, ...) {
     log_level level = ERROR;
     switch (reason) {
