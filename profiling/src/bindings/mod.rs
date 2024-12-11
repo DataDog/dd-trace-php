@@ -317,6 +317,11 @@ extern "C" {
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 
+    /// Converts the `const char *` into a `zai_str`. A None as well as empty
+    /// strings will be converted into a string view to a static empty string
+    /// (single byte of null, len of 0).
+    pub fn zai_str_from_cstr(cstr: *const c_char) -> zai_str<'static>;
+
     /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).

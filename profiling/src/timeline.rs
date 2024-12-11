@@ -204,14 +204,7 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     }
 
     #[cfg(zend_error_observer_80)]
-    let file = unsafe {
-        let mut len = 0;
-        let file = file as *const u8;
-        while *file.add(len) != 0 {
-            len += 1;
-        }
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(file, len)).to_string()
-    };
+    let file = unsafe { zend::zai_str_from_cstr(file).into_string() };
     #[cfg(not(zend_error_observer_80))]
     let file = unsafe { zend::zai_str_from_zstr(file.as_mut()).into_string() };
 
