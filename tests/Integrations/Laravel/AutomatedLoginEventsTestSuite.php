@@ -25,14 +25,14 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
     protected function login($email)
     {
         $this->call(
-            GetSpec::create('Login success event', '/login/auth?email=' . $email)
+            GetSpec::create('Login success event', '/login/auth?email='.$email)
         );
     }
 
     protected function createUser($id, $name, $email)
     {
         //Password is password
-        $this->connection()->exec("insert into users (id, name, email, password) VALUES (" . $id . ", '" . $name . "', '" . $email . "', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
+        $this->connection()->exec("insert into users (id, name, email, password) VALUES (".$id.", '".$name."', '".$email."', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')");
     }
 
     public function testUserLoginSuccessEvent()
@@ -73,7 +73,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
             GetSpec::create('Signup', sprintf('/login/signup?email=%s&name=%s&password=%s', $email, $name, $password))
         );
 
-        $users = $this->connection()->query("SELECT * FROM users where email='" . $email . "'")->fetchAll();
+        $users = $this->connection()->query("SELECT * FROM users where email='".$email."'")->fetchAll();
 
         $this->assertEquals(1, count($users));
 

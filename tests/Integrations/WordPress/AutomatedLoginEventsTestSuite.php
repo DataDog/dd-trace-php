@@ -28,7 +28,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $name = 'some name';
         //Password is test
         $this->connection()->exec(
-            'INSERT INTO ' . $this->users_table . ' VALUES (' . $id . ',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","' . $email . '","","2020-10-22 16:31:15","",0,"' . $name . '")'
+            'INSERT INTO '.$this->users_table.' VALUES ('.$id.',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","'.$email.'","","2020-10-22 16:31:15","",0,"'.$name.'")'
         );
 
         $spec = PostSpec::create('request', '/wp-login.php', [
@@ -71,7 +71,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $name = 'some name';
         //Password is test
         $this->connection()->exec(
-            'INSERT INTO ' . $this->users_table . ' VALUES (' . $id . ',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","' . $email . '","","2020-10-22 16:31:15","",0,"' . $name . '")'
+            'INSERT INTO '.$this->users_table.' VALUES ('.$id.',"test","$P$BDzpK1XXL9P2cYWggPMUbN87GQSiI80","test","'.$email.'","","2020-10-22 16:31:15","",0,"'.$name.'")'
         );
 
         $spec = PostSpec::create('request', '/wp-login.php', [
@@ -99,7 +99,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
             ], "user_login=$username&user_email=$email&wp-submit=Register&redirect_to=")
         );
 
-        $users = $this->connection()->query("SELECT * FROM " . $this->users_table . " where user_email='" . $email . "'")->fetchAll();
+        $users = $this->connection()->query("SELECT * FROM ".$this->users_table." where user_email='".$email."'")->fetchAll();
 
         $this->assertEquals(1, count($users));
 

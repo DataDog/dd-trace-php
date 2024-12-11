@@ -32,8 +32,8 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         }
 
         /**
-         * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
-         */
+        * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
+        */
         private function initiated()
         {
             return $this->getDbPdo()
@@ -76,10 +76,8 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 
             foreach ($events as $event) {
                 $new = json_decode($event['event'], true);
-                if (
-                    empty($names) || in_array($new['eventName'], $names) &&
-                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))
-                ) {
+                if (empty($names) || in_array($new['eventName'], $names) &&
+                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))) {
                     $result[] = $new;
                 }
             }
@@ -195,7 +193,6 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
      * This function is exposed by appsec but here we are mocking it for tests
      */
     function track_user_signup_event($userId, $metadata)
-
     {
         if (!appsecMockEnabled()) {
             return;
