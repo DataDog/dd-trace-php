@@ -88,7 +88,7 @@ class SymfonyIntegration extends Integration
             'Doctrine\ORM\UnitOfWork',
             'executeInserts',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event')) {
+                if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
                     return;
                 }
 
@@ -117,7 +117,7 @@ class SymfonyIntegration extends Integration
                     $user = $userEntity->getUserIdentifier();
                 }
 
-                \datadog\appsec\track_user_signup_event($user, [], true);
+                \datadog\appsec\track_user_signup_event_automated($user, $user, []);
             }
         );
 
@@ -126,23 +126,26 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationSuccess',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
                     return;
                 }
+
                 $token = $args[1];
                 $authClass = '\Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
                 if (!$token || !($token instanceof $authClass)) {
                     return;
                 }
-                $metadata = [];
 
-                \datadog\appsec\track_user_login_success_event(
-                    \method_exists($token, 'getUsername') ? $token->getUsername() : '',
+                $metadata = [];
+                $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $user,
+                    $user,
                     $metadata,
-                    true
                 );
             }
         );
@@ -152,10 +155,10 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationFailure',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
             }
         );
 
@@ -164,10 +167,10 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
             }
         );
 
@@ -176,7 +179,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -189,11 +192,12 @@ class SymfonyIntegration extends Integration
                 }
 
                 $metadata = [];
+                $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
-                \datadog\appsec\track_user_login_success_event(
-                    \method_exists($token, 'getUsername') ? $token->getUsername() : '',
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $user,
+                    $user,
                     $metadata,
-                    true
                 );
             }
         );
@@ -203,10 +207,10 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationFailure',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
             }
         );
 
@@ -215,7 +219,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationSuccess',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -226,17 +230,20 @@ class SymfonyIntegration extends Integration
                 if (!$token || !($token instanceof $authClass)) {
                     return;
                 }
-                $metadata = [];
 
                 $user = \method_exists($token, 'getUser') ? $token->getUser() : null;
                 $userClass = '\Symfony\Component\Security\Core\User\UserInterface';
                 if (!$user || !($user instanceof $userClass)) {
                     return;
                 }
-                \datadog\appsec\track_user_login_success_event(
-                    \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '',
+
+                $metadata = [];
+                $userIdentifier = \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $userIdentifier,
+                    $userIdentifier,
                     $metadata,
-                    true
                 );
             }
         );
@@ -258,7 +265,8 @@ class SymfonyIntegration extends Integration
 
                     $commandName = $this->getName();
 
-                    if (\dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
+                    if (
+                        \dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
                         && $commandName === 'messenger:consume'
                     ) {
                         \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
@@ -392,9 +400,11 @@ class SymfonyIntegration extends Integration
                 }
 
                 $parameters = $request->get('_route_params');
-                if (!empty($parameters) &&
+                if (
+                    !empty($parameters) &&
                     is_array($parameters) &&
-                    function_exists('\datadog\appsec\push_address')) {
+                    function_exists('\datadog\appsec\push_address')
+                ) {
                     \datadog\appsec\push_address("server.request.path_params", $parameters);
                 }
 
