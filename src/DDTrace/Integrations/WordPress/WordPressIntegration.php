@@ -55,9 +55,11 @@ class WordPressIntegration extends Integration
 
         \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
             if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
-                if (function_exists('\datadog\appsec\push_address') &&
+                if (
+                    function_exists('\datadog\appsec\push_address') &&
                     \property_exists($This, 'query_vars') &&
-                    function_exists('is_404') && is_404() === false) {
+                    function_exists('is_404') && is_404() === false
+                ) {
                     $parameters = $This->query_vars;
                     if (count($parameters) > 0) {
                         \datadog\appsec\push_address("server.request.path_params", $parameters);
@@ -69,11 +71,18 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'wp_authenticate',
             null,
-            function ($par, $retval) {
+            function ($args, $retval) {
                 $userClass = '\WP_User';
+
+                $username = null;
+
+                if (isset($args[0])) {
+                    $username = $args[0];
+                }
+
                 if (!($retval instanceof $userClass)) {
                     //Login failed
-                    if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                    if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                         return;
                     }
                     $errorClass = '\WP_Error';
@@ -82,14 +91,15 @@ class WordPressIntegration extends Integration
                         is_array($retval->errors) &&
                         isset($retval->errors['incorrect_password']);
 
-                    $usernameUsed = isset($_POST['log']) ? $_POST['log'] : '';
-                    \datadog\appsec\track_user_login_failure_event($usernameUsed, $exists, [], true);
+                    \datadog\appsec\track_user_login_failure_event_automated($username, $username, $exists, []);
                     return;
                 }
+
                 //From this moment on, login is succesful
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
+
                 $data = \property_exists($retval, 'data') ? $retval->data : null;
 
                 $id = \property_exists($data, 'ID') ? $data->ID : null;
@@ -101,10 +111,11 @@ class WordPressIntegration extends Integration
                 if (\property_exists($data, 'display_name')) {
                     $metadata['name'] = $data->display_name;
                 }
-                \datadog\appsec\track_user_login_success_event(
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $username,
                     $id,
                     $metadata,
-                    true
                 );
             }
         );
@@ -114,24 +125,31 @@ class WordPressIntegration extends Integration
             'register_new_user',
             null,
             function ($args, $retval) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event')) {
+                if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
                     return;
                 }
+
                 $errorClass = '\WP_Error';
                 if ($retval instanceof $errorClass) {
                     return;
                 }
+
                 $metadata = [];
+                $login = null;
+
                 if (isset($args[0])) {
                     $metadata['username'] = $args[0];
+                    $login = $args[0];
                 }
+
                 if (isset($args[1])) {
                     $metadata['email'] = $args[1];
                 }
-                \datadog\appsec\track_user_signup_event(
+
+                \datadog\appsec\track_user_signup_event_automated(
+                    $login,
                     $retval,
-                    $metadata,
-                    true
+                    $metadata
                 );
             }
         );
