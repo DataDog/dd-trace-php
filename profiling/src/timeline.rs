@@ -204,15 +204,11 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     }
 
     #[cfg(zend_error_observer_80)]
-    let filename = unsafe {
-        let cstr = core::ffi::CStr::from_ptr(file);
-        cstr.to_string_lossy().into_owned()
-    };
+    let filename_str = unsafe { core::ffi::CStr::from_ptr(file) };
     #[cfg(not(zend_error_observer_80))]
-    let filename = unsafe {
-        let zstr = zai_str_from_zstr(file.as_mut());
-        zstr.into_string_lossy().into_owned()
-    };
+    let filename_str = unsafe { zai_str_from_zstr(file.as_mut()) };
+
+    let filename = filename_str.into_string_lossy().into_owned();
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {
