@@ -230,6 +230,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                             zend_get_properties_for(zv, ZEND_PROP_PURPOSE_DEBUG)
                             #endif
                                                             : Z_OBJPROP_P(zv);
+
+            if (!ht) {
+                break;
+            }
             ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, key, val) {
                 if (!key) {
                     continue;
@@ -258,6 +262,16 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                 ddtrace_snapshot_redacted_name(&value_capture, fieldname);
                 ZVAL_DEINDIRECT(val);
                 ddtrace_create_capture_value(val, &value_capture, config, remaining_nesting - 1);
+
+                // zend_get_properties_for can create ephemeral values that are released just after this loop
+                // We must persist them in the arena.
+#if PHP_VERSION_ID >= 70400
+                if (ce->type == ZEND_INTERNAL_CLASS) {
+                    char *persisted_val = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), value_capture.value.len);
+                    memcpy(persisted_val, value_capture.value.ptr, value_capture.value.len);
+                    value_capture.value.ptr = persisted_val;
+                }
+#endif
                 ddog_capture_value_add_field(value, fieldname, value_capture);
             } ZEND_HASH_FOREACH_END();
             if (ce->type == ZEND_INTERNAL_CLASS) {
@@ -392,7 +406,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         LOG(TRACE, "Skipping exception replay capture due to hash %.*s already recently hit", hash_len, exception_hash);
         return;
     }
-    
+
     char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])exception_id);
 
