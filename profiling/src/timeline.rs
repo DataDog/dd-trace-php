@@ -204,21 +204,20 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     }
 
     #[cfg(zend_error_observer_80)]
-    let file = unsafe {
-        let mut len = 0;
-        let file = file as *const u8;
-        while *file.add(len) != 0 {
-            len += 1;
-        }
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(file, len)).to_string()
+    let filename = unsafe {
+        let cstr = core::ffi::CStr::from_ptr(file);
+        cstr.to_string_lossy().into_owned()
     };
     #[cfg(not(zend_error_observer_80))]
-    let file = unsafe { zend::zai_str_from_zstr(file.as_mut()).into_string() };
+    let filename = unsafe {
+        let zstr = zai_str_from_zstr(file.as_mut());
+        zstr.into_string_lossy().into_owned()
+    };
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
-        profiler.collect_fatal(now, file, line, unsafe {
+        profiler.collect_fatal(now, filename, line, unsafe {
             zend::zai_str_from_zstr(message.as_mut()).into_string()
         });
     }
