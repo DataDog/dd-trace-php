@@ -265,8 +265,7 @@ class SymfonyIntegration extends Integration
 
                     $commandName = $this->getName();
 
-                    if (
-                        \dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
+                    if (\dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
                         && $commandName === 'messenger:consume'
                     ) {
                         \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
@@ -400,11 +399,9 @@ class SymfonyIntegration extends Integration
                 }
 
                 $parameters = $request->get('_route_params');
-                if (
-                    !empty($parameters) &&
+                if (!empty($parameters) &&
                     is_array($parameters) &&
-                    function_exists('\datadog\appsec\push_address')
-                ) {
+                    function_exists('\datadog\appsec\push_address')) {
                     \datadog\appsec\push_address("server.request.path_params", $parameters);
                 }
 

@@ -55,11 +55,9 @@ class WordPressIntegration extends Integration
 
         \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
             if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
-                if (
-                    function_exists('\datadog\appsec\push_address') &&
+                if (function_exists('\datadog\appsec\push_address') &&
                     \property_exists($This, 'query_vars') &&
-                    function_exists('is_404') && is_404() === false
-                ) {
+                    function_exists('is_404') && is_404() === false) {
                     $parameters = $This->query_vars;
                     if (count($parameters) > 0) {
                         \datadog\appsec\push_address("server.request.path_params", $parameters);
@@ -75,7 +73,6 @@ class WordPressIntegration extends Integration
                 $userClass = '\WP_User';
 
                 $username = null;
-
                 if (isset($args[0])) {
                     $username = $args[0];
                 }
