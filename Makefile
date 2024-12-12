@@ -1230,6 +1230,8 @@ test_integrations_guzzle6: global_test_run_dependencies  tests/Integrations/Guzz
 	$(call run_tests_debug,tests/Integrations/Guzzle/V6)
 test_integrations_guzzle7: global_test_run_dependencies tests/Integrations/Guzzle/V7/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Guzzle/V7)
+test_integrations_kafka: global_test_run_dependencies
+	$(call run_tests_debug,tests/Integrations/Kafka)
 test_integrations_laminaslog2: global_test_run_dependencies tests/Integrations/Logs/LaminasLogV2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Logs/LaminasLogV2)
 test_integrations_memcached: global_test_run_dependencies

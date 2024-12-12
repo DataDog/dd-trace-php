@@ -24,6 +24,7 @@
     INTEGRATION(FRANKENPHP, "frankenphp")                                                                                \
     INTEGRATION(GOOGLESPANNER, "googlespanner")                                                                          \
     INTEGRATION(GUZZLE, "guzzle")                                                                                        \
+    INTEGRATION(KAFKA, "kafka")                                                                                          \
     INTEGRATION(LAMINAS, "laminas")                                                                                      \
     INTEGRATION(LARAVEL, "laravel")                                                                                      \
     INTEGRATION(LARAVELQUEUE, "laravelqueue")                                                                            \
