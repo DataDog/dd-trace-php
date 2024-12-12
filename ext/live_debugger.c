@@ -781,7 +781,7 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
         }
         return NULL;
     }
-    
+
     return NULL;
 }
 
@@ -1294,7 +1294,14 @@ ddog_LiveDebuggerSetup ddtrace_live_debugger_setup = {
     .evaluator = &dd_evaluator,
 };
 
+static void dd_ht_ephemerals_dtor(void *pData) {
+    HashTable *ht = *((HashTable **)pData);
+    zend_release_properties(ht);
+}
+
 void ddtrace_live_debugger_minit(void) {
+    zend_hash_init(&DDTRACE_G(debugger_capture_ephemerals), 8, NULL, (dtor_func_t)dd_ht_ephemerals_dtor, 1);
+
     zend_string *value;
     ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS(), value) {
         ddog_snapshot_add_redacted_name(dd_zend_string_to_CharSlice(value));
@@ -1302,4 +1309,8 @@ void ddtrace_live_debugger_minit(void) {
     ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES(), value) {
         ddog_snapshot_add_redacted_type(dd_zend_string_to_CharSlice(value));
     } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_live_debugger_mshutdown(void) {
+    zend_hash_destroy(&DDTRACE_G(debugger_capture_ephemerals));
 }

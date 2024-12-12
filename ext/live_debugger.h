@@ -6,6 +6,7 @@
 extern ddog_LiveDebuggerSetup ddtrace_live_debugger_setup;
 
 void ddtrace_live_debugger_minit(void);
+void ddtrace_live_debugger_mshutdown(void);
 
 static inline void ddtrace_snapshot_redacted_name(ddog_CaptureValue *capture_value, ddog_CharSlice name) {
     if (ddog_snapshot_redacted_name(name)) {
