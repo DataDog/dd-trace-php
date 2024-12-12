@@ -30,6 +30,7 @@ x-aliases:
         - mysql_integration
         - memcached_integration
         - googlespanner_integration
+        - kafka_integration
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
@@ -168,6 +169,35 @@ services:
       default:
         aliases:
           - spanner.local
+
+  kafka_integration:
+    image: confluentinc/cp-kafka:7.7.1
+    ports:
+      - "9092:9092"
+    networks:
+      default:
+        aliases:
+          - kafka_integration
+    environment:
+        - KAFKA_BROKER_ID=111
+        - KAFKA_CREATE_TOPICS=test:1:1
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
+        - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+        - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+        - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+        - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+        - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.1
+    ports:
+      - "2181:2181"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
 
   mongodb_integration:
     image: "circleci/mongo:4.0"

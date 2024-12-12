@@ -30,6 +30,7 @@ void ddtrace_free_unregistered_class(zend_class_entry *ce) {
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
+void ddtrace_kafka_handlers_startup(void);
 #ifndef _WIN32
 void ddtrace_signal_block_handlers_startup(void);
 #endif
@@ -131,6 +132,8 @@ void ddtrace_exception_handlers_rinit(void);
 void ddtrace_curl_handlers_rshutdown(void);
 
 void ddtrace_internal_handlers_startup() {
+    ddtrace_kafka_handlers_startup();
+
     // On PHP 8.0 zend_execute_internal is not executed in JIT. Manually ensure internal hooks are executed.
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 #if PHP_VERSION_ID >= 80100

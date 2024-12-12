@@ -24,9 +24,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Type::WEB_SERVLET, 'web'],
             [Type::CLI, 'cli'],
             [Type::SQL, 'sql'],
-
-            [Type::MESSAGE_CONSUMER, 'queue'],
-            [Type::MESSAGE_PRODUCER, 'queue'],
+            [Type::QUEUE, 'queue'],
 
             [Type::CASSANDRA, 'cassandra'],
             [Type::ELASTICSEARCH, 'elasticsearch'],
