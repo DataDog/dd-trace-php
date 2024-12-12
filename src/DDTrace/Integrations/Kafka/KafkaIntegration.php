@@ -12,6 +12,12 @@ class KafkaIntegration extends Integration
 {
     const NAME = 'kafka';
 
+    private const METADATA_MAPPING = [
+        'metadata.broker.list' => Tag::KAFKA_HOST_LIST,
+        'group.id' => Tag::KAFKA_GROUP_ID,
+        'client.id' => Tag::KAFKA_CLIENT_ID
+    ];
+
     public function init(): int
     {
         $this->installProducerTopicHooks();
@@ -34,38 +40,28 @@ class KafkaIntegration extends Integration
             \DDTrace\install_hook(
                 $hookMethod,
                 function (HookData $hook) use ($integration) {
-                    $integration->setupKafkaProduceSpan($hook);
+                    $integration->setupKafkaProduceSpan($hook, $this);
                 }
             );
         }
     }
 
-    public function setupKafkaProduceSpan(HookData $hook): void
+    public function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic): void
     {
         /** @var \RdKafka\ProducerTopic $this */
         $span = $hook->span();
         KafkaIntegration::setupCommonSpanMetadata($span, Tag::KAFKA_PRODUCE, Tag::SPAN_KIND_VALUE_PRODUCER, Tag::MQ_OPERATION_SEND);
 
-        $span->meta[Tag::MQ_DESTINATION] = $this->getName();
+        $span->meta[Tag::MQ_DESTINATION] = $producerTopic->getName();
         $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
 
-        $conf = ObjectKVStore::get($this, 'conf');
+        $conf = ObjectKVStore::get($producerTopic, 'conf');
         KafkaIntegration::addProducerSpanMetadata($span, $conf, $hook->args);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args): void
     {
-        $metadata = [
-            'metadata.broker.list' => Tag::KAFKA_HOST_LIST,
-            'group.id' => Tag::KAFKA_GROUP_ID,
-            'client.id' => Tag::KAFKA_CLIENT_ID
-        ];
-
-        foreach ($metadata as $configKey => $tagKey) {
-            if (isset($conf[$configKey])) {
-                $span->meta[$tagKey] = $conf[$configKey];
-            }
-        }
+        self::addMetadataToSpan($span, $conf);
 
         $span->metrics[Tag::KAFKA_PARTITION] = $args[0];
         $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($args[2]);
@@ -88,7 +84,7 @@ class KafkaIntegration extends Integration
             \DDTrace\install_hook(
                 $method,
                 function (HookData $hook) use ($integration) {
-                    $integration->setupKafkaConsumeSpan($hook);
+                    $integration->setupKafkaConsumeSpan($hook, $this);
                 },
                 function (HookData $hook) use ($integration) {
                     $integration->processConsumedMessage($hook);
@@ -97,13 +93,13 @@ class KafkaIntegration extends Integration
         }
     }
 
-    public function setupKafkaConsumeSpan(HookData $hook): void
+    public function setupKafkaConsumeSpan(HookData $hook, $consumer): void
     {
         $span = $hook->span();
         KafkaIntegration::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, Tag::SPAN_KIND_VALUE_CONSUMER, Tag::MQ_OPERATION_RECEIVE);
 
-        $conf = ObjectKVStore::get($this, 'conf');
-        KafkaIntegration::addConsumerSpanMetadata($span, $conf);
+        $conf = ObjectKVStore::get($consumer, 'conf');
+        KafkaIntegration::addMetadataToSpan($span, $conf);
     }
 
     public static function setupCommonSpanMetadata($span, string $name, string $spanKind, string $operation): void
@@ -116,15 +112,9 @@ class KafkaIntegration extends Integration
         $span->meta[Tag::MQ_OPERATION] = $operation;
     }
 
-    public static function addConsumerSpanMetadata($span, $conf): void
+    private static function addMetadataToSpan($span, $conf): void
     {
-        $metadata = [
-            'metadata.broker.list' => Tag::KAFKA_HOST_LIST,
-            'client.id' => Tag::KAFKA_CLIENT_ID,
-            'group.id' => Tag::KAFKA_GROUP_ID
-        ];
-
-        foreach ($metadata as $configKey => $tagKey) {
+        foreach (self::METADATA_MAPPING as $configKey => $tagKey) {
             if (isset($conf[$configKey])) {
                 $span->meta[$tagKey] = $conf[$configKey];
             }
