@@ -56,7 +56,7 @@ class KafkaTest extends IntegrationTestCase
             true
         );
 
-        //echo $output;
+        echo $output;
         echo json_encode($consumerTraces, JSON_PRETTY_PRINT) . PHP_EOL;
 
         /*
