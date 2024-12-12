@@ -129,6 +129,7 @@ class KafkaIntegration extends Integration
 
         if ($message) {
             $span->meta[Tag::MQ_DESTINATION] = $message->topic_name;
+            $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
             $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
         }
