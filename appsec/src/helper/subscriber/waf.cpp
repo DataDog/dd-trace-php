@@ -300,7 +300,8 @@ instance::listener::~listener()
     }
 }
 
-void instance::listener::call(dds::parameter_view &data, event &event)
+void instance::listener::call(
+    dds::parameter_view &data, event &event, bool rasp)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
@@ -343,6 +344,14 @@ void instance::listener::call(dds::parameter_view &data, event &event)
             action_type == "redirect_request") {
             request_blocked_ = true;
             break;
+        }
+    }
+    if (rasp) {
+        // NOLINTNEXTLINE
+        rasp_runtime_ += res.total_runtime / 1000.0;
+        rasp_calls_++;
+        if (res.timeout) {
+            rasp_timeouts_ += 1;
         }
     }
 
@@ -402,6 +411,15 @@ void instance::listener::submit_metrics(
     msubmitter.submit_span_meta(
         metrics::event_rules_version, std::string{ruleset_version_});
     msubmitter.submit_span_metric(metrics::waf_duration, total_runtime_);
+
+    if (rasp_calls_ > 0) {
+        msubmitter.submit_span_metric(metrics::rasp_duration, rasp_runtime_);
+        msubmitter.submit_span_metric(metrics::rasp_rule_eval, rasp_calls_);
+        if (rasp_timeouts_ > 0) {
+            msubmitter.submit_span_metric(
+                metrics::rasp_timeout, rasp_timeouts_);
+        }
+    }
 
     for (const auto &[key, value] : derivatives_) {
         std::string derivative = value;

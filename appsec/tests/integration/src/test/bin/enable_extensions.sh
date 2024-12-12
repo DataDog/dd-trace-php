@@ -28,6 +28,7 @@ if [[ -f /appsec/ddappsec.so && -d /project ]]; then
     echo datadog.appsec.rules=/etc/recommended.json
     echo datadog.appsec.log_file=/tmp/logs/appsec.log
     echo datadog.appsec.log_level=debug
+    echo datadog.appsec.rasp_enabled=1
   } >> /etc/php/php.ini
 fi
 

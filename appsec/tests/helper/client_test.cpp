@@ -2687,4 +2687,83 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
     }
 }
 
+TEST(ClientTest, RaspCalls)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // No Rasp during request
+    {
+        request_init(broker, c);
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+        msg.data.add("server.response.code", parameter::string("1991"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+
+        EXPECT_EQ(msg_res->metrics.size(), 1);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
+    }
+
+    // Rasp during request
+    {
+        request_init(broker, c);
+
+        // Request Execution
+        {
+            network::request_exec::request msg;
+
+            msg.rasp = true;
+            msg.data = parameter::map();
+
+            network::request req(std::move(msg));
+
+            std::shared_ptr<network::base_response> res;
+            EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+            EXPECT_CALL(*broker,
+                send(testing::An<
+                    const std::shared_ptr<network::base_response> &>()))
+                .WillOnce(DoAll(Return(true)));
+
+            EXPECT_TRUE(c.run_request());
+        }
+
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+
+        EXPECT_EQ(msg_res->metrics.size(), 3);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
+        EXPECT_EQ(msg_res->metrics[metrics::rasp_rule_eval], 1);
+        EXPECT_GE(msg_res->metrics[metrics::rasp_duration], 0.0);
+    }
+}
+
 } // namespace dds

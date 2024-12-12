@@ -1,5 +1,5 @@
 --TEST--
-Signal integration telemetry
+Filesystem integration can also be disabled with default integrations flag
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
@@ -11,36 +11,16 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_APPSEC_RASP_ENABLED=1
+DD_TRACE_FILESYSTEM_ENABLED=0
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
 --FILE--
 <?php
-
-namespace DDTrace\Test
-{
-    class TestSandboxedIntegration implements \DDTrace\Integration
-    {
-        function init(): int
-        {
-            dd_trace_method("Test", "public_static_method", function() {
-                echo "test_access hook" . PHP_EOL;
-            });
-            return self::LOADED;
-        }
-    }
-}
-
 namespace
 {
-    class Test
-    {
-        public static function public_static_method()
-        {
-            echo "PUBLIC STATIC METHOD\n";
-        }
-    }
-
-    Test::public_static_method();
+    //Here we use one wrapped function
+    file_put_contents('/tmp/dummy', 'foo');
 
     dd_trace_internal_fn("finalize_telemetry");
 
@@ -65,25 +45,10 @@ namespace
 
 ?>
 --EXPECT--
-PUBLIC STATIC METHOD
-test_access hook
 array(1) {
   ["integrations"]=>
-  array(3) {
+  array(2) {
     [0]=>
-    array(5) {
-      ["name"]=>
-      string(37) "ddtrace\test\testsandboxedintegration"
-      ["enabled"]=>
-      bool(true)
-      ["version"]=>
-      NULL
-      ["compatible"]=>
-      NULL
-      ["auto_enabled"]=>
-      NULL
-    }
-    [1]=>
     array(5) {
       ["name"]=>
       string(10) "filesystem"
@@ -96,7 +61,7 @@ array(1) {
       ["auto_enabled"]=>
       NULL
     }
-    [2]=>
+    [1]=>
     array(5) {
       ["name"]=>
       string(4) "logs"

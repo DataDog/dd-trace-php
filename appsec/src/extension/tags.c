@@ -60,6 +60,7 @@
     "_dd.appsec.events.users.login.success.sdk"
 #define DD_EVENTS_USER_LOGIN_FAILURE_SDK                                       \
     "_dd.appsec.events.users.login.failure.sdk"
+#define DD_EVENTS_RASP_DURATION_EXT "_dd.appsec.rasp.duration_ext"
 
 static zend_string *_dd_tag_data_zstr;
 static zend_string *_dd_tag_event_zstr;
@@ -78,6 +79,7 @@ static zend_string *_dd_tag_rh_content_encoding; // response
 static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_tag_user_id;
 static zend_string *_dd_metric_enabled;
+static zend_string *_dd_rasp_duration_ext;
 static zend_string *_dd_signup_event;
 static zend_string *_dd_login_success_event;
 static zend_string *_dd_login_failure_event;
@@ -172,6 +174,9 @@ void dd_tags_startup()
     _key_https_zstr = zend_string_init_interned(LSTRARG("HTTPS"), 1);
     _key_remote_addr_zstr =
         zend_string_init_interned(LSTRARG("REMOTE_ADDR"), 1);
+
+    _dd_rasp_duration_ext =
+        zend_string_init_interned(LSTRARG(DD_EVENTS_RASP_DURATION_EXT), 1);
 
     // Event related strings
     _track_zstr =
@@ -296,6 +301,18 @@ void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 void dd_tags_set_event_user_id(zend_string *nonnull zstr)
 {
     _event_user_id = zend_string_copy(zstr);
+}
+
+void dd_tags_add_rasp_duration_ext(
+    zend_object *nonnull span, zend_long duration)
+{
+    zval *metrics_zv = dd_trace_span_get_metrics(span);
+    if (!metrics_zv) {
+        return;
+    }
+    zval zv;
+    ZVAL_LONG(&zv, duration);
+    zend_hash_add(Z_ARRVAL_P(metrics_zv), _dd_rasp_duration_ext, &zv);
 }
 
 void dd_tags_rshutdown()

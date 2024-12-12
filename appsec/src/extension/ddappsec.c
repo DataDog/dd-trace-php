@@ -467,7 +467,7 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
-    if (dd_request_exec(conn, data) != dd_success) {
+    if (dd_request_exec(conn, data, false) != dd_success) {
         RETURN_FALSE;
     }
 
@@ -476,6 +476,10 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 
 static PHP_FUNCTION(datadog_appsec_push_address)
 {
+    struct timespec start;
+    struct timespec end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_address "
@@ -485,8 +489,14 @@ static PHP_FUNCTION(datadog_appsec_push_address)
 
     zend_string *key = NULL;
     zval *value = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz", &key, &value) == FAILURE) {
+    bool rasp = false;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz|b", &key, &value, &rasp) ==
+        FAILURE) {
         RETURN_FALSE;
+    }
+
+    if (rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
+        return;
     }
 
     zval parameters_zv;
@@ -502,8 +512,21 @@ static PHP_FUNCTION(datadog_appsec_push_address)
         return;
     }
 
-    dd_result res = dd_request_exec(conn, &parameters_zv);
+    dd_result res = dd_request_exec(conn, &parameters_zv, rasp);
     zval_ptr_dtor(&parameters_zv);
+
+    if (rasp) {
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+        elapsed =
+            ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
+                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                (int64_t)1000000000 +
+            ((int64_t)end.tv_nsec - (int64_t)start.tv_nsec);
+        zend_object *span = dd_trace_get_active_root_span();
+        if (span) {
+            dd_tags_add_rasp_duration_ext(span, elapsed);
+        }
+    }
 
     if (dd_req_is_user_req()) {
         if (res == dd_should_block || res == dd_should_redirect) {
@@ -529,6 +552,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_address_arginfo, 0, 0, IS_VOID, 1)
 ZEND_ARG_INFO(0, key)
 ZEND_ARG_INFO(0, value)
+ZEND_ARG_INFO(0, rasp)
 ZEND_END_ARG_INFO()
 
 // clang-format off

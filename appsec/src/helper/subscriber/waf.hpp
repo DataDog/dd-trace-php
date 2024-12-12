@@ -36,7 +36,7 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        void call(dds::parameter_view &data, event &event) override;
+        void call(dds::parameter_view &data, event &event, bool rasp) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void submit_metrics(metrics::telemetry_submitter &msubmitter) override;
@@ -46,6 +46,10 @@ public:
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
         std::string ruleset_version_;
+        bool rasp_request_ = false;
+        double rasp_runtime_{0.0};
+        unsigned rasp_calls_{0};
+        unsigned rasp_timeouts_{0};
         std::map<std::string, std::string> derivatives_;
         metrics::telemetry_tags base_tags_;
         bool rule_triggered_{};
