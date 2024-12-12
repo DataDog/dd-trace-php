@@ -413,10 +413,11 @@ void instance::listener::submit_metrics(
     msubmitter.submit_span_metric(metrics::waf_duration, total_runtime_);
 
     if (rasp_calls_ > 0) {
-        metrics[tag::rasp_duration] = rasp_runtime_;
-        metrics[tag::rasp_rule_eval] = rasp_calls_;
+        msubmitter.submit_span_metric(metrics::rasp_duration, rasp_runtime_);
+        msubmitter.submit_span_metric(metrics::rasp_rule_eval, rasp_calls_);
         if (rasp_timeouts_ > 0) {
-            metrics[tag::rasp_timeout] = rasp_timeouts_;
+            msubmitter.submit_span_metric(
+                metrics::rasp_timeout, rasp_timeouts_);
         }
     }
 

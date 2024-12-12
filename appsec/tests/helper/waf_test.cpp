@@ -91,13 +91,10 @@ TEST(WafTest, RunWithInvalidParam)
 
 TEST(WafTest, RunWithTimeout)
 {
-    NiceMock<mock::tel_submitter> submitm{};
     { // No rasp
-        std::map<std::string, std::string> meta;
-        std::map<std::string_view, double> metrics;
-
+        NiceMock<mock::tel_submitter> submitm{};
         std::shared_ptr<subscriber> wi(
-        waf::instance::from_string(waf_rule, submitm, 0));
+            waf::instance::from_string(waf_rule, submitm, 0));
         auto ctx = wi->get_listener();
 
         auto p = parameter::map();
@@ -109,40 +106,35 @@ TEST(WafTest, RunWithTimeout)
         EXPECT_THROW(ctx->call(pv, e), timeout_error);
     }
     { // Rasp
-        std::map<std::string, std::string> meta;
-        std::map<std::string_view, double> metrics;
-
+        NiceMock<mock::tel_submitter> submitm{};
         std::shared_ptr<subscriber> wi(
-            waf::instance::from_string(waf_rule, meta, metrics, 0));
+            waf::instance::from_string(waf_rule, submitm, 0));
         auto ctx = wi->get_listener();
 
         auto p = parameter::map();
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 2"sv));
 
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_timeout, 1));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 1.0));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, 0.0));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, 0.0));
         parameter_view pv(p);
         dds::event e;
         bool is_rasp = true;
         EXPECT_THROW(ctx->call(pv, e, is_rasp), timeout_error);
 
-        ctx->get_meta_and_metrics(meta, metrics);
-        EXPECT_EQ(metrics[tag::rasp_timeout], 1);
+        ctx->submit_metrics(submitm);
+        Mock::VerifyAndClearExpectations(&submitm);
     }
 }
 
 TEST(WafTest, ValidRunGood)
 {
-    NiceMock<mock::tel_submitter> submitm{};
-    std::shared_ptr<subscriber> wi{
-        waf::instance::from_string(waf_rule, submitm)};
-    auto ctx = wi->get_listener();
-
     { // No rasp event
-        std::map<std::string, std::string> meta;
-        std::map<std::string_view, double> metrics;
-
+        NiceMock<mock::tel_submitter> submitm{};
         std::shared_ptr<subscriber> wi{
-            waf::instance::from_string(waf_rule, meta, metrics)};
+            waf::instance::from_string(waf_rule, submitm)};
         auto ctx = wi->get_listener();
 
         auto p = parameter::map();
@@ -152,32 +144,25 @@ TEST(WafTest, ValidRunGood)
         dds::event e;
         ctx->call(pv, e); // default to rasp=false
 
-    EXPECT_CALL(submitm,
-        submit_span_meta(metrics::event_rules_version, std::string{"1.2.3"}));
-    double duration;
-    EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _))
-        .WillOnce(SaveArg<1>(&duration));
-    EXPECT_CALL(
-        submitm, submit_metric("waf.requests"sv, 1,
-                     metrics::telemetry_tags::from_string(
-                         std::string{"event_rules_version:1.2.3,waf_version:"} +
-                         ddwaf_get_version())));
-    ctx->submit_metrics(submitm);
-    EXPECT_GT(duration, 0.0);
-    Mock::VerifyAndClearExpectations(&submitm);
-        ctx->get_meta_and_metrics(meta, metrics);
-        EXPECT_STREQ(
-            meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-        EXPECT_GT(metrics[tag::waf_duration], 0.0);
-        EXPECT_TRUE(metrics.find(tag::rasp_duration) == metrics.end());
+        EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
+                                 std::string{"1.2.3"}));
+        double duration;
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _))
+            .WillOnce(SaveArg<1>(&duration));
+        EXPECT_CALL(submitm,
+            submit_metric("waf.requests"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version())));
+        ctx->submit_metrics(submitm);
+        EXPECT_GT(duration, 0.0);
+        Mock::VerifyAndClearExpectations(&submitm);
     }
 
     { // Rasp event
-        std::map<std::string, std::string> meta;
-        std::map<std::string_view, double> metrics;
-
+        NiceMock<mock::tel_submitter> submitm{};
         std::shared_ptr<subscriber> wi{
-            waf::instance::from_string(waf_rule, meta, metrics)};
+            waf::instance::from_string(waf_rule, submitm)};
         auto ctx = wi->get_listener();
 
         auto p = parameter::map();
@@ -188,11 +173,24 @@ TEST(WafTest, ValidRunGood)
         bool is_rasp = true;
         ctx->call(pv, e, is_rasp);
 
-        ctx->get_meta_and_metrics(meta, metrics);
-        EXPECT_STREQ(
-            meta[std::string(tag::event_rules_version)].c_str(), "1.2.3");
-        EXPECT_GT(metrics[tag::waf_duration], 0.0);
-        EXPECT_GT(metrics[tag::rasp_duration], 0.0);
+        double rasp_duration;
+        double duration;
+
+        EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
+                                 std::string{"1.2.3"}));
+        EXPECT_CALL(submitm,
+            submit_metric("waf.requests"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version())));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 1.0));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _))
+            .WillOnce(SaveArg<1>(&duration));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _))
+            .WillOnce(SaveArg<1>(&rasp_duration));
+        ctx->submit_metrics(submitm);
+        EXPECT_GT(duration, 0.0);
+        EXPECT_GT(rasp_duration, 0);
     }
 }
 

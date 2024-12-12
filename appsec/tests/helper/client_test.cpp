@@ -2717,7 +2717,7 @@ TEST(ClientTest, RaspCalls)
             dynamic_cast<network::request_shutdown::response *>(res.get());
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
-        EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
     }
 
     // Rasp during request
@@ -2760,9 +2760,9 @@ TEST(ClientTest, RaspCalls)
             dynamic_cast<network::request_shutdown::response *>(res.get());
 
         EXPECT_EQ(msg_res->metrics.size(), 3);
-        EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
-        EXPECT_EQ(msg_res->metrics[tag::rasp_rule_eval], 1);
-        EXPECT_GE(msg_res->metrics[tag::rasp_duration], 0.0);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
+        EXPECT_EQ(msg_res->metrics[metrics::rasp_rule_eval], 1);
+        EXPECT_GE(msg_res->metrics[metrics::rasp_duration], 0.0);
     }
 }
 
