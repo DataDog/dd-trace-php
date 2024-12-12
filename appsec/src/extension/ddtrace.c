@@ -57,7 +57,6 @@ static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 static const char *nullable (*_ddtrace_remote_config_get_path)(void);
 static void *(*nullable _ddtrace_emit_asm_event)(void);
 
-
 static void _test_ddtrace_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
 static bool _test_ddtrace_metric_add_point(
@@ -143,6 +142,7 @@ static void dd_trace_load_symbols(void)
     if (ddtrace_metric_add_point == NULL && !testing) {
         mlog(dd_log_error, "Failed to load ddtrace_metric_add_point: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
 
     _ddtrace_emit_asm_event = dlsym(handle, "ddtrace_emit_asm_event");
     if (_ddtrace_emit_asm_event == NULL) {
