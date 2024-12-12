@@ -10,9 +10,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Component\Routing\Route;
 
 class SymfonyIntegration extends Integration
 {
@@ -23,6 +21,8 @@ class SymfonyIntegration extends Integration
 
     /** @var string */
     public $frameworkPrefix = SymfonyIntegration::NAME;
+
+    public $kernel;
 
     /**
      * {@inheritdoc}
@@ -316,42 +316,6 @@ class SymfonyIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
-            'Symfony\Component\EventDispatcher\EventDispatcher',
-            'dispatch',
-            function (SpanData $span, $args) {
-                $event = $args[0];
-
-                if (!($event instanceof ControllerEvent)) {
-                    return;
-                }
-
-                $request = $event->getRequest();
-                $controller = $event->getController()[0];
-
-                if (!property_exists($controller, 'container')) {
-                    return;
-                }
-
-                $rc = new \ReflectionClass(get_class($controller));
-                $container = $rc->getProperty('container');
-                $container->setAccessible(true);
-                $container = $container->getValue($controller);
-
-                $router = $container->get('router');
-                $routeName = $request->attributes->get('_route');
-
-                $routeCollection = $router->getRouteCollection();
-                /** @var Route $route */
-                $route = $routeCollection->get($routeName);
-                if (!isset($route)) {
-                    return;
-                }
-                $root_span = \DDTrace\root_span();
-                $root_span->meta[Tag::HTTP_ROUTE] = $route->getPath();
-            }
-        );
-
         $this->loadSymfony($this);
 
         return Integration::LOADED;
@@ -401,6 +365,24 @@ class SymfonyIntegration extends Integration
          */
 
         \DDTrace\hook_method(
+            'Symfony\Component\HttpKernel\Kernel',
+            'getHttpKernel',
+            null,
+            function ($object) use ($integration) {
+                $integration->kernel = $object;
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Drupal\Core\DrupalKernel',
+            'getHttpKernel',
+            null,
+            function ($object) use ($integration) {
+                $integration->kernel = $object;
+            }
+        );
+
+        \DDTrace\hook_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function () use ($integration) {
@@ -443,12 +425,22 @@ class SymfonyIntegration extends Integration
                     \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                 }
 
-                $route = $request->get('_route');
-                if (null !== $route && null !== $request) {
+                $route_name = $request->get('_route');
+                if (null !== $route_name && null !== $request) {
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                        $rootSpan->resource = $route;
+                        $rootSpan->resource = $route_name;
                     }
-                    $rootSpan->meta['symfony.route.name'] = $route;
+                    $rootSpan->meta['symfony.route.name'] = $route_name;
+
+                    if ($integration->kernel !== null) {
+                        $container = $integration->kernel->getContainer();
+                        $router = $container->get('router');
+                        $routeCollection = $router->getRouteCollection();
+                        $route = $routeCollection->get($route_name);
+                        if (isset($route)) {
+                            $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
+                        }
+                    }
                 }
             }
         );
