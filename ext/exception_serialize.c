@@ -267,7 +267,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
             if (ce->type == ZEND_INTERNAL_CLASS) {
 #if PHP_VERSION_ID < 70400
                 if (is_temp) {
-                    zend_array_release(ht);
+                    zend_hash_next_index_insert_ptr(&DDTRACE_G(debugger_capture_ephemerals), ht);
                 }
 #else
                 zend_hash_next_index_insert_ptr(&DDTRACE_G(debugger_capture_ephemerals), ht);

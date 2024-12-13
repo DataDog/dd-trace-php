@@ -1296,7 +1296,12 @@ ddog_LiveDebuggerSetup ddtrace_live_debugger_setup = {
 
 static void dd_ht_ephemerals_dtor(void *pData) {
     HashTable *ht = *((HashTable **)pData);
+
+#if PHP_VERSION_ID < 70400
+    zend_array_release(ht);
+#else
     zend_release_properties(ht);
+#endif
 }
 
 void ddtrace_live_debugger_minit(void) {
