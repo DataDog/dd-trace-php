@@ -34,11 +34,12 @@ $topicConf->set('auto.offset.reset', 'earliest');
 
 $consumer = new Consumer($conf);
 
-$topic = $consumer->newTopic('test', $topicConf);
+$topic = $consumer->newTopic('test-lowlevel', $topicConf);
 //var_dump($topic);
 
 $queue = $consumer->newQueue();
-$topic->consumeQueueStart(0, RD_KAFKA_OFFSET_BEGINNING, $queue);
+$offset = $argv[1] ?? RD_KAFKA_OFFSET_BEGINNING;
+$topic->consumeQueueStart(0, (int) $offset, $queue);
 //$topic->consumeQueueStart(1, RD_KAFKA_OFFSET_BEGINNING, $queue);
 //$topic->consumeQueueStart(2, RD_KAFKA_OFFSET_BEGINNING, $queue);
 do {
