@@ -53,7 +53,8 @@ $topicConf->set('request.timeout.ms', (string) 5000);
 
 $producer = new Producer($conf);
 
-$topic = $producer->newTopic('test', $topicConf);
+$topicName = $argv[1] ?? 'test';
+$topic = $producer->newTopic($topicName, $topicConf);
 //var_dump($topic);
 
 $metadata = $producer->getMetadata(false, $topic, 1000);

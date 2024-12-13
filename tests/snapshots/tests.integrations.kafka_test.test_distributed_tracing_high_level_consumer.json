@@ -1,0 +1,69 @@
+[[
+  {
+    "name": "consumer-highlevel.php",
+    "service": "kafka_test",
+    "resource": "consumer-highlevel.php",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "675bfa3a00000000",
+      "runtime-id": "d3c7f5a5-ca9f-457a-bf7c-7a8ae4ea62af"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "kafka.consume",
+       "service": "kafka_test",
+       "resource": "kafka.consume",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "kafka",
+         "messaging.destination": "test-highlevel",
+         "messaging.destination_kind": "queue",
+         "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+         "messaging.kafka.client_id": "rdkafka",
+         "messaging.kafka.group_id": "consumer-highlevel",
+         "messaging.operation": "receive",
+         "messaging.system": "kafka",
+         "span.kind": "consumer"
+       },
+       "metrics": {
+         "messaging.kafka.message_offset": 0,
+         "messaging.kafka.partition": 0,
+         "messaging.message_payload_size_bytes": 11
+       }
+     },
+     {
+       "name": "kafka.consume",
+       "service": "kafka_test",
+       "resource": "kafka.consume",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "kafka",
+         "messaging.destination": "test-highlevel",
+         "messaging.destination_kind": "queue",
+         "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+         "messaging.kafka.client_id": "rdkafka",
+         "messaging.kafka.group_id": "consumer-highlevel",
+         "messaging.kafka.tombstone": "true",
+         "messaging.operation": "receive",
+         "messaging.system": "kafka",
+         "span.kind": "consumer"
+       },
+       "metrics": {
+         "messaging.kafka.message_offset": 1,
+         "messaging.kafka.partition": 0
+       }
+     }]]

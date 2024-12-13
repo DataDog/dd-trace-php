@@ -15,7 +15,7 @@ $conf->set('auto.offset.reset', 'earliest');
 $partitionsEof = [];
 
 $consumer = new KafkaConsumer($conf);
-$consumer->subscribe(['test']);
+$consumer->subscribe(['test-highlevel']);
 
 echo "Consumer started, waiting for messages...\n";
 
@@ -28,6 +28,10 @@ do {
             echo sprintf("Message consumed: %s\n", $message->payload);
             // Headers
             echo sprintf("Headers: %s\n", json_encode($message->headers));
+
+            // Commit the message offset after processing it
+            $consumer->commit($message);
+
             break;
 
         case RD_KAFKA_RESP_ERR__PARTITION_EOF:

@@ -1,0 +1,88 @@
+[[
+  {
+    "name": "consumer-lowlevel.php",
+    "service": "kafka_test",
+    "resource": "consumer-lowlevel.php",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "675bff5f00000000",
+      "runtime-id": "7a000406-18ba-40df-93e0-53025bb64d88"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "kafka.consume",
+       "service": "kafka_test",
+       "resource": "kafka.consume",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "kafka",
+         "messaging.destination": "test-lowlevel",
+         "messaging.destination_kind": "queue",
+         "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+         "messaging.kafka.client_id": "rdkafka",
+         "messaging.kafka.group_id": "consumer-lowlevel",
+         "messaging.operation": "receive",
+         "messaging.system": "kafka",
+         "span.kind": "consumer"
+       },
+       "metrics": {
+         "messaging.kafka.message_offset": 5,
+         "messaging.kafka.partition": 0,
+         "messaging.message_payload_size_bytes": 11
+       }
+     },
+     {
+       "name": "kafka.consume",
+       "service": "kafka_test",
+       "resource": "kafka.consume",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "kafka",
+         "messaging.destination": "test-lowlevel",
+         "messaging.destination_kind": "queue",
+         "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+         "messaging.kafka.client_id": "rdkafka",
+         "messaging.kafka.group_id": "consumer-lowlevel",
+         "messaging.kafka.tombstone": "true",
+         "messaging.operation": "receive",
+         "messaging.system": "kafka",
+         "span.kind": "consumer"
+       },
+       "metrics": {
+         "messaging.kafka.message_offset": 6,
+         "messaging.kafka.partition": 0
+       }
+     },
+     {
+       "name": "kafka.consume",
+       "service": "kafka_test",
+       "resource": "kafka.consume",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "kafka",
+         "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+         "messaging.kafka.client_id": "rdkafka",
+         "messaging.kafka.group_id": "consumer-lowlevel",
+         "messaging.kafka.tombstone": "true",
+         "messaging.operation": "receive",
+         "messaging.system": "kafka",
+         "span.kind": "consumer"
+       }
+     }]]

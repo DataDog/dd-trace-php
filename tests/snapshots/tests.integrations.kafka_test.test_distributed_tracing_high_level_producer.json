@@ -1,0 +1,43 @@
+[[
+  {
+    "name": "producer.php",
+    "service": "kafka_test",
+    "resource": "producer.php",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "675bfa2800000000",
+      "runtime-id": "eb3f703a-979f-4020-92cd-f792063016f2"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "kafka.produce",
+       "service": "kafka_test",
+       "resource": "kafka.produce",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "queue",
+       "meta": {
+         "component": "kafka",
+         "messaging.destination": "test-highlevel",
+         "messaging.destination_kind": "queue",
+         "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+         "messaging.kafka.client_id": "rdkafka",
+         "messaging.kafka.message_key": "0",
+         "messaging.operation": "send",
+         "messaging.system": "kafka",
+         "span.kind": "producer"
+       },
+       "metrics": {
+         "messaging.kafka.partition": -1,
+         "messaging.message_payload_size_bytes": 11
+       }
+     }]]

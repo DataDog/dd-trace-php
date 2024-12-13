@@ -180,7 +180,7 @@ services:
           - kafka_integration
     environment:
         - KAFKA_BROKER_ID=111
-        - KAFKA_CREATE_TOPICS=test:1:1
+        - KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
         - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
         - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
