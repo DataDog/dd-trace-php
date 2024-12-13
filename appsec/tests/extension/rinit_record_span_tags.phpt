@@ -100,7 +100,7 @@ Array
     [%s] => %d
     [rshutdown_metric] => 2.1
     [_dd.appsec.enabled] => 1
-    [_sampling_priority_v1] => 1
+    [_sampling_priority_v1] => 2
     [php.compilation.total_time_ms] => %f
     [php.memory.peak_usage_bytes] => %f
     [php.memory.peak_real_usage_bytes] => %f

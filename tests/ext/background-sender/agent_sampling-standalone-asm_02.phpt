@@ -47,7 +47,7 @@ echo "This call also has the same sample rate: {$get_sampling()}\n";
 ?>
 --EXPECTF--
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
-First call it is used as heartbeat: 2
+First call it is used as heartbeat: 1
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 This call has the same sample rate: 2
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80

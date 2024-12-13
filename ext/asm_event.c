@@ -24,7 +24,7 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
     ZVAL_STR(&_1_zval, _1_zstr);
     ddtrace_add_propagated_tag(_dd_tag_p_appsec_zstr, &_1_zval);
 
-    ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_AUTO_KEEP, DD_MECHANISM_ASM);
+    ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
 }
 
 PHP_FUNCTION(DDTrace_Testing_emit_asm_event) {
