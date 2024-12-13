@@ -351,8 +351,11 @@ void dd_tags_add_tags(
     _set_runtime_family(span);
 
     if (_force_keep) {
-        dd_trace_set_priority_sampling_on_span_zobj(
-            span, PRIORITY_SAMPLING_USER_KEEP, get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() ? DD_MECHANISM_ASM: DD_MECHANISM_MANUAL);
+        dd_trace_set_priority_sampling_on_span_zobj(span,
+            PRIORITY_SAMPLING_USER_KEEP,
+            get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()
+                ? DD_MECHANISM_ASM
+                : DD_MECHANISM_MANUAL);
         mlog(dd_log_debug, "Updated sampling priority to user_keep");
     }
 
