@@ -1,5 +1,3 @@
-extern crate core;
-
 pub mod bindings;
 pub mod capi;
 mod clocks;
