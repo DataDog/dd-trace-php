@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod bindings;
 pub mod capi;
 mod clocks;
@@ -6,8 +8,8 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
-mod thin_str;
 mod wall_time;
+mod well_known;
 
 #[cfg(php_run_time_cache)]
 mod string_set;
