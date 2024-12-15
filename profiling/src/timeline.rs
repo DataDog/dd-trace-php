@@ -4,16 +4,49 @@ use crate::zend::{
     InternalFunctionHandler,
 };
 use crate::REQUEST_LOCALS;
+use datadog_alloc::Global;
+use datadog_thin_str::ThinString;
 use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
 #[cfg(php_zts)]
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::ptr;
-use std::time::Instant;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::{fmt, ptr};
+
+#[derive(Copy, Clone, Debug)]
+pub enum IncludeType {
+    Include,
+    Require,
+    Unknown,
+}
+
+impl From<u32> for IncludeType {
+    fn from(value: u32) -> Self {
+        match value {
+            zend::ZEND_INCLUDE => IncludeType::Include,
+            zend::ZEND_REQUIRE => IncludeType::Require,
+            _ => IncludeType::Unknown,
+        }
+    }
+}
+
+impl AsRef<str> for IncludeType {
+    fn as_ref(&self) -> &str {
+        match self {
+            IncludeType::Include => "include",
+            IncludeType::Require => "require",
+            IncludeType::Unknown => "unknown",
+        }
+    }
+}
+
+impl fmt::Display for IncludeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
 
 /// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
@@ -208,13 +241,13 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     #[cfg(not(zend_error_observer_80))]
     let filename_str = unsafe { zai_str_from_zstr(file.as_mut()) };
 
-    let filename = filename_str.to_string_lossy().into_owned();
+    let filename = ThinString::from_str_in(filename_str.to_string_lossy().as_ref(), Global);
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
         profiler.collect_fatal(now, filename, line, unsafe {
-            zend::zai_str_from_zstr(message.as_mut()).into_string()
+            zai_str_from_zstr(message.as_mut()).into_string()
         });
     }
 }
@@ -241,8 +274,12 @@ unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32)
         if let Some(profiler) = Profiler::get() {
             let now = now.as_nanos() as i64;
             let file = unsafe {
-                zend::zai_str_from_zstr(zend::zend_get_executed_filename_ex().as_mut())
-                    .into_string()
+                // If this has to make a lossy String, then we'll get an extra
+                // copy (once to String, then another to ThinString). I don't
+                // expect this to be hit often, nor a nice way around it.
+                let name =
+                    zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string_lossy();
+                ThinString::from_str_in(name.as_ref(), Global)
             };
             profiler.collect_opcache_restart(
                 now,
@@ -583,7 +620,9 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             return op_array;
         }
 
-        let filename = zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string();
+        let filename_lossy =
+            zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string_lossy();
+        let filename = ThinString::from_str_in(&filename_lossy, Global);
 
         let line = zend::zend_get_executed_lineno();
 
@@ -639,11 +678,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             return op_array;
         }
 
-        let include_type = match r#type as u32 {
-            zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
-            zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
-            _default => "",
-        };
+        let include_type = IncludeType::from(r#type as u32);
+        let include_str = include_type.as_ref();
 
         // Extract the filename from the returned op_array.
         // We could also extract from the handle, but those filenames might be different from
@@ -654,7 +690,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
 
         trace!(
-            "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+            "Compile file \"{filename}\" with include type \"{include_str}\" took {} nanoseconds",
             duration.as_nanos(),
         );
 

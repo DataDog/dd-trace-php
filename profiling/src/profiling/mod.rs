@@ -17,6 +17,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
+use crate::well_known::WellKnown;
 use crate::{CLOCKS, TAGS};
 use chrono::Utc;
 use core::{ptr, str};
@@ -26,6 +27,7 @@ use datadog_profiling::api::{
 };
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
+use datadog_thin_str::ThinString;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
@@ -49,6 +51,8 @@ use datadog_profiling::api::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+#[cfg(feature = "timeline")]
+use crate::timeline::IncludeType;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -514,9 +518,6 @@ pub enum UploadMessage {
     Upload(Box<UploadRequest>),
 }
 
-#[cfg(feature = "timeline")]
-const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
-
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
@@ -907,14 +908,14 @@ impl Profiler {
     }];
 
     #[cfg(feature = "timeline")]
-    pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
+    pub fn collect_compile_string(&self, now: i64, duration: i64, filename: ThinString, line: u32) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: COW_EVAL,
+                function: WellKnown::Eval.into(),
                 file: Some(filename),
                 line,
             }],
@@ -942,7 +943,7 @@ impl Profiler {
         now: i64,
         duration: i64,
         filename: String,
-        include_type: &str,
+        include_type: IncludeType,
     ) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
@@ -955,7 +956,11 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
+                function: match include_type {
+                    IncludeType::Include => WellKnown::Include.into(),
+                    IncludeType::Require => WellKnown::Require.into(),
+                    IncludeType::Unknown => WellKnown::UnknownIncludeType.into(),
+                },
                 file: None,
                 line: 0,
             }],
@@ -984,7 +989,7 @@ impl Profiler {
 
         labels.push(Label {
             key: "event",
-            value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
+            value: LabelValue::Str(Cow::Borrowed(event)),
         });
 
         let n_labels = labels.len();
@@ -1013,7 +1018,7 @@ impl Profiler {
 
     /// This function can be called to collect any fatal errors
     #[cfg(feature = "timeline")]
-    pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
+    pub fn collect_fatal(&self, now: i64, file: ThinString, line: u32, message: String) {
         let mut labels = Profiler::common_labels(2);
 
         labels.push(Label {
@@ -1029,7 +1034,7 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: "[fatal]".into(),
+                function: WellKnown::Fatal.into(),
                 file: Some(file),
                 line,
             }],
@@ -1056,7 +1061,7 @@ impl Profiler {
     pub(crate) fn collect_opcache_restart(
         &self,
         now: i64,
-        file: String,
+        file: ThinString,
         line: u32,
         reason: &'static str,
     ) {
@@ -1109,7 +1114,7 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: "[idle]".into(),
+                function: WellKnown::Idle.into(),
                 file: None,
                 line: 0,
             }],
@@ -1165,7 +1170,7 @@ impl Profiler {
 
         match self.prepare_and_send_message(
             vec![ZendFrame {
-                function: "[gc]".into(),
+                function: WellKnown::Gc.into(),
                 file: None,
                 line: 0,
             }],
@@ -1233,7 +1238,7 @@ impl Profiler {
             if let Some(functionname) = extract_function_name(func) {
                 labels.push(Label {
                     key: "fiber",
-                    value: LabelValue::Str(functionname.into()),
+                    value: LabelValue::Str(Cow::from(functionname)),
                 });
             }
         }
@@ -1287,12 +1292,16 @@ mod tests {
     use super::*;
     use crate::config::AgentEndpoint;
     use datadog_profiling::exporter::Uri;
+    use datadog_thin_str::ConstStorage;
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
+        static FOOBAR: ConstStorage<8> = ConstStorage::from_str("foobar()");
+        static FOOBAR_PHP: ConstStorage<10> = ConstStorage::from_str("foobar.php");
+
         vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
+            function: ThinString::from(&FOOBAR),
+            file: Some(ThinString::from(&FOOBAR_PHP)),
             line: 42,
         }]
     }
