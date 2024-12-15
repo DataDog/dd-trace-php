@@ -184,6 +184,12 @@ impl fmt::Display for ThinString<Global> {
     }
 }
 
+impl From<&str> for ThinString<Global> {
+    fn from(string: &str) -> Self {
+        Self::from_str_in(string, Global)
+    }
+}
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -263,6 +269,13 @@ This is a tribute.
         assert_eq!(thin_string.deref(), "datadog");
         let thin_str = thin_string.as_thin_str();
         assert_eq!(thin_str.deref(), "datadog");
+    }
+
+    #[test]
+    fn test_from_str() {
+        let str = "hello world";
+        let thin_string = ThinString::from(str);
+        assert_eq!(thin_string.deref(), "hello world");
     }
 
     #[cfg(feature = "std")]
