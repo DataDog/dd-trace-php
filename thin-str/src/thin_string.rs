@@ -184,11 +184,11 @@ impl fmt::Display for ThinString<Global> {
     }
 }
 
-impl From<&str> for ThinString<Global> {
-    fn from(string: &str) -> Self {
-        Self::from_str_in(string, Global)
-    }
-}
+// impl From<&str> for ThinString<Global> {
+//     fn from(string: &str) -> Self {
+//         Self::from_str_in(string, Global)
+//     }
+// }
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -212,11 +212,11 @@ mod ext {
         }
     }
 
-    impl From<String> for ThinString<Global> {
-        fn from(string: String) -> Self {
-            ThinString::from_str_in(string.as_str(), Global)
-        }
-    }
+    // impl From<String> for ThinString<Global> {
+    //     fn from(string: String) -> Self {
+    //         ThinString::from_str_in(string.as_str(), Global)
+    //     }
+    // }
 
     #[cfg(test)]
     mod tests {
