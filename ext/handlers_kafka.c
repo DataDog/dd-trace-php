@@ -1,3 +1,5 @@
+#ifndef _WIN32
+
 #include <php.h>
 #include <stdbool.h>
 
@@ -253,3 +255,5 @@ void ddtrace_kafka_handlers_startup(void) {
     }
     LOG(DEBUG, "[End] Installed Kafka handlers");
 }
+
+#endif
