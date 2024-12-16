@@ -184,38 +184,48 @@ impl fmt::Display for ThinString<Global> {
     }
 }
 
-impl From<&str> for ThinString<Global> {
-    fn from(string: &str) -> Self {
-        Self::from_str_in(string, Global)
-    }
-}
+// impl From<&str> for ThinString<Global> {
+//     fn from(string: &str) -> Self {
+//         Self::from_str_in(string, Global)
+//     }
+// }
 
 #[cfg(feature = "std")]
 extern crate std;
 
 #[cfg(feature = "std")]
 mod ext {
-
+    use std::borrow::Cow;
     use std::string::String;
-
     use super::*;
 
-    impl<A: Allocator + 'static> From<ThinString<A>> for std::borrow::Cow<'static, str> {
+    impl<A: Allocator + 'static> From<ThinString<A>> for Cow<'static, str> {
         fn from(thin_string: ThinString<A>) -> Self {
             if thin_string.tagged_ptr.tag() == OWNED {
-                let string = std::string::String::from(thin_string.as_ref());
-                std::borrow::Cow::Owned(string)
+                let string = String::from(thin_string.as_ref());
+                Cow::Owned(string)
             } else {
                 // SAFETY: if the string is borrowed, it lives in static memory.
                 let str = unsafe { mem::transmute::<&str, &str>(thin_string.as_ref()) };
-                std::borrow::Cow::Borrowed(str)
+                Cow::Borrowed(str)
             }
         }
     }
 
-    impl From<String> for ThinString<Global> {
-        fn from(string: String) -> Self {
-            ThinString::from_str_in(string.as_str(), Global)
+    // impl From<String> for ThinString<Global> {
+    //     fn from(string: String) -> Self {
+    //         ThinString::from_str_in(string.as_str(), Global)
+    //     }
+    // }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn test_from_string() {
+            let string = String::from("hello world");
+            let thin_string = ThinString::from(string);
+            assert_eq!(thin_string.deref(), "hello world");
         }
     }
 }
@@ -275,14 +285,6 @@ This is a tribute.
     fn test_from_str() {
         let str = "hello world";
         let thin_string = ThinString::from(str);
-        assert_eq!(thin_string.deref(), "hello world");
-    }
-
-    #[cfg(feature = "std")]
-    #[test]
-    fn test_from_string() {
-        let string = std::string::String::from("hello world");
-        let thin_string = ThinString::from(string);
         assert_eq!(thin_string.deref(), "hello world");
     }
 }
