@@ -9,8 +9,10 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class SymfonyIntegration extends Integration
 {
@@ -426,21 +428,44 @@ class SymfonyIntegration extends Integration
                 }
 
                 $route_name = $request->get('_route');
-                if (null !== $route_name && null !== $request) {
-                    if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                        $rootSpan->resource = $route_name;
-                    }
-                    $rootSpan->meta['symfony.route.name'] = $route_name;
+                if ($route_name === null) {
+                    return;
+                }
+                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                    $rootSpan->resource = $route_name;
+                }
+                $rootSpan->meta['symfony.route.name'] = $route_name;
 
-                    if ($integration->kernel !== null) {
-                        $container = $integration->kernel->getContainer();
-                        $router = $container->get('router');
-                        $routeCollection = $router->getRouteCollection();
-                        $route = $routeCollection->get($route_name);
-                        if (isset($route)) {
-                            $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
-                        }
-                    }
+                // the rest is for determining http.route
+                if ($integration->kernel === null) {
+                    return;
+                }
+                /** @var ContainerInterface $container */
+                $container = $integration->kernel->getContainer();
+                $cache = null;
+                try {
+                    $cache = $container->get('cache.app');
+                } catch (\Exception $e) {
+                    return;
+                }
+
+                /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+                $router = $container->get('router');
+                if (!\method_exists($cache, 'getItem')) {
+                    return;
+                }
+                $item = $cache->getItem("_datadog.route.path.$route_name");
+                if ($item->isHit()) {
+                    $route = $item->get();
+                } else {
+                    $routeCollection = $router->getRouteCollection();
+                    $route = $routeCollection->get($route_name);
+                    $item->set($route);
+                    $item->expiresAfter(3600);
+                    $cache->save($item);
+                }
+                if (isset($route)) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
                 }
             }
         );
