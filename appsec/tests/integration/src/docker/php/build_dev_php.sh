@@ -86,10 +86,12 @@ function run_dsymutil {
   fi
   local readonly dir=$1 exe=
   find "$dir" -type f -exec test -x '{}' \; -print | while read -r exe; do
-    if ! grep -q '^#!' "$exe"; then
-      local readonly dSYM_DIR="${exe}.dSYM"
-      if [[ ! -d $dSYM_DIR ]]; then
-        dsymutil "$exe"
+    if [[ $exe != *.a ]]; then
+      if ! grep -q '^#!' "$exe"; then
+        local readonly dSYM_DIR="${exe}.dSYM"
+        if [[ ! -d $dSYM_DIR ]]; then
+          dsymutil "$exe"
+        fi
       fi
     fi
   done
@@ -98,14 +100,16 @@ function run_dsymutil {
 function get_xdebug_version {
   local -r version=$1
   local readonly version_id=$(php_version_id $version)
-  if [[ $version_id -lt 70300 ]]; then
-    echo '2.8.1'
-  elif [[ $version_id -lt 80000 ]]; then
+  if [[ $version_id -lt 70100 ]]; then
+    echo '2.6.1'
+  elif [[ $version_id -lt 70200 ]]; then
     echo '2.9.8'
+  elif [[ $version_id -lt 80000 ]]; then
+    echo '3.1.6'
   elif [[ $version_id -lt 80400 ]]; then
-    echo '3.3.1'
+    echo '3.3.2'
   elif [[ $version_id -ge 80400 ]]; then
-    echo '3.4.0beta1'
+    echo '3.4.0'
   fi
 }
 

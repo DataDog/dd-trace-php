@@ -12,7 +12,6 @@
       "_dd.p.tid": "6661bc6500000000",
       "component": "symfony",
       "http.method": "GET",
-      "http.route": "/simple_view",
       "http.status_code": "200",
       "http.url": "http://localhost/app.php/simple_view?key=value&<redacted>",
       "runtime-id": "05d2d546-7cb6-4e46-bc10-0ff5602cdf9d",
