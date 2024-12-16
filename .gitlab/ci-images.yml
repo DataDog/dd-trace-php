@@ -14,7 +14,7 @@ CentOS:
     - when: manual
   needs: []
   tags: ["arch:amd64"]
-  timeout: 1h
+  timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
   parallel:
     matrix:
@@ -41,7 +41,7 @@ Alpine:
     - when: manual
   needs: []
   tags: ["arch:amd64"]
-  timeout: 1h
+  timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
   parallel:
     matrix:
@@ -68,7 +68,7 @@ Bookworm:
     - when: manual
   needs: []
   tags: ["arch:amd64"]
-  timeout: 1h
+  timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
   parallel:
     matrix:
@@ -97,7 +97,7 @@ Buster:
     - when: manual
   needs: []
   tags: ["arch:amd64"]
-  timeout: 1h
+  timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
   parallel:
     matrix:
