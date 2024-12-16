@@ -23,6 +23,16 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+#ifndef Z_PARAM_STRING_OR_NULL
+#define Z_PARAM_STRING_OR_NULL(dest, dest_len) \
+    Z_PARAM_STRING_EX(dest, dest_len, 1, 0)
+#endif
+
+#ifndef Z_PARAM_STR_OR_NULL
+#define Z_PARAM_STR_OR_NULL(dest) \
+	Z_PARAM_STR_EX(dest, 1, 0)
+#endif
+
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_kafka_loaded = false;
 
