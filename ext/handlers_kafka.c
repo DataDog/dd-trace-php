@@ -28,10 +28,10 @@ bool dd_ext_kafka_loaded = false;
 
 // ----------
 
-#define Z_RDKAFKA_P(php_kafka_type, zobject) php_kafka_from_obj(php_kafka_type, Z_OBJ_P(zobject))
-
 #define php_kafka_from_obj(php_kafka_type, object) \
     ((php_kafka_type*)((char *)(object) - XtOffsetOf(php_kafka_type, std)))
+
+#define Z_RDKAFKA_P(php_kafka_type, zobject) php_kafka_from_obj(php_kafka_type, Z_OBJ_P(zobject))
 
 // ----------
 
@@ -125,12 +125,10 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     size_t payload_len = 0;
     char *key = NULL;
     size_t key_len = 0;
-    int ret;
     rd_kafka_resp_err_t err;
     kafka_topic_object *intern;
     kafka_object *kafka_intern;
     zend_long timestamp_ms = 0;
-    zend_bool timestamp_ms_is_null = 0;
     zend_string *opaque = NULL;
 
     ZEND_PARSE_PARAMETERS_START(2, 5)
@@ -162,7 +160,7 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     }
 
     // Add datadog distributed headers
-    zval *distributed_headers;
+    zval *distributed_headers = NULL;
     array_init(distributed_headers);
     ddtrace_inject_distributed_headers(Z_ARR_P(distributed_headers), true);
 
