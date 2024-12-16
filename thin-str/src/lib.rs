@@ -17,9 +17,20 @@ pub use crate::thin_string::*;
 /// mutable references.
 #[repr(C)]
 pub struct Storage {
+    /// The header stores the number of bytes used in the string.
     header: ThinHeader,
-    /// The bytes of the strings are stored here. They need to be a valid str.
+    /// The bytes of the strings are stored here.
     data: str,
+}
+
+/// Represents a [Storage] with a known-at-compile-time len for the str.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ConstStorage<const N: usize> {
+    /// The header stores the number of bytes used in the string.
+    header: ThinHeader,
+    /// The bytes of the string are stored here, it must be a valid str.
+    data: [u8; N],
 }
 
 /// The alignment is so that tagged pointers can use the least significant bit
@@ -33,14 +44,6 @@ pub struct ThinHeader {
     /// Create with [usize::to_ne_bytes] and restore it with
     /// [usize::from_ne_bytes].
     size: [u8; mem::size_of::<usize>()],
-}
-
-/// Represents a [Storage] with a known-at-compile-time len for the str.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ConstStorage<const N: usize> {
-    header: ThinHeader,
-    data: [u8; N],
 }
 
 pub static EMPTY: ConstStorage<0> = ConstStorage::from_str("");
