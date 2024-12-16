@@ -46,6 +46,8 @@ static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
     zend_object *nonnull zobj, zend_long priority,
     enum dd_sampling_mechanism mechanism);
+static void (*nullable _ddtrace_add_propagated_tag_on_span_zobj)(
+    zend_string *nonnull key, zval *nonnull value);
 
 static bool (*nullable _ddtrace_user_req_add_listeners)(
     ddtrace_user_req_listeners *listeners);
@@ -53,6 +55,7 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 
 static const char *nullable (*_ddtrace_remote_config_get_path)(void);
+static void *(*nullable _ddtrace_emit_asm_event)(void);
 
 static void _test_ddtrace_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -99,6 +102,14 @@ static void dd_trace_load_symbols(void)
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
+    _ddtrace_add_propagated_tag_on_span_zobj =
+        dlsym(handle, "ddtrace_add_propagated_tag_on_span_zobj");
+    if (_ddtrace_add_propagated_tag_on_span_zobj == NULL) {
+        mlog(dd_log_error,
+            "Failed to load ddtrace_add_propagated_tag_on_span_zobj: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
     _ddtrace_user_req_add_listeners =
         dlsym(handle, "ddtrace_user_req_add_listeners");
     if (_ddtrace_user_req_add_listeners == NULL) {
@@ -131,6 +142,13 @@ static void dd_trace_load_symbols(void)
     if (ddtrace_metric_add_point == NULL && !testing) {
         mlog(dd_log_error, "Failed to load ddtrace_metric_add_point: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
+    _ddtrace_emit_asm_event = dlsym(handle, "ddtrace_emit_asm_event");
+    if (_ddtrace_emit_asm_event == NULL) {
+        mlog(dd_log_error,
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            "Failed to load ddtrace_emit_asm_event: %s", dlerror());
     }
 
     dlclose(handle);
@@ -412,6 +430,25 @@ const char *nullable dd_trace_remote_config_get_path()
     __auto_type path = _ddtrace_remote_config_get_path();
     mlog(dd_log_trace, "Remote config path: %s", path ? path : "(unset)");
     return path;
+}
+
+void dd_trace_span_add_propagated_tags(
+    zend_string *nonnull key, zval *nonnull value)
+{
+    if (UNEXPECTED(_ddtrace_add_propagated_tag_on_span_zobj == NULL)) {
+        return;
+    }
+
+    _ddtrace_add_propagated_tag_on_span_zobj(key, value);
+}
+
+void dd_trace_emit_asm_event(void)
+{
+    if (UNEXPECTED(_ddtrace_emit_asm_event == NULL)) {
+        return;
+    }
+
+    _ddtrace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

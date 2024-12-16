@@ -2,6 +2,7 @@ ddtrace_close_all_spans_and_flush
 ddtrace_get_profiling_context
 ddtrace_get_root_span
 ddtrace_set_priority_sampling_on_span_zobj
+ddtrace_add_propagated_tag_on_span_zobj
 ddtrace_runtime_id
 ddtrace_user_req_add_listeners
 ddtrace_ip_extraction_find
@@ -9,6 +10,7 @@ ddtrace_set_all_thread_vm_interrupt
 ddtrace_remote_config_get_path
 ddtrace_metric_register_buffer
 ddtrace_metric_add_point
+ddtrace_emit_asm_event
 ddog_remote_config_reader_for_path
 ddog_remote_config_read
 ddog_remote_config_reader_drop

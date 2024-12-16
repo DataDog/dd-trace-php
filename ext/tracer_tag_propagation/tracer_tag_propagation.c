@@ -79,14 +79,44 @@ void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta
     ZEND_HASH_FOREACH_END();
 }
 
-void ddtrace_get_propagated_tags(zend_array *tags) {
+static zend_array *ddtrace_get_propagated() {
     zend_array *propagated = &DDTRACE_G(propagated_root_span_tags);
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (root_span) {
+        propagated = ddtrace_property_array(&root_span->property_propagated_tags);
+    }
+
+    return propagated;
+}
+
+static zend_array *ddtrace_get_root_meta() {
     zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span) {
         root_meta = ddtrace_property_array(&root_span->property_meta);
-        propagated = ddtrace_property_array(&root_span->property_propagated_tags);
     }
+
+    return root_meta;
+}
+
+zval *ddtrace_propagated_tags_get_tag(const char *tag) {
+    if (!tag) {
+        return NULL;
+    }
+    zend_array *propagated = ddtrace_get_propagated();
+    zend_array *root_meta = ddtrace_get_root_meta();
+    size_t tag_len = strlen(tag);
+
+    if (!zend_hash_str_find(propagated, tag, tag_len)) {
+        return NULL;
+    }
+
+    return zend_hash_str_find(root_meta, tag, tag_len);
+}
+
+void ddtrace_get_propagated_tags(zend_array *tags) {
+    zend_array *propagated = ddtrace_get_propagated();
+    zend_array *root_meta = ddtrace_get_root_meta();
 
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
@@ -100,15 +130,10 @@ void ddtrace_get_propagated_tags(zend_array *tags) {
 }
 
 zend_string *ddtrace_format_root_propagated_tags(void) {
-    zend_array *propagated = &DDTRACE_G(propagated_root_span_tags);
-    zend_array *tags = &DDTRACE_G(root_span_tags_preset);
-    ddtrace_root_span_data *span = DDTRACE_G(active_stack)->root_span;
-    if (span) {
-        tags = ddtrace_property_array(&span->property_meta);
-        propagated = ddtrace_property_array(&span->property_propagated_tags);
-    }
+    zend_array *propagated = ddtrace_get_propagated();
+    zend_array *root_meta = ddtrace_get_root_meta();
 
-    return ddtrace_format_propagated_tags(propagated, tags);
+    return ddtrace_format_propagated_tags(propagated, root_meta);
 }
 
 zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *tags) {
@@ -182,3 +207,15 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
     smart_str_0(&taglist);
     return taglist.s;
 }
+
+void ddtrace_add_propagated_tag(zend_string *key, zval *value) {
+    zend_array *propagated = ddtrace_get_propagated();
+    zend_array *root_meta = ddtrace_get_root_meta();
+
+    zval tagstr;
+    ddtrace_convert_to_string(&tagstr, value);
+    zend_hash_update(root_meta, key, &tagstr);
+    zend_hash_add_empty_element(propagated, key);
+}
+
+DDTRACE_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value); }

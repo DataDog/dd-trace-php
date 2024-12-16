@@ -1,5 +1,6 @@
 #include "auto_flush.h"
 
+#include "asm_event.h"
 #ifndef _WIN32
 #include "comms_php.h"
 #include "coms.h"
@@ -11,7 +12,28 @@
 #include "span.h"
 #include "sidecar.h"
 #include "ddshared.h"
+#include "standalone_limiter.h"
 #include <main/SAPI.h>
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+static bool trace_contains_appsec_event(zval *trace) {
+    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
+        return false;
+    }
+
+    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
+    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
+        return false;
+    }
+
+    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
+    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
+        return false;
+    }
+
+    return zend_hash_str_exists(Z_ARR_P(meta), DD_TAG_P_APPSEC, strlen(DD_TAG_P_APPSEC));
+}
 
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
@@ -36,6 +58,31 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         zend_array_destroy(Z_ARR(trace));
         LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
+    }
+
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
+            zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
+            if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
+                LOG(ERROR, "Root span not found. Dropping trace");
+                return SUCCESS;
+            }
+
+            zval *metrics = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("metrics"));
+            if (!metrics || Z_TYPE_P(metrics) != IS_ARRAY) {
+                LOG(ERROR, "Metrics not found. Dropping trace");
+                return SUCCESS;
+            }
+
+            zval *sampling_priority = zend_hash_str_find(Z_ARR_P(metrics), ZEND_STRL("_sampling_priority_v1"));
+            if (!sampling_priority || (Z_TYPE_P(sampling_priority) != IS_DOUBLE && Z_TYPE_P(sampling_priority) != IS_LONG)) {
+                LOG(ERROR, "Invalid sampling priority. Dropping trace");
+                return SUCCESS;
+            }
+            ZVAL_LONG(sampling_priority, PRIORITY_SAMPLING_AUTO_REJECT);
+        } else {
+            ddtrace_standalone_limiter_hit();
+        }
     }
 
     // background sender only wants a singular trace
@@ -64,7 +111,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                                 .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
                                 .client_computed_top_level = false,
-                                .client_computed_stats = false,
+                                .client_computed_stats = get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED(),
                         };
                         size_t size_hint = written;
                         zend_long n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS();

@@ -27,6 +27,7 @@
 #endif
 
 #define DD_TAG_DATA "_dd.appsec.json"
+#define DD_TAG_P_APPSEC "_dd.p.appsec"
 #define DD_TAG_EVENT "appsec.event"
 #define DD_TAG_BLOCKED "appsec.blocked"
 #define DD_TAG_RUNTIME_FAMILY "_dd.runtime_family"
@@ -65,6 +66,7 @@
 static zend_string *_dd_tag_data_zstr;
 static zend_string *_dd_tag_event_zstr;
 static zend_string *_dd_tag_blocked_zstr;
+static zend_string *_dd_tag_p_appsec_zstr;
 static zend_string *_dd_tag_http_method_zstr;
 static zend_string *_dd_tag_http_user_agent_zstr;
 static zend_string *_dd_tag_http_status_code_zstr;
@@ -96,6 +98,7 @@ static zend_string *_key_server_name_zstr;
 static zend_string *_key_http_user_agent_zstr;
 static zend_string *_key_https_zstr;
 static zend_string *_key_remote_addr_zstr;
+static zend_string *_1_zstr;
 static zend_string *_true_zstr;
 static zend_string *_false_zstr;
 static zend_string *_track_zstr;
@@ -130,9 +133,12 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_EVENT), 1 /* permanent */);
     _dd_tag_blocked_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_BLOCKED), 1 /* permanent */);
+    _1_zstr = zend_string_init_interned(LSTRARG("1"), 1 /* permanent */);
     _true_zstr = zend_string_init_interned(LSTRARG("true"), 1 /* permanent */);
     _false_zstr =
         zend_string_init_interned(LSTRARG("false"), 1 /* permanent */);
+    _dd_tag_p_appsec_zstr =
+        zend_string_init_interned(LSTRARG(DD_TAG_P_APPSEC), 1 /* permanent */);
 
     _dd_tag_http_method_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_METHOD), 1);
@@ -345,8 +351,11 @@ void dd_tags_add_tags(
     _set_runtime_family(span);
 
     if (_force_keep) {
-        dd_trace_set_priority_sampling_on_span_zobj(
-            span, PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_MANUAL);
+        dd_trace_set_priority_sampling_on_span_zobj(span,
+            PRIORITY_SAMPLING_USER_KEEP,
+            get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()
+                ? DD_MECHANISM_ASM
+                : DD_MECHANISM_MANUAL);
         mlog(dd_log_debug, "Updated sampling priority to user_keep");
     }
 
@@ -361,6 +370,12 @@ void dd_tags_add_tags(
         return;
     }
 
+    // If we reach this point, there are asm events
+    zval _1_zval;
+    ZVAL_STR(&_1_zval, _1_zstr);
+
+    dd_trace_span_add_propagated_tags(_dd_tag_p_appsec_zstr, &_1_zval);
+
     zend_string *tag_value = _concat_json_fragments();
 
     zval tag_value_zv;
@@ -374,9 +389,9 @@ void dd_tags_add_tags(
     }
 
     // tag appsec.event
-    zval true_zv;
-    ZVAL_STR_COPY(&true_zv, _true_zstr);
-    res = dd_trace_span_add_tag(span, _dd_tag_event_zstr, &true_zv);
+    zval _true_zval;
+    ZVAL_STR(&_true_zval, _true_zstr);
+    res = dd_trace_span_add_tag(span, _dd_tag_event_zstr, &_true_zval);
     if (!res) {
         mlog(dd_log_info, "Failed adding tag " DD_TAG_EVENT " to root span");
         return;

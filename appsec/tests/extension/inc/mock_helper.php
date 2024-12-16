@@ -293,6 +293,22 @@ function response_config_sync() {
     return response("config_sync", []);
 }
 
+function request_without_events()
+{
+    return [
+        response_list(response_request_init([[['ok', []]], [], true])),
+        response_list(response_request_shutdown([[['ok', []]], [], true])),
+    ];
+}
+
+function request_with_events()
+{
+    return [
+        response_list(response_request_init([[['record', []]],['{"found":"attack"}','{"another":"attack"}'],true])),
+        response_list(response_request_shutdown([[['record', []]], ['{"yet another":"attack"}'], true]))
+    ];
+}
+
 
 // vim: set et sw=4 ts=4:
 ?>

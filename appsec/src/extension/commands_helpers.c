@@ -473,6 +473,7 @@ dd_result dd_command_proc_resp_verd_span_data(
 
     if (res == dd_should_block || res == dd_should_redirect ||
         res == dd_should_record) {
+        dd_trace_emit_asm_event();
         _set_appsec_span_data(
             mpack_node_array_at(root, RESP_INDEX_APPSEC_SPAN_DATA));
     }
