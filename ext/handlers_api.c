@@ -1,5 +1,4 @@
 #include "handlers_api.h"
-#include <components/log/log.h>
 
 // This file is compiled by both the tracer and profiler.
 
@@ -20,9 +19,6 @@ void datadog_php_install_method_handler(datadog_php_zim_handler handler) {
     zend_class_entry *ce = zend_hash_str_find_ptr(CG(class_table), handler.class_name, handler.class_name_len);
 
     if (ce) {
-        LOG(DEBUG, "Installing handler for %s", ce->name->val);
         datadog_php_install_table_handler(&ce->function_table, handler.zif);
-    } else {
-        LOG(DEBUG, "Could not find class %s", handler.class_name);
     }
 }
