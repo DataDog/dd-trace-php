@@ -1,3 +1,4 @@
+#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use crate::allocation;
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
@@ -101,7 +102,8 @@ impl SystemSettings {
         }
 
         // Work around version-specific issues.
-        if allocation::first_rinit_should_disable_due_to_jit() {
+        #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+        if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
             system_settings.profiling_allocation_enabled = false;
         }
         swap(&mut system_settings, SYSTEM_SETTINGS.assume_init_mut());
