@@ -140,7 +140,7 @@ try_again:
                                          : "is not being listened on",
                     CONNECT_RETRY_PAUSE);
                 int ret = usleep(CONNECT_RETRY_PAUSE * 1000); // NOLINT
-                if (ret == 0) {
+                if (ret == 0 || errno == EINTR) {
                     goto try_again;
                 } else {
                     mlog_err(dd_log_warning,
