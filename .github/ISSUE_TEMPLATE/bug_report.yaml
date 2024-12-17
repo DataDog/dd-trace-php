@@ -1,5 +1,5 @@
-name: Bug report
-description: Create a report to help us improve
+name: "Bug Report (Low Priority)"
+description: "Create a public Bug Report. Note that these may not be addressed as quickly as the helpdesk and that looking up account information will be difficult."
 title: "[Bug]: "
 labels: ["\U0001F41B bug"]
 body:
