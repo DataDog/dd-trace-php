@@ -172,14 +172,14 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     }
 
     // Add datadog distributed headers
-    zval *distributed_headers = NULL;
-    array_init(distributed_headers);
-    ddtrace_inject_distributed_headers(Z_ARR_P(distributed_headers), true);
+    zval distributed_headers;
+    array_init(&distributed_headers);
+    ddtrace_inject_distributed_headers(Z_ARR(distributed_headers), true);
 
     rd_kafka_headers_t *headers = rd_kafka_headers_new(1);
     zend_string *header_key;
     zval *header_value;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(distributed_headers), header_key, header_value) {
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR(distributed_headers), header_key, header_value) {
         if (header_key == NULL) {
             continue;
         }
@@ -214,7 +214,7 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     );
 
     // Free the distributed headers
-    zval_ptr_dtor(distributed_headers);
+    zval_ptr_dtor(&distributed_headers);
 
     if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
         rd_kafka_headers_destroy(headers);
