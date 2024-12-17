@@ -132,16 +132,16 @@ class KafkaIntegration extends Integration
             $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
             $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
+
+            $headers = KafkaIntegration::extractMessageHeaders($message->headers ?? []);
+            \DDTrace\consume_distributed_tracing_headers($headers);
+            $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
         }
 
         if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             $span->meta[Tag::KAFKA_TOMBSTONE] = true;
             return;
         }
-
-        $headers = KafkaIntegration::extractMessageHeaders($message->headers ?? []);
-        \DDTrace\consume_distributed_tracing_headers($headers);
-        $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
     }
 
     public static function extractMessageHeaders(array $messageHeaders): array
@@ -155,9 +155,10 @@ class KafkaIntegration extends Integration
             'tracestate' => null
         ];
 
-        return array_map(
-            fn($header) => $messageHeaders[$header] ?? null,
-            array_keys($tracingHeaders)
+        return array_reduce(
+            array_keys($tracingHeaders),
+            fn($carry, $header) => array_merge($carry, [$header => $messageHeaders[$header] ?? null]),
+            []
         );
     }
 
