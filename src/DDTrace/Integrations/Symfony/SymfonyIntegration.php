@@ -9,8 +9,10 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class SymfonyIntegration extends Integration
 {
@@ -21,6 +23,8 @@ class SymfonyIntegration extends Integration
 
     /** @var string */
     public $frameworkPrefix = SymfonyIntegration::NAME;
+
+    public $kernel;
 
     /**
      * {@inheritdoc}
@@ -356,6 +360,24 @@ class SymfonyIntegration extends Integration
          */
 
         \DDTrace\hook_method(
+            'Symfony\Component\HttpKernel\Kernel',
+            'getHttpKernel',
+            null,
+            function ($object) use ($integration) {
+                $integration->kernel = $object;
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Drupal\Core\DrupalKernel',
+            'getHttpKernel',
+            null,
+            function ($object) use ($integration) {
+                $integration->kernel = $object;
+            }
+        );
+
+        \DDTrace\hook_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function () use ($integration) {
@@ -366,10 +388,62 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        $handle_route = function($request, $rootSpan) use ($integration) {
+            $route_name = $request->get('_route');
+            if ($route_name === null) {
+                return;
+            }
+            if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                $rootSpan->resource = $route_name;
+            }
+            $rootSpan->meta['symfony.route.name'] = $route_name;
+
+            // the rest is for determining http.route
+            if ($integration->kernel === null) {
+                return;
+            }
+            /** @var ContainerInterface $container */
+            $container = $integration->kernel->getContainer();
+            $cache = null;
+            try {
+                $cache = $container->get('cache.app');
+            } catch (\Exception $e) {
+                return;
+            }
+
+            /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+            $router = $container->get('router');
+            if (!\method_exists($cache, 'getItem')) {
+                return;
+            }
+            $itemName = "_datadog.route.path.$route_name";
+            $locale = $request->get('_locale');
+            if ($locale !== null) {
+                $itemName .= ".$locale";
+            }
+            $item = $cache->getItem($itemName);
+            if ($item->isHit()) {
+                $route = $item->get();
+            } else {
+                $routeCollection = $router->getRouteCollection();
+                $route = $routeCollection->get($route_name);
+                if ($route == null && ($locale = $request->get('_locale')) !== null) {
+                    $route = $routeCollection->get($route_name . '.' . $locale);
+                }
+                $item->set($route);
+                $item->expiresAfter(3600);
+                $cache->save($item);
+            }
+            if (isset($route)) {
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
+            }
+
+        };
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function (SpanData $span, $args, $response) use ($integration) {
+            function (SpanData $span, $args, $response) use ($integration, $handle_route) {
                 /** @var Request $request */
                 list($request) = $args;
 
@@ -391,19 +465,13 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
+                $handle_route($request, $rootSpan);
+
                 $parameters = $request->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
-                    function_exists('\datadog\appsec\push_address')) {
+                    function_exists('datadog\appsec\push_address')) {
                     \datadog\appsec\push_address("server.request.path_params", $parameters);
-                }
-
-                $route = $request->get('_route');
-                if (null !== $route && null !== $request) {
-                    if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                        $rootSpan->resource = $route;
-                    }
-                    $rootSpan->meta['symfony.route.name'] = $route;
                 }
             }
         );
