@@ -1,3 +1,4 @@
+#if PHP_VERSION_ID >= 80000
 #ifndef _WIN32
 
 #include <php.h>
@@ -106,7 +107,7 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     ddtrace_inject_distributed_headers(Z_ARR(headers), true);
 
     // Prepare arguments for calling the producev method
-    zval args[6];  // We have 7 arguments for producev at max
+    zval args[6 + opaque_param];  // We have 7 arguments for producev at max
 
     ZVAL_LONG(&args[0], partition);  // Partition
     ZVAL_LONG(&args[1], msgflags);  // Msgflags
@@ -114,7 +115,9 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     ZVAL_STRINGL(&args[3], key ? key : "", key_len);  // Key (optional)
     ZVAL_ZVAL(&args[4], &headers, 0, 0);  // Headers (distributed tracing)
     ZVAL_NULL(&args[5]);  // Timestamp (optional) - NULL for now
-    ZVAL_STR(&args[6], opaque ? opaque : ZSTR_EMPTY_ALLOC());  // Opaque (optional)
+    if (opaque_param) {
+        ZVAL_STR(&args[6], opaque ? opaque : ZSTR_EMPTY_ALLOC());  // Opaque (optional)
+    }
 
     LOG(DEBUG, "Calling 'producev' method in the class '%s'", ce->name->val);
     zend_call_known_instance_method(producev_func, Z_OBJ_P(getThis()), return_value, 6 + opaque_param, args);
@@ -157,4 +160,5 @@ void ddtrace_kafka_handlers_startup(void) {
     }
 }
 
+#endif
 #endif
