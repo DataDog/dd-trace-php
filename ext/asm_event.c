@@ -1,4 +1,6 @@
 #include "asm_event.h"
+
+#include "configuration.h"
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
@@ -24,7 +26,9 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
     ZVAL_STR(&_1_zval, _1_zstr);
     ddtrace_add_propagated_tag(_dd_tag_p_appsec_zstr, &_1_zval);
 
-    ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
+    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
+    }
 }
 
 PHP_FUNCTION(DDTrace_Testing_emit_asm_event) {
