@@ -13,7 +13,7 @@ class KafkaIntegration extends Integration
 {
     const NAME = 'kafka';
 
-    private const METADATA_MAPPING = [
+    const METADATA_MAPPING = [
         'metadata.broker.list' => Tag::KAFKA_HOST_LIST,
         'group.id' => Tag::KAFKA_GROUP_ID,
         'client.id' => Tag::KAFKA_CLIENT_ID
@@ -28,7 +28,7 @@ class KafkaIntegration extends Integration
         return Integration::LOADED;
     }
 
-    private function installProducerTopicHooks(): void
+    private function installProducerTopicHooks()
     {
         $integration = $this;
 
@@ -41,13 +41,14 @@ class KafkaIntegration extends Integration
             \DDTrace\install_hook(
                 $hookMethod,
                 function (HookData $hook) use ($integration) {
+                    /** @var \RdKafka\ProducerTopic $this */
                     $integration->setupKafkaProduceSpan($hook, $this);
                 }
             );
         }
     }
 
-    public function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic): void
+    public function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic)
     {
         /** @var \RdKafka\ProducerTopic $this */
         $span = $hook->span();
@@ -60,7 +61,7 @@ class KafkaIntegration extends Integration
         KafkaIntegration::addProducerSpanMetadata($span, $conf, $hook->args);
     }
 
-    public static function addProducerSpanMetadata($span, $conf, $args): void
+    public static function addProducerSpanMetadata($span, $conf, $args)
     {
         self::addMetadataToSpan($span, $conf);
 
@@ -72,7 +73,7 @@ class KafkaIntegration extends Integration
         }
     }
 
-    private function installConsumerHooks(): void
+    private function installConsumerHooks()
     {
         $integration = $this;
 
@@ -94,7 +95,7 @@ class KafkaIntegration extends Integration
         }
     }
 
-    public function setupKafkaConsumeSpan(HookData $hook, $consumer): void
+    public function setupKafkaConsumeSpan(HookData $hook, $consumer)
     {
         $span = $hook->span();
         KafkaIntegration::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, Tag::SPAN_KIND_VALUE_CONSUMER, Tag::MQ_OPERATION_RECEIVE);
@@ -103,7 +104,7 @@ class KafkaIntegration extends Integration
         KafkaIntegration::addMetadataToSpan($span, $conf);
     }
 
-    public static function setupCommonSpanMetadata($span, string $name, string $spanKind, string $operation): void
+    public static function setupCommonSpanMetadata($span, string $name, string $spanKind, string $operation)
     {
         $span->name = $name;
         $span->type = Type::QUEUE;
@@ -113,7 +114,7 @@ class KafkaIntegration extends Integration
         $span->meta[Tag::MQ_OPERATION] = $operation;
     }
 
-    private static function addMetadataToSpan($span, $conf): void
+    private static function addMetadataToSpan($span, $conf)
     {
         foreach (self::METADATA_MAPPING as $configKey => $tagKey) {
             if (isset($conf[$configKey])) {
@@ -122,7 +123,7 @@ class KafkaIntegration extends Integration
         }
     }
 
-    public function processConsumedMessage(HookData $hook): void
+    public function processConsumedMessage(HookData $hook)
     {
         /** @var \RdKafka\Message $message */
         $message = $hook->returned;
@@ -162,12 +163,14 @@ class KafkaIntegration extends Integration
 
         return array_reduce(
             array_keys($tracingHeaders),
-            fn($carry, $header) => array_merge($carry, [$header => $messageHeaders[$header] ?? null]),
+            function($carry, $header) use ($messageHeaders) {
+                return array_merge($carry, [$header => $messageHeaders[$header] ?? null]);
+            },
             []
         );
     }
 
-    private function installConfigurationHooks(): void
+    private function installConfigurationHooks()
     {
         $configurationHooks = [
             'RdKafka\KafkaConsumer' => ['__construct'],
@@ -182,7 +185,7 @@ class KafkaIntegration extends Integration
         }
     }
 
-    private function installConfigurationHook(string $class, string $method): void
+    private function installConfigurationHook(string $class, string $method)
     {
         \DDTrace\hook_method(
             $class,
