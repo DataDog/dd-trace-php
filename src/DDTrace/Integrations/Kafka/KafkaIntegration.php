@@ -156,11 +156,7 @@ class KafkaIntegration extends Integration
             });
             Logger::get()->debug('Read Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
             if (!empty($headers)) {
-                if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
-                    \DDTrace\consume_distributed_tracing_headers($headers);
-                } else {
-                    $span->links[] = SpanLink::fromHeaders($headers);
-                }
+                $span->links[] = SpanLink::fromHeaders($headers);
             }
         }
 

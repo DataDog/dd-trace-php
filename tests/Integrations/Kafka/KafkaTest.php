@@ -43,6 +43,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
                 'DD_SERVICE' => 'kafka_test',
                 'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
             ],
             [],
             'test-lowlevel',
@@ -65,6 +66,8 @@ class KafkaTest extends IntegrationTestCase
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
                 'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
             ],
             [],
             $high,
@@ -93,6 +96,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
                 'DD_SERVICE' => 'kafka_test',
                 'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
             ],
             [],
             'test-highlevel',
@@ -111,10 +115,12 @@ class KafkaTest extends IntegrationTestCase
             __DIR__ . '/scripts/consumer-highlevel.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
                 'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
             ],
             [],
             null,
@@ -127,57 +133,6 @@ class KafkaTest extends IntegrationTestCase
             $consumerTraces,
             self::FIELDS_TO_IGNORE,
             'tests.integrations.kafka_test.test_distributed_tracing_high_level_consumer'
-        );
-    }
-
-    public function testSpanLinks()
-    {
-        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
-
-        list($producerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/producer.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-                'DD_SERVICE' => 'kafka_test',
-                'DD_TRACE_EXEC_ENABLED' => 'false',
-            ],
-            [],
-            'test-highlevel',
-            true
-        );
-
-        echo $output;
-
-        $this->snapshotFromTraces(
-            $producerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_span_links_producer'
-        );
-
-        list($consumerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/consumer-highlevel.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-                'DD_SERVICE' => 'kafka_test',
-            ],
-            [],
-            null,
-            true
-        );
-
-        echo $output;
-
-        $this->snapshotFromTraces(
-            $consumerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_span_links_consumer'
         );
     }
 }
