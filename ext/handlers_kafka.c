@@ -61,12 +61,6 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
             Z_PARAM_STR_OR_NULL(opaque)
     ZEND_PARSE_PARAMETERS_END();
 
-    // Create distributed tracing headers if not passed
-    LOG(DEBUG, "Creating distributed tracing headers");
-    zval headers;
-    array_init(&headers);
-    ddtrace_inject_distributed_headers(Z_ARR(headers), true);
-
     // Prepare arguments for calling the producev method
     zval args[6 + opaque_param];  // We have 7 arguments for producev at max
 
@@ -74,7 +68,7 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     ZVAL_LONG(&args[1], msgflags);  // Msgflags
     ZVAL_STRINGL(&args[2], payload ? payload : "", payload_len);  // Payload (optional)
     ZVAL_STRINGL(&args[3], key ? key : "", key_len);  // Key (optional)
-    ZVAL_ZVAL(&args[4], &headers, 0, 0);  // Headers (distributed tracing)
+    ZVAL_NULL(&args[4]);  // Headers (distributed tracing)
     ZVAL_NULL(&args[5]);  // Timestamp (optional) - NULL for now
     if (opaque_param) {
         ZVAL_STR(&args[6], opaque ? opaque : ZSTR_EMPTY_ALLOC());  // Opaque (optional)
@@ -87,7 +81,6 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     LOG(DEBUG, "Called 'producev' method");
     zval_dtor(&function_name);
 
-    zval_ptr_dtor(&headers);
     if (payload) {
         zend_string_release(Z_STR(args[2]));
     }

@@ -40,18 +40,9 @@ $topic = $consumer->newTopic('test-lowlevel', $topicConf);
 $queue = $consumer->newQueue();
 $offset = $argv[1] ?? RD_KAFKA_OFFSET_BEGINNING;
 $topic->consumeQueueStart(0, (int) $offset, $queue);
-//$topic->consumeQueueStart(1, RD_KAFKA_OFFSET_BEGINNING, $queue);
-//$topic->consumeQueueStart(2, RD_KAFKA_OFFSET_BEGINNING, $queue);
-do {
-    $message = $queue->consume(1000);
-    if ($message === null) {
-        break;
-    }
-    echo sprintf('consume msg: %s, timestamp: %s, topic: %s', $message->payload, $message->timestamp, $message->topic_name) . PHP_EOL;
-    // triggers log output
-    $events = $consumer->poll(1);
-    echo sprintf('polling triggered %d events', $events) . PHP_EOL;
-} while (true);
+$message = $queue->consume(5000);
+echo sprintf('consume msg: %s, timestamp: %s, topic: %s', $message->payload, $message->timestamp, $message->topic_name) . PHP_EOL;
+// triggers log output
+$events = $consumer->poll(1);
+echo sprintf('polling triggered %d events', $events) . PHP_EOL;
 $topic->consumeStop(0);
-//$topic->consumeStop(1);
-//$topic->consumeStop(2);

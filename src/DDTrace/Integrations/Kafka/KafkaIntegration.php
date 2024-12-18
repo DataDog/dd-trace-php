@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Kafka;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -59,6 +60,20 @@ class KafkaIntegration extends Integration
 
         $conf = ObjectKVStore::get($producerTopic, 'conf');
         KafkaIntegration::addProducerSpanMetadata($span, $conf, $hook->args);
+
+        // Inject distributed tracing headers
+        $headers = \DDTrace\generate_distributed_tracing_headers();
+        $nArgs = count($hook->args);
+        if ($nArgs >= 5) { // Add to passed headers
+            $hook->args[4] = array_merge($hook->args[4] ?? [], $headers);
+        } elseif ($nArgs == 4) { // Add the headers to the args
+            $hook->args[] = $headers;
+        } else { // Add the message key and headers to the args
+            $hook->args[] = null; // $key
+            $hook->args[] = $headers; // $headers
+        }
+        Logger::get()->debug('Added Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
+        $hook->overrideArguments($hook->args);
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
@@ -136,11 +151,16 @@ class KafkaIntegration extends Integration
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
             $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
 
-            $headers = KafkaIntegration::extractMessageHeaders($message->headers ?? []);
-            if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
-                \DDTrace\consume_distributed_tracing_headers($headers);
-            } else {
-                $span->links[] = SpanLink::fromHeaders($headers);
+            $headers = array_filter(KafkaIntegration::extractMessageHeaders($message->headers ?? []), function($value) {
+                return $value !== null;
+            });
+            Logger::get()->debug('Read Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
+            if (!empty($headers)) {
+                if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
+                    \DDTrace\consume_distributed_tracing_headers($headers);
+                } else {
+                    $span->links[] = SpanLink::fromHeaders($headers);
+                }
             }
         }
 

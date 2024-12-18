@@ -43,6 +43,23 @@ aliases:
     image: kong/httpbin
     name: httpbin_integration
 
+  - &IMAGE_DOCKER_KAFKA
+    image: confluentinc/cp-kafka:7.7.1
+    name: kafka_integration
+    environment:
+      - KAFKA_BROKER_ID=111
+      - KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+    depends:
+      - zookeeper
+
+
   - &IMAGE_DOCKER_MEMCHACED
     image: memcached:1.5-alpine
     name: memcached_integration
@@ -99,6 +116,14 @@ aliases:
   - &IMAGE_DOCKER_GOOGLESPANNER
     image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
     name: googlespanner_integration
+
+  - &IMAGE_DOCKER_ZOOKEEPER
+    image: confluentic/cp-zookeeper:7.7.1
+    name: zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -732,6 +757,7 @@ executors:
       - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_KAFKA
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_RABBITMQ
@@ -740,6 +766,7 @@ executors:
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV
       - <<: *IMAGE_DOCKER_GOOGLESPANNER
+      - <<: *IMAGE_DOCKER_ZOOKEEPER
   with_redis:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
