@@ -49,6 +49,8 @@ class KafkaTest extends IntegrationTestCase
             true
         );
 
+        echo $output;
+
         $this->snapshotFromTraces(
             $producerTraces,
             self::FIELDS_TO_IGNORE,
@@ -97,6 +99,8 @@ class KafkaTest extends IntegrationTestCase
             true
         );
 
+        echo $output;
+
         $this->snapshotFromTraces(
             $producerTraces,
             self::FIELDS_TO_IGNORE,
@@ -116,6 +120,8 @@ class KafkaTest extends IntegrationTestCase
             null,
             true
         );
+
+        echo $output;
 
         $this->snapshotFromTraces(
             $consumerTraces,
