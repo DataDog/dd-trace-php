@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Kafka;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -32,7 +33,7 @@ class KafkaIntegration extends Integration
         $integration = $this;
 
         $hooks = [
-            'RdKafka\ProducerTopic::produce',
+            //'RdKafka\ProducerTopic::produce',
             'RdKafka\ProducerTopic::producev'
         ];
 
@@ -132,10 +133,14 @@ class KafkaIntegration extends Integration
             $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
             $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
+            $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
 
             $headers = KafkaIntegration::extractMessageHeaders($message->headers ?? []);
-            \DDTrace\consume_distributed_tracing_headers($headers);
-            $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
+            if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
+                \DDTrace\consume_distributed_tracing_headers($headers);
+            } else {
+                $span->links[] = SpanLink::fromHeaders($headers);
+            }
         }
 
         if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
