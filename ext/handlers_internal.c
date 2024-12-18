@@ -31,7 +31,9 @@ void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
 #ifndef _WIN32
+#if PHP_VERSION_ID >= 80000
 void ddtrace_kafka_handlers_startup(void);
+#endif
 void ddtrace_signal_block_handlers_startup(void);
 #endif
 
@@ -152,7 +154,9 @@ void ddtrace_internal_handlers_startup() {
 
     ddtrace_exec_handlers_startup();
 #ifndef _WIN32
+#if PHP_VERSION_ID >= 80000
     ddtrace_kafka_handlers_startup();
+#endif
     // Block remote-config signals of some functions
     ddtrace_signal_block_handlers_startup();
 #endif
