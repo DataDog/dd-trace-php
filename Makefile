@@ -547,6 +547,7 @@ TELEMETRY_ENABLED=0
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
+	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -588,6 +589,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -639,6 +641,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -697,6 +700,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -754,6 +758,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
 	test_integrations_mongodb1 \
@@ -819,6 +824,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_amqp2 \
 	test_integrations_amqp35 \
 	test_integrations_curl \
+	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
@@ -871,6 +877,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
@@ -925,6 +932,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	$test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
@@ -987,6 +995,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
+	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
