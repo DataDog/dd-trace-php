@@ -113,5 +113,6 @@ class Symfony62Tests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
+        assert span.meta."http.route" == '/dynamic-path/{param01}'
     }
 }
