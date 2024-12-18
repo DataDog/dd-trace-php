@@ -1,4 +1,3 @@
-#if PHP_VERSION_ID >= 80000
 #ifndef _WIN32
 
 #include <php.h>
@@ -120,8 +119,11 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     }
 
     LOG(DEBUG, "Calling 'producev' method in the class '%s'", ce->name->val);
-    zend_call_known_instance_method(producev_func, Z_OBJ_P(getThis()), return_value, 6 + opaque_param, args);
+    zval function_name;
+    ZVAL_STRING(&function_name, "producev");
+    call_user_function(NULL, getThis(), &function_name, return_value, 6 + opaque_param, args);
     LOG(DEBUG, "Called 'producev' method in the class '%s'", ce->name->val);
+    zval_dtor(&function_name);
 
     zval_ptr_dtor(&headers);
     if (payload) {
@@ -160,5 +162,4 @@ void ddtrace_kafka_handlers_startup(void) {
     }
 }
 
-#endif
 #endif
