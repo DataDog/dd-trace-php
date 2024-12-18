@@ -395,10 +395,62 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        $handle_route = function($request, $rootSpan) use ($integration) {
+            $route_name = $request->get('_route');
+            if ($route_name === null) {
+                return;
+            }
+            if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                $rootSpan->resource = $route_name;
+            }
+            $rootSpan->meta['symfony.route.name'] = $route_name;
+
+            // the rest is for determining http.route
+            if ($integration->kernel === null) {
+                return;
+            }
+            /** @var ContainerInterface $container */
+            $container = $integration->kernel->getContainer();
+            $cache = null;
+            try {
+                $cache = $container->get('cache.app');
+            } catch (\Exception $e) {
+                return;
+            }
+
+            /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+            $router = $container->get('router');
+            if (!\method_exists($cache, 'getItem')) {
+                return;
+            }
+            $itemName = "_datadog.route.path.$route_name";
+            $locale = $request->get('_locale');
+            if ($locale !== null) {
+                $itemName .= ".$locale";
+            }
+            $item = $cache->getItem($itemName);
+            if ($item->isHit()) {
+                $route = $item->get();
+            } else {
+                $routeCollection = $router->getRouteCollection();
+                $route = $routeCollection->get($route_name);
+                if ($route == null && ($locale = $request->get('_locale')) !== null) {
+                    $route = $routeCollection->get($route_name . '.' . $locale);
+                }
+                $item->set($route);
+                $item->expiresAfter(3600);
+                $cache->save($item);
+            }
+            if (isset($route)) {
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
+            }
+
+        };
+
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function (SpanData $span, $args, $response) use ($integration) {
+            function (SpanData $span, $args, $response) use ($integration, $handle_route) {
                 /** @var Request $request */
                 list($request) = $args;
 
@@ -420,52 +472,13 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
+                $handle_route($request, $rootSpan);
+
                 $parameters = $request->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
                     function_exists('datadog\appsec\push_addresses')) {
                     \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
-                }
-
-                $route_name = $request->get('_route');
-                if ($route_name === null) {
-                    return;
-                }
-                if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                    $rootSpan->resource = $route_name;
-                }
-                $rootSpan->meta['symfony.route.name'] = $route_name;
-
-                // the rest is for determining http.route
-                if ($integration->kernel === null) {
-                    return;
-                }
-                /** @var ContainerInterface $container */
-                $container = $integration->kernel->getContainer();
-                $cache = null;
-                try {
-                    $cache = $container->get('cache.app');
-                } catch (\Exception $e) {
-                    return;
-                }
-
-                /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                $router = $container->get('router');
-                if (!\method_exists($cache, 'getItem')) {
-                    return;
-                }
-                $item = $cache->getItem("_datadog.route.path.$route_name");
-                if ($item->isHit()) {
-                    $route = $item->get();
-                } else {
-                    $routeCollection = $router->getRouteCollection();
-                    $route = $routeCollection->get($route_name);
-                    $item->set($route);
-                    $item->expiresAfter(3600);
-                    $cache->save($item);
-                }
-                if (isset($route)) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
                 }
             }
         );
