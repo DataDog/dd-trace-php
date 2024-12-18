@@ -21,7 +21,8 @@ class HomeController extends AbstractController
         );
     }
 
-    #[Route("/dynamic-path/{param01}")]
+    #[Route("/dynamic-path/{param01}", locale: "en")]
+    #[Route("/caminho-dinamico/{param01}", locale: "pt")]
     public function dynamicAction(Request $request, string $param01)
     {
         return new Response(
