@@ -3,22 +3,11 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include "librdkafka/rdkafka.h"
-#include "Zend/zend_exceptions.h"
-#include "ext/spl/spl_exceptions.h"
-
 #include <components-rs/ddtrace.h>
 #include <components/log/log.h>
 
-#ifndef _WIN32
-
-#include "coms.h"
-
-#endif
-
 #include "configuration.h"
 #include "ddtrace.h"
-#include "span.h"
 #include "handlers_http.h"
 
 #include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
@@ -37,6 +26,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_kafka_loaded = false;
+uint32_t opaque_param = 0;
 
 static zif_handler dd_kafka_produce_handler = NULL;
 
@@ -64,19 +54,6 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     size_t key_len = 0;
     zend_string* opaque = NULL;
 
-    // Checks if the RdKafka::purge method exists (this trick will help us determine the number of arguments)
-    // If it exists, then we have 7 arguments (opaque)
-    uint32_t opaque_param = 0;
-    zend_class_entry* kafka_ce = zend_hash_str_find_ptr(CG(class_table), "rdkafka", sizeof("rdkafka") - 1);
-    zend_function* purge_func = NULL;
-    if (kafka_ce != NULL) {
-        purge_func = zend_hash_str_find_ptr(&kafka_ce->function_table, "purge", sizeof("purge") - 1);
-        if (purge_func != NULL) {
-            LOG(DEBUG, "Found 'purge' method in the class 'RdKafka'");
-            opaque_param = 1;
-        }
-    }
-
     LOG(DEBUG, "Number of arguments: %d", 6 + opaque_param);
     ZEND_PARSE_PARAMETERS_START(2, 4 + opaque_param)
             Z_PARAM_LONG(partition)
@@ -86,18 +63,6 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
             Z_PARAM_STRING_OR_NULL(key, key_len)
             Z_PARAM_STR_OR_NULL(opaque)
     ZEND_PARSE_PARAMETERS_END();
-
-    // Retrieve the ProducerTopic instance (class entry)
-    zend_class_entry* ce = Z_OBJCE_P(getThis());
-    zend_function* producev_func = NULL;
-
-    // Look up the producev method from the function table
-    if ((producev_func = zend_hash_str_find_ptr(&ce->function_table, "producev", sizeof("producev") - 1)) == NULL) {
-        // Call the original produce method if producev is not found
-        LOG(ERROR, "Method 'producev' not found in the class '%s'", ce->name->val);
-        dd_kafka_produce_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
 
     // Create distributed tracing headers if not passed
     LOG(DEBUG, "Creating distributed tracing headers");
@@ -118,11 +83,11 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
         ZVAL_STR(&args[6], opaque ? opaque : ZSTR_EMPTY_ALLOC());  // Opaque (optional)
     }
 
-    LOG(DEBUG, "Calling 'producev' method in the class '%s'", ce->name->val);
+    LOG(DEBUG, "Calling 'producev' method");
     zval function_name;
     ZVAL_STRING(&function_name, "producev");
     call_user_function(NULL, getThis(), &function_name, return_value, 6 + opaque_param, args);
-    LOG(DEBUG, "Called 'producev' method in the class '%s'", ce->name->val);
+    LOG(DEBUG, "Called 'producev' method");
     zval_dtor(&function_name);
 
     zval_ptr_dtor(&headers);
@@ -149,6 +114,18 @@ void ddtrace_kafka_handlers_startup(void) {
     dd_ext_kafka_loaded = zend_hash_str_exists(&module_registry, ZEND_STRL("rdkafka"));
     if (!dd_ext_kafka_loaded) {
         return;
+    }
+
+    // Checks if the RdKafka::purge method exists (this trick will help us determine the number of arguments)
+    // If it exists, then we have 7 arguments for producev (opaque)
+    zend_class_entry* kafka_ce = zend_hash_str_find_ptr(CG(class_table), "rdkafka", sizeof("rdkafka") - 1);
+    zend_function* purge_func = NULL;
+    if (kafka_ce != NULL) {
+        purge_func = zend_hash_str_find_ptr(&kafka_ce->function_table, "purge", sizeof("purge") - 1);
+        if (purge_func != NULL) {
+            LOG(DEBUG, "Found 'purge' method in the class 'RdKafka'");
+            opaque_param = 1;
+        }
     }
 
     // Note for legacy: The class name has to be the fully qualified class name in lowercase
