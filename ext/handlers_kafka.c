@@ -3,14 +3,11 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include <components-rs/ddtrace.h>
 #include <components/log/log.h>
 
 #include "configuration.h"
-#include "ddtrace.h"
-#include "handlers_http.h"
-
-#include "handlers_internal.h"  // For 'ddtrace_replace_internal_function'
+#include "handlers_api.h"
+#include "handlers_http.h" // For ddtrace_inject_distributed_headers
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
