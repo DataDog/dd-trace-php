@@ -1,19 +1,62 @@
 use crate::profiling::Profiler;
+use crate::well_known::WellKnown;
 use crate::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
 };
 use crate::REQUEST_LOCALS;
+use datadog_alloc::Global;
+use datadog_thin_str::ThinString;
 use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
 #[cfg(php_zts)]
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::ptr;
-use std::time::Instant;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::ops::Deref;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::{fmt, ptr};
+
+#[derive(Copy, Clone, Debug)]
+pub enum IncludeType {
+    Include,
+    Require,
+    Unknown,
+}
+
+impl IncludeType {
+    pub fn to_thin_string(self) -> ThinString {
+        match self {
+            IncludeType::Include => WellKnown::Include.into(),
+            IncludeType::Require => WellKnown::Require.into(),
+            IncludeType::Unknown => WellKnown::Unknown.into(),
+        }
+    }
+
+    pub fn to_bracketed_thin_string(self) -> ThinString {
+        match self {
+            IncludeType::Include => WellKnown::BracketedInclude.into(),
+            IncludeType::Require => WellKnown::BracketedRequire.into(),
+            IncludeType::Unknown => WellKnown::BracketedUnknownIncludeType.into(),
+        }
+    }
+}
+
+impl From<u32> for IncludeType {
+    fn from(value: u32) -> Self {
+        match value {
+            zend::ZEND_INCLUDE => IncludeType::Include,
+            zend::ZEND_REQUIRE => IncludeType::Require,
+            _ => IncludeType::Unknown,
+        }
+    }
+}
+
+impl fmt::Display for IncludeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_thin_string().deref())
+    }
+}
 
 /// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
@@ -36,7 +79,8 @@ thread_local! {
     static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
-enum State {
+#[derive(Copy, Clone)]
+pub enum State {
     Idle,
     Sleeping,
     Select,
@@ -47,15 +91,29 @@ enum State {
 }
 
 impl State {
-    fn as_str(&self) -> &'static str {
+    pub fn to_thin_string(self) -> ThinString {
         match self {
-            State::Idle => "idle",
-            State::Sleeping => "sleeping",
-            State::Select => "select",
+            State::Idle => WellKnown::Idle.into(),
+            State::Sleeping => WellKnown::Sleeping.into(),
+            State::Select => WellKnown::Select.into(),
+
             #[cfg(php_zts)]
-            State::ThreadStart => "thread start",
+            State::ThreadStart => WellKnown::ThreadStart.into(),
             #[cfg(php_zts)]
-            State::ThreadStop => "thread stop",
+            State::ThreadStop => WellKnown::ThreadStop.into(),
+        }
+    }
+
+    pub fn to_bracketed_thin_string(self) -> ThinString {
+        match self {
+            State::Idle => WellKnown::BracketedIdle.into(),
+            State::Sleeping => WellKnown::BracketedSleeping.into(),
+            State::Select => WellKnown::BracketedSelect.into(),
+
+            #[cfg(php_zts)]
+            State::ThreadStart => WellKnown::BracketedThreadStart.into(),
+            #[cfg(php_zts)]
+            State::ThreadStop => WellKnown::BracketedThreadStop.into(),
         }
     }
 }
@@ -99,7 +157,7 @@ fn sleeping_fn(
         // Safety: `unwrap` can be unchecked, as we checked for `is_err()`
         let now = unsafe { now.unwrap_unchecked().as_nanos() } as i64;
         let duration = duration.as_nanos() as i64;
-        profiler.collect_idle(now, duration, state.as_str());
+        profiler.collect_idle(now, duration, state);
     }
 }
 
@@ -208,13 +266,17 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     #[cfg(not(zend_error_observer_80))]
     let filename_str = unsafe { zai_str_from_zstr(file.as_mut()) };
 
-    let filename = filename_str.to_string_lossy().into_owned();
+    let filename = ThinString::from_str_in(filename_str.to_string_lossy().as_ref(), Global);
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
         profiler.collect_fatal(now, filename, line, unsafe {
-            zend::zai_str_from_zstr(message.as_mut()).into_string()
+            ThinString::from(
+                zai_str_from_zstr(message.as_mut())
+                    .into_string_lossy()
+                    .as_ref(),
+            )
         });
     }
 }
@@ -241,8 +303,12 @@ unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32)
         if let Some(profiler) = Profiler::get() {
             let now = now.as_nanos() as i64;
             let file = unsafe {
-                zend::zai_str_from_zstr(zend::zend_get_executed_filename_ex().as_mut())
-                    .into_string()
+                // If this has to make a lossy String, then we'll get an extra
+                // copy (once to String, then another to ThinString). I don't
+                // expect this to be hit often, nor a nice way around it.
+                let name =
+                    zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string_lossy();
+                ThinString::from_str_in(name.as_ref(), Global)
             };
             profiler.collect_opcache_restart(
                 now,
@@ -411,7 +477,7 @@ pub unsafe fn timeline_rinit() {
                         .unwrap()
                         .as_nanos() as i64,
                     idle_since.elapsed().as_nanos() as i64,
-                    State::Idle.as_str(),
+                    State::Idle,
                 );
             }
         });
@@ -499,7 +565,7 @@ pub(crate) unsafe fn timeline_mshutdown() {
                         .unwrap()
                         .as_nanos() as i64,
                     idle_since.elapsed().as_nanos() as i64,
-                    "idle",
+                    State::Idle,
                 );
             }
         });
@@ -583,7 +649,9 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             return op_array;
         }
 
-        let filename = zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string();
+        let filename_lossy =
+            zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string_lossy();
+        let filename = ThinString::from_str_in(&filename_lossy, Global);
 
         let line = zend::zend_get_executed_lineno();
 
@@ -639,22 +707,23 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
             return op_array;
         }
 
-        let include_type = match r#type as u32 {
-            zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
-            zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
-            _default => "",
-        };
+        let include_type = IncludeType::from(r#type as u32);
 
         // Extract the filename from the returned op_array.
         // We could also extract from the handle, but those filenames might be different from
         // the one in the `op_array`: In the handle we get what `include()` was called with,
         // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
         // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
-        // collect in stack walking and therefore we are fully utilizing the pprof string table
-        let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
+        // collect in stack walking, and therefore we are fully utilizing the pprof string table.
+        let filename = ThinString::from(
+            zai_str_from_zstr((*op_array).filename.as_mut())
+                .to_string_lossy()
+                .as_ref(),
+        );
 
         trace!(
-            "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
+            "Compile file \"{filename}\" with include type \"{}\" took {} nanoseconds",
+            include_type.to_thin_string().deref(),
             duration.as_nanos(),
         );
 
@@ -677,12 +746,12 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
 /// a `gc_collect_cycles` function at the top of the call stack, it is because
 /// of a userland call  to `gc_collect_cycles()`, otherwise the engine decided
 /// to run it.
-unsafe fn gc_reason() -> &'static str {
+unsafe fn gc_reason() -> WellKnown {
     let execute_data = zend::ddog_php_prof_get_current_execute_data();
     let fname = || execute_data.as_ref()?.func.as_ref()?.name();
     match fname() {
-        Some(name) if name == b"gc_collect_cycles" => "induced",
-        _ => "engine",
+        Some(name) if name == b"gc_collect_cycles" => WellKnown::Induced,
+        _ => WellKnown::Engine,
     }
 }
 
@@ -724,7 +793,8 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         let status = status.assume_init();
 
         trace!(
-            "Garbage collection with reason \"{reason}\" took {} nanoseconds",
+            "Garbage collection with reason \"{}\" took {} nanoseconds",
+            ThinString::from(reason).deref(),
             duration.as_nanos()
         );
 
