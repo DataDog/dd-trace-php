@@ -57,7 +57,6 @@ aliases:
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
 
-
   - &IMAGE_DOCKER_MEMCHACED
     image: memcached:1.5-alpine
     name: memcached_integration
@@ -561,6 +560,21 @@ commands:
                 -e discovery.type=single-node \
                 --name elasticsearch7_integration elasticsearch:7.17.0
               retry_docker run --detach --rm --net net \
+                --name zookeeper confluentic/cp-zookeeper:7.7.1 \
+                -e ZOOKEEPER_CLIENT_PORT=2181 \
+                -e ZOOKEEPER_TICK_TIME=2000
+              retry_docker run --detach --rm --net net \
+                --name kafka_integration confluentinc/cp-kafka:7.7.1 \
+                -e KAFKA_BROKER_ID=111 \
+                -e KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1 \
+                -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+                -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092 \
+                -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
+                -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+                -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+                -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+                -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+              retry_docker run --detach --rm --net net \
                 --name redis_integration datadog/dd-trace-ci:php-redis-5.0
               retry_docker run --detach --rm --net net \
                 --name memcached_integration memcached:1.5-alpine
@@ -605,6 +619,8 @@ commands:
             - docker_logs:
                 docker_image: elasticsearch7_integration
             - docker_logs:
+                docker_image: kafka_integration
+            - docker_logs:
                 docker_image: redis_integration
             - docker_logs:
                 docker_image: memcached_integration
@@ -618,6 +634,8 @@ commands:
                 docker_image: sqlsrv_integration
             - docker_logs:
                 docker_image: googlespanner_integration
+            - docker_logs:
+                docker_image: zookeeper
       - run:
           name: Setup docker image << parameters.docker_image >>
           command: |
