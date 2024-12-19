@@ -131,7 +131,7 @@ class KafkaIntegration extends Integration
             $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
             $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
-            $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
+            $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
         } else {
             $span = \DDTrace\start_span(...$hook->data['start']);
         }
