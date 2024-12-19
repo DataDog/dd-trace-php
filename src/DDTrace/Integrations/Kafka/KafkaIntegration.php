@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Kafka;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -72,7 +71,6 @@ class KafkaIntegration extends Integration
             $hook->args[] = null; // $key
             $hook->args[] = $headers; // $headers
         }
-        Logger::get()->debug('Added Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
         $hook->overrideArguments($hook->args);
     }
 
@@ -156,18 +154,14 @@ class KafkaIntegration extends Integration
             });
 
             if (!empty($headers)) {
-                Logger::get()->debug('Read Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
                 if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
-                    Logger::get()->debug('Starting trace span with headers');
                     $span = \DDTrace\start_trace_span(...$hook->data['start']);
                     \DDTrace\consume_distributed_tracing_headers($headers);
                 } else {
-                    Logger::get()->debug('Starting span with headers');
                     $span = \DDTrace\start_span(...$hook->data['start']);
                     $span->links[] = SpanLink::fromHeaders($headers);
                 }
             } else {
-                Logger::get()->debug('Starting span without headers');
                 $span = \DDTrace\start_span(...$hook->data['start']);
             }
 
@@ -177,7 +171,6 @@ class KafkaIntegration extends Integration
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
             $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
         } else {
-            Logger::get()->debug('Starting span without message');
             $span = \DDTrace\start_span(...$hook->data['start']);
         }
 
