@@ -7,7 +7,7 @@ use ddtelemetry::data;
 use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
 use ddtelemetry::data::{Dependency, Integration};
 use ddtelemetry::metrics::MetricContext;
-use ddtelemetry::worker::{TelemetryActions};
+use ddtelemetry::worker::TelemetryActions;
 use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::path::PathBuf;
