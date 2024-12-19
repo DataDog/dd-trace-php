@@ -29,8 +29,6 @@ static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(
 static inline void _omsg_destroy(dd_omsg *nonnull omsg);
 static inline dd_result _omsg_send(
     dd_conn *nonnull conn, dd_omsg *nonnull omsg);
-static inline dd_result _omsg_send_cred(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg);
 static void _dump_in_msg(
     dd_log_level_t lvl, const char *nonnull data, size_t data_len);
 static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs);
@@ -42,16 +40,14 @@ typedef struct _dd_imsg {
     mpack_node_t root;
 } dd_imsg;
 
-// iif these two return success, _imsg_destroy must be called
-static inline dd_result _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn);
-static inline ATTR_WARN_UNUSED dd_result _imsg_recv_cred(
+// iif this returns success, _imsg_destroy must be called
+static dd_result ATTR_WARN_UNUSED _imsg_recv(
     dd_imsg *nonnull imsg, dd_conn *nonnull conn);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
 
-static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
+static dd_result _dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
 #define NAME_L (int)spec->name_len, spec->name
@@ -78,11 +74,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return dd_error;
         }
 
-        if (check_cred) {
-            res = _omsg_send_cred(conn, &omsg);
-        } else {
-            res = _omsg_send(conn, &omsg);
-        }
+        res = _omsg_send(conn, &omsg);
         _dump_out_msg(dd_log_trace, &omsg.iovecs);
         _omsg_destroy(&omsg);
         if (res) {
@@ -96,11 +88,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
     dd_result res;
     {
         dd_imsg imsg = {0};
-        if (check_cred) {
-            res = _imsg_recv_cred(&imsg, conn);
-        } else {
-            res = _imsg_recv(&imsg, conn);
-        }
+        res = _imsg_recv(&imsg, conn);
         if (res) {
             if (res != dd_helper_error) {
                 mlog(dd_log_warning,
@@ -194,20 +182,25 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
 dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
-    return _dd_command_exec(conn, false, spec, ctx);
+    return _dd_command_exec(conn, spec, ctx);
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, struct req_info *nonnull ctx)
 {
     ctx->command_name = spec->name;
-    return _dd_command_exec(conn, false, spec, ctx);
+    return _dd_command_exec(conn, spec, ctx);
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
-    return _dd_command_exec(conn, true, spec, ctx);
+    dd_result res = dd_conn_check_credentials(conn);
+    if (res) {
+        return res;
+    }
+
+    return _dd_command_exec(conn, spec, ctx);
 }
 
 // outgoing
@@ -247,24 +240,13 @@ static inline dd_result _omsg_send(dd_conn *nonnull conn, dd_omsg *nonnull omsg)
     return dd_conn_sendv(conn, &omsg->iovecs);
 }
 
-static inline dd_result _omsg_send_cred(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg)
-{
-    return dd_conn_sendv_cred(conn, &omsg->iovecs);
-}
-
 // incoming
-static inline dd_result _dd_imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn, bool check_cred)
+static ATTR_WARN_UNUSED dd_result _imsg_recv(
+    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
 {
     mlog(dd_log_debug, "Will receive response from helper");
 
-    dd_result res;
-    if (check_cred) {
-        res = dd_conn_recv_cred(conn, &imsg->_data, &imsg->_size);
-    } else {
-        res = dd_conn_recv(conn, &imsg->_data, &imsg->_size);
-    }
+    dd_result res = dd_conn_recv(conn, &imsg->_data, &imsg->_size);
     if (res) {
         return res;
     }
@@ -288,17 +270,6 @@ static inline dd_result _dd_imsg_recv(
     }
 
     return dd_success;
-}
-
-ATTR_WARN_UNUSED dd_result _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
-{
-    return _dd_imsg_recv(imsg, conn, false);
-}
-ATTR_WARN_UNUSED dd_result _imsg_recv_cred(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
-{
-    return _dd_imsg_recv(imsg, conn, true);
 }
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
