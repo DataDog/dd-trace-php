@@ -3,6 +3,7 @@
 #endif
 #include "ddtrace.h"
 #include <SAPI.h>
+#include <time.h>
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
@@ -2423,6 +2424,23 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
     RETURN_NULL();
 }
 
+PHP_FUNCTION(DDTrace_now) {
+    UNUSED(execute_data);
+
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_THROWS();
+    }
+
+    array_init(return_value);
+
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    // ts.tv_sec * ZEND_NANO_IN_SEC is the time in sec - It's the first element of the returned array
+    // ts.tv_nsec is the time in nanosec - It's the second element of the returned array
+    add_next_index_long(return_value, ts.tv_sec);
+    add_next_index_long(return_value, ts.tv_nsec);
+}
+
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;
@@ -2698,7 +2716,8 @@ PHP_FUNCTION(DDTrace_root_span) {
 
 static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     double start_time_seconds = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &start_time_seconds) != SUCCESS) {
+    double start_time_nanoseconds = 0;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|dd", &start_time_seconds, &start_time_nanoseconds) != SUCCESS) {
         LOG_LINE_ONCE(WARN, "unexpected parameter, expecting double for start time");
         RETURN_FALSE;
     }
@@ -2712,7 +2731,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     }
 
     if (start_time_seconds > 0) {
-        span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
+        span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC + start_time_nanoseconds);
     }
 
     RETURN_OBJ(&span->std);
