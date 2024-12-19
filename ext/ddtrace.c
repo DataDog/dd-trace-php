@@ -1508,6 +1508,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_sidecar_shutdown();
 
+    ddtrace_live_debugger_mshutdown();
+
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation
     zend_string *key;

@@ -378,11 +378,13 @@ void ddtrace_sidecar_submit_root_span_data(void) {
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_data(&payloads););
     ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payloads);
+    zend_hash_clean(&DDTRACE_G(debugger_capture_ephemerals));
 }
 
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_datum(payload););
     ddog_sidecar_send_debugger_datum(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payload);
+    zend_hash_clean(&DDTRACE_G(debugger_capture_ephemerals));
 }
 
 void ddtrace_sidecar_activate(void) {

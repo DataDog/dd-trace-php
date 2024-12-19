@@ -230,6 +230,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                             zend_get_properties_for(zv, ZEND_PROP_PURPOSE_DEBUG)
                             #endif
                                                             : Z_OBJPROP_P(zv);
+
+            if (!ht) {
+                break;
+            }
             ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, key, val) {
                 if (!key) {
                     continue;
@@ -263,10 +267,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
             if (ce->type == ZEND_INTERNAL_CLASS) {
 #if PHP_VERSION_ID < 70400
                 if (is_temp) {
-                    zend_array_release(ht);
+                    zend_hash_next_index_insert_ptr(&DDTRACE_G(debugger_capture_ephemerals), ht);
                 }
 #else
-                zend_release_properties(ht);
+                zend_hash_next_index_insert_ptr(&DDTRACE_G(debugger_capture_ephemerals), ht);
 #endif
             }
             break;
@@ -392,7 +396,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         LOG(TRACE, "Skipping exception replay capture due to hash %.*s already recently hit", hash_len, exception_hash);
         return;
     }
-    
+
     char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])exception_id);
 
