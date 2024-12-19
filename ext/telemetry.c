@@ -150,13 +150,14 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     dd_commit_metrics();
+
     // Send integration error logs
     if (get_global_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-        char* log = (char*) ddog_get_integration_log();
+        char* log = (char*) ddog_get_integration_error_log();
         while (log != NULL) {
             ddog_CharSlice logSlice = (ddog_CharSlice){ .ptr = log, .len = strlen(log) };
             ddog_sidecar_telemetry_add_integration_log_buffer(buffer, logSlice);
-            log = (char*) ddog_get_integration_log();
+            log = (char*) ddog_get_integration_error_log();
         }
     }
 
@@ -285,6 +286,7 @@ DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_Metri
     ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
     ddog_sidecar_telemetry_register_metric_buffer(metrics_buffer, metric_name, type, ns);
 }
+
 
 DDTRACE_PUBLIC bool ddtrace_metric_add_point(zend_string *name, double value, zend_string *tags) {
     if (!metrics_buffer) {

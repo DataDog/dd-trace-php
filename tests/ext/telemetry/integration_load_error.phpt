@@ -83,4 +83,4 @@ array(1) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . 'integration-load-error-telemetry.out');
+@unlink(__DIR__ . '/integration-load-error-telemetry.out');
