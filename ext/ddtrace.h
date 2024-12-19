@@ -135,6 +135,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;
     zend_arena *debugger_capture_arena;
+    HashTable debugger_capture_ephemerals;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
