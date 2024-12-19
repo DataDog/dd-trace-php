@@ -3,8 +3,6 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include <components/log/log.h>
-
 #include "configuration.h"
 #include "handlers_api.h"
 #include "handlers_http.h" // For ddtrace_inject_distributed_headers
@@ -35,10 +33,8 @@ static bool dd_load_kafka_integration(void) {
 }
 
 ZEND_FUNCTION(ddtrace_kafka_produce) {
-    LOG(DEBUG, "ddtrace_kafka_produce");
     if (!dd_load_kafka_integration()) {
         // Call the original handler
-        LOG(DEBUG, "Kafka integration is not enabled");
         dd_kafka_produce_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }
@@ -51,7 +47,6 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     size_t key_len = 0;
     zend_string* opaque = NULL;
 
-    LOG(DEBUG, "Number of arguments: %d", 6 + opaque_param);
     ZEND_PARSE_PARAMETERS_START(2, 4 + opaque_param)
             Z_PARAM_LONG(partition)
             Z_PARAM_LONG(msgflags)
@@ -74,11 +69,9 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
         ZVAL_STR(&args[6], opaque ? opaque : ZSTR_EMPTY_ALLOC());  // Opaque (optional)
     }
 
-    LOG(DEBUG, "Calling 'producev' method");
     zval function_name;
     ZVAL_STRING(&function_name, "producev");
     call_user_function(NULL, getThis(), &function_name, return_value, 6 + opaque_param, args);
-    LOG(DEBUG, "Called 'producev' method");
     zval_dtor(&function_name);
 
     if (payload) {
@@ -113,7 +106,6 @@ void ddtrace_kafka_handlers_startup(void) {
     if (kafka_ce != NULL) {
         purge_func = zend_hash_str_find_ptr(&kafka_ce->function_table, "purge", sizeof("purge") - 1);
         if (purge_func != NULL) {
-            LOG(DEBUG, "Found 'purge' method in the class 'RdKafka'");
             opaque_param = 1;
         }
     }

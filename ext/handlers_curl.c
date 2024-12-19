@@ -347,7 +347,6 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
  * @see http://www.phpinternalsbook.com/php7/memory_management/zend_memory_manager.html#common-errors-and-mistakes
  */
 void ddtrace_curl_handlers_startup(void) {
-    LOG(DEBUG, "Installing curl handlers");
     // if we cannot find ext/curl then do not instrument it
     dd_ext_curl_loaded = zend_hash_str_exists(&module_registry, ZEND_STRL("curl"));
     if (!dd_ext_curl_loaded) {
