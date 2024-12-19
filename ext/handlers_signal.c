@@ -23,9 +23,15 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
 }
 
 #define BLOCKSIGFN(function) \
-    static zif_handler dd_handle_signal_zif_##function;\
+    static zif_handler dd_handle_signal_zif_##function; \
     static ZEND_FUNCTION(dd_handle_signal_##function) { \
         dd_handle_signal(dd_handle_signal_zif_##function, INTERNAL_FUNCTION_PARAM_PASSTHRU); \
+    }
+
+#define BLOCKSIGMETH(classname, method) \
+    static zif_handler dd_handle_signal_zim_##classname##_##method; \
+    static ZEND_METHOD(dd_handle_signal_##classname, method) { \
+        dd_handle_signal(dd_handle_signal_zim_##classname##_##method, INTERNAL_FUNCTION_PARAM_PASSTHRU); \
     }
 
 #define BLOCK(x) \
@@ -64,8 +70,20 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(ftp_size) \
     x(ftp_ssl_connect) \
     x(ftp_systype) \
+    x(mysqli_connect) \
+    x(mysql_connect) \
+    x(pg_connect) \
+    x(oci_connect) \
+    x(odbc_connect) \
+    x(ldap_connect) \
+
+#define BLOCKMETH(x) \
+    x(PDO, connect) \
+    x(mysqli, __construct) \
 
 BLOCK(BLOCKSIGFN)
+
+BLOCKMETH(BLOCKSIGMETH)
 
 void ddtrace_signal_block_handlers_startup() {
 #define BLOCKFNENTRY(function) { ZEND_STRL(#function), &dd_handle_signal_zif_##function, ZEND_FN(dd_handle_signal_##function) },
@@ -74,5 +92,13 @@ void ddtrace_signal_block_handlers_startup() {
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {
         datadog_php_install_handler(handlers[i]);
+    }
+
+#define BLOCKMETHENTRY(classname, method) { ZEND_STRL(#classname), { ZEND_STRL(#method), &dd_handle_signal_zim_##classname##_##method, ZEND_MN(dd_handle_signal_##classname##_##method) } },
+    datadog_php_zim_handler meth_handlers[] = { BLOCKMETH(BLOCKMETHENTRY) };
+
+    size_t meth_handlers_len = sizeof meth_handlers / sizeof meth_handlers[0];
+    for (size_t i = 0; i < meth_handlers_len; ++i) {
+        datadog_php_install_method_handler(meth_handlers[i]);
     }
 }
