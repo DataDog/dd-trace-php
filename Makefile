@@ -932,7 +932,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp35 \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
-	$test_integrations_kafka \
+	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \

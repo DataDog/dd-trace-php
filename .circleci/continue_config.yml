@@ -115,7 +115,7 @@ aliases:
     name: googlespanner_integration
 
   - &IMAGE_DOCKER_ZOOKEEPER
-    image: confluentic/cp-zookeeper:7.7.1
+    image: confluentinc/cp-zookeeper:7.7.1
     name: zookeeper
     environment:
       - ZOOKEEPER_CLIENT_PORT=2181

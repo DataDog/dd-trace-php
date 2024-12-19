@@ -17,71 +17,18 @@ class KafkaTest extends IntegrationTestCase
         'metrics.messaging.kafka.message_offset'
     ];
 
-    public function testSpanLinksLowLevel()
+    public static function ddSetUpBeforeClass()
     {
-        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
-
-        // Get the latest offset of the test-lowlevel topic
-        $this->isolateLimitedTracer(function () use (&$low, &$high) {
-            $conf = new \RdKafka\Conf();
-            $conf->set('bootstrap.servers', 'kafka_integration:9092');
-            $conf->set('group.id', 'consumer-lowlevel');
-            $conf->set('enable.partition.eof', 'true');
-
-            $consumer = new \RdKafka\KafkaConsumer($conf);
-            $consumer->queryWatermarkOffsets('test-lowlevel', 0, $low, $high, 1000);
-        });
-
-        echo "Low: $low, High: $high\n";
-
-        list($producerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/producer.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-                'DD_SERVICE' => 'kafka_test',
-                'DD_TRACE_EXEC_ENABLED' => 'false',
-                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
-            ],
-            [],
-            'test-lowlevel',
-            true
-        );
-
-        echo $output;
-
-        $this->snapshotFromTraces(
-            $producerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_span_links_low_level_producer'
-        );
-
-        list($consumerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/consumer-lowlevel.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-                'DD_SERVICE' => 'kafka_test',
-                'DD_TRACE_EXEC_ENABLED' => 'false',
-                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
-                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
-            ],
-            [],
-            $high,
-            true
-        );
-
-        echo $output;
-
-        $this->snapshotFromTraces(
-            $consumerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_span_links_low_level_consumer'
-        );
+        parent::ddSetUpBeforeClass();
+        $conf = new \RdKafka\Conf();
+        $conf->set('bootstrap.servers', self::$host . ':' . self::$port);
+        $producer = new \RdKafka\Producer($conf);
+        $topicConf = new TopicConf();
+        $topicConf->set('message.timeout.ms', (string) 30000);
+        $topicConf->set('request.required.acks', (string) -1);
+        $topicConf->set('request.timeout.ms', (string) 5000);
+        $producer->newTopic('test-lowlevel', $topicConf);
+        $producer->newTopic('test-highlevel', $topicConf);
     }
 
     public function testSpanLinksHighLevel()
@@ -183,5 +130,72 @@ class KafkaTest extends IntegrationTestCase
         $this->assertEquals($kafkaProduceTraceID, $distributedKafkaConsumeTraceID);
         $this->assertEquals($kafkaProduceSpanID, $distributedKafkaConsumeParentID);
         $this->assertCount(1, $consumerTraces[0]);
+    }
+
+    public function testSpanLinksLowLevel()
+    {
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        // Get the latest offset of the test-lowlevel topic
+        $this->isolateLimitedTracer(function () use (&$low, &$high) {
+            $conf = new \RdKafka\Conf();
+            $conf->set('bootstrap.servers', 'kafka_integration:9092');
+            $conf->set('group.id', 'consumer-lowlevel');
+            $conf->set('enable.partition.eof', 'true');
+
+            $consumer = new \RdKafka\KafkaConsumer($conf);
+            $consumer->queryWatermarkOffsets('test-lowlevel', 0, $low, $high, 1000);
+        });
+
+        echo "Low: $low, High: $high\n";
+
+        list($producerTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/producer.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+            ],
+            [],
+            'test-lowlevel',
+            true
+        );
+
+        echo $output;
+
+        $this->snapshotFromTraces(
+            $producerTraces,
+            self::FIELDS_TO_IGNORE,
+            'tests.integrations.kafka_test.test_span_links_low_level_producer'
+        );
+
+        list($consumerTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/consumer-lowlevel.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
+            ],
+            [],
+            $high,
+            true
+        );
+
+        echo $output;
+
+        $this->snapshotFromTraces(
+            $consumerTraces,
+            self::FIELDS_TO_IGNORE,
+            'tests.integrations.kafka_test.test_span_links_low_level_consumer'
+        );
     }
 }
