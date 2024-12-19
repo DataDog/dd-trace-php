@@ -117,8 +117,10 @@ TEST(WafTest, RunWithTimeout)
 
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_timeout, 1));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 1.0));
-        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, 0.0));
-        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, 0.0));
+        // Since v1.22.0 libddwaf will still attempt to run denylists, which
+        // will cause the duration to be non-zero
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
         parameter_view pv(p);
         dds::event e;
         bool is_rasp = true;
