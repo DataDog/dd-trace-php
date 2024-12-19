@@ -47,8 +47,7 @@ final class CurlIntegration extends Integration
                     return;
                 }
 
-                // $ch = 5/0;
-                $ch = $args[-1];
+                $ch = $args[0];
                 if (isset($retval) && $retval === false) {
                     $span->meta[Tag::ERROR_MSG] = \curl_error($ch);
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
