@@ -181,7 +181,7 @@ trait CommonTests {
 
     @Test
     void 'test blocking and stack generation'() {
-        HttpRequest req = container.buildReq('/generate_stack.php?id=user2020').GET().build()
+        HttpRequest req = container.buildReq('/generate_stack.php?id=stack_user').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
             assert re.body().contains('blocked')
