@@ -23,7 +23,7 @@ class KafkaTest extends IntegrationTestCase
         $conf = new \RdKafka\Conf();
         $conf->set('bootstrap.servers', self::$host . ':' . self::$port);
         $producer = new \RdKafka\Producer($conf);
-        $topicConf = new TopicConf();
+        $topicConf = new \RdKafka\TopicConf();
         $topicConf->set('message.timeout.ms', (string) 30000);
         $topicConf->set('request.required.acks', (string) -1);
         $topicConf->set('request.timeout.ms', (string) 5000);
