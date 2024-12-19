@@ -6,8 +6,8 @@ mod logging;
 mod pcntl;
 pub mod profiling;
 mod sapi;
-mod thin_str;
 mod wall_time;
+mod well_known;
 
 #[cfg(php_run_time_cache)]
 mod string_set;
@@ -313,7 +313,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     };
 
     /* Currently, the engine is always copying this struct. Every time a new
-     * PHP version is released, we should double check zend_register_extension
+     * PHP version is released, we should double-check zend_register_extension
      * to ensure the address is not mutated nor stored. Well, hopefully we
      * catch it _before_ a release.
      */

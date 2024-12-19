@@ -1,7 +1,6 @@
-use crate::thin_str::ThinStr;
 use core::hash;
-use core::ops::Deref;
 use datadog_alloc::{ChainAllocator, VirtualAllocator};
+use datadog_thin_str::*;
 
 type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
 type HashSet<K> = std::collections::HashSet<K, Hasher>;
@@ -77,13 +76,15 @@ impl StringSet {
                 // No match. Make a new string in the arena, and fudge its
                 // lifetime to appease the borrow checker.
                 let new_str = {
-                    let s = ThinStr::try_from_str_in(str, &self.arena)
+                    let owned = ThinString::try_from_str_in(str, &self.arena)
                         .expect("allocation for StringSet::insert to succeed");
+
+                    let borrowed = owned.as_thin_str();
 
                     // SAFETY: all references to this value get re-narrowed to
                     // the lifetime of the string set. The string set will
                     // keep the arena alive, making the access safe.
-                    unsafe { core::mem::transmute::<ThinStr<'_>, ThinStr<'static>>(s) }
+                    unsafe { core::mem::transmute::<ThinStr<'_>, ThinStr<'static>>(borrowed) }
                 };
 
                 // Add it to the set.
@@ -100,17 +101,5 @@ impl StringSet {
     #[inline]
     pub fn arena_used_bytes(&self) -> usize {
         self.arena.used_bytes()
-    }
-
-    /// Creates a `&str` from the `thin_str`, binding it to the lifetime of
-    /// the set.
-    ///
-    /// # Safety
-    /// The `thin_str` must live in this string set.
-    #[inline]
-    pub unsafe fn get_thin_str(&self, thin_str: ThinStr) -> &str {
-        // todo: debug_assert it exists in the memory region?
-        // SAFETY: see function's safety conditions.
-        unsafe { core::mem::transmute(thin_str.deref()) }
     }
 }
