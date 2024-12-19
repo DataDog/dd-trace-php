@@ -560,11 +560,10 @@ commands:
                 -e discovery.type=single-node \
                 --name elasticsearch7_integration elasticsearch:7.17.0
               retry_docker run --detach --rm --net net \
-                --name zookeeper confluentinc/cp-zookeeper:7.7.1 \
                 -e ZOOKEEPER_CLIENT_PORT=2181 \
-                -e ZOOKEEPER_TICK_TIME=2000
+                -e ZOOKEEPER_TICK_TIME=2000 \
+                --name zookeeper confluentinc/cp-zookeeper:7.7.1
               retry_docker run --detach --rm --net net \
-                --name kafka_integration confluentinc/cp-kafka:7.7.1 \
                 -e KAFKA_BROKER_ID=111 \
                 -e KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1 \
                 -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
@@ -573,7 +572,8 @@ commands:
                 -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
                 -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
                 -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
-                -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+                -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+                --name kafka_integration confluentinc/cp-kafka:7.7.1
               retry_docker run --detach --rm --net net \
                 --name redis_integration datadog/dd-trace-ci:php-redis-5.0
               retry_docker run --detach --rm --net net \
