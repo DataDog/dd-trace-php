@@ -987,7 +987,7 @@ impl Profiler {
         let mut labels = Self::timeline_compile_file_labels(1);
         labels.push(Label {
             key: "event",
-            value: LabelValue::Str(state.to_thin_string()),
+            value: LabelValue::Str(state.to_cow_str()),
         });
 
         let n_labels = labels.len();
