@@ -68,7 +68,7 @@ array(2) {
   [0]=>
   array(6) {
     ["message"]=>
-    string(133) "DivisionByZeroError thrown in ddtrace's closure defined at redacted/integration_runtime_error.php:4 for curl_exec(): Division by zero"
+    string(135) "DivisionByZeroError thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:4 for curl_exec(): Division by zero"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
@@ -83,7 +83,7 @@ array(2) {
   [1]=>
   array(6) {
     ["message"]=>
-    string(179) "Error raised in ddtrace's closure defined at redacted/integration_runtime_error.php:9 for curl_setopt(): Undefined variable $a in redacted/integration_runtime_error.php on line 10"
+    string(183) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:9 for curl_setopt(): Undefined variable $a in <redacted>/integration_runtime_error.php on line 10"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
@@ -100,4 +100,4 @@ array(2) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . 'integration-runtime-error-telemetry.out');
+@unlink(__DIR__ . '/integration-runtime-error-telemetry.out');
