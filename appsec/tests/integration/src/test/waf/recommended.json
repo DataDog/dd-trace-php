@@ -44,7 +44,7 @@
                 "address": "usr.id"
               }
             ],
-            "data": "blocked_users"
+            "data": "blocked_users_with_stack"
           },
           "operator": "exact_match"
         }
@@ -6894,6 +6894,17 @@
         }
       ]
     },
+    {
+      "id": "blocked_users_with_stack",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "stack_user",
+          "expiration": 0
+        }
+      ]
+    },
+
     {
       "id": "redirected_users",
       "type": "data_with_expiration",
