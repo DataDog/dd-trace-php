@@ -17,7 +17,7 @@
       "messaging.kafka.message_key": "0",
       "messaging.operation": "send",
       "messaging.system": "kafka",
-      "runtime-id": "199c66d4-0b85-4f42-b130-c204bb4b6951",
+      "runtime-id": "a4b75b9c-c738-46a2-8986-f857f27de07d",
       "span.kind": "producer"
     },
     "metrics": {

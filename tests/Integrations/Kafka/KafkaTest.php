@@ -17,7 +17,7 @@ class KafkaTest extends IntegrationTestCase
         'metrics.messaging.kafka.message_offset'
     ];
 
-    public function testDistributedTracingLowLevel()
+    public function testSpanLinksLowLevel()
     {
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
 
@@ -55,7 +55,7 @@ class KafkaTest extends IntegrationTestCase
         $this->snapshotFromTraces(
             $producerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_distributed_tracing_low_level_producer'
+            'tests.integrations.kafka_test.test_span_links_low_level_producer'
         );
 
         list($consumerTraces, $output) = $this->inCli(
@@ -68,6 +68,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_SERVICE' => 'kafka_test',
                 'DD_TRACE_EXEC_ENABLED' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
             ],
             [],
             $high,
@@ -79,11 +80,11 @@ class KafkaTest extends IntegrationTestCase
         $this->snapshotFromTraces(
             $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_distributed_tracing_low_level_consumer'
+            'tests.integrations.kafka_test.test_span_links_low_level_consumer'
         );
     }
 
-    public function testDistributedTracingHighLevel()
+    public function testSpanLinksHighLevel()
     {
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
 
@@ -108,7 +109,7 @@ class KafkaTest extends IntegrationTestCase
         $this->snapshotFromTraces(
             $producerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_distributed_tracing_high_level_producer'
+            'tests.integrations.kafka_test.test_span_links_high_level_producer'
         );
 
         list($consumerTraces, $output) = $this->inCli(
@@ -121,6 +122,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_TRACE_EXEC_ENABLED' => 'false',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
             ],
             [],
             null,
@@ -132,7 +134,54 @@ class KafkaTest extends IntegrationTestCase
         $this->snapshotFromTraces(
             $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_distributed_tracing_high_level_consumer'
+            'tests.integrations.kafka_test.test_span_links_high_level_consumer'
         );
+    }
+
+    public function testDistributedTracingHighLevel()
+    {
+        list($producerTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/producer.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+            ],
+            [],
+            'test-highlevel',
+            true
+        );
+
+        $producerTrace = $producerTraces[0][0];
+        $kafkaProduceSpanID = $producerTrace['span_id'];
+        $kafkaProduceTraceID = $producerTrace['trace_id'];
+
+        list($consumerTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/consumer-highlevel.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'true',
+            ],
+            [],
+            null,
+            true
+        );
+
+        $distributedKafkaConsumeTraceID = $consumerTraces[0][0]['trace_id'];
+        $distributedKafkaConsumeParentID = $consumerTraces[0][0]['parent_id'];
+
+        $this->assertEquals($kafkaProduceTraceID, $distributedKafkaConsumeTraceID);
+        $this->assertEquals($kafkaProduceSpanID, $distributedKafkaConsumeParentID);
+        $this->assertCount(1, $consumerTraces[0]);
     }
 }

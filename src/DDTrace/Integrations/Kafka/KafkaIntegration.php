@@ -101,18 +101,25 @@ class KafkaIntegration extends Integration
             \DDTrace\install_hook(
                 $method,
                 function (HookData $hook) use ($integration) {
-                    $integration->setupKafkaConsumeSpan($hook, $this);
+                    $integration->saveStartTime($hook);
                 },
                 function (HookData $hook) use ($integration) {
                     $integration->processConsumedMessage($hook);
+                    $integration->setupKafkaConsumeSpan($hook, $this);
+                    \DDTrace\close_span();
                 }
             );
         }
     }
 
+    public function saveStartTime(HookData $hook)
+    {
+        $hook->data['start'] = \DDTrace\now();
+    }
+
     public function setupKafkaConsumeSpan(HookData $hook, $consumer)
     {
-        $span = $hook->span();
+        $span = $hook->data['span'];
         KafkaIntegration::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, Tag::SPAN_KIND_VALUE_CONSUMER, Tag::MQ_OPERATION_RECEIVE);
 
         $conf = ObjectKVStore::get($consumer, 'conf');
@@ -142,28 +149,43 @@ class KafkaIntegration extends Integration
     {
         /** @var \RdKafka\Message $message */
         $message = $hook->returned;
-        $span = $hook->span();
 
         if ($message) {
+            $headers = array_filter(KafkaIntegration::extractMessageHeaders($message->headers ?? []), function($value) {
+                return $value !== null;
+            });
+
+            if (!empty($headers)) {
+                Logger::get()->debug('Read Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
+                if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
+                    Logger::get()->debug('Starting trace span with headers');
+                    $span = \DDTrace\start_trace_span(...$hook->data['start']);
+                    \DDTrace\consume_distributed_tracing_headers($headers);
+                } else {
+                    Logger::get()->debug('Starting span with headers');
+                    $span = \DDTrace\start_span(...$hook->data['start']);
+                    $span->links[] = SpanLink::fromHeaders($headers);
+                }
+            } else {
+                Logger::get()->debug('Starting span without headers');
+                $span = \DDTrace\start_span(...$hook->data['start']);
+            }
+
             $span->meta[Tag::MQ_DESTINATION] = $message->topic_name;
             $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
             $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
             $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
             $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload);
-
-            $headers = array_filter(KafkaIntegration::extractMessageHeaders($message->headers ?? []), function($value) {
-                return $value !== null;
-            });
-            Logger::get()->debug('Read Headers: ' . json_encode($headers, JSON_PRETTY_PRINT));
-            if (!empty($headers)) {
-                $span->links[] = SpanLink::fromHeaders($headers);
-            }
+        } else {
+            Logger::get()->debug('Starting span without message');
+            $span = \DDTrace\start_span(...$hook->data['start']);
         }
 
         if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
             $span->meta[Tag::KAFKA_TOMBSTONE] = true;
-            return;
         }
+
+        $hook->data['span'] = $span;
     }
 
     public static function extractMessageHeaders(array $messageHeaders): array
