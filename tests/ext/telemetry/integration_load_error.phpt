@@ -84,3 +84,4 @@ array(1) {
 <?php
 
 @unlink(__DIR__ . '/integration-load-error-telemetry.out');
+
