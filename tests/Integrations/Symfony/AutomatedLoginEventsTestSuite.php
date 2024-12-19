@@ -44,9 +44,9 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
          $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event']);
 
          $this->assertEquals(1, count($events));
+         $this->assertEquals($email, $events[0]['userLogin']);
          $this->assertEquals($email, $events[0]['userId']);
          $this->assertEmpty($events[0]['metadata']);
-         $this->assertTrue($events[0]['automated']);
     }
 
     public function testUserLoginFailureEvent()
@@ -61,9 +61,9 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
          $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event']);
          $this->assertEquals(1, count($events));
+         $this->assertEmpty($events[0]['userLogin']);
          $this->assertEmpty($events[0]['userId']);
          $this->assertEmpty($events[0]['metadata']);
-         $this->assertTrue($events[0]['automated']);
     }
 
     public function getSignUpPayload($email, $password) {
@@ -72,21 +72,22 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
     public function testUserSignUp()
     {
-       $email = 'test-user@email.com';
-       $password = 'some password';
-       $spec = PostSpec::create('Signup', '/register', [
-                       'Content-Type: application/x-www-form-urlencoded'
-                   ], $this->getSignUpPayload($email, $password));
+        $email = 'test-user@email.com';
+        $password = 'some password';
+        $spec = PostSpec::create('Signup', '/register', [
+                        'Content-Type: application/x-www-form-urlencoded'
+                    ], $this->getSignUpPayload($email, $password));
 
-       $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
+        $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
 
-       $users = $this->getUser($email);
+        $users = $this->getUser($email);
 
         $this->assertEquals(1, count($users));
 
         $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event']);
 
-        $this->assertTrue($signUpEvent[0]['automated']);
+        $this->assertEquals($email, $signUpEvent[0]['userLogin']);
         $this->assertEquals($email, $signUpEvent[0]['userId']);
+        $this->assertEmpty($signUpEvent[0]['metadata']);
     }
 }
