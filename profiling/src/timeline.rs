@@ -10,6 +10,7 @@ use datadog_thin_str::ThinString;
 use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
+use std::borrow::Cow;
 #[cfg(php_zts)]
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -91,7 +92,7 @@ pub enum State {
 }
 
 impl State {
-    pub fn to_thin_string(self) -> ThinString {
+    fn to_other<T: From<WellKnown>>(self) -> T {
         match self {
             State::Idle => WellKnown::Idle.into(),
             State::Sleeping => WellKnown::Sleeping.into(),
@@ -102,6 +103,14 @@ impl State {
             #[cfg(php_zts)]
             State::ThreadStop => WellKnown::ThreadStop.into(),
         }
+    }
+
+    pub fn to_cow_str(self) -> Cow<'static, str> {
+        self.to_other()
+    }
+
+    pub fn to_thin_string(self) -> ThinString {
+        self.to_other()
     }
 
     pub fn to_bracketed_thin_string(self) -> ThinString {
@@ -272,11 +281,7 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
         profiler.collect_fatal(now, filename, line, unsafe {
-            ThinString::from(
-                zai_str_from_zstr(message.as_mut())
-                    .into_string_lossy()
-                    .as_ref(),
-            )
+            zai_str_from_zstr(message.as_mut()).into_string()
         });
     }
 }
@@ -715,11 +720,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
         // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
         // collect in stack walking, and therefore we are fully utilizing the pprof string table.
-        let filename = ThinString::from(
-            zai_str_from_zstr((*op_array).filename.as_mut())
-                .to_string_lossy()
-                .as_ref(),
-        );
+        let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
 
         trace!(
             "Compile file \"{filename}\" with include type \"{}\" took {} nanoseconds",

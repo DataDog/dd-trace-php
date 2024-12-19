@@ -1,4 +1,6 @@
 use datadog_alloc::Global;
+use std::borrow::Cow;
+use std::ops::Deref;
 
 use datadog_thin_str::{ConstStorage, ThinString};
 
@@ -38,6 +40,50 @@ pub enum WellKnown {
     ThreadStart,
     #[cfg(php_zts)]
     ThreadStop,
+}
+
+impl From<WellKnown> for Cow<'static, str> {
+    fn from(well_known: WellKnown) -> Self {
+        let storage: &'static _ = match well_known {
+            WellKnown::Empty => inline_strings::EMPTY.as_storage(),
+
+            WellKnown::BracketedEval => inline_strings::BRACKETED_EVAL.as_storage(),
+            WellKnown::BracketedFatal => inline_strings::BRACKETED_FATAL.as_storage(),
+            WellKnown::BracketedGc => inline_strings::BRACKETED_GC.as_storage(),
+            WellKnown::BracketedIdle => inline_strings::BRACKETED_IDLE.as_storage(),
+            WellKnown::BracketedInclude => inline_strings::BRACKETED_INCLUDE.as_storage(),
+            WellKnown::BracketedRequire => inline_strings::BRACKETED_REQUIRE.as_storage(),
+            WellKnown::BracketedSelect => inline_strings::BRACKETED_SELECT.as_storage(),
+            WellKnown::BracketedSleeping => inline_strings::BRACKETED_SLEEPING.as_storage(),
+            WellKnown::BracketedTruncated => inline_strings::BRACKETED_TRUNCATED.as_storage(),
+            WellKnown::BracketedUnknownIncludeType => {
+                inline_strings::BRACKETED_UNKNOWN_INCLUDE_TYPE.as_storage()
+            }
+
+            WellKnown::Compilation => inline_strings::COMPILATION.as_storage(),
+            WellKnown::Engine => inline_strings::ENGINE.as_storage(),
+            WellKnown::Fatal => inline_strings::FATAL.as_storage(),
+            WellKnown::Idle => inline_strings::IDLE.as_storage(),
+            WellKnown::Include => inline_strings::INCLUDE.as_storage(),
+            WellKnown::Induced => inline_strings::INDUCED.as_storage(),
+            WellKnown::OpcacheRestart => inline_strings::OPCACHE_RESTART.as_storage(),
+            WellKnown::PhpOpenTag => inline_strings::PHP_OPEN_TAG.as_storage(),
+            WellKnown::Require => inline_strings::REQUIRE.as_storage(),
+            WellKnown::Select => inline_strings::SELECT.as_storage(),
+            WellKnown::Sleeping => inline_strings::SLEEPING.as_storage(),
+            WellKnown::Unknown => inline_strings::UNKNOWN.as_storage(),
+
+            #[cfg(php_zts)]
+            WellKnown::BracketedThreadStart => inline_strings::BRACKETED_THREAD_START.as_storage(),
+            #[cfg(php_zts)]
+            WellKnown::BracketedThreadStop => inline_strings::BRACKETED_THREAD_STOP.as_storage(),
+            #[cfg(php_zts)]
+            WellKnown::ThreadStart => inline_strings::THREAD_START.as_storage(),
+            #[cfg(php_zts)]
+            WellKnown::ThreadStop => inline_strings::THREAD_STOP.as_storage(),
+        };
+        Cow::Borrowed(storage.deref())
+    }
 }
 
 impl From<WellKnown> for ThinString<Global> {

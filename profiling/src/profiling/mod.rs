@@ -106,7 +106,7 @@ impl WallTime {
 
 #[derive(Debug, Clone)]
 pub enum LabelValue {
-    Str(ThinString),
+    Str(Cow<'static, str>),
     Num(i64, Option<&'static str>),
 }
 
@@ -946,13 +946,13 @@ impl Profiler {
         &self,
         now: i64,
         duration: i64,
-        filename: ThinString,
+        filename: String,
         include_type: IncludeType,
     ) {
         let mut labels = Self::timeline_compile_file_labels(1);
         labels.push(Label {
             key: "filename",
-            value: LabelValue::Str(filename),
+            value: LabelValue::Str(Cow::Owned(filename)),
         });
 
         let n_labels = labels.len();
@@ -1016,7 +1016,7 @@ impl Profiler {
 
     /// This function can be called to collect any fatal errors
     #[cfg(feature = "timeline")]
-    pub fn collect_fatal(&self, now: i64, file: ThinString, line: u32, message: ThinString) {
+    pub fn collect_fatal(&self, now: i64, file: ThinString, line: u32, message: String) {
         let mut labels = Profiler::common_labels(2);
 
         labels.push(Label {
@@ -1025,7 +1025,7 @@ impl Profiler {
         });
         labels.push(Label {
             key: "message",
-            value: LabelValue::Str(message),
+            value: LabelValue::Str(Cow::Owned(message)),
         });
 
         let n_labels = labels.len();
@@ -1105,7 +1105,7 @@ impl Profiler {
 
         labels.push(Label {
             key: "event",
-            value: LabelValue::Str(state.to_thin_string()),
+            value: LabelValue::Str(state.to_cow_str()),
         });
 
         let n_labels = labels.len();
@@ -1239,10 +1239,11 @@ impl Profiler {
             // there's nothing changing that value in all of fibers
             // afterwards, from start to destruction of the fiber itself.
             let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
+            if let Some(buffer) = extract_function_name_into_buffer(func) {
+                let functionname = String::from_utf8_lossy(buffer.as_slice()).into_owned();
                 labels.push(Label {
                     key: "fiber",
-                    value: LabelValue::Str(functionname),
+                    value: LabelValue::Str(Cow::Owned(functionname)),
                 });
             }
         }

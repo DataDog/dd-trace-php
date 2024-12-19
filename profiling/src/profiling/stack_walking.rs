@@ -32,6 +32,12 @@ pub struct ZendFrame {
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
 pub fn extract_function_name(func: &zend_function) -> Option<ThinString> {
+    let buffer = extract_function_name_into_buffer(func)?;
+    let lossy = String::from_utf8_lossy(buffer.as_slice());
+    Some(ThinString::from_str_in(&lossy, Global))
+}
+
+pub fn extract_function_name_into_buffer(func: &zend_function) -> Option<Vec<u8>> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -59,9 +65,7 @@ pub fn extract_function_name(func: &zend_function) -> Option<ThinString> {
     }
 
     buffer.extend_from_slice(method_name);
-
-    let lossy = String::from_utf8_lossy(buffer.as_slice());
-    Some(ThinString::from_str_in(&lossy, Global))
+    Some(buffer)
 }
 
 unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<ThinString>, u32) {
