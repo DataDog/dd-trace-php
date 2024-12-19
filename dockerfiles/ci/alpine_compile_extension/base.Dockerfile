@@ -19,6 +19,7 @@ RUN set -eux; \
         libedit-dev \
         libffi-dev \
         libmcrypt-dev \
+        librdkafka-dev \
         libsodium-dev \
         libxml2-dev \
         gnu-libiconv-dev \

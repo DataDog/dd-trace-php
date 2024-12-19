@@ -232,6 +232,7 @@ RUN set -eux; \
     bzip2-devel \
     httpd-devel \
     libmemcached-devel \
+    librdkafka-devel \
     libsodium-devel \
     libsqlite3x-devel \
     libxml2-devel \

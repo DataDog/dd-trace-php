@@ -329,6 +329,7 @@ static int ddtrace_startup(zend_extension *extension) {
     ddtrace_excluded_modules_startup();
     // We deliberately leave handler replacement during startup, even though this uses some config
     // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done post-startup
+    LOG(DEBUG, "Calling ddtrace_internal_handlers_startup");
     ddtrace_internal_handlers_startup();
     return SUCCESS;
 }

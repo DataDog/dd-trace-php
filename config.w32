@@ -35,6 +35,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " handlers_curl" + (version < 800 ? "_php7" : "") + ".c";
 	DDTRACE_EXT_SOURCES += " handlers_exception.c";
 	DDTRACE_EXT_SOURCES += " handlers_internal.c";
+	DDTRACE_EXT_SOURCES += " handlers_kafka.c";
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
 	DDTRACE_EXT_SOURCES += " ip_extraction.c";
 	DDTRACE_EXT_SOURCES += " standalone_limiter.c";

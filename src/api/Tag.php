@@ -60,6 +60,18 @@ class Tag
     const DB_STMT = 'db.statement';
     const DB_USER = 'db.user';
 
+    // Kafka
+    const KAFKA_CLIENT_ID = 'messaging.kafka.client_id';
+    const KAFKA_GROUP_ID = 'messaging.kafka.group_id';
+    const KAFKA_HOST_LIST = 'messaging.kafka.bootstrap.servers';
+    const KAFKA_MESSAGE_KEY = 'messaging.kafka.message_key';
+    const KAFKA_MESSAGE_OFFSET = 'messaging.kafka.message_offset';
+    const KAFKA_PARTITION = 'messaging.kafka.partition';
+    const KAFKA_TOMBSTONE = 'messaging.kafka.tombstone';
+
+    const KAFKA_PRODUCE = 'kafka.produce';
+    const KAFKA_CONSUME = 'kafka.consume';
+
     // Laravel Queue
     const LARAVELQ_ATTEMPTS = 'messaging.laravel.attempts';
     const LARAVELQ_BATCH_ID = 'messaging.laravel.batch_id';
@@ -94,6 +106,10 @@ class Tag
     const MQ_MESSAGE_PAYLOAD_SIZE = 'messaging.message_payload_size_bytes';
     const MQ_OPERATION = 'messaging.operation';
     const MQ_CONSUMER_ID = 'messaging.consumer_id';
+
+    const MQ_OPERATION_PROCESS = 'process';
+    const MQ_OPERATION_RECEIVE = 'receive';
+    const MQ_OPERATION_SEND = 'send';
 
     // RabbitMQ
     const RABBITMQ_DELIVERY_MODE = 'messaging.rabbitmq.delivery_mode';

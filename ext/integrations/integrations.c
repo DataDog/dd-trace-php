@@ -293,6 +293,13 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_KAFKA, "RdKafka\\Producer", "__construct",
+                                         "DDTrace\\Integrations\\Kafka\\KafkaIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_KAFKA, "RdKafka\\Consumer", "__construct",
+                                         "DDTrace\\Integrations\\Kafka\\KafkaIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_KAFKA, "RdKafka\\Conf", "__construct",
+                                         "DDTrace\\Integrations\\Kafka\\KafkaIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "init",
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "bootstrap",
