@@ -2435,8 +2435,6 @@ PHP_FUNCTION(DDTrace_now) {
 
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
-    // ts.tv_sec * ZEND_NANO_IN_SEC is the time in sec - It's the first element of the returned array
-    // ts.tv_nsec is the time in nanosec - It's the second element of the returned array
     add_next_index_long(return_value, ts.tv_sec);
     add_next_index_long(return_value, ts.tv_nsec);
 }
