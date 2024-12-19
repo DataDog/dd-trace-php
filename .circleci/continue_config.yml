@@ -560,7 +560,7 @@ commands:
                 -e discovery.type=single-node \
                 --name elasticsearch7_integration elasticsearch:7.17.0
               retry_docker run --detach --rm --net net \
-                --name zookeeper confluentic/cp-zookeeper:7.7.1 \
+                --name zookeeper confluentinc/cp-zookeeper:7.7.1 \
                 -e ZOOKEEPER_CLIENT_PORT=2181 \
                 -e ZOOKEEPER_TICK_TIME=2000
               retry_docker run --detach --rm --net net \
