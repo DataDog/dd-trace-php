@@ -395,23 +395,12 @@ class SymfonyIntegration extends Integration
             }
         );
 
-        $handle_route = function($request, $rootSpan) use ($integration) {
-            $route_name = $request->get('_route');
-            if ($route_name === null) {
-                return;
-            }
-            if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                $rootSpan->resource = $route_name;
-            }
-            $rootSpan->meta['symfony.route.name'] = $route_name;
-
-            // the rest is for determining http.route
+        $handle_http_route = function($route_name, $request, $rootSpan) use ($integration) {
             if ($integration->kernel === null) {
                 return;
             }
             /** @var ContainerInterface $container */
             $container = $integration->kernel->getContainer();
-            $cache = null;
             try {
                 $cache = $container->get('cache.app');
             } catch (\Exception $e) {
@@ -444,13 +433,12 @@ class SymfonyIntegration extends Integration
             if (isset($route)) {
                 $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
             }
-
         };
 
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function (SpanData $span, $args, $response) use ($integration, $handle_route) {
+            function (SpanData $span, $args, $response) use ($integration, $handle_http_route) {
                 /** @var Request $request */
                 list($request) = $args;
 
@@ -472,7 +460,14 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
-                $handle_route($request, $rootSpan);
+                $route_name = $request->get('_route');
+                if ($route_name !== null) {
+                    if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                        $rootSpan->resource = $route_name;
+                    }
+                    $rootSpan->meta['symfony.route.name'] = $route_name;
+                    $handle_http_route($route_name, $request, $rootSpan);
+                }
 
                 $parameters = $request->get('_route_params');
                 if (!empty($parameters) &&
