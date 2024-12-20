@@ -8,16 +8,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-#ifndef Z_PARAM_STRING_OR_NULL
-#define Z_PARAM_STRING_OR_NULL(dest, dest_len) \
-    Z_PARAM_STRING_EX(dest, dest_len, 1, 0)
-#endif
-
-#ifndef Z_PARAM_STR_OR_NULL
-#define Z_PARAM_STR_OR_NULL(dest) \
-    Z_PARAM_STR_EX(dest, 1, 0)
-#endif
-
 #define MAX_PRODUCEV_ARGS 7
 
 // True global - only modify during MINIT/MSHUTDOWN
@@ -49,38 +39,38 @@ static void dd_initialize_producev_args(zval* args, zend_long partition, zend_lo
 }
 
 ZEND_FUNCTION(ddtrace_kafka_produce) {
-        if (!dd_load_kafka_integration()) {
-            // Call the original handler
-            dd_kafka_produce_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-            return;
-        }
+    if (!dd_load_kafka_integration()) {
+        // Call the original handler
+        dd_kafka_produce_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
 
-        zend_long partition, msgflags;
-        char* payload = NULL;
-        size_t payload_len = 0;
-        char* key = NULL;
-        size_t key_len = 0;
-        zend_string* opaque = NULL;
+    zend_long partition, msgflags;
+    char* payload = NULL;
+    size_t payload_len = 0;
+    char* key = NULL;
+    size_t key_len = 0;
+    zend_string* opaque = NULL;
 
-        ZEND_PARSE_PARAMETERS_START(2, 4 + opaque_param)
-            Z_PARAM_LONG(partition)
-            Z_PARAM_LONG(msgflags)
-            Z_PARAM_OPTIONAL
-            Z_PARAM_STRING_OR_NULL(payload, payload_len)
-            Z_PARAM_STRING_OR_NULL(key, key_len)
-            Z_PARAM_STR_OR_NULL(opaque)
-        ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_START(2, 4 + opaque_param)
+        Z_PARAM_LONG(partition)
+        Z_PARAM_LONG(msgflags)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STRING_OR_NULL(payload, payload_len)
+        Z_PARAM_STRING_OR_NULL(key, key_len)
+        Z_PARAM_STR_OR_NULL(opaque)
+    ZEND_PARSE_PARAMETERS_END();
 
-        zval args[MAX_PRODUCEV_ARGS];
-        dd_initialize_producev_args(args, partition, msgflags, payload, payload_len, key, key_len, opaque);
+    zval args[MAX_PRODUCEV_ARGS];
+    dd_initialize_producev_args(args, partition, msgflags, payload, payload_len, key, key_len, opaque);
 
-        zval function_name;
-        ZVAL_STRING(&function_name, "producev");
-        call_user_function(NULL, getThis(), &function_name, return_value, 6 + opaque_param, args);
-        zval_dtor(&function_name);
+    zval function_name;
+    ZVAL_STRING(&function_name, "producev");
+    call_user_function(NULL, getThis(), &function_name, return_value, 6 + opaque_param, args);
+    zval_dtor(&function_name);
 
-        zend_string_release(Z_STR(args[2]));
-        zend_string_release(Z_STR(args[3]));
+    zend_string_release(Z_STR(args[2]));
+    zend_string_release(Z_STR(args[3]));
 }
 
 /**
