@@ -56,7 +56,7 @@ aliases:
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
 
   - &IMAGE_DOCKER_MEMCHACED
     image: memcached:1.5-alpine
@@ -574,7 +574,7 @@ commands:
                 -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
                 -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
                 -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
-                -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=1 \
+                -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
                 --name kafka_integration confluentinc/cp-kafka:7.7.1
               retry_docker run --detach --rm --net net \
                 --name redis_integration datadog/dd-trace-ci:php-redis-5.0
