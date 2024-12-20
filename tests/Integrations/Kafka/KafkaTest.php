@@ -33,60 +33,6 @@ class KafkaTest extends IntegrationTestCase
         var_dump($producer->getMetadata(false, $topicHighLevel, 5000));
     }
 
-    public function testSpanLinksHighLevel()
-    {
-        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
-
-        list($producerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/producer.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-                'DD_SERVICE' => 'kafka_test',
-                'DD_TRACE_EXEC_ENABLED' => 'false',
-                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
-            ],
-            [],
-            'test-highlevel',
-            true
-        );
-
-        echo $output;
-
-        $this->snapshotFromTraces(
-            $producerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_span_links_high_level_producer'
-        );
-
-        list($consumerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/consumer-highlevel.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-                'DD_SERVICE' => 'kafka_test',
-                'DD_TRACE_EXEC_ENABLED' => 'false',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
-                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
-            ],
-            [],
-            null,
-            true
-        );
-
-        echo $output;
-
-        $this->snapshotFromTraces(
-            $consumerTraces,
-            self::FIELDS_TO_IGNORE,
-            'tests.integrations.kafka_test.test_span_links_high_level_consumer'
-        );
-    }
-
     public function testDistributedTracingHighLevel()
     {
         list($producerTraces, $output) = $this->inCli(
@@ -198,6 +144,60 @@ class KafkaTest extends IntegrationTestCase
             $consumerTraces,
             self::FIELDS_TO_IGNORE,
             'tests.integrations.kafka_test.test_span_links_low_level_consumer'
+        );
+    }
+
+    public function testSpanLinksHighLevel()
+    {
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        list($producerTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/producer.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+            ],
+            [],
+            'test-highlevel',
+            true
+        );
+
+        echo $output;
+
+        $this->snapshotFromTraces(
+            $producerTraces,
+            self::FIELDS_TO_IGNORE,
+            'tests.integrations.kafka_test.test_span_links_high_level_producer'
+        );
+
+        list($consumerTraces, $output) = $this->inCli(
+            __DIR__ . '/scripts/consumer-highlevel.php',
+            [
+                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+                'DD_SERVICE' => 'kafka_test',
+                'DD_TRACE_EXEC_ENABLED' => 'false',
+                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
+            ],
+            [],
+            null,
+            true
+        );
+
+        echo $output;
+
+        $this->snapshotFromTraces(
+            $consumerTraces,
+            self::FIELDS_TO_IGNORE,
+            'tests.integrations.kafka_test.test_span_links_high_level_consumer'
         );
     }
 }
