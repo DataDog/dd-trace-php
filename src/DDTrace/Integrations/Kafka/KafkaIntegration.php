@@ -69,13 +69,22 @@ class KafkaIntegration extends Integration
 
     private function injectHeadersIntoArgs(array $args, array $headers): array
     {
+        // public RdKafka\ProducerTopic::producev (
+        //      integer $partition ,
+        //      integer $msgflags ,
+        //      string $payload [,
+        //      string $key = NULL [,
+        //      array $headers = NULL [,
+        //      integer $timestamp_ms = NULL [,
+        //      string $opaque = NULL
+        // ]]]] ) : void
         $argsCount = count($args);
         if ($argsCount >= 5) {
             $args[4] = array_merge($args[4] ?? [], $headers);
         } elseif ($argsCount === 4) {
             $args[] = $headers;
-        } else {
-            $args[] = null;
+        } else { // $argsCount === 3
+            $args[] = null;  // $key
             $args[] = $headers;
         }
         return $args;

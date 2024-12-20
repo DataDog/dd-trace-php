@@ -152,7 +152,7 @@ class KafkaTest extends IntegrationTestCase
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
 
         list($producerTraces, $output) = $this->inCli(
-            __DIR__ . '/scripts/producer.php',
+            __DIR__ . '/scripts/producerv.php',
             [
                 'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
