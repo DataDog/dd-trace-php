@@ -1,5 +1,5 @@
 --TEST--
-\DDTrace\start_trace_span with nanoseconds
+\DDTrace\start_span with nanoseconds
 --FILE--
 <?php
 

@@ -20,6 +20,17 @@ class KafkaTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
+        $conf = new \RdKafka\Conf();
+        $conf->set('bootstrap.servers', self::$host . ':' . self::$port);
+        $producer = new \RdKafka\Producer($conf);
+        $topicConf = new \RdKafka\TopicConf();
+        $topicConf->set('message.timeout.ms', (string) 30000);
+        $topicConf->set('request.required.acks', (string) -1);
+        $topicConf->set('request.timeout.ms', (string) 5000);
+        $topicLowLevel = $producer->newTopic('test-lowlevel', $topicConf);
+        $topicHighLevel = $producer->newTopic('test-highlevel', $topicConf);
+        var_dump($producer->getMetadata(false, $topicLowLevel, 5000));
+        var_dump($producer->getMetadata(false, $topicHighLevel, 5000));
     }
 
     public function testSpanLinksHighLevel()
