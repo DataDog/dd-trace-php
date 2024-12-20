@@ -1,8 +1,11 @@
 <?php
 
-function assertEquals($actual, $expected) {
+function assertEquals($actual, $expected, $msg = null) {
     if ($actual !== $expected) {
-        throw new \Exception(sprintf('Cannot assert "%s" equals "%s"', $actual, $expected));
+        if (!$msg) {
+            $msg = sprintf('Cannot assert "%s" equals "%s"', $actual, $expected);
+        }
+        throw new \Exception($msg);
     }
 }
 
@@ -67,4 +70,42 @@ function assertMatchesFormat($output, $wanted_re) {
     if (!preg_match('/^' . $wanted_re . '$/s', $output)) {
         throw new \Exception("Output does not match the format\n".$output);
     }
+}
+
+function assertTelemetry($telemetryLogPath, $format) {
+    $lines = file($telemetryLogPath);
+    assertEquals(count($lines), 2, "2 metrics were expected, but got ".count($lines));
+
+    $start = $lines[0];
+    $end = $lines[1];
+
+    // The order is not guaranteed
+    if (strpos($start, 'library_entrypoint.start') === false) {
+        $start = $lines[1];
+        $end = $lines[0];
+    }
+
+    $payload = json_decode($start, true);
+    $startFormat = <<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
+        "runtime_version": "unknown",
+        "language_name": "php",
+        "language_version": "unknown",
+        "tracer_version": "unknown",
+        "pid": %d
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.start",
+            "tags": []
+        }
+    ]
+}
+EOS;
+    assertMatchesFormat(json_encode($payload, JSON_PRETTY_PRINT), $startFormat);
+
+    $payload = json_decode($end, true);
+    assertMatchesFormat(json_encode($payload, JSON_PRETTY_PRINT), $format);
 }

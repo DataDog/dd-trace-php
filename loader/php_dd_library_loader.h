@@ -21,6 +21,7 @@ void ddloader_logv(log_level level, const char *format, va_list va);
 void ddloader_logf(log_level level, const char *format, ...);
 
 typedef enum {
+    REASON_START,
     REASON_ERROR,
     REASON_EOL_RUNTIME,
     REASON_INCOMPATIBLE_RUNTIME,

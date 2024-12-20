@@ -27,9 +27,6 @@ assertContains($output, 'with dd_library_loader v');
 // Let time to the fork to write the telemetry log
 usleep(5000);
 
-$raw = file_get_contents($telemetryLogPath);
-$payload = json_decode($raw, true);
-
 $format = <<<EOS
 {
     "metadata": {
@@ -50,5 +47,4 @@ $format = <<<EOS
     ]
 }
 EOS;
-
-assertMatchesFormat(json_encode($payload, JSON_PRETTY_PRINT), $format);
+assertTelemetry($telemetryLogPath, $format);
