@@ -20,6 +20,7 @@ class KafkaTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
+        // Ensure topics (test-lowlevel and test-highlevel) are created
         $conf = new \RdKafka\Conf();
         $conf->set('bootstrap.servers', self::$host . ':' . self::$port);
         $producer = new \RdKafka\Producer($conf);
@@ -29,8 +30,8 @@ class KafkaTest extends IntegrationTestCase
         $topicConf->set('request.timeout.ms', (string) 5000);
         $topicLowLevel = $producer->newTopic('test-lowlevel', $topicConf);
         $topicHighLevel = $producer->newTopic('test-highlevel', $topicConf);
-        var_dump($producer->getMetadata(false, $topicLowLevel, 5000));
-        var_dump($producer->getMetadata(false, $topicHighLevel, 5000));
+        $producer->getMetadata(false, $topicLowLevel, 5000);
+        $producer->getMetadata(false, $topicHighLevel, 5000);
     }
 
     public function testDistributedTracingHighLevel()
