@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "attributes.h"
 #include "configuration.h"
+#include "attributes.h"
 #include <zend.h>
 
 typedef enum _user_collection_mode {

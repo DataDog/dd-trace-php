@@ -463,7 +463,7 @@ static zend_string *_concat_json_fragments()
 
     zend_llist_position pos;
     for (zend_string **sp = zend_llist_get_first_ex(&_appsec_json_frags, &pos);
-        sp != NULL; sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos)) {
+         sp != NULL; sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos)) {
         zend_string *s = *sp;
         needed_len += ZSTR_LEN(s);
     }
@@ -475,8 +475,8 @@ static zend_string *_concat_json_fragments()
 
     size_t i = 0;
     for (zend_string **sp = zend_llist_get_first_ex(&_appsec_json_frags, &pos);
-        sp != NULL;
-        sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos), i++) {
+         sp != NULL;
+         sp = zend_llist_get_next_ex(&_appsec_json_frags, &pos), i++) {
         if (i != 0) {
             *buf++ = ',';
         }
@@ -788,7 +788,7 @@ static void _dd_response_headers(zend_array *meta_ht)
     zend_llist *l = &SG(sapi_headers).headers;
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(l, &pos); header;
-        header = zend_llist_get_next_ex(l, &pos)) {
+         header = zend_llist_get_next_ex(l, &pos)) {
         const char *pcol = memchr(header->header, ':', header->header_len);
         if (!pcol) {
             if (header->header_len <= INT_MAX) {
@@ -956,17 +956,19 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
         return;
     }
 
-    zend_string *user_login = NULL;
-    zend_string *user_id = NULL;
+    zend_string *user_login;
+    zend_string *user_id;
+    zend_string *anon_user_login = NULL;
+    zend_string *anon_user_id = NULL;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|Sh", &user_login, &user_id,
             &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_login, user_id, metadata)");
         return;
     }
 
-    if (user_login == NULL || ZSTR_LEN(user_login) == 0) {
+    if (ZSTR_LEN(user_login) == 0) {
         mlog(dd_log_warning, "Unexpected empty user login");
         return;
     }
@@ -986,27 +988,30 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        user_id = dd_user_info_anonymize(user_id);
-        if (user_id == NULL) {
+        anon_user_id = dd_user_info_anonymize(user_id);
+        if (!anon_user_id) {
             mlog(dd_log_debug, "Failed to anonymize user ID");
             return;
         }
 
-        user_login = dd_user_info_anonymize(user_login);
-        if (user_login == NULL) {
+        anon_user_login = dd_user_info_anonymize(user_login);
+        if (!anon_user_login) {
             mlog(dd_log_debug, "Failed to anonymize user login");
+            zend_string_release(anon_user_id);
             return;
         }
+
+        user_login = anon_user_login;
+        user_id = anon_user_id;
     }
 
-    if (user_id && ZSTR_LEN(user_id) > 0) {
+    if (ZSTR_LEN(user_id) > 0) {
         // usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
-        // We avoid copy on anonymized data to ensure memory is freed.
         _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_id, user_id, mode != user_mode_anon, true);
+            meta_ht, _dd_appsec_user_id, user_id, false, true);
     }
 
     // _dd.appsec.events.users.signup.auto.mode =
@@ -1019,9 +1024,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
         meta_ht, _dd_signup_event_login, user_login, true, true);
 
     // _dd.appsec.usr.login = <user_login>
-    // We avoid copy on anonymized data to ensure memory is freed.
-    _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login, user_login,
-        mode != user_mode_anon, true);
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_appsec_user_login, user_login, false, true);
 
     // appsec.events.users.signup.success.track = true
     _add_custom_event_keyval(
@@ -1051,7 +1055,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
         return;
     }
 
-    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
+    if (ZSTR_LEN(user_id) == 0) {
         mlog(dd_log_warning, "Unexpected empty user id");
         return;
     }
@@ -1093,17 +1097,19 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         return;
     }
 
-    zend_string *user_login = NULL;
-    zend_string *user_id = NULL;
+    zend_string *user_login;
+    zend_string *user_id;
+    zend_string *anon_user_login = NULL;
+    zend_string *anon_user_id = NULL;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|Sh", &user_login, &user_id,
             &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_login, user_id, metadata)");
         return;
     }
 
-    if (user_login == NULL || ZSTR_LEN(user_login) == 0) {
+    if (ZSTR_LEN(user_login) == 0) {
         mlog(dd_log_warning, "Unexpected empty user login");
         return;
     }
@@ -1123,29 +1129,30 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        user_id = dd_user_info_anonymize(user_id);
-        if (user_id == NULL) {
+        anon_user_id = dd_user_info_anonymize(user_id);
+        if (!anon_user_id) {
             mlog(dd_log_debug, "Failed to anonymize user ID");
             return;
         }
 
-        user_login = dd_user_info_anonymize(user_login);
-        if (user_login == NULL) {
+        anon_user_login = dd_user_info_anonymize(user_login);
+        if (!anon_user_login) {
             mlog(dd_log_debug, "Failed to anonymize user login");
+            zend_string_release(anon_user_id);
             return;
         }
+
+        user_login = anon_user_login;
+        user_id = anon_user_id;
     }
 
-    dd_find_and_apply_verdict_for_user(user_id);
-
-    if (user_id && ZSTR_LEN(user_id) > 0) {
+    if (ZSTR_LEN(user_id) > 0) {
         // usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
-        // We avoid copy on anonymized data to ensure memory is freed.
         _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_id, user_id, mode != user_mode_anon, true);
+            meta_ht, _dd_appsec_user_id, user_id, false, true);
     }
 
     // _dd.appsec.events.users.login.success.auto.mode =
@@ -1154,9 +1161,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         dd_get_user_collection_mode_zstr(), true, false);
 
     // _dd.appsec.events.users.login.success.usr.login = <user_login>
-    // We avoid copy on anonymized data to ensure memory is freed.
-    _add_new_zstr_to_meta(meta_ht, _dd_login_success_event_login, user_login,
-        mode != user_mode_anon, true);
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_login_success_event_login, user_login, false, true);
 
     // _dd.appsec.usr.login = <user_login>
     _add_new_zstr_to_meta(
@@ -1171,6 +1177,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         meta_ht, _dd_login_success_event, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+
+    dd_find_and_apply_verdict_for_user(user_id);
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
@@ -1182,7 +1190,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         return;
     }
 
-    zend_string *user_id = NULL;
+    zend_string *user_id;
     HashTable *metadata = NULL;
     zend_bool copy_user_id = true;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|h", &user_id, &metadata) ==
@@ -1192,7 +1200,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         return;
     }
 
-    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
+    if (ZSTR_LEN(user_id) == 0) {
         mlog(dd_log_warning, "Unexpected empty user id");
         return;
     }
@@ -1205,7 +1213,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    if (user_id && ZSTR_LEN(user_id) > 0) {
+    if (ZSTR_LEN(user_id) > 0) {
         dd_find_and_apply_verdict_for_user(user_id);
         // usr.id = <user_id>
         _add_new_zstr_to_meta(
@@ -1240,9 +1248,11 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
         return;
     }
 
-    zend_string *user_login = NULL;
-    zend_string *user_id = NULL;
-    zend_bool exists = false;
+    zend_string *user_login;
+    zend_string *user_id;
+    zend_string *anon_user_login = NULL;
+    zend_string *anon_user_id = NULL;
+    zend_bool exists;
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSb|h", &user_login, &user_id,
             &exists, &metadata) == FAILURE) {
@@ -1266,32 +1276,35 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        user_id = dd_user_info_anonymize(user_id);
-        if (user_id == NULL) {
+        anon_user_id = dd_user_info_anonymize(user_id);
+        if (!anon_user_id) {
             mlog(dd_log_debug, "Failed to anonymize user ID");
             return;
         }
 
-        user_login = dd_user_info_anonymize(user_login);
-        if (user_login == NULL) {
+        anon_user_login = dd_user_info_anonymize(user_login);
+        if (!anon_user_login) {
             mlog(dd_log_debug, "Failed to anonymize user login");
+            zend_string_release(anon_user_id);
             return;
         }
 
-        if (metadata != NULL && zend_array_count(metadata) > 0) {
+        if (metadata && zend_array_count(metadata) > 0) {
             metadata = NULL;
         }
+
+        user_login = anon_user_login;
+        user_id = anon_user_id;
     }
 
-    if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
+    if (ZSTR_LEN(user_id) > 0) {
         // appsec.events.users.login.failure.usr.id = <user_id>
         _add_custom_event_keyval(meta_ht, _dd_login_failure_event,
             _dd_tag_user_id, user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
-        // We avoid copy on anonymized data to ensure memory is freed.
         _add_new_zstr_to_meta(
-            meta_ht, _dd_appsec_user_id, user_id, mode != user_mode_anon, true);
+            meta_ht, _dd_appsec_user_id, user_id, false, true);
     }
 
     // _dd.appsec.events.users.login.failure.auto.mode =
@@ -1299,15 +1312,14 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     _add_new_zstr_to_meta(meta_ht, _dd_login_failure_event_auto_mode,
         dd_get_user_collection_mode_zstr(), true, false);
 
-    if (user_login != NULL && ZSTR_LEN(user_login) > 0) {
+    if (ZSTR_LEN(user_login) > 0) {
         // _dd.appsec.events.users.login.failure.usr.login = <user_login>
         _add_new_zstr_to_meta(
             meta_ht, _dd_login_failure_event_login, user_login, true, true);
 
         // _dd.appsec.usr.login = <user_login>
-        // We avoid copy on anonymized data to ensure memory is freed.
-        _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login, user_login,
-            mode != user_mode_anon, true);
+        _add_new_zstr_to_meta(
+            meta_ht, _dd_appsec_user_login, user_login, false, true);
     }
 
     // appsec.events.users.login.failure.track = true
@@ -1334,8 +1346,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
         return;
     }
 
-    zend_string *user_id = NULL;
-    zend_bool exists = false;
+    zend_string *user_id;
+    zend_bool exists;
     HashTable *metadata = NULL;
     if (zend_parse_parameters(
             ZEND_NUM_ARGS(), "Sb|h", &user_id, &exists, &metadata) == FAILURE) {
@@ -1352,7 +1364,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
+    if (ZSTR_LEN(user_id) > 0) {
         // appsec.events.users.login.failure.usr.id = <user_id>
         _add_custom_event_keyval(meta_ht, _dd_login_failure_event,
             _dd_tag_user_id, user_id, true, true);

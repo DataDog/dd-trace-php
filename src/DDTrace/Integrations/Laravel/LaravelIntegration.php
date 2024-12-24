@@ -46,12 +46,11 @@ class LaravelIntegration extends Integration
 
     public function getLoginFromArgs($args): string
     {
-        $allowList = ["email", "username"];
-
-        foreach ($allowList as $key) {
-            if (isset($args[$key])) {
-                return $args[$key];
-            }
+        if (key_exists('email', $args)) {
+            return $args['email'];
+        }
+        if (key_exists('username', $args)) {
+            return $args['username'];
         }
 
         return null;
