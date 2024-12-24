@@ -14,20 +14,18 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_APPSEC_RASP_ENABLED=1
 DD_TRACE_FILESYSTEM_ENABLED=0
 --INI--
-datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
+datadog.trace.agent_url="file://{PWD}/integration-telemetry-04.out"
 --FILE--
 <?php
 namespace
 {
-    //Here we use one wrapped function
-    file_put_contents('/tmp/dummy', 'foo');
-
+    $file = ini_get('datadog.trace.agent_url');
     dd_trace_internal_fn("finalize_telemetry");
 
     for ($i = 0; $i < 100; ++$i) {
         usleep(100000);
-        if (file_exists(__DIR__ . '/integration-telemetry.out')) {
-            foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
+        if (file_exists($file )) {
+            foreach (file($file) as $l) {
                 if ($l) {
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
@@ -79,4 +77,4 @@ array(1) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . '/integration-telemetry.out');
+@unlink(ini_get('datadog.trace.agent_url'));
