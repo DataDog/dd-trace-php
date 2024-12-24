@@ -14,9 +14,9 @@ use DDTrace\Util\Common;
  */
 class LaravelIntegration extends Integration
 {
-    const NAME = 'laravel';
+    public const NAME = 'laravel';
 
-    const UNNAMED_ROUTE = 'unnamed_route';
+    public const UNNAMED_ROUTE = 'unnamed_route';
 
     /**
      * @var string
@@ -46,12 +46,11 @@ class LaravelIntegration extends Integration
 
     public function getLoginFromArgs($args): string
     {
-        $allowList = ["email", "username"];
-
-        foreach ($allowList as $key) {
-            if (isset($args[$key])) {
-                return $args[$key];
-            }
+        if (key_exists('email', $args)) {
+            return $args['email'];
+        }
+        if (key_exists('username', $args)) {
+            return $args['username'];
         }
 
         return null;
