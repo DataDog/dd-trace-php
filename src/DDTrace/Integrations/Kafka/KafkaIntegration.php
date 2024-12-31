@@ -21,6 +21,10 @@ class KafkaIntegration extends Integration
 
     public function init(): int
     {
+        if (strpos(phpversion('rdkafka'), '6.') !== 0) {
+            return Integration::NOT_LOADED;
+        }
+
         $this->installProducerTopicHooks();
         $this->installConsumerHooks();
         $this->installConfigurationHooks();
