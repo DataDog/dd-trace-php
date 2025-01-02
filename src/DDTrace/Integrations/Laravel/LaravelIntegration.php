@@ -14,9 +14,9 @@ use DDTrace\Util\Common;
  */
 class LaravelIntegration extends Integration
 {
-    const NAME = 'laravel';
+    public const NAME = 'laravel';
 
-    const UNNAMED_ROUTE = 'unnamed_route';
+    public const UNNAMED_ROUTE = 'unnamed_route';
 
     /**
      * @var string
@@ -42,6 +42,18 @@ class LaravelIntegration extends Integration
                 'horizon',
                 'horizon:supervisor',
             ]);
+    }
+
+    public function getLoginFromArgs($args): string
+    {
+        if (key_exists('email', $args)) {
+            return $args['email'];
+        }
+        if (key_exists('username', $args)) {
+            return $args['username'];
+        }
+
+        return null;
     }
 
     /**
@@ -188,18 +200,20 @@ class LaravelIntegration extends Integration
                     if ($span->resource == 'eloquent.created: User') {
                         $authClass = 'User';
                         if (
-                            !function_exists('\datadog\appsec\track_user_signup_event') ||
+                            !function_exists('\datadog\appsec\track_user_signup_event_automated') ||
                             !isset($args[1]) ||
                             !$args[1] ||
                             !($args[1] instanceof $authClass)
                         ) {
                             return;
                         }
+
                         $id = null;
                         if (isset($args[1]['id'])) {
                             $id = $args[1]['id'];
                         }
-                        \datadog\appsec\track_user_signup_event($id, [], true);
+
+                        \datadog\appsec\track_user_signup_event_automated($this->getLoginFromArgs($args[1]), $id, []);
                     }
                 },
                 'recurse' => true,
@@ -341,10 +355,11 @@ class LaravelIntegration extends Integration
             'attempt',
             null,
             function ($This, $scope, $args, $loginSuccess) use ($integration) {
-                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+
+                \datadog\appsec\track_user_login_failure_event_automated($this->getLoginFromArgs($args[0]), null, false, []);
             }
         );
 
@@ -355,24 +370,28 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
-                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !function_exists('\datadog\appsec\track_user_login_success_event_automated') ||
                     !isset($args[1]) ||
                     !$args[1] ||
                     !($args[1] instanceof $authClass)
                 ) {
                     return;
                 }
+
                 $metadata = [];
+
                 if (isset($args[1]['name'])) {
                     $metadata['name'] = $args[1]['name'];
                 }
+
                 if (isset($args[1]['email'])) {
                     $metadata['email'] = $args[1]['email'];
                 }
-                \datadog\appsec\track_user_login_success_event(
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $this->getLoginFromArgs($args[1]),
                     \method_exists($args[1], 'getAuthIdentifier') ? $args[1]->getAuthIdentifier() : '',
                     $metadata,
-                    true
                 );
             }
         );
@@ -384,7 +403,7 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Auth\UserInterface';
                 if (
-                    !function_exists('\datadog\appsec\track_user_login_success_event') ||
+                    !function_exists('\datadog\appsec\track_user_login_success_event_automated') ||
                     !isset($args[0]) ||
                     !$args[0] ||
                     !($args[0] instanceof $authClass)
@@ -393,17 +412,19 @@ class LaravelIntegration extends Integration
                 }
 
                 $metadata = [];
+
                 if (isset($args[0]['name'])) {
                     $metadata['name'] = $args[0]['name'];
                 }
+
                 if (isset($args[0]['email'])) {
                     $metadata['email'] = $args[0]['email'];
                 }
 
-                \datadog\appsec\track_user_login_success_event(
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $this->getLoginFromArgs($args[0]),
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
                     $metadata,
-                    true
                 );
             }
         );
@@ -414,10 +435,11 @@ class LaravelIntegration extends Integration
             'attempt',
             null,
             function ($This, $scope, $args, $loginSuccess) use ($integration) {
-                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+
+                \datadog\appsec\track_user_login_failure_event_automated($this->getLoginFromArgs($args[0]), null, false, []);
             }
         );
 
@@ -428,17 +450,18 @@ class LaravelIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
-                    !function_exists('\datadog\appsec\track_user_signup_event') ||
+                    !function_exists('\datadog\appsec\track_user_signup_event_automated') ||
                     !isset($args[0]) ||
                     !$args[0] ||
                     !($args[0] instanceof $authClass)
                 ) {
                     return;
                 }
-                \datadog\appsec\track_user_signup_event(
+
+                \datadog\appsec\track_user_signup_event_automated(
+                    $this->getLoginFromArgs($args[0]),
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
-                    [],
-                    true
+                    []
                 );
             }
         );
