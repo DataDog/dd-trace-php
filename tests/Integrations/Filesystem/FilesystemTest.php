@@ -19,7 +19,7 @@ final class FilesystemTest extends AppsecTestCase
     {
        $events = AppsecStatus::getInstance()->getEvents();
        $this->assertEquals(1, count($events));
-       $this->assertEquals($value, $events[0]["server.io.fs.file"]);
+       $this->assertEquals($value, $events[0]["server.io.fs.fileaa"]);
        $this->assertEquals('push_address', $events[0]['eventName']);
        $this->assertTrue($events[0]['rasp']);
        $this->assertGreaterThanOrEqual(0.0, $traces[0][0]['metrics']['_dd.appsec.rasp.duration_ext']);
