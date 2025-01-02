@@ -380,7 +380,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
-    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanInterface
+    public function addEvent(string $name, iterable $attributes = [], $timestamp = null): SpanInterface
     {
         if (!$this->hasEnded()) {
             $this->span->events[] = new SpanEvent(
@@ -427,7 +427,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
-    public function setStatus(string $code, string $description = null): SpanInterface
+    public function setStatus(string $code, $description = null): SpanInterface
     {
         if ($this->hasEnded()) {
             return $this;
@@ -459,7 +459,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
-    public function end(int $endEpochNanos = null): void
+    public function end($endEpochNanos = null): void
     {
         if ($this->hasEnded()) {
             return;
@@ -472,7 +472,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->spanProcessor->onEnd($this);
     }
 
-    public function endOTelSpan(int $endEpochNanos = null): void
+    public function endOTelSpan($endEpochNanos = null): void
     {
         if ($this->hasEnded()) {
             return;
@@ -572,7 +572,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->totalRecordedEvents = count($otel);
     }
 
-    private function createAndSaveSpanLink(SpanContextInterface $context, iterable $attributes = [], LinkInterface $link = null)
+    private function createAndSaveSpanLink(SpanContextInterface $context, iterable $attributes = [], $link = null)
     {
         $spanLink = new SpanLink();
         $spanLink->traceId = $context->getTraceId();

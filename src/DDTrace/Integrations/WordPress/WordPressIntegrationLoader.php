@@ -118,7 +118,7 @@ class WordPressIntegrationLoader
         WordPressIntegration $integration,
         SpanData $span,
         string $name,
-        string $resource = null
+        $resource = null
     ) {
         $span->name = $name;
         $span->resource = $resource ?: $name;
