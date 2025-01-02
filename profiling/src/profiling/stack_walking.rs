@@ -92,9 +92,13 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Thi
 
 #[cfg(php_run_time_cache)]
 mod detail {
+    // See: https://doc.rust-lang.org/nightly/std/ptr/index.html#strict-provenance
+    #![allow(unstable_name_collisions, unused_imports)]
+    use sptr::Strict;
+
     use super::*;
     use crate::string_set::StringSet;
-    use datadog_thin_str::{ThinHeader, ThinStr};
+    use datadog_thin_str::ThinStr;
     use log::{debug, trace};
     use std::cell::RefCell;
     use std::ops::Deref;
@@ -126,7 +130,7 @@ mod detail {
             // SAFETY: the slot is in-bounds from CacheSlot -> usize conv.
             let cached = unsafe { self.cache_slots.get_unchecked_mut(slot as usize) };
 
-            let ptr = *cached as *mut ThinHeader;
+            let ptr = sptr::from_exposed_addr_mut(*cached);
             match NonNull::new(ptr) {
                 Some(non_null) => {
                     // SAFETY: the string set is only reset between requests,
@@ -139,7 +143,7 @@ mod detail {
                     let string = f()?;
                     let thin_str = self.string_set.insert(&string);
                     let non_null = thin_str.header_ptr();
-                    *cached = non_null.as_ptr() as usize;
+                    *cached = non_null.as_ptr().expose_addr();
                     Some(string)
                 }
             }

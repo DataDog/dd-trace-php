@@ -22,3 +22,4 @@ tagged-pointer = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 naughty-strings = "0.2"
+sptr = { version = "0.3", default-features = false }
