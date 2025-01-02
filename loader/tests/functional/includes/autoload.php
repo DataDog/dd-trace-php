@@ -6,10 +6,17 @@ set_exception_handler(function (\Throwable $ex) {
     $trace = $ex->getTrace();
     $file = $trace[0]['file'] ?: '';
     $line = $trace[0]['line'] ?: '';
+    $stackTrace = basename($file).':'.$line;
+
+    if (basename($file) === 'assert.php') {
+        $file2 = $trace[1]['file'] ?: '';
+        $line2 = $trace[1]['line'] ?: '';
+        $stackTrace = basename($file2).':'.$line2.' > '.$stackTrace;
+    }
 
     echo "------------------------------------\n";
     if ($file) {
-        echo 'Error in test '.basename($file).':'.$line."\n";
+        echo 'Error in test '.$stackTrace."\n";
         echo "------------------------------------\n";
     }
     echo $ex->getMessage()."\n";
