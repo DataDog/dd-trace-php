@@ -91,8 +91,8 @@ static void ddtrace_sigsegv_handler(int sig) {
     _Exit(128 + sig);
 }
 
-static bool ddtrace_crashtracker_check_result(ddog_crasht_Result result, const char *msg) {
-    if (result.tag != DDOG_CRASHT_RESULT_OK) {
+static bool ddtrace_crashtracker_check_result(ddog_VoidResult result, const char *msg) {
+    if (result.tag != DDOG_VOID_RESULT_OK) {
         ddog_CharSlice error_msg = ddog_Error_message(&result.err);
         LOG(ERROR, "%s : %.*s", msg, (int) error_msg.len, error_msg.ptr);
         ddog_Error_drop(&result.err);
