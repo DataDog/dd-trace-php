@@ -265,6 +265,10 @@ mod ext {
 
 #[cfg(test)]
 mod tests {
+    // See: https://doc.rust-lang.org/nightly/std/ptr/index.html#strict-provenance
+    #![allow(unstable_name_collisions, unused_imports)]
+    use sptr::Strict;
+
     use super::*;
     use allocator_api2::alloc::Global;
 
@@ -327,15 +331,19 @@ This is a tribute.
     fn test_round_tripping_to_usize() {
         let datadog = "See inside any stack, any app, at any scale, anywhere.";
         let string = ThinString::from(datadog);
-
-        let bits = {
+        let ptr = {
             let thin_str = string.as_thin_str();
-            let non_null = thin_str.header_ptr();
-            non_null.as_ptr() as usize
+            thin_str.header_ptr().as_ptr()
         };
 
+        let bits = ptr.addr();
+
         let restored = {
-            let non_null = unsafe { ptr::NonNull::new_unchecked(bits as *mut ThinHeader) };
+            // with_addr allows us to restore the provenance of the pointer,
+            // and we can do this because we have the original to restore it.
+            // The actually PHP profiler will not have such things available,
+            // and should use `expose_addr` and similar.
+            let non_null = unsafe { ptr::NonNull::new_unchecked(ptr.with_addr(bits)) };
             unsafe { ThinStr::from_header(non_null) }
         };
 
