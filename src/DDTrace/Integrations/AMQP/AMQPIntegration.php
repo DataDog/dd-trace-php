@@ -486,7 +486,7 @@ class AMQPIntegration extends Integration
         SpanData $span,
         string $name,
         string $spanKind,
-        string $resourceDetail = null,
+        $resourceDetail = null,
         $exception = null
     ) {
         $span->name = "amqp.$name";

@@ -96,7 +96,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         return $this;
     }
 
-    public function addEvent(string $name, iterable $attributes = [], int $timestamp = null): SpanBuilderInterface
+    public function addEvent(string $name, iterable $attributes = [], $timestamp = null): SpanBuilderInterface
     {
         $this->events[] = new Event(
             $name, 

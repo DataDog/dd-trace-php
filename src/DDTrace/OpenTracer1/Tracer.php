@@ -30,7 +30,7 @@ final class Tracer implements OTTracer
     /**
      * @param TracerInterface|null $tracer
      */
-    public function __construct(TracerInterface $tracer = null)
+    public function __construct($tracer = null)
     {
         $this->tracer = $tracer ?: GlobalTracer::get();
     }
@@ -41,7 +41,7 @@ final class Tracer implements OTTracer
      * @param array $config
      * @return self
      */
-    public static function make(Transport $transport = null, array $propagators = null, array $config = [])
+    public static function make($transport = null, $propagators = null, array $config = [])
     {
         return new self(
             new DDTracer($transport, $propagators, $config)
