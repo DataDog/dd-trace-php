@@ -56,9 +56,11 @@ class KafkaIntegration extends Integration
         $conf = ObjectKVStore::get($producerTopic, 'conf');
         KafkaIntegration::addProducerSpanMetadata($span, $conf, $hook->args);
 
-        $headers = \DDTrace\generate_distributed_tracing_headers();
-        $hook->args = $this->injectHeadersIntoArgs($hook->args, $headers);
-        $hook->overrideArguments($hook->args);
+        if (\ddtrace_config_distributed_tracing_enabled()) {
+            $headers = \DDTrace\generate_distributed_tracing_headers();
+            $hook->args = $this->injectHeadersIntoArgs($hook->args, $headers);
+            $hook->overrideArguments($hook->args);
+        }
     }
 
     public static function addProducerSpanMetadata($span, $conf, $args)
