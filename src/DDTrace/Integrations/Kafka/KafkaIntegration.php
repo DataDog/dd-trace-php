@@ -21,7 +21,7 @@ class KafkaIntegration extends Integration
 
     public function init(): int
     {
-        if (strpos(phpversion('rdkafka'), '6.') !== 0) {
+        if (strtok(phpversion('rdkafka'), '.') < 6) {
             return Integration::NOT_LOADED;
         }
 

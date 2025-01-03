@@ -17,7 +17,7 @@ static zif_handler dd_kafka_produce_handler = NULL;
 
 static bool rdkafka_version_supported(void) {
     zend_module_entry *rdkafka_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("rdkafka"));
-    return rdkafka_me && strncmp(rdkafka_me->version, "6", 1) == 0;
+    return rdkafka_me && strncmp(rdkafka_me->version, "6", 1) >= 0;
 }
 
 static bool dd_load_kafka_integration(void) {
