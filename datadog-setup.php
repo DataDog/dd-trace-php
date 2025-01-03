@@ -523,7 +523,7 @@ function install($options)
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
     if (!file_exists($tmpDir)) {
-        execute_or_exit("Cannot create directory '$tmpDir'", "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
+        execute_or_exit("Cannot create directory '$tmpDir'. Try setting a different temporary directory by setting the sys_temp_dir INI variable. E.g. php -d sys_temp_dir=" . (IS_WINDOWS ? 'C:\path\to\temp\dir' : "/path/to/temp/dir") . (isset($_SERVER["argv"][0]) ? " {$_SERVER["argv"][0]}" : ""), "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
     }
     register_shutdown_function(function () use ($tmpDir) {
         execute_or_exit("Cannot remove temporary directory '$tmpDir'", (IS_WINDOWS ? "rd /s /q " : "rm -rf ") . escapeshellarg($tmpDir));
