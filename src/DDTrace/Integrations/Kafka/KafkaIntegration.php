@@ -124,17 +124,13 @@ class KafkaIntegration extends Integration
         $message = $hook->returned;
 
         if ($message) {
-            $headers = array_filter(KafkaIntegration::extractMessageHeaders($message->headers ?? []), function($value) {
-                return $value !== null;
-            });
-
-            if (!empty($headers)) {
+            if ($message->headers && $link = SpanLink::fromHeaders($message->headers)) {
                 if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
                     $span = \DDTrace\start_trace_span(...$hook->data['start']);
-                    \DDTrace\consume_distributed_tracing_headers($headers);
+                    \DDTrace\consume_distributed_tracing_headers($message->headers);
                 } else {
                     $span = \DDTrace\start_span(...$hook->data['start']);
-                    $span->links[] = SpanLink::fromHeaders($headers);
+                    $span->links[] = $link;
                 }
             } else {
                 $span = \DDTrace\start_span(...$hook->data['start']);
