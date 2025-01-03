@@ -110,58 +110,41 @@ class KafkaIntegration extends Integration
                     $hook->data['start'] = \DDTrace\now();
                 },
                 function (HookData $hook) use ($integration) {
-                    $integration->processConsumedMessage($hook);
+                    /** @var \RdKafka\Message $message */
+                    $message = $hook->returned;
+
+                    if ($message) {
+                        if ($message->headers && $link = SpanLink::fromHeaders($message->headers)) {
+                            if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
+                                $span = \DDTrace\start_trace_span(...$hook->data['start']);
+                                \DDTrace\consume_distributed_tracing_headers($message->headers);
+                            } else {
+                                $span = \DDTrace\start_span(...$hook->data['start']);
+                                $span->links[] = $link;
+                            }
+                        } else {
+                            $span = \DDTrace\start_span(...$hook->data['start']);
+                        }
+
+                        $span->meta[Tag::MQ_DESTINATION] = $message->topic_name;
+                        $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
+                        $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
+                        $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
+                        $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
+                    } else {
+                        $span = \DDTrace\start_span(...$hook->data['start']);
+                    }
+
+                    if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
+                        $span->meta[Tag::KAFKA_TOMBSTONE] = true;
+                    }
+
+                    $hook->data['span'] = $span;
                     $integration->setupKafkaConsumeSpan($hook, $this);
                     \DDTrace\close_span();
                 }
             );
         }
-    }
-
-    public function processConsumedMessage(HookData $hook)
-    {
-        /** @var \RdKafka\Message $message */
-        $message = $hook->returned;
-
-        if ($message) {
-            if ($message->headers && $link = SpanLink::fromHeaders($message->headers)) {
-                if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
-                    $span = \DDTrace\start_trace_span(...$hook->data['start']);
-                    \DDTrace\consume_distributed_tracing_headers($message->headers);
-                } else {
-                    $span = \DDTrace\start_span(...$hook->data['start']);
-                    $span->links[] = $link;
-                }
-            } else {
-                $span = \DDTrace\start_span(...$hook->data['start']);
-            }
-
-            $span->meta[Tag::MQ_DESTINATION] = $message->topic_name;
-            $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
-            $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
-            $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
-            $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
-        } else {
-            $span = \DDTrace\start_span(...$hook->data['start']);
-        }
-
-        if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-            $span->meta[Tag::KAFKA_TOMBSTONE] = true;
-        }
-
-        $hook->data['span'] = $span;
-    }
-
-    public static function extractMessageHeaders(array $messageHeaders): array
-    {
-        return array_intersect_key($messageHeaders, array_flip([
-            'x-datadog-sampling-priority',
-            'x-datadog-tags',
-            'x-datadog-trace-id',
-            'x-datadog-parent-id',
-            'traceparent',
-            'tracestate',
-        ]));
     }
 
     public function setupKafkaConsumeSpan(HookData $hook, $consumer)
