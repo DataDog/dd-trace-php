@@ -87,7 +87,7 @@ class KafkaIntegration extends Integration
             $args[4] = array_merge($args[4] ?? [], $headers);
         } elseif ($argsCount === 4) {
             $args[] = $headers;
-        } else { // $argsCount === 3
+        } elseif ($argsCount === 3) {
             $args[] = null;  // $key
             $args[] = $headers;
         }
