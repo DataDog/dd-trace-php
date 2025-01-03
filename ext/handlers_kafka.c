@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include "configuration.h"
 #include "handlers_api.h"
-#include "handlers_http.h" // For ddtrace_inject_distributed_headers
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
