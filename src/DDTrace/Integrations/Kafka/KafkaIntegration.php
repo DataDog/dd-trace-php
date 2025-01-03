@@ -109,7 +109,7 @@ class KafkaIntegration extends Integration
             \DDTrace\install_hook(
                 $method,
                 function (HookData $hook) use ($integration) {
-                    $hook->data['start'] = \DDTrace\now();
+                    $hook->data['start'] = microtime(true);
                 },
                 function (HookData $hook) use ($integration) {
                     /** @var \RdKafka\Message $message */
@@ -118,14 +118,14 @@ class KafkaIntegration extends Integration
                     if ($message) {
                         if ($message->headers && $link = SpanLink::fromHeaders($message->headers)) {
                             if (\dd_trace_env_config('DD_TRACE_KAFKA_DISTRIBUTED_TRACING')) {
-                                $span = \DDTrace\start_trace_span(...$hook->data['start']);
+                                $span = \DDTrace\start_trace_span($hook->data['start']);
                                 \DDTrace\consume_distributed_tracing_headers($message->headers);
                             } else {
-                                $span = \DDTrace\start_span(...$hook->data['start']);
+                                $span = \DDTrace\start_span($hook->data['start']);
                                 $span->links[] = $link;
                             }
                         } else {
-                            $span = \DDTrace\start_span(...$hook->data['start']);
+                            $span = \DDTrace\start_span($hook->data['start']);
                         }
 
                         $span->meta[Tag::MQ_DESTINATION] = $message->topic_name;

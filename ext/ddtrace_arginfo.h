@@ -50,7 +50,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_DDTrace_start_span, 0, 0, DDTrace\\SpanData, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTimeNs, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_close_span, 0, 0, IS_FALSE, 1)
@@ -64,7 +63,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\SpanData, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTimeNs, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_active_stack, 0, 0, DDTrace\\SpanStack, 1)
@@ -147,8 +145,6 @@ ZEND_END_ARG_INFO()
 #define arginfo_DDTrace_dogstatsd_histogram arginfo_DDTrace_dogstatsd_distribution
 
 #define arginfo_DDTrace_dogstatsd_set arginfo_DDTrace_dogstatsd_count
-
-#define arginfo_DDTrace_now arginfo_DDTrace_current_context
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
@@ -344,7 +340,6 @@ ZEND_FUNCTION(DDTrace_dogstatsd_distribution);
 ZEND_FUNCTION(DDTrace_dogstatsd_gauge);
 ZEND_FUNCTION(DDTrace_dogstatsd_histogram);
 ZEND_FUNCTION(DDTrace_dogstatsd_set);
-ZEND_FUNCTION(DDTrace_now);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
@@ -429,7 +424,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "now"), zif_DDTrace_now, arginfo_DDTrace_now, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_sample_rate"), zif_DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate, 0, NULL, NULL)

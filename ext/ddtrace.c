@@ -2423,21 +2423,6 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
     RETURN_NULL();
 }
 
-PHP_FUNCTION(DDTrace_now) {
-    UNUSED(execute_data);
-
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    array_init(return_value);
-
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    add_next_index_long(return_value, ts.tv_sec);
-    add_next_index_long(return_value, ts.tv_nsec);
-}
-
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;
@@ -2713,8 +2698,7 @@ PHP_FUNCTION(DDTrace_root_span) {
 
 static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     double start_time_seconds = 0;
-    double start_time_nanoseconds = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|dd", &start_time_seconds, &start_time_nanoseconds) != SUCCESS) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|d", &start_time_seconds) != SUCCESS) {
         LOG_LINE_ONCE(WARN, "unexpected parameter, expecting double for start time");
         RETURN_FALSE;
     }
@@ -2728,7 +2712,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     }
 
     if (start_time_seconds > 0) {
-        span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC + start_time_nanoseconds);
+        span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
     }
 
     RETURN_OBJ(&span->std);

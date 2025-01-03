@@ -511,10 +511,9 @@ namespace DDTrace {
      * tracing information will be applied if available.
      *
      * @param float $startTime Start time of the span in seconds.
-     * @param float $startTimeNs Start time of the span in nanoseconds.
      * @return SpanData|false The newly started span, or 'false' if a wrong parameter was given.
      */
-    function start_span(float $startTime = 0, float $startTimeNs = 0): SpanData|false {}
+    function start_span(float $startTime = 0): SpanData|false {}
 
     /**
      * Close the currently active user-span on the top of the stack
@@ -542,10 +541,9 @@ namespace DDTrace {
      * More precisely, a new root span stack will be created and switched on to, and a new span started.
      *
      * @param float $startTime Start time of the span in seconds.
-     * @param float $startTimeNs Start time of the span in nanoseconds.
      * @return SpanData The newly created root span
      */
-    function start_trace_span(float $startTime = 0, float $startTimeNs = 0): SpanData {}
+    function start_trace_span(float $startTime = 0): SpanData {}
 
     /**
      * Get the active stack
@@ -754,12 +752,6 @@ namespace DDTrace {
      * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
-
-    /**
-     * @internal
-     * @return array{0: int, 1: int} The current time in seconds and nanoseconds
-     */
-    function now(): array {}
 }
 
 namespace DDTrace\System {
