@@ -51,20 +51,21 @@ class FilesystemIntegration extends Integration
     private static function preHook($variant)
     {
         return static function (HookData $hook) use ($variant) {
-            if (count($hook->args) == 0 || !is_string($hook->args[0])) {
-                return;
-            }
+           if (count($hook->args) == 0 || !is_string($hook->args[0])) {
+               return;
+           }
 
-            $protocol = [];
-            if (
-                preg_match('/^[a-z]+\:\/\//', $hook->args[0], $protocol) &&
-                isset($protocol[0]) &&
-                $protocol[0] !== 'file')
-            {
-                return;
-            }
+           $protocol = [];
+           $uri_parsed = preg_match('/^([a-z]+)\:\/\//', $hook->args[0], $protocol);
+           $protocol = isset($protocol[1]) ? $protocol[1]: "";
 
-            \datadog\appsec\push_address("server.io.fs.file", $hook->args[0], true);
+           if (empty($protocol) || $protocol === 'file') {
+                \datadog\appsec\push_address("server.io.fs.file", $hook->args[0], true);
+           }
+
+           if (in_array($variant, ['file_get_contents', 'fopen']) && (empty($protocol) || $protocol === 'http')) {
+               \datadog\appsec\push_address("server.io.net.url", $hook->args[0], true);
+           }
         };
     }
 
