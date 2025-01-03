@@ -85,10 +85,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.4.0RC3"
+        phpVersion: "8.4.1"
         vsVersion: "vs17"
-        phpTarGzUrl: https://downloads.php.net/~calvinb/php-8.4.0RC4.tar.gz
-        phpSha256Hash: "3964fee49465e6fcae77ad030ae31aa720ade0a51c53df6e255e36eb867fd4b2"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.4.1.tar.gz
+        phpSha256Hash: "c3d1ce4157463ea43004289c01172deb54ce9c5894d8722f4e805461bf9feaec"
 
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_windows
