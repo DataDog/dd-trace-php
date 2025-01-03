@@ -622,6 +622,16 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
 
 #define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
 
+#ifndef Z_PARAM_STRING_OR_NULL
+#define Z_PARAM_STRING_OR_NULL(dest, dest_len) \
+    Z_PARAM_STRING_EX(dest, dest_len, 1, 0)
+#endif
+
+#ifndef Z_PARAM_STR_OR_NULL
+#define Z_PARAM_STR_OR_NULL(dest) \
+    Z_PARAM_STR_EX(dest, 1, 0)
+#endif
+
 #define ZEND_GUARD_PROPERTY_MASK 0xf
 
 // strip const

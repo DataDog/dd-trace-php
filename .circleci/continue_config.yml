@@ -43,6 +43,21 @@ aliases:
     image: kong/httpbin
     name: httpbin_integration
 
+  - &IMAGE_DOCKER_KAFKA
+    image: confluentinc/cp-kafka:7.7.1
+    name: kafka_integration
+    environment:
+      - KAFKA_BROKER_ID=111
+      - KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+
   - &IMAGE_DOCKER_MEMCHACED
     image: memcached:1.5-alpine
     name: memcached_integration
@@ -99,6 +114,14 @@ aliases:
   - &IMAGE_DOCKER_GOOGLESPANNER
     image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
     name: googlespanner_integration
+
+  - &IMAGE_DOCKER_ZOOKEEPER
+    image: confluentinc/cp-zookeeper:7.7.1
+    name: zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -538,6 +561,22 @@ commands:
                 -e discovery.type=single-node \
                 --name elasticsearch7_integration elasticsearch:7.17.0
               retry_docker run --detach --rm --net net \
+                -e ZOOKEEPER_CLIENT_PORT=2181 \
+                -e ZOOKEEPER_TICK_TIME=2000 \
+                --name zookeeper confluentinc/cp-zookeeper:7.7.1
+              retry_docker run --detach --rm --net net \
+                -e KAFKA_BROKER_ID=111 \
+                -e KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1 \
+                -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+                -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092 \
+                -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
+                -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+                -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+                -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+                -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+                -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
+                --name kafka_integration confluentinc/cp-kafka:7.7.1
+              retry_docker run --detach --rm --net net \
                 --name redis_integration datadog/dd-trace-ci:php-redis-5.0
               retry_docker run --detach --rm --net net \
                 --name memcached_integration memcached:1.5-alpine
@@ -582,6 +621,8 @@ commands:
             - docker_logs:
                 docker_image: elasticsearch7_integration
             - docker_logs:
+                docker_image: kafka_integration
+            - docker_logs:
                 docker_image: redis_integration
             - docker_logs:
                 docker_image: memcached_integration
@@ -595,6 +636,8 @@ commands:
                 docker_image: sqlsrv_integration
             - docker_logs:
                 docker_image: googlespanner_integration
+            - docker_logs:
+                docker_image: zookeeper
       - run:
           name: Setup docker image << parameters.docker_image >>
           command: |
@@ -732,6 +775,7 @@ executors:
       - <<: *IMAGE_DOCKER_ELASTICSEARCH7
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_KAFKA
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_RABBITMQ
@@ -740,6 +784,7 @@ executors:
       - <<: *IMAGE_DOCKER_DD_TEST_AGENT
       - <<: *IMAGE_DOCKER_SQLSRV
       - <<: *IMAGE_DOCKER_GOOGLESPANNER
+      - <<: *IMAGE_DOCKER_ZOOKEEPER
   with_redis:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1

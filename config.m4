@@ -184,6 +184,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_api.c \
     ext/handlers_exception.c \
     ext/handlers_internal.c \
+    ext/handlers_kafka.c \
     ext/handlers_pcntl.c \
     ext/handlers_signal.c \
     ext/integrations/exec_integration.c \

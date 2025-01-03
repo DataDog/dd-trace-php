@@ -30,6 +30,7 @@ void ddtrace_free_unregistered_class(zend_class_entry *ce) {
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_exception_handlers_startup(void);
 void ddtrace_pcntl_handlers_startup(void);
+void ddtrace_kafka_handlers_startup(void);
 #ifndef _WIN32
 void ddtrace_signal_block_handlers_startup(void);
 #endif
@@ -150,6 +151,7 @@ void ddtrace_internal_handlers_startup() {
     ddtrace_exception_handlers_startup();
 
     ddtrace_exec_handlers_startup();
+    ddtrace_kafka_handlers_startup();
 #ifndef _WIN32
     // Block remote-config signals of some functions
     ddtrace_signal_block_handlers_startup();
