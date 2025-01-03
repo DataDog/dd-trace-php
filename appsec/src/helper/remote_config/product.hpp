@@ -31,6 +31,8 @@ struct known_products {
         std::string_view{"ASM_FEATURES"}};
     static inline constexpr product ASM_RASP_LFI{
         std::string_view{"ASM_RASP_LFI"}};
+    static inline constexpr product ASM_RASP_SSRF{
+        std::string_view{"ASM_RASP_SSRF"}};
     static inline constexpr product UNKNOWN{std::string_view{"UNKOWN"}};
 
     static product for_name(std::string_view name)
@@ -49,6 +51,9 @@ struct known_products {
         }
         if (name == ASM_RASP_LFI.name()) {
             return ASM_RASP_LFI;
+        }
+        if (name == ASM_RASP_SSRF.name()) {
+            return ASM_RASP_SSRF;
         }
 
         return UNKNOWN;
