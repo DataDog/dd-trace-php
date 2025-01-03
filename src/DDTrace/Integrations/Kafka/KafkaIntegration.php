@@ -134,7 +134,7 @@ class KafkaIntegration extends Integration
                         $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
                         $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
                     } else {
-                        $span = \DDTrace\start_span(...$hook->data['start']);
+                        $span = \DDTrace\start_span($hook->data['start']);
                     }
 
                     if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
