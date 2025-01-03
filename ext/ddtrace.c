@@ -3,7 +3,6 @@
 #endif
 #include "ddtrace.h"
 #include <SAPI.h>
-#include <time.h>
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
