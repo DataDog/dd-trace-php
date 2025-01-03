@@ -87,6 +87,11 @@ void ddtrace_kafka_handlers_startup(void) {
         return;
     }
 
+    zend_class_entry* producer_topic_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka\\producertopic"));
+    if (!producer_topic_ce || !zend_hash_str_exists(&producer_topic_ce->function_table, ZEND_STRL("producev"))) {
+        return; // Don't install handlers if producev doesn't exist
+    }
+
     // Determine the number of arguments for producev (check if purge exists)
     // See https://github.com/arnaud-lb/php-rdkafka/blob/d6f4d160422a0f8c1e3ee6a18add7cd8f805ba07/topic.c#L495-L497
     zend_class_entry* kafka_ce = zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("rdkafka"));
