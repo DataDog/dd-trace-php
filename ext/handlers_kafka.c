@@ -1,5 +1,3 @@
-#ifndef _WIN32
-
 #include <php.h>
 #include <stdbool.h>
 #include "configuration.h"
@@ -110,5 +108,3 @@ void ddtrace_kafka_handlers_startup(void) {
         datadog_php_install_method_handler(handlers[i]);
     }
 }
-
-#endif
