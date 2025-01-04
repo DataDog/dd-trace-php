@@ -33,7 +33,7 @@ extern "C" {
  *   This function is not atomic. A crash during its execution may lead to
  *   unexpected crash-handling behaviour.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_shutdown(void);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_shutdown(void);
 
 /**
  * Reinitialize the crash-tracking infrastructure after a fork.
@@ -55,9 +55,9 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_shutdown(void);
  *   unexpected crash-handling behaviour.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_update_on_fork(struct ddog_crasht_Config config,
-                                                     struct ddog_crasht_ReceiverConfig receiver_config,
-                                                     struct ddog_crasht_Metadata metadata);
+struct ddog_VoidResult ddog_crasht_update_on_fork(struct ddog_crasht_Config config,
+                                                  struct ddog_crasht_ReceiverConfig receiver_config,
+                                                  struct ddog_crasht_Metadata metadata);
 
 /**
  * Initialize the crash-tracking infrastructure.
@@ -72,9 +72,9 @@ struct ddog_crasht_Result ddog_crasht_update_on_fork(struct ddog_crasht_Config c
  *   unexpected crash-handling behaviour.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_init(struct ddog_crasht_Config config,
-                                           struct ddog_crasht_ReceiverConfig receiver_config,
-                                           struct ddog_crasht_Metadata metadata);
+struct ddog_VoidResult ddog_crasht_init(struct ddog_crasht_Config config,
+                                        struct ddog_crasht_ReceiverConfig receiver_config,
+                                        struct ddog_crasht_Metadata metadata);
 
 /**
  * Initialize the crash-tracking infrastructure without launching the receiver.
@@ -89,8 +89,8 @@ struct ddog_crasht_Result ddog_crasht_init(struct ddog_crasht_Config config,
  *   unexpected crash-handling behaviour.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_init_without_receiver(struct ddog_crasht_Config config,
-                                                            struct ddog_crasht_Metadata metadata);
+struct ddog_VoidResult ddog_crasht_init_without_receiver(struct ddog_crasht_Config config,
+                                                         struct ddog_crasht_Metadata metadata);
 
 /**
  * Resets all counters to 0.
@@ -102,7 +102,7 @@ struct ddog_crasht_Result ddog_crasht_init_without_receiver(struct ddog_crasht_C
  * # Safety
  * No safety concerns.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_reset_counters(void);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_reset_counters(void);
 
 /**
  * Atomically increments the count associated with `op`.
@@ -111,7 +111,7 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_reset_counters(void);
  * # Safety
  * No safety concerns.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_begin_op(enum ddog_crasht_OpTypes op);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_begin_op(enum ddog_crasht_OpTypes op);
 
 /**
  * Atomically decrements the count associated with `op`.
@@ -120,7 +120,7 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_begin_op(enum ddog_crash
  * # Safety
  * No safety concerns.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_end_op(enum ddog_crasht_OpTypes op);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_end_op(enum ddog_crasht_OpTypes op);
 
 /**
  * Resets all stored spans to 0.
@@ -132,7 +132,7 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_end_op(enum ddog_crasht_
  * # Safety
  * No safety concerns.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_clear_span_ids(void);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_clear_span_ids(void);
 
 /**
  * Resets all stored traces to 0.
@@ -144,7 +144,7 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_clear_span_ids(void);
  * # Safety
  * No safety concerns.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_clear_trace_ids(void);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_clear_trace_ids(void);
 
 /**
  * Atomically registers an active traceId.
@@ -168,8 +168,8 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_clear_trace_ids(void);
  * No safety concerns.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_UsizeResult ddog_crasht_insert_trace_id(uint64_t id_high,
-                                                           uint64_t id_low);
+struct ddog_crasht_Result_Usize ddog_crasht_insert_trace_id(uint64_t id_high,
+                                                            uint64_t id_low);
 
 /**
  * Atomically registers an active SpanId.
@@ -193,8 +193,8 @@ struct ddog_crasht_UsizeResult ddog_crasht_insert_trace_id(uint64_t id_high,
  * No safety concerns.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_UsizeResult ddog_crasht_insert_span_id(uint64_t id_high,
-                                                          uint64_t id_low);
+struct ddog_crasht_Result_Usize ddog_crasht_insert_span_id(uint64_t id_high,
+                                                           uint64_t id_low);
 
 /**
  * Atomically removes a completed SpanId.
@@ -219,9 +219,9 @@ struct ddog_crasht_UsizeResult ddog_crasht_insert_span_id(uint64_t id_high,
  * No safety concerns.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_remove_span_id(uint64_t id_high,
-                                                     uint64_t id_low,
-                                                     uintptr_t idx);
+struct ddog_VoidResult ddog_crasht_remove_span_id(uint64_t id_high,
+                                                  uint64_t id_low,
+                                                  uintptr_t idx);
 
 /**
  * Atomically removes a completed TraceId.
@@ -246,154 +246,436 @@ struct ddog_crasht_Result ddog_crasht_remove_span_id(uint64_t id_high,
  * No safety concerns.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_remove_trace_id(uint64_t id_high,
-                                                      uint64_t id_low,
-                                                      uintptr_t idx);
+struct ddog_VoidResult ddog_crasht_remove_trace_id(uint64_t id_high,
+                                                   uint64_t id_low,
+                                                   uintptr_t idx);
 
 /**
- * Create a new crashinfo, and returns an opaque reference to it.
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Frame
+ * made by this module, which has not previously been dropped.
+ */
+void ddog_crasht_CrashInfo_drop(struct ddog_crasht_Handle_CrashInfo *builder);
+
+/**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_normalize_ips(struct ddog_crasht_Handle_CrashInfo *crash_info,
+                                                           uint32_t pid);
+
+/**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_resolve_names(struct ddog_crasht_Handle_CrashInfo *crash_info,
+                                                           uint32_t pid);
+
+/**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_upload_to_endpoint(struct ddog_crasht_Handle_CrashInfo *crash_info,
+                                                                const struct ddog_Endpoint *endpoint);
+
+/**
+ * Create a new CrashInfoBuilder, and returns an opaque reference to it.
  * # Safety
  * No safety issues.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_CrashInfoNewResult ddog_crasht_CrashInfo_new(void);
+DDOG_CHECK_RETURN
+struct ddog_crasht_Result_HandleCrashInfoBuilder ddog_crasht_CrashInfoBuilder_new(void);
 
 /**
  * # Safety
- * The `crash_info` can be null, but if non-null it must point to a CrashInfo
+ * The `builder` can be null, but if non-null it must point to a Frame
  * made by this module, which has not previously been dropped.
  */
-void ddog_crasht_CrashInfo_drop(struct ddog_crasht_CrashInfo *crashinfo);
+void ddog_crasht_CrashInfoBuilder_drop(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
 
 /**
- * Best effort attempt to normalize all `ip` on the stacktrace.
- * `pid` must be the pid of the currently active process where the ips came from.
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_normalize_ips(struct ddog_crasht_CrashInfo *crashinfo,
-                                                              uint32_t pid);
+struct ddog_crasht_Result_HandleCrashInfo ddog_crasht_CrashInfoBuilder_build(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
 
 /**
- * Adds a "counter" variable, with the given value.  Useful for determining if
- * "interesting" operations were occurring when the crash did.
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
- * `name` should be a valid reference to a utf8 encoded String.
- * The string is copied into the crashinfo, so it does not need to outlive this
- * call.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_add_counter(struct ddog_crasht_CrashInfo *crashinfo,
-                                                            ddog_CharSlice name,
-                                                            int64_t val);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_counter(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                 ddog_CharSlice name,
+                                                                 int64_t value);
 
 /**
- * Adds the contents of "file" to the crashinfo
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
- * `name` should be a valid reference to a utf8 encoded String.
- * The string is copied into the crashinfo, so it does not need to outlive this
- * call.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The Kind must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_add_file(struct ddog_crasht_CrashInfo *crashinfo,
-                                                         ddog_CharSlice filename);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_kind(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                              enum ddog_crasht_ErrorKind kind);
 
 /**
- * Adds the tag with given "key" and "value" to the crashinfo
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
- * `key` should be a valid reference to a utf8 encoded String.
- * `value` should be a valid reference to a utf8 encoded String.
- * The string is copied into the crashinfo, so it does not need to outlive this
- * call.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_add_tag(struct ddog_crasht_CrashInfo *crashinfo,
-                                                        ddog_CharSlice key,
-                                                        ddog_CharSlice value);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_file(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                              ddog_CharSlice filename);
 
 /**
- * Sets the crashinfo metadata
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
- * All references inside `metadata` must be valid.
- * Strings are copied into the crashinfo, and do not need to outlive this call.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_set_metadata(struct ddog_crasht_CrashInfo *crashinfo,
-                                                             struct ddog_crasht_Metadata metadata);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_file_and_contents(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                           ddog_CharSlice filename,
+                                                                           struct ddog_crasht_Slice_CharSlice contents);
 
 /**
- * Sets the crashinfo siginfo
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
- * All references inside `metadata` must be valid.
- * Strings are copied into the crashinfo, and do not need to outlive this call.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_set_siginfo(struct ddog_crasht_CrashInfo *crashinfo,
-                                                            struct ddog_crasht_SigInfo siginfo);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_fingerprint(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                     ddog_CharSlice fingerprint);
 
 /**
- * If `thread_id` is empty, sets `stacktrace` as the default stacktrace.
- * Otherwise, adds an additional stacktrace with id "thread_id".
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
- * All references inside `stacktraces` must be valid.
- * Strings are copied into the crashinfo, and do not need to outlive this call.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_set_stacktrace(struct ddog_crasht_CrashInfo *crashinfo,
-                                                               ddog_CharSlice thread_id,
-                                                               struct ddog_crasht_Slice_StackFrame stacktrace);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_incomplete(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                    bool incomplete);
 
 /**
- * Sets the timestamp to the given unix timestamp
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_set_timestamp(struct ddog_crasht_CrashInfo *crashinfo,
-                                                              struct ddog_Timespec ts);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_log_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                     ddog_CharSlice message);
 
 /**
- * Sets the timestamp to the current time
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_set_timestamp_to_now(struct ddog_crasht_CrashInfo *crashinfo);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_metadata(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                  struct ddog_crasht_Metadata metadata);
 
 /**
- * Sets crashinfo procinfo
- *
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_set_procinfo(struct ddog_crasht_CrashInfo *crashinfo,
-                                                             struct ddog_crasht_ProcInfo procinfo);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_os_info(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                 struct ddog_crasht_OsInfo os_info);
 
 /**
- * Exports `crashinfo` to the backend at `endpoint`
- * Note that we support the "file://" endpoint for local file output.
  * # Safety
- * `crashinfo` must be a valid pointer to a `CrashInfo` object.
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_CrashInfo_upload_to_endpoint(struct ddog_crasht_CrashInfo *crashinfo,
-                                                                   const struct ddog_Endpoint *endpoint);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_os_info_this_machine(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_proc_info(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                   struct ddog_crasht_ProcInfo proc_info);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_sig_info(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                  struct ddog_crasht_SigInfo sig_info);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_span_id(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                 struct ddog_crasht_Span span_id);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
+ * Consumes the stack argument.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_stack(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                               struct ddog_crasht_Handle_StackTrace *stack);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
+ * Consumes the stack argument.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_thread(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                struct ddog_crasht_ThreadData thread);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_timestamp(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                   struct ddog_Timespec ts);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_timestamp_now(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * All arguments must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_trace_id(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                  struct ddog_crasht_Span trace_id);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                              ddog_CharSlice uuid);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid_random(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
+
+/**
+ * Create a new StackFrame, and returns an opaque reference to it.
+ * # Safety
+ * No safety issues.
+ */
+DDOG_CHECK_RETURN struct ddog_crasht_Result_HandleStackFrame ddog_crasht_StackFrame_new(void);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame
+ * made by this module, which has not previously been dropped.
+ */
+void ddog_crasht_StackFrame_drop(struct ddog_crasht_Handle_StackFrame *frame);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_ip(struct ddog_crasht_Handle_StackFrame *frame,
+                                                      ddog_CharSlice ip);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_module_base_address(struct ddog_crasht_Handle_StackFrame *frame,
+                                                                       ddog_CharSlice module_base_address);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_sp(struct ddog_crasht_Handle_StackFrame *frame,
+                                                      ddog_CharSlice sp);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_symbol_address(struct ddog_crasht_Handle_StackFrame *frame,
+                                                                  ddog_CharSlice symbol_address);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_build_id(struct ddog_crasht_Handle_StackFrame *frame,
+                                                            ddog_CharSlice build_id);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The BuildIdType must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_build_id_type(struct ddog_crasht_Handle_StackFrame *frame,
+                                                                 enum ddog_crasht_BuildIdType build_id_type);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The FileType must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_file_type(struct ddog_crasht_Handle_StackFrame *frame,
+                                                             enum ddog_crasht_FileType file_type);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_path(struct ddog_crasht_Handle_StackFrame *frame,
+                                                        ddog_CharSlice path);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_relative_address(struct ddog_crasht_Handle_StackFrame *frame,
+                                                                    ddog_CharSlice relative_address);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_column(struct ddog_crasht_Handle_StackFrame *frame,
+                                                          uint32_t column);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_file(struct ddog_crasht_Handle_StackFrame *frame,
+                                                        ddog_CharSlice file);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_function(struct ddog_crasht_Handle_StackFrame *frame,
+                                                            ddog_CharSlice function);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackFrame_with_line(struct ddog_crasht_Handle_StackFrame *frame,
+                                                        uint32_t line);
+
+/**
+ * Create a new StackTrace, and returns an opaque reference to it.
+ * # Safety
+ * No safety issues.
+ */
+DDOG_CHECK_RETURN struct ddog_crasht_Result_HandleStackTrace ddog_crasht_StackTrace_new(void);
+
+/**
+ * # Safety
+ * The `frame` can be null, but if non-null it must point to a Frame
+ * made by this module, which has not previously been dropped.
+ */
+void ddog_crasht_StackTrace_drop(struct ddog_crasht_Handle_StackTrace *trace);
+
+/**
+ * # Safety
+ * The `stacktrace` can be null, but if non-null it must point to a StackTrace made by this module,
+ * which has not previously been dropped.
+ * The frame can be non-null, but if non-null it must point to a Frame made by this module,
+ * which has not previously been dropped.
+ * The frame is consumed, and does not need to be dropped after this operation.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackTrace_push_frame(struct ddog_crasht_Handle_StackTrace *trace,
+                                                         struct ddog_crasht_Handle_StackFrame *frame);
 
 /**
  * Demangles the string "name".
@@ -404,8 +686,8 @@ struct ddog_crasht_Result ddog_crasht_CrashInfo_upload_to_endpoint(struct ddog_c
  * The string is copied into the result, and does not need to outlive this call
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_StringWrapperResult ddog_crasht_demangle(ddog_CharSlice name,
-                                                            enum ddog_crasht_DemangleOptions options);
+struct ddog_crasht_Result_StringWrapper ddog_crasht_demangle(ddog_CharSlice name,
+                                                             enum ddog_crasht_DemangleOptions options);
 
 /**
  * Receives data from a crash collector via a pipe on `stdin`, formats it into
@@ -419,7 +701,7 @@ struct ddog_crasht_StringWrapperResult ddog_crasht_demangle(ddog_CharSlice name,
  * # Safety
  * No safety concerns
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_receiver_entry_point_stdin(void);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_receiver_entry_point_stdin(void);
 
 /**
  * Receives data from a crash collector via a pipe on `stdin`, formats it into
@@ -435,7 +717,7 @@ DDOG_CHECK_RETURN struct ddog_crasht_Result ddog_crasht_receiver_entry_point_std
  * No safety concerns
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result ddog_crasht_receiver_entry_point_unix_socket(ddog_CharSlice socket_path);
+struct ddog_VoidResult ddog_crasht_receiver_entry_point_unix_socket(ddog_CharSlice socket_path);
 
 #ifdef __cplusplus
 } // extern "C"

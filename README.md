@@ -23,7 +23,7 @@ Visit the [PHP tracer documentation](https://docs.datadoghq.com/tracing/language
 
 #### Installation from PECL (datadog_trace) or from source
 
-Compilation of the tracer and the profiler requires cargo to be installed. Ensure that cargo is minimum version 1.76.0, otherwise follow the [official instructions for installing cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+Compilation of the tracer and the profiler requires cargo to be installed. Ensure that cargo is minimum version 1.78.0, otherwise follow the [official instructions for installing cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
 
 ### Advanced configuration
 

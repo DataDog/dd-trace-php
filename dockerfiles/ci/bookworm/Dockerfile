@@ -260,8 +260,8 @@ RUN set -eux; \
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
 
-ARG RUST_VERSION="1.76.0"
-ARG RUST_NIGHTLY_VERSION="-2024-11-04"
+ARG RUST_VERSION="1.78.0"
+ARG RUST_NIGHTLY_VERSION="-2025-01-03"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

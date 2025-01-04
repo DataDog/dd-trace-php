@@ -8,7 +8,7 @@ crate-type = ["staticlib", "cdylib"]
 path = "lib.rs"
 
 [dependencies]
-ddcommon = { path = "../libdatadog/ddcommon" }
+ddcommon = { path = "../libdatadog/ddcommon", features = ["cgroup_testing"] }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
