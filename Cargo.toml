@@ -3,7 +3,7 @@ members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
 resolver = "2"
 
 [workspace.package]
-rust-version = "1.69"
+rust-version = "1.78.0"
 edition = "2021"
 # Irrelevant version and license. These do NOT apply here, they just are here to make cargo build pass.
 version = "0.0.1"
