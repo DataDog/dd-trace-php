@@ -30,7 +30,7 @@ Array
     [appsec.events.users.login.success.usr.login] => login
     [_dd.appsec.usr.login] => login
     [appsec.events.users.login.success.track] => true
-    [appsec.events.users.login.success] => null
+    [server.business_logic.users.login.success] => null
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.value] => something-from-sdk
 )

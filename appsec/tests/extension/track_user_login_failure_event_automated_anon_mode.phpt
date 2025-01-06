@@ -37,5 +37,5 @@ Array
     [_dd.appsec.usr.login] => anon_428821350e9691491f616b754cd8315f
     [appsec.events.users.login.failure.track] => true
     [appsec.events.users.login.failure.usr.exists] => true
-    [appsec.events.users.login.failure] => null
+    [server.business_logic.users.login.failure] => null
 )

@@ -40,7 +40,7 @@ Array
     [appsec.events.users.signup.metadata] => some other metadata
     [appsec.events.users.signup.email] => noneofyour@business.com
     [appsec.events.users.signup.track] => true
-    [appsec.events.users.signup] => null
+    [server.business_logic.users.signup] => null
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

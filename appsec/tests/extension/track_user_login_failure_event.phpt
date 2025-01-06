@@ -41,7 +41,7 @@ Array
     [appsec.events.users.login.failure.metadata] => some other metadata
     [appsec.events.users.login.failure.email] => noneofyour@business.com
     [appsec.events.users.login.failure.usr.exists] => false
-    [appsec.events.users.login.failure] => null
+    [server.business_logic.users.login.failure] => null
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

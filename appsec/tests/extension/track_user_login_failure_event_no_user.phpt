@@ -25,5 +25,5 @@ Array
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
     [appsec.events.users.login.failure.usr.exists] => false
-    [appsec.events.users.login.failure] => null
+    [server.business_logic.users.login.failure] => null
 )

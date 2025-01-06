@@ -73,6 +73,12 @@
 #define DD_EVENTS_USER_LOGIN_FAILURE_SDK                                       \
     "_dd.appsec.events.users.login.failure.sdk"
 #define DD_EVENTS_RASP_DURATION_EXT "_dd.appsec.rasp.duration_ext"
+#define DD_SERVER_BUSINESS_LOGIC_USERS_SIGNUP                                  \
+    "server.business_logic.users.signup"
+#define DD_SERVER_BUSINESS_LOGIC_USERS_LOGIN_SUCCESS                           \
+    "server.business_logic.users.login.success"
+#define DD_SERVER_BUSINESS_LOGIC_USERS_LOGIN_FAILURE                           \
+    "server.business_logic.users.login.failure"
 
 static zend_string *_dd_tag_data_zstr;
 static zend_string *_dd_tag_event_zstr;
@@ -93,6 +99,9 @@ static zend_string *_dd_tag_rh_content_language; // response
 static zend_string *_dd_tag_user_id;
 static zend_string *_dd_metric_enabled;
 static zend_string *_dd_rasp_duration_ext;
+static zend_string *_dd_business_logic_users_signup;
+static zend_string *_dd_business_logic_users_login_success;
+static zend_string *_dd_business_logic_users_login_failure;
 static zend_string *_dd_signup_event;
 static zend_string *_dd_signup_event_login;
 static zend_string *_dd_login_success_event_login;
@@ -239,6 +248,12 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_EVENTS_USER_LOGIN_FAILURE_SDK), 1);
     _usr_exists_zstr =
         zend_string_init_interned(LSTRARG("usr.exists"), 1 /* permanent */);
+    _dd_business_logic_users_signup = zend_string_init_interned(
+        LSTRARG(DD_SERVER_BUSINESS_LOGIC_USERS_SIGNUP), 1);
+    _dd_business_logic_users_login_success = zend_string_init_interned(
+        LSTRARG(DD_SERVER_BUSINESS_LOGIC_USERS_LOGIN_SUCCESS), 1);
+    _dd_business_logic_users_login_failure = zend_string_init_interned(
+        LSTRARG(DD_SERVER_BUSINESS_LOGIC_USERS_LOGIN_FAILURE), 1);
 
     _server_zstr = zend_string_init_interned(LSTRARG("_SERVER"), 1);
 
@@ -1031,8 +1046,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     _add_custom_event_keyval(
         meta_ht, _dd_signup_event, _track_zstr, _true_zstr, true, false);
 
-    // appsec.events.users.signup = null
-    _add_new_zstr_to_meta(meta_ht, _dd_signup_event, _null_zstr, true, true);
+    // server.business_logic.users.signup = null
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_business_logic_users_signup, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1082,8 +1098,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     _add_custom_event_keyval(
         meta_ht, _dd_signup_event, _track_zstr, _true_zstr, true, true);
 
-    // appsec.events.users.signup = null
-    _add_new_zstr_to_meta(meta_ht, _dd_signup_event, _null_zstr, true, true);
+    // server.business_logic.users.signup = null
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_business_logic_users_signup, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1174,9 +1191,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     _add_custom_event_keyval(
         meta_ht, _dd_login_success_event, _track_zstr, _true_zstr, true, false);
 
-    // appsec.events.users.login.success = null
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_login_success_event, _null_zstr, true, true);
+    // server.business_logic.users.login.success = null
+    _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_success,
+        _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1229,9 +1246,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     _add_custom_event_keyval(
         meta_ht, _dd_login_success_event, _track_zstr, _true_zstr, true, true);
 
-    // appsec.events.users.login.success = null
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_login_success_event, _null_zstr, true, true);
+    // server.business_logic.users.login.success = null
+    _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_success,
+        _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1327,9 +1344,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     _add_custom_event_keyval(meta_ht, _dd_login_failure_event, _usr_exists_zstr,
         exists ? _true_zstr : _false_zstr, true, false);
 
-    // appsec.events.users.login.failure = null
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_login_failure_event, _null_zstr, true, true);
+    // server.business_logic.users.login.failure = null
+    _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_failure,
+        _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
@@ -1383,9 +1400,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     _add_custom_event_keyval(meta_ht, _dd_login_failure_event, _usr_exists_zstr,
         exists ? _true_zstr : _false_zstr, true, true);
 
-    // appsec.events.users.login.failure = null
-    _add_new_zstr_to_meta(
-        meta_ht, _dd_login_failure_event, _null_zstr, true, true);
+    // server.business_logic.users.login.failure = null
+    _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_failure,
+        _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
 }
