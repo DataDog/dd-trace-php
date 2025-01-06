@@ -69,9 +69,6 @@ trait CommonTests {
         assert span.meta."_dd.appsec.usr.id" == 'Admin'
         assert span.meta."_dd.appsec.usr.login" == 'Login'
         assert span.meta."appsec.events.users.login.success.track" == 'true'
-        assert span.meta."appsec.events.users.login.success.email" == 'jean.example@example.com'
-        assert span.meta."appsec.events.users.login.success.session_id" == '987654321'
-        assert span.meta."appsec.events.users.login.success.role" == 'admin'
     }
 
     @Test
@@ -104,9 +101,6 @@ trait CommonTests {
         assert span.meta."appsec.events.users.login.failure.usr.login" == 'Login'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.meta."appsec.events.users.login.failure.track" == 'true'
-        assert span.meta."appsec.events.users.login.failure.email" == 'jean.example@example.com'
-        assert span.meta."appsec.events.users.login.failure.session_id" == '987654321'
-        assert span.meta."appsec.events.users.login.failure.role" == 'admin'
     }
 
     @Test

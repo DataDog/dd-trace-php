@@ -1181,11 +1181,11 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
 
     // _dd.appsec.events.users.login.success.usr.login = <user_login>
     _add_new_zstr_to_meta(
-        meta_ht, _dd_login_success_event_login, user_login, false, true);
+        meta_ht, _dd_login_success_event_login, user_login, true, true);
 
     // _dd.appsec.usr.login = <user_login>
     _add_new_zstr_to_meta(
-        meta_ht, _dd_appsec_user_login, user_login, true, true);
+        meta_ht, _dd_appsec_user_login, user_login, false, true);
 
     // appsec.events.users.login.success.track = true
     _add_custom_event_keyval(
@@ -1229,6 +1229,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
 
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
+
+    dd_find_and_apply_verdict_for_user(user_id);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(

@@ -9,6 +9,7 @@ DD_APPSEC_ENABLED=1
 use function datadog\appsec\testing\root_span_get_meta;
 use function datadog\appsec\track_user_signup_event;
 use function datadog\appsec\track_user_signup_event_automated;
+
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
