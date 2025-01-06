@@ -262,6 +262,11 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
                                                       bool persistent) {
     ZEND_ASSERT(dest);
 
+#ifdef CFG_TEST
+    (void)dest;
+    (void)view;
+    ZEND_ASSERT(0);
+#else
     if (view.len == 0) {
         if (persistent) {
             ZVAL_EMPTY_PSTRING(dest);
@@ -272,6 +277,7 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
         ZEND_ASSERT(view.ptr);
         ZVAL_STR(dest, zend_string_init(view.ptr, view.len, persistent));
     }
+#endif
 }
 
 void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {

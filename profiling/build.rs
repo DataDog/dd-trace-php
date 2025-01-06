@@ -147,7 +147,8 @@ fn build_zend_php_ffis(
     #[cfg(not(feature = "stack_walking_tests"))]
     let stack_walking_tests = "0";
 
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .files(files.into_iter().chain(zai_c_files))
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
@@ -165,8 +166,10 @@ fn build_zend_php_ffis(
         )
         .flag_if_supported("-fuse-ld=lld")
         .flag_if_supported("-std=c11")
-        .flag_if_supported("-std=c17")
-        .compile("php_ffi");
+        .flag_if_supported("-std=c17");
+    #[cfg(feature = "test")]
+    build.define("CFG_TEST", "1");
+    build.compile("php_ffi");
 }
 
 #[derive(Debug)]

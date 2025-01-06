@@ -1484,6 +1484,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
+ "datadog-php-profiling",
  "datadog-profiling",
  "ddcommon 10.0.0",
  "env_logger 0.11.3",

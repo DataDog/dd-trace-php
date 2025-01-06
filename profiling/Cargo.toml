@@ -37,6 +37,7 @@ uuid = { version = "1.0", features = ["v4"] }
 
 [dev-dependencies]
 criterion = { version = "0.5.1" }
+datadog-php-profiling = { path = ".", features = ["test"] }
 
 [target.'cfg(target_arch = "x86_64")'.dev-dependencies]
 criterion-perf-events = "0.4.0"
@@ -52,6 +53,7 @@ allocation_profiling = []
 timeline = []
 exception_profiling = []
 stack_walking_tests = []
+test = []
 
 # only for testing:
 trigger_time_sample = []
