@@ -79,7 +79,7 @@ final class Tracer implements TracerInterface
      * @param Propagator[] $propagators
      * @param array $config
      */
-    public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
+    public function __construct($transport = null, $propagators = null, array $config = [])
     {
         $this->transport = $transport ?: new Internal();
         $textMapPropagator = new TextMap($this);
