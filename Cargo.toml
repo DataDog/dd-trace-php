@@ -19,7 +19,7 @@ incremental = false
 lto = "fat"
 
 [profile.tracer-release]
-debug = "full" # 1 # line tables only
+debug = 1 # line tables only
 lto = true
 codegen-units = 1
 panic = "abort"
