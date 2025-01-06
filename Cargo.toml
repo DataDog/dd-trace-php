@@ -14,12 +14,12 @@ debug = 2 # full debug info
 
 [profile.release]
 codegen-units = 1
-debug = "line-tables-only"
+debug = "full" #"line-tables-only"
 incremental = false
 lto = "fat"
 
 [profile.tracer-release]
-debug = 1 # line tables only
+debug = "full" # 1 # line tables only
 lto = true
 codegen-units = 1
 panic = "abort"
