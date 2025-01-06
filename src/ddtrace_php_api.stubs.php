@@ -174,16 +174,16 @@ namespace OpenTelemetry\SDK\Trace {
         /**
          * @inheritDoc
          */
-        public function setStatus(string $code, $description = null) : \OpenTelemetry\API\Trace\SpanInterface
+        public function setStatus(string $code, ?string $description = null) : \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function end($endEpochNanos = null) : void
+        public function end(?int $endEpochNanos = null) : void
         {
         }
-        public function endOTelSpan($endEpochNanos = null) : void
+        public function endOTelSpan(?int $endEpochNanos = null) : void
         {
         }
         public function getResource() : \OpenTelemetry\SDK\Resource\ResourceInfo
@@ -212,7 +212,7 @@ namespace OpenTelemetry\SDK\Trace {
         public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
-        public function addEvent(string $name, iterable $attributes = [], $timestamp = null) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function addEvent(string $name, iterable $attributes = [], ?int $timestamp = null) : \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
         public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface

@@ -114,7 +114,7 @@ class LogsIntegration extends Integration
     ): string {
         return strtr(
             $message,
-            $placeholders ? $placeholders : LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
+            $placeholders ?: LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
         );
     }
 

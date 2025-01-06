@@ -96,10 +96,10 @@ final class SpanBuilder implements API\SpanBuilderInterface
         return $this;
     }
 
-    public function addEvent(string $name, iterable $attributes = [], $timestamp = null): SpanBuilderInterface
+    public function addEvent(string $name, iterable $attributes = [], ?int $timestamp = null): SpanBuilderInterface
     {
         $this->events[] = new Event(
-            $name, 
+            $name,
             $timestamp ?? (int)(microtime(true) * 1e9),
             $this->tracerSharedState
                 ->getSpanLimits()
@@ -107,7 +107,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 ->builder($attributes)
                 ->build(),
         );
-             
+
         return $this;
     }
 

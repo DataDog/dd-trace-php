@@ -12,6 +12,7 @@ use DDTrace\Tag;
 use DDTrace\OpenTelemetry\Convention;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
+use OpenTelemetry\SDK\Trace\LinkInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\ContextInterface;
@@ -427,7 +428,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
-    public function setStatus(string $code, $description = null): SpanInterface
+    public function setStatus(string $code, ?string $description = null): SpanInterface
     {
         if ($this->hasEnded()) {
             return $this;
@@ -459,7 +460,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
-    public function end($endEpochNanos = null): void
+    public function end(?int $endEpochNanos = null): void
     {
         if ($this->hasEnded()) {
             return;
@@ -472,7 +473,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->spanProcessor->onEnd($this);
     }
 
-    public function endOTelSpan($endEpochNanos = null): void
+    public function endOTelSpan(?int $endEpochNanos = null): void
     {
         if ($this->hasEnded()) {
             return;
@@ -572,7 +573,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         $this->totalRecordedEvents = count($otel);
     }
 
-    private function createAndSaveSpanLink(SpanContextInterface $context, iterable $attributes = [], $link = null)
+    private function createAndSaveSpanLink(SpanContextInterface $context, iterable $attributes = [], ?LinkInterface $link = null)
     {
         $spanLink = new SpanLink();
         $spanLink->traceId = $context->getTraceId();
