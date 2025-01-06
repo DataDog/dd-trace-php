@@ -961,7 +961,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     zend_string *anon_user_login = NULL;
     zend_string *anon_user_id = NULL;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|Sh", &user_login, &user_id,
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_login, user_id, metadata)");
@@ -1102,7 +1102,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     zend_string *anon_user_login = NULL;
     zend_string *anon_user_id = NULL;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|Sh", &user_login, &user_id,
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
                              "(user_login, user_id, metadata)");
@@ -1147,6 +1147,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     }
 
     if (ZSTR_LEN(user_id) > 0) {
+        dd_find_and_apply_verdict_for_user(user_id);
+
         // usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, false);
 
@@ -1177,8 +1179,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         meta_ht, _dd_login_success_event, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
-
-    dd_find_and_apply_verdict_for_user(user_id);
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
@@ -1213,12 +1213,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    if (ZSTR_LEN(user_id) > 0) {
-        dd_find_and_apply_verdict_for_user(user_id);
-        // usr.id = <user_id>
-        _add_new_zstr_to_meta(
-            meta_ht, _dd_tag_user_id, user_id, copy_user_id, true);
-    }
+    // usr.id = <user_id>
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_tag_user_id, user_id, copy_user_id, true);
 
     // _dd.appsec.events.users.login.success.sdk = true
     _add_new_zstr_to_meta(
