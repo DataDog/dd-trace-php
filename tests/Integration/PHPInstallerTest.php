@@ -27,10 +27,10 @@ final class PHPInstallerTest extends BaseTestCase
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php74; chmod a+x php74");
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php7.4; chmod a+x php7.4");
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm; chmod a+x php-fpm");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php56-fpm; chmod a+x php56-fpm");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php5.6-fpm; chmod a+x php5.6-fpm");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm56; chmod a+x php-fpm56");
-        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm5.6; chmod a+x php-fpm5.6");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php84-fpm; chmod a+x php84-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php8.4-fpm; chmod a+x php8.4-fpm");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm84; chmod a+x php-fpm84");
+        exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch php-fpm8.4; chmod a+x php-fpm8.4");
         // php72 should be included as a symlink to will_be_linked
         exec("cd {$rootPath}/opt/remi/php74/root/usr/sbin; touch will_be_linked; chmod a+x will_be_linked");
         // phpcs:disable Generic.Files.LineLength.TooLong
@@ -77,9 +77,6 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertContains('php-fpm8.0', $names);
 
         // We test only that all versions are present with at least one combination
-        $this->assertContains('php54', $names);
-        $this->assertContains('php55', $names);
-        $this->assertContains('php56', $names);
         $this->assertContains('php70', $names);
         $this->assertContains('php71', $names);
         $this->assertContains('php72', $names);
@@ -87,6 +84,9 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertContains('php74', $names);
         $this->assertContains('php80', $names);
         $this->assertContains('php81', $names);
+        $this->assertContains('php82', $names);
+        $this->assertContains('php83', $names);
+        $this->assertContains('php84', $names);
     }
 
     /**
@@ -103,10 +103,10 @@ final class PHPInstallerTest extends BaseTestCase
             'php74',
             'php7.4',
             'php-fpm',
-            'php56-fpm',
-            'php5.6-fpm',
-            'php-fpm56',
-            'php-fpm5.6',
+            'php84-fpm',
+            'php8.4-fpm',
+            'php-fpm84',
+            'php-fpm8.4',
             'php72',
         ];
 
