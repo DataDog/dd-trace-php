@@ -316,6 +316,13 @@ zend_fiber* ddog_php_prof_get_active_fiber_test()
 
 #if CFG_RUN_TIME_CACHE // defined by build.rs
 static int ddog_php_prof_run_time_cache_handle = -1;
+
+// On PHP 8.4+, the internal cache slots need to be registered separately from
+// the user ones.
+#if PHP_VERSION_ID >= 80400
+static int ddog_php_prof_internal_run_time_cache_handle = -1;
+#endif
+
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
@@ -331,6 +338,14 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #else
     ddog_php_prof_run_time_cache_handle =
         zend_get_op_array_extension_handles(module_name, 2);
+
+#if PHP_VERSION_ID >= 80400
+    // On PHP 8.4+, the internal cache slots need to be registered separately
+    // from the user ones.
+    ddog_php_prof_internal_run_time_cache_handle =
+        zend_get_op_array_extension_handles(module_name, 2);
+#endif
+
 #endif
 #else
     (void)module_name;
@@ -391,7 +406,14 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
      */
     ZEND_ASSERT(cache_addr);
 
-    return cache_addr + ddog_php_prof_run_time_cache_handle;
+#if PHP_VERSION_ID < 80400
+    int handle_offset = ddog_php_prof_run_time_cache_handle;
+#else
+    int handle_offset = func->type == ZEND_USER_FUNCTION
+        ? ddog_php_prof_run_time_cache_handle
+        : ddog_php_prof_internal_run_time_cache_handle;
+#endif
+    return cache_addr + handle_offset;
 
 #else
     (void)func;
