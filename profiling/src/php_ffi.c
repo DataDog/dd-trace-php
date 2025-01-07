@@ -343,7 +343,7 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
     // On PHP 8.4+, the internal cache slots need to be registered separately
     // from the user ones.
     _internal_run_time_cache_handle =
-        zend_get_op_array_extension_handles(module_name, 2);
+        zend_get_internal_function_extension_handles(module_name, 2);
 #endif
 
 #endif
