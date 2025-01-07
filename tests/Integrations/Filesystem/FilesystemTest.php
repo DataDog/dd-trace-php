@@ -25,12 +25,13 @@ final class FilesystemTest extends AppsecTestCase
     protected function assertEvent(string $value, $traces, $also_ssrf = false)
     {
        $events = AppsecStatus::getInstance()->getEvents();
-       $this->assertEquals($also_ssrf ? 2 : 1, count($events));
-       $this->assertEquals($value, $events[0]["server.io.fs.file"]);
+       $this->assertEquals(1, count($events));
+       $this->assertEquals($also_ssrf ? 2 : 1, count($events[0][0]));
+       $this->assertEquals($value, $events[0][0]["server.io.fs.file"]);
        if ($also_ssrf) {
-        $this->assertEquals($value, $events[1]["server.io.net.url"]);
+        $this->assertEquals($value, $events[0][0]["server.io.net.url"]);
        }
-       $this->assertEquals('push_address', $events[0]['eventName']);
+       $this->assertEquals('push_addresses', $events[0]['eventName']);
        $this->assertTrue($events[0]['rasp']);
     }
 
@@ -65,8 +66,8 @@ final class FilesystemTest extends AppsecTestCase
 
        $events = AppsecStatus::getInstance()->getEvents();
        $this->assertEquals(1, count($events));
-       $this->assertEquals($file, $events[0]["server.io.net.url"]);
-       $this->assertEquals('push_address', $events[0]['eventName']);
+       $this->assertEquals($file, $events[0][0]["server.io.net.url"]);
+       $this->assertEquals('push_addresses', $events[0]['eventName']);
        $this->assertTrue($events[0]['rasp']);
     }
 

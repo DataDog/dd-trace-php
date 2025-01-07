@@ -126,7 +126,7 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
 
     // Reorder ddappsec to ensure it's always after ddtrace
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
-         module < end; ++module) {
+        module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
         if (m->name == ddappsec_module_entry.name) {
             ddappsec_module = module;
@@ -474,7 +474,7 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     RETURN_TRUE;
 }
 
-static PHP_FUNCTION(datadog_appsec_push_address)
+static PHP_FUNCTION(datadog_appsec_push_addresses)
 {
     struct timespec start;
     struct timespec end;
@@ -482,15 +482,14 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to push_address "
+        mlog(dd_log_debug, "Trying to access to push_addresses "
                            "function while appsec is disabled");
         return;
     }
 
-    zend_string *key = NULL;
-    zval *value = NULL;
+    HashTable *addresses = NULL;
     bool rasp = false;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz|b", &key, &value, &rasp) ==
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "h|b", &addresses, &rasp) ==
         FAILURE) {
         RETURN_FALSE;
     }
@@ -499,16 +498,32 @@ static PHP_FUNCTION(datadog_appsec_push_address)
         return;
     }
 
+    if (addresses == NULL) {
+        return;
+    }
+
+    zend_array *parameters_arr =
+        zend_new_array(zend_hash_num_elements(addresses));
     zval parameters_zv;
-    zend_array *parameters_arr = zend_new_array(1);
     ZVAL_ARR(&parameters_zv, parameters_arr);
-    zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
-    Z_TRY_ADDREF_P(value);
+
+    zend_string *key;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(addresses, key, value)
+    {
+        if (!key) {
+            continue;
+        }
+
+        zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
+        Z_TRY_ADDREF_P(value);
+    }
+    ZEND_HASH_FOREACH_END();
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
         zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "No connection; skipping push_address");
+        mlog_g(dd_log_debug, "No connection; skipping push_addresses");
         return;
     }
 
@@ -549,16 +564,16 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_INFO(0, "data")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_address_arginfo, 0, 0, IS_VOID, 1)
-ZEND_ARG_INFO(0, key)
-ZEND_ARG_INFO(0, value)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    push_addresses_arginfo, 0, 0, IS_VOID, 1)
+ZEND_ARG_INFO(0, addresses)
 ZEND_ARG_INFO(0, rasp)
 ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_addresses", PHP_FN(datadog_appsec_push_addresses), push_addresses_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
