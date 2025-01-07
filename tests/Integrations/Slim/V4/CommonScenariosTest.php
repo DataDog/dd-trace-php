@@ -104,7 +104,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             [
                 'A simple GET request returning a string' => [
                     SpanAssertion::build(
-                        'web.request',
+                        'slim.request',
                         'slim_test_app',
                         'web',
                         'GET /simple'
@@ -133,7 +133,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
-                        'web.request',
+                        'slim.request',
                         'slim_test_app',
                         'web',
                         'GET /simple_view'
@@ -170,7 +170,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
-                        'web.request',
+                        'slim.request',
                         'slim_test_app',
                         'web',
                         'GET /error'
@@ -204,7 +204,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A GET request to a route with a parameter' => [
                     SpanAssertion::build(
-                        'web.request',
+                        'slim.request',
                         'slim_test_app',
                         'web',
                         'GET /parameterized/paramValue'
