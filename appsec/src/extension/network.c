@@ -218,7 +218,8 @@ dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
             mlog_err(dd_log_info, "Error writing %zu bytes to helper", total);
             efree(iovs);
             return dd_network;
-        } else if (written == 0) {
+        }
+        if (written == 0) {
             mlog(dd_log_info, "writev() call returned zero");
             efree(iovs);
             return dd_network;
