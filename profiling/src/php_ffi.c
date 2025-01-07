@@ -315,7 +315,14 @@ zend_fiber* ddog_php_prof_get_active_fiber_test()
 #endif
 
 #if CFG_RUN_TIME_CACHE // defined by build.rs
-static int ddog_php_prof_run_time_cache_handle = -1;
+static int _user_run_time_cache_handle = -1;
+
+// On PHP 8.4+, the internal cache slots need to be registered separately from
+// the user ones.
+#if PHP_VERSION_ID >= 80400
+static int _internal_run_time_cache_handle = -1;
+#endif
+
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
@@ -324,13 +331,21 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
     // Grab 1 slot for caching filename, as it turns out the utf-8 validity
     // check is worth caching.
 #if PHP_VERSION_ID < 80200
-    ddog_php_prof_run_time_cache_handle =
+    _user_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
     int second = zend_get_op_array_extension_handle(module_name);
-    ZEND_ASSERT(ddog_php_prof_run_time_cache_handle + 1 == second);
+    ZEND_ASSERT(_user_run_time_cache_handle + 1 == second);
 #else
-    ddog_php_prof_run_time_cache_handle =
+    _user_run_time_cache_handle =
         zend_get_op_array_extension_handles(module_name, 2);
+
+#if PHP_VERSION_ID >= 80400
+    // On PHP 8.4+, the internal cache slots need to be registered separately
+    // from the user ones.
+    _internal_run_time_cache_handle =
+        zend_get_internal_function_extension_handles(module_name, 2);
+#endif
+
 #endif
 #else
     (void)module_name;
@@ -346,7 +361,21 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 // defined by build.rs
 #if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
 static bool has_invalid_run_time_cache(zend_function const *func) {
-    if (UNEXPECTED(_ignore_run_time_cache) || UNEXPECTED(ddog_php_prof_run_time_cache_handle < 0))
+    bool ignore_cache = _ignore_run_time_cache;
+    bool inv_user_handle = _user_run_time_cache_handle < 0;
+
+    // The bitwise-ors are intentional here. We don't expect any of these
+    // things to be true, except if we're on CLI and in that case it's okay
+    // to pessimize since it'll predict well after it gets it wrong the first
+    // time.
+#if PHP_VERSION_ID < 80400
+    bool fast_skip = ignore_cache | inv_user_handle;
+#else
+    bool inv_internal_handle = _internal_run_time_cache_handle < 0;
+    bool fast_skip = ignore_cache | inv_user_handle | inv_internal_handle;
+#endif
+
+    if (UNEXPECTED(fast_skip))
         return true;
 
     // during an `include()`/`require()` with enabled OPcache, OPcache is
@@ -391,7 +420,14 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
      */
     ZEND_ASSERT(cache_addr);
 
-    return cache_addr + ddog_php_prof_run_time_cache_handle;
+#if PHP_VERSION_ID < 80400
+    int handle_offset = _user_run_time_cache_handle;
+#else
+    int handle_offset = func->type == ZEND_USER_FUNCTION
+        ? _user_run_time_cache_handle
+        : _internal_run_time_cache_handle;
+#endif
+    return cache_addr + handle_offset;
 
 #else
     (void)func;
