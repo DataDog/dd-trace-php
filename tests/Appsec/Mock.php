@@ -77,7 +77,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             foreach ($events as $event) {
                 $new = json_decode($event['event'], true);
                 if (empty($names) || in_array($new['eventName'], $names) &&
-                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))) {
+                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new[0]))))) {
                     $result[] = $new;
                 }
             }
