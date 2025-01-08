@@ -101,6 +101,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
 
         // automatic cleanup of imsg on error branches
         // set to NULL before calling _imsg_destroy
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
         __attribute__((cleanup(_imsg_cleanup))) dd_imsg *nullable destroy_imsg =
             &imsg;
 
