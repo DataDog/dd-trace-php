@@ -816,10 +816,13 @@ static inline void zai_hook_resolve(HashTable *base_ht, zend_class_entry *ce, ze
 
     if (function->common.scope == ce || !ZEND_USER_CODE(function->type)) {
         zai_hook_resolve_lookup_inherited(hooks, ce, function, lcname);
-#if PHP_VERSION_ID >= 80000
-        zai_hook_on_function_resolve(function);
-#endif
     }
+
+#if PHP_VERSION_ID >= 80000
+    if (function->common.scope == ce) {
+        zai_hook_on_function_resolve(function);
+    }
+#endif
 }
 
 /* {{{ */
@@ -840,10 +843,13 @@ void zai_hook_resolve_class(zend_class_entry *ce, zend_string *lcname) {
             zai_store_func_location(function);
             if (function->common.scope == ce || !ZEND_USER_CODE(function->type)) {
                 zai_hook_resolve_lookup_inherited(NULL, ce, function, fnname);
-#if PHP_VERSION_ID >= 80000
-                zai_hook_on_function_resolve(function);
-#endif
             }
+
+#if PHP_VERSION_ID >= 80000
+            if (function->common.scope == ce) {
+                zai_hook_on_function_resolve(function);
+            }
+#endif
         } ZEND_HASH_FOREACH_END();
         return;
     }
