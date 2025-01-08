@@ -233,6 +233,7 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *error, cons
         case REASON_INCOMPATIBLE_RUNTIME:
             LOG(ERROR, "Aborting application instrumentation due to an incompatible runtime");
             break;
+        case REASON_START:
         case REASON_COMPLETE:
         case REASON_ALREADY_LOADED:
             level = INFO;
@@ -268,6 +269,13 @@ static void ddloader_telemetryf(telemetry_reason reason, const char *error, cons
     char points_buf[256] = {0};
     char *points = points_buf;
     switch (reason) {
+        case REASON_START:
+            points =
+                "\
+                {\"name\": \"library_entrypoint.start\", \"tags\": []}\
+            ";
+            break;
+
         case REASON_ERROR:
             snprintf(points_buf, sizeof(points_buf), "\
                     {\"name\": \"library_entrypoint.error\", \"tags\": [\"error_type:%s\"]}\
@@ -653,6 +661,8 @@ static int ddloader_api_no_check(int api_no) {
     }
 
     ddloader_configure();
+
+    TELEMETRY(REASON_START, NULL, "Starting injection");
 
     switch (api_no) {
         case 220040412:
