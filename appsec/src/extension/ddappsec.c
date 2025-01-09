@@ -498,10 +498,6 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    if (addresses == NULL) {
-        return;
-    }
-
     zend_array *parameters_arr =
         zend_new_array(zend_hash_num_elements(addresses));
     zval parameters_zv;

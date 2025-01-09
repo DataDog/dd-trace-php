@@ -65,7 +65,8 @@ class FilesystemIntegration extends Integration
                 $addresses["server.io.fs.file"] = $hook->args[0];
            }
 
-           if (in_array($variant, ['file_get_contents', 'fopen']) && (empty($protocol) || $protocol === 'http')) {
+           if (in_array($variant, ['file_get_contents', 'fopen']) &&
+                (empty($protocol) || in_array($protocol, ['http', 'https', 'ftp', 'ftps']))) {
                 $addresses["server.io.net.url"] = $hook->args[0];
 
            }

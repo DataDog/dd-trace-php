@@ -56,19 +56,45 @@ final class FilesystemTest extends AppsecTestCase
         $this->assertEvent('file://'. $file, $traces);
     }
 
-    public function testHttpProtocol()
+    public function raspProtocols()
     {
-        $file = 'http://example.com';
-        $traces = $this->tracesFromWebRequest(function () use ($file) {
-            $response = $this->call(GetSpec::create('Root', '/?function=fopen&path='.$file));
+        return [
+            ['http'],
+            ['https'],
+            ['ftp'],
+            ['ftps']
+        ];
+    }
+
+    /**
+    * @dataProvider raspProtocols
+    */
+    public function testRaspProtocols($protocol)
+    {
+        $url = $protocol.'://example.com';
+        $traces = $this->tracesFromWebRequest(function () use ($url) {
+            $response = $this->call(GetSpec::create('Root', '/?function=fopen&path='.$url));
             TestCase::assertSame('OK', $response);
         });
 
        $events = AppsecStatus::getInstance()->getEvents();
        $this->assertEquals(1, count($events));
-       $this->assertEquals($file, $events[0][0]["server.io.net.url"]);
+       $this->assertEquals(1, count($events[0][0]));
+       $this->assertEquals($url, $events[0][0]["server.io.net.url"]);
        $this->assertEquals('push_addresses', $events[0]['eventName']);
        $this->assertTrue($events[0]['rasp']);
+    }
+
+    public function testInvalidProtocol()
+    {
+        $url = 'bad://example.com';
+        $traces = $this->tracesFromWebRequest(function () use ($url) {
+            $response = $this->call(GetSpec::create('Root', '/?function=fopen&path='.$url));
+            TestCase::assertSame('OK', $response);
+        });
+
+       $events = AppsecStatus::getInstance()->getEvents();
+       $this->assertEquals(0, count($events));
     }
 
     public function testFilePutContents()
