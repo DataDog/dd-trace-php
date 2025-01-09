@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5edec61a2b1ae22c8473ffbd3c509df6196abbae */
+ * Stub hash: e4782a26de2e0c653351fbb34417f11d2406c67a */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -258,11 +258,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_function arginfo_DDTrace_trace_function
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_method, 0, 3, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, methodName, IS_STRING, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, tracingClosureOrConfigArray, Closure, MAY_BE_ARRAY|MAY_BE_NULL, NULL)
-ZEND_END_ARG_INFO()
+#define arginfo_dd_trace_method arginfo_DDTrace_trace_method
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_untrace, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, functionName, IS_STRING, 0)

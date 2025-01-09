@@ -1102,7 +1102,7 @@ namespace {
     function dd_trace_method(
         string $className,
         string $methodName,
-        \Closure|array|null $tracingClosureOrConfigArray
+        null|\Closure|array $tracingClosureOrConfigArray
     ): bool {}
 
     /**
