@@ -33,8 +33,7 @@ public:
 
     [[nodiscard]] std::unordered_set<product> get_supported_products() override
     {
-        return {known_products::ASM, known_products::ASM_DD,
-            known_products::ASM_DATA, known_products::ASM_RASP_LFI};
+        return {known_products::ASM, known_products::ASM_DD, known_products::ASM_DATA};
     }
 
 protected:
