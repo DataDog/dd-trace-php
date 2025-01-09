@@ -1,5 +1,0 @@
-name: 'Update test 0'
-type: module
-description: 'Support module for update testing.'
-package: Testing
-version: VERSION

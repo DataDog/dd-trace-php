@@ -22,6 +22,11 @@ final class NetteTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'nette/application';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

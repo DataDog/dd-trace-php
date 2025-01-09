@@ -14,6 +14,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Roadrunner/Version_2/worker.php';
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'spiral/roadrunner-http';
+    }
+
     protected static function getRoadrunnerVersion()
     {
         return "2.11.4";

@@ -1,7 +1,0 @@
-name: 'RESTful Web Services'
-type: module
-description: 'Provides a framework for exposing REST resources.'
-package: Web services
-version: VERSION
-dependencies:
-  - drupal:serialization

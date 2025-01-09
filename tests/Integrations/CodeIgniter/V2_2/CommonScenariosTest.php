@@ -23,6 +23,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'codeigniter';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '2.2.6';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

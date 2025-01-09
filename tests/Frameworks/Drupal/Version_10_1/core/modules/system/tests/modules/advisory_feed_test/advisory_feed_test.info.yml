@@ -1,4 +1,0 @@
-name: 'Advisory feed test'
-type: module
-description: 'Support module for advisory feed testing.'
-package: Testing

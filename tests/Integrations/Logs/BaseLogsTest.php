@@ -19,6 +19,11 @@ class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
         shell_exec('rm -f ' . static::logFile());
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'monolog/monolog';
+    }
+
     protected function getTestFileContents(): string
     {
         $filename = static::logFile();

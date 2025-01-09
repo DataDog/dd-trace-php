@@ -16,4 +16,9 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Laravel\V5_7\Commo
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
+
+    protected static function getTestedLibrary()
+    {
+        return 'laravel/framework';
+    }
 }

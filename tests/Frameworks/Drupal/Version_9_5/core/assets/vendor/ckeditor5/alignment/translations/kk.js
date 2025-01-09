@@ -1,1 +1,0 @@
-!function(n){const i=n.kk=n.kk||{};i.dictionary=Object.assign(i.dictionary||{},{"Align center":"Ортадан туралау","Align left":"Солға туралау","Align right":"Оңға туралау",Justify:"","Text alignment":"Мәтінді туралау","Text alignment toolbar":"Мәтінді туралау құралдар тақтасы"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

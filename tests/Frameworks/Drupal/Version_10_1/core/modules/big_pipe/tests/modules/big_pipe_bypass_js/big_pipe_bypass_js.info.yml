@@ -1,5 +1,0 @@
-name: 'BigPipe bypass JS'
-type: module
-description: 'Prevents the loading of Big Pipe JavaScript. Used for testing preview templates.'
-package: Testing
-version: VERSION

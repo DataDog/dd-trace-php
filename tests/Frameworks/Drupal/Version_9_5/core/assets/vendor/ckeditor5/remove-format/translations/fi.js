@@ -1,1 +1,0 @@
-!function(i){const o=i.fi=i.fi||{};o.dictionary=Object.assign(o.dictionary||{},{"Remove Format":"Poista muotoilu"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

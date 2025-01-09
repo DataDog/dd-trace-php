@@ -1,1 +1,0 @@
-!function(n){const i=n.he=n.he||{};i.dictionary=Object.assign(i.dictionary||{},{"Insert code block":"הוספת קטע קוד","Plain text":"טקסט פשוט"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

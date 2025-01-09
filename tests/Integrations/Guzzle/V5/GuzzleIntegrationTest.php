@@ -54,6 +54,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         ];
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'guzzlehttp/guzzle';
+    }
+
     /**
      * @dataProvider providerHttpMethods
      */

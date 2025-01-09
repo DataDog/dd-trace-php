@@ -2,9 +2,16 @@
 
 This guide provides step-by-step instructions to set up the Drupal Test Framework for your project. Follow these procedures to ensure a smooth testing environment and accurate test results.
 
+## Create the test framework
+
+Adjust and run the following command to create the test framework:
+```bash
+composer create-project drupal/recommended-project:^<major_version> Version_<major_version>
+```
+
 ## Adjust `REQUIREMENT_ERROR` in `*.install` Files
 
-Replace instances of `REQUIREMENT_ERROR` with `REQUIREMENT_WARNING` in any `*.install` files that require the `gd` library. Alternatively, you can comment out the requirement altogether. Note that using `--ignore-platform-reqs` during composer update is crucial to prevent Drupal from mandating the `gd` library.
+Replace all instances of `REQUIREMENT_ERROR` with `REQUIREMENT_WARNING` in any `*.install` files.
 
 ## Configure Default Database Driver
 
@@ -13,7 +20,20 @@ Modify the library `/Drupal/Core/Command/InstallCommand::install` for the `mysql
 'install_settings_form' => [
     'driver' => 'mysql',
     'mysql' => [
-        'database' => 'test',
+        'database' => 'drupal<version>',
+        'username' => 'test',
+        'password' => 'test',
+        'host' => 'mysql_integration',
+        'prefix' => '',
+        ],
+    ]
+```
+Don't forget to modify the version. Additionally, newest versions of Drupal use the following format:
+```php
+'install_settings_form' => [
+    'driver' => $mysqlDriverNamespace,
+    $mysqlDriverNamespace => [
+        'database' => 'drupal<version>',
         'username' => 'test',
         'password' => 'test',
         'host' => 'mysql_integration',
@@ -29,6 +49,15 @@ Modify the MySQL version in the `Drupal\mysql\Driver\Database\mysql\Install\Task
 ## Utilize `erase_drupal_db.php` Script
 
 Integrate the `erase_drupal_db.php` script by running it in the `post-update-cmd` section of the root `composer.json`.
+Replace by the correct `drupal<version>` database.
+
+```json
+"scripts": {
+  "post-update-cmd": [
+    "chmod a+w web/sites/default && rm -rf web/sites/default/files && rm -f web/sites/default/settings.php && php scripts/erase_drupal_db.php && php web/core/scripts/drupal install minimal"
+  ]
+},
+```
 
 ## Remove Cache Dependencies
 
@@ -40,7 +69,7 @@ Incorporate the custom Datadog modules located in the `modules/` directory. Add 
 
 ## Modify `Makefile`
 
-The `test_web_drupal_XX` should perform a `composer update` on the root of the framework's directory and in the `/core` directory.
+The `test_web_drupal_XX` should perform a `composer update` on the composer file located under the `/web` directory.
 
 ## (Optional) Additional Steps for Generating Snapshots with SQL Spans
 

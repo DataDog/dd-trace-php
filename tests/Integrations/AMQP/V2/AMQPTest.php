@@ -13,6 +13,11 @@ class AMQPTest extends IntegrationTestCase
 {
     protected static $lockedResource = "amqp";
 
+    protected static function getTestedLibrary()
+    {
+        return 'php-amqplib/php-amqplib';
+    }
+
     /**
      * @return AMQPStreamConnection
      */

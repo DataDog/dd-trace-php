@@ -1,1 +1,0 @@
-!function(o){const i=o.ko=o.ko||{};i.dictionary=Object.assign(i.dictionary||{},{Source:"소스"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

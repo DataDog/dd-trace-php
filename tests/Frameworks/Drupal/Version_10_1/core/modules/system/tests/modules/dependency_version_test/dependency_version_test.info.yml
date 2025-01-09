@@ -1,5 +1,0 @@
-name: 'Dependency version test'
-type: module
-description: 'Support module for version comparison checks.'
-package: Testing
-version: VERSION

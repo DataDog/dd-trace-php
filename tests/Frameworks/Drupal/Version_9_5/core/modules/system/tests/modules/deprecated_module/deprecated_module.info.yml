@@ -1,7 +1,0 @@
-name: Deprecated module
-type: module
-description: 'Deprecated module'
-package: Testing
-version: VERSION
-lifecycle: deprecated
-lifecycle_link: 'http://example.com/deprecated'

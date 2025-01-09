@@ -19,6 +19,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_20']);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'laminas/laminas-mvc';
+    }
+
     public function testScenarioGetReturnString()
     {
         $this->tracesFromWebRequestSnapshot(function () {

@@ -1,5 +1,0 @@
-position.shim.test:
-  version: VERSION
-  css:
-    component:
-      css/position.shim.test.css: {}

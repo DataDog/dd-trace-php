@@ -1,1 +1,0 @@
-!function(t){const i=t.sk=t.sk||{};i.dictionary=Object.assign(i.dictionary||{},{"Insert code block":"Vložte blok kódu","Plain text":"Čistý text"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

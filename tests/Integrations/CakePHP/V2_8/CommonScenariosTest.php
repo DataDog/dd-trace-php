@@ -14,6 +14,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_2_8/app/webroot/index.php';
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'cakephp/cakephp';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [

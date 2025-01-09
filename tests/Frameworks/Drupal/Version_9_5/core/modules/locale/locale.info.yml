@@ -1,9 +1,0 @@
-name: 'Interface Translation'
-type: module
-description: 'Translates the built-in user interface.'
-configure: locale.translate_page
-package: Multilingual
-version: VERSION
-dependencies:
-  - drupal:language
-  - drupal:file

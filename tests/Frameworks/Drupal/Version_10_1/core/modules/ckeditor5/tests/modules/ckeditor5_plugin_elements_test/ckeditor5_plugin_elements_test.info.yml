@@ -1,6 +1,0 @@
-name: CKEditor 5 Plugin Elements Test
-type: module
-description: "Provides test plugins for CKEditor 5 to test allowed elements parsing."
-package: Testing
-dependencies:
-  - ckeditor5:ckeditor5

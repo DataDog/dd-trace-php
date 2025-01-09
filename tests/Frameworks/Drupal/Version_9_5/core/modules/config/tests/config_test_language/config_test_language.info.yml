@@ -1,6 +1,0 @@
-name: 'Configuration test languages'
-type: module
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:config_test

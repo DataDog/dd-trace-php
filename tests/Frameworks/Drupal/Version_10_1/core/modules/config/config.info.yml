@@ -1,6 +1,0 @@
-name: 'Configuration Manager'
-type: module
-description: 'Allows importing and exporting configuration changes.'
-package: Core
-version: VERSION
-configure: config.sync

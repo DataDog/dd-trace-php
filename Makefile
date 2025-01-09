@@ -518,6 +518,11 @@ generate_stubs:
 	@composer -dtooling/stubs update
 	@composer -dtooling/stubs generate
 
+tested_versions:
+	@composer -dtooling/tested_versions generate
+	mkdir -p /tmp/artifacts
+	cp tests/tested_versions/tested_versions.json /tmp/artifacts/tested_versions.json
+
 # Find all generated core dumps, sorted by date descending
 cores:
 	find . -path "./*/vendor" -prune -false -o \( -type f -regex ".*\/core\.?[0-9]*" \) -printf "%T@ %Tc %p\n" | sort -n -r
@@ -666,7 +671,7 @@ TEST_WEB_72 := \
 	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_89 \
+	test_web_drupal_8 \
 	test_web_laravel_42 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -725,7 +730,7 @@ TEST_WEB_73 := \
 	test_web_cakephp_310 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_89 \
+	test_web_drupal_8 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -787,8 +792,8 @@ TEST_WEB_74 := \
 	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_89 \
-	test_web_drupal_95 \
+	test_web_drupal_8 \
+	test_web_drupal_9 \
 	test_web_laminas_14 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
@@ -843,7 +848,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
+	test_integrations_swoole \
 	test_opentracing_10
 
 TEST_WEB_80 := \
@@ -851,7 +856,7 @@ TEST_WEB_80 := \
 	test_web_cakephp_45 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_95 \
+	test_web_drupal_9 \
 	test_web_laminas_rest_19 \
 	test_web_laminas_14 \
 	test_web_laminas_20 \
@@ -897,7 +902,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis1 \
 	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
+	test_integrations_swoole \
 	test_opentracing_10
 
 TEST_WEB_81 := \
@@ -906,8 +911,8 @@ TEST_WEB_81 := \
 	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_95 \
-	test_web_drupal_101 \
+	test_web_drupal_9 \
+	test_web_drupal_10 \
 	test_web_laminas_rest_19 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
@@ -955,7 +960,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
+	test_integrations_swoole \
 	test_opentracing_10
 
 TEST_WEB_82 := \
@@ -964,8 +969,8 @@ TEST_WEB_82 := \
 	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_95 \
-	test_web_drupal_101 \
+	test_web_drupal_9 \
+	test_web_drupal_10 \
 	test_web_laminas_rest_19 \
 	test_web_laminas_20 \
 	test_web_laravel_8x \
@@ -1018,7 +1023,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
+	test_integrations_swoole \
 	test_opentracing_10
 
 TEST_WEB_83 := \
@@ -1027,7 +1032,9 @@ TEST_WEB_83 := \
 	test_web_cakephp_50 \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
-	test_web_drupal_95 \
+	test_web_drupal_9 \
+	test_web_drupal_10 \
+	test_web_drupal_11 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
@@ -1295,7 +1302,7 @@ test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 	$(eval TEST_EXTRA_INI=)
-test_integrations_swoole_5: global_test_run_dependencies
+test_integrations_swoole: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
@@ -1309,12 +1316,14 @@ test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_codeigniter_31: global_test_run_dependencies tests/Frameworks/CodeIgniter/Version_3_1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=codeigniter-31-test)
-test_web_drupal_89: global_test_run_dependencies tests/Frameworks/Drupal/Version_8_9/core/composer.lock-php tests/Frameworks/Drupal/Version_8_9/composer.lock-php
-	$(call run_tests_debug,tests/Integrations/Drupal/V8_9)
-test_web_drupal_95: global_test_run_dependencies tests/Frameworks/Drupal/Version_9_5/core/composer.lock-php tests/Frameworks/Drupal/Version_9_5/composer.lock-php
-	$(call run_tests_debug,tests/Integrations/Drupal/V9_5)
-test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Version_10_1/core/composer.lock-php tests/Frameworks/Drupal/Version_10_1/composer.lock-php
-	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
+test_web_drupal_8: global_test_run_dependencies tests/Frameworks/Drupal/Version_8/composer.lock-php
+	$(call run_tests_debug,tests/Integrations/Drupal/V8)
+test_web_drupal_9: global_test_run_dependencies tests/Frameworks/Drupal/Version_9/composer.lock-php
+	$(call run_tests_debug,tests/Integrations/Drupal/V9)
+test_web_drupal_10: global_test_run_dependencies tests/Frameworks/Drupal/Version_10/composer.lock-php
+	$(call run_tests_debug,tests/Integrations/Drupal/V10)
+test_web_drupal_11: global_test_run_dependencies tests/Frameworks/Drupal/Version_11/composer.lock-php
+	$(call run_tests_debug,tests/Integrations/Drupal/V11)
 test_web_laminas_rest_19: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Version_1_9/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
 test_web_laminas_14: global_test_run_dependencies tests/Frameworks/Laminas/Version_1_4/composer.lock-php$(PHP_MAJOR_MINOR)

@@ -38,6 +38,25 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'swoole';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        $output = [];
+        $returnVar = 0;
+        $command = "php -dextension=swoole.so -r \"echo phpversion('swoole');\";";
+        exec($command, $output, $returnVar);
+
+        if ($returnVar !== 0) {
+            return null;
+        }
+
+        return preg_replace('/^(\d+\.\d+\.\d+).*/', '$1', trim($output[0]));
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

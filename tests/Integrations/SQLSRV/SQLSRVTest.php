@@ -61,6 +61,11 @@ class SQLSRVTest extends IntegrationTestCase
         ];
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'ext-sqlsrv';
+    }
+
     public function testConnectOk()
     {
         $traces = $this->isolateTracer(function () {

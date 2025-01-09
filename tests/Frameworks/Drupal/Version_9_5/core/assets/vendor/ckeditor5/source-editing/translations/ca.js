@@ -1,1 +1,0 @@
-!function(n){const c=n.ca=n.ca||{};c.dictionary=Object.assign(c.dictionary||{},{Source:"Font"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

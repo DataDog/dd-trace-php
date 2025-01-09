@@ -1,7 +1,0 @@
-name: 'Views Test Render Cache'
-type: module
-description: 'Provides routes for testing render cache.'
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:views

@@ -1,1 +1,0 @@
-!function(t){const s=t.ur=t.ur||{};s.dictionary=Object.assign(s.dictionary||{},{"Block styles":"خانہ کے انداز","Multiple styles":"متعدد انداز",Styles:"انداز","Text styles":"متن کے انداز"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

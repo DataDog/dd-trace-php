@@ -42,6 +42,11 @@ class MessengerTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'symfony/messenger';
+    }
+
     public function testAsyncSuccess()
     {
         $this->tracesFromWebRequestSnapshot(function () {

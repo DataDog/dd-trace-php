@@ -1,1 +1,0 @@
-!function(t){const i=t.fi=t.fi||{};i.dictionary=Object.assign(i.dictionary||{},{"Block styles":"Lohkotyylit","Multiple styles":"Useita tyylejä",Styles:"Tyylit","Text styles":"Tekstityylit"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

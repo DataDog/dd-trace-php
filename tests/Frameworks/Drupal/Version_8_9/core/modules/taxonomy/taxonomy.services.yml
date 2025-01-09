@@ -1,6 +1,0 @@
-services:
-  taxonomy_term.breadcrumb:
-    class: Drupal\taxonomy\TermBreadcrumbBuilder
-    arguments: ['@entity_type.manager', '@entity.repository']
-    tags:
-      - { name: breadcrumb_builder, priority: 1002 }

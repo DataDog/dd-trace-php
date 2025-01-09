@@ -1,1 +1,0 @@
-!function(o){const i=o.ro=o.ro||{};i.dictionary=Object.assign(i.dictionary||{},{"Remove Format":"Șterge formatare"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

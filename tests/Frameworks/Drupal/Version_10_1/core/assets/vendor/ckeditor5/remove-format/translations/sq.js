@@ -1,1 +1,0 @@
-!function(i){const o=i.sq=i.sq||{};o.dictionary=Object.assign(o.dictionary||{},{"Remove Format":"Largo formatimin"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

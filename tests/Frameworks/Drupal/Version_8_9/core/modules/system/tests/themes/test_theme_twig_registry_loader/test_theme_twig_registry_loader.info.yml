@@ -1,6 +1,0 @@
-name: 'Twig registry loader test'
-type: theme
-base theme: stable
-description: 'Support module for Twig registry loader testing.'
-version: VERSION
-core: 8.x

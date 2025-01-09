@@ -1,7 +1,0 @@
-name: "Content Block module tests"
-type: module
-description: "Support module for content block related testing."
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:block_content

@@ -13,6 +13,21 @@ class CommonScenariosTest extends IntegrationTestCase
         return __DIR__ . '/../../../../Frameworks/Symfony/Version_4_4/bin/console';
     }
 
+    protected static function getTestedVersion($testedLibrary)
+    {
+        $workingDir = __DIR__ . '/../../../../Frameworks/Symfony/Version_4_4/';
+        $output = [];
+        $returnVar = 0;
+        $command = "composer show symfony/console --working-dir=$workingDir | sed -n '/versions/s/^[^0-9]\+\([^,]\+\).*$/\\1/p'";
+        exec($command, $output, $returnVar);
+
+        if ($returnVar !== 0) {
+            return null;
+        }
+
+        return trim($output[0]);
+    }
+
     public function testThrowCommand()
     {
         list($traces) = $this->inCli(self::getConsoleScript(), [

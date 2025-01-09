@@ -1,8 +1,0 @@
-status: false
-dependencies:
-  module:
-    - entity_test
-id: entity_test.test
-label: Test
-targetEntityType: entity_test
-cache: false

@@ -19,6 +19,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return true;
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'laravel/octane';
+    }
+
     public static function ddSetUpBeforeClass()
     {
         $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');

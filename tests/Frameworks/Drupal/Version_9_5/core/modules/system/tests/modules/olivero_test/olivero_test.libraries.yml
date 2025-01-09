@@ -1,5 +1,0 @@
-log-errors:
-  js:
-    js/log-errors.js: { weight: -15 }
-  dependencies:
-    - core/drupal

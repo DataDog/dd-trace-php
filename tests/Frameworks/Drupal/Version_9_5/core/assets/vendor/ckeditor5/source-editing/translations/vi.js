@@ -1,1 +1,0 @@
-!function(i){const n=i.vi=i.vi||{};n.dictionary=Object.assign(n.dictionary||{},{Source:"Nguồn"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

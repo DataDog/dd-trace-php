@@ -14,6 +14,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_2_8/web/app.php';
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [

@@ -1,1 +1,0 @@
-!function(n){const o=n.ms=n.ms||{};o.dictionary=Object.assign(o.dictionary||{},{"Remove Format":"Buang Format"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

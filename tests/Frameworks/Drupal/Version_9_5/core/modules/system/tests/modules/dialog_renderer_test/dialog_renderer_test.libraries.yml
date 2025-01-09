@@ -1,4 +1,0 @@
-dialog_test:
-  css:
-    theme:
-      css/dialog-test.css: {}

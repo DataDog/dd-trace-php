@@ -1,0 +1,464 @@
+[[
+  {
+    "name": "drupal.request",
+    "service": "test_drupal_11",
+    "resource": "GET /does_not_exist",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 13289838967107163636,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "677f9a7300000000",
+      "component": "drupal",
+      "http.method": "GET",
+      "http.status_code": "404",
+      "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
+      "runtime-id": "5e15eba5-5648-4b98-b8a7-001d3399c3b7",
+      "span.kind": "server",
+      "symfony.route.action": "Drupal\\system\\Controller\\Http4xxController@on404"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "drupal.kernel.handle",
+       "service": "test_drupal_11",
+       "resource": "drupal.kernel.handle",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "drupal",
+         "span.kind": "server"
+       }
+     },
+        {
+          "name": "drupal.kernel.boot",
+          "service": "test_drupal_11",
+          "resource": "drupal.kernel.boot",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "drupal"
+          }
+        },
+        {
+          "name": "drupal.httpkernel.handle",
+          "service": "test_drupal_11",
+          "resource": "drupal.httpkernel.handle",
+          "trace_id": 0,
+          "span_id": 6,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "drupal"
+          }
+        },
+           {
+             "name": "symfony.kernel.handle",
+             "service": "test_drupal_11",
+             "resource": "symfony.kernel.handle",
+             "trace_id": 0,
+             "span_id": 7,
+             "parent_id": 6,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+              {
+                "name": "symfony.kernel.request",
+                "service": "test_drupal_11",
+                "resource": "symfony.kernel.request",
+                "trace_id": 0,
+                "span_id": 8,
+                "parent_id": 7,
+                "type": "web",
+                "error": 1,
+                "meta": {
+                  "component": "symfony",
+                  "error.message": "Thrown Symfony\\Component\\Routing\\Exception\\ResourceNotFoundException: No routes found for \"/does_not_exist\". in /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/Routing/Router.php:118",
+                  "error.stack": "#0 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/Routing/AccessAwareRouter.php(89): Drupal\\Core\\Routing\\Router->matchRequest()\n#1 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/http-kernel/EventListener/RouterListener.php(101): Drupal\\Core\\Routing\\AccessAwareRouter->matchRequest()\n#2 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/event-dispatcher/EventDispatcher.php(246): Symfony\\Component\\HttpKernel\\EventListener\\RouterListener->onKernelRequest()\n#3 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/event-dispatcher/EventDispatcher.php(206): Symfony\\Component\\EventDispatcher\\EventDispatcher::Symfony\\Component\\EventDispatcher\\{closure}()\n#4 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/event-dispatcher/EventDispatcher.php(56): Symfony\\Component\\EventDispatcher\\EventDispatcher->callListeners()\n#5 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/http-kernel/HttpKernel.php(159): Symfony\\Component\\EventDispatcher\\EventDispatcher->dispatch()\n#6 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/http-kernel/HttpKernel.php(76): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#7 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/Session.php(53): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#8 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/KernelPreHandle.php(48): Drupal\\Core\\StackMiddleware\\Session->handle()\n#9 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/ContentLength.php(28): Drupal\\Core\\StackMiddleware\\KernelPreHandle->handle()\n#10 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/ReverseProxyMiddleware.php(48): Drupal\\Core\\StackMiddleware\\ContentLength->handle()\n#11 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/NegotiationMiddleware.php(51): Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware->handle()\n#12 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/AjaxPageState.php(36): Drupal\\Core\\StackMiddleware\\NegotiationMiddleware->handle()\n#13 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/StackedHttpKernel.php(51): Drupal\\Core\\StackMiddleware\\AjaxPageState->handle()\n#14 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/DrupalKernel.php(709): Drupal\\Core\\StackMiddleware\\StackedHttpKernel->handle()\n#15 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/index.php(19): Drupal\\Core\\DrupalKernel->handle()\n#16 {main}\n\nNext Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException: No route found for \"GET http://localhost/does_not_exist\" in /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/http-kernel/EventListener/RouterListener.php:149\nStack trace:\n#0 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/event-dispatcher/EventDispatcher.php(246): Symfony\\Component\\HttpKernel\\EventListener\\RouterListener->onKernelRequest()\n#1 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/event-dispatcher/EventDispatcher.php(206): Symfony\\Component\\EventDispatcher\\EventDispatcher::Symfony\\Component\\EventDispatcher\\{closure}()\n#2 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/event-dispatcher/EventDispatcher.php(56): Symfony\\Component\\EventDispatcher\\EventDispatcher->callListeners()\n#3 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/http-kernel/HttpKernel.php(159): Symfony\\Component\\EventDispatcher\\EventDispatcher->dispatch()\n#4 /home/circleci/app/tests/Frameworks/Drupal/Version_11/vendor/symfony/http-kernel/HttpKernel.php(76): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#5 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/Session.php(53): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#6 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/KernelPreHandle.php(48): Drupal\\Core\\StackMiddleware\\Session->handle()\n#7 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/ContentLength.php(28): Drupal\\Core\\StackMiddleware\\KernelPreHandle->handle()\n#8 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/ReverseProxyMiddleware.php(48): Drupal\\Core\\StackMiddleware\\ContentLength->handle()\n#9 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/NegotiationMiddleware.php(51): Drupal\\Core\\StackMiddleware\\ReverseProxyMiddleware->handle()\n#10 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/AjaxPageState.php(36): Drupal\\Core\\StackMiddleware\\NegotiationMiddleware->handle()\n#11 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/StackMiddleware/StackedHttpKernel.php(51): Drupal\\Core\\StackMiddleware\\AjaxPageState->handle()\n#12 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/core/lib/Drupal/Core/DrupalKernel.php(709): Drupal\\Core\\StackMiddleware\\StackedHttpKernel->handle()\n#13 /home/circleci/app/tests/Frameworks/Drupal/Version_11/web/index.php(19): Drupal\\Core\\DrupalKernel->handle()\n#14 {main}",
+                  "error.type": "Symfony\\Component\\Routing\\Exception\\ResourceNotFoundException"
+                }
+              },
+              {
+                "name": "symfony.kernel.handleException",
+                "service": "test_drupal_11",
+                "resource": "symfony.kernel.handleException",
+                "trace_id": 0,
+                "span_id": 9,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+                 {
+                   "name": "symfony.kernel.exception",
+                   "service": "test_drupal_11",
+                   "resource": "symfony.kernel.exception",
+                   "trace_id": 0,
+                   "span_id": 10,
+                   "parent_id": 9,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                    {
+                      "name": "symfony.kernel.request",
+                      "service": "test_drupal_11",
+                      "resource": "symfony.kernel.request",
+                      "trace_id": 0,
+                      "span_id": 13,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                    {
+                      "name": "symfony.kernel.controller",
+                      "service": "test_drupal_11",
+                      "resource": "symfony.kernel.controller",
+                      "trace_id": 0,
+                      "span_id": 14,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                    {
+                      "name": "symfony.kernel.controller_arguments",
+                      "service": "test_drupal_11",
+                      "resource": "symfony.kernel.controller_arguments",
+                      "trace_id": 0,
+                      "span_id": 15,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                    {
+                      "name": "symfony.controller",
+                      "service": "test_drupal_11",
+                      "resource": "Drupal\\system\\Controller\\Http4xxController::on404",
+                      "trace_id": 0,
+                      "span_id": 16,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                    {
+                      "name": "symfony.kernel.view",
+                      "service": "test_drupal_11",
+                      "resource": "Drupal\\Core\\Render\\MainContent\\HtmlRenderer",
+                      "trace_id": 0,
+                      "span_id": 17,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                       {
+                         "name": "symfony.render.page_display_variant.select",
+                         "service": "test_drupal_11",
+                         "resource": "symfony.render.page_display_variant.select",
+                         "trace_id": 0,
+                         "span_id": 20,
+                         "parent_id": 17,
+                         "type": "web",
+                         "meta": {
+                           "component": "symfony"
+                         }
+                       },
+                       {
+                         "name": "drupal.theme.render",
+                         "service": "test_drupal_11",
+                         "resource": "html",
+                         "trace_id": 0,
+                         "span_id": 21,
+                         "parent_id": 17,
+                         "type": "web",
+                         "meta": {
+                           "component": "drupal",
+                           "drupal.render.element": "html",
+                           "drupal.render.engine": "twig",
+                           "drupal.render.hook": "html",
+                           "drupal.render.theme": "stark",
+                           "drupal.render.type": "module",
+                           "drupal.template.file": "core/modules/system/templates/html.html.twig",
+                           "drupal.template.template": "html"
+                         }
+                       },
+                          {
+                            "name": "drupal.theme.render",
+                            "service": "test_drupal_11",
+                            "resource": "page",
+                            "trace_id": 0,
+                            "span_id": 22,
+                            "parent_id": 21,
+                            "type": "web",
+                            "meta": {
+                              "component": "drupal",
+                              "drupal.render.element": "page",
+                              "drupal.render.engine": "twig",
+                              "drupal.render.hook": "page",
+                              "drupal.render.theme": "stark",
+                              "drupal.render.type": "module",
+                              "drupal.template.file": "core/modules/system/templates/page.html.twig",
+                              "drupal.template.template": "page"
+                            }
+                          },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "block",
+                               "trace_id": 0,
+                               "span_id": 24,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "block",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/system/templates/block--system-branding-block.html.twig",
+                                 "drupal.template.template": "block"
+                               }
+                             },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "region",
+                               "trace_id": 0,
+                               "span_id": 25,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "region",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                                 "drupal.template.template": "region"
+                               }
+                             },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "block",
+                               "trace_id": 0,
+                               "span_id": 26,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "block",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/system/templates/block--system-messages-block.html.twig",
+                                 "drupal.template.template": "block"
+                               }
+                             },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "region",
+                               "trace_id": 0,
+                               "span_id": 27,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "region",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                                 "drupal.template.template": "region"
+                               }
+                             },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "block",
+                               "trace_id": 0,
+                               "span_id": 28,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "block",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/block/templates/block.html.twig",
+                                 "drupal.template.template": "block"
+                               }
+                             },
+                                {
+                                  "name": "drupal.theme.render",
+                                  "service": "test_drupal_11",
+                                  "resource": "page_title",
+                                  "trace_id": 0,
+                                  "span_id": 31,
+                                  "parent_id": 28,
+                                  "type": "web",
+                                  "meta": {
+                                    "component": "drupal",
+                                    "drupal.render.engine": "twig",
+                                    "drupal.render.hook": "page_title",
+                                    "drupal.render.theme": "stark",
+                                    "drupal.render.type": "module",
+                                    "drupal.template.file": "core/modules/system/templates/page-title.html.twig",
+                                    "drupal.template.template": "page-title"
+                                  }
+                                },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "region",
+                               "trace_id": 0,
+                               "span_id": 29,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "region",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                                 "drupal.template.template": "region"
+                               }
+                             },
+                             {
+                               "name": "drupal.theme.render",
+                               "service": "test_drupal_11",
+                               "resource": "region",
+                               "trace_id": 0,
+                               "span_id": 30,
+                               "parent_id": 22,
+                               "type": "web",
+                               "meta": {
+                                 "component": "drupal",
+                                 "drupal.render.element": "elements",
+                                 "drupal.render.engine": "twig",
+                                 "drupal.render.hook": "region",
+                                 "drupal.render.theme": "stark",
+                                 "drupal.render.type": "module",
+                                 "drupal.template.file": "core/modules/system/templates/region.html.twig",
+                                 "drupal.template.template": "region"
+                               }
+                             },
+                          {
+                            "name": "drupal.theme.render",
+                            "service": "test_drupal_11",
+                            "resource": "off_canvas_page_wrapper",
+                            "trace_id": 0,
+                            "span_id": 23,
+                            "parent_id": 21,
+                            "type": "web",
+                            "meta": {
+                              "component": "drupal",
+                              "drupal.render.engine": "twig",
+                              "drupal.render.hook": "off_canvas_page_wrapper",
+                              "drupal.render.theme": "stark",
+                              "drupal.render.type": "module",
+                              "drupal.template.file": "core/modules/system/templates/off-canvas-page-wrapper.html.twig",
+                              "drupal.template.template": "off-canvas-page-wrapper"
+                            }
+                          },
+                    {
+                      "name": "symfony.kernel.response",
+                      "service": "test_drupal_11",
+                      "resource": "symfony.kernel.response",
+                      "trace_id": 0,
+                      "span_id": 18,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                    {
+                      "name": "symfony.kernel.finish_request",
+                      "service": "test_drupal_11",
+                      "resource": "symfony.kernel.finish_request",
+                      "trace_id": 0,
+                      "span_id": 19,
+                      "parent_id": 10,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                 {
+                   "name": "symfony.kernel.response",
+                   "service": "test_drupal_11",
+                   "resource": "symfony.kernel.response",
+                   "trace_id": 0,
+                   "span_id": 11,
+                   "parent_id": 9,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.finish_request",
+                   "service": "test_drupal_11",
+                   "resource": "symfony.kernel.finish_request",
+                   "trace_id": 0,
+                   "span_id": 12,
+                   "parent_id": 9,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+     {
+       "name": "symfony.response.send",
+       "service": "test_drupal_11",
+       "resource": "symfony.response.send",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "drupal"
+       }
+     },
+     {
+       "name": "symfony.kernel.terminate",
+       "service": "test_drupal_11",
+       "resource": "symfony.kernel.terminate",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony"
+       }
+     }]]

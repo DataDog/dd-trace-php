@@ -1,1 +1,0 @@
-!function(s){const t=s["en-au"]=s["en-au"]||{};t.dictionary=Object.assign(t.dictionary||{},{"Block styles":"Block styles","Multiple styles":"Multiple styles",Styles:"Styles","Text styles":"Text styles"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

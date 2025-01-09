@@ -1,8 +1,0 @@
-name: Statistics
-type: module
-description: 'Logs how many times content is viewed.'
-package: Core
-version: VERSION
-configure: statistics.settings
-dependencies:
-  - drupal:node

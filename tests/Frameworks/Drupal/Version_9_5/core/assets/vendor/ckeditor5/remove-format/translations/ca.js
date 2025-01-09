@@ -1,1 +1,0 @@
-!function(o){const a=o.ca=o.ca||{};a.dictionary=Object.assign(a.dictionary||{},{"Remove Format":"Esborrar el format"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

@@ -1,9 +1,0 @@
-name: 'Text Editor'
-type: module
-description: 'Provides a framework to associate text editors (like WYSIWYGs) and toolbars with text formats.'
-package: Core
-version: VERSION
-dependencies:
-  - drupal:filter
-  - drupal:file
-configure: filter.admin_overview

@@ -1,1 +1,0 @@
-!function(i){const n=i.hr=i.hr||{};n.dictionary=Object.assign(n.dictionary||{},{"Choose language":"Odaberi jezik",Language:"Jezik","Remove language":"Ukloni jezik"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

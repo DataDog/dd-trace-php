@@ -26,6 +26,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return strpos(getenv('DD_TRACE_TEST_SAPI'), 'cgi') === 0;
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'codeigniter';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '3.1.13';
+    }
+
     public function testScenarioGetReturnString()
     {
         $this->tracesFromWebRequestSnapshot(function () {

@@ -29,6 +29,11 @@ class MessengerTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/bin/console';
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'symfony/messenger';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [

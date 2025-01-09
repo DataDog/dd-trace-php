@@ -21,6 +21,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'laravel/lumen-framework';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

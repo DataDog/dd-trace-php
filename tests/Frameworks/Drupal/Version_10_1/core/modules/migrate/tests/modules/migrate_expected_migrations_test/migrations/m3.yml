@@ -1,7 +1,0 @@
-id: m3
-label: "Sample Migration 3"
-source:
-  plugin: empty
-process: {}
-destination:
-  plugin: 'null'

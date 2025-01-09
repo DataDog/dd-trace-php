@@ -1,4 +1,0 @@
-type: theme
-base theme: stable9
-name: 'Test theme with a too long name'
-version: VERSION

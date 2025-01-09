@@ -1,9 +1,0 @@
-first_day: 0
-country:
-  default: ''
-timezone:
-  default: ''
-  user:
-    configurable: true
-    default: 0
-    warn: false

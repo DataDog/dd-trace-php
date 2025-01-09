@@ -1,7 +1,0 @@
-name: 'System project namespace'
-type: module
-description: 'Support module for testing project namespace system dependencies.'
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:filter

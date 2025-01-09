@@ -1,3 +1,0 @@
-# robots.txt fixture scaffolded from "file-mappings" in drupal-drupal-test-append composer.json fixture.
-# This content is prepended to the top of the existing robots.txt fixture.
-# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

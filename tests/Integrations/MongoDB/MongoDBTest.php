@@ -62,6 +62,11 @@ class MongoDBTest extends IntegrationTestCase
         ];
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'mongodb/mongodb';
+    }
+
     public function testFilterNormalizationRegex()
     {
         $expected = [

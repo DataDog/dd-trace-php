@@ -1,1 +1,0 @@
-# robots.txt fixture scaffolded from "file-mappings" in drupal-composer-drupal-project composer.json fixture.

@@ -21,6 +21,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'slim/slim';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

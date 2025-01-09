@@ -1,1 +1,0 @@
-# Test version of robots.txt from drupal/core.

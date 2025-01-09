@@ -1,4 +1,0 @@
-services:
-  shortcut.lazy_builders:
-    class: Drupal\shortcut\ShortcutLazyBuilders
-    arguments: ['@renderer']

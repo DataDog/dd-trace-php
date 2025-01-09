@@ -1,1 +1,0 @@
-!function(n){const i=n.hu=n.hu||{};i.dictionary=Object.assign(i.dictionary||{},{"Horizontal line":"Vízszintes elválasztóvonal"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

@@ -18,6 +18,11 @@ class RESTTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_rest_19']);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'laminas-api-tools/api-tools';
+    }
+
     public function testScenarioRest4xx()
     {
         $this->tracesFromWebRequestSnapshot(function () {

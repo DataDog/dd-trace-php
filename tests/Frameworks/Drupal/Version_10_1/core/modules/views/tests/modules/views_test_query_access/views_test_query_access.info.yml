@@ -1,7 +1,0 @@
-name: 'Views test query access'
-type: module
-description: 'Module to test entity query access in Views.'
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:views

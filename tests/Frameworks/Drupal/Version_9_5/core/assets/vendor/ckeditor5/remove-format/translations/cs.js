@@ -1,1 +1,0 @@
-!function(n){const o=n.cs=n.cs||{};o.dictionary=Object.assign(o.dictionary||{},{"Remove Format":"Odstranit formátování"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

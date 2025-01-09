@@ -1,5 +1,0 @@
-name: 'Test @DataType normalizer'
-type: module
-description: 'Provides test support for @DataType-level normalization.'
-package: Testing
-version: VERSION

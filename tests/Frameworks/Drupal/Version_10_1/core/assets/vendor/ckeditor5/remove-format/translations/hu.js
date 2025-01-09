@@ -1,1 +1,0 @@
-!function(o){const i=o.hu=o.hu||{};i.dictionary=Object.assign(i.dictionary||{},{"Remove Format":"Formázás eltávolítása"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

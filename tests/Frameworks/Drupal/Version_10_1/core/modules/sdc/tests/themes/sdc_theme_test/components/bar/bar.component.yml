@@ -1,2 +1,0 @@
-# YAML linter does not allow empty files, setting it to NULL tests the same.
-null

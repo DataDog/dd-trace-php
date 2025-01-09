@@ -22,6 +22,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'magento/magento2';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '2.4.6';
+    }
+
     public function testScenarioGetReturnString()
     {
         $this->tracesFromWebRequestSnapshot(

@@ -1,1 +1,0 @@
-!function(o){const i=o.hr=o.hr||{};i.dictionary=Object.assign(i.dictionary||{},{"Remove Format":"Ukloni format"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

@@ -1,1 +1,0 @@
-!function(n){const o=n.et=n.et||{};o.dictionary=Object.assign(o.dictionary||{},{"Horizontal line":"Horisontaalne joon"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

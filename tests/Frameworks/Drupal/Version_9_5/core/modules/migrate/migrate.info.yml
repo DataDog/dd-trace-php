@@ -1,5 +1,0 @@
-name: Migrate
-type: module
-description: 'Handles migrations'
-package: Migration
-version: VERSION

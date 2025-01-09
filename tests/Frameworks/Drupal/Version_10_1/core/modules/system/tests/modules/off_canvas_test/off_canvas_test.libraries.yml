@@ -1,5 +1,0 @@
-resize_helper:
-  js:
-    js/resize-helper.js: {}
-  dependencies:
-    - 'core/drupal.dialog.off_canvas'

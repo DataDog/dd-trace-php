@@ -1,7 +1,0 @@
-name: 'Block test'
-type: module
-description: 'Provides test blocks.'
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:block

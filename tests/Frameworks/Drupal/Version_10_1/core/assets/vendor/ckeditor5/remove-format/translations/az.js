@@ -1,1 +1,0 @@
-!function(o){const i=o.az=o.az||{};i.dictionary=Object.assign(i.dictionary||{},{"Remove Format":"Formatı Ləğv Et"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

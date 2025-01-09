@@ -1,1 +1,0 @@
-!function(n){const a=n.ug=n.ug||{};a.dictionary=Object.assign(a.dictionary||{},{"Choose language":"تىل تاللاش",Language:"تىل","Remove language":"تىلنى چىقىرىۋەت"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

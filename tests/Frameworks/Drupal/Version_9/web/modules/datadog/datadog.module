@@ -1,0 +1,12 @@
+<?php
+
+/**
+ * Implements hook_theme()
+ */
+function datadog_theme($existing, $type, $theme, $path) {
+    return [
+        'datadog' => [
+            'variables' => ['test_var' => NULL],
+        ]
+    ];
+}

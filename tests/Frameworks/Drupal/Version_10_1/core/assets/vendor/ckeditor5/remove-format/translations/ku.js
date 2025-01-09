@@ -1,1 +1,0 @@
-!function(i){const n=i.ku=i.ku||{};n.dictionary=Object.assign(n.dictionary||{},{"Remove Format":"لابردنی شێواز"})}(window.CKEDITOR_TRANSLATIONS||(window.CKEDITOR_TRANSLATIONS={}));

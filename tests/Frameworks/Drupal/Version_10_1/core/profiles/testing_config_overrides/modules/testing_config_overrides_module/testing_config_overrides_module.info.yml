@@ -1,4 +1,0 @@
-name: 'Testing config dependencies and optional configuration'
-type: module
-package: Testing
-version: VERSION

@@ -55,6 +55,11 @@ final class PDOTest extends IntegrationTestCase
         ];
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'ext-PDO';
+    }
+
     public function testCustomPDOPrepareWithStringableStatement()
     {
         $query = "SELECT * FROM tests WHERE id = ?";

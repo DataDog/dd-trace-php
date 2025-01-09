@@ -31,6 +31,11 @@ final class PredisTest extends IntegrationTestCase
         parent::ddTearDown();
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'predis/predis';
+    }
+
     public function testPredisIntegrationCreatesSpans()
     {
         $traces = $this->inTestScope('custom_redis.test', function () {

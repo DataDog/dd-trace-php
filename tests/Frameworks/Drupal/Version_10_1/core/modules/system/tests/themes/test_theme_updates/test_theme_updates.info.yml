@@ -1,5 +1,0 @@
-name: Test Theme Updates
-type: theme
-description: A theme that has a post update.
-version: VERSION
-base theme: false

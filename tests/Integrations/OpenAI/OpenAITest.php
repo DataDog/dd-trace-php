@@ -15,6 +15,11 @@ class OpenAITest extends IntegrationTestCase
         parent::ddSetUpBeforeClass();
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'openai-php/client';
+    }
+
     private function checkErrors()
     {
         $diff = file_get_contents(__DIR__ . "/openai.log", false, null, $this->errorLogSize);

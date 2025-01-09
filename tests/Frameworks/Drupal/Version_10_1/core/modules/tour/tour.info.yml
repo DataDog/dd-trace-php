@@ -1,5 +1,0 @@
-name: Tour
-type: module
-description: 'Displays guided tours of the site interface.'
-package: Core
-version: VERSION

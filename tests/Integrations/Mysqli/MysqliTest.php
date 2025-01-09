@@ -36,6 +36,11 @@ class MysqliTest extends IntegrationTestCase
         ];
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'ext-mysqli';
+    }
+
     public function testProceduralConnect()
     {
         $traces = $this->isolateTracer(function () {

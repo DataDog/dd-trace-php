@@ -1,8 +1,0 @@
-name: Options
-type: module
-description: 'Defines field types with select lists, checkboxes, and radio buttons to select values from fixed lists of options.'
-package: Field types
-version: VERSION
-dependencies:
-  - drupal:field
-  - drupal:text

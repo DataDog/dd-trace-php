@@ -1,5 +1,0 @@
-name: 'User permission tests'
-type: module
-description: 'Support module for user permission testing.'
-package: Testing
-version: VERSION

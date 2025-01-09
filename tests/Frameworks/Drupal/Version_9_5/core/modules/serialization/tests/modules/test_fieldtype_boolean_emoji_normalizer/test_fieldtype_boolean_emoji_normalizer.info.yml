@@ -1,5 +1,0 @@
-name: 'Test @FieldType normalizer'
-type: module
-description: 'Provides test support for @FieldType-level normalization.'
-package: Testing
-version: VERSION

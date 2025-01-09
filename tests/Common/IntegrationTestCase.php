@@ -62,6 +62,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
+        static::recordTestedVersion();
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
@@ -90,6 +91,55 @@ abstract class IntegrationTestCase extends BaseTestCase
             \PHPUnit_Framework_Error_Warning::$enabled = false;
         }
         error_reporting(E_ERROR | E_PARSE);
+    }
+
+    protected static function getTestedLibrary()
+    {
+        return null;
+    }
+
+    protected static function recordTestedVersion()
+    {
+        $testedLibrary = static::getTestedLibrary();
+        if (empty($testedLibrary)) {
+            return;
+        }
+
+        $version = static::getTestedVersion($testedLibrary);
+
+        if (empty($version)) {
+            return;
+        }
+
+        static::recordVersion($testedLibrary, $version);
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        if (strpos($testedLibrary, "ext-") === 0) {
+            $testedLibrary = substr($testedLibrary, 4);
+            $version = phpversion($testedLibrary);
+        } else {
+            $version = \Composer\InstalledVersions::getVersion($testedLibrary);
+            $version = preg_replace('/^(\d+\.\d+\.\d+).*/', '$1', $version);
+        }
+
+        return $version;
+    }
+
+    protected static function recordVersion($testedLibrary, $version)
+    {
+        $projectRoot = preg_replace('/^\/([^\/]+)\/([^\/]+)\/([^\/]+).*/', '/$1/$2/$3', \getcwd());
+        $testsRoot = "$projectRoot/tests";
+        $class = \get_called_class();
+        echo "Recording tested version $version of $testedLibrary for $class\n";
+        $class = preg_replace('/\\\/', '_', $class);
+        $testedVersionFile = "$testsRoot/tested_versions/$class.json";
+        if (!file_exists(dirname($testedVersionFile))) {
+            mkdir(dirname($testedVersionFile), 0777, true);
+        }
+        $testedVersionJson = json_encode([$testedLibrary => $version], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        file_put_contents($testedVersionFile, $testedVersionJson);
     }
 
     /**

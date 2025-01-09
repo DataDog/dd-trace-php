@@ -1,8 +1,0 @@
-name: 'Views Entity Test'
-type: module
-description: 'Provides base fields for views tests of entity_test entity type.'
-package: Testing
-version: VERSION
-dependencies:
-  - drupal:views
-  - drupal:entity_test

@@ -1,5 +1,0 @@
-name: PostgreSQL
-type: module
-description: 'Database driver for PostgreSQL.'
-package: Core
-version: VERSION

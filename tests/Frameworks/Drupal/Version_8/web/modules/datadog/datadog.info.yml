@@ -1,0 +1,5 @@
+name: Datadog
+type: module
+description: Datadog Testing Module
+package: Datadog
+core_version_requirement: ^8.9 || ^9.4 || ^10 || ^11

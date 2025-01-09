@@ -14,6 +14,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
     }
 
+    protected static function getTestedLibrary()
+    {
+        return 'laravel/framework';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
