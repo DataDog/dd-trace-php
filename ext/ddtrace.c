@@ -870,7 +870,9 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
     zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
-    zend_string_release(propagated_tags);
+    if (propagated_tags) {
+        zend_string_release(propagated_tags);
+    }
     if (full_tracestate) {
         ZVAL_STR(&link->property_trace_state, full_tracestate);
     }
