@@ -23,8 +23,8 @@ execute_process(
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id.in ${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id)
 
 file(READ "../VERSION" appsec_version)
+string(STRIP "${appsec_version}" appsec_version)
 set(CMAKE_APPSEC_VERSION ${appsec_version})
-
 string(REGEX MATCH "^[^+a-z]*" appsec_short_version "${appsec_version}")
 project(ddappsec VERSION ${appsec_short_version})
 
