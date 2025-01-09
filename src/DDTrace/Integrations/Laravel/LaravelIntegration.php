@@ -31,7 +31,7 @@ class LaravelIntegration extends Integration
         return false;
     }
 
-    public function isArtisanQueueCommand()
+    public function isArtisanQueueCommand(): bool
     {
         $artisanCommand = isset($_SERVER['argv'][1]) ? $_SERVER['argv'][1] : '';
 
@@ -44,12 +44,15 @@ class LaravelIntegration extends Integration
             ]);
     }
 
+    /**
+     * @param $args
+     */
     public function getLoginFromArgs($args): string
     {
-        if (key_exists('email', $args)) {
+        if (isset($args['email'])) {
             return $args['email'];
         }
-        if (key_exists('username', $args)) {
+        if (isset($args['username'])) {
             return $args['username'];
         }
 

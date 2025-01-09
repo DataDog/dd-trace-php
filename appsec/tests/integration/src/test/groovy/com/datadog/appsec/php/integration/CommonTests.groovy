@@ -42,6 +42,36 @@ trait CommonTests {
     }
 
     @Test
+    void 'user signup event'() {
+        Trace trace = container.traceFromRequest('/user_signup.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.track" == 'true'
+        assert span.meta."appsec.events.users.signup.email" == 'jean.example@example.com'
+        assert span.meta."appsec.events.users.signup.session_id" == '987654321'
+        assert span.meta."appsec.events.users.signup.role" == 'admin'
+    }
+
+    @Test
+    void 'user signup event automated'() {
+        Trace trace = container.traceFromRequest('/user_signup_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.usr.login" == 'Login'
+        assert span.meta."_dd.appsec.usr.id" == 'Admin'
+        assert span.meta."_dd.appsec.usr.login" == 'Login'
+        assert span.meta."appsec.events.users.signup.track" == 'true'
+    }
+
+    @Test
     void 'user login success event'() {
         Trace trace = container.traceFromRequest('/user_login_success.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
