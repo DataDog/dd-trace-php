@@ -2310,6 +2310,14 @@ namespace DDTrace {
         const CLI = 'cli';
         const SQL = 'sql';
         const QUEUE = 'queue';
+        /**
+         * @deprecated use QUEUE instead
+         */
+        const MESSAGE_CONSUMER = 'queue';
+        /**
+         * @deprecated use QUEUE instead
+         */
+        const MESSAGE_PRODUCER = 'queue';
         const CASSANDRA = 'cassandra';
         const ELASTICSEARCH = 'elasticsearch';
         const MEMCACHED = 'memcached';
