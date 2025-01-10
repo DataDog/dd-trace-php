@@ -40,7 +40,7 @@ aliases:
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
 
   - &IMAGE_DOCKER_HTTPBIN
-    image: kong/httpbin
+    image: kong/httpbin:0.2.2
     name: httpbin_integration
 
   - &IMAGE_DOCKER_KAFKA
