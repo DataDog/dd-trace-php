@@ -10,9 +10,9 @@ use log::{debug, error, trace, warn};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::{RefCell, UnsafeCell};
+use std::ptr;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst};
-use std::{ffi, ptr};
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
@@ -318,7 +318,7 @@ pub fn alloc_prof_rshutdown() {
 pub fn alloc_prof_startup() {
     unsafe {
         let handle = datadog_php_zif_handler::new(
-            ffi::CStr::from_bytes_with_nul_unchecked(b"gc_mem_caches\0"),
+            c"gc_mem_caches",
             ptr::addr_of_mut!(GC_MEM_CACHES_HANDLER),
             Some(alloc_prof_gc_mem_caches),
         );

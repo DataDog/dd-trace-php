@@ -4,7 +4,6 @@ use crate::REQUEST_LOCALS;
 use log::{error, info};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
-use std::ffi::CStr;
 use std::ptr;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -136,8 +135,8 @@ pub fn exception_profiling_minit() {
         zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);
 
         let method_handlers = [zend::datadog_php_zim_handler::new(
-            CStr::from_bytes_with_nul_unchecked(b"generator\0"),
-            CStr::from_bytes_with_nul_unchecked(b"throw\0"),
+            c"generator",
+            c"throw",
             ptr::addr_of_mut!(GENERATOR_THROW_HANDLER),
             Some(ddog_php_prof_generator_throw),
         )];
