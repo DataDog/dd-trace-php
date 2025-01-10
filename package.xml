@@ -69,41 +69,9 @@
     <notes>
         <![CDATA[
 ## Tracer
-### Added
-- Kafka Integration #3004
-- `8.4` supported version in `datadog-setup.php` #2984 (thanks @greg0ire)
-### Changed
-- Leave a hint at what to do if the temp dir is not writable in installer #3015
 ### Fixed
-- JIT enabled detection in SSI loader #2971
-- Block signals for more functions #2999
-- Use-after-free with live-debugger #2989
-- root span name in Slim V4 #3020
-- PHP 8.4 deprecations #2981 (thanks @JeppeKnockaert)
-- Avoid repeated processing of internal functions #3022
-### Internal
-- `library_entrypoint.start` metric #3009
-- Bump rust to 1.78 #3005
-- Exit if execv failed #2983
-- Compatibility with newest arginfo gen_stub from PHP 8.4 #2973
-
-## Application Security Management
-### Added
-- Support for endpoint, header, network and session fingerprints #2955
-- WAF telemetry #2735
-- Implement LFI #2770
-- ASM Standalone #2903, #3001
-### Changed
-- Upgrade libddwaf to v1.22.0 #3007
-### Fixed
-- Restart usleep() on EINTR #3002
-- recv/writev calls in the face of interrupting signals #3008
-- Blocking from a hook is not stopping code execution #2836
-
-## Profiling
-### Fixed
-- crash on PHP 8.4 #3019 (thanks @SanderVerkuil)
-- Mismatch in UTF8 handling #2990
+- Restore MESSAGE_* types #3031
+- Fix stats computation of background sender
 ]]></notes>
     <contents>
         <dir name="/">
