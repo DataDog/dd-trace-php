@@ -11,7 +11,7 @@ services:
 
   httpbin:
     container_name: httpbin
-    image: kong/httpbin
+    image: kong/httpbin:0.2.2
 
   memcached:
     container_name: memcached
