@@ -19,6 +19,7 @@
 #include "service.hpp"
 #include "std_logging.hpp"
 
+
 using namespace std::chrono_literals;
 
 namespace dds {
