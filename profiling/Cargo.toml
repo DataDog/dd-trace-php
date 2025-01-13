@@ -21,6 +21,7 @@ chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v10.0.0" }
 datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v10.0.0" }
+datadog-thin-str = { version = "1", path = "../thin-str", features = ["std"] }
 ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v10.0.0" }
 env_logger = { version = "0.11", default-features = false }
 indexmap = { version = "2.2" }
@@ -45,6 +46,10 @@ perfcnt = "0.8.0"
 
 [[bench]]
 name = "stack_walking"
+harness = false
+
+[[bench]]
+name = "concatenation"
 harness = false
 
 [features]

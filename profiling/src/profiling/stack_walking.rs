@@ -1,23 +1,24 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
-use std::borrow::Cow;
+use crate::well_known::WellKnown;
+use datadog_alloc::Global;
+use datadog_thin_str::ThinString;
+use std::ops::Deref;
 use std::str::Utf8Error;
 
 #[cfg(php_frameless)]
 use crate::bindings::zend_flf_functions;
+
 #[cfg(php_frameless)]
 use crate::bindings::{
     ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
 };
 
-const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
-const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
-
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
-    pub function: Cow<'static, str>,
-    pub file: Option<String>,
+    pub function: ThinString,
+    pub file: Option<ThinString>,
     pub line: u32, // use 0 for no line info
 }
 
@@ -30,7 +31,13 @@ pub struct ZendFrame {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-pub fn extract_function_name(func: &zend_function) -> Option<String> {
+pub fn extract_function_name(func: &zend_function) -> Option<ThinString> {
+    let buffer = extract_function_name_into_buffer(func)?;
+    let lossy = String::from_utf8_lossy(buffer.as_slice());
+    Some(ThinString::from_str_in(&lossy, Global))
+}
+
+pub fn extract_function_name_into_buffer(func: &zend_function) -> Option<Vec<u8>> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -42,32 +49,37 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
         return None;
     }
 
-    let mut buffer = Vec::<u8>::new();
-
     // User functions do not have a "module". Maybe one day use composer info?
     let module_name = func.module_name().unwrap_or(b"");
-    if !module_name.is_empty() {
-        buffer.extend_from_slice(module_name);
-        buffer.push(b'|');
-    }
-
     let class_name = func.scope_name().unwrap_or(b"");
-    if !class_name.is_empty() {
-        buffer.extend_from_slice(class_name);
-        buffer.extend_from_slice(b"::");
-    }
+    let opt_module_separator: &[u8] = if module_name.is_empty() { b"" } else { b"|" };
+    let opt_class_separator: &[u8] = if class_name.is_empty() { b"" } else { b"::" };
 
+    // Precalculating the allocation size and removing the conditionals was
+    // shown to be faster in criterion benchmarks.
+    let cap = module_name.len()
+        + opt_module_separator.len()
+        + class_name.len()
+        + opt_class_separator.len()
+        + method_name.len();
+    let mut buffer = Vec::<u8>::with_capacity(cap);
+
+    buffer.extend_from_slice(module_name);
+    buffer.extend_from_slice(opt_module_separator);
+    buffer.extend_from_slice(class_name);
+    buffer.extend_from_slice(opt_class_separator);
     buffer.extend_from_slice(method_name);
 
-    Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
+    Some(buffer)
 }
 
-unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
+unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<ThinString>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+            let file_lossy = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string_lossy();
+            let file = ThinString::from_str_in(file_lossy.deref(), Global);
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -82,9 +94,10 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 mod detail {
     use super::*;
     use crate::string_set::StringSet;
-    use crate::thin_str::ThinStr;
+    use datadog_thin_str::{ThinHeader, ThinStr};
     use log::{debug, trace};
     use std::cell::RefCell;
+    use std::ops::Deref;
     use std::ptr::NonNull;
 
     struct StringCache<'a> {
@@ -95,34 +108,37 @@ mod detail {
         string_set: &'a mut StringSet,
     }
 
+    #[repr(usize)]
+    enum CacheSlot {
+        Function = 0,
+        Filename = 1,
+    }
+
     impl StringCache<'_> {
         /// Makes a copy of the string in the cache slot. If there isn't a
         /// string in the slot currently, then create one by calling the
         /// provided function, store it in the string cache and cache slot,
         /// and return it.
-        fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<String>
+        fn get_or_insert<F>(&mut self, slot: CacheSlot, f: F) -> Option<ThinString>
         where
-            F: FnOnce() -> Option<String>,
+            F: FnOnce() -> Option<ThinString>,
         {
-            debug_assert!(slot < self.cache_slots.len());
-            let cached = unsafe { self.cache_slots.get_unchecked_mut(slot) };
+            // SAFETY: the slot is in-bounds from CacheSlot -> usize conv.
+            let cached = unsafe { self.cache_slots.get_unchecked_mut(slot as usize) };
 
-            let ptr = *cached as *mut u8;
+            let ptr = *cached as *mut ThinHeader;
             match NonNull::new(ptr) {
                 Some(non_null) => {
-                    // SAFETY: transmuting ThinStr from its repr.
-                    let thin_str: ThinStr = unsafe { core::mem::transmute(non_null) };
                     // SAFETY: the string set is only reset between requests,
-                    // so this ThinStr points into the same string set that
-                    // created it.
-                    let str = unsafe { self.string_set.get_thin_str(thin_str) };
-                    Some(str.to_string())
+                    // so this ThinStr points into the same string set arena
+                    // that created it.
+                    let thin_str: ThinStr = unsafe { ThinStr::from_header(non_null) };
+                    Some(ThinString::from_str_in(thin_str.deref(), Global))
                 }
                 None => {
                     let string = f()?;
                     let thin_str = self.string_set.insert(&string);
-                    // SAFETY: transmuting ThinStr into its repr.
-                    let non_null: NonNull<u8> = unsafe { core::mem::transmute(thin_str) };
+                    let non_null = thin_str.header_ptr();
                     *cached = non_null.as_ptr() as usize;
                     Some(string)
                 }
@@ -221,7 +237,7 @@ mod detail {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
                                 samples.push(ZendFrame {
-                                    function: extract_function_name(func).map(Cow::Owned).unwrap(),
+                                    function: extract_function_name(func).unwrap(),
                                     file: None,
                                     line: 0,
                                 });
@@ -240,7 +256,7 @@ mod detail {
                          */
                         if samples.len() == max_depth - 1 {
                             samples.push(ZendFrame {
-                                function: COW_TRUNCATED,
+                                function: ThinString::from(WellKnown::BracketedTruncated),
                                 file: None,
                                 line: 0,
                             });
@@ -292,7 +308,7 @@ mod detail {
                     let mut stats = cell.borrow_mut();
                     stats.not_applicable += 1;
                 });
-                let function = extract_function_name(func).map(Cow::Owned);
+                let function = extract_function_name(func);
                 let (file, line) = extract_file_and_line(execute_data);
                 (function, file, line)
             }
@@ -300,7 +316,7 @@ mod detail {
 
         if function.is_some() || file.is_some() {
             Some(ZendFrame {
-                function: function.unwrap_or(COW_PHP_OPEN_TAG),
+                function: function.unwrap_or(WellKnown::PhpOpenTag.into()),
                 file,
                 line,
             })
@@ -312,16 +328,17 @@ mod detail {
     fn handle_function_cache_slot(
         func: &zend_function,
         string_cache: &mut StringCache,
-    ) -> Option<Cow<'static, str>> {
-        let fname = string_cache.get_or_insert(0, || extract_function_name(func))?;
-        Some(Cow::Owned(fname))
+    ) -> Option<ThinString> {
+        let fname =
+            string_cache.get_or_insert(CacheSlot::Function, || extract_function_name(func))?;
+        Some(ThinString::from_str_in(&fname, Global))
     }
 
     unsafe fn handle_file_cache_slot(
         execute_data: &zend_execute_data,
         string_cache: &mut StringCache,
-    ) -> (Option<String>, u32) {
-        let option = string_cache.get_or_insert(1, || -> Option<String> {
+    ) -> (Option<ThinString>, u32) {
+        let option = string_cache.get_or_insert(CacheSlot::Filename, || -> Option<ThinString> {
             unsafe {
                 // Safety: if we have cache slots, we definitely have a func.
                 let func = &*execute_data.func;
@@ -330,7 +347,9 @@ mod detail {
                 };
 
                 // SAFETY: calling C function with correct args.
-                let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+                let file_lossy =
+                    zai_str_from_zstr(func.op_array.filename.as_mut()).into_string_lossy();
+                let file = ThinString::from_str_in(file_lossy.deref(), Global);
                 Some(file)
             }
         });
@@ -341,7 +360,7 @@ mod detail {
                     Some(opline) => opline.lineno,
                     None => 0,
                 };
-                (Some(filename), lineno)
+                (Some(ThinString::from_str_in(&filename, Global)), lineno)
             }
             None => (None, 0),
         }
@@ -380,7 +399,7 @@ mod detail {
                  */
                 if samples.len() == max_depth - 1 {
                     samples.push(ZendFrame {
-                        function: COW_TRUNCATED,
+                        function: WellKnown::BracketedTruncated.into(),
                         file: None,
                         line: 0,
                     });
@@ -401,7 +420,7 @@ mod detail {
             // Only create a new frame if there's file or function info.
             if file.is_some() || function.is_some() {
                 // If there's no function name, use a fake name.
-                let function = function.map(Cow::Owned).unwrap_or(COW_PHP_OPEN_TAG);
+                let function = function.unwrap_or(WellKnown::PhpOpenTag.into());
                 return Some(ZendFrame {
                     function,
                     file,
@@ -414,6 +433,17 @@ mod detail {
 }
 
 pub use detail::*;
+
+#[cfg(test)]
+mod size_tests {
+    use super::*;
+    use core::mem::size_of;
+
+    #[test]
+    fn test_frame_size() {
+        assert_eq!(size_of::<ZendFrame>(), size_of::<usize>() * 3);
+    }
+}
 
 #[cfg(all(test, stack_walking_tests))]
 mod tests {
