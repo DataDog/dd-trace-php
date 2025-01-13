@@ -8,8 +8,10 @@ if (PHP_DDTRACE != 'no') {
 
 	var versionpath = configure_module_dirname + "/ext/version.h";
 	var versionfile = FSO.CreateTextFile(versionpath, true);
+	var versionContent = FSO.OpenTextFile(configure_module_dirname + "/VERSION", 1).ReadAll();
+	versionContent = versionContent.replace(/[\r\n]+$/, '');
 	versionfile.WriteLine("#ifndef PHP_DDTRACE_VERSION");
-	versionfile.WriteLine('#define PHP_DDTRACE_VERSION "' + FSO.OpenTextFile(configure_module_dirname + "/VERSION", 1).ReadAll() + '"');
+	versionfile.WriteLine('#define PHP_DDTRACE_VERSION "' + versionContent  + '"');
 	versionfile.WriteLine("#endif");
 	versionfile.Close();
 
