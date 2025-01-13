@@ -55,7 +55,7 @@ impl<'a> ThinStr<'a> {
     }
 }
 
-impl<'a> Deref for ThinStr<'a> {
+impl Deref for ThinStr<'_> {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
@@ -75,21 +75,21 @@ impl<'a> Deref for ThinStr<'a> {
     }
 }
 
-impl<'a> hash::Hash for ThinStr<'a> {
+impl hash::Hash for ThinStr<'_> {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.deref().hash(state)
     }
 }
 
-impl<'a> PartialEq for ThinStr<'a> {
+impl PartialEq for ThinStr<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.deref().eq(other.deref())
     }
 }
 
-impl<'a> Eq for ThinStr<'a> {}
+impl Eq for ThinStr<'_> {}
 
-impl<'a> Borrow<str> for ThinStr<'a> {
+impl Borrow<str> for ThinStr<'_> {
     fn borrow(&self) -> &str {
         self.deref()
     }

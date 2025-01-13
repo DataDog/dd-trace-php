@@ -568,7 +568,7 @@ impl<'a> From<&'a str> for ZaiStr<'a> {
     }
 }
 
-impl<'a> Default for ZaiStr<'a> {
+impl Default for ZaiStr<'_> {
     fn default() -> Self {
         Self::new()
     }

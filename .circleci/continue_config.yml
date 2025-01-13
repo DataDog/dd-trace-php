@@ -40,7 +40,7 @@ aliases:
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
 
   - &IMAGE_DOCKER_HTTPBIN
-    image: kong/httpbin
+    image: kong/httpbin:0.2.2
     name: httpbin_integration
 
   - &IMAGE_DOCKER_KAFKA
@@ -548,7 +548,7 @@ commands:
                 -v $(pwd)/tests/snapshots:/snapshots \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               retry_docker run --detach --rm --net net \
-                --name httpbin_integration kong/httpbin
+                --name httpbin_integration kong/httpbin:0.2.2
               retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0

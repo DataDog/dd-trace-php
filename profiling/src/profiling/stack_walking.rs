@@ -95,7 +95,7 @@ mod detail {
         string_set: &'a mut StringSet,
     }
 
-    impl<'a> StringCache<'a> {
+    impl StringCache<'_> {
         /// Makes a copy of the string in the cache slot. If there isn't a
         /// string in the slot currently, then create one by calling the
         /// provided function, store it in the string cache and cache slot,
