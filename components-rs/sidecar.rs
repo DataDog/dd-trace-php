@@ -120,7 +120,16 @@ pub extern "C" fn ddog_sidecar_connect_php(
                 cfg.log_method = LogMethod::File(str.into());
             }
             #[cfg(not(windows))]
-            { cfg.log_method = LogMethod::File(OsStr::from_bytes(error_path).into()); }
+            {
+                // Paths containing a colon generally are some magic - just log to stderr directly
+                // E.g. "/var/www/html/host:[3]" on a serverless platform
+                // In general, stdio is the only way for having magic paths here.
+                if error_path.contains(&b':') {
+                    cfg.log_method = LogMethod::Stderr;
+                } else {
+                    cfg.log_method = LogMethod::File(OsStr::from_bytes(error_path).into());
+                }
+            }
         }
         #[cfg(windows)]
             let log_level = log_level.to_utf8_lossy().as_ref().into();
