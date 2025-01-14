@@ -46,6 +46,10 @@ pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
+#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomGcFn = unsafe extern "C" fn() -> size_t;
+#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomShutdownFn = unsafe extern "C" fn(bool, bool);
 
 // todo: this a lie on some PHP versions; is it a problem even though zend_bool
 //       was always supposed to be 0 or 1 anyway?
@@ -175,13 +179,13 @@ pub struct ModuleEntry {
     /// thread for module globals. The function pointers in [`ModuleEntry::globals_ctor`] and
     /// [`ModuleEntry::globals_dtor`] will only be called if this is a non-zero.
     pub globals_size: size_t,
-    #[cfg(php_zts)]
     /// Pointer to a `ts_rsrc_id` (which is a [`i32`]). For C-Extension this is created using the
     /// `ZEND_DECLARE_MODULE_GLOBALS(module_name)` macro.
     /// See <https://heap.space/xref/PHP-8.3/Zend/zend_API.h?r=a89d22cc#249>
+    #[cfg(php_zts)]
     pub globals_id_ptr: *mut ts_rsrc_id,
-    #[cfg(not(php_zts))]
     /// Pointer to the module globals struct in NTS mode
+    #[cfg(not(php_zts))]
     pub globals_ptr: *mut c_void,
     /// Constructor for module globals.
     /// Be aware this will only be called in case [`ModuleEntry::globals_size`] is non-zero and for
