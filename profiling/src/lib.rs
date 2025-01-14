@@ -187,7 +187,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         globals_dtor: Some(gshutdown),
         globals_size: 1,
         #[cfg(php_zts)]
-        globals_id_ptr: unsafe { &mut GLOBALS_ID_PTR },
+        globals_id_ptr: unsafe { ptr::addr_of_mut!(GLOBALS_ID_PTR) },
         #[cfg(not(php_zts))]
         globals_ptr: ptr::null_mut(),
         ..Default::default()
