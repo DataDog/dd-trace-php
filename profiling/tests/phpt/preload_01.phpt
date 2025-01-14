@@ -12,18 +12,18 @@ See: https://github.com/DataDog/dd-trace-php/issues/1919
 Due to limitations of PHPT, this test does not test PHP-FPM or processes run
 with different permissions, but it makes sure, that profiling is started after
 preloading is done.
+--ENV--
+USE_ZEND_ALLOC=0
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70400)
-    echo "skip: need preloading and therefore PHP", PHP_EOL;
+    echo "skip: need preloading and therefore PHP >= 7.4.0", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 ?>
 --INI--
 datadog.profiling.enabled=yes
 datadog.profiling.log_level=debug
-datadog.profiling.allocation_enabled=no
-datadog.profiling.experimental_cpu_time_enabled=no
 zend_extension=opcache
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
