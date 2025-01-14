@@ -27,7 +27,7 @@ Array
     [usr.id] => sdkID
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.events.users.login.success.auto.mode] => identification
-    [appsec.events.users.login.success.usr.login] => login
+    [appsec.events.users.login.success.usr.login] => sdkID
     [_dd.appsec.usr.login] => login
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null

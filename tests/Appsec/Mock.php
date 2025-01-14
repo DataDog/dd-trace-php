@@ -109,7 +109,7 @@ if (!function_exists('datadog\appsec\track_user_login_success_event_automated'))
             'metadata' => $metadata,
 
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event');
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event_automated');
     }
 }
 
@@ -147,7 +147,7 @@ if (!function_exists('datadog\appsec\track_user_login_failure_event_automated'))
             'metadata' => $metadata,
 
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event');
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event_automated');
     }
 }
 
@@ -184,7 +184,7 @@ if (!function_exists('datadog\appsec\track_user_signup_event_automated')) {
             'metadata' => $metadata,
 
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event');
+        AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event_automated');
     }
 }
 

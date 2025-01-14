@@ -29,7 +29,7 @@ Array
     [usr.id] => otherSdkID
     [_dd.appsec.usr.id] => otherAutomatedID
     [_dd.appsec.events.users.login.success.auto.mode] => identification
-    [appsec.events.users.login.success.usr.login] => otherLogin
+    [appsec.events.users.login.success.usr.login] => otherSdkID
     [_dd.appsec.usr.login] => otherLogin
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null

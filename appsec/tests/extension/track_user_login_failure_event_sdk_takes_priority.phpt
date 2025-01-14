@@ -25,6 +25,7 @@ Array
 (
     [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => sdkID
+    [appsec.events.users.login.failure.usr.login] => sdkID
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
     [appsec.events.users.login.failure.value] => something-from-sdk
@@ -32,6 +33,5 @@ Array
     [server.business_logic.users.login.failure] => null
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
-    [appsec.events.users.login.failure.usr.login] => login
     [_dd.appsec.usr.login] => login
 )

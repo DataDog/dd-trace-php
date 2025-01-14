@@ -28,7 +28,7 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
+    [appsec.events.users.signup.usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
     [_dd.appsec.usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
     [_dd.appsec.events.users.signup.auto.mode] => anonymization
     [appsec.events.users.signup.usr.login] => anon_428821350e9691491f616b754cd8315f

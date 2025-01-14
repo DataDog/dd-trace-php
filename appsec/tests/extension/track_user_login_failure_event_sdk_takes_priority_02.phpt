@@ -27,7 +27,7 @@ Array
     [appsec.events.users.login.failure.usr.id] => sdkID
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
-    [appsec.events.users.login.failure.usr.login] => login
+    [appsec.events.users.login.failure.usr.login] => sdkID
     [_dd.appsec.usr.login] => login
     [appsec.events.users.login.failure.track] => true
     [appsec.events.users.login.failure.usr.exists] => true

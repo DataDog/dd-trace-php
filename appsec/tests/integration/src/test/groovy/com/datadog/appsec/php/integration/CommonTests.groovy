@@ -49,7 +49,8 @@ trait CommonTests {
 
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
-        assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.usr.login" == 'Admin'
         assert span.meta."appsec.events.users.signup.track" == 'true'
         assert span.meta."appsec.events.users.signup.email" == 'jean.example@example.com'
         assert span.meta."appsec.events.users.signup.session_id" == '987654321'
@@ -64,7 +65,7 @@ trait CommonTests {
 
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
-        assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.usr.id" == 'Admin'
         assert span.meta."appsec.events.users.signup.usr.login" == 'Login'
         assert span.meta."_dd.appsec.usr.id" == 'Admin'
         assert span.meta."_dd.appsec.usr.login" == 'Login'
@@ -80,6 +81,7 @@ trait CommonTests {
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.login.success.usr.login" == 'Admin'
         assert span.meta."appsec.events.users.login.success.track" == 'true'
         assert span.meta."appsec.events.users.login.success.email" == 'jean.example@example.com'
         assert span.meta."appsec.events.users.login.success.session_id" == '987654321'
@@ -110,6 +112,7 @@ trait CommonTests {
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta."appsec.events.users.login.failure.usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'Admin'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.meta."appsec.events.users.login.failure.track" == 'true'
         assert span.meta."appsec.events.users.login.failure.email" == 'jean.example@example.com'

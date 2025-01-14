@@ -35,6 +35,7 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => sdkID
+    [appsec.events.users.login.success.usr.login] => sdkID
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.value] => something
     [appsec.events.users.login.success.metadata] => some other metadata

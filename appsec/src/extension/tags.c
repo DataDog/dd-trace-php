@@ -1019,8 +1019,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     }
 
     if (ZSTR_LEN(user_id) > 0) {
-        // usr.id = <user_id>
-        _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id,
+        // appsec.events.users.signup.usr.id = <user_id>
+        _add_custom_event_keyval(meta_ht, _dd_signup_event, _dd_tag_user_id,
             anon_user_id ? anon_user_id : user_id, true, false);
 
         // _dd.appsec.usr.id = <user_id>
@@ -1035,7 +1035,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
 
     // _dd.appsec.events.users.signup.usr.login = <user_login>
     _add_new_zstr_to_meta(meta_ht, _dd_signup_event_login,
-        anon_user_login ? anon_user_login : user_login, true, true);
+        anon_user_login ? anon_user_login : user_login, true, false);
 
     // _dd.appsec.usr.login = <user_login>
     _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login,
@@ -1083,8 +1083,12 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    // usr.id = <user_id>
-    _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);
+    // appsec.events.users.signup.usr.id = <user_id>
+    _add_custom_event_keyval(
+        meta_ht, _dd_signup_event, _dd_tag_user_id, user_id, true, true);
+
+    // _dd.appsec.events.users.signup.usr.login = <user_login>
+    _add_new_zstr_to_meta(meta_ht, _dd_signup_event_login, user_id, true, true);
 
     // _dd.appsec.events.users.signup.sdk = true
     _add_new_zstr_to_meta(
@@ -1181,7 +1185,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
 
     // _dd.appsec.events.users.login.success.usr.login = <user_login>
     _add_new_zstr_to_meta(meta_ht, _dd_login_success_event_login,
-        anon_user_login ? anon_user_login : user_login, true, true);
+        anon_user_login ? anon_user_login : user_login, true, false);
 
     // _dd.appsec.usr.login = <user_login>
     _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login,
@@ -1209,7 +1213,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
 
     zend_string *user_id;
     HashTable *metadata = NULL;
-    zend_bool copy_user_id = true;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|h", &user_id, &metadata) ==
         FAILURE) {
         mlog(dd_log_warning, "Unexpected parameter combination, expected "
@@ -1233,8 +1236,11 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     dd_find_and_apply_verdict_for_user(user_id);
 
     // usr.id = <user_id>
+    _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);
+
+    // _dd.appsec.events.users.login.success.usr.login = <user_login>
     _add_new_zstr_to_meta(
-        meta_ht, _dd_tag_user_id, user_id, copy_user_id, true);
+        meta_ht, _dd_login_success_event_login, user_id, true, true);
 
     // _dd.appsec.events.users.login.success.sdk = true
     _add_new_zstr_to_meta(
@@ -1329,7 +1335,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     if (ZSTR_LEN(user_login) > 0) {
         // _dd.appsec.events.users.login.failure.usr.login = <user_login>
         _add_new_zstr_to_meta(meta_ht, _dd_login_failure_event_login,
-            anon_user_login ? anon_user_login : user_login, true, true);
+            anon_user_login ? anon_user_login : user_login, true, false);
 
         // _dd.appsec.usr.login = <user_login>
         _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login,
@@ -1383,6 +1389,10 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
         // appsec.events.users.login.failure.usr.id = <user_id>
         _add_custom_event_keyval(meta_ht, _dd_login_failure_event,
             _dd_tag_user_id, user_id, true, true);
+
+        // _dd.appsec.events.users.login.failure.usr.login = <user_login>
+        _add_new_zstr_to_meta(
+            meta_ht, _dd_login_failure_event_login, user_id, true, true);
     }
 
     // appsec.events.users.login.failure.track = true

@@ -25,12 +25,12 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => sdkID
+    [appsec.events.users.login.success.usr.login] => sdkID
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.value] => something-from-sdk
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.events.users.login.success.auto.mode] => identification
-    [appsec.events.users.login.success.usr.login] => login
     [_dd.appsec.usr.login] => login
 )

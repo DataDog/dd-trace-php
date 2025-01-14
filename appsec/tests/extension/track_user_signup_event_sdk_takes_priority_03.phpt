@@ -26,10 +26,10 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => OtherSdkID
+    [appsec.events.users.signup.usr.id] => OtherSdkID
     [_dd.appsec.usr.id] => OtherAutomatedID
     [_dd.appsec.events.users.signup.auto.mode] => identification
-    [appsec.events.users.signup.usr.login] => OtherLogin
+    [appsec.events.users.signup.usr.login] => OtherSdkID
     [_dd.appsec.usr.login] => OtherLogin
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null

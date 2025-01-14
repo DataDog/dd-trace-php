@@ -34,7 +34,8 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => sdkID
+    [appsec.events.users.signup.usr.id] => sdkID
+    [appsec.events.users.signup.usr.login] => sdkID
     [_dd.appsec.events.users.signup.sdk] => true
     [appsec.events.users.signup.value] => something
     [appsec.events.users.signup.metadata] => some other metadata

@@ -28,6 +28,7 @@ Array
 (
     [runtime-id] => %s
     [appsec.events.users.login.failure.usr.id] => sdkID
+    [appsec.events.users.login.failure.usr.login] => sdkID
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
     [appsec.events.users.login.failure.value] => something
