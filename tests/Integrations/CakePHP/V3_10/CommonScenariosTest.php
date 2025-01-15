@@ -9,12 +9,12 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_3_10/webroot/index.php';
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'cakephp/cakephp';
     }

@@ -42,11 +42,6 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     const HOST7 = 'http://elasticsearch7_integration:9200';
 
-    protected static function getTestedLibrary()
-    {
-        return 'elasticsearch/elasticsearch';
-    }
-
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
         $integration = new ElasticSearchIntegration();

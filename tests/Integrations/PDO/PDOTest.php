@@ -55,7 +55,7 @@ final class PDOTest extends IntegrationTestCase
         ];
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'ext-PDO';
     }

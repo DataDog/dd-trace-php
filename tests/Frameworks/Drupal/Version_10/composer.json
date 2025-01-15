@@ -39,13 +39,16 @@
     },
     "scripts": {
         "post-update-cmd": [
-            "chmod a+w web/sites/default && rm -rf web/sites/default/files && rm -f web/sites/default/settings.php && php scripts/erase_drupal_db.php && php web/core/scripts/drupal install minimal"
+            "chmod a+w web/sites/default && rm -rf web/sites/default/files && php scripts/erase_drupal_db.php && php web/core/scripts/drupal install minimal"
         ]
     },
     "extra": {
         "drupal-scaffold": {
             "locations": {
                 "web-root": "web/"
+            },
+            "file-mapping": {
+                "[web-root]/sites/development.services.yml": false
             }
         },
         "installer-paths": {

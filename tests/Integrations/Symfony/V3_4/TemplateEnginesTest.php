@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TemplateEnginesTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
     }

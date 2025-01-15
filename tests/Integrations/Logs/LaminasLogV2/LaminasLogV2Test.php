@@ -20,11 +20,6 @@ class LaminasLogV2Test extends BaseLogsTest
         $integration->init();
     }
 
-    protected static function getTestedLibrary()
-    {
-        return 'laminas/laminas-log';
-    }
-
     protected function getLogger($jsonFormatter = false)
     {
         $logger = new Logger();

@@ -11,7 +11,7 @@ class PathParamsTest extends PathParamsTestSuite
 {
     public static $database = "wp61";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_6_1/index.php';
     }

@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Octane/artisan';
     }
@@ -19,7 +19,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return true;
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'laravel/octane';
     }

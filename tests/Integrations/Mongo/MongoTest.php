@@ -31,7 +31,7 @@ class MongoTest extends IntegrationTestCase
         parent::ddTearDown();
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'ext-mongo';
     }

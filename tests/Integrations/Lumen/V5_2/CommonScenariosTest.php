@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
     }
@@ -21,7 +21,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'laravel/lumen-framework';
     }

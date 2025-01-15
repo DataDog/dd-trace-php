@@ -13,7 +13,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "wp55";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_5_5/index.php';
     }
@@ -34,7 +34,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'wordpress';
     }

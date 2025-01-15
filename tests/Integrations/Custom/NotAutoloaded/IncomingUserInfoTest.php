@@ -7,7 +7,7 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 
 final class IncomingUserInfoTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }

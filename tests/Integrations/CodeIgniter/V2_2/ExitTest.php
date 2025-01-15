@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 class ExitTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_2_2/ddshim.php';
     }

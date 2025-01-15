@@ -55,7 +55,7 @@ class PHPRedisTest extends IntegrationTestCase
         ];
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'ext-redis';
     }

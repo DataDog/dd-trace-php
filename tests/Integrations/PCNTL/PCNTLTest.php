@@ -19,7 +19,7 @@ final class PCNTLTest extends IntegrationTestCase
         parent::ddSetUp();
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'ext-pcntl';
     }

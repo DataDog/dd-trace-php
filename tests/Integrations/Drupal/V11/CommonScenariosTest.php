@@ -6,7 +6,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Drupal\V8\CommonSc
 {
     public static $database = "drupal11";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Drupal/Version_11/web/index.php';
     }

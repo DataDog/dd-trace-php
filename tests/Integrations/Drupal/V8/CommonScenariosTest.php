@@ -9,7 +9,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "drupal8";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Drupal/Version_8/web/index.php';
     }
@@ -33,7 +33,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         }
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'drupal/core';
     }

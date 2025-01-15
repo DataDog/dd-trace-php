@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_3_1/ddshim.php';
     }
@@ -26,7 +26,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return strpos(getenv('DD_TRACE_TEST_SAPI'), 'cgi') === 0;
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'codeigniter';
     }

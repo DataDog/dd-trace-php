@@ -11,7 +11,7 @@ class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
     public static $database = "laravel10";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_10_x/public/index.php';
     }

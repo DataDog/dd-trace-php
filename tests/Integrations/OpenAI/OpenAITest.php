@@ -15,7 +15,7 @@ class OpenAITest extends IntegrationTestCase
         parent::ddSetUpBeforeClass();
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'openai-php/client';
     }

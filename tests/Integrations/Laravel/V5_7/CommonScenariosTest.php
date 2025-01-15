@@ -9,12 +9,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "laravel57";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'laravel/framework';
     }

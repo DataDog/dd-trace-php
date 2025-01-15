@@ -36,7 +36,7 @@ class MysqliTest extends IntegrationTestCase
         ];
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'ext-mysqli';
     }

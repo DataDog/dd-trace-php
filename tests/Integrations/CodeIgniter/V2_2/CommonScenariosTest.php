@@ -11,7 +11,7 @@ use DDTrace\Type;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_2_2/ddshim.php';
     }
@@ -23,7 +23,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'codeigniter';
     }

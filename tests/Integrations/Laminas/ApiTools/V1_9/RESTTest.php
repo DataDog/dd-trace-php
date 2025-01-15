@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 
 class RESTTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../../Frameworks/Laminas/ApiTools/Version_1_9/public/index.php';
     }
@@ -18,7 +18,7 @@ class RESTTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_rest_19']);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'laminas-api-tools/api-tools';
     }

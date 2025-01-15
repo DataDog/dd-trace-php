@@ -93,9 +93,21 @@ abstract class IntegrationTestCase extends BaseTestCase
         error_reporting(E_ERROR | E_PARSE);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
-        return null;
+        $file = (new \ReflectionClass(get_called_class()))->getFileName();
+        $composer = null;
+
+        if (file_exists(dirname($file) . '/composer.json')) {
+            $composer = dirname($file) . '/composer.json';
+        }
+
+        if (!$composer) {
+            return null;
+        }
+
+        $composerData = json_decode(file_get_contents($composer), true);
+        return key($composerData['require']);
     }
 
     protected static function recordTestedVersion()

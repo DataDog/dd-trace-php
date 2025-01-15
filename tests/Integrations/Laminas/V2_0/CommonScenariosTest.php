@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laminas/Version_2_0/public/index.php';
     }
@@ -19,7 +19,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_20']);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'laminas/laminas-mvc';
     }

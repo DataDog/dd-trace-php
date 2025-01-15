@@ -27,11 +27,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         parent::ddSetUpBeforeClass();
     }
 
-    protected static function getTestedLibrary()
-    {
-        return 'guzzlehttp/guzzle';
-    }
-
     protected function getMockedClient(array $responseStack = null)
     {
         $responseStack = null === $responseStack ? [new Response(200)] : $responseStack;

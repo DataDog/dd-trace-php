@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 
 class DistributedTracingTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../Frameworks/Swoole/index.php';
     }

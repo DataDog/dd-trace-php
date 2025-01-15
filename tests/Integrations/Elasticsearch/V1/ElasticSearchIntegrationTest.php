@@ -43,11 +43,6 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     const HOST2 = 'elasticsearch2_integration';
     const HOST7 = 'elasticsearch7_integration';
 
-    protected static function getTestedLibrary()
-    {
-        return 'elasticsearch/elasticsearch';
-    }
-
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
         $integration = new ElasticSearchIntegration();

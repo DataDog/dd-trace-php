@@ -9,7 +9,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "magento24";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Magento/Version_2_4/pub/index.php';
     }
@@ -22,7 +22,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected static function getTestedLibrary()
+    public static function getTestedLibrary()
     {
         return 'magento/magento2';
     }
