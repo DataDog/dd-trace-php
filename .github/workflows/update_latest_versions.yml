@@ -1,0 +1,32 @@
+name: Update Latest Versions
+
+on:
+  workflow_dispatch: # can be triggered manually
+  schedule:
+    - cron: "0 0 * * 0" # weekly on Sunday at midnight
+
+jobs:
+  update-latest-versions:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - uses: php-actions/composer@v6
+
+      - name: Update Latest Versions
+        run: php tests/update-latest-version.php
+
+      - name: Show changes
+        run: git diff
