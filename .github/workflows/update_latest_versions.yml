@@ -35,8 +35,9 @@ jobs:
 
       - name: Install PHP Tracer # Required by test bootstrap
         run: |
-          curl -LO https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php
-          sudo php datadog-setup.php --php-bin=all
+          curl -Lo /tmp/datadog-setup.php https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php
+          sudo php /tmp/datadog-setup.php --php-bin=all
+          rm /tmp/datadog-setup.php
 
       - name: Update Test Dependencies
         run: make composer_tests_update
