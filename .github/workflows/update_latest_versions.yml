@@ -27,12 +27,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y php php-cli
 
-
       - name: Install composer
         run: |
           php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
           php composer-setup.php
           php -r "unlink('composer-setup.php');"
+
+      - name: Update Test Dependencies
+        run: make composer_tests_update
 
       - name: Update Latest Versions
         run: php tests/update-latest-version.php
