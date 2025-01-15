@@ -42,7 +42,7 @@ jobs:
         run: make composer_tests_update
 
       - name: Update Latest Versions
-        run: php tests/update-latest-version.php
+        run: php tests/update-latest-versions.php
 
       - name: Show changes
         run: git diff
