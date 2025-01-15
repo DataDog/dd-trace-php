@@ -1,6 +1,9 @@
 name: Update Latest Versions
 
 on:
+  push:
+    branches:
+      - "**" # For test purposes, always run the workflow
   workflow_dispatch: # can be triggered manually
   schedule:
     - cron: "0 0 * * 0" # weekly on Sunday at midnight
