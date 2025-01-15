@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends \DDTrace\Tests\Integrations\Laminas\V2_0\CommonScenariosTest
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laminas/Version_1_4/public/index.php';
     }

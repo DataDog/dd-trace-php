@@ -9,7 +9,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Laravel\V5_7\Commo
 {
     public static $database = "laravel9";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_9_x/public/index.php';
     }

@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 final class NetteTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Nette/Version_3_0/www/index.php';
     }

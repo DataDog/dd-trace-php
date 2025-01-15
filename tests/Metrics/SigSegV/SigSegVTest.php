@@ -14,7 +14,7 @@ class SigSegVTest extends WebFrameworkTestCase
         return \array_merge(parent::getEnvs(), ['DD_TRACE_HEALTH_METRICS_ENABLED' => 1]);
     }
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/sigsegv.php';
     }

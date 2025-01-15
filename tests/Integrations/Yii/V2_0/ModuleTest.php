@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 class ModuleTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Yii/Version_2_0/web/index.php';
     }

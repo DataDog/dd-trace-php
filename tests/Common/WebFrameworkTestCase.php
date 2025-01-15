@@ -81,7 +81,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      *
      * @return string|null
      */
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return null;
     }

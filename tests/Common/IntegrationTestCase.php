@@ -92,6 +92,23 @@ abstract class IntegrationTestCase extends BaseTestCase
         error_reporting(E_ERROR | E_PARSE);
     }
 
+    public static function getTestedLibrary()
+    {
+        $file = (new \ReflectionClass(get_called_class()))->getFileName();
+        $composer = null;
+
+        if (file_exists(dirname($file) . '/composer.json')) {
+            $composer = dirname($file) . '/composer.json';
+        }
+
+        if (!$composer) {
+            return null;
+        }
+
+        $composerData = json_decode(file_get_contents($composer), true);
+        return key($composerData['require']);
+    }
+
     /**
      * Checks the exact match of a set of SpanAssertion with the provided Spans.
      *

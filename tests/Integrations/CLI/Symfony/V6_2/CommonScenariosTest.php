@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class CommonScenariosTest extends IntegrationTestCase
 {
-    protected static function getConsoleScript()
+    public static function getConsoleScript()
     {
         return __DIR__ . '/../../../../Frameworks/Symfony/Version_6_2/bin/console';
     }

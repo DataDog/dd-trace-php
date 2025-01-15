@@ -19,12 +19,12 @@ class MessengerTest extends WebFrameworkTestCase
         'metrics.messaging.symfony.delay',
     ];
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/public/index.php';
     }
 
-    protected static function getConsoleScript()
+    public static function getConsoleScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/bin/console';
     }

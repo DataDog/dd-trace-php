@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
 
 class RESTTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../../Frameworks/Laminas/ApiTools/Version_1_9/public/index.php';
     }

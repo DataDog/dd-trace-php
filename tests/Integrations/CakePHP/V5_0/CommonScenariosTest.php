@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends \DDTrace\Tests\Integrations\CakePHP\V4_5\CommonScenariosTest
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_5_0/webroot/index.php';
     }

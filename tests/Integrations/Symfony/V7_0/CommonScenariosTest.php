@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_7_0/public/index.php';
     }
