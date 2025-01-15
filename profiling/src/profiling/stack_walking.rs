@@ -209,8 +209,14 @@ mod detail {
                 // allowed because it's only used on the frameless path
                 #[allow(unused_variables)]
                 if let Some(func) = unsafe { execute_data.func.as_ref() } {
+                    // It's possible that this is a fake frame put there by
+                    // the engine, see accel_preload on PHP 8.4 and the local
+                    // variable `fake_execute_data`. The frame is zeroed in
+                    // this case, so we can check for null.
                     #[cfg(php_frameless)]
-                    if !func.is_internal() {
+                    if !func.is_internal() && !execute_data.opline.is_null() {
+                        // SAFETY: if it's not null, then it should be valid
+                        // or something else has messed up already.
                         let opline = unsafe { &*execute_data.opline };
                         match opline.opcode as u32 {
                             ZEND_FRAMELESS_ICALL_0
