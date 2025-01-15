@@ -504,7 +504,7 @@ fi
 
 if [[ -d /opt/homebrew/lib ]]; then
   export LDFLAGS="${LDFLAGS:-} -L/opt/homebrew/lib"
-  export CPPFLAGS="${CPPFLAGS:-} -I/opt/homebrew/include"
+  export CPPFLAGS="${CPPFLAGS:-} -idirafter /opt/homebrew/include"
 fi
 export CXXFLAGS="${CXXFLAGS:-} -std=c++11"
 export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration"
