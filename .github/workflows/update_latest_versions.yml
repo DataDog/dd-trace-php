@@ -22,9 +22,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: shivammathur/setup-php@2.32.0
-        with:
-          php-version: '8.3'
+      - name: Install PHP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php php-cli
+
 
       - name: Install composer
         run: |
