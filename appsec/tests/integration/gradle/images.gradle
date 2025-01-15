@@ -234,6 +234,7 @@ task saveCaches(type: Exec) {
     commandLine 'docker', 'run', '--rm',
             '-e', "UUID=${uuid}",
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
             '-v', 'php-appsec-hunter-cache:/caches/php-appsec-hunter-cache',
             '-v', "${project.buildDir}:/build",
             'busybox',
