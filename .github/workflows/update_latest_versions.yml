@@ -29,9 +29,9 @@ jobs:
 
       - name: Install composer
         run: |
-          php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-          php composer-setup.php
-          php -r "unlink('composer-setup.php');"
+          php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+          php /tmp/composer-setup.php
+          php -r "unlink('/tmp/composer-setup.php');"
 
       - name: Install PHP Tracer # Required by test bootstrap
         run: |
