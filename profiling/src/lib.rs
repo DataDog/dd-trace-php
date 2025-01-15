@@ -490,6 +490,23 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         locals.system_settings = system_settings;
     });
 
+    // Preloading happens before zend_post_startup_cb is called for the first
+    // time. When preloading is enabled and a non-root user is used for
+    // php-fpm, there is fork that happens. In the past, having the profiler
+    // enabled at this time would cause php-fpm eventually hang once the
+    // Profiler's channels were full; this has been fixed. See:
+    // https://github.com/DataDog/dd-trace-php/issues/1919
+    //
+    // There are a few ways to handle this preloading scenario with the fork,
+    // but the  simplest is to not enable the profiler until the engine's
+    // startup is complete. This means the preloading will not be profiled,
+    // but this should be okay.
+    #[cfg(php_preload)]
+    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
+        debug!("zend_post_startup_cb hasn't happened yet; not enabling profiler.");
+        return ZendResult::Success;
+    }
+
     // SAFETY: still safe to access in rinit after first_rinit.
     let system_settings = unsafe { system_settings.as_mut() };
 
@@ -529,23 +546,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         #[cfg(feature = "exception_profiling")]
         exception::exception_profiling_first_rinit();
     });
-
-    // Preloading happens before zend_post_startup_cb is called for the first
-    // time. When preloading is enabled and a non-root user is used for
-    // php-fpm, there is fork that happens. In the past, having the profiler
-    // enabled at this time would cause php-fpm eventually hang once the
-    // Profiler's channels were full; this has been fixed. See:
-    // https://github.com/DataDog/dd-trace-php/issues/1919
-    //
-    // There are a few ways to handle this preloading scenario with the fork,
-    // but the  simplest is to not enable the profiler until the engine's
-    // startup is complete. This means the preloading will not be profiled,
-    // but this should be okay.
-    #[cfg(php_preload)]
-    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
-        debug!("zend_post_startup_cb hasn't happened yet; not enabling profiler.");
-        return ZendResult::Success;
-    }
 
     Profiler::init(system_settings);
 
@@ -629,6 +629,11 @@ fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
 extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({_type}, {_module_number})");
+
+    #[cfg(php_preload)]
+    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
+        return ZendResult::Success;
+    }
 
     profiling::stack_walking::rshutdown();
 
