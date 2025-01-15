@@ -3,7 +3,7 @@
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/bootstrap_phpunit.php';
 
-$INTEGRATIONS_DIR = './Integrations';
+$INTEGRATIONS_DIR = __DIR__ . '/Integrations';
 
 $testFiles = [];
 $directory = new RecursiveDirectoryIterator($INTEGRATIONS_DIR);
