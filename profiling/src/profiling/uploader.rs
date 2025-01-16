@@ -69,7 +69,9 @@ impl Uploader {
         endpoint.timeout_ms = TIMEOUT_S * 1000;
 
         let tags = Some(Arc::unwrap_or_clone(index.tags));
+        let client = Arc::new(ddcommon_net2::http::Client::use_native_roots_on_current_thread()?);
         let exporter = datadog_profiling::exporter::ProfileExporter::new(
+            client,
             profiling_library_name,
             profiling_library_version,
             "php",

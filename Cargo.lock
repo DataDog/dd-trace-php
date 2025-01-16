@@ -1296,8 +1296,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "14.1.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=a6c10c0#a6c10c07dc6ad77083c0b59370dc36ba33eda6c7"
+version = "14.3.1"
+source = "git+https://github.com/DataDog/libdatadog?rev=a801412#a801412a5c75e8a9584052c78934c09e6f7d5466"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1458,8 +1458,8 @@ dependencies = [
  "datadog-alloc",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 14.1.0",
- "ddcommon-net",
+ "ddcommon 14.3.1",
+ "ddcommon-net2",
  "env_logger 0.11.6",
  "indexmap 2.7.0",
  "lazy_static",
@@ -1477,8 +1477,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "14.1.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=a6c10c0#a6c10c07dc6ad77083c0b59370dc36ba33eda6c7"
+version = "14.3.1"
+source = "git+https://github.com/DataDog/libdatadog?rev=a801412#a801412a5c75e8a9584052c78934c09e6f7d5466"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1486,8 +1486,8 @@ dependencies = [
  "bytes",
  "chrono",
  "datadog-alloc",
- "ddcommon 14.1.0",
- "ddcommon-net",
+ "ddcommon 14.3.1",
+ "ddcommon-net2",
  "derivative",
  "hashbrown 0.14.5",
  "hyper-multipart-rfc7578",
@@ -1499,6 +1499,7 @@ dependencies = [
  "percent-encoding",
  "prost 0.12.6",
  "rustc-hash",
+ "rustls-native-certs 0.8.1",
  "serde",
  "serde_json",
  "tokio",
@@ -1733,30 +1734,16 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "14.1.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=a6c10c0#a6c10c07dc6ad77083c0b59370dc36ba33eda6c7"
+version = "14.3.1"
+source = "git+https://github.com/DataDog/libdatadog?rev=a801412#a801412a5c75e8a9584052c78934c09e6f7d5466"
 dependencies = [
  "anyhow",
  "cc",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http 0.2.12",
- "hyper 0.14.32",
- "hyper-rustls 0.27.5",
- "hyper-util",
  "lazy_static",
  "libc 0.2.169",
- "log",
- "pin-project",
  "regex",
- "rustls 0.23.21",
- "rustls-native-certs 0.7.3",
  "serde",
  "static_assertions",
- "tokio",
- "tokio-rustls 0.26.1",
  "windows-sys 0.52.0",
 ]
 
@@ -1775,15 +1762,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "ddcommon-net"
-version = "14.1.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=a6c10c0#a6c10c07dc6ad77083c0b59370dc36ba33eda6c7"
+name = "ddcommon-net2"
+version = "14.3.1"
+source = "git+https://github.com/DataDog/libdatadog?rev=a801412#a801412a5c75e8a9584052c78934c09e6f7d5466"
 dependencies = [
- "ddcommon 14.1.0",
+ "ddcommon 14.3.1",
  "hex",
- "http 1.2.0",
  "hyper 1.5.2",
  "hyper-util",
+ "rustls-native-certs 0.8.1",
  "serde",
  "thiserror 2.0.11",
  "tokio",

@@ -11,7 +11,7 @@ use core::mem::{swap, transmute, MaybeUninit};
 use core::ptr;
 use core::str::FromStr;
 pub use datadog_profiling::exporter::Uri;
-use ddcommon_net::dep::hex;
+use ddcommon_net2::dep::hex;
 use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
