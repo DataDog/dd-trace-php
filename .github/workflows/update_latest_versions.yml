@@ -37,7 +37,7 @@ jobs:
         run: make composer_tests_update
 
       - name: Update Latest Versions
-        run: php tests/update-latest-versions.php
+        run: php tests/PackageUpdater.php
 
       - name: Show changes
         run: git diff
