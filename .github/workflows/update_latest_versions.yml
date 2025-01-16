@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@2.32.0
         with:
           php-version: '8.3'
 
