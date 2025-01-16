@@ -620,7 +620,7 @@ TEST_WEB_71 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
@@ -674,7 +674,7 @@ TEST_WEB_72 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_23 \
@@ -726,7 +726,7 @@ TEST_WEB_73 := \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
-	test_web_laminas_14 \
+	test_web_laminas_36 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -736,7 +736,7 @@ TEST_WEB_73 := \
 	test_web_lumen_81 \
 	test_web_magento_23 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_34 \
@@ -789,7 +789,7 @@ TEST_WEB_74 := \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_drupal_95 \
-	test_web_laminas_14 \
+	test_web_laminas_36 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -799,7 +799,7 @@ TEST_WEB_74 := \
 	test_web_lumen_81 \
 	test_web_magento_23 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_34 \
@@ -853,14 +853,14 @@ TEST_WEB_80 := \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laminas_rest_19 \
-	test_web_laminas_14 \
-	test_web_laminas_20 \
+	test_web_laminas_36 \
+	test_web_laminas_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_44 \
@@ -909,7 +909,7 @@ TEST_WEB_81 := \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
-	test_web_laminas_20 \
+	test_web_laminas_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
@@ -917,7 +917,7 @@ TEST_WEB_81 := \
 	test_web_lumen_90 \
 	test_web_magento_24 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_52 \
@@ -967,7 +967,7 @@ TEST_WEB_82 := \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
 	test_web_laminas_rest_19 \
-	test_web_laminas_20 \
+	test_web_laminas_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
@@ -978,7 +978,7 @@ TEST_WEB_82 := \
 	test_web_lumen_100 \
 	test_web_magento_24 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_52 \
@@ -1037,7 +1037,7 @@ TEST_WEB_83 := \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
 	test_web_nette_24 \
-	test_web_nette_30 \
+	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_52 \
@@ -1317,10 +1317,10 @@ test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Versio
 	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
 test_web_laminas_rest_19: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Version_1_9/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
-test_web_laminas_14: global_test_run_dependencies tests/Frameworks/Laminas/Version_1_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laminas/V1_4)
-test_web_laminas_20: global_test_run_dependencies tests/Frameworks/Laminas/Version_2_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laminas/V2_0)
+test_web_laminas_36: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Version_3_6/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Laminas/Mvc/V3_6)
+test_web_laminas_latest: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Laminas/Mvc/Latest)
 test_web_laravel_42: global_test_run_dependencies tests/Frameworks/Laravel/Version_4_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
 	$(call run_tests_debug,tests/Integrations/Laravel/V4)
@@ -1411,8 +1411,8 @@ test_web_magento_24: global_test_run_dependencies tests/Frameworks/Magento/Versi
 	$(call run_tests_debug,tests/Integrations/Magento/V2_4)
 test_web_nette_24: global_test_run_dependencies tests/Frameworks/Nette/Version_2_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Nette/V2_4)
-test_web_nette_30: global_test_run_dependencies tests/Frameworks/Nette/Version_3_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Nette/V3_0)
+test_web_nette_latest: global_test_run_dependencies tests/Frameworks/Nette/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Nette/Latest)
 test_web_zend_1: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/ZendFramework/V1)
 test_web_zend_1_21: global_test_run_dependencies

@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Nette\V3_0;
+namespace DDTrace\Tests\Integrations\Nette\Latest;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -12,7 +12,7 @@ final class NetteTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Nette/Version_3_0/www/index.php';
+        return __DIR__ . '/../../../Frameworks/Nette/Latest/www/index.php';
     }
 
     protected static function getEnvs()
@@ -20,6 +20,11 @@ final class NetteTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'nette_test_app',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'nette/application';
     }
 
     /**

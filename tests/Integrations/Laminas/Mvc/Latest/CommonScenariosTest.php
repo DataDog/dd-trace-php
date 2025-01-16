@@ -1,9 +1,7 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laminas\V2_0;
+namespace DDTrace\Tests\Integrations\Laminas\Latest;
 
-use DDTrace\Tag;
-use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
@@ -11,12 +9,17 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laminas/Version_2_0/public/index.php';
+        return __DIR__ . '/../../../../Frameworks/Laminas/Mvc/Latest/public/index.php';
     }
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_20']);
+        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas']);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'laminas/laminas-mvc';
     }
 
     public function testScenarioGetReturnString()

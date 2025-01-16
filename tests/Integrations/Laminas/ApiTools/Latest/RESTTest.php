@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laminas\ApiTools\V1_9;
+namespace DDTrace\Tests\Integrations\Laminas\ApiTools\Latest;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
@@ -10,12 +10,17 @@ class RESTTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../../Frameworks/Laminas/ApiTools/Version_1_9/public/index.php';
+        return __DIR__ . '/../../../../Frameworks/Laminas/ApiTools/Latest/public/index.php';
     }
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_rest_19']);
+        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_rest_latest']);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'laminas-api-tools/api-tools';
     }
 
     public function testScenarioRest4xx()

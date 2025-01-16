@@ -10,10 +10,11 @@
         "framework"
     ],
     "require": {
-        "php": "^7.3 || ~8.0.0",
-        "laminas/laminas-component-installer": "^2.4",
-        "laminas/laminas-development-mode": "^3.2",
-        "laminas/laminas-mvc": "^3.1.1"
+        "php": "~8.0.0 || ~8.1.0 || ~8.2.0",
+        "laminas/laminas-component-installer": "^3.2",
+        "laminas/laminas-development-mode": "^3.10",
+        "laminas/laminas-skeleton-installer": "^1.2",
+        "laminas/laminas-mvc": "3.8.0"
     },
     "autoload": {
         "psr-4": {
@@ -26,6 +27,7 @@
         }
     },
     "scripts": {
+        "clear-config-cache": "php bin/clear-config-cache.php",
         "cs-check": "vendor/bin/phpcs",
         "cs-fix": "vendor/bin/phpcbf",
         "development-disable": "laminas-development-mode disable",
@@ -37,11 +39,17 @@
             "php -r 'if (file_exists(\"bin/remove-package-artifacts.php\")) include \"bin/remove-package-artifacts.php\";'",
             "php -r 'if (file_exists(\"CHANGELOG.md\")) unlink(\"CHANGELOG.md\");'"
         ],
-        "serve": "php -S 0.0.0.0:8080 -t public",
+        "post-install-cmd": "@clear-config-cache",
+        "post-update-cmd": "@clear-config-cache",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "php -S 0.0.0.0:8080 -t public"
+        ],
         "test": "vendor/bin/phpunit",
         "static-analysis": "vendor/bin/psalm --shepherd --stats"
     },
     "scripts-descriptions": {
+        "clear-config-cache": "Clears merged config cache. Required for config changes to be applied.",
         "cs-check": "Run coding standards checks.",
         "cs-fix": "Automatically fix coding standard issues.",
         "development-disable": "Disable development mode.",
