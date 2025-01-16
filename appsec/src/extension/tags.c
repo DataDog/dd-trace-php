@@ -1026,6 +1026,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
         // _dd.appsec.usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_id,
             anon_user_id ? anon_user_id : user_id, !anon_user_id, true);
+    } else if (anon_user_id) {
+        zend_string_release(anon_user_id);
     }
 
     // _dd.appsec.events.users.signup.auto.mode =
@@ -1161,9 +1163,6 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
             zend_string_release(anon_user_id);
             return;
         }
-
-        user_login = anon_user_login;
-        user_id = anon_user_id;
     }
 
     if (ZSTR_LEN(user_id) > 0) {
@@ -1176,6 +1175,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         // _dd.appsec.usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_id,
             anon_user_id ? anon_user_id : user_id, !anon_user_id, true);
+    } else if (anon_user_id) {
+        zend_string_release(anon_user_id);
     }
 
     // _dd.appsec.events.users.login.success.auto.mode =
@@ -1325,6 +1326,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
         // _dd.appsec.usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_id,
             anon_user_id ? anon_user_id : user_id, !anon_user_id, true);
+    } else if (anon_user_id) {
+        zend_string_release(anon_user_id);
     }
 
     // _dd.appsec.events.users.login.failure.auto.mode =
@@ -1341,6 +1344,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
         _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_login,
             anon_user_login ? anon_user_login : user_login, !anon_user_login,
             true);
+    } else if (anon_user_login) {
+        zend_string_release(anon_user_login);
     }
 
     // appsec.events.users.login.failure.track = true
