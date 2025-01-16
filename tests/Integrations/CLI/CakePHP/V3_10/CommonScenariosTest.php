@@ -21,6 +21,11 @@ class CommonScenariosTest extends CLITestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'cakephp/cakephp';
+    }
+
     public function testCommandWithNoArguments()
     {
         $traces = $this->getTracesFromCommand();

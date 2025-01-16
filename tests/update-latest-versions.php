@@ -17,6 +17,12 @@ sort($testFiles);
 //var_dump($testFiles);
 
 foreach ($testFiles as $file) {
+    if (basename(dirname($file)) !== 'Latest') {
+        continue;
+    }
+
+    echo "File: $file\n";
+
     try {
         $content = file_get_contents($file);
         $matches = [];
@@ -27,21 +33,24 @@ foreach ($testFiles as $file) {
         $class = $namespace . '\\' . $class;
         if (!class_exists($class)) {
             require_once $file;
+            if (!class_exists($class)) {
+                continue;
+            }
         }
-        if (!class_exists($class) || !method_exists($class, 'getTestedLibrary')) {
+
+        if (method_exists($class, 'getTestedLibrary')) {
+            $library = call_user_func([$class, 'getTestedLibrary']);
+        } elseif (file_exists(dirname($file) . '/composer.json')) {
+            $composer = dirname($file) . '/composer.json';
+            $composerData = json_decode(file_get_contents($composer), true);
+            $library = key($composerData['require']);
+        } else {
             continue;
         }
-        $library = call_user_func([$class, 'getTestedLibrary']);
+
         if (empty($library)) {
             continue;
         }
-
-
-        if (basename(dirname($file)) !== 'Latest') {
-            continue;
-        }
-
-        echo "File: $file\n";
 
         if (method_exists($class, 'getAppIndexScript')) {
             $workingDir = call_user_func([$class, 'getAppIndexScript']);

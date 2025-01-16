@@ -21,6 +21,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'laravel/framework';
+    }
+
     public function testScenarioGetReturnString()
     {
         $this->tracesFromWebRequestSnapshot(function () {

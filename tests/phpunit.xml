@@ -37,9 +37,9 @@
             <directory>./Integrations/CakePHP/V4_5</directory>
             <directory>./Integrations/CLI/CakePHP/V4_5</directory>
         </testsuite>
-        <testsuite name="cakephp-50-test">
-            <directory>./Integrations/CakePHP/V5_0</directory>
-            <directory>./Integrations/CLI/CakePHP/V5_0</directory>
+        <testsuite name="cakephp-latest-test">
+            <directory>./Integrations/CakePHP/Latest</directory>
+            <directory>./Integrations/CLI/CakePHP/Latest</directory>
         </testsuite>
         <testsuite name="codeigniter-22-test">
             <directory>./Integrations/CodeIgniter/V2_2</directory>
@@ -66,9 +66,9 @@
             <directory>./Integrations/Laravel/V10_x</directory>
             <directory>./Integrations/CLI/Laravel/V10_X</directory>
         </testsuite>
-        <testsuite name="laravel-11x-test">
-            <directory>./Integrations/Laravel/V11_x</directory>
-            <directory>./Integrations/CLI/Laravel/V11_X</directory>
+        <testsuite name="laravel-latest-test">
+            <directory>./Integrations/Laravel/Latest</directory>
+            <directory>./Integrations/CLI/Laravel/Latest</directory>
         </testsuite>
         <testsuite name="laravel-octane-test">
             <directory>./Integrations/Laravel/Octane</directory>
@@ -88,8 +88,8 @@
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>
-        <testsuite name="slim-4-test">
-            <directory>./Integrations/Slim/V4</directory>
+        <testsuite name="slim-latest-test">
+            <directory>./Integrations/Slim/Latest</directory>
         </testsuite>
         <testsuite name="frankenphp-test">
             <directory>./Integrations/Frankenphp</directory>
@@ -109,9 +109,9 @@
             <directory>./Integrations/Symfony/V6_2</directory>
             <directory>./Integrations/CLI/Symfony/V6_2</directory>
         </testsuite>
-        <testsuite name="symfony-70-test">
-            <directory>./Integrations/Symfony/V7_0</directory>
-            <directory>./Integrations/CLI/Symfony/V7_0</directory>
+        <testsuite name="symfony-latest-test">
+            <directory>./Integrations/Symfony/Latest</directory>
+            <directory>./Integrations/CLI/Symfony/Latest</directory>
         </testsuite>
         <testsuite name="custom-framework-autoloading-test">
             <directory>./Integrations/Custom/Autoloaded</directory>

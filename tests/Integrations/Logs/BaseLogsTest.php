@@ -8,6 +8,11 @@ use function DDTrace\start_span;
 
 class BaseLogsTest extends \DDTrace\Tests\Common\IntegrationTestCase
 {
+    public static function getTestedLibrary()
+    {
+        return 'monolog/monolog';
+    }
+
     protected static function logFile()
     {
         return "/tmp/test-" . substr(static::class, strrpos(static::class, '\\') + 1) . '.log';

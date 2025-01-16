@@ -550,7 +550,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -560,7 +560,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_sqlsrv
 
 TEST_WEB_70 := \
@@ -587,12 +587,12 @@ TEST_WEB_70 := \
 TEST_INTEGRATIONS_71 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -603,7 +603,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_opentracing_10
 
@@ -639,12 +639,12 @@ TEST_WEB_71 := \
 TEST_INTEGRATIONS_72 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
@@ -657,7 +657,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_opentracing_10
 
@@ -676,7 +676,7 @@ TEST_WEB_72 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
@@ -698,12 +698,12 @@ TEST_WEB_72 := \
 TEST_INTEGRATIONS_73 :=\
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
@@ -716,7 +716,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_opentracing_10
 
@@ -738,7 +738,7 @@ TEST_WEB_73 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
@@ -756,19 +756,19 @@ TEST_WEB_73 := \
 TEST_INTEGRATIONS_74 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
 	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle7 \
@@ -776,7 +776,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
 	test_opentracing_10
@@ -801,7 +801,7 @@ TEST_WEB_74 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_44 \
@@ -822,13 +822,13 @@ TEST_WEB_74 := \
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
@@ -841,7 +841,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle7 \
 	test_integrations_pcntl \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
 	test_opentracing_10
@@ -862,7 +862,7 @@ TEST_WEB_80 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_44 \
 	test_web_symfony_51 \
 	test_web_symfony_52 \
@@ -874,19 +874,19 @@ TEST_WEB_80 := \
 
 TEST_INTEGRATIONS_81 := \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
+	test_integrations_monolog_latest \
 	test_integrations_mysqli \
-	test_integrations_openai \
+	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner \
@@ -895,7 +895,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
 	test_opentracing_10
@@ -903,7 +903,7 @@ TEST_INTEGRATIONS_81 := \
 TEST_WEB_81 := \
 	test_metrics \
 	test_web_cakephp_45 \
-	test_web_cakephp_50 \
+	test_web_cakephp_latest \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -919,7 +919,7 @@ TEST_WEB_81 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -929,19 +929,19 @@ TEST_WEB_81 := \
 
 TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
+	test_integrations_monolog_latest \
 	test_integrations_mysqli \
-	test_integrations_openai \
+	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner \
@@ -949,9 +949,9 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
@@ -961,7 +961,7 @@ TEST_INTEGRATIONS_82 := \
 TEST_WEB_82 := \
 	test_metrics \
 	test_web_cakephp_45 \
-	test_web_cakephp_50 \
+	test_web_cakephp_latest \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
@@ -971,7 +971,7 @@ TEST_WEB_82 := \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
-	test_web_laravel_11x \
+	test_web_laravel_latest \
 	test_web_laravel_octane \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -980,10 +980,10 @@ TEST_WEB_82 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
-	test_web_symfony_70 \
+	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -992,19 +992,19 @@ TEST_WEB_82 := \
 
 TEST_INTEGRATIONS_83 := \
 	test_integrations_amqp2 \
-	test_integrations_amqp35 \
+	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_deferred_loading \
 	test_integrations_kafka \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb1 \
+	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
-	test_integrations_monolog3 \
+	test_integrations_monolog_latest \
 	test_integrations_mysqli \
-	test_integrations_openai \
+	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner \
@@ -1012,9 +1012,9 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
-	test_integrations_predis1 \
+	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
@@ -1024,14 +1024,14 @@ TEST_INTEGRATIONS_83 := \
 TEST_WEB_83 := \
 	test_metrics \
 	test_web_cakephp_45 \
-	test_web_cakephp_50 \
+	test_web_cakephp_latest \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
-	test_web_laravel_11x \
+	test_web_laravel_latest \
 	test_web_laravel_octane \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -1039,10 +1039,10 @@ TEST_WEB_83 := \
 	test_web_nette_24 \
 	test_web_nette_30 \
 	test_web_slim_312 \
-	test_web_slim_4 \
+	test_web_slim_latest \
 	test_web_symfony_52 \
 	test_web_symfony_62 \
-	test_web_symfony_70 \
+	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1219,8 +1219,8 @@ test_integrations_coverage:
 
 test_integrations_amqp2: global_test_run_dependencies tests/Integrations/AMQP/V2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/AMQP/V2)
-test_integrations_amqp35: global_test_run_dependencies tests/Integrations/AMQP/V3_5/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/AMQP/V3_5)
+test_integrations_amqp_latest: global_test_run_dependencies tests/Integrations/AMQP/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/AMQP/Latest)
 test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/DeferredLoading/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_filesystem: global_test_run_dependencies
@@ -1231,8 +1231,8 @@ test_integrations_elasticsearch1: global_test_run_dependencies tests/Integration
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V1)
 test_integrations_elasticsearch7: global_test_run_dependencies tests/Integrations/Elasticsearch/V7/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V7)
-test_integrations_elasticsearch8: global_test_run_dependencies tests/Integrations/Elasticsearch/V8/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Elasticsearch/V8)
+test_integrations_elasticsearch_latest: global_test_run_dependencies tests/Integrations/Elasticsearch/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Elasticsearch/Latest)
 test_integrations_guzzle5: global_test_run_dependencies tests/Integrations/Guzzle/V5/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Guzzle/V5)
 test_integrations_guzzle6: global_test_run_dependencies  tests/Integrations/Guzzle/V6/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1251,17 +1251,17 @@ test_integrations_monolog1: global_test_run_dependencies tests/Integrations/Logs
 	$(call run_tests_debug,tests/Integrations/Logs/MonologV1)
 test_integrations_monolog2: global_test_run_dependencies tests/Integrations/Logs/MonologV2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Logs/MonologV2)
-test_integrations_monolog3: global_test_run_dependencies tests/Integrations/Logs/MonologV3/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Logs/MonologV3)
+test_integrations_monolog_latest: global_test_run_dependencies tests/Integrations/Logs/MonologLatest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Logs/MonologLatest)
 test_integrations_mysqli: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Mysqli)
 test_integrations_mongo: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Mongo)
-test_integrations_mongodb1: global_test_run_dependencies tests/Integrations/MongoDB/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/MongoDB)
-test_integrations_openai: global_test_run_dependencies tests/Integrations/OpenAI/composer.lock-php$(PHP_MAJOR_MINOR)
+test_integrations_mongodb_latest: global_test_run_dependencies tests/Integrations/MongoDB/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/MongoDB/Latest)
+test_integrations_openai_latest: global_test_run_dependencies tests/Integrations/OpenAI/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(eval TELEMETRY_ENABLED=1)
-	$(call run_tests_debug,tests/Integrations/OpenAI)
+	$(call run_tests_debug,tests/Integrations/OpenAI/Latest)
  	$(eval TELEMETRY_ENABLED=0)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
@@ -1281,8 +1281,8 @@ test_integrations_phpredis5: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V5)
 	$(eval TEST_EXTRA_INI=)
 	$(eval TEST_EXTRA_ENV=)
-test_integrations_predis1: global_test_run_dependencies tests/Integrations/Predis/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Predis)
+test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Predis/Latest)
 test_integrations_frankenphp: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1303,8 +1303,8 @@ test_web_cakephp_310: global_test_run_dependencies tests/Frameworks/CakePHP/Vers
 	$(call run_tests_debug,--testsuite=cakephp-310-test)
 test_web_cakephp_45: global_test_run_dependencies tests/Frameworks/CakePHP/Version_4_5/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-45-test)
-test_web_cakephp_50: global_test_run_dependencies tests/Frameworks/CakePHP/Version_5_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=cakephp-50-test)
+test_web_cakephp_latest: global_test_run_dependencies tests/Frameworks/CakePHP/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,--testsuite=cakephp-latest-test)
 test_web_codeigniter_22: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=codeigniter-22-test)
 test_web_codeigniter_31: global_test_run_dependencies tests/Frameworks/CodeIgniter/Version_3_1/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1334,8 +1334,8 @@ test_web_laravel_9x: global_test_run_dependencies tests/Frameworks/Laravel/Versi
 	$(call run_tests_debug,--testsuite=laravel-9x-test)
 test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-10x-test)
-test_web_laravel_11x: global_test_run_dependencies tests/Frameworks/Laravel/Version_11_x/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-11x-test)
+test_web_laravel_latest: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,--testsuite=laravel-latest-test)
 test_web_laravel_octane: global_test_run_dependencies tests/Frameworks/Laravel/Octane/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-octane-test)
 test_web_lumen_52: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1352,7 +1352,7 @@ test_web_lumen_100: global_test_run_dependencies tests/Frameworks/Lumen/Version_
 	$(call run_tests_debug,tests/Integrations/Lumen/V10_0)
 test_web_slim_312: global_test_run_dependencies tests/Frameworks/Slim/Version_3_12/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=slim-312-test)
-test_web_slim_4: global_test_run_dependencies tests/Frameworks/Slim/Version_4/composer.lock-php$(PHP_MAJOR_MINOR)
+test_web_slim_latest: global_test_run_dependencies tests/Frameworks/Slim/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=slim-4-test)
 test_web_symfony_23: global_test_run_dependencies tests/Frameworks/Symfony/Version_2_3/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)
@@ -1392,8 +1392,8 @@ test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
-test_web_symfony_70: global_test_run_dependencies tests/Frameworks/Symfony/Version_7_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_7_0/bin/console cache:clear --no-warmup --env=prod
+test_web_symfony_latest: global_test_run_dependencies tests/Frameworks/Symfony/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	php tests/Frameworks/Symfony/Latest/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-70-test)
 test_web_wordpress_48: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V4_8)
