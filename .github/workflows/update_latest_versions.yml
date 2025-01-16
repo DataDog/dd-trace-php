@@ -23,15 +23,12 @@ jobs:
           fetch-depth: 0
 
       - name: Install PHP
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y php php-cli
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
 
       - name: Install composer
-        run: |
-          php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
-          php /tmp/composer-setup.php
-          php -r "unlink('/tmp/composer-setup.php');"
+        uses: php-actions/composer@v6
 
       - name: Install PHP Tracer # Required by test bootstrap
         run: |
