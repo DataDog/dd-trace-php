@@ -27,9 +27,6 @@ jobs:
         with:
           php-version: '8.3'
 
-      - name: Install composer
-        uses: php-actions/composer@v6
-
       - name: Install PHP Tracer # Required by test bootstrap
         run: |
           curl -Lo /tmp/datadog-setup.php https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php
