@@ -91,7 +91,12 @@ class LaravelIntegration extends Integration
                     $configPath = realpath($app->configPath());
                     if (file_exists($configPath . '/app.php')) {
                         $config = require $configPath . '/app.php';
-                        $integration->serviceName = $config['name'];
+                        if (isset($config['name'])) {
+                            $integration->serviceName = $config['name'];
+                        }                        
+                    }
+                    if (empty($integration->serviceName)) {
+                        $integration->serviceName = isset($_ENV['APP_NAME']) ? $_ENV['APP_NAME'] : 'Laravel';
                     }
                 }
             }
