@@ -41,7 +41,7 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
          $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
 
-         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event']);
+         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event_automated']);
 
          $this->assertEquals(1, count($events));
          $this->assertEquals($email, $events[0]['userLogin']);
@@ -59,7 +59,7 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
          $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
 
-         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event']);
+         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event_automated']);
          $this->assertEquals(1, count($events));
          $this->assertEmpty($events[0]['userLogin']);
          $this->assertEmpty($events[0]['userId']);
@@ -84,7 +84,7 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->assertEquals(1, count($users));
 
-        $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event']);
+        $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event_automated']);
 
         $this->assertEquals($email, $signUpEvent[0]['userLogin']);
         $this->assertEquals($email, $signUpEvent[0]['userId']);

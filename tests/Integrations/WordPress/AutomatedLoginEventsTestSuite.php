@@ -37,7 +37,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->call($spec, [CURLOPT_FOLLOWLOCATION => false, CURLOPT_COOKIESESSION => true]);
 
-        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event']);
+        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event_automated']);
         $this->assertEquals(1, count($events));
         $this->assertEquals($email, $events[0]['userLogin']);
         $this->assertEquals($id, $events[0]['userId']);
@@ -55,7 +55,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->call($spec, [CURLOPT_FOLLOWLOCATION => false, CURLOPT_COOKIESESSION => true]);
 
-        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event']);
+        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event_automated']);
         $this->assertEquals(1, count($events));
         $this->assertEquals($email, $events[0]['userId']);
         $this->assertEquals($email, $events[0]['userLogin']);
@@ -80,7 +80,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->call($spec, [CURLOPT_FOLLOWLOCATION => false, CURLOPT_COOKIESESSION => true]);
 
-        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event']);
+        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event_automated']);
         $this->assertEquals(1, count($events));
         $this->assertEquals($email, $events[0]['userId']);
         $this->assertEquals($email, $events[0]['userLogin']);
@@ -103,7 +103,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->assertEquals(1, count($users));
 
-        $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event']);
+        $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event_automated']);
 
         $this->assertEquals($users[0]['ID'], $signUpEvent[0]['userId']);
         $this->assertEquals($users[0]['user_login'], $signUpEvent[0]['userLogin']);
