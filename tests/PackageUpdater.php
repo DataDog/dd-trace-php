@@ -33,7 +33,7 @@ class PackageUpdater
         $regex = new RegexIterator($iterator, '/^.+Test\.php$/i', RecursiveRegexIterator::GET_MATCH);
         $files = array_map(fn($file) => $file[0], iterator_to_array($regex));
         sort($files);
-        return array_filter($files, fn($file) => basename(dirname($file)) === 'Latest');
+        return array_filter($files, fn($file) => \str_contains(basename(dirname($file)), 'Latest'));
     }
 
     private function processFile(string $file): void
