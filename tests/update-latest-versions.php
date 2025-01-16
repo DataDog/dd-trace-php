@@ -135,7 +135,7 @@ function getLatestComposerVersion($packageName) {
 
     foreach ($data['packages'][$packageName] as $package) {
         $currentVersion = $package['version_normalized'] ?? null;
-        if ($currentVersion && (is_null($latestVersion) || version_compare($currentVersion, $latestVersion, '>'))) {
+        if ($currentVersion && isStableVersion($currentVersion) && (is_null($latestVersion) || version_compare($currentVersion, $latestVersion, '>'))) {
             $latestVersion = $currentVersion;
         }
     }
@@ -145,4 +145,8 @@ function getLatestComposerVersion($packageName) {
     }
 
     return "";
+}
+
+function isStableVersion($version) {
+    return !preg_match('/(alpha|beta|rc|dev)/i', $version);
 }

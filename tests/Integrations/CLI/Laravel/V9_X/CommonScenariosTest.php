@@ -26,11 +26,6 @@ class CommonScenariosTest extends CLITestCase
        ]);
    }
 
-    public static function getTestedLibrary()
-    {
-        return 'laravel/framework';
-    }
-
    public function testCommandWithNoArguments()
    {
        $this->retrieveDumpedData();

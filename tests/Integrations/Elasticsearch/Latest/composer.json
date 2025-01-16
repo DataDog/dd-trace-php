@@ -1,5 +1,5 @@
 {
     "require": {
-        "elasticsearch/elasticsearch": "~8.5"
+        "elasticsearch/elasticsearch": "8.17.0"
     }
 }
