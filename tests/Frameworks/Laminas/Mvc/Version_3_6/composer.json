@@ -13,7 +13,7 @@
         "php": "^7.3 || ~8.0.0",
         "laminas/laminas-component-installer": "^2.4",
         "laminas/laminas-development-mode": "^3.2",
-        "laminas/laminas-mvc": "3.6.1"
+        "laminas/laminas-mvc": "3.3.5 - 3.6.1"
     },
     "autoload": {
         "psr-4": {
