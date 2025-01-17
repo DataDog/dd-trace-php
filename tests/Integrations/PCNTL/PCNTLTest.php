@@ -20,22 +20,6 @@ final class PCNTLTest extends IntegrationTestCase
         parent::ddSetUp();
     }
 
-    private function retryTest(callable $testCase, ...$args)
-    {
-        $attempts = 0;
-        while ($attempts < self::MAX_RETRIES) {
-            try {
-                $testCase(...$args);
-                return; // Test passed, exit the loop.
-            } catch (\Throwable $e) {
-                $attempts++;
-                if ($attempts >= self::MAX_RETRIES) {
-                    throw $e; // Re-throw after max retries.
-                }
-            }
-        }
-    }
-
     /**
      * @dataProvider dataProviderAllScripts
      */
