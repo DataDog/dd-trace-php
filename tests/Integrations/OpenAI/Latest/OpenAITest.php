@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\OpenAI\Latest;
+namespace DDTrace\Tests\Integrations\OpenAI;
 
 use DDTrace\Tests\Common\IntegrationTestCase;
 use GuzzleHttp\Psr7\Response;

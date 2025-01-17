@@ -652,7 +652,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
@@ -711,7 +711,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_elasticsearch7 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
@@ -771,7 +771,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_elasticsearch_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
@@ -838,7 +838,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_googlespanner \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_phpredis5 \
 	test_integrations_predis_latest \
@@ -890,7 +890,7 @@ TEST_INTEGRATIONS_81 := \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -945,7 +945,7 @@ TEST_INTEGRATIONS_82 := \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -1008,7 +1008,7 @@ TEST_INTEGRATIONS_83 := \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner \
-	test_integrations_guzzle7 \
+	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
@@ -1237,8 +1237,8 @@ test_integrations_guzzle5: global_test_run_dependencies tests/Integrations/Guzzl
 	$(call run_tests_debug,tests/Integrations/Guzzle/V5)
 test_integrations_guzzle6: global_test_run_dependencies  tests/Integrations/Guzzle/V6/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Guzzle/V6)
-test_integrations_guzzle7: global_test_run_dependencies tests/Integrations/Guzzle/V7/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Guzzle/V7)
+test_integrations_guzzle_latest: global_test_run_dependencies tests/Integrations/Guzzle/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Guzzle/Latest)
 test_integrations_kafka: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Kafka)
 test_integrations_laminaslog2: global_test_run_dependencies tests/Integrations/Logs/LaminasLogV2/composer.lock-php$(PHP_MAJOR_MINOR)
