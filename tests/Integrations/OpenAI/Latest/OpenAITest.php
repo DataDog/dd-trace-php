@@ -434,7 +434,7 @@ class OpenAITest extends IntegrationTestCase
             $this->assertNotNull($responseIterator);
             $this->assertIsIterable($responseIterator);
 
-            $expectedContent = file_get_contents(__DIR__ . '/../../OpenAI/Fixtures/Streams/CompletionCreate.txt');
+            $expectedContent = file_get_contents(__DIR__ . '/../../../OpenAI/Fixtures/Streams/CompletionCreate.txt');
             $lines = explode("\n", $expectedContent);
             for ($i = 0; $i < 10; $i++) {
                 $jsonContent = substr($lines[$i], 6); // 6 is the length of 'data: '
