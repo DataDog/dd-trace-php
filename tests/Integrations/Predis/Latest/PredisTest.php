@@ -1,17 +1,17 @@
 <?php
 
-namespace Integrations\Predis\Latest;
+namespace DDTrace\Tests\Integrations\Predis\Latest;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Predis\Configuration\Options;
 
-final class PredisTest extends IntegrationTestCase
+class PredisTest extends IntegrationTestCase
 {
     protected static $lockedResource = "redis";
 
-    private $host = 'redis_integration';
+    protected $host = 'redis_integration';
     private $port = '6379';
 
     public static function ddSetUpBeforeClass()
@@ -166,7 +166,7 @@ final class PredisTest extends IntegrationTestCase
         $connectionString = "tcp://{$this->host}";
 
         $traces = $this->isolateTracer(function () use ($connectionString) {
-            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString]);
+            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString], ['cluster' => 'redis']);
             $client->connect();
         });
 
