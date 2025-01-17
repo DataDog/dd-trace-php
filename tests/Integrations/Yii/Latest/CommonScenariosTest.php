@@ -22,6 +22,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'yiisoft/yii2';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
