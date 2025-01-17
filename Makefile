@@ -620,7 +620,6 @@ TEST_WEB_71 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_nette_24 \
-	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
@@ -674,7 +673,6 @@ TEST_WEB_72 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_nette_24 \
-	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_23 \
@@ -736,7 +734,6 @@ TEST_WEB_73 := \
 	test_web_lumen_81 \
 	test_web_magento_23 \
 	test_web_nette_24 \
-	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_34 \
@@ -799,7 +796,6 @@ TEST_WEB_74 := \
 	test_web_lumen_81 \
 	test_web_magento_23 \
 	test_web_nette_24 \
-	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_34 \
@@ -860,7 +856,6 @@ TEST_WEB_80 := \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_nette_24 \
-	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_44 \
