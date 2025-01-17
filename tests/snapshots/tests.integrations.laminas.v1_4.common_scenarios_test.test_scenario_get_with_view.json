@@ -1,7 +1,7 @@
 [[
   {
     "name": "laminas.request",
-    "service": "test_laminas",
+    "service": "test_laminas_mvc_latest",
     "resource": "Application\\Controller\\CommonSpecsController@view simpleView",
     "trace_id": 0,
     "span_id": 1,
@@ -24,7 +24,7 @@
   },
      {
        "name": "laminas.application.init",
-       "service": "test_laminas",
+       "service": "test_laminas_mvc_latest",
        "resource": "laminas.application.init",
        "trace_id": 0,
        "span_id": 2,
@@ -36,7 +36,7 @@
      },
         {
           "name": "laminas.event.loadModules",
-          "service": "test_laminas",
+          "service": "test_laminas_mvc_latest",
           "resource": "laminas.event.loadModules",
           "trace_id": 0,
           "span_id": 4,
@@ -48,7 +48,7 @@
         },
         {
           "name": "laminas.event.loadModules.post",
-          "service": "test_laminas",
+          "service": "test_laminas_mvc_latest",
           "resource": "laminas.event.loadModules.post",
           "trace_id": 0,
           "span_id": 5,
@@ -60,7 +60,7 @@
         },
         {
           "name": "laminas.application.bootstrap",
-          "service": "test_laminas",
+          "service": "test_laminas_mvc_latest",
           "resource": "laminas.application.bootstrap",
           "trace_id": 0,
           "span_id": 6,
@@ -72,7 +72,7 @@
         },
            {
              "name": "laminas.event.bootstrap",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "laminas.event.bootstrap",
              "trace_id": 0,
              "span_id": 10,
@@ -84,7 +84,7 @@
            },
               {
                 "name": "laminas.mvcEventListener",
-                "service": "test_laminas",
+                "service": "test_laminas_mvc_latest",
                 "resource": "Laminas\\Mvc\\View\\Http\\ViewManager@onBootstrap",
                 "trace_id": 0,
                 "span_id": 18,
@@ -96,7 +96,7 @@
               },
      {
        "name": "laminas.application.run",
-       "service": "test_laminas",
+       "service": "test_laminas_mvc_latest",
        "resource": "laminas.application.run",
        "trace_id": 0,
        "span_id": 3,
@@ -108,7 +108,7 @@
      },
         {
           "name": "laminas.event.route",
-          "service": "test_laminas",
+          "service": "test_laminas_mvc_latest",
           "resource": "laminas.event.route",
           "trace_id": 0,
           "span_id": 7,
@@ -120,7 +120,7 @@
         },
            {
              "name": "laminas.mvcEventListener",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "Laminas\\Mvc\\HttpMethodListener@onRoute",
              "trace_id": 0,
              "span_id": 11,
@@ -132,7 +132,7 @@
            },
            {
              "name": "laminas.mvcEventListener",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "Laminas\\Mvc\\RouteListener@onRoute",
              "trace_id": 0,
              "span_id": 12,
@@ -144,7 +144,7 @@
            },
               {
                 "name": "laminas.route.match",
-                "service": "test_laminas",
+                "service": "test_laminas_mvc_latest",
                 "resource": "Laminas\\Router\\Http\\TreeRouteStack@match",
                 "trace_id": 0,
                 "span_id": 19,
@@ -156,7 +156,7 @@
               },
         {
           "name": "laminas.event.dispatch",
-          "service": "test_laminas",
+          "service": "test_laminas_mvc_latest",
           "resource": "laminas.event.dispatch",
           "trace_id": 0,
           "span_id": 8,
@@ -168,7 +168,7 @@
         },
            {
              "name": "laminas.mvcEventListener",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "Laminas\\Mvc\\MiddlewareListener@onDispatch",
              "trace_id": 0,
              "span_id": 13,
@@ -180,7 +180,7 @@
            },
            {
              "name": "laminas.mvcEventListener",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "Laminas\\Mvc\\DispatchListener@onDispatch",
              "trace_id": 0,
              "span_id": 14,
@@ -192,7 +192,7 @@
            },
               {
                 "name": "laminas.controller.dispatch",
-                "service": "test_laminas",
+                "service": "test_laminas_mvc_latest",
                 "resource": "Application\\Controller\\CommonSpecsController",
                 "trace_id": 0,
                 "span_id": 20,
@@ -204,7 +204,7 @@
               },
                  {
                    "name": "laminas.mvcEventListener",
-                   "service": "test_laminas",
+                   "service": "test_laminas_mvc_latest",
                    "resource": "Application\\Controller\\CommonSpecsController@onDispatch",
                    "trace_id": 0,
                    "span_id": 23,
@@ -216,7 +216,7 @@
                  },
                     {
                       "name": "laminas.controller.action",
-                      "service": "test_laminas",
+                      "service": "test_laminas_mvc_latest",
                       "resource": "Application\\Controller\\CommonSpecsController@viewAction",
                       "trace_id": 0,
                       "span_id": 27,
@@ -228,7 +228,7 @@
                     },
                  {
                    "name": "laminas.mvcEventListener",
-                   "service": "test_laminas",
+                   "service": "test_laminas_mvc_latest",
                    "resource": "Laminas\\Mvc\\View\\Http\\RouteNotFoundStrategy@prepareNotFoundViewModel",
                    "trace_id": 0,
                    "span_id": 24,
@@ -240,7 +240,7 @@
                  },
                  {
                    "name": "laminas.mvcEventListener",
-                   "service": "test_laminas",
+                   "service": "test_laminas_mvc_latest",
                    "resource": "Laminas\\Mvc\\View\\Http\\InjectViewModelListener@injectViewModel",
                    "trace_id": 0,
                    "span_id": 25,
@@ -252,7 +252,7 @@
                  },
            {
              "name": "laminas.mvcEventListener",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "Laminas\\Mvc\\View\\Http\\RouteNotFoundStrategy@prepareNotFoundViewModel",
              "trace_id": 0,
              "span_id": 15,
@@ -264,7 +264,7 @@
            },
         {
           "name": "laminas.application.completeRequest",
-          "service": "test_laminas",
+          "service": "test_laminas_mvc_latest",
           "resource": "laminas.application.completeRequest",
           "trace_id": 0,
           "span_id": 9,
@@ -276,7 +276,7 @@
         },
            {
              "name": "laminas.event.render",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "laminas.event.render",
              "trace_id": 0,
              "span_id": 16,
@@ -288,7 +288,7 @@
            },
               {
                 "name": "laminas.view.http.renderer",
-                "service": "test_laminas",
+                "service": "test_laminas_mvc_latest",
                 "resource": "Laminas\\Mvc\\View\\Http\\DefaultRenderingStrategy@render",
                 "trace_id": 0,
                 "span_id": 21,
@@ -300,7 +300,7 @@
               },
                  {
                    "name": "laminas.view.render",
-                   "service": "test_laminas",
+                   "service": "test_laminas_mvc_latest",
                    "resource": "laminas.view.render",
                    "trace_id": 0,
                    "span_id": 26,
@@ -312,7 +312,7 @@
                  },
                     {
                       "name": "laminas.templating.render",
-                      "service": "test_laminas",
+                      "service": "test_laminas_mvc_latest",
                       "resource": "application/common-specs/view",
                       "trace_id": 0,
                       "span_id": 28,
@@ -324,7 +324,7 @@
                     },
            {
              "name": "laminas.event.finish",
-             "service": "test_laminas",
+             "service": "test_laminas_mvc_latest",
              "resource": "laminas.event.finish",
              "trace_id": 0,
              "span_id": 17,
@@ -336,7 +336,7 @@
            },
               {
                 "name": "laminas.mvcEventListener",
-                "service": "test_laminas",
+                "service": "test_laminas_mvc_latest",
                 "resource": "Laminas\\Mvc\\SendResponseListener@sendResponse",
                 "trace_id": 0,
                 "span_id": 22,

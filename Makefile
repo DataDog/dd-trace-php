@@ -726,7 +726,7 @@ TEST_WEB_73 := \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
-	test_web_laminas_36 \
+	test_web_laminas_mvc_36 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -789,7 +789,7 @@ TEST_WEB_74 := \
 	test_web_codeigniter_31 \
 	test_web_drupal_89 \
 	test_web_drupal_95 \
-	test_web_laminas_36 \
+	test_web_laminas_mvc_36 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
 	test_web_laravel_8x \
@@ -852,9 +852,9 @@ TEST_WEB_80 := \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
-	test_web_laminas_rest_19 \
-	test_web_laminas_36 \
-	test_web_laminas_latest \
+	test_web_laminas_rest_latest \
+	test_web_laminas_mvc_36 \
+	test_web_laminas_mvc_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_lumen_81 \
@@ -908,8 +908,8 @@ TEST_WEB_81 := \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
-	test_web_laminas_rest_19 \
-	test_web_laminas_latest \
+	test_web_laminas_rest_latest \
+	test_web_laminas_mvc_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
@@ -966,8 +966,8 @@ TEST_WEB_82 := \
 	test_web_codeigniter_31 \
 	test_web_drupal_95 \
 	test_web_drupal_101 \
-	test_web_laminas_rest_19 \
-	test_web_laminas_latest \
+	test_web_laminas_rest_latest \
+	test_web_laminas_mvc_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
@@ -1315,11 +1315,11 @@ test_web_drupal_95: global_test_run_dependencies tests/Frameworks/Drupal/Version
 	$(call run_tests_debug,tests/Integrations/Drupal/V9_5)
 test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Version_10_1/core/composer.lock-php tests/Frameworks/Drupal/Version_10_1/composer.lock-php
 	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
-test_web_laminas_rest_19: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Version_1_9/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/V1_9)
-test_web_laminas_36: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Version_3_6/composer.lock-php$(PHP_MAJOR_MINOR)
+test_web_laminas_rest_latest: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/Latest)
+test_web_laminas_mvc_36: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Version_3_6/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/Mvc/V3_6)
-test_web_laminas_latest: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+test_web_laminas_mvc_latest: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Laminas/Mvc/Latest)
 test_web_laravel_42: global_test_run_dependencies tests/Frameworks/Laravel/Version_4_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Laravel/Version_4_2/artisan optimize

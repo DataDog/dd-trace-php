@@ -14,7 +14,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas']);
+        return array_merge(parent::getEnvs(), ['DD_SERVICE' => 'test_laminas_mvc_latest']);
     }
 
     public static function getTestedLibrary()
