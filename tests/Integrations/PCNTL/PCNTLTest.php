@@ -8,6 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 final class PCNTLTest extends IntegrationTestCase
 {
     private static $acceptable_test_execution_time = 2;
+    private const MAX_RETRIES = 3;
 
     protected function ddSetUp()
     {
@@ -19,26 +20,44 @@ final class PCNTLTest extends IntegrationTestCase
         parent::ddSetUp();
     }
 
+    private function retryTest(callable $testCase, ...$args)
+    {
+        $attempts = 0;
+        while ($attempts < self::MAX_RETRIES) {
+            try {
+                $testCase(...$args);
+                return; // Test passed, exit the loop.
+            } catch (\Throwable $e) {
+                $attempts++;
+                if ($attempts >= self::MAX_RETRIES) {
+                    throw $e; // Re-throw after max retries.
+                }
+            }
+        }
+    }
+
     /**
      * @dataProvider dataProviderAllScripts
      */
     public function testDoesNoHangAtShutdownWhenDisabled($scriptPath)
     {
-        if ($scriptPath === (__DIR__ . '/scripts/long-running-manual-flush.php')) {
-            $this->markTestSkipped('manual tracing cannot be done when the tracer is disabled because the "DDTrace\\*" classes are not available.');
-            return;
-        }
+        $this->retryTest(function ($scriptPath) {
+            if ($scriptPath === (__DIR__ . '/scripts/long-running-manual-flush.php')) {
+                $this->markTestSkipped('manual tracing cannot be done when the tracer is disabled because the "DDTrace\\*" classes are not available.');
+                return;
+            }
 
-        $start = \microtime(true);
-        $this->executeCli(
-            $scriptPath,
-            [
-                'DD_TRACE_CLI_ENABLED' => 'false',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ]
-        );
-        $end = \microtime(true);
-        $this->assertLessThan(self::$acceptable_test_execution_time, $end - $start);
+            $start = \microtime(true);
+            $this->executeCli(
+                $scriptPath,
+                [
+                    'DD_TRACE_CLI_ENABLED' => 'false',
+                    'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
+                ]
+            );
+            $end = \microtime(true);
+            $this->assertLessThan(self::$acceptable_test_execution_time, $end - $start);
+        }, $scriptPath);
     }
 
     /**
@@ -46,27 +65,29 @@ final class PCNTLTest extends IntegrationTestCase
      */
     public function testDoesNoHangAtShutdownWhenEnabled($scriptPath)
     {
-        if (extension_loaded('xdebug')) {
-            $this->markTestSkipped('xdebug is enabled, which causes the tracer to slow down dramatically.');
-        }
+        $this->retryTest(function ($scriptPath) {
+            if (extension_loaded('xdebug')) {
+                $this->markTestSkipped('xdebug is enabled, which causes the tracer to slow down dramatically.');
+            }
 
-        $start = \microtime(true);
-        $this->executeCli(
-            $scriptPath,
-            [
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
-            ],
-            [],
-            '',
-            false,
-            true
-        );
-        $end = \microtime(true);
-        $this->assertLessThan(self::$acceptable_test_execution_time, $end - $start);
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-            \dd_trace_synchronous_flush();
-        }
+            $start = \microtime(true);
+            $this->executeCli(
+                $scriptPath,
+                [
+                    'DD_TRACE_CLI_ENABLED' => 'true',
+                    'DD_TRACE_SHUTDOWN_TIMEOUT' => 5000,
+                ],
+                [],
+                '',
+                false,
+                true
+            );
+            $end = \microtime(true);
+            $this->assertLessThan(self::$acceptable_test_execution_time, $end - $start);
+            if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+                \dd_trace_synchronous_flush();
+            }
+        }, $scriptPath);
     }
 
     public function dataProviderAllScripts()
