@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 final class PCNTLTest extends IntegrationTestCase
 {
     private static $acceptable_test_execution_time = 2;
-    private const MAX_RETRIES = 3;
+    const MAX_RETRIES = 3;
 
     protected function ddSetUp()
     {
@@ -17,6 +17,7 @@ final class PCNTLTest extends IntegrationTestCase
         }
 
         $this->resetRequestDumper();
+        \usleep(500000); // 500ms
         parent::ddSetUp();
     }
 
