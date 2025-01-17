@@ -70,8 +70,12 @@
         <![CDATA[
 ## Tracer
 ### Fixed
-- Restore MESSAGE_* types #3031
-- Fix stats computation of background sender
+- Block signals for sqlsrv_connect function #3035
+- Fall back to stderr if the log path contains colons #3044
+## Profiler
+### Fixed
+- PHP 8.4 crash with opcache optimizer #3038
+- Crash during preloading with neighboring ZendMM extension #3037
 ]]></notes>
     <contents>
         <dir name="/">
