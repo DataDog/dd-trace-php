@@ -8,7 +8,6 @@ use DDTrace\Tests\Common\SpanAssertion;
 final class PCNTLTest extends IntegrationTestCase
 {
     private static $acceptable_test_execution_time = 2;
-    const MAX_RETRIES = 3;
 
     protected function ddSetUp()
     {

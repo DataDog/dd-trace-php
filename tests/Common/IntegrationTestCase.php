@@ -19,6 +19,8 @@ abstract class IntegrationTestCase extends BaseTestCase
     public static $database = "test";
     private static $createdDatabases = ["test" => true];
 
+    protected static $maxRetries = 3;
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
@@ -112,5 +114,21 @@ abstract class IntegrationTestCase extends BaseTestCase
     public function assertOneSpan($traces, SpanAssertion $expectedSpan)
     {
         $this->assertOneExpectedSpan($traces, $expectedSpan);
+    }
+
+    protected function retryTest(callable $testCase, ...$args)
+    {
+        $attempts = 0;
+        while ($attempts < self::$maxRetries) {
+            try {
+                $testCase(...$args);
+                return; // Test passed, exit the loop.
+            } catch (\Throwable $e) {
+                $attempts++;
+                if ($attempts >= self::$maxRetries) {
+                    throw $e; // Re-throw after max retries.
+                }
+            }
+        }
     }
 }

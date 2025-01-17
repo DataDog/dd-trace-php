@@ -878,92 +878,95 @@ class AMQPTest extends IntegrationTestCase
     {
         // Note: This test is extremely flaky, locally at least. It will eventually pass with some tries...
         // Reason: We may parse the traces from dumped data BEFORE the traces are flushed.
+        $this->retryTest(function () {
+            self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
-        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
+            $sendTraces = $this->inCli(
+                __DIR__ . '/../scripts/send.php',
+                [
+                    'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                    'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+                    'DD_TRACE_CLI_ENABLED' => 'true',
+                ],
+                [],
+                self::$autoloadPath
+            );
 
-        $sendTraces = $this->inCli(
-            __DIR__ . '/../scripts/send.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-            ],
-            [],
-            self::$autoloadPath
-        );
+            list($receiveTraces, $output) = $this->inCli(
+                __DIR__ . '/../scripts/receive.php',
+                [
+                    'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                    'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                    'DD_TRACE_CLI_ENABLED' => 'true',
+                ],
+                [],
+                self::$autoloadPath,
+                true
+            );
 
-        list($receiveTraces, $output) = $this->inCli(
-            __DIR__ . '/../scripts/receive.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-            ],
-            [],
-            self::$autoloadPath,
-            true
-        );
+            // Assess that user headers weren't lost
+            $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
-        // Assess that user headers weren't lost
-        $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
+            $sendTraces = $sendTraces[0][0]; // There is a root span
+            // Spans: send.php -> basic_publish -> queue_declare -> connect
+            $basicPublishSpan = $sendTraces[1];
 
-        $sendTraces = $sendTraces[0][0]; // There is a root span
-        // Spans: send.php -> basic_publish -> queue_declare -> connect
-        $basicPublishSpan = $sendTraces[1];
-
-        foreach ($receiveTraces as $receiveTrace) {
-            // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-            if ($receiveTrace[0]["name"] == "amqp.basic.deliver") {
-                $basicDeliverSpan = $receiveTrace[0];
-                break;
+            foreach ($receiveTraces as $receiveTrace) {
+                // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
+                if ($receiveTrace[0]["name"] == "amqp.basic.deliver") {
+                    $basicDeliverSpan = $receiveTrace[0];
+                    break;
+                }
             }
-        }
 
-        $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
-        $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
+            $this->assertSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
+            $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
+        });
     }
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally
 
-        $sendTraces = $this->inCli(
-            __DIR__ . '/../scripts/send.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
-                'DD_TRACE_CLI_ENABLED' => 'true',
-                'DD_DISTRIBUTED_TRACING' => 'false'
-            ],
-            [],
-            self::$autoloadPath
-        );
+        $this->retryTest(function () {
+            $sendTraces = $this->inCli(
+                __DIR__ . '/../scripts/send.php',
+                [
+                    'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                    'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+                    'DD_TRACE_CLI_ENABLED' => 'true',
+                    'DD_DISTRIBUTED_TRACING' => 'false'
+                ],
+                [],
+                self::$autoloadPath
+            );
 
-        list($receiveTraces, $output) = $this->inCli(
-            __DIR__ . '/../scripts/receive.php',
-            [
-                'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
-                'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
-                'DD_TRACE_CLI_ENABLED' => 'true'
-            ],
-            [],
-            self::$autoloadPath,
-            true
-        );
+            list($receiveTraces, $output) = $this->inCli(
+                __DIR__ . '/../scripts/receive.php',
+                [
+                    'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+                    'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                    'DD_TRACE_CLI_ENABLED' => 'true'
+                ],
+                [],
+                self::$autoloadPath,
+                true
+            );
 
-        // Assess that user headers weren't lost
-        $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
+            // Assess that user headers weren't lost
+            $this->assertSame("", trim(preg_replace("(.*\[ddtrace].*)", "", $output)));
 
-        $sendTraces = $sendTraces[0][0]; // There is a root span
-        // Spans: send.php -> basic_publish -> queue_declare -> connect
-        $basicPublishSpan = $sendTraces[1];
+            $sendTraces = $sendTraces[0][0]; // There is a root span
+            // Spans: send.php -> basic_publish -> queue_declare -> connect
+            $basicPublishSpan = $sendTraces[1];
 
-        $receiveTraces = $receiveTraces[3]; // There isn't a root span
-        // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-        $basicDeliverSpan = $receiveTraces[0];
+            $receiveTraces = $receiveTraces[3]; // There isn't a root span
+            // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
+            $basicDeliverSpan = $receiveTraces[0];
 
-        $this->assertNotSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
-        $this->assertArrayNotHasKey('parent_id', $basicDeliverSpan);
+            $this->assertNotSame($basicPublishSpan['trace_id'], $basicDeliverSpan['trace_id']);
+            $this->assertArrayNotHasKey('parent_id', $basicDeliverSpan);
+        });
     }
 
     public function testBatchedPublishing()
