@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Yii\V2_0;
+namespace DDTrace\Tests\Integrations\Yii\Latest;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -8,25 +8,24 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Type;
 
-class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
+class ParameterizedRouteTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Yii/Version_2_0/web/index.php';
+        return __DIR__ . '/../../../Frameworks/Yii/Latest/web/index.php';
     }
 
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'yii2_test_app',
-            'DD_TRACE_DEBUG' => true,
         ]);
     }
 
-    public function testRootIndexRoute()
+    public function testGet()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $spec  = GetSpec::create('root', '/');
+            $spec  = GetSpec::create('homes get', '/homes/new-york/new-york/manhattan?key=value&pwd=should_redact');
             $this->call($spec);
         });
 
@@ -37,14 +36,14 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                     'web.request',
                     'yii2_test_app',
                     Type::WEB_SERVLET,
-                    'GET /site/index'
+                    'GET /homes/?/?/?'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost/site/index',
+                    Tag::HTTP_URL => 'http://localhost/homes/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
-                    'app.route.path' => '/site/index',
-                    Tag::HTTP_ROUTE => '/site/index',
-                    'app.endpoint' => 'app\controllers\SiteController::actionIndex',
+                    'app.route.path' => '/homes/:state/:city/:neighborhood',
+                    Tag::HTTP_ROUTE => '/homes/:state/:city/:neighborhood',
+                    'app.endpoint' => 'app\controllers\HomesController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
                 ])->withChildren([
@@ -60,19 +59,19 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                             'yii\web\Application.runAction',
                             'yii2_test_app',
                             Type::WEB_SERVLET,
-                            'index'
+                            'homes/view'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
-                                'app\controllers\SiteController.runAction',
+                                'app\controllers\HomesController.runAction',
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
-                                'index'
+                                'view'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
-                            ]),
-                        ]),
+                            ])
+                        ])
                     ])
                 ])
             ]

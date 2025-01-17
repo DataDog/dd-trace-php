@@ -577,7 +577,7 @@ TEST_WEB_70 := \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
 	test_web_symfony_34 \
-	test_web_yii_2 \
+	test_web_yii_latest \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
@@ -629,7 +629,7 @@ TEST_WEB_71 := \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
-	test_web_yii_2 \
+	test_web_yii_latest \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
@@ -691,7 +691,7 @@ TEST_WEB_72 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
-	test_web_yii_2 \
+	test_web_yii_latest \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -749,7 +749,7 @@ TEST_WEB_73 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
-	test_web_yii_2 \
+	test_web_yii_latest \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -812,7 +812,7 @@ TEST_WEB_74 := \
 	test_web_wordpress_55 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
-	test_web_yii_2 \
+	test_web_yii_latest \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -868,7 +868,7 @@ TEST_WEB_80 := \
 	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
-	test_web_yii_2 \
+	test_web_yii_latest \
 	test_web_zend_1_21 \
 	test_web_custom
 
@@ -925,7 +925,7 @@ TEST_WEB_81 := \
 	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
-#	test_web_yii_2 \
+#	test_web_yii_latest \
 
 TEST_INTEGRATIONS_82 := \
 	test_integrations_amqp2 \
@@ -988,7 +988,7 @@ TEST_WEB_82 := \
 	test_web_wordpress_61 \
 	test_web_custom \
 	test_web_zend_1_21
-#	test_web_yii_2 \
+#	test_web_yii_latest \
 
 TEST_INTEGRATIONS_83 := \
 	test_integrations_amqp2 \
@@ -1403,8 +1403,8 @@ test_web_wordpress_59: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V5_9)
 test_web_wordpress_61: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V6_1)
-test_web_yii_2: global_test_run_dependencies tests/Frameworks/Yii/Version_2_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Yii/V2_0)
+test_web_yii_latest: global_test_run_dependencies tests/Frameworks/Yii/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Yii/Latest)
 test_web_magento_23: global_test_run_dependencies tests/Frameworks/Magento/Version_2_3/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Magento/V2_3)
 test_web_magento_24: global_test_run_dependencies tests/Frameworks/Magento/Version_2_4/composer.lock-php$(PHP_MAJOR_MINOR)
