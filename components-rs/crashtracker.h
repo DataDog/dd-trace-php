@@ -675,7 +675,16 @@ void ddog_crasht_StackTrace_drop(struct ddog_crasht_Handle_StackTrace *trace);
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_StackTrace_push_frame(struct ddog_crasht_Handle_StackTrace *trace,
-                                                         struct ddog_crasht_Handle_StackFrame *frame);
+                                                         struct ddog_crasht_Handle_StackFrame *frame,
+                                                         bool incomplete);
+
+/**
+ * # Safety
+ * The `stacktrace` can be null, but if non-null it must point to a StackTrace made by this module,
+ * which has not previously been dropped.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_StackTrace_set_complete(struct ddog_crasht_Handle_StackTrace *trace);
 
 /**
  * Demangles the string "name".
