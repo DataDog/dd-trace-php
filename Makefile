@@ -550,7 +550,6 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb_latest \
 	test_integrations_mysqli \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
@@ -577,7 +576,6 @@ TEST_WEB_70 := \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
 	test_web_symfony_34 \
-	test_web_yii_latest \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
@@ -587,12 +585,10 @@ TEST_WEB_70 := \
 TEST_INTEGRATIONS_71 := \
 	test_integrations_deferred_loading \
 	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
 	test_integrations_curl \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -628,7 +624,6 @@ TEST_WEB_71 := \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
-	test_web_yii_latest \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
@@ -643,7 +638,6 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
@@ -688,7 +682,6 @@ TEST_WEB_72 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_wordpress_61 \
-	test_web_yii_latest \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -700,7 +693,6 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb_latest \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
