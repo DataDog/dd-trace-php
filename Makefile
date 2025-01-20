@@ -34,7 +34,7 @@ EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
 
-VERSION := $(shell cat VERSION)
+VERSION := $(shell cat -s VERSION)
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
