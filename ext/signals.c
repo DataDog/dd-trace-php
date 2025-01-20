@@ -117,6 +117,9 @@ static void ddtrace_init_crashtracker() {
     socket_path.ptr = crashtracker_socket_path;
 
     ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
+    if (!agent_endpoint) {
+        return;
+    }
 
     ddog_crasht_Config config = {
         .endpoint = agent_endpoint,

@@ -153,6 +153,8 @@ char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
 
 void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
+struct ddog_Endpoint *ddtrace_parse_agent_url(ddog_CharSlice url);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
