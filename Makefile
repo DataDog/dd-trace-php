@@ -674,7 +674,6 @@ TEST_WEB_72 := \
 	test_web_lumen_58 \
 	test_web_nette_24 \
 	test_web_slim_312 \
-	test_web_slim_latest \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
@@ -735,7 +734,6 @@ TEST_WEB_73 := \
 	test_web_magento_23 \
 	test_web_nette_24 \
 	test_web_slim_312 \
-	test_web_slim_latest \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
