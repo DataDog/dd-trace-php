@@ -27,6 +27,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public function testFoo()
+    {
+        $this->assertTrue(true);
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
