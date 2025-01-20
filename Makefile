@@ -840,7 +840,6 @@ TEST_WEB_80 := \
 	test_web_drupal_95 \
 	test_web_laminas_rest_latest \
 	test_web_laminas_mvc_36 \
-	test_web_laminas_mvc_latest \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_lumen_81 \
