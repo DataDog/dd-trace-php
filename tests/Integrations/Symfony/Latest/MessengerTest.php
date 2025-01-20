@@ -68,7 +68,7 @@ class MessengerTest extends WebFrameworkTestCase
         $this->snapshotFromTraces(
             $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v7_0.messenger_test.test_async_success_consumer',
+            'tests.integrations.symfony.latest.messenger_test.test_async_success_consumer',
             true
         );
     }
@@ -92,7 +92,7 @@ class MessengerTest extends WebFrameworkTestCase
         $this->snapshotFromTraces(
             $consumerTraces,
             self::FIELDS_TO_IGNORE,
-            'tests.integrations.symfony.v7_0.messenger_test.test_async_failure_consumer',
+            'tests.integrations.symfony.latest.messenger_test.test_async_failure_consumer',
             true
         );
     }
