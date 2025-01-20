@@ -422,7 +422,7 @@ commands:
             if [[ "$CIRCLE_BRANCH" =~ "ddtrace-" ]] ; then
               echo "Release branch detected; not adding git sha1 to version number."
             else
-              version=$(cat VERSION)
+              version=$(cat -s VERSION)
               # if we have e.g. a beta suffix, just strip it
               if [[ $version == *-* ]]; then
                 version=${version%-*}
@@ -3401,7 +3401,7 @@ jobs:
             phpize
             ./configure
             make clean
-            make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -DPHP_DD_LIBRARY_LOADER_VERSION='\"$(cat ../VERSION)\"'"
+            make -j all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra -Werror -DPHP_DD_LIBRARY_LOADER_VERSION='\"$(cat -s ../VERSION)\"'"
             cp modules/dd_library_loader.so ../dd_library_loader-$(uname -m)-<< parameters.os >>.so
       - persist_to_workspace:
           root: '.'
