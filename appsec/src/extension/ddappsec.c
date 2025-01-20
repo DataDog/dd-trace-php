@@ -474,6 +474,7 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     RETURN_TRUE;
 }
 
+
 static PHP_FUNCTION(datadog_appsec_push_address)
 {
     struct timespec start;
