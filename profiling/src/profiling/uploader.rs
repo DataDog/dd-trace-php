@@ -13,7 +13,6 @@ use std::borrow::Cow;
 use std::str;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
-use std::time::Duration;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -70,7 +69,7 @@ impl Uploader {
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
         let tags = Some(Arc::unwrap_or_clone(index.tags));
-        let exporter = datadog_profiling::exporter::ProfileExporter::new(
+        let mut exporter = datadog_profiling::exporter::ProfileExporter::new(
             profiling_library_name,
             profiling_library_version,
             "php",
@@ -87,7 +86,7 @@ impl Uploader {
             name: "profile.pprof",
             bytes: serialized.buffer.as_slice(),
         }];
-        let timeout = Duration::from_secs(10);
+        exporter.set_timeout(10000); // 10 seconds in milliseconds
         let request = exporter.build(
             start,
             end,
@@ -97,7 +96,6 @@ impl Uploader {
             endpoint_counts,
             Self::create_internal_metadata(),
             self.create_profiler_info(),
-            timeout,
         )?;
         debug!("Sending profile to: {agent_endpoint}");
         let result = exporter.send(request, None)?;
