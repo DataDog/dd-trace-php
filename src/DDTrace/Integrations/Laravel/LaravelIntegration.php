@@ -45,21 +45,6 @@ class LaravelIntegration extends Integration
     }
 
     /**
-     * @param $args
-     */
-    public function getLoginFromArgs($args): string
-    {
-        if (isset($args['email'])) {
-            return $args['email'];
-        }
-        if (isset($args['username'])) {
-            return $args['username'];
-        }
-
-        return null;
-    }
-
-    /**
      * @return int
      */
     public function init(): int
@@ -108,7 +93,7 @@ class LaravelIntegration extends Integration
                         $config = require $configPath . '/app.php';
                         if (isset($config['name'])) {
                             $integration->serviceName = $config['name'];
-                        }                        
+                        }
                     }
                     if (empty($integration->serviceName)) {
                         $integration->serviceName = isset($_ENV['APP_NAME']) ? $_ENV['APP_NAME'] : 'Laravel';
@@ -221,7 +206,7 @@ class LaravelIntegration extends Integration
                             $id = $args[1]['id'];
                         }
 
-                        \datadog\appsec\track_user_signup_event_automated($this->getLoginFromArgs($args[1]), $id, []);
+                        \datadog\appsec\track_user_signup_event_automated($integration->getLoginFromArgs($args[1]), $id, []);
                     }
                 },
                 'recurse' => true,
@@ -367,7 +352,7 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
-                \datadog\appsec\track_user_login_failure_event_automated($this->getLoginFromArgs($args[0]), null, false, []);
+                \datadog\appsec\track_user_login_failure_event_automated($integration->getLoginFromArgs($args[0]), null, false, []);
             }
         );
 
@@ -397,9 +382,9 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_success_event_automated(
-                    $this->getLoginFromArgs($args[1]),
+                    $integration->getLoginFromArgs($args[1]),
                     \method_exists($args[1], 'getAuthIdentifier') ? $args[1]->getAuthIdentifier() : '',
-                    $metadata,
+                    $metadata
                 );
             }
         );
@@ -430,9 +415,9 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_success_event_automated(
-                    $this->getLoginFromArgs($args[0]),
+                    $integration->getLoginFromArgs($args[0]),
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
-                    $metadata,
+                    $metadata
                 );
             }
         );
@@ -447,7 +432,7 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
-                \datadog\appsec\track_user_login_failure_event_automated($this->getLoginFromArgs($args[0]), null, false, []);
+                \datadog\appsec\track_user_login_failure_event_automated($integration->getLoginFromArgs($args[0]), null, false, []);
             }
         );
 
@@ -467,7 +452,7 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_signup_event_automated(
-                    $this->getLoginFromArgs($args[0]),
+                    $integration->getLoginFromArgs($args[0]),
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
                     []
                 );
@@ -507,6 +492,21 @@ class LaravelIntegration extends Integration
             return 'laravel';
         }
         return $this->serviceName ?: 'laravel';
+    }
+
+    /**
+     * @param $args
+     */
+    public function getLoginFromArgs($args): string
+    {
+        if (isset($args['email'])) {
+            return $args['email'];
+        }
+        if (isset($args['username'])) {
+            return $args['username'];
+        }
+
+        return null;
     }
 
     /**

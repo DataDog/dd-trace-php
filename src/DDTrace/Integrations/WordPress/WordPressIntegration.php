@@ -112,7 +112,7 @@ class WordPressIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     $username,
                     $id,
-                    $metadata,
+                    $metadata
                 );
             }
         );

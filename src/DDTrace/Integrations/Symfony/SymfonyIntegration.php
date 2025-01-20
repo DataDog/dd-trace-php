@@ -145,7 +145,7 @@ class SymfonyIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     $user,
                     $user,
-                    $metadata,
+                    $metadata
                 );
             }
         );
@@ -197,7 +197,7 @@ class SymfonyIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     $user,
                     $user,
-                    $metadata,
+                    $metadata
                 );
             }
         );
@@ -243,7 +243,7 @@ class SymfonyIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     $userIdentifier,
                     $userIdentifier,
-                    $metadata,
+                    $metadata
                 );
             }
         );
