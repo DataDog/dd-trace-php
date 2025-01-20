@@ -1389,7 +1389,7 @@ test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 	$(call run_tests_debug,--testsuite=symfony-62-test)
 test_web_symfony_latest: global_test_run_dependencies tests/Frameworks/Symfony/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Latest/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,--testsuite=symfony-70-test)
+	$(call run_tests_debug,--testsuite=symfony-latest-test)
 test_web_wordpress_48: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/WordPress/V4_8)
 test_web_wordpress_55: global_test_run_dependencies
