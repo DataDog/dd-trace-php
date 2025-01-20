@@ -5,16 +5,16 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1008984056658375899,
+    "parent_id": 7161399118842401116,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "662b8a2e00000000",
+      "_dd.p.tid": "678e25b100000000",
       "component": "laravel",
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
-      "runtime-id": "4f76a87a-df89-41fb-909e-e269a4616334"
+      "runtime-id": "8ba8ccd7-b81f-4bdf-adbd-e880b8bc039a"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -189,11 +189,23 @@
        }
      },
      {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
+       "trace_id": 0,
+       "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
        "name": "laravel.view.render",
        "service": "my_service",
        "resource": "errors::404",
        "trace_id": 0,
-       "span_id": 16,
+       "span_id": 17,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -205,8 +217,8 @@
           "service": "my_service",
           "resource": "/home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
-          "span_id": 19,
-          "parent_id": 16,
+          "span_id": 20,
+          "parent_id": 17,
           "type": "web",
           "meta": {
             "component": "laravel"
@@ -217,7 +229,7 @@
        "service": "my_service",
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
-       "span_id": 17,
+       "span_id": 18,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -229,7 +241,7 @@
        "service": "my_service",
        "resource": "Illuminate\\Foundation\\Events\\Terminating",
        "trace_id": 0,
-       "span_id": 18,
+       "span_id": 19,
        "parent_id": 1,
        "type": "web",
        "meta": {

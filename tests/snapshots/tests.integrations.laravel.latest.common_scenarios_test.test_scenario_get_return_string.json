@@ -5,19 +5,23 @@
     "resource": "App\\Http\\Controllers\\CommonSpecsController@simple simple_route",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 9673787783687979763,
+    "parent_id": 14435677679777440188,
     "type": "web",
+    "error": 1,
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "662b8a1d00000000",
+      "_dd.p.tid": "678e25aa00000000",
       "component": "laravel",
+      "error.message": "Uncaught Illuminate\\Encryption\\MissingAppKeyException (500): No application encryption key has been specified. in /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:83",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Support/helpers.php(399): Illuminate\\Encryption\\EncryptionServiceProvider->Illuminate\\Encryption\\{closure}()\n#1 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(81): tap()\n#2 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(64): Illuminate\\Encryption\\EncryptionServiceProvider->key()\n#3 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(32): Illuminate\\Encryption\\EncryptionServiceProvider->parseKey()\n#4 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(937): Illuminate\\Encryption\\EncryptionServiceProvider->Illuminate\\Encryption\\{closure}()\n#5 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(819): Illuminate\\Container\\Container->build()\n#6 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1051): Illuminate\\Container\\Container->resolve()\n#7 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(755): Illuminate\\Foundation\\Application->resolve()\n#8 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1033): Illuminate\\Container\\Container->make()\n#9 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(1118): Illuminate\\Foundation\\Application->make()\n#10 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(1028): Illuminate\\Container\\Container->resolveClass()\n#11 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(979): Illuminate\\Container\\Container->resolveDependencies()\n#12 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(819): Illuminate\\Container\\Container->build()\n#13 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1051): Illuminate\\Container\\Container->resolve()\n#14 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(755): Illuminate\\Foundation\\Application->resolve()\n#15 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1033): Illuminate\\Container\\Container->make()\n#16 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(198): Illuminate\\Foundation\\Application->make()\n#17 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(127): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#18 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Routing/Router.php(807): Illuminate\\Pipeline\\Pipeline->then()\n#19 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Routing/Router.php(786): Illuminate\\Routing\\Router->runRouteWithinStack()\n#20 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Routing/Router.php(750): Illuminate\\Routing\\Router->runRoute()\n#21 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Routing/Router.php(739): Illuminate\\Routing\\Router->dispatchToRoute()\n#22 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(201): Illuminate\\Routing\\Router->dispatch()\n#23 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(170): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}()\n#24 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#25 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle()\n#26 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle()\n#27 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#28 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TrimStrings.php(51): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle()\n#29 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle()\n#30 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Http/Middleware/ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#31 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Http\\Middleware\\ValidatePostSize->handle()\n#32 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/PreventRequestsDuringMaintenance.php(110): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#33 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle()\n#34 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Http/Middleware/HandleCors.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#35 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Http\\Middleware\\HandleCors->handle()\n#36 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Http/Middleware/TrustProxies.php(58): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#37 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Http\\Middleware\\TrustProxies->handle()\n#38 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/InvokeDeferredCallbacks.php(22): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#39 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(209): Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks->handle()\n#40 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(127): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#41 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(176): Illuminate\\Pipeline\\Pipeline->then()\n#42 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(145): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter()\n#43 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1193): Illuminate\\Foundation\\Http\\Kernel->handle()\n#44 /home/circleci/app/tests/Frameworks/Laravel/Latest/public/index.php(17): Illuminate\\Foundation\\Application->handleRequest()\n#45 {main}\n\nNext Illuminate\\Encryption\\MissingAppKeyException: No application encryption key has been specified. in /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php:83\nStack trace:\n#0 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Support/helpers.php(399): Illuminate\\Encryption\\EncryptionServiceProvider->Illuminate\\Encryption\\{closure}()\n#1 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(81): tap()\n#2 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(64): Illuminate\\Encryption\\EncryptionServiceProvider->key()\n#3 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Encryption/EncryptionServiceProvider.php(32): Illuminate\\Encryption\\EncryptionServiceProvider->parseKey()\n#4 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(937): Illuminate\\Encryption\\EncryptionServiceProvider->Illuminate\\Encryption\\{closure}()\n#5 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(819): Illuminate\\Container\\Container->build()\n#6 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1051): Illuminate\\Container\\Container->resolve()\n#7 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(755): Illuminate\\Foundation\\Application->resolve()\n#8 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1033): Illuminate\\Container\\Container->make()\n#9 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(1118): Illuminate\\Foundation\\Application->make()\n#10 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(1028): Illuminate\\Container\\Container->resolveClass()\n#11 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(979): Illuminate\\Container\\Container->resolveDependencies()\n#12 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(819): Illuminate\\Container\\Container->build()\n#13 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1051): Illuminate\\Container\\Container->resolve()\n#14 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Container/Container.php(755): Illuminate\\Foundation\\Application->resolve()\n#15 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1033): Illuminate\\Container\\Container->make()\n#16 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(258): Illuminate\\Foundation\\Application->make()\n#17 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(216): Illuminate\\Foundation\\Http\\Kernel->terminateMiddleware()\n#18 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1195): Illuminate\\Foundation\\Http\\Kernel->terminate()\n#19 /home/circleci/app/tests/Frameworks/Laravel/Latest/public/index.php(17): Illuminate\\Foundation\\Application->handleRequest()\n#20 {main}\n\nNext Symfony\\Component\\HttpKernel\\Exception\\HttpException: No application encryption key has been specified. in /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php:811\nStack trace:\n#0 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(706): Illuminate\\Foundation\\Exceptions\\Handler->prepareResponse()\n#1 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php(594): Illuminate\\Foundation\\Exceptions\\Handler->renderExceptionResponse()\n#2 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(225): Illuminate\\Foundation\\Exceptions\\Handler->render()\n#3 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(202): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->renderHttpResponse()\n#4 /home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(290): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleException()\n#5 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->Illuminate\\Foundation\\Bootstrap\\{closure}()\n#6 {main}",
+      "error.type": "Illuminate\\Encryption\\MissingAppKeyException",
       "http.method": "GET",
       "http.route": "simple",
-      "http.status_code": "200",
+      "http.status_code": "500",
       "http.url": "http://localhost/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
       "laravel.route.name": "simple_route",
-      "runtime-id": "4f76a87a-df89-41fb-909e-e269a4616334",
+      "runtime-id": "8ba8ccd7-b81f-4bdf-adbd-e880b8bc039a",
       "span.kind": "server"
     },
     "metrics": {
@@ -205,9 +209,9 @@
        }
      },
      {
-       "name": "laravel.action",
+       "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "simple",
+       "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
        "trace_id": 0,
        "span_id": 17,
        "parent_id": 1,
@@ -219,7 +223,7 @@
      {
        "name": "laravel.event.handle",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
+       "resource": "Illuminate\\Log\\Events\\MessageLogged",
        "trace_id": 0,
        "span_id": 18,
        "parent_id": 1,
@@ -229,9 +233,9 @@
        }
      },
      {
-       "name": "laravel.event.handle",
+       "name": "laravel.view.render",
        "service": "my_service",
-       "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
+       "resource": "errors::500",
        "trace_id": 0,
        "span_id": 19,
        "parent_id": 1,
@@ -240,6 +244,18 @@
          "component": "laravel"
        }
      },
+        {
+          "name": "laravel.view",
+          "service": "my_service",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/500.blade.php",
+          "trace_id": 0,
+          "span_id": 26,
+          "parent_id": 19,
+          "type": "web",
+          "meta": {
+            "component": "laravel"
+          }
+        },
      {
        "name": "laravel.event.handle",
        "service": "my_service",
@@ -287,4 +303,40 @@
        "meta": {
          "component": "laravel"
        }
-     }]]
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Log\\Events\\MessageLogged",
+       "trace_id": 0,
+       "span_id": 24,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.view.render",
+       "service": "my_service",
+       "resource": "errors::500",
+       "trace_id": 0,
+       "span_id": 25,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+        {
+          "name": "laravel.view",
+          "service": "my_service",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/500.blade.php",
+          "trace_id": 0,
+          "span_id": 27,
+          "parent_id": 25,
+          "type": "web",
+          "meta": {
+            "component": "laravel"
+          }
+        }]]
