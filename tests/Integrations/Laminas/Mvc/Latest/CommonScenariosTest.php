@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laminas\Latest;
+namespace DDTrace\Tests\Integrations\Laminas\Mvc\Latest;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
