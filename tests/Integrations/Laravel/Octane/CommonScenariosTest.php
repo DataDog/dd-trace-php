@@ -85,7 +85,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request") {
+            if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
             }
         }
@@ -152,7 +152,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request") {
+            if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
             }
         }
@@ -236,7 +236,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request") {
+            if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
             }
         }
@@ -282,7 +282,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request") {
+                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request" && $span["resource"] === 'GET /does_not_exist') {
                         return true;
                     }
                 }
