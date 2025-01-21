@@ -1,6 +1,6 @@
 use bindgen::callbacks::IntKind;
 use std::collections::HashSet;
-use std::env;
+use std::{env, fs};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -20,6 +20,14 @@ fn main() {
             ),
         }
     }
+
+    // Read the version from the VERSION file
+    let version = fs::read_to_string("../VERSION")
+        .expect("Failed to read VERSION file")
+        .trim()
+        .to_string();
+    println!("cargo:rustc-env=PROFILER_VERSION={}", version);
+    println!("cargo:rerun-if-changed=../VERSION");
 
     let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
         .expect("`php-config`'s stdout to be valid utf8");
