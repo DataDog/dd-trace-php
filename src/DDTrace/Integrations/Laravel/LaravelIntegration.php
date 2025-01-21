@@ -496,8 +496,9 @@ class LaravelIntegration extends Integration
 
     /**
      * @param $args
+     * @return string|null
      */
-    public function getLoginFromArgs($args): string
+    public function getLoginFromArgs($args)
     {
         if (isset($args['email'])) {
             return $args['email'];

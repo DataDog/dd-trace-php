@@ -6,3 +6,4 @@ use Illuminate\Support\Facades\Route;
 Route::get('simple', [CommonSpecsController::class, 'simple'])->name('simple_route');
 Route::get('simple_view', [CommonSpecsController::class, 'simple_view']);
 Route::get('error', [CommonSpecsController::class, 'error']);
+Route::get('custom_exception', [CommonSpecsController::class, 'custom_exception']);
