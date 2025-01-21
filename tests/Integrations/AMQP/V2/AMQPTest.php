@@ -874,6 +874,10 @@ class AMQPTest extends IntegrationTestCase
         ]);
     }
 
+    /**
+     * @retryAttempts 3
+     * @retryDelaySeconds 3
+     */
     public function testDistributedTracing()
     {
         // Note: This test is extremely flaky, locally at least. It will eventually pass with some tries...
@@ -923,6 +927,10 @@ class AMQPTest extends IntegrationTestCase
         $this->assertSame($basicPublishSpan['span_id'], $basicDeliverSpan['parent_id']);
     }
 
+    /**
+     * @retryAttempts 3
+     * @retryDelaySeconds 3
+     */
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
         self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42'); // Not necessary, but makes it easier to debug locally

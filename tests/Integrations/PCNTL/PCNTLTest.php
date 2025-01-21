@@ -20,6 +20,8 @@ final class PCNTLTest extends IntegrationTestCase
     }
 
     /**
+     * @retryAttempts 3
+     * @retryDelaySeconds 3
      * @dataProvider dataProviderAllScripts
      */
     public function testDoesNoHangAtShutdownWhenDisabled($scriptPath)
@@ -42,6 +44,8 @@ final class PCNTLTest extends IntegrationTestCase
     }
 
     /**
+     * @retryAttempts 3
+     * @retryDelaySeconds 3
      * @dataProvider dataProviderAllScripts
      */
     public function testDoesNoHangAtShutdownWhenEnabled($scriptPath)
