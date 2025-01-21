@@ -70,8 +70,8 @@
             <directory>./Integrations/Laravel/Latest</directory>
             <directory>./Integrations/CLI/Laravel/Latest</directory>
         </testsuite>
-        <testsuite name="laravel-octane-test">
-            <directory>./Integrations/Laravel/Octane</directory>
+        <testsuite name="laravel-octane-latest-test">
+            <directory>./Integrations/Laravel/Octane/Latest</directory>
         </testsuite>
         <testsuite name="opentelemetry1">
             <directory suffix=".phpt">./OpenTelemetry/Integration/Context/Fiber</directory>

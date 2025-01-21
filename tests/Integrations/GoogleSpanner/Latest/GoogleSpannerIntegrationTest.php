@@ -1,13 +1,9 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\GoogleSpanner;
+namespace DDTrace\Tests\Integrations\GoogleSpanner\Latest;
 
-use DDTrace\Integrations\GoogleSpanner\GoogleSpannerIntegration;
 
-use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\Tests\Common\SpanAssertion;
-
 use Google\Cloud\Spanner\SpannerClient;
 use Google\Cloud\Spanner\Transaction;
 
@@ -35,7 +31,7 @@ class GoogleSpannerIntegrationTest extends IntegrationTestCase
     public static function spannerSetup()
     {
         putenv('SPANNER_EMULATOR_HOST=googlespanner_integration:9010');
-        putenv('GOOGLE_APPLICATION_CREDENTIALS=./tests/Integrations/GoogleSpanner/dummy_credentials.json');
+        putenv('GOOGLE_APPLICATION_CREDENTIALS=./tests/Integrations/GoogleSpanner/Latest/dummy_credentials.json');
         $projectId = 'emulator-project';
         $spanner = new SpannerClient([
             'projectId' => $projectId

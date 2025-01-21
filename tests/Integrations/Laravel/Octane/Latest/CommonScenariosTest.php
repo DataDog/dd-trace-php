@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\Octane;
+namespace DDTrace\Tests\Integrations\Laravel\Octane\Latest;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -11,7 +11,12 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Octane/artisan';
+        return __DIR__ . '/../../../../Frameworks/Laravel/Octane/Latest/artisan';
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'laravel/octane';
     }
 
     protected static function isOctane()
@@ -21,7 +26,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public static function ddSetUpBeforeClass()
     {
-        $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
+        $swooleIni = file_get_contents(__DIR__ . '/../swoole.ini');
 
         $currentDir = getcwd();
         $isLocalDevEnv = strpos($currentDir, 'datadog') === false;

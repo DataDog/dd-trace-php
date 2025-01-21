@@ -819,7 +819,7 @@ TEST_INTEGRATIONS_80 := \
 	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
-	test_integrations_googlespanner \
+	test_integrations_googlespanner_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
@@ -870,7 +870,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
-	test_integrations_googlespanner \
+	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -925,7 +925,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
-	test_integrations_googlespanner \
+	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -953,7 +953,7 @@ TEST_WEB_82 := \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
 	test_web_laravel_latest \
-	test_web_laravel_octane \
+	test_web_laravel_octane_latest \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -988,7 +988,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
-	test_integrations_googlespanner \
+	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -1013,7 +1013,7 @@ TEST_WEB_83 := \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
 	test_web_laravel_latest \
-	test_web_laravel_octane \
+	test_web_laravel_octane_latest \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
 	test_web_lumen_100 \
@@ -1268,9 +1268,9 @@ test_integrations_frankenphp: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
-test_integrations_googlespanner: global_test_run_dependencies tests/Integrations/GoogleSpanner/composer.lock-php$(PHP_MAJOR_MINOR)
+test_integrations_googlespanner_latest: global_test_run_dependencies tests/Integrations/GoogleSpanner/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(eval TEST_EXTRA_INI=-d extension=grpc.so)
-	$(call run_tests_debug,tests/Integrations/GoogleSpanner)
+	$(call run_tests_debug,tests/Integrations/GoogleSpanner/Latest)
 	$(eval TEST_EXTRA_INI=)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
@@ -1315,8 +1315,8 @@ test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Vers
 	$(call run_tests_debug,--testsuite=laravel-10x-test)
 test_web_laravel_latest: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-latest-test)
-test_web_laravel_octane: global_test_run_dependencies tests/Frameworks/Laravel/Octane/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-octane-test)
+test_web_laravel_octane_latest: global_test_run_dependencies tests/Frameworks/Laravel/Octane/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,--testsuite=laravel-octane-latest-test)
 test_web_lumen_52: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)
 test_web_lumen_56: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_6/composer.lock-php$(PHP_MAJOR_MINOR)
