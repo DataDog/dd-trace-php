@@ -92,6 +92,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         foreach ($traces as $trace) {
             if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
+                break;
             }
         }
 
@@ -159,6 +160,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         foreach ($traces as $trace) {
             if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
+                break;
             }
         }
 
@@ -243,6 +245,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         foreach ($traces as $trace) {
             if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
+                break;
             }
         }
 
@@ -309,6 +312,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
         foreach ($traces as $trace) {
             if ($trace[0]["name"] === "laravel.request") {
                 $webRequestTrace = $trace;
+                break;
             }
         }
 
