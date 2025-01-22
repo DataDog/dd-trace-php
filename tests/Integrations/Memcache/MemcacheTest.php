@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Memcache;
 
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;

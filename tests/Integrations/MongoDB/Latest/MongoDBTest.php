@@ -2,27 +2,15 @@
 
 namespace DDTrace\Tests\Integrations\Mongo\Latest;
 
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Integrations\Mongo\Utils\AnObject;
+use DDTrace\Tests\Integrations\Mongo\Utils\AQuery;
 use Exception;
 use MongoDB\Client;
 use stdClass;
 
-class AQuery
-{
-    public $brand;
-
-    public function __construct($brand = 'ferrari')
-    {
-        $this->brand = $brand;
-    }
-}
-
-class AnObject
-{
-}
 
 class MongoDBTest extends IntegrationTestCase
 {

@@ -25,7 +25,7 @@
         "nette/robot-loader": "^3.1",
         "nette/security": "^3.1",
         "nette/utils": "^3.1",
-        "latte/latte": "^3.0",
+        "latte/latte": "^2.9",
         "tracy/tracy": "^2.8"
     },
     "require-dev": {
