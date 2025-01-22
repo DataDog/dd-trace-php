@@ -23,13 +23,13 @@ $path = put_dynamic_config_file([
     "log_injection_enabled" => true,
 ]);
 
-usleep(500000);
+usleep(getenv("USE_ZEND_ALLOC") === "0" ? 2000000 : 500000);
 
 var_dump(ini_get("datadog.logs_injection"));
 
 del_rc_file($path);
 
-usleep(500000);
+usleep(getenv("USE_ZEND_ALLOC") === "0" ? 2000000 : 500000);
 
 var_dump(ini_get("datadog.logs_injection"));
 
