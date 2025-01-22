@@ -17,15 +17,16 @@
         "nette/bootstrap": "^3.1",
         "nette/caching": "^3.1",
         "nette/database": "^3.1",
-        "nette/di": "^3.1",
+        "nette/di": "^3.0",
+        "nette/finder": "^2.5",
         "nette/forms": "^3.1",
-        "nette/http": "^3.3",
-        "nette/mail": "^4.0",
-        "nette/robot-loader": "^4.0",
+        "nette/http": "^3.1",
+        "nette/mail": "^3.1",
+        "nette/robot-loader": "^3.1",
         "nette/security": "^3.1",
-        "nette/utils": "^4.0",
+        "nette/utils": "^3.1",
         "latte/latte": "^3.0",
-        "tracy/tracy": "^2.10"
+        "tracy/tracy": "^2.8"
     },
     "require-dev": {
         "nette/tester": "^2.0"
