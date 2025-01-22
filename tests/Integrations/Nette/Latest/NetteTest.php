@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Type;
 
-final class NetteTest extends WebFrameworkTestCase
+class NetteTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {

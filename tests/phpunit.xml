@@ -88,6 +88,9 @@
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>
+        <testsuite name="slim-48-test">
+            <directory>./Integrations/Slim/V4_8</directory>
+        </testsuite>
         <testsuite name="slim-latest-test">
             <directory>./Integrations/Slim/Latest</directory>
         </testsuite>
