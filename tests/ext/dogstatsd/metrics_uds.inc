@@ -1,5 +1,7 @@
 <?php
 
+define("UDSSERVER_ITERATIONS", getenv("USE_ZEND_ALLOC") === "0" ? 50000 : 5000);
+
 class UDSServer {
     private $socket;
 
@@ -21,7 +23,7 @@ class UDSServer {
         chmod($path, 0777);
     }
 
-    public function dump($expected, $iter = 5000) {
+    public function dump($expected, $iter = UDSSERVER_ITERATIONS) {
         $lines = [];
         for ($i = 0; $i < $iter; ++$i) {
             usleep(100);

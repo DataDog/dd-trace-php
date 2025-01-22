@@ -44,7 +44,7 @@ put_dynamic_config_file([
 
 // submit span data
 \DDTrace\start_span();
-usleep(500000);
+usleep(getenv("USE_ZEND_ALLOC") === "0" ? 2000000 : 500000);
 
 var_dump(ini_get("datadog.trace.sample_rate"));
 $tags = explode(",", ini_get("datadog.trace.header_tags"));

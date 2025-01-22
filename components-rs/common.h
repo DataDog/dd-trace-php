@@ -369,8 +369,6 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_RASP_LFI,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_RASP_SSRF,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
 } ddog_RemoteConfigProduct;
 
@@ -938,6 +936,7 @@ typedef enum ddog_crasht_SiCodes {
   DDOG_CRASHT_SI_CODES_SI_TKILL,
   DDOG_CRASHT_SI_CODES_SI_USER,
   DDOG_CRASHT_SI_CODES_SYS_SECCOMP,
+  DDOG_CRASHT_SI_CODES_UNKNOWN,
 } ddog_crasht_SiCodes;
 
 /**
@@ -948,6 +947,7 @@ typedef enum ddog_crasht_SignalNames {
   DDOG_CRASHT_SIGNAL_NAMES_SIGBUS,
   DDOG_CRASHT_SIGNAL_NAMES_SIGSEGV,
   DDOG_CRASHT_SIGNAL_NAMES_SIGSYS,
+  DDOG_CRASHT_SIGNAL_NAMES_UNKNOWN,
 } ddog_crasht_SignalNames;
 
 /**
@@ -971,9 +971,6 @@ typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
 typedef struct ddog_crasht_CrashInfoBuilder ddog_crasht_CrashInfoBuilder;
 
-/**
- * All fields are hex encoded integers.
- */
 typedef struct ddog_crasht_StackFrame ddog_crasht_StackFrame;
 
 typedef struct ddog_crasht_StackTrace ddog_crasht_StackTrace;
