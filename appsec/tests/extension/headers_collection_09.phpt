@@ -60,7 +60,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-track_user_signup_event("1234", [], true);
+track_user_signup_event("1234", []);
 
 rshutdown();
 $helper->get_commands(); //ignore

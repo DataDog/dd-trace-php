@@ -42,6 +42,37 @@ trait CommonTests {
     }
 
     @Test
+    void 'user signup event'() {
+        Trace trace = container.traceFromRequest('/user_signup.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."appsec.events.users.signup.usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.usr.login" == 'Admin'
+        assert span.meta."appsec.events.users.signup.track" == 'true'
+        assert span.meta."appsec.events.users.signup.email" == 'jean.example@example.com'
+        assert span.meta."appsec.events.users.signup.session_id" == '987654321'
+        assert span.meta."appsec.events.users.signup.role" == 'admin'
+    }
+
+    @Test
+    void 'user signup event automated'() {
+        Trace trace = container.traceFromRequest('/user_signup_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."appsec.events.users.signup.usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.signup.usr.login" == 'Login'
+        assert span.meta."_dd.appsec.usr.id" == 'Admin'
+        assert span.meta."_dd.appsec.usr.login" == 'Login'
+        assert span.meta."appsec.events.users.signup.track" == 'true'
+    }
+
+    @Test
     void 'user login success event'() {
         Trace trace = container.traceFromRequest('/user_login_success.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -50,10 +81,26 @@ trait CommonTests {
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.login.success.usr.login" == 'Admin'
         assert span.meta."appsec.events.users.login.success.track" == 'true'
         assert span.meta."appsec.events.users.login.success.email" == 'jean.example@example.com'
         assert span.meta."appsec.events.users.login.success.session_id" == '987654321'
         assert span.meta."appsec.events.users.login.success.role" == 'admin'
+    }
+
+    @Test
+    void 'user login success event automated'() {
+        Trace trace = container.traceFromRequest('/user_login_success_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.login.success.usr.login" == 'Login'
+        assert span.meta."_dd.appsec.usr.id" == 'Admin'
+        assert span.meta."_dd.appsec.usr.login" == 'Login'
+        assert span.meta."appsec.events.users.login.success.track" == 'true'
     }
 
     @Test
@@ -65,6 +112,7 @@ trait CommonTests {
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta."appsec.events.users.login.failure.usr.id" == 'Admin'
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'Admin'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.meta."appsec.events.users.login.failure.track" == 'true'
         assert span.meta."appsec.events.users.login.failure.email" == 'jean.example@example.com'
@@ -72,6 +120,21 @@ trait CommonTests {
         assert span.meta."appsec.events.users.login.failure.role" == 'admin'
     }
 
+    @Test
+    void 'user login failure event automated'() {
+        def trace = container.traceFromRequest('/user_login_failure_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."appsec.events.users.login.failure.usr.id" == 'Admin'
+        assert span.meta."_dd.appsec.usr.id" == 'Admin'
+        assert span.meta."_dd.appsec.usr.login" == 'Login'
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'Login'
+        assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
+        assert span.meta."appsec.events.users.login.failure.track" == 'true'
+    }
 
     @Test
     void 'custom event'() {

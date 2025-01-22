@@ -60,7 +60,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-track_user_login_failure_event("1234", true, ['email' => 'some@email.com'], true);
+track_user_login_failure_event("1234", true, ['email' => 'some@email.com']);
 
 rshutdown();
 $helper->get_commands(); //ignore

@@ -76,6 +76,7 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(oci_connect) \
     x(odbc_connect) \
     x(ldap_connect) \
+    x(sqlsrv_connect) \
 
 #define BLOCKMETH(x) \
     x(PDO, connect) \

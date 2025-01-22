@@ -12,7 +12,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_success_event("Admin",
+track_user_login_success_event("sdkID",
 [
     "value" => "something",
     "metadata" => "some other metadata",
@@ -34,12 +34,14 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [usr.id] => Admin
+    [usr.id] => sdkID
+    [appsec.events.users.login.success.usr.login] => sdkID
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.value] => something
     [appsec.events.users.login.success.metadata] => some other metadata
     [appsec.events.users.login.success.email] => noneofyour@business.com
     [appsec.events.users.login.success.track] => true
+    [server.business_logic.users.login.success] => null
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

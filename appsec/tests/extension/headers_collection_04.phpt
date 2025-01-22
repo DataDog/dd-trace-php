@@ -59,7 +59,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-track_user_login_success_event("1234", [], false);
+track_user_login_success_event("1234", []);
 
 rshutdown();
 $helper->get_commands(); //ignore

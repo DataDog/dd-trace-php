@@ -1,7 +1,7 @@
-name: Feature request
-description: Suggest an idea
+name: Feature Request (Public)
+description: Create a public Feature Request. Note that looking up account information will be difficult.
 title: "[Feature] "
-labels: ["feature-request"]
+labels: feature-request
 body:
   - type: textarea
     attributes:

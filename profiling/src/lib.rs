@@ -58,7 +58,7 @@ static PROFILER_NAME_CSTR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(
 
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
-static PROFILER_VERSION: &[u8] = concat!(include_str!("../../VERSION"), "\0").as_bytes();
+static PROFILER_VERSION: &[u8] = concat!(env!("PROFILER_VERSION"), "\0").as_bytes();
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
@@ -82,7 +82,7 @@ lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
         vec![
             tag!("language", "php"),
-            tag!("profiler_version", include_str!("../../VERSION")),
+            tag!("profiler_version", env!("PROFILER_VERSION")),
             // Safety: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
