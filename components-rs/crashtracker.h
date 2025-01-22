@@ -378,7 +378,8 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_incomplete(struct ddog_
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_log_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
-                                                                     ddog_CharSlice message);
+                                                                     ddog_CharSlice message,
+                                                                     bool also_print);
 
 /**
  * # Safety

@@ -311,6 +311,13 @@ aliases:
     machine:
       image: ubuntu-2004:current
 
+  - &STEP_SET_CORE_PATTERN
+    run:
+      name: Set core pattern
+      command: |
+        sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+
+
 commands:
   git_checkout:
     parameters:
@@ -943,10 +950,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Set core pattern
-          command: |
-            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - <<: *STEP_SET_CORE_PATTERN
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -975,6 +979,7 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/$(if [[ << parameters.make_target >> == *opcache* ]]; then echo opcache; else echo ext; fi) /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1000,10 +1005,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Set core pattern
-          command: |
-            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - <<: *STEP_SET_CORE_PATTERN
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -1027,7 +1029,9 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+            find /tmp/artifacts/tests -name '*.phpt' -delete
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -1051,10 +1055,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Set core pattern
-          command: |
-            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - <<: *STEP_SET_CORE_PATTERN
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -1080,7 +1081,9 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+            find /tmp/artifacts/tests -name '*.phpt' -delete
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -1150,10 +1153,7 @@ jobs:
             sudo useradd -u 3434 docker-circleci
             sudo chown -R docker-circleci . tests
       # - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - run:
-          name: Set core pattern
-          command: |
-            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - <<: *STEP_SET_CORE_PATTERN
       - run:
           name: Run tests
           command: |
@@ -1181,6 +1181,7 @@ jobs:
             mkdir -p /tmp/artifacts/core_dumps
             find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+            find /tmp/artifacts/tests -name '*.phpt' -delete
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -1265,10 +1266,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Set core pattern
-          command: |
-            sudo sh -c "echo '/tmp/core.%e.%p.%t' > /proc/sys/kernel/core_pattern"
+      - <<: *STEP_SET_CORE_PATTERN
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_httpbin_and_request_replayer
@@ -1306,6 +1304,7 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
       - store_artifacts:
@@ -1720,6 +1719,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_SET_CORE_PATTERN
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_snapshots
@@ -1764,7 +1764,10 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' /tmp/artifacts \;
+            mkdir -p /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
           when: on_fail
       - run:
           name: Save Tested Versions
@@ -1893,7 +1896,8 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core'  -o -name 'core.*' \) -exec cp --parents '{}' /tmp/artifacts \;
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
@@ -2017,6 +2021,7 @@ jobs:
             - source-v1-{{ .Branch }}-{{ .Revision }}
       - git_checkout
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_SET_CORE_PATTERN
       - setup_docker:
           docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
           extra: with_snapshots
@@ -2053,7 +2058,10 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' /tmp/artifacts \;
+            mkdir -p /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
@@ -2128,7 +2136,9 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+            find /tmp/artifacts/tests -name '*.phpt' -delete
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
@@ -2180,7 +2190,9 @@ jobs:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
             find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+            find /tmp/artifacts/tests -name '*.phpt' -delete
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
