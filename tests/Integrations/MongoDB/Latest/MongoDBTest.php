@@ -139,7 +139,7 @@ class MongoDBTest extends IntegrationTestCase
         // As stdClass
         $traces = $this->isolateTracer(function () use ($pipeline) {
             $this->client()->test_db->cars->aggregate(
-                \array_map('\DDTrace\Tests\Integrations\Mongo\Latest\MongoDBTest::arrayToStdClass', $pipeline)
+                \array_map(__CLASS__ . '::arrayToStdClass', $pipeline)
             );
         });
         $this->assertFlameGraph($traces, $expected);
@@ -147,7 +147,7 @@ class MongoDBTest extends IntegrationTestCase
         // As object
         $traces = $this->isolateTracer(function () use ($pipeline) {
             $this->client()->test_db->cars->aggregate(
-                \array_map('\DDTrace\Tests\Integrations\Mongo\Latest\MongoDBTest::arrayToObject', $pipeline)
+                \array_map(__CLASS__ . '::arrayToObject', $pipeline)
             );
         });
         $this->assertFlameGraph($traces, $expected);
@@ -1007,7 +1007,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $obj = new stdClass();
         if (self::isListArray($array)) {
-            return \array_map('\DDTrace\Tests\Integrations\Mongo\Latest\MongoDBTest::' . __FUNCTION__, $array);
+            return \array_map(__CLASS__ . '::' . __FUNCTION__, $array);
         }
 
         foreach ($array as $name => $value) {
@@ -1020,7 +1020,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $obj = new AnObject();
         if (self::isListArray($array)) {
-            return \array_map('\DDTrace\Tests\Integrations\Mongo\Latest\MongoDBTest::' . __FUNCTION__, $array);
+            return \array_map(__CLASS__ . '::' . __FUNCTION__, $array);
         }
 
         foreach ($array as $name => $value) {
