@@ -619,7 +619,6 @@ TEST_WEB_71 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_nette_24 \
-	test_web_nette_31 \
 	test_web_slim_312 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \

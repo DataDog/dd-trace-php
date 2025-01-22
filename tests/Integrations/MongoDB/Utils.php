@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Mongo\Utils;
+namespace DDTrace\Tests\Integrations\MongoDB;
 
 class AQuery
 {

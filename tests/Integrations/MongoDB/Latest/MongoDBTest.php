@@ -1,12 +1,10 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Mongo\Latest;
+namespace DDTrace\Tests\Integrations\MongoDB\Latest;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Integrations\Mongo\Utils\AnObject;
-use DDTrace\Tests\Integrations\Mongo\Utils\AQuery;
 use Exception;
 use MongoDB\Client;
 use stdClass;
