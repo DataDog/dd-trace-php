@@ -5,8 +5,6 @@ namespace DDTrace\Tests\Integrations\MongoDB\Latest;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Integrations\MongoDB\AnObject;
-use DDTrace\Tests\Integrations\MongoDB\AQuery;
 use Exception;
 use MongoDB\Client;
 use stdClass;
@@ -1016,4 +1014,18 @@ class MongoDBTest extends IntegrationTestCase
         }
         return $obj;
     }
+}
+
+class AQuery
+{
+    public $brand;
+
+    public function __construct($brand = 'ferrari')
+    {
+        $this->brand = $brand;
+    }
+}
+
+class AnObject
+{
 }
