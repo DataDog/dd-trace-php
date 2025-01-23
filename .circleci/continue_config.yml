@@ -1770,6 +1770,7 @@ jobs:
           name: Save Tested Versions
           command: |
             make tested_versions
+          when: always
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
