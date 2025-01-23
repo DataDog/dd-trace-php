@@ -27,5 +27,10 @@ foreach (scandir($TESTED_VERSIONS_DIR) as $file) {
     }
 }
 
+// mkdir $TESTED_VERSIONS_DIR
+if (!file_exists($TESTED_VERSIONS_DIR)) {
+    mkdir($TESTED_VERSIONS_DIR, 0777, true);
+}
+
 file_put_contents($OUTPUT_FILE_PATH, json_encode($aggregatedData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 echo "Aggregated data written to: $OUTPUT_FILE_PATH\n";
