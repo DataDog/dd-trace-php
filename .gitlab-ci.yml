@@ -16,7 +16,7 @@ variables:
 
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/landerson/windows-layer/one-pipeline.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
 
