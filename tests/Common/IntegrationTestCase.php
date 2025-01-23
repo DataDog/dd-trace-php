@@ -143,7 +143,24 @@ abstract class IntegrationTestCase extends BaseTestCase
                     $version = trim($output[0]);
                 }
             }
-        } else {
+        } elseif (($workingDir = static::getAppIndexScript()) || ($workingDir = static::getConsoleScript())) {
+            do {
+                $workingDir = dirname($workingDir);
+                $composer = $workingDir . '/composer.json';
+            } while (!file_exists($composer) && basename($workingDir) !== 'tests'); // there is no reason to go further up
+
+            if (!file_exists($composer)) {
+                return null;
+            }
+
+            $output = [];
+            $command = "composer show $testedLibrary --working-dir=$workingDir | sed -n '/versions/s/^[^0-9]\+\([^,]\+\).*$/\\1/p'";
+            exec($command, $output, $returnVar);
+
+            if ($returnVar === 0) {
+                $version = trim($output[0]);
+            }
+        } elseif (\Composer\InstalledVersions::isInstalled($testedLibrary)) {
             $version = \Composer\InstalledVersions::getVersion($testedLibrary);
             $version = preg_replace('/^(\d+\.\d+\.\d+).*/', '$1', $version);
         }
@@ -186,5 +203,20 @@ abstract class IntegrationTestCase extends BaseTestCase
     public function assertOneSpan($traces, SpanAssertion $expectedSpan)
     {
         $this->assertOneExpectedSpan($traces, $expectedSpan);
+    }
+
+    public static function getConsoleScript()
+    {
+        return null;
+    }
+
+    /**
+     * Returns the application index.php file full path.
+     *
+     * @return string|null
+     */
+    public static function getAppIndexScript()
+    {
+        return null;
     }
 }

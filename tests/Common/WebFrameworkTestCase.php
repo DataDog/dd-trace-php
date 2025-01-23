@@ -76,16 +76,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         parent::ddTearDown();
     }
 
-    /**
-     * Returns the application index.php file full path.
-     *
-     * @return string|null
-     */
-    public static function getAppIndexScript()
-    {
-        return null;
-    }
-
     protected static function getRoadrunnerVersion()
     {
         return null;
@@ -291,29 +281,5 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         curl_close($ch);
 
         return $response;
-    }
-
-    protected static function getTestedVersion($testedLibrary)
-    {
-        $workingDir = static::getAppIndexScript();
-        do {
-            $workingDir = dirname($workingDir);
-            $composer = $workingDir . '/composer.json';
-        } while (!file_exists($composer) && basename($workingDir) !== 'tests'); // there is no reason to go further up
-
-        if (!file_exists($composer)) {
-            return null;
-        }
-
-        $output = [];
-        $returnVar = 0;
-        $command = "composer show $testedLibrary --working-dir=$workingDir | sed -n '/versions/s/^[^0-9]\+\([^,]\+\).*$/\\1/p'";
-        exec($command, $output, $returnVar);
-
-        if ($returnVar !== 0) {
-            return null;
-        }
-
-        return trim($output[0]);
     }
 }
