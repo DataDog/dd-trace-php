@@ -14,6 +14,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_21/public/index.php';
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'shardj/zf1-future';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '1.21.4';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

@@ -1,0 +1,7 @@
+{
+    "scripts": {
+        "generate": [
+            "php aggregate-tested-versions.php"
+        ]
+    }
+}
