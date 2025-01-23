@@ -123,8 +123,6 @@ class PackageUpdater
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 10,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_USERAGENT => 'Package-Updater/1.0'
         ]);
 
         $response = curl_exec($ch);
