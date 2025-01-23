@@ -126,7 +126,7 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
 
     // Reorder ddappsec to ensure it's always after ddtrace
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
-        module < end; ++module) {
+         module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
         if (m->name == ddappsec_module_entry.name) {
             ddappsec_module = module;
