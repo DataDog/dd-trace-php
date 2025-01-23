@@ -1766,6 +1766,10 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
+      - run:
+          name: Save Tested Versions
+          command: |
+            make tested_versions
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE

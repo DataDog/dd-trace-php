@@ -62,6 +62,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
+        static::recordTestedVersion();
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
@@ -107,6 +108,62 @@ abstract class IntegrationTestCase extends BaseTestCase
 
         $composerData = json_decode(file_get_contents($composer), true);
         return key($composerData['require']);
+    }
+
+    protected static function recordTestedVersion()
+    {
+        $testedLibrary = static::getTestedLibrary();
+        if (empty($testedLibrary)) {
+            return;
+        }
+
+        $version = static::getTestedVersion($testedLibrary);
+
+        if (empty($version)) {
+            return;
+        }
+
+        static::recordVersion($testedLibrary, $version);
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        $version = null;
+
+        if (strpos($testedLibrary, "ext-") === 0) {
+            $testedLibrary = substr($testedLibrary, 4); // strlen("ext-") => 4
+            if (extension_loaded($testedLibrary)) {
+                $version = phpversion($testedLibrary);
+            } else {
+                $output = [];
+                $command = "php -dextension=$testedLibrary.so -r \"echo phpversion('$testedLibrary');\";";
+                exec($command, $output, $returnVar);
+
+                if ($returnVar === 0) {
+                    $version = trim($output[0]);
+                }
+            }
+        } else {
+            $version = \Composer\InstalledVersions::getVersion($testedLibrary);
+            $version = preg_replace('/^(\d+\.\d+\.\d+).*/', '$1', $version);
+        }
+
+        return $version ? preg_replace('/^(\d+\.\d+\.\d+).*/', '$1', $version) : null;
+    }
+
+    protected static function recordVersion($testedLibrary, $version)
+    {
+        $projectRoot = preg_replace('/^\/([^\/]+)\/([^\/]+)\/([^\/]+).*/', '/$1/$2/$3', \getcwd());
+        $testsRoot = "$projectRoot/tests";
+        $class = \get_called_class();
+        echo "Recording tested version $version of $testedLibrary for $class\n";
+        $class = preg_replace('/\\\/', '_', $class);
+        $testedVersionFile = "$testsRoot/tested_versions/$class.json";
+        if (!file_exists(dirname($testedVersionFile))) {
+            mkdir(dirname($testedVersionFile), 0777, true);
+        }
+        $testedVersionJson = json_encode([$testedLibrary => $version], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        file_put_contents($testedVersionFile, $testedVersionJson);
     }
 
     /**

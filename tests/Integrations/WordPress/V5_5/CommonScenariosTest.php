@@ -34,6 +34,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'wordpress';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '5.5.1';
+    }
+
     public function testScenarioGetReturnString()
     {
         if (\getenv('PHPUNIT_COVERAGE')) {
