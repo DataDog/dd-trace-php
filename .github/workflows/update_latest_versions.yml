@@ -3,7 +3,7 @@ name: Update Latest Versions
 on:
   workflow_dispatch: # can be triggered manually
   schedule:
-    - cron: "0 0 * * 0" # weekly on Sunday at midnight
+    - cron: "30 6 * * 1" # weekly on Monday at 6:30 AM
 
 jobs:
   update-latest-versions:
@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install PHP
         uses: shivammathur/setup-php@2.32.0
@@ -47,6 +45,5 @@ jobs:
           title: "chore: update latest versions"
           branch: "update-latest-versions"
           base: "master"
-          draft: true
           delete-branch: true
           body: This PR updates the latest pinned versions of the test dependencies.
