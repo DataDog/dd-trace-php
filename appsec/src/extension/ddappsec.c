@@ -498,23 +498,9 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    zend_array *parameters_arr =
-        zend_new_array(zend_hash_num_elements(addresses));
     zval parameters_zv;
-    ZVAL_ARR(&parameters_zv, parameters_arr);
-
-    zend_string *key;
-    zval *value;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(addresses, key, value)
-    {
-        if (!key) {
-            continue;
-        }
-
-        zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
-        Z_TRY_ADDREF_P(value);
-    }
-    ZEND_HASH_FOREACH_END();
+    ZVAL_ARR(&parameters_zv, addresses);
+    Z_TRY_ADDREF_P(&parameters_zv);
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
