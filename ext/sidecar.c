@@ -157,10 +157,19 @@ void ddtrace_sidecar_shutdown(void) {
     }
 }
 
-void ddtrace_reset_sidecar_globals(void) {
+void ddtrace_reset_sidecar(void) {
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
         ddtrace_set_resettable_sidecar_globals();
+    }
+
+    if (ddtrace_sidecar) {
+        ddog_sidecar_transport_drop(ddtrace_sidecar);
+        ddtrace_sidecar = dd_sidecar_connection_factory();
+        if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong
+            ddog_endpoint_drop(ddtrace_endpoint);
+            ddtrace_endpoint = NULL;
+        }
     }
 }
 
