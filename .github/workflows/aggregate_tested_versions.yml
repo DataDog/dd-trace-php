@@ -29,10 +29,10 @@ jobs:
 
       - name: Run aggregation script
         env:
-          CI_COMMIT_SHA: ${{ github.sha }}
-          CI_COMMIT_BRANCH: ${{ github.ref }}
           CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
         run: |
+          export CI_COMMIT_SHA=$(git rev-parse HEAD)
+          export CI_COMMIT_BRANCH=$(git branch --contains "${CI_COMMIT_SHA}" | grep -v 'detached' | head -n 1 | awk '{print $2}')
           ./.github/scripts/aggregate_tested_versions.sh
 
       - name: Show aggregated versions
