@@ -16,15 +16,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Let time for the CircleCI jobs to finish
-      - name: Wait for 5 minutes
-        run: sleep 300
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@2.32.0
+        with:
+          php-version: '8.3'
+
+      - name: Wait for 4 minutes
+        run: sleep 240
 
       - name: Run aggregation script
+        env:
+          CI_COMMIT_SHA: ${{ github.sha }}
+          CI_COMMIT_BRANCH: ${{ github.ref }}
+          CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
         run: |
-          export CI_COMMIT_SHA=$(git rev-parse HEAD)
-          export CI_COMMIT_BRANCH=$(git branch --contains "${CI_COMMIT_SHA}" | grep -v 'detached' | head -n 1 | awk '{print $2}')
           ./.github/scripts/aggregate_tested_versions.sh
 
       - name: Show aggregated versions
         run: cat ./.github/scripts/aggregated_versions.json
+
+      - name: Generate Markdown Table
+        run: php ./.github/scripts/generate_markdown.php
+
+      - name: Show Markdown Table
+        run: cat ./.github/scripts/versions_table.md
