@@ -104,7 +104,9 @@ class PackageUpdater
     private function updatePackageVersion(string $library, string $composerFile): void
     {
         $latestVersion = $this->getLatestVersion($library);
-        if (!$latestVersion) return;
+        if (!$latestVersion) {
+            throw new \Exception("Could not find latest version for $library");
+        }
 
         $composerData = json_decode(file_get_contents($composerFile), true);
         $currentVersion = $composerData['require'][$library] ?? null;
