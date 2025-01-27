@@ -24,7 +24,7 @@ jobs:
         with:
           php-version: '8.3'
 
-      - name: Wait for 4 minutes
+      - name: Wait for 5 minutes
         run: sleep 240
 
       - name: Run aggregation script
