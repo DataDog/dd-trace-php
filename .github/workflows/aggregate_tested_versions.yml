@@ -1,0 +1,30 @@
+name: Aggregate Tested Versions
+
+on:
+  push:
+    branches:
+      - "**" # For test purposes, always run the workflow
+  #    - master # TODO: Uncomment this line to run the workflow only on master
+  workflow_dispatch:
+
+jobs:
+  aggregate_tested_versions:
+    name: Aggregate Tested Versions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Let time for the CircleCI jobs to finish
+      - name: Wait for 5 minutes
+        run: sleep 300
+
+      - name: Run aggregation script
+        run: |
+          export CI_COMMIT_SHA=$(git rev-parse HEAD)
+          export CI_COMMIT_BRANCH=$(git branch --contains "${CI_COMMIT_SHA}" | grep -v 'detached' | head -n 1 | awk '{print $2}')
+          ./.github/scripts/aggregate_tested_versions.sh
+
+      - name: Show aggregated versions
+        run: cat ./.github/scripts/aggregated_versions.json
