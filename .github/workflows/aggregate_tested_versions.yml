@@ -43,3 +43,6 @@ jobs:
 
       - name: Show Markdown Table
         run: cat ./integration_versions.md
+
+      - name: Show changes
+        run: git diff
