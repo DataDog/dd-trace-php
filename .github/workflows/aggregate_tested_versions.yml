@@ -36,7 +36,7 @@ jobs:
           ./.github/scripts/aggregate_tested_versions.sh
 
       - name: Show aggregated versions
-        run: cat ./.github/scripts/aggregated_versions.json
+        run: cat ./.github/scripts/aggregated_tested_versions.json
 
       - name: Generate Markdown Table
         run: php ./.github/scripts/generate_markdown.php
