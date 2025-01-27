@@ -5,16 +5,16 @@
     "resource": "GET /dynamic_route/dynamic01/static/dynamic02",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 13199520079029886173,
+    "parent_id": 4296681325690798712,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "678e25b700000000",
+      "_dd.p.tid": "67973cae00000000",
       "component": "laravel",
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost/dynamic_route/dynamic01/static/dynamic02",
-      "runtime-id": "8ba8ccd7-b81f-4bdf-adbd-e880b8bc039a"
+      "runtime-id": "19a12c46-a841-41eb-9a2f-013107929bdc"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -189,23 +189,11 @@
        }
      },
      {
-       "name": "laravel.event.handle",
-       "service": "my_service",
-       "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
-       "trace_id": 0,
-       "span_id": 16,
-       "parent_id": 1,
-       "type": "web",
-       "meta": {
-         "component": "laravel"
-       }
-     },
-     {
        "name": "laravel.view.render",
        "service": "my_service",
        "resource": "errors::404",
        "trace_id": 0,
-       "span_id": 17,
+       "span_id": 16,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -217,8 +205,8 @@
           "service": "my_service",
           "resource": "/home/circleci/app/tests/Frameworks/Laravel/Latest/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
-          "span_id": 20,
-          "parent_id": 17,
+          "span_id": 19,
+          "parent_id": 16,
           "type": "web",
           "meta": {
             "component": "laravel"
@@ -229,7 +217,7 @@
        "service": "my_service",
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
-       "span_id": 18,
+       "span_id": 17,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -241,7 +229,7 @@
        "service": "my_service",
        "resource": "Illuminate\\Foundation\\Events\\Terminating",
        "trace_id": 0,
-       "span_id": 19,
+       "span_id": 18,
        "parent_id": 1,
        "type": "web",
        "meta": {
