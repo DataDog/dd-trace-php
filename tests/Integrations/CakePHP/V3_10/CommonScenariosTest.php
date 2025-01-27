@@ -22,6 +22,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'cakephp/cakephp';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
