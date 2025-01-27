@@ -12,8 +12,8 @@ OUTPUT_FILE="aggregated_tested_versions.json"
 RUNTIMES=("7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3")
 JOB_NAMES=()
 for RUNTIME in "${RUNTIMES[@]}"; do
-    JOB_NAMES+=("integration-snapshots-test_integrations-${RUNTIME}")
-    JOB_NAMES+=("integration-snapshots-test_web-${RUNTIME}")
+    JOB_NAMES+=("integration_snapshots-test_integrations-${RUNTIME}")
+    JOB_NAMES+=("integration_snapshots-test_web-${RUNTIME}")
 done
 
 TEMP_DIR=$(mktemp -d)
@@ -24,13 +24,14 @@ trap cleanup EXIT
 
 for JOB_NAME in "${JOB_NAMES[@]}"; do
     echo "Processing job: ${JOB_NAME}"
-    download_circleci_artifact "${PROJECT_SLUG}" "${WORKFLOW_NAME}" "${JOB_NAME}" "${ARTIFACT_PATTERN}" "${TEMP_DIR}/${JOB_NAME}.json" 0
+    download_circleci_artifact "${PROJECT_SLUG}" "${WORKFLOW_NAME}" "${JOB_NAME}" "${ARTIFACT_PATTERN}" "${TEMP_DIR}/${JOB_NAME}.json" false
 done
 
 echo "Aggregating JSON files..."
 jq -s 'reduce .[] as $item ({};
-  reduce (keys_unsorted | .[]) as $key ($item;
-    $item[$key] += ($item[$key] // [] | unique)
+  . as $acc |
+  reduce ($item | to_entries[]) as $entry ($acc;
+    .[$entry.key] = (.[$entry.key] + $entry.value | unique)
   )
 )' "${TEMP_DIR}"/*.json > "${OUTPUT_FILE}"
 
