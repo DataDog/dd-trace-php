@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "$OS" != "linux" ]; then
+  echo "Only linux packages are supported. Exiting"
+  exit 0
+fi
+
 arch=${ARCH:-$(uname -m)}
 if [[ "$arch" == "arm64" ]]; then
     arch="aarch64"
