@@ -500,7 +500,6 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
 
     zval parameters_zv;
     ZVAL_ARR(&parameters_zv, addresses);
-    Z_TRY_ADDREF_P(&parameters_zv);
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
@@ -510,7 +509,6 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
     }
 
     dd_result res = dd_request_exec(conn, &parameters_zv, rasp);
-    zval_ptr_dtor(&parameters_zv);
 
     if (rasp) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
