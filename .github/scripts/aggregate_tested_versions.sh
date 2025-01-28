@@ -33,6 +33,6 @@ jq -s 'reduce .[] as $item ({};
   reduce ($item | to_entries[]) as $entry ($acc;
     .[$entry.key] = (.[$entry.key] + $entry.value | unique)
   )
-)' "${TEMP_DIR}"/*.json > "${OUTPUT_FILE}"
+) | to_entries | sort_by(.key) | from_entries' "${TEMP_DIR}"/*.json > "${OUTPUT_FILE}"
 
 echo "Aggregation complete. Output written to ${OUTPUT_FILE}"
