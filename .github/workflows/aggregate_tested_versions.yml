@@ -11,6 +11,10 @@ jobs:
   aggregate_tested_versions:
     name: Aggregate Tested Versions
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
 
     steps:
       - name: Checkout code
