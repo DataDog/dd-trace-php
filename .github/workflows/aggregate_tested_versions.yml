@@ -11,6 +11,10 @@ jobs:
   aggregate_tested_versions:
     name: Aggregate Tested Versions
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
 
     steps:
       - name: Checkout code
@@ -54,7 +58,7 @@ jobs:
           commit-message: "chore: update supported versions"
           title: "chore: update supported versions"
           branch: "update-supported-versions"
-          base: "master"
+          base: "alex/AIDM-455_record-supported-versions"
           draft: true # TODO: Remove when ready to merge
           delete-branch: true
           body: This PR updates the supported versions tables.

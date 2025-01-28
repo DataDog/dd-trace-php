@@ -44,6 +44,5 @@ jobs:
           commit-message: "chore: update latest versions"
           title: "chore: update latest versions"
           branch: "update-latest-versions"
-          base: "master"
           delete-branch: true
           body: This PR updates the latest pinned versions of the test dependencies.
