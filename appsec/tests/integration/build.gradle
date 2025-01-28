@@ -438,6 +438,7 @@ task loadCaches(type: Exec) {
 
     commandLine 'docker', 'run', '--rm',
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
             '-v', 'php-appsec-hunter-cache:/caches/php-appsec-hunter-cache',
             '-v', "${project.buildDir}:/build",
             'busybox',
