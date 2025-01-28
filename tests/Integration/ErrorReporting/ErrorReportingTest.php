@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class ErrorReportingTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/scripts/index.php';
     }

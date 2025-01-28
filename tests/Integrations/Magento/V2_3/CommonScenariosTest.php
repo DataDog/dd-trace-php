@@ -6,7 +6,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Magento\V2_4\Commo
 {
     public static $database = "magento23";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Magento/Version_2_3/pub/index.php';
     }

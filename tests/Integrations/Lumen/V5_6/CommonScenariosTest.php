@@ -9,7 +9,7 @@ use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosTest as V5_2_CommonScen
 
 class CommonScenariosTest extends V5_2_CommonScenariosTest
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';
     }

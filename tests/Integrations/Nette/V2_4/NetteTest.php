@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 final class NetteTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Nette/Version_2_4/www/index.php';
     }
@@ -152,36 +152,36 @@ final class NetteTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
                     ])
-                    ->setError('Internal Server Error')
-                    ->withChildren([
-                        SpanAssertion::build(
-                            'nette.configurator.createRobotLoader',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.configurator.createRobotLoader'
-                        )->withExactTags([
-                            Tag::COMPONENT => 'nette'
-                        ]),
-                        SpanAssertion::build(
-                            'nette.application.run',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.application.run'
-                        )->withExactTags([
-                            Tag::COMPONENT => 'nette'
-                        ])->withChildren([
+                        ->setError('Internal Server Error')
+                        ->withChildren([
                             SpanAssertion::build(
-                                'nette.presenter.run',
+                                'nette.configurator.createRobotLoader',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.presenter.run'
+                                'nette.configurator.createRobotLoader'
                             )->withExactTags([
                                 Tag::COMPONENT => 'nette'
+                            ]),
+                            SpanAssertion::build(
+                                'nette.application.run',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.application.run'
+                            )->withExactTags([
+                                Tag::COMPONENT => 'nette'
+                            ])->withChildren([
+                                SpanAssertion::build(
+                                    'nette.presenter.run',
+                                    'nette_test_app',
+                                    Type::WEB_SERVLET,
+                                    'nette.presenter.run'
+                                )->withExactTags([
+                                    Tag::COMPONENT => 'nette'
+                                ])
+                                    ->setError('Exception', 'An exception occurred')
+                                    ->withExistingTagsNames(['error.stack']),
                             ])
-                            ->setError('Exception', 'An exception occurred')
-                            ->withExistingTagsNames(['error.stack']),
                         ])
-                    ])
                 ],
             ]
         );

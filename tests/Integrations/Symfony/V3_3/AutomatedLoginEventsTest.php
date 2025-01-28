@@ -11,7 +11,7 @@ class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
     public static $database = "symfony33";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/index.php';
     }

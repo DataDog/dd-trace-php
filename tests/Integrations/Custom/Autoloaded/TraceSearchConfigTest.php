@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }

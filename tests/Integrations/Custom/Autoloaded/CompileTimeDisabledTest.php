@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class CompileTimeDisabledTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }

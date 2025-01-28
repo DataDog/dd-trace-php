@@ -10,7 +10,7 @@ use datadog\appsec\AppsecStatus;
 
 final class FilesystemTest extends AppsecTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/index.php';
     }

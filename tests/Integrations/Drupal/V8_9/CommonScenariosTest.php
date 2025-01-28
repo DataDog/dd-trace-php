@@ -9,7 +9,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "drupal89";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Drupal/Version_8_9/index.php';
     }
