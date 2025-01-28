@@ -32,7 +32,7 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    bool(false)
+    int(0)
     [1]=>
     array(2) {
       ["server.request.path_params"]=>

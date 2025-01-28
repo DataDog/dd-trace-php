@@ -18,8 +18,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-$is_rasp = true;
-push_addresses(["server.request.path_params" => 1234], $is_rasp);
+push_addresses(["server.request.path_params" => 1234], \datadog\appsec\rasp\LFI);
 var_dump(rshutdown());
 print_r(root_span_get_metrics());
 

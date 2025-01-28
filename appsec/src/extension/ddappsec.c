@@ -488,8 +488,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
     }
 
     zval *addresses = NULL;
-    bool rasp = false;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &addresses, &rasp) ==
+    long rasp_rule = dd_rasp_rule_none;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|l", &addresses, &rasp_rule) ==
         FAILURE) {
         RETURN_FALSE;
     }
@@ -498,7 +498,12 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    if (rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
+    if (rasp_rule != dd_rasp_rule_lfi && rasp_rule != dd_rasp_rule_ssrf) {
+        rasp_rule = dd_rasp_rule_none;
+    }
+
+    if (rasp_rule != dd_rasp_rule_none &&
+        !get_global_DD_APPSEC_RASP_ENABLED()) {
         return;
     }
 
@@ -508,9 +513,9 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    dd_result res = dd_request_exec(conn, addresses, rasp);
+    dd_result res = dd_request_exec(conn, addresses, rasp_rule);
 
-    if (rasp) {
+    if (rasp_rule > dd_rasp_rule_none) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
         elapsed =
             ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
@@ -569,6 +574,16 @@ static const zend_function_entry testing_functions[] = {
 static void _register_testing_objects()
 {
     dd_phpobj_reg_funcs(functions);
+
+#    define _REG_RASP_CONST(php_name, value)                                    \
+        do {                                                                   \
+            char v[] = "datadog\\appsec\\rasp\\" php_name;       \
+            dd_phpobj_reg_long_const(                                          \
+                v, sizeof(v) - 1, value, CONST_CS | CONST_PERSISTENT);         \
+        } while (0)
+
+    _REG_RASP_CONST("LFI", dd_rasp_rule_lfi);
+    _REG_RASP_CONST("SSRF", dd_rasp_rule_ssrf);
 
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

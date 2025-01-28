@@ -67,4 +67,10 @@ int dd_appsec_rshutdown(bool ignore_verdict);
 
 #define PHP_DDAPPSEC_EXTNAME "ddappsec"
 
+typedef enum {
+    dd_rasp_rule_none = 0,
+    dd_rasp_rule_lfi,
+    dd_rasp_rule_ssrf,
+} dd_rasp_rule;
+
 #endif // DDAPPSEC_H
