@@ -3,8 +3,7 @@ name: Aggregate Tested Versions
 on:
   push:
     branches:
-      - "**" # For test purposes, always run the workflow
-  #    - master # TODO: Uncomment this line to run the workflow only on master
+      - master
   workflow_dispatch:
 
 jobs:
@@ -59,6 +58,5 @@ jobs:
           title: "chore: update supported versions"
           branch: "update-supported-versions"
           base: "master"
-          draft: true # TODO: Remove when ready to merge
           delete-branch: true
           body: This PR updates the supported versions tables.
