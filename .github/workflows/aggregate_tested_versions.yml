@@ -25,7 +25,7 @@ jobs:
           php-version: '8.3'
 
       - name: Wait for 5 minutes
-        run: sleep 240
+        run: sleep 300
 
       - name: Run aggregation script
         env:
@@ -51,8 +51,8 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update tested versions"
-          title: "chore: update tested versions"
+          commit-message: "chore: update supported versions"
+          title: "chore: update supported versions"
           branch: "update-supported-versions"
           base: "master"
           draft: true # TODO: Remove when ready to merge
