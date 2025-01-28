@@ -3,8 +3,8 @@ pub mod capi;
 mod clocks;
 mod config;
 mod logging;
-mod pcntl;
 pub mod profiling;
+mod pthread;
 mod sapi;
 mod thin_str;
 mod wall_time;
@@ -874,7 +874,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     // Safety: calling this in zend_extension startup.
     unsafe {
-        pcntl::startup();
+        pthread::startup();
         #[cfg(feature = "timeline")]
         timeline::timeline_startup();
     }
