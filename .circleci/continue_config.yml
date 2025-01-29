@@ -1766,11 +1766,43 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core*' \) -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
+      - run:
+          name: Save Tested Versions
+          command: |
+            make tested_versions
+          when: always
       - store_artifacts:
           path: /tmp/artifacts/
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_GET_TEST_AGENT_RESULTS
+
+  aggregate_tested_versions:
+    working_directory: ~/datadog
+    docker:
+      - image: datadog/dd-trace-ci:php-8.3_buster
+    parameters:
+      resource_class:
+        type: string
+        default: medium
+    steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+      - git_checkout
+      - run:
+          name: Install required packages
+          command: sudo apt-get update && sudo apt-get install -y jq
+      - run:
+          name: Aggregate Tested Versions
+          command: |
+            export CI_COMMIT_SHA=${CIRCLE_SHA1}
+            export CI_COMMIT_BRANCH=${CIRCLE_BRANCH}
+            ./tooling/ci/aggregate_tested_versions.sh
+      - run:
+          name: Generate Markdown Table
+          command: |
+            php ./tooling/ci/generate_markdown.php
 
   integration:
     working_directory: ~/datadog
@@ -5486,6 +5518,7 @@ workflows:
           # Due to Symfony OOM during composer update
           resource_class: xlarge
           matrix:
+            alias: integration_snapshots_tests
             parameters:
               php_major_minor:
                 - '7.0'
@@ -5502,6 +5535,12 @@ workflows:
                 - test_web
                 - test_integrations
 
+      - aggregate_tested_versions:
+          requires:
+            - integration_snapshots_tests:
+                - success
+                - failed
+
       - integration_snapshots:
           requires: [ 'Prepare Code', 'Compile << matrix.php_major_minor >> extension for testing', 'Compile rust code for testing' ]
           # Due to Symfony OOM during composer update
@@ -5509,6 +5548,7 @@ workflows:
           coverage: true
           codecov_flags: tracer-php
           matrix:
+            alias: integration_snapshots_tests_coverage
             parameters:
               php_major_minor:
                 - '7.4'

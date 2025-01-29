@@ -42,6 +42,11 @@ final class MemcacheTest extends IntegrationTestCase
         ];
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-memcache';
+    }
+
     public function testAdd()
     {
         $traces = $this->isolateTracer(function () {
