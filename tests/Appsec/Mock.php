@@ -77,7 +77,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             foreach ($events as $event) {
                 $new = json_decode($event['event'], true);
                 if (empty($names) || in_array($new['eventName'], $names) &&
-                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new))))) {
+                    (empty($addresses) || !empty(array_intersect($addresses, array_keys($new[0]))))) {
                     $result[] = $new;
                 }
             }
@@ -205,16 +205,15 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
     }
 }
 
-if (!function_exists('datadog\appsec\push_address')) {
+if (!function_exists('datadog\appsec\push_addresses')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      * @param array $params
      */
-    function push_address($key, $value, $rasp = false)
-    {
-        if (!appsecMockEnabled()) {
-            return;
+    function push_addresses($addresses, $rasp = false) {
+        if(!appsecMockEnabled()) {
+           return;
         }
-        AppsecStatus::getInstance()->addEvent(['rasp' => $rasp, $key => $value], 'push_address');
+        AppsecStatus::getInstance()->addEvent(['rasp' => $rasp, $addresses], 'push_addresses');
     }
 }

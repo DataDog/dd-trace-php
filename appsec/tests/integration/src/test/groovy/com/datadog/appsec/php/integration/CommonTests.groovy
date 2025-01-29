@@ -275,7 +275,7 @@ trait CommonTests {
         assert exploit.frames[2].line == 15
     }
 
-     static Stream<Arguments> getTestData() {
+     static Stream<Arguments> getTestLfiData() {
             return Arrays.stream(new Arguments[]{
                     Arguments.of("file_put_contents", "/tmp/dummy", 9),
                     Arguments.of("readfile", "/tmp/dummy", 15),
@@ -285,8 +285,8 @@ trait CommonTests {
      }
 
      @ParameterizedTest
-     @MethodSource("getTestData")
-        void 'file_put_contents generates LFI signal'(String target_function, String path, Integer line) {
+     @MethodSource("getTestLfiData")
+        void 'filesystem functions generate LFI signal'(String target_function, String path, Integer line) {
             HttpRequest req = container.buildReq('/filesystem.php?function='+target_function+"&path="+path).GET().build()
             def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
                 assert re.statusCode() == 200
@@ -527,5 +527,53 @@ trait CommonTests {
         if (res.exitCode != 0) {
             throw new AssertionError("Module has STATIC_TLS flag: $res.stdout")
         }
+    }
+
+    static Stream<Arguments> getTestSsrfData() {
+            return Arrays.stream(new Arguments[]{
+                    Arguments.of("file_get_contents", 12),
+                    Arguments.of("fopen", 9),
+            });
+     }
+
+    @ParameterizedTest
+    @MethodSource("getTestSsrfData")
+       void 'filesystem functions generate SSRF signal'(String target_function, Integer line) {
+           HttpRequest req = container.buildReq('/ssrf.php?function='+target_function+"&domain=169.254.169.254").GET().build()
+           def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+                assert re.body().contains('OK')
+            }
+
+            Span span = trace.first()
+
+            assert span.metrics."_dd.appsec.enabled" == 1.0d
+            assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+            assert span.meta."_dd.appsec.event_rules.version" != ''
+
+            InputStream stream = new ByteArrayInputStream( span.meta_struct."_dd.stack".decodeBase64() )
+            MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(stream)
+            List<Object> stacks = []
+            stacks << MsgpackHelper.unpackSingle(unpacker)
+            Object exploit = stacks.first().exploit.first()
+
+            assert exploit.language == "php"
+            assert exploit.id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+            assert exploit.frames[0].file == "ssrf.php"
+            assert exploit.frames[0].function == target_function
+            assert exploit.frames[0].id == 1
+            assert exploit.frames[0].line == line
+            assert exploit.frames[1].file == "ssrf.php"
+            assert exploit.frames[1].function == "one"
+            assert exploit.frames[1].id == 2
+            assert exploit.frames[1].line == 18
+            assert exploit.frames[2].file == "ssrf.php"
+            assert exploit.frames[2].function == "two"
+            assert exploit.frames[2].id == 3
+            assert exploit.frames[2].line == 22
+            assert exploit.frames[3].file == "ssrf.php"
+            assert exploit.frames[3].function == "three"
+            assert exploit.frames[3].id == 4
+            assert exploit.frames[3].line == 25
     }
 }

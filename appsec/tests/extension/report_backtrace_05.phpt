@@ -9,7 +9,7 @@ datadog.appsec.enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
-use function datadog\appsec\push_address;
+use function datadog\appsec\push_addresses;
 use function datadog\appsec\testing\{decode_msgpack};
 include __DIR__ . '/inc/ddtrace_version.php';
 include __DIR__ . '/inc/mock_helper.php';
@@ -21,7 +21,7 @@ $helper = Helper::createInitedRun([
 
 function two($param01, $param02)
 {
-    push_address("irrelevant", ["some" => "params", "more" => "parameters"]);
+    push_addresses(["irrelevant" => ["some" => "params", "more" => "parameters"]]);
 }
 
 function one($param01)

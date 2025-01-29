@@ -1,5 +1,5 @@
 --TEST--
-Push address are sent on request_exec - array
+Multiple addresses can be sent at once
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -17,7 +17,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_addresses(["server.request.path_params" => ["some" => "params", "more" => "parameters"]]);
+push_addresses(["server.request.path_params" => ["some" => "params", "more" => "parameters"], "some.other" => 12345]);
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));
@@ -34,7 +34,7 @@ array(2) {
     [0]=>
     bool(false)
     [1]=>
-    array(1) {
+    array(2) {
       ["server.request.path_params"]=>
       array(2) {
         ["some"]=>
@@ -42,6 +42,8 @@ array(2) {
         ["more"]=>
         string(10) "parameters"
       }
+      ["some.other"]=>
+      int(12345)
     }
   }
 }

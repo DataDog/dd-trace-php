@@ -15,50 +15,109 @@ final class FilesystemTest extends AppsecTestCase
         return __DIR__ . '/index.php';
     }
 
-    protected function assertEvent(string $value, $traces)
+    protected static function getEnvs()
+        {
+            return array_merge(parent::getEnvs(), [
+                'DD_APPSEC_RASP_ENABLED' => true
+            ]);
+        }
+
+    protected function assertEvent(string $value, $traces, $ssrf = false)
     {
        $events = AppsecStatus::getInstance()->getEvents();
        $this->assertEquals(1, count($events));
-       $this->assertEquals($value, $events[0]["server.io.fs.file"]);
-       $this->assertEquals('push_address', $events[0]['eventName']);
+       $this->assertEquals(1, count($events[0][0]));
+       $key = !$ssrf ? "server.io.fs.file" : "server.io.net.url";
+       $this->assertEquals($value, $events[0][0][$key]);
+       $this->assertEquals('push_addresses', $events[0]['eventName']);
        $this->assertTrue($events[0]['rasp']);
-       $this->assertGreaterThanOrEqual(0.0, $traces[0][0]['metrics']['_dd.appsec.rasp.duration_ext']);
     }
 
-    public function testFileGetContents()
+    public function ssrfProtocols()
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->call(GetSpec::create('Root', '/?function=file_get_contents&path=./index.php'));
+        return [
+            ['http'],
+            ['https'],
+            ['ftp'],
+            ['ftps']
+        ];
+    }
+
+    /**
+    * @dataProvider ssrfProtocols
+    */
+    public function testSsrfProtocols($protocol)
+    {
+        $url = $protocol.'://example.com';
+        $traces = $this->tracesFromWebRequest(function () use ($url) {
+            $response = $this->call(GetSpec::create('Root', '/?function=fopen&path='.$url));
             TestCase::assertSame('OK', $response);
         });
 
-        $this->assertEvent('./index.php', $traces);
+       $this->assertEvent($url, $traces, true);
     }
 
-    public function testFilePutContents()
+    public function testInvalidProtocol()
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->call(GetSpec::create('Root', '/?function=file_put_contents&path=./somefile'));
+        $url = 'bad://example.com';
+        $traces = $this->tracesFromWebRequest(function () use ($url) {
+            $response = $this->call(GetSpec::create('Root', '/?function=fopen&path='.$url));
             TestCase::assertSame('OK', $response);
         });
-       $this->assertEvent('./somefile', $traces);
+
+       $events = AppsecStatus::getInstance()->getEvents();
+       $this->assertEquals(0, count($events));
     }
 
-    public function testFopen()
+    public function wrappedFunctions()
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->call(GetSpec::create('Root', '/?function=fopen&path=./index.php'));
+        return [
+            ['file_get_contents', 'ssrf' => true],
+            ['file_put_contents', 'ssrf' => false],
+            ['fopen', 'ssrf' => true],
+            ['readfile', 'ssrf' => false],
+        ];
+    }
+
+    /**
+    * @dataProvider wrappedFunctions
+    */
+    public function testNoProtocol($targetFunction, $ssrf)
+    {
+        $traces = $this->tracesFromWebRequest(function () use($targetFunction) {
+            $response = $this->call(GetSpec::create('Root', '/?function='.$targetFunction.'&path=./somefile'));
+
+            TestCase::assertSame('OK', str_replace('some content', '', $response));
+        });
+       $this->assertEvent('./somefile', $traces, false);
+    }
+
+    /**
+    * @dataProvider wrappedFunctions
+    */
+    public function testWithFileProtocol($targetFunction, $ssrf)
+    {
+        $traces = $this->tracesFromWebRequest(function () use($targetFunction) {
+            $response = $this->call(GetSpec::create('Root', '/?function='.$targetFunction.'&path=file://somefile'));
             TestCase::assertSame('OK', $response);
         });
-        $this->assertEvent('./index.php', $traces);
+       $this->assertEvent('file://somefile', $traces, false);
     }
 
-    public function testReadFile()
+    /**
+    * @dataProvider wrappedFunctions
+    */
+    public function testWithHttpProtocol($targetFunction, $ssrf)
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $response = $this->call(GetSpec::create('Root', '/?function=readfile&path=./dummy'));
-            TestCase::assertSame("Dummy file content\nOK", $response);
+        $traces = $this->tracesFromWebRequest(function () use($targetFunction) {
+            $response = $this->call(GetSpec::create('Root', '/?function='.$targetFunction.'&path=http://some.url'));
+            TestCase::assertSame('OK', $response);
         });
-        $this->assertEvent('./dummy', $traces);
+        $events = AppsecStatus::getInstance()->getEvents();
+        if ($ssrf) {
+            $this->assertEvent('http://some.url', $traces, $ssrf);
+        } else { //Only lfi and non valid protocol
+            $this->assertEquals(0, count(AppsecStatus::getInstance()->getEvents()));
+        }
     }
 }
