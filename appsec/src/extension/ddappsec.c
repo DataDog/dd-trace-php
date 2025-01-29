@@ -487,10 +487,14 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    HashTable *addresses = NULL;
+    zval *addresses = NULL;
     bool rasp = false;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "h|b", &addresses, &rasp) ==
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &addresses, &rasp) ==
         FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (Z_TYPE_P(addresses) != IS_ARRAY) {
         RETURN_FALSE;
     }
 
@@ -498,17 +502,13 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    zval parameters_zv;
-    ZVAL_ARR(&parameters_zv, addresses);
-
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
-        zval_ptr_dtor(&parameters_zv);
         mlog_g(dd_log_debug, "No connection; skipping push_addresses");
         return;
     }
 
-    dd_result res = dd_request_exec(conn, &parameters_zv, rasp);
+    dd_result res = dd_request_exec(conn, addresses, rasp);
 
     if (rasp) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
