@@ -1,7 +1,7 @@
 | Library                     | Min. Supported Version | Max. Supported Version |
 |-----------------------------|------------------------|------------------------|
 | cakephp/cakephp             | 3.10.5                 | 5.1.5                  |
-| drupal/drupal               | 8.9.21                 | 10.1.3                 |
+| drupal/drupal               | 8.9.21                 | 10.1.4                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 8.17.0                 |
 | ext-PDO                     | 7.0.33                 | 8.3.14                 |
 | ext-memcache                | 4.0.5                  | 8.2                    |
