@@ -1798,11 +1798,15 @@ jobs:
           command: |
             export CI_COMMIT_SHA=${CIRCLE_SHA1}
             export CI_COMMIT_BRANCH=${CIRCLE_BRANCH}
-            ./tooling/ci/aggregate_tested_versions.sh
+            ./tooling/tested_versions/aggregate_tested_versions.sh
       - run:
           name: Generate Markdown Table
           command: |
-            php ./tooling/ci/generate_markdown.php
+            php ./tooling/tested_versions/generate_markdown.php
+      - run:
+          name: Create or Update PR Branch
+          command: ./tooling/tested_versions/create_or_update_supported_versions_pr.sh
+
 
   integration:
     working_directory: ~/datadog
