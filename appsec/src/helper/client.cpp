@@ -226,14 +226,14 @@ template <typename T> bool client::service_guard()
 
 template <typename T>
 std::shared_ptr<typename T::response> client::publish(
-    typename T::request &command, bool rasp)
+    typename T::request &command, std::string rasp_rule)
 {
     SPDLOG_DEBUG("received command {}", T::name);
 
     auto response = std::make_shared<typename T::response>();
     try {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto res = context_->publish(std::move(command.data), rasp);
+        auto res = context_->publish(std::move(command.data), rasp_rule);
         if (res) {
             for (auto &act : res->actions) {
                 dds::network::action_struct new_action;
@@ -316,7 +316,7 @@ bool client::handle_command(network::request_exec::request &command)
         context_.emplace(*service_->get_engine());
     }
 
-    auto response = publish<network::request_exec>(command, command.rasp);
+    auto response = publish<network::request_exec>(command, command.rasp_rule);
     return send_message<network::request_exec>(response);
 }
 

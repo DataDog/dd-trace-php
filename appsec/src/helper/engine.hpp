@@ -66,7 +66,8 @@ public:
         context &operator=(context &&) = delete;
         ~context() = default;
 
-        std::optional<result> publish(parameter &&param, bool rasp = false);
+        std::optional<result> publish(
+            parameter &&param, std::string rasp_rule = "");
         // NOLINTNEXTLINE(google-runtime-references)
         void get_metrics(metrics::telemetry_submitter &msubmitter);
 

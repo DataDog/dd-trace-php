@@ -187,7 +187,7 @@ struct request_exec {
         static constexpr const char *name = request_exec::name;
         static constexpr request_id id = request_id::request_exec;
 
-        bool rasp = false;
+        std::string rasp_rule;
         dds::parameter data;
 
         request() = default;
@@ -197,7 +197,7 @@ struct request_exec {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(rasp, data)
+        MSGPACK_DEFINE(rasp_rule, data)
     };
 
     struct response : base_response_generic<response> {

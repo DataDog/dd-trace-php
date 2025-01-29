@@ -123,8 +123,8 @@ TEST(WafTest, RunWithTimeout)
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
         parameter_view pv(p);
         dds::event e;
-        bool is_rasp = true;
-        EXPECT_THROW(ctx->call(pv, e, is_rasp), timeout_error);
+        std::string rasp = "lfi";
+        EXPECT_THROW(ctx->call(pv, e, rasp), timeout_error);
 
         ctx->submit_metrics(submitm);
         Mock::VerifyAndClearExpectations(&submitm);
@@ -172,8 +172,8 @@ TEST(WafTest, ValidRunGood)
 
         parameter_view pv(p);
         dds::event e;
-        bool is_rasp = true;
-        ctx->call(pv, e, is_rasp);
+        std::string rasp = "lfi";
+        ctx->call(pv, e, rasp);
 
         double rasp_duration;
         double duration;

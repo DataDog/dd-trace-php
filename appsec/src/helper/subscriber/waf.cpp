@@ -301,7 +301,7 @@ instance::listener::~listener()
 }
 
 void instance::listener::call(
-    dds::parameter_view &data, event &event, bool rasp)
+    dds::parameter_view &data, event &event, std::string rasp_rule)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
@@ -346,7 +346,7 @@ void instance::listener::call(
             break;
         }
     }
-    if (rasp) {
+    if (rasp_rule != "") {
         // NOLINTNEXTLINE
         rasp_runtime_ += res.total_runtime / 1000.0;
         rasp_calls_++;
