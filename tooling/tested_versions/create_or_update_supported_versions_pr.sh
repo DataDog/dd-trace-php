@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euox pipefail
 
 if [[ -z $(git status --porcelain) ]]; then
   echo "No changes detected, exiting."
   exit 0
 fi
+
+git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+git config --global user.name "github-actions[bot]"
 
 CURRENT_BRANCH=${CIRCLE_BRANCH}
 TARGET_BRANCH="update-supported-versions"
