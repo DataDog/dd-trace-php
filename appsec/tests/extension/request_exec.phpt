@@ -47,7 +47,7 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    int(0)
+    string(0) ""
     [1]=>
     array(3) {
       ["key 01"]=>

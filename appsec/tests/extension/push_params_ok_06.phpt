@@ -16,7 +16,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_addresses(["server.request.path_params" => 1234], \datadog\appsec\rasp\LFI);
+push_addresses(["server.request.path_params" => 1234], "lfi");
 var_dump(rshutdown());
 print_r(root_span_get_metrics());
 

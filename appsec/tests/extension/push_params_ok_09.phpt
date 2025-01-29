@@ -18,7 +18,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_addresses(["server.request.path_params" => ["some" => "params", "more" => "parameters"]], \datadog\appsec\rasp\SSRF);
+push_addresses(["server.request.path_params" => ["some" => "params", "more" => "parameters"]], "ssrf");
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));
@@ -33,7 +33,7 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    int(2)
+    string(4) "ssrf"
     [1]=>
     array(1) {
       ["server.request.path_params"]=>
