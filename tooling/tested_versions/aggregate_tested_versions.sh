@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ls -al
-
 source ./.gitlab/download-circleci_artifact.sh
 
 PROJECT_SLUG="gh/DataDog/dd-trace-php"
