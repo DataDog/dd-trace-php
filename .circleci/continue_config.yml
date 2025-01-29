@@ -5540,6 +5540,9 @@ workflows:
                 - test_integrations
 
       - aggregate_tested_versions:
+          filters:
+            branches:
+              only: master
           requires:
             - integration_snapshots_tests:
                 - success
