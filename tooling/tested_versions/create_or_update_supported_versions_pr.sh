@@ -34,9 +34,6 @@ sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 sudo apt update && sudo apt install -y gh
 
-# Authenticate with GitHub
-echo "$GITHUB_TOKEN" | gh auth login --with-token
-
 # Check if PR already exists
 PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-php --head $TARGET_BRANCH --json number --jq '.[0].number')
 if [[ -z $PR_NUMBER ]]; then
