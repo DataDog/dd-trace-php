@@ -38,6 +38,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-swoole';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
