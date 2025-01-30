@@ -23,15 +23,16 @@ for architecture in "${architectures[@]}"; do
     root=$tmp_folder_final/$architecture/dd-library-php-ssi
     gnu=$root/linux-gnu
     musl=$root/linux-musl
-    trace=$root/trace
 
     # Starting from a clean folder
     rm -rf ${tmp_folder}
-    mkdir -p ${gnu}/loader ${musl}/loader ${trace}
 
     ########################
     # Loader
     ########################
+
+    mkdir -p ${gnu}/loader ${musl}/loader
+
     ln libddtrace_php_${architecture}.so ${gnu}/loader/libddtrace_php.so
     ln libddtrace_php_${architecture}-alpine.so ${musl}/loader/libddtrace_php.so
 
@@ -88,17 +89,14 @@ for architecture in "${architectures[@]}"; do
         ln ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
     done
 
-    cp -r ./src ${trace}/
+    # Trace
+    mkdir -p "${root}/trace"
+    cp -r ./src "${root}/trace/"
 
-    # AppSec Helper
-    mkdir -p ${gnu}/appsec/lib ${musl}/appsec/lib
-    ln "./appsec_${architecture}/libddappsec-helper.so" "${gnu}/appsec/lib/libddappsec-helper.so"
-    ln "./appsec_${architecture}/libddappsec-helper.so" "${musl}/appsec/lib/libddappsec-helper.so"
-
-    # AppSec Recommended rules
-    mkdir -p ${gnu}/appsec/etc ${musl}/appsec/etc
-    ln "./appsec_${architecture}/recommended.json"  "${gnu}/appsec/etc/recommended.json"
-    ln "./appsec_${architecture}/recommended.json"  "${musl}/appsec/etc/recommended.json"
+    # AppSec
+    mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
+    ln "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
+    ln "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
 
     ########################
     # Final archives
