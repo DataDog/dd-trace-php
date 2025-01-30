@@ -25,8 +25,8 @@ AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
 LDFLAGS ?=
-PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'print ini_get("extension_dir");')
-PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
+PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -r 'print ini_get("extension_dir");')
+PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -n -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
@@ -37,7 +37,7 @@ ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TR
 
 VERSION := $(shell cat VERSION)
 
-INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
+INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
