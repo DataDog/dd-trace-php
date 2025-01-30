@@ -1794,15 +1794,14 @@ jobs:
           name: Install required packages
           command: sudo apt-get update && sudo apt-get install -y jq
       - run:
-          name: Aggregate Tested Versions
+          name: Download & Aggregate Tested Versions
           command: |
             export CI_COMMIT_SHA=${CIRCLE_SHA1}
             export CI_COMMIT_BRANCH=${CIRCLE_BRANCH}
-            ./tooling/tested_versions/aggregate_tested_versions.sh
+            ./tooling/tested_versions/download_and_aggregate_tested_versions.sh
       - run:
           name: Generate Markdown Table
-          command: |
-            php ./tooling/tested_versions/generate_markdown.php
+          command: php ./tooling/tested_versions/generate_markdown_table.php
       - run:
           name: Create or Update PR Branch
           command: ./tooling/tested_versions/create_or_update_supported_versions_pr.sh
