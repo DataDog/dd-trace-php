@@ -1,0 +1,139 @@
+.base_build:
+  stage: build
+  tags: [ "arch:amd64" ]
+  # TODO: Change to base image, not a php buster image
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.0_buster
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+
+checkout code:
+  extends: .base_build
+  image: registry.ddbuild.io/images/mirror/bitnami/git:2.45.2
+  script:
+    - chown -R $(id -u):$(id -g) .
+    - git submodule update --init --recursive
+    - ./.gitlab/append-build-id.sh
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 1Gi
+  artifacts:
+    paths:
+      - "appsec/third_party/"
+      - "libdatadog/"
+      - "tea/benchmarks/google-benchmark/"
+      - "VERSION"
+
+compile rust:
+  extends: .base_build
+  tags: [ "arch:${ARCH}" ]
+  needs:
+    - job: "checkout code"
+      artifacts: true
+  parallel:
+    matrix:
+      - ASAN:
+          - "1"
+          - "0"
+        ARCH:
+          - "amd64"
+          - "arm64"
+  script: |
+    export host_os=linux-$([ "${ARCH}" == "amd64" ] && echo "gnu" || echo "musl")
+    COMPILE_ASAN=${ASAN} SHARED=1 ./compile_rust.sh
+    cp -v ${CARGO_TARGET_DIR:-target}/debug/libddtrace_php.a .
+  artifacts:
+    paths:
+      - "./libddtrace_php.a"
+
+compile extension:
+  extends: .base_build
+  needs:
+    - job: "checkout code"
+      artifacts: true
+    - job: "compile rust"
+      artifacts: true
+      parallel:
+        matrix:
+          - ASAN: "0"
+            ARCH: "amd64"
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR:
+          - "7.0"
+          - "7.1"
+          - "7.2"
+          - "7.3"
+          - "7.4"
+          - "8.0"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+        SWITCH_PHP_VERSION:
+          - debug
+  script: |
+    switch-php "${SWITCH_PHP_VERSION}"
+    make -j static
+    cp -v tmp/build_extension/modules/ddtrace.a ddtrace.a
+    cp -v tmp/build_extension/ddtrace.ldflags ddtrace.ldflags
+    sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ddtrace.ldflags
+    cc -shared -Wl,-whole-archive ddtrace.a -Wl,-no-whole-archive $(cat ddtrace.ldflags) libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ddtrace.so
+    mkdir -p tmp/build_extension/modules
+    mv ddtrace.so tmp/build_extension/modules/
+  artifacts:
+    paths:
+      - "ddtrace.a"
+      - "ddtrace.ldflags"
+      - "tmp/build_extension/modules/"
+
+"compile ZTS asan: [amd64]":
+  extends: "compile extension"
+  needs:
+    - job: "checkout code"
+      artifacts: true
+    - job: "compile rust"
+      artifacts: true
+      parallel:
+        matrix:
+          - ASAN: "1"
+            ARCH: "amd64"
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR:
+          - "7.4"
+          - "8.0"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+        SWITCH_PHP_VERSION:
+          - "debug-zts-asan"
+        ARCH:
+          - "amd64"
+
+"compile ZTS asan: [arm64]":
+  extends: "compile extension"
+  needs:
+    - job: "checkout code"
+      artifacts: true
+    - job: "compile rust"
+      artifacts: true
+      parallel:
+        matrix:
+          - ASAN: "1"
+            ARCH: "arm64"
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR:
+          - "7.4"
+          - "8.0"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+        SWITCH_PHP_VERSION:
+          - "debug-zts-asan"
+        ARCH:
+          - "arm64"

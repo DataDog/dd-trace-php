@@ -19,6 +19,7 @@ include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
+  - local: .gitlab/compile.yml
 
 build:
   extends: .ci_authenticated_job
@@ -126,55 +127,3 @@ requirements_json_test:
   variables:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
-
-
-compile extension:
-  stage: build
-  tags: [ "arch:amd64" ]
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR:
-          - "7.0"
-          - "7.1"
-          - "7.2"
-          - "7.3"
-          - "7.4"
-          - "8.0"
-          - "8.1"
-          - "8.2"
-          - "8.3"
-          - "8.4"
-        SWITCH_PHP_VERSION:
-          - debug
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
-  before_script:
-    - git config --global --add safe.directory "${CI_PROJECT_DIR}"
-    - git config --global --add safe.directory "${CI_PROJECT_DIR}/libdatadog"
-    - git submodule update --init libdatadog
-  script: |
-    switch-php "${SWITCH_PHP_VERSION}"
-    make -j static
-    cp -v tmp/build_extension/modules/ddtrace.a ddtrace.a
-    cp -v tmp/build_extension/ddtrace.ldflags ddtrace.ldflags
-  artifacts:
-    paths:
-      - "ddtrace.a"
-      - "ddtrace.ldflags"
-
-compile ZTS asan:
-  extends: "compile extension"
-  tags: [ "arch:${ARCH}" ]
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR:
-          - "7.4"
-          - "8.0"
-          - "8.1"
-          - "8.2"
-          - "8.3"
-          - "8.4"
-        SWITCH_PHP_VERSION:
-          - "debug-zts-asan"
-        ARCH:
-          - "amd64"
-          - "arm64"
