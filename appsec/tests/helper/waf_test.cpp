@@ -18,7 +18,7 @@
 #include <utils.hpp>
 
 const std::string waf_rule =
-    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3"}, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1"}, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*"} }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*"} } ], "action": "record"} ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2"} ], "output": "_dd.appsec.s.arg2"} ], "scanners": [{"tags": {"category": "pii"} } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
+    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -670,4 +670,133 @@ TEST(WafTest, ActionsAreSentAndParsed)
             "auto"); // Default value
     }
 }
+
+TEST(WafTest, TelemetryIsSent)
+{
+    {
+        NiceMock<mock::tel_submitter> submitm{};
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, submitm)};
+        auto ctx = wi->get_listener();
+
+        // One rasp call with match
+        auto p = parameter::map();
+        p.add("server.io.net.url",
+            parameter::string("http://169.254.169.254?something=here"sv));
+        p.add("server.request.body",
+            parameter::string("http://169.254.169.254?something=here"sv));
+        parameter_view pv(p);
+        dds::event e;
+        std::string rasp = "ssrf";
+        ctx->call(pv, e, rasp);
+
+        // Now rasp call without match
+        auto p2 = parameter::map();
+        parameter_view pv2(p2);
+        ctx->call(pv2, e, rasp);
+
+        // Now lfi with match
+        auto p3 = parameter::map();
+        p3.add("server.io.fs.file", parameter::string("../somefile"sv));
+        auto query = parameter::map();
+        query.add("query", parameter::string("../somefile"sv));
+        p3.add("server.request.query", std::move(query));
+        parameter_view pv3(p3);
+        ctx->call(pv3, e, "lfi");
+
+        EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
+                                 std::string{"1.2.3"}));
+        EXPECT_CALL(submitm,
+            submit_metric("waf.requests"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() +
+                    std::string{",rule_triggered:true"})));
+
+        // SSRF
+        EXPECT_CALL(
+            submitm, submit_metric("appsec.rasp.rule.eval"sv, 2,
+                         metrics::telemetry_tags::from_string(
+                             std::string{"rule_type:ssrf,waf_version:"} +
+                             ddwaf_get_version())));
+        EXPECT_CALL(
+            submitm, submit_metric("appsec.rasp.rule.match"sv, 1,
+                         metrics::telemetry_tags::from_string(
+                             std::string{"rule_type:ssrf,waf_version:"} +
+                             ddwaf_get_version())));
+        EXPECT_CALL(
+            submitm, submit_metric("appsec.rasp.timeout"sv, 0,
+                         metrics::telemetry_tags::from_string(
+                             std::string{"rule_type:ssrf,waf_version:"} +
+                             ddwaf_get_version())));
+
+        // LFI
+        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
+                                 metrics::telemetry_tags::from_string(
+                                     std::string{"rule_type:lfi,waf_version:"} +
+                                     ddwaf_get_version())));
+        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.match"sv, 1,
+                                 metrics::telemetry_tags::from_string(
+                                     std::string{"rule_type:lfi,waf_version:"} +
+                                     ddwaf_get_version())));
+        EXPECT_CALL(submitm, submit_metric("appsec.rasp.timeout"sv, 0,
+                                 metrics::telemetry_tags::from_string(
+                                     std::string{"rule_type:lfi,waf_version:"} +
+                                     ddwaf_get_version())));
+
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 3));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
+        ctx->submit_metrics(submitm);
+    }
+}
+
+TEST(WafTest, TelemetryTimeoutMetric)
+{
+    NiceMock<mock::tel_submitter> submitm{};
+    std::shared_ptr<subscriber> wi(
+        waf::instance::from_string(waf_rule, submitm, 0));
+    auto ctx = wi->get_listener();
+
+    auto p = parameter::map();
+    p.add("arg1", parameter::string("string 1"sv));
+    p.add("arg2", parameter::string("string 2"sv));
+
+    EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_timeout, 1));
+    EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 1.0));
+    // Since v1.22.0 libddwaf will still attempt to run denylists, which
+    // will cause the duration to be non-zero
+    EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
+    EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
+    parameter_view pv(p);
+    dds::event e;
+    std::string rasp = "lfi";
+    EXPECT_THROW(ctx->call(pv, e, rasp), timeout_error);
+
+    EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
+                             std::string{"1.2.3"}));
+    EXPECT_CALL(submitm,
+        submit_metric("waf.requests"sv, 1,
+            metrics::telemetry_tags::from_string(
+                std::string{"event_rules_version:1.2.3,waf_version:"} +
+                ddwaf_get_version() +
+                std::string{",waf_timeout:true"})));
+
+    EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
+                             metrics::telemetry_tags::from_string(
+                                 std::string{"rule_type:lfi,waf_version:"} +
+                                 ddwaf_get_version())));
+    EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.match"sv, 0,
+                             metrics::telemetry_tags::from_string(
+                                 std::string{"rule_type:lfi,waf_version:"} +
+                                 ddwaf_get_version())));
+    EXPECT_CALL(submitm, submit_metric("appsec.rasp.timeout"sv, 1,
+                             metrics::telemetry_tags::from_string(
+                                 std::string{"rule_type:lfi,waf_version:"} +
+                                 ddwaf_get_version())));
+
+    ctx->submit_metrics(submitm);
+    Mock::VerifyAndClearExpectations(&submitm);
+}
+
 } // namespace dds
