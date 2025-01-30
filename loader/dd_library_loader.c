@@ -176,13 +176,34 @@ static void ddtrace_pre_minit_hook(void) {
     }
 }
 
+static void appsec_pre_minit_hook(void) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (configuration_hash) {
+        char *helper_path;
+        if (asprintf(&helper_path, "%s/appsec/lib/libddappsec-helper.so", package_path) == -1) {
+            return;
+        }
+        ddloader_ini_set_configuration(ZEND_STRL("datadog.appsec.helper_path"), helper_path, strlen(helper_path));
+        free(helper_path);
+
+        char *rules_path;
+        if (asprintf(&rules_path, "%s/appsec/etc/recommended.json", package_path) == -1) {
+            return;
+        }
+        ddloader_ini_set_configuration(ZEND_STRL("datadog.appsec.rules"), rules_path, strlen(rules_path));
+        free(rules_path);
+    }
+}
+
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
     DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
-    // DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, NULL, ((zend_module_dep[]){ZEND_MOD_END})),
+    DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL,
+                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
+    DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, appsec_pre_minit_hook,
+                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_END})),
 };
 
 void ddloader_logv(log_level level, const char *format, va_list va) {
@@ -502,7 +523,9 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     if (ret == FAILURE) {
         TELEMETRY(REASON_ERROR, "error_minit", "'%s' MINIT function failed", config->ext_name);
     } else {
-        TELEMETRY(REASON_COMPLETE, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
+        if (strcmp(config->ext_name, "ddtrace") == 0) {
+            TELEMETRY(REASON_COMPLETE, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
+        }
     }
 
     return ret;
