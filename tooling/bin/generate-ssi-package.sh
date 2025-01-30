@@ -42,28 +42,71 @@ for architecture in "${architectures[@]}"; do
     echo 'zend_extension=${DD_LOADER_PACKAGE_PATH}/linux-musl/loader/dd_library_loader.so' > ${musl}/loader/dd_library_loader.ini
 
     ########################
-    # Trace
+    # Products
     ########################
 
-    php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924)
+    php_apis=(20200930 20210902 20220829 20230831 20240924)
     for php_api in "${php_apis[@]}"; do
-        mkdir -p ${gnu}/trace/ext/$php_api ${musl}/trace/ext/$php_api
-        # gnu
-        ln ./standalone_${architecture}/ddtrace-$php_api.so ${gnu}/trace/ext/$php_api/ddtrace.so
-        ln ./standalone_${architecture}/ddtrace-$php_api-zts.so ${gnu}/trace/ext/$php_api/ddtrace-zts.so
+        ########################
+        # Trace
+        ########################
 
+        mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
+        # gnu
+        ln ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
+        ln ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
         # musl
-        ln ./standalone_${architecture}/ddtrace-$php_api-alpine.so ${musl}/trace/ext/$php_api/ddtrace.so
-        ln ./standalone_${architecture}/ddtrace-$php_api-alpine-zts.so ${musl}/trace/ext/$php_api/ddtrace-zts.so
-    done;
+        ln ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
+        ln ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
+
+        ########################
+        # Profiling
+        ########################
+
+        mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
+        # gnu
+        ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
+            ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
+        ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
+            ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
+        # musl
+        ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
+            ${musl}/profiling/ext/${php_api}/datadog-profiling.so
+        ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
+            ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
+
+        ########################
+        # AppSec
+        ########################
+
+        mkdir -p ${gnu}/appsec/ext/${php_api} ${musl}/appsec/ext/${php_api}
+        # gnu
+        ln ./appsec_${architecture}/ddappsec-${php_api}.so ${gnu}/appsec/ext/${php_api}/ddappsec.so
+        ln ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${gnu}/appsec/ext/${php_api}/ddappsec-zts.so
+        # musl
+        ln ./appsec_${architecture}/ddappsec-${php_api}-alpine.so ${musl}/appsec/ext/${php_api}/ddappsec.so
+        ln ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
+    done
 
     cp -r ./src ${trace}/
-    echo "$release_version_sanitized" > ${root}/version
-    ln ./loader/packaging/requirements.json ${root}/requirements.json
+
+    # AppSec Helper
+    mkdir -p ${gnu}/appsec/lib ${musl}/appsec/lib
+    ln "./appsec_${architecture}/libddappsec-helper.so" "${gnu}/appsec/lib/libddappsec-helper.so"
+    ln "./appsec_${architecture}/libddappsec-helper.so" "${musl}/appsec/lib/libddappsec-helper.so"
+
+    # AppSec Recommended rules
+    mkdir -p ${gnu}/appsec/etc ${musl}/appsec/etc
+    ln "./appsec_${architecture}/recommended.json"  "${gnu}/appsec/etc/recommended.json"
+    ln "./appsec_${architecture}/recommended.json"  "${musl}/appsec/etc/recommended.json"
 
     ########################
     # Final archives
     ########################
+
+    echo "$release_version_sanitized" > ${root}/version
+    ln ./loader/packaging/requirements.json ${root}/requirements.json
+
     tar -czv \
         -f ${packages_build_dir}/dd-library-php-ssi-${release_version}-$architecture-linux.tar.gz \
         -C $tmp_folder_final/$architecture . --owner=0 --group=0
