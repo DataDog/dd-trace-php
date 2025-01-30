@@ -1,7 +1,7 @@
 {
     "scripts": {
         "generate": [
-            "php aggregate-tested-versions.php"
+            "php generate_tested_versions_artifact.php"
         ]
     }
 }

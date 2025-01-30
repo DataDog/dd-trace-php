@@ -23,7 +23,7 @@ download_circleci_artifact() {
     JOB_NAME=$3             # "Compile Loader Linux x86_64"
     ARTIFACT_PATTERN=$4     # "loader/modules/dd_library_loader.so"
     ARTIFACT_NAME=$5        # "dd_library_loader-x86_64-linux-gnu.so"
-    REQUIRE_SUCCESS=${6:-true} # Whether job status must be successful (default: 1)
+    REQUIRE_SUCCESS=${6:-true} # Whether job status must be successful (default: true)
 
     # Circle CI workflow is not triggered by tags,
     # So we fallback to the release branch (eg. "ddtrace-1.3.0")
