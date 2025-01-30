@@ -185,13 +185,25 @@ TEST(WafTest, ValidRunGood)
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version())));
+        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
+                                 metrics::telemetry_tags::from_string(
+                                     std::string{"rule_type:lfi,waf_version:"} +
+                                     ddwaf_get_version())));
+        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.match"sv, 0,
+                                 metrics::telemetry_tags::from_string(
+                                     std::string{"rule_type:lfi,waf_version:"} +
+                                     ddwaf_get_version())));
+        EXPECT_CALL(submitm, submit_metric("appsec.rasp.timeout"sv, 0,
+                                 metrics::telemetry_tags::from_string(
+                                     std::string{"rule_type:lfi,waf_version:"} +
+                                     ddwaf_get_version())));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 1.0));
         EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _))
             .WillOnce(SaveArg<1>(&duration));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _))
             .WillOnce(SaveArg<1>(&rasp_duration));
         ctx->submit_metrics(submitm);
-        EXPECT_GT(duration, 0.0);
+        EXPECT_EQ(duration, 0.0);
         EXPECT_GT(rasp_duration, 0);
     }
 }

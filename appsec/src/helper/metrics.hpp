@@ -102,6 +102,9 @@ constexpr std::string_view waf_duration = "_dd.appsec.waf.duration";
 constexpr std::string_view rasp_duration = "_dd.appsec.rasp.duration";
 constexpr std::string_view rasp_rule_eval = "_dd.appsec.rasp.rule.eval";
 constexpr std::string_view rasp_timeout = "_dd.appsec.rasp.timeout";
+constexpr std::string_view telemetry_rasp_rule_eval = "appsec.rasp.rule.eval";
+constexpr std::string_view telemetry_rasp_rule_match = "appsec.rasp.rule.match";
+constexpr std::string_view telemetry_rasp_timeout = "appsec.rasp.timeout";
 
 } // namespace dds::metrics
 
