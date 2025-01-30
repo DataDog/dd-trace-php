@@ -56,7 +56,12 @@ class PackageUpdater
 
             // Find library and composer.json
             $library = $this->findLibrary($className, $file);
-            if (!$library) return;
+            if (!$library
+                || str_starts_with($library, 'ext-') // e.g., ext-rdkafka
+                || !str_contains($library, '/') // e.g., wordpress
+            ) {
+                return;
+            }
 
             $composer = $this->findComposerFile($className, $file);
             if (!$composer) return;

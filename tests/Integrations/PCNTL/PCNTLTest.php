@@ -19,6 +19,11 @@ final class PCNTLTest extends IntegrationTestCase
         parent::ddSetUp();
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-pcntl';
+    }
+
     /**
      * @dataProvider dataProviderAllScripts
      */

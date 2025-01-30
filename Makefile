@@ -518,6 +518,11 @@ generate_stubs:
 	@composer -dtooling/stubs update
 	@composer -dtooling/stubs generate
 
+tested_versions:
+	@composer -dtooling/tested_versions generate
+	mkdir -p /tmp/artifacts
+	cp tests/tested_versions/tested_versions.json /tmp/artifacts/tested_versions.json
+
 # Find all generated core dumps, sorted by date descending
 cores:
 	find . -path "./*/vendor" -prune -false -o \( -type f -regex ".*\/core\.?[0-9]*" \) -printf "%T@ %Tc %p\n" | sort -n -r

@@ -1,0 +1,7 @@
+{
+    "scripts": {
+        "generate": [
+            "php generate_tested_versions_artifact.php"
+        ]
+    }
+}

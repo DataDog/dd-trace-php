@@ -21,6 +21,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '3.3.47';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

@@ -55,6 +55,11 @@ class PHPRedisTest extends IntegrationTestCase
         ];
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-redis';
+    }
+
     /**
      * @dataProvider dataProviderTestConnectionOk
      */

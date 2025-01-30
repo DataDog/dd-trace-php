@@ -14,6 +14,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Drupal/Version_8_9/index.php';
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'drupal/drupal';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '8.9.21';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [

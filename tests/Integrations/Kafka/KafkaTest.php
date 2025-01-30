@@ -17,6 +17,11 @@ class KafkaTest extends IntegrationTestCase
         'metrics.messaging.kafka.message_offset'
     ];
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-rdkafka';
+    }
+
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();

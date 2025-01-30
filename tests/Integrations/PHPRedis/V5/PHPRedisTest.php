@@ -57,6 +57,11 @@ class PHPRedisTest extends IntegrationTestCase
         ];
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-redis';
+    }
+
     public function testRedisInExtendedClass()
     {
         $redis = new CustomRedisClass();

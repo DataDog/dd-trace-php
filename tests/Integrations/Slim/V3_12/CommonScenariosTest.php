@@ -14,6 +14,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Slim/Version_3_12/public/index.php';
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'slim/slim';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [

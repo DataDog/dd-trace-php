@@ -21,6 +21,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'zendframework/zf1';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '1.12.20';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
