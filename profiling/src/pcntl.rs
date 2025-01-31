@@ -1,3 +1,4 @@
+#[cfg(feature = "allocation_profiling")]
 use crate::allocation::alloc_prof_rshutdown;
 use crate::bindings::{
     datadog_php_install_handler, datadog_php_zif_handler, zend_execute_data, zend_long, zval,
@@ -101,6 +102,7 @@ unsafe fn handle_fork(
     // these situations.
     Profiler::kill();
 
+    #[cfg(feature = "allocation_profiling")]
     alloc_prof_rshutdown();
 
     // Reset some global state to prevent further profiling and to not handle

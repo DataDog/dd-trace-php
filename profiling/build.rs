@@ -1,9 +1,9 @@
 use bindgen::callbacks::IntKind;
 use std::collections::HashSet;
-use std::{env, fs};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::{env, fs};
 
 fn main() {
     let php_config_includes_output = Command::new("php-config")
