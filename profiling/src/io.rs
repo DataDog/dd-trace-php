@@ -4,6 +4,7 @@ use crate::bindings::{
 };
 use crate::profiling::Profiler;
 use crate::zend;
+use crate::REQUEST_LOCALS;
 use libc::{c_char, c_int, c_void, dl_phdr_info};
 use log::{error, trace};
 use std::ffi::CStr;
@@ -294,15 +295,30 @@ unsafe extern "C" fn observed_recv(
     //    return len;
     //}
 
-    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
+    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_time_enabled)
+            .unwrap_or(false)
+    });
+    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .unwrap_or(false)
     });
 
-    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if io_time_profiling {
+        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+    }
+
+    if io_size_profiling {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -329,15 +345,30 @@ unsafe extern "C" fn observed_send(
     //    return len;
     //}
 
-    SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
+    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_time_enabled)
+            .unwrap_or(false)
+    });
+    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .unwrap_or(false)
     });
 
-    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if io_time_profiling {
+        SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+    }
+
+    if io_size_profiling {
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -357,15 +388,30 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     //    return len;
     //}
 
-    FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
+    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_time_enabled)
+            .unwrap_or(false)
+    });
+    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .unwrap_or(false)
     });
 
-    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if io_time_profiling {
+        FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+    }
+
+    if io_size_profiling {
+        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -385,15 +431,30 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     //    return len;
     //}
 
-    FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
+    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_time_enabled)
+            .unwrap_or(false)
+    });
+    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .unwrap_or(false)
     });
 
-    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if io_time_profiling {
+        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+    }
+
+    if io_size_profiling {
+        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }

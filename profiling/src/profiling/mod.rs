@@ -1424,6 +1424,8 @@ mod tests {
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: true,
+            profiling_io_time_enabled: false,
+            profiling_io_size_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
@@ -1440,6 +1442,14 @@ mod tests {
             alloc_size: 50,
             timeline: 60,
             exception: 70,
+            socket_io_read_time: 80,
+            socket_io_write_time: 90,
+            file_io_read_time: 100,
+            file_io_write_time: 110,
+            socket_io_read_size: 120,
+            socket_io_write_size: 130,
+            file_io_read_size: 140,
+            file_io_write_size: 150,
         }
     }
 
