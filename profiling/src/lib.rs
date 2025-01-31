@@ -15,7 +15,7 @@ mod string_set;
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
 
-//#[cfg(all(feature = "io_profiling", target_os = "linux"))]
+#[cfg(all(feature = "io_profiling", target_os = "linux"))]
 mod io;
 
 #[cfg(feature = "exception_profiling")]
