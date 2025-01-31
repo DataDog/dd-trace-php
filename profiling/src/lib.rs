@@ -876,6 +876,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // Safety: calling this in zend_extension startup.
     unsafe {
         pcntl::startup();
+        #[cfg(feature = "timeline")]
         timeline::timeline_startup();
     }
 
