@@ -879,7 +879,10 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         timeline::timeline_startup();
     }
 
-    #[cfg(all(feature = "allocation_profiling", not(php_zend_mm_set_custom_handlers_ex)))]
+    #[cfg(all(
+        feature = "allocation_profiling",
+        not(php_zend_mm_set_custom_handlers_ex)
+    ))]
     allocation::alloc_prof_startup();
 
     ZendResult::Success
