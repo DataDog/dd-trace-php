@@ -28,6 +28,8 @@ pub struct SystemSettings {
     pub profiling_exception_enabled: bool,
     pub profiling_exception_message_enabled: bool,
     pub profiling_wall_time_enabled: bool,
+    pub profiling_io_time_enabled: bool,
+    pub profiling_io_size_enabled: bool,
 
     // todo: can't this be Option<String>? I don't think the string can ever be static.
     pub output_pprof: Option<Cow<'static, str>>,
@@ -46,6 +48,8 @@ impl SystemSettings {
         self.profiling_timeline_enabled = false;
         self.profiling_exception_enabled = false;
         self.profiling_exception_message_enabled = false;
+        self.profiling_io_time_enabled = false;
+        self.profiling_io_size_enabled = false;
     }
 
     /// # Safety
@@ -68,6 +72,8 @@ impl SystemSettings {
             profiling_exception_enabled: profiling_exception_enabled(),
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
             profiling_wall_time_enabled: profiling_wall_time_enabled(),
+            profiling_io_time_enabled: profiling_io_time_enabled(),
+            profiling_io_size_enabled: profiling_io_size_enabled(),
             output_pprof: profiling_output_pprof(),
             profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
             profiling_log_level: profiling_log_level(),
@@ -131,6 +137,8 @@ impl SystemSettings {
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: false,
+            profiling_io_time_enabled: false,
+            profiling_io_size_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 0,
             profiling_log_level: LevelFilter::Off,
@@ -148,6 +156,8 @@ impl SystemSettings {
         system_settings.profiling_timeline_enabled = false;
         system_settings.profiling_exception_enabled = false;
         system_settings.profiling_exception_message_enabled = false;
+        system_settings.profiling_io_time_enabled = false;
+        system_settings.profiling_io_size_enabled = false;
     }
 }
 
@@ -344,6 +354,8 @@ pub(crate) enum ConfigId {
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
     ProfilingExceptionSamplingDistance,
+    ProfilingIOTimeEnabled,
+    ProfilingIOSizeEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
     ProfilingWallTimeEnabled,
@@ -372,6 +384,8 @@ impl ConfigId {
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
             ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
+            ProfilingIOTimeEnabled => b"DD_PROFILING_IO_TIME_ENABLED\0",
+            ProfilingIOSizeEnabled => b"DD_PROFILING_IO_SIZE_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             // Note: this group is meant only for debugging and testing. Please
@@ -415,6 +429,8 @@ lazy_static::lazy_static! {
         profiling_exception_enabled: false,
         profiling_exception_message_enabled: false,
         profiling_wall_time_enabled: false,
+        profiling_io_time_enabled: false,
+        profiling_io_size_enabled: false,
         output_pprof: None,
         profiling_exception_sampling_distance: u32::MAX,
         profiling_log_level: LevelFilter::Off,
@@ -432,6 +448,8 @@ lazy_static::lazy_static! {
         profiling_exception_enabled: true,
         profiling_exception_message_enabled: false,
         profiling_wall_time_enabled: true,
+        profiling_io_time_enabled: false,
+        profiling_io_size_enabled: false,
         output_pprof: None,
         profiling_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
@@ -531,6 +549,28 @@ unsafe fn profiling_exception_sampling_distance() -> u32 {
         ProfilingExceptionSamplingDistance,
         DEFAULT_SYSTEM_SETTINGS.profiling_exception_sampling_distance,
     )
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+unsafe fn profiling_io_time_enabled() -> bool {
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingIOTimeEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_io_time_enabled,
+        )
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+unsafe fn profiling_io_size_enabled() -> bool {
+    profiling_enabled()
+        && get_system_bool(
+            ProfilingIOSizeEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_io_size_enabled,
+        )
 }
 
 /// # Safety
@@ -875,6 +915,28 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
+                    id: transmute::<ConfigId, u16>(ProfilingIOTimeEnabled),
+                    name: ProfilingIOTimeEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
+                    env_config_fallback: None,
+                },
+                zai_config_entry {
+                    id: transmute::<ConfigId, u16>(ProfilingIOSizeEnabled),
+                    name: ProfilingIOSizeEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
+                    env_config_fallback: None,
+                },
+                zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingLogLevel),
                     name: ProfilingLogLevel.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
@@ -1063,6 +1125,16 @@ mod tests {
             (
                 b"DD_PROFILING_TIMELINE_ENABLED\0",
                 "datadog.profiling.timeline_enabled",
+            ),
+            #[cfg(feature = "io_profiling")]
+            (
+                b"DD_PROFILING_IO_TIME_ENABLED\0",
+                "datadog.profiling.io_time_enabled",
+            ),
+            #[cfg(feature = "io_profiling")]
+            (
+                b"DD_PROFILING_IO_SIZE_ENABLED\0",
+                "datadog.profiling.io_size_enabled",
             ),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (

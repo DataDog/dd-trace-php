@@ -60,24 +60,28 @@ impl SampleTypeFilter {
             }
 
             #[cfg(feature = "io_profiling")]
-            //if system_settings.profiling_exception_enabled {
-            sample_types.push(SAMPLE_TYPES[7]);
-            sample_types_mask[7] = true;
-            sample_types.push(SAMPLE_TYPES[8]);
-            sample_types_mask[8] = true;
-            sample_types.push(SAMPLE_TYPES[9]);
-            sample_types_mask[9] = true;
-            sample_types.push(SAMPLE_TYPES[10]);
-            sample_types_mask[10] = true;
-            sample_types.push(SAMPLE_TYPES[11]);
-            sample_types_mask[11] = true;
-            sample_types.push(SAMPLE_TYPES[12]);
-            sample_types_mask[12] = true;
-            sample_types.push(SAMPLE_TYPES[13]);
-            sample_types_mask[13] = true;
-            sample_types.push(SAMPLE_TYPES[14]);
-            sample_types_mask[14] = true;
-            //}
+            if system_settings.profiling_io_time_enabled {
+                sample_types.push(SAMPLE_TYPES[7]);
+                sample_types_mask[7] = true;
+                sample_types.push(SAMPLE_TYPES[8]);
+                sample_types_mask[8] = true;
+                sample_types.push(SAMPLE_TYPES[9]);
+                sample_types_mask[9] = true;
+                sample_types.push(SAMPLE_TYPES[10]);
+                sample_types_mask[10] = true;
+            }
+
+            #[cfg(feature = "io_profiling")]
+            if system_settings.profiling_io_size_enabled {
+                sample_types.push(SAMPLE_TYPES[11]);
+                sample_types_mask[11] = true;
+                sample_types.push(SAMPLE_TYPES[12]);
+                sample_types_mask[12] = true;
+                sample_types.push(SAMPLE_TYPES[13]);
+                sample_types_mask[13] = true;
+                sample_types.push(SAMPLE_TYPES[14]);
+                sample_types_mask[14] = true;
+            }
         }
 
         Self {
