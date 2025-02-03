@@ -157,4 +157,25 @@ final class ObjectKVStoreTest extends BaseTestCase
         ObjectKVStore::put($instance, 'key', 'value');
         $this->assertFalse(property_exists($instance, 'key'));
     }
+
+    public function testSetMagicMethodNotAllowed()
+    {
+        $firstInstance = new Foo();
+        ObjectKVStore::put($firstInstance, 'key', 'bar');
+        $this->assertFalse(property_exists($firstInstance, 'key'));
+        $this->assertSame('bar', ObjectKVStore::get($firstInstance, 'key'));
+
+        $secondInstance = new Foo();
+        ObjectKVStore::put($secondInstance, 'key', 'baz');
+        $this->assertFalse(property_exists($secondInstance, 'key'));
+        $this->assertSame('baz', ObjectKVStore::get($secondInstance, 'key'));
+    }
+}
+
+class Foo
+{
+    public function __set($name, $value)
+    {
+        throw new \RuntimeException('not allowed');
+    }
 }
