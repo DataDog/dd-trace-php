@@ -76,14 +76,14 @@ pub struct SampleValues {
     alloc_size: i64,
     timeline: i64,
     exception: i64,
-    socket_io_read_time: i64,
-    socket_io_write_time: i64,
-    file_io_read_time: i64,
-    file_io_write_time: i64,
-    socket_io_read_size: i64,
-    socket_io_write_size: i64,
-    file_io_read_size: i64,
-    file_io_write_size: i64,
+    socket_read_time: i64,
+    socket_write_time: i64,
+    file_read_time: i64,
+    file_write_time: i64,
+    socket_read_size: i64,
+    socket_write_size: i64,
+    file_read_size: i64,
+    file_write_size: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -1208,56 +1208,56 @@ impl Profiler {
     #[cfg(feature = "io_profiling")]
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.socket_io_read_time = socket_io_read_time;
+            vals.socket_read_time = socket_io_read_time;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.socket_io_write_time = socket_io_write_time;
+            vals.socket_write_time = socket_io_write_time;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_io_read_time = file_io_read_time;
+            vals.file_read_time = file_io_read_time;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_io_write_time = file_io_write_time;
+            vals.file_write_time = file_io_write_time;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.socket_io_read_size = socket_io_read_size;
+            vals.socket_read_size = socket_io_read_size;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.socket_io_write_size = socket_io_write_size;
+            vals.socket_write_size = socket_io_write_size;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_io_read_size = file_io_read_size;
+            vals.file_read_size = file_io_read_size;
         })
     }
 
     #[cfg(feature = "io_profiling")]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_io_write_size = file_io_write_size;
+            vals.file_write_size = file_io_write_size;
         })
     }
 
@@ -1442,14 +1442,14 @@ mod tests {
             alloc_size: 50,
             timeline: 60,
             exception: 70,
-            socket_io_read_time: 80,
-            socket_io_write_time: 90,
-            file_io_read_time: 100,
-            file_io_write_time: 110,
-            socket_io_read_size: 120,
-            socket_io_write_size: 130,
-            file_io_read_size: 140,
-            file_io_write_size: 150,
+            socket_read_time: 80,
+            socket_write_time: 90,
+            file_read_time: 100,
+            file_write_time: 110,
+            socket_read_size: 120,
+            socket_write_size: 130,
+            file_read_size: 140,
+            file_write_size: 150,
         }
     }
 
