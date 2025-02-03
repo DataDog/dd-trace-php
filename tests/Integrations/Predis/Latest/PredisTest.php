@@ -166,7 +166,7 @@ class PredisTest extends IntegrationTestCase
         $connectionString = "tcp://{$this->host}";
 
         $traces = $this->isolateTracer(function () use ($connectionString) {
-            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString]);
+            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString], ['cluster' => 'redis']);
             $client->connect();
         });
 
