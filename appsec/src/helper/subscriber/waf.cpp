@@ -306,7 +306,10 @@ void instance::listener::call(
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data, nullptr, &res, waf_timeout_.count());
+        dds::parameter_view *persistent = rasp_rule.empty() ? &data : nullptr;
+        dds::parameter_view *ephemeral = rasp_rule.empty() ? nullptr : &data;
+        code = ddwaf_run(
+            handle_, persistent, ephemeral, &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
