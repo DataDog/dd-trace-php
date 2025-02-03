@@ -210,10 +210,10 @@ if (!function_exists('datadog\appsec\push_addresses')) {
      * This function is exposed by appsec but here we are mocking it for tests
      * @param array $params
      */
-    function push_addresses($addresses, $rasp = false) {
+    function push_addresses($addresses, $rasp = "") {
         if(!appsecMockEnabled()) {
            return;
         }
-        AppsecStatus::getInstance()->addEvent(['rasp' => $rasp, $addresses], 'push_addresses');
+        AppsecStatus::getInstance()->addEvent(['rasp_rule' => $rasp, $addresses], 'push_addresses');
     }
 }

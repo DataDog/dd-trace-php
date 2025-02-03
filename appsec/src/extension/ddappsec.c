@@ -488,8 +488,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
     }
 
     zval *addresses = NULL;
-    bool rasp = false;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &addresses, &rasp) ==
+    zend_string *rasp_rule = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|S", &addresses, &rasp_rule) ==
         FAILURE) {
         RETURN_FALSE;
     }
@@ -498,7 +498,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    if (rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
+    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
+        !get_global_DD_APPSEC_RASP_ENABLED()) {
         return;
     }
 
@@ -508,9 +509,9 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    dd_result res = dd_request_exec(conn, addresses, rasp);
+    dd_result res = dd_request_exec(conn, addresses, rasp_rule);
 
-    if (rasp) {
+    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
         elapsed =
             ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *

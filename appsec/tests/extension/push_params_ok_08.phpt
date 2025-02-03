@@ -1,8 +1,9 @@
 --TEST--
-Push address are sent on request_exec - integer
+LFI Rule can be sent
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
+datadog.appsec.rasp_enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
@@ -17,7 +18,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_addresses(["server.request.path_params" => 1234]);
+push_addresses(["server.request.path_params" => ["some" => "params", "more" => "parameters"]], "lfi");
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));
@@ -32,11 +33,16 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    string(0) ""
+    string(3) "lfi"
     [1]=>
     array(1) {
       ["server.request.path_params"]=>
-      int(1234)
+      array(2) {
+        ["some"]=>
+        string(6) "params"
+        ["more"]=>
+        string(10) "parameters"
+      }
     }
   }
 }

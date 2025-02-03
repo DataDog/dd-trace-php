@@ -66,7 +66,7 @@ public:
 protected:
     template <typename T>
     std::shared_ptr<typename T::response> publish(
-        typename T::request &command, bool rasp = false);
+        typename T::request &command, std::string rasp_rule = "");
     template <typename T> bool service_guard();
     template <typename T, bool actions = true>
     bool send_message(const std::shared_ptr<typename T::response> &message);
