@@ -101,7 +101,9 @@ final class PCNTLTest extends IntegrationTestCase
             $this->untilNumberOfTraces(2)
         );
 
-        $this->assertCount(2, $requests);
+        // ignore curl noise from unrelated stuff
+        $requests = array_filter($requests, function ($request) { return $request[0]["name"] == "synthetic.php"; });
+
         $this->assertFlameGraph([$requests[1]], [
             SpanAssertion::exists('synthetic.php')->withChildren([
                 SpanAssertion::exists('pcntl_fork'),

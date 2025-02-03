@@ -194,7 +194,8 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 const enum ddog_RemoteConfigProduct *remote_config_products,
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
-                                                uintptr_t remote_config_capabilities_count);
+                                                uintptr_t remote_config_capabilities_count,
+                                                bool is_fork);
 
 /**
  * Sends a trace to the sidecar via shared memory.

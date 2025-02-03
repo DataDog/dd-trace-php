@@ -100,7 +100,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
-                        'error.stack' => "#0 [internal function]: {closure}()\n#1 {main}",
+                        'error.stack' => PHP_VERSION_ID >= 80400 ? "#0 [internal function]: {closure:" . dirname(__DIR__, 2) . "/Frameworks/Swoole/index.php:9}()" : "#0 [internal function]: {closure}()\n#1 {main}",
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole'
                     ])->setError('Exception', 'Uncaught Exception: Error page'),

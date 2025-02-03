@@ -316,10 +316,6 @@ trait TracerTestTrait
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
 
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-            \dd_trace_synchronous_flush();
-        }
-
         return $this->parseTracesFromDumpedData($until);
     }
 
@@ -401,18 +397,24 @@ trait TracerTestTrait
                     $dumps = array_merge($dumps, $this->parseRawDumpedTraces(json_decode($dump['body'], true)));
                 }
             }
+        } else {
+            $uniqueRequest = $loaded[0];
 
-            return $dumps;
+            if (!isset($uniqueRequest['body'])) {
+                return [];
+            }
+
+            $rawTraces = json_decode($uniqueRequest['body'], true);
+            $dumps = $this->parseRawDumpedTraces($rawTraces);
         }
 
-        $uniqueRequest = $loaded[0];
+        // Ensure stable sorting; sort order isn't guaranteed with sidecar trace sender
+        // Sorting by end of root span
+        usort($dumps, function ($a, $b) {
+            return $a[0]["start"] + $a[0]["duration"] <=> $b[0]["start"] + $b[0]["duration"];
+        });
 
-        if (!isset($uniqueRequest['body'])) {
-            return [];
-        }
-
-        $rawTraces = json_decode($uniqueRequest['body'], true);
-        return $this->parseRawDumpedTraces($rawTraces);
+        return $dumps;
     }
 
     public function parseMultipleRequestsFromDumpedData()
@@ -460,6 +462,10 @@ trait TracerTestTrait
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 50; $attemptNumber++) {
+            if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+                \dd_trace_synchronous_flush();
+            }
+
             $curl = curl_init(self::$agentRequestDumperUrl . '/replay' . ($metrics ? '-metrics' : ''));
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
@@ -493,7 +499,8 @@ trait TracerTestTrait
         return $allResponses;
     }
 
-    public function retrieveDumpedTraceData(callable $until = null, $throw = false)
+    /** @param callable|null $until */
+    public function retrieveDumpedTraceData($until = null, $throw = false)
     {
         return array_values(array_filter($this->retrieveDumpedData($until, $throw), function ($request) {
             // Filter telemetry requests

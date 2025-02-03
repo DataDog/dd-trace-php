@@ -36,7 +36,17 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
-ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
+static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
+    if (zai_config_is_initialized()) {
+        if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+            ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+        }
+    } else if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+        ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+    }
+}
+
+static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     // Should not happen, unless the agent url is malformed
     if (!ddtrace_endpoint) {
         return NULL;
@@ -51,9 +61,7 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
         free(dogstatsd_url);
     }
 
-    if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddog_endpoint_set_test_token(dogstatsd_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
-    }
+    dd_set_endpoint_test_token(dogstatsd_endpoint);
 
 #ifdef _WIN32
     DDOG_PHP_FUNCTION = (const uint8_t *)zend_hash_func;
@@ -87,7 +95,8 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS.ptr,
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS.len,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.ptr,
-                                    DDTRACE_REMOTE_CONFIG_CAPABILITIES.len);
+                                    DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
+                                    is_fork);
 
     ddog_endpoint_drop(dogstatsd_endpoint);
 
@@ -96,6 +105,10 @@ ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
     }
 
     return sidecar_transport;
+}
+
+ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
+    return dd_sidecar_connection_factory_ex(false);
 }
 
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_features, bool *appsec_config) {
@@ -165,10 +178,12 @@ void ddtrace_reset_sidecar(void) {
 
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
-        ddtrace_sidecar = dd_sidecar_connection_factory();
+        ddtrace_sidecar = dd_sidecar_connection_factory_ex(true);
         if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong
             ddog_endpoint_drop(ddtrace_endpoint);
             ddtrace_endpoint = NULL;
+        } else {
+            ddtrace_sidecar_submit_root_span_data();
         }
     }
 }
@@ -187,9 +202,8 @@ ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void) {
         free(agent_url);
     }
 
-
-    if (agent_endpoint && ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddog_endpoint_set_test_token(agent_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+    if (agent_endpoint) {
+        dd_set_endpoint_test_token(agent_endpoint);
     }
 
     return agent_endpoint;
@@ -440,6 +454,7 @@ void ddtrace_sidecar_rshutdown(void) {
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     if (ddtrace_sidecar) {
+        ddog_endpoint_set_test_token(ddtrace_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
         ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
         ddtrace_ffi_try("Failed updating test session token",
                         ddog_sidecar_set_test_session_token(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
