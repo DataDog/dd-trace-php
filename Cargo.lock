@@ -1837,7 +1837,7 @@ dependencies = [
  "ddtelemetry",
  "ddtelemetry-ffi",
  "env_logger 0.10.2",
- "http 0.2.11",
+ "http 0.2.12",
  "itertools 0.11.0",
  "lazy_static",
  "log",
