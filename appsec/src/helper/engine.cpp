@@ -52,7 +52,7 @@ void engine::update(
 }
 
 std::optional<engine::result> engine::context::publish(
-    parameter &&param, std::string rasp_rule)
+    parameter &&param, const std::string &rasp_rule)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.

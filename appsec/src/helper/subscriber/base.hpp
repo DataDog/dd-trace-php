@@ -28,8 +28,8 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual void call(
-            parameter_view &data, event &event, std::string rasp_rule = "") = 0;
+        virtual void call(parameter_view &data, event &event,
+            const std::string &rasp_rule = "") = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void submit_metrics(

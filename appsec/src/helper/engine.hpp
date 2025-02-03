@@ -67,7 +67,7 @@ public:
         ~context() = default;
 
         std::optional<result> publish(
-            parameter &&param, std::string rasp_rule = "");
+            parameter &&param, const std::string &rasp_rule = "");
         // NOLINTNEXTLINE(google-runtime-references)
         void get_metrics(metrics::telemetry_submitter &msubmitter);
 

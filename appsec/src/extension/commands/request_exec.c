@@ -6,9 +6,9 @@
 
 #include "request_exec.h"
 #include "../commands_helpers.h"
+#include "../ddappsec.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../ddappsec.h"
 #include <php.h>
 #include <zend_hash.h>
 #include <zend_types.h>

@@ -226,7 +226,7 @@ template <typename T> bool client::service_guard()
 
 template <typename T>
 std::shared_ptr<typename T::response> client::publish(
-    typename T::request &command, std::string rasp_rule)
+    typename T::request &command, const std::string &rasp_rule)
 {
     SPDLOG_DEBUG("received command {}", T::name);
 

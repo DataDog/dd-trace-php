@@ -773,14 +773,13 @@ TEST(WafTest, TelemetryTimeoutMetric)
     std::string rasp = "lfi";
     EXPECT_THROW(ctx->call(pv, e, rasp), timeout_error);
 
-    EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
-                             std::string{"1.2.3"}));
+    EXPECT_CALL(submitm,
+        submit_span_meta(metrics::event_rules_version, std::string{"1.2.3"}));
     EXPECT_CALL(submitm,
         submit_metric("waf.requests"sv, 1,
             metrics::telemetry_tags::from_string(
                 std::string{"event_rules_version:1.2.3,waf_version:"} +
-                ddwaf_get_version() +
-                std::string{",waf_timeout:true"})));
+                ddwaf_get_version() + std::string{",waf_timeout:true"})));
 
     EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
                              metrics::telemetry_tags::from_string(

@@ -38,7 +38,7 @@ public:
         ~listener() override;
 
         void call(dds::parameter_view &data, event &event,
-            std::string rasp_rule) override;
+            const std::string &rasp_rule) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void submit_metrics(metrics::telemetry_submitter &msubmitter) override;

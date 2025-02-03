@@ -301,7 +301,7 @@ instance::listener::~listener()
 }
 
 void instance::listener::call(
-    dds::parameter_view &data, event &event, std::string rasp_rule)
+    dds::parameter_view &data, event &event, const std::string &rasp_rule)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
@@ -335,8 +335,8 @@ void instance::listener::call(
     const std::unique_ptr<ddwaf_result, decltype(&ddwaf_result_free)> scope(
         &res, ddwaf_result_free);
 
-    if (rasp_rule ==
-        "") { // RASP WAF call should not be counted on total_runtime_
+    if (rasp_rule.empty()) {
+        // RASP WAF call should not be counted on total_runtime_
         // NOLINTNEXTLINE
         total_runtime_ += res.total_runtime / 1000.0;
     }
@@ -352,7 +352,7 @@ void instance::listener::call(
             break;
         }
     }
-    if (rasp_rule != "") {
+    if (!rasp_rule.empty()) {
         // NOLINTNEXTLINE
         rasp_runtime_ += res.total_runtime / 1000.0;
         rasp_calls_++;
@@ -431,7 +431,7 @@ void instance::listener::submit_metrics(
                 metrics::rasp_timeout, rasp_timeouts_);
         }
 
-        for (auto rule : rasp_metrics_) {
+        for (auto const &rule : rasp_metrics_) {
             metrics::telemetry_tags tags;
             tags.add("rule_type", rule.first);
             tags.add("waf_version", ddwaf_get_version());
