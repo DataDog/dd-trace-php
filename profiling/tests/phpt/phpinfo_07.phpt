@@ -48,6 +48,8 @@ $sections = [
     ["Allocation Profiling Enabled", "false"],
     ["Exception Profiling Enabled", "false"],
     ["Timeline Enabled", "false"],
+    ["I/O Time Profiling Enabled", "true"],
+    ["I/O Size Profiling Enabled", "true"],
 ];
 
 foreach ($sections as [$key, $expected]) {

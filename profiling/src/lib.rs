@@ -786,6 +786,50 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             }
         }
 
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"I/O Time Profiling Enabled\0".as_ptr(),
+                    if system_settings.profiling_io_time_enabled {
+                        yes
+                    } else if system_settings.profiling_enabled {
+                        no
+                    } else {
+                        no_all
+                    },
+                );
+            } else {
+                zend::php_info_print_table_row(
+                    2,
+                    b"I/O Time Profiling Enabled\0".as_ptr(),
+                    b"Not available. The profiler was built without I/O profiling support.\0"
+                );
+            }
+        }
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "io_profiling")] {
+                zend::php_info_print_table_row(
+                    2,
+                    b"I/O Size Profiling Enabled\0".as_ptr(),
+                    if system_settings.profiling_io_size_enabled {
+                        yes
+                    } else if system_settings.profiling_enabled {
+                        no
+                    } else {
+                        no_all
+                    },
+                );
+            } else {
+                zend::php_info_print_table_row(
+                    2,
+                    b"I/O Size Profiling Enabled\0".as_ptr(),
+                    b"Not available. The profiler was built without I/O profiling support.\0"
+                );
+            }
+        }
+
         zend::php_info_print_table_row(
             2,
             b"Endpoint Collection Enabled\0".as_ptr(),

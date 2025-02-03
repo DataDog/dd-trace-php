@@ -8,6 +8,7 @@ use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
 use datadog_profiling::exporter::File;
+use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;

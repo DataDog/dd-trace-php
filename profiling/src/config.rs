@@ -556,10 +556,11 @@ unsafe fn profiling_exception_sampling_distance() -> u32 {
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_io_time_enabled() -> bool {
     profiling_enabled()
-        && get_system_bool(
-            ProfilingIOTimeEnabled,
-            DEFAULT_SYSTEM_SETTINGS.profiling_io_time_enabled,
-        )
+        && (profiling_experimental_features_enabled()
+            || get_system_bool(
+                ProfilingIOTimeEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_io_time_enabled,
+            ))
 }
 
 /// # Safety
@@ -567,10 +568,11 @@ unsafe fn profiling_io_time_enabled() -> bool {
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_io_size_enabled() -> bool {
     profiling_enabled()
-        && get_system_bool(
-            ProfilingIOSizeEnabled,
-            DEFAULT_SYSTEM_SETTINGS.profiling_io_size_enabled,
-        )
+        && (profiling_experimental_features_enabled()
+            || get_system_bool(
+                ProfilingIOSizeEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_io_size_enabled,
+            ))
 }
 
 /// # Safety

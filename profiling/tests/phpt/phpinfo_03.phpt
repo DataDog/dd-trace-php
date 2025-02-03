@@ -50,6 +50,8 @@ $sections = [
     ["Experimental CPU Time Profiling Enabled", "false"],
     ["Allocation Profiling Enabled", "false"],
     ["Exception Profiling Enabled", "false"],
+    ["I/O Time Profiling Enabled", "false"],
+    ["I/O Size Profiling Enabled", "false"],
     ["Endpoint Collection Enabled", "true"],
     ["Profiling Log Level", "off"],
     ["Profiling Agent Endpoint", "http://datadog:8126/"],
