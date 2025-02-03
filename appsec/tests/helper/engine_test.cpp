@@ -25,7 +25,8 @@ namespace mock {
 class listener : public dds::subscriber::listener {
 public:
     MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
-    MOCK_METHOD3(call, void(dds::parameter_view &, dds::event &, std::string));
+    MOCK_METHOD3(
+        call, void(dds::parameter_view &, dds::event &, const std::string &));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
