@@ -110,6 +110,8 @@ class ObjectKVStore
 
     private static $weakmap;
 
+    private static $kv = [];
+
     /**
      * Put or replaces a key with a specific value.
      *
@@ -136,8 +138,17 @@ class ObjectKVStore
 
             self::$weakmap[$instance] = [$key => $value];
         } else {
-            $scopedKey = self::getScopedKeyName($key);
-            $instance->$scopedKey = $value;
+            try {
+                $scopedKey = self::getScopedKeyName($key);
+                $instance->$scopedKey = $value;
+            } catch (\Throwable $e) {
+                // __set may not be allowed, fallback to object hash
+                $hash = spl_object_hash($instance);
+                if (!isset(self::$kv[$hash])) {
+                    self::$kv[$hash] = [];
+                }
+                self::$kv[$hash][$key] = $value;
+            }
         }
     }
 
@@ -168,8 +179,13 @@ class ObjectKVStore
 
             return $store[$key];
         } else {
-            $scopedKey = self::getScopedKeyName($key);
-            return property_exists($instance, $scopedKey) ? $instance->$scopedKey : $default;
+            $hash = spl_object_hash($instance);
+            if (isset(self::$kv[$hash])) {
+                return self::$kv[$hash][$key] ?? $default;
+            } else {
+                $scopedKey = self::getScopedKeyName($key);
+                return property_exists($instance, $scopedKey) ? $instance->$scopedKey : $default;
+            }
         }
     }
 
