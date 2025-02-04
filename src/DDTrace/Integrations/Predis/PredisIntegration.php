@@ -105,7 +105,7 @@ class PredisIntegration extends Integration
                     $span->name = 'Predis.Pipeline.executePipeline';
                     $span->resource = $span->name;
                     $span->type = Type::REDIS;
-                    PredisIntegration::setMetaAndServiceFromConnection($this, $span);
+                    PredisIntegration::setMetaAndServiceFromConnection($this->getClient(), $span);
                     if (\count($args) < 2) {
                         return;
                     }
@@ -161,8 +161,8 @@ class PredisIntegration extends Integration
             }
         }
 
-        ObjectKVStore::put($predis, 'service', $service);
-        ObjectKVStore::put($predis, 'connection_meta', $tags);
+        ObjectKVStore::put($predis->getConnection(), 'service', $service);
+        ObjectKVStore::put($predis->getConnection(), 'connection_meta', $tags);
     }
 
     /**
@@ -175,12 +175,12 @@ class PredisIntegration extends Integration
      */
     public static function setMetaAndServiceFromConnection($predis, SpanData $span)
     {
-        $span->service = ObjectKVStore::get($predis, 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
+        $span->service = ObjectKVStore::get($predis->getConnection(), 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PredisIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = PredisIntegration::SYSTEM;
 
-        foreach (ObjectKVStore::get($predis, 'connection_meta', []) as $tag => $value) {
+        foreach (ObjectKVStore::get($predis->getConnection(), 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;
         }
     }
