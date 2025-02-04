@@ -20,6 +20,7 @@ datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
 datadog-crashtracker-ffi = { path = "../libdatadog/crashtracker-ffi", default-features = false, features = ["collector"] }
+datadog-library-config-ffi = { path = "../libdatadog/library-config-ffi" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
