@@ -185,15 +185,15 @@ TEST(WafTest, ValidRunGood)
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
+        EXPECT_CALL(submitm, submit_metric("rasp.rule.eval"sv, 1,
                                  metrics::telemetry_tags::from_string(
                                      std::string{"rule_type:lfi,waf_version:"} +
                                      ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.match"sv, 0,
+        EXPECT_CALL(submitm, submit_metric("rasp.rule.match"sv, 0,
                                  metrics::telemetry_tags::from_string(
                                      std::string{"rule_type:lfi,waf_version:"} +
                                      ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("appsec.rasp.timeout"sv, 0,
+        EXPECT_CALL(submitm, submit_metric("rasp.timeout"sv, 0,
                                  metrics::telemetry_tags::from_string(
                                      std::string{"rule_type:lfi,waf_version:"} +
                                      ddwaf_get_version())));
@@ -715,31 +715,31 @@ TEST(WafTest, TelemetryIsSent)
 
         // SSRF
         EXPECT_CALL(
-            submitm, submit_metric("appsec.rasp.rule.eval"sv, 2,
+            submitm, submit_metric("rasp.rule.eval"sv, 2,
                          metrics::telemetry_tags::from_string(
                              std::string{"rule_type:ssrf,waf_version:"} +
                              ddwaf_get_version())));
         EXPECT_CALL(
-            submitm, submit_metric("appsec.rasp.rule.match"sv, 1,
+            submitm, submit_metric("rasp.rule.match"sv, 1,
                          metrics::telemetry_tags::from_string(
                              std::string{"rule_type:ssrf,waf_version:"} +
                              ddwaf_get_version())));
         EXPECT_CALL(
-            submitm, submit_metric("appsec.rasp.timeout"sv, 0,
+            submitm, submit_metric("rasp.timeout"sv, 0,
                          metrics::telemetry_tags::from_string(
                              std::string{"rule_type:ssrf,waf_version:"} +
                              ddwaf_get_version())));
 
         // LFI
-        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
+        EXPECT_CALL(submitm, submit_metric("rasp.rule.eval"sv, 1,
                                  metrics::telemetry_tags::from_string(
                                      std::string{"rule_type:lfi,waf_version:"} +
                                      ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.match"sv, 1,
+        EXPECT_CALL(submitm, submit_metric("rasp.rule.match"sv, 1,
                                  metrics::telemetry_tags::from_string(
                                      std::string{"rule_type:lfi,waf_version:"} +
                                      ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("appsec.rasp.timeout"sv, 0,
+        EXPECT_CALL(submitm, submit_metric("rasp.timeout"sv, 0,
                                  metrics::telemetry_tags::from_string(
                                      std::string{"rule_type:lfi,waf_version:"} +
                                      ddwaf_get_version())));
@@ -781,15 +781,15 @@ TEST(WafTest, TelemetryTimeoutMetric)
                 std::string{"event_rules_version:1.2.3,waf_version:"} +
                 ddwaf_get_version() + std::string{",waf_timeout:true"})));
 
-    EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.eval"sv, 1,
+    EXPECT_CALL(submitm, submit_metric("rasp.rule.eval"sv, 1,
                              metrics::telemetry_tags::from_string(
                                  std::string{"rule_type:lfi,waf_version:"} +
                                  ddwaf_get_version())));
-    EXPECT_CALL(submitm, submit_metric("appsec.rasp.rule.match"sv, 0,
+    EXPECT_CALL(submitm, submit_metric("rasp.rule.match"sv, 0,
                              metrics::telemetry_tags::from_string(
                                  std::string{"rule_type:lfi,waf_version:"} +
                                  ddwaf_get_version())));
-    EXPECT_CALL(submitm, submit_metric("appsec.rasp.timeout"sv, 1,
+    EXPECT_CALL(submitm, submit_metric("rasp.timeout"sv, 1,
                              metrics::telemetry_tags::from_string(
                                  std::string{"rule_type:lfi,waf_version:"} +
                                  ddwaf_get_version())));

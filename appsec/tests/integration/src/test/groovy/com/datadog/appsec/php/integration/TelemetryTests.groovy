@@ -343,12 +343,12 @@ class TelemetryTests {
         waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
-            lfiEval = allSeries.find{ it.name == 'appsec.rasp.rule.eval' && 'rule_type:lfi' in it.tags}
-            lfiMatch = allSeries.find{ it.name == 'appsec.rasp.rule.match' && 'rule_type:lfi' in it.tags}
-            lfiTimeout = allSeries.find{ it.name == 'appsec.rasp.timeout' && 'rule_type:lfi' in it.tags}
-            ssrfEval = allSeries.find{ it.name == 'appsec.rasp.rule.eval' && 'rule_type:ssrf' in it.tags}
-            ssrfMatch = allSeries.find{ it.name == 'appsec.rasp.rule.match' && 'rule_type:ssrf' in it.tags}
-            ssrfTimeout = allSeries.find{ it.name == 'appsec.rasp.timeout' && 'rule_type:lfi' in it.tags}
+            lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
+            lfiMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:lfi' in it.tags}
+            lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
+            ssrfEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:ssrf' in it.tags}
+            ssrfMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:ssrf' in it.tags}
+            ssrfTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
 
              wafReq1 && lfiEval && ssrfEval && lfiMatch && ssrfMatch && lfiTimeout && ssrfTimeout
         }
