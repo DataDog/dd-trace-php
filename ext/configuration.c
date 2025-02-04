@@ -1,12 +1,14 @@
 #include "configuration.h"
 
 #include <assert.h>
+#include <SAPI.h>
 
 #include "ip_extraction.h"
 #include "logging.h"
 #include "json/json.h"
 #include "sidecar.h"
 #include <components/log/log.h>
+#include <components-rs/library-config.h>
 #include <zai_string/string.h>
 #include "sidecar.h"
 
@@ -235,6 +237,43 @@ void ddtrace_config_first_rinit() {
 
     runtime_config_first_init = true;
 }
+
+// FIXME: where should it be done? minit? rinit? first rinit???
+void ddtrace_config_rinit() {
+    // FIXME: should be done directly in the library-config crate
+    ddog_CharSlice args[] = {
+        DDOG_CHARSLICE_C("/usr/bin/php"),
+    };
+
+    ddog_CharSlice envp[] = {
+        DDOG_CHARSLICE_C("FOO=BAR"),
+    };
+    ddog_ProcessInfo process_info = {
+        .args = args,
+        .envp = envp,
+        .language = DDOG_CHARSLICE_C("php")
+    };
+
+    ddog_Configurator *configurator = ddog_library_configurator_new(false);
+    ddog_Result_VecLibraryConfig config_result = ddog_library_configurator_get_path(configurator, process_info, DDOG_CHARSLICE_C("./config.yaml"));
+    // ddog_Result_VecLibraryConfig config_result = ddog_library_configurator_get(configurator, process_info);
+
+    if (config_result.tag != DDOG_RESULT_VEC_LIBRARY_CONFIG_ERR_VEC_LIBRARY_CONFIG) {
+        ddog_Vec_LibraryConfig configs = config_result.ok;
+        for (uintptr_t i = 0; i < configs.len; i++) {
+            const ddog_LibraryConfig *cfg = &configs.ptr[i];
+            ddog_CStr name = ddog_library_config_name_to_env(cfg->name);
+
+            // printf("Setting env variable: %s=%s\n", name.ptr, cfg->value.ptr);
+            setenv(name.ptr, cfg->value.ptr, 1);
+        }
+    } else {
+        // ddog_Error err = config_result.err;
+        // fprintf(stderr, "%.*s", (int)err.message.len, err.message.ptr);
+        // ddog_Error_drop(&err);
+    }
+}
+
 
 // note: only call this if get_DD_TRACE_ENABLED() returns true
 bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_name) {
