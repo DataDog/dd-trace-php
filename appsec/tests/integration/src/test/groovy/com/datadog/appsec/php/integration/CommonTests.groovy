@@ -326,6 +326,17 @@ trait CommonTests {
         }
 
     @Test
+    void 'multiple rasp'() {
+        def trace = container.traceFromRequest(
+            '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') {HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.rasp.rule.eval" == 5.0d
+    }
+
+    @Test
     void 'user blocking'() {
         def trace = container.traceFromRequest('/user_id.php?id=user2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
