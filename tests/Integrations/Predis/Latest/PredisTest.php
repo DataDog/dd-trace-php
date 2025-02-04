@@ -166,7 +166,7 @@ class PredisTest extends IntegrationTestCase
         $connectionString = "tcp://{$this->host}";
 
         $traces = $this->isolateTracer(function () use ($connectionString) {
-            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString]);
+            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString], ['cluster' => 'redis']);
             $client->connect();
         });
 
@@ -251,6 +251,8 @@ class PredisTest extends IntegrationTestCase
             Tag::COMPONENT => 'predis',
             Tag::DB_SYSTEM => 'redis',
             'redis.pipeline_length' => '2',
+            Tag::TARGET_HOST => $this->host,
+            Tag::TARGET_PORT => $this->port,
         ];
 
         $this->assertFlameGraph($traces, [

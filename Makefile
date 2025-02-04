@@ -560,7 +560,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis_latest \
+	test_integrations_predis_1 \
 	test_integrations_sqlsrv
 
 TEST_WEB_70 := \
@@ -602,7 +602,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
-	test_integrations_predis_latest \
+	test_integrations_predis_1 \
 	test_integrations_sqlsrv \
 	test_opentracing_10
 
@@ -655,6 +655,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_opentracing_10
@@ -714,6 +715,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_opentracing_10
@@ -774,6 +776,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
@@ -839,6 +842,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
@@ -892,6 +896,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
 	test_integrations_swoole_5 \
@@ -949,6 +954,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
@@ -1012,6 +1018,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
+	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
@@ -1281,6 +1288,8 @@ test_integrations_phpredis5: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V5)
 	$(eval TEST_EXTRA_INI=)
 	$(eval TEST_EXTRA_ENV=)
+test_integrations_predis_1: global_test_run_dependencies tests/Integrations/Predis/V1/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Predis/V1)
 test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis/Latest)
 test_integrations_frankenphp: global_test_run_dependencies
