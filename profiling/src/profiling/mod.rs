@@ -19,6 +19,7 @@ use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_
 use crate::config::SystemSettings;
 use crate::{CLOCKS, TAGS};
 use chrono::Utc;
+#[cfg(feature = "timeline")]
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
@@ -44,7 +45,7 @@ use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-#[cfg(feature = "allocation_profiling")]
+#[cfg(any(feature = "allocation_profiling", feature = "exception_profiling"))]
 use datadog_profiling::api::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
@@ -52,7 +53,6 @@ use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
-#[cfg(feature = "timeline")]
 pub const NO_TIMESTAMP: i64 = 0;
 
 // Guide: upload period / upload timeout should give about the order of
@@ -761,6 +761,9 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
+                #[cfg(not(feature = "timeline"))]
+                let mut timestamp = NO_TIMESTAMP;
+                #[cfg(feature = "timeline")]
                 let mut timestamp = NO_TIMESTAMP;
                 #[cfg(feature = "timeline")]
                 {
@@ -865,6 +868,9 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
+                #[cfg(not(feature = "timeline"))]
+                let timestamp = NO_TIMESTAMP;
+                #[cfg(feature = "timeline")]
                 let mut timestamp = NO_TIMESTAMP;
                 #[cfg(feature = "timeline")]
                 {

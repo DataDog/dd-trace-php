@@ -877,10 +877,14 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // Safety: calling this in zend_extension startup.
     unsafe {
         pcntl::startup();
+        #[cfg(feature = "timeline")]
         timeline::timeline_startup();
     }
 
-    #[cfg(feature = "allocation_profiling")]
+    #[cfg(all(
+        feature = "allocation_profiling",
+        not(php_zend_mm_set_custom_handlers_ex)
+    ))]
     allocation::alloc_prof_startup();
 
     ZendResult::Success
