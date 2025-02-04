@@ -1759,12 +1759,12 @@ jobs:
           command: |
             set -euo pipefail
             <<# parameters.coverage >>unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true<</ parameters.coverage >>
-            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results-<< parameters.make_target >>.xml"
+            _DD_DEBUG_SIDECAR_LOG_METHOD=file://$(pwd)/tests/sidecar.log DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results-<< parameters.make_target >>.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'sidecar.log' \) -exec cp --parents '{}' /tmp/artifacts \;
             mkdir -p /tmp/artifacts/core_dumps
             find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
@@ -1891,12 +1891,12 @@ jobs:
           command: |
             set -euo pipefail
             <<# parameters.coverage >>unset CI && unset CIRCLECI && export DD_AUTOLOAD_NO_COMPILE=true<</ parameters.coverage >>
-            DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+            _DD_DEBUG_SIDECAR_LOG_METHOD=file://$(pwd)/tests/sidecar.log DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - <<: *STEP_CODE_COVERAGE
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'core'  -o -name 'core.*' \) -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'sidecar.log' -o -name 'core' -o -name 'core.*' \) -exec cp --parents '{}' /tmp/artifacts \;
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
           when: on_fail
       - store_artifacts:

@@ -3,6 +3,8 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\GlobalTracer;
+use DDTrace\HookData;
+use DDTrace\SpanData;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
@@ -106,7 +108,7 @@ trait TracerTestTrait
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers); // Set the headers
 
         // Execute the cURL session
-        $response = curl_exec($curl);
+        $response = self::curlWithoutSpan($curl);
 
         // Close the cURL session
         curl_close($curl);
@@ -133,6 +135,15 @@ trait TracerTestTrait
         $scope->close();
 
         return $this->flushAndGetTraces();
+    }
+
+    public static function curlWithoutSpan($curl)
+    {
+        $limit = ini_get("datadog.trace.spans_limit");
+        ini_set("datadog.trace.spans_limit", 0);
+        $ret = curl_exec($curl);
+        ini_set("datadog.trace.spans_limit", $limit);
+        return $ret;
     }
 
     /**
@@ -186,7 +197,7 @@ trait TracerTestTrait
                     $curl = curl_init('http://127.0.0.1:' . self::$webserverPort . $request->getPath());
                     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
-                    $response = curl_exec($curl);
+                    $response = self::curlWithoutSpan($curl);
                     if (\is_array($curlInfo)) {
                         $curlInfo = \array_merge($curlInfo, \curl_getinfo($curl));
                     }
@@ -269,7 +280,17 @@ trait TracerTestTrait
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         $output = [];
         $exitCode = 0;
+        $createHook = \DDTrace\install_hook('DDTrace\Integrations\Exec\ExecIntegration::createSpan', function (HookData $hook) {
+            $hook->disableJitInlining();
+            $hook->suppressCall();
+            $hook->overrideReturnValue(new SpanData);
+        });
+        $finishHook = \DDTrace\install_hook('DDTrace\Integrations\Exec\ExecIntegration::finishSpanRestoreStack', function (HookData $hook) {
+            $hook->suppressCall();
+        });
         exec($commandToExecute . ' 2>&1', $output, $exitCode);
+        \DDTrace\remove_hook($createHook);
+        \DDTrace\remove_hook($finishHook);
         $ret = $withOutput ? implode("\n", $output) : null;
         if (!$skipSyncFlush && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
             \dd_trace_synchronous_flush();
@@ -284,7 +305,7 @@ trait TracerTestTrait
     {
         $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
         curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
-        curl_exec($curl);
+        self::curlWithoutSpan($curl);
     }
 
     /**
@@ -297,7 +318,7 @@ trait TracerTestTrait
      * @return array[]
      * @throws Exception
      */
-    public function tracesFromWebRequest($fn, $tracer = null, callable $until = null)
+    public function tracesFromWebRequest($fn, $tracer = null, $until = null)
     {
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
@@ -380,7 +401,7 @@ trait TracerTestTrait
      * @return array
      * @throws \Exception
      */
-    private function parseTracesFromDumpedData(callable $until = null, $throw = false)
+    private function parseTracesFromDumpedData($until = null, $throw = false)
     {
         $loaded = $this->retrieveDumpedTraceData($until, $throw);
         if (!$loaded) {
@@ -439,21 +460,24 @@ trait TracerTestTrait
 
     /**
      * Returns the raw response body, if any, or null otherwise.
+     * @param callable|null $until
      */
-    public function retrieveDumpedData(callable $until = null, $throw = false)
+    public function retrieveDumpedData($until = null, $throw = false)
     {
         return $this->retrieveAnyDumpedData($until, $throw);
     }
 
     /**
      * Returns the raw response body, if any, or null otherwise.
+     * @param callable|null $until
      */
-    public function retrieveDumpedMetrics(callable $until = null, $throw = false)
+    public function retrieveDumpedMetrics($until = null, $throw = false)
     {
         return $this->retrieveAnyDumpedData($until, $throw, true);
     }
 
-    public function retrieveAnyDumpedData(callable $until = null, $throw, $metrics = false) {
+    /** @param callable|null $until */
+    public function retrieveAnyDumpedData($until, $throw, $metrics = false) {
         $until = $until ?? $this->untilFirstTraceRequest();
 
         $allResponses = [];
@@ -470,7 +494,7 @@ trait TracerTestTrait
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
             // Retrieving data
-            $response = curl_exec($curl);
+            $response = self::curlWithoutSpan($curl);
             if (!$response) {
                 // PHP-FPM requests are much slower in the container
                 // Temporary workaround until we get a proper test runner

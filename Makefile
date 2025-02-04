@@ -1080,7 +1080,6 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch_latest \
-	test_integrations_phpredis5 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
@@ -1103,7 +1102,7 @@ TEST_WEB_84 := \
 	test_web_custom \
 	test_web_zend_1_21
 
-# to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest
+# to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
 
 FILTER ?= .
 MAX_RETRIES := 3
@@ -1349,9 +1348,11 @@ test_integrations_frankenphp: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_googlespanner_latest: global_test_run_dependencies tests/Integrations/GoogleSpanner/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(eval TEST_EXTRA_ENV=ZEND_DONT_UNLOAD_MODULES=1)
 	$(eval TEST_EXTRA_INI=-d extension=grpc.so)
 	$(call run_tests_debug,tests/Integrations/GoogleSpanner/Latest)
 	$(eval TEST_EXTRA_INI=)
+	$(eval TEST_EXTRA_ENV=)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
