@@ -43,6 +43,7 @@
     host_os: linux_gnu
     SHARED: "1"
     ASAN: "0"
+    CARGO_HOME: "/rust/cargo/"
     SWITCH_PHP_VERSION: "debug"
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 6Gi
