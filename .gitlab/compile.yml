@@ -40,6 +40,7 @@
     paths:
       - "VERSION"
       - "tmp/build_extension/"
+      - "target/"
 
 "compile extension: debug-zts-asan":
   extends: "compile extension: debug"
