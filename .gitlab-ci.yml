@@ -7,7 +7,7 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8
+  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 12
   LATEST_LIBRARY_x86_64_LINUX_GNU:
     value: ""
     description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
