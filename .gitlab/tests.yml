@@ -1,0 +1,70 @@
+.base_test:
+  stage: test
+  tags: [ "arch:${ARCH}" ]
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR:
+          - "7.0"
+          - "7.1"
+          - "7.2"
+          - "7.3"
+          - "7.4"
+          - "8.0"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+        ARCH:
+          - "amd64"
+          - "arm64"
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  services:
+    - !reference [.services, test-agent]
+  variables:
+    COMPOSER_MEMORY_LIMIT: "-1"
+    DD_TRACE_ASSUME_COMPILED: "1"
+    DDAGENT_HOSTNAME: "127.0.0.1"
+    REDIS_HOSTNAME: "127.0.0.1"
+  cache:
+    - key:
+        prefix: $CI_JOB_NAME
+        files:
+          - composer.json
+      paths:
+        - ~/.composer/cache
+  before_script:
+    - sudo composer self-update --no-interaction
+    - composer update --no-interaction
+    - make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension $(if [ -f ${CI_PROJECT_DIR}/target/debug/libddtrace_php.a ]; then echo EXTRA_CONFIGURE_OPTIONS=--with-ddtrace-rust-library=$(pwd)/target/debug/libddtrace_php.a; fi)
+    - wait-for test-agent:9126 --timeout=30
+    - mkdir test-results
+  after_script:
+    - .gitlab/check_test_agent.sh
+    - .gitlab/check_for_core_dumps.sh
+
+PHP Language Tests:
+  extends: .base_test
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: "8.4"
+        ARCH: "amd64"
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "8.4"
+            ARCH: "amd64"
+  variables:
+    DD_TRACE_STARTUP_LOGS: "0"
+    DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
+    DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
+    DD_TRACE_GIT_METADATA_ENABLED: "0"
+    REPORT_EXIT_STATUS: "1"
+    TEST_PHP_JUNIT: /tmp/artifacts/tests/php-tests.xml
+    SKIP_ONLINE_TEST: "1"
+  script:
+    - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
+    - .gitlab/run_php_language_tests.sh
+  artifacts:
+    paths:
+      - "/tmp/artifacts/"

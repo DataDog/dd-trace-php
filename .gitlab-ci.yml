@@ -1,5 +1,6 @@
 stages:
   - build
+  - test
   - shared-pipeline # OCI packaging
   - deploy
   - benchmarks
@@ -19,9 +20,11 @@ variables:
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+  - local: .gitlab/services.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
   - local: .gitlab/compile.yml
+  - local: .gitlab/tests.yml
 
 build:
   extends: .ci_authenticated_job
