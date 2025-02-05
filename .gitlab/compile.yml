@@ -25,7 +25,7 @@
     CARGO_HOME: "/rust/cargo/"
     CARGO_TARGET_DIR: "target"
     SWITCH_PHP_VERSION: "debug"
-    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 6Gi
   script:
     - chown -R $(id -u):$(id -g) .
