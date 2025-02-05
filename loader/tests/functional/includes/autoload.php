@@ -2,7 +2,7 @@
 
 require_once __DIR__.'/assert.php';
 
-set_exception_handler(function (\Throwable $ex) {
+set_exception_handler(function ($ex) {
     $trace = $ex->getTrace();
     $file = $trace[0]['file'] ?: '';
     $line = $trace[0]['line'] ?: '';

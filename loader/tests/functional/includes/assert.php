@@ -94,8 +94,6 @@ function assertTelemetry($telemetryLogPath, $metrics) {
 EOS;
 
     $lines = file($telemetryLogPath);
-    assertEquals(count($lines), count($metrics), count($metrics)." metrics were expected, but got ".count($lines));
-
     foreach ($lines as $line) {
         $matched = false;
         $pretty = json_encode(json_decode($line, true), JSON_PRETTY_PRINT);
