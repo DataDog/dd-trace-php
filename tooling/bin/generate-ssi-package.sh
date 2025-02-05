@@ -64,17 +64,19 @@ for architecture in "${architectures[@]}"; do
         # Profiling
         ########################
 
-        mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
-        # gnu
-        ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
-            ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
-        ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
-            ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
-        # musl
-        ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
-            ${musl}/profiling/ext/${php_api}/datadog-profiling.so
-        ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
-            ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
+        if [[ ${php_api} -ge 20160303 ]]; then
+            mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
+            # gnu
+            ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
+                ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
+            ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
+                ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
+            # musl
+            ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
+                ${musl}/profiling/ext/${php_api}/datadog-profiling.so
+            ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
+                ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
+        fi
 
         ########################
         # AppSec
