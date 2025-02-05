@@ -7,6 +7,9 @@ CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-target}
 EXTENSION_DIR=${EXTENSION_DIR:-tmp/build_extension}
 MODULES_DIR=${MODULES_DIR:-${EXTENSION_DIR}/modules}
 
+# Generate VERSION with build id
+./.gitlab/append-build-id.sh
+
 # Change PHP versions if needed
 if [ -n "${SWITCH_PHP_VERSION}" ]; then
   switch-php "${SWITCH_PHP_VERSION}"

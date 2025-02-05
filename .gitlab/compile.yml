@@ -19,17 +19,14 @@
           - "amd64"
           - "arm64"
   variables:
-    host_os: linux_gnu
+    host_os: linux-gnu
     SHARED: "1"
     ASAN: "0"
     CARGO_HOME: "/rust/cargo/"
-    CARGO_TARGET_DIR: "target"
     SWITCH_PHP_VERSION: "debug"
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 6Gi
-  before_script:
-    - git submodule update --init --recursive
-    - ./.gitlab/append-build-id.sh
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
   script: .gitlab/compile_extension.sh
   cache:
     - key:
@@ -39,14 +36,9 @@
           - Cargo.toml
       paths:
         - /rust/cargo/
-        - target/
   artifacts:
     paths:
-      - "appsec/third_party/"
-      - "libdatadog/"
-      - "tea/benchmarks/google-benchmark/"
       - "VERSION"
-      - "target/"
       - "tmp/build_extension/"
 
 "compile extension: debug-zts-asan":
