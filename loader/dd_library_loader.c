@@ -739,7 +739,7 @@ static int ddloader_api_no_check(int api_no) {
         default:
             if (!force_load || api_no < 320151012) {
                 telemetry_reason reason = api_no < 320151012 ? REASON_EOL_RUNTIME : REASON_INCOMPATIBLE_RUNTIME;
-                TELEMETRY(reason, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP 7.0 to 8.3", api_no);
+                TELEMETRY(reason, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP 7.0 to 8.4", api_no);
 
                 // If we return FAILURE, this Zend extension would be unload, BUT it would produce an error
                 // similar to "The Zend Engine API version 220100525 which is installed, is newer."
