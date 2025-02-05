@@ -90,6 +90,10 @@ function use_valgrind() {
     return (bool) (isset($_SERVER['TEST_USE_VALGRIND']) ? $_SERVER['TEST_USE_VALGRIND'] : false);
 }
 
+function php_minor_version() {
+    return PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
+}
+
 function skip_if_php5() {
     if (PHP_MAJOR_VERSION <= 5) {
         echo "Skip: test is not compatible with PHP 5\n";
