@@ -41,7 +41,8 @@ $format = <<<EOS
         {
             "name": "library_entrypoint.abort",
             "tags": [
-                "reason:already_loaded"
+                "reason:already_loaded",
+                "product:ddtrace"
             ]
         }
     ]
