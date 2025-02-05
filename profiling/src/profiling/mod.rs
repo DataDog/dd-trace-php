@@ -50,7 +50,7 @@ use datadog_profiling::api::UpscalingInfo;
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 
-const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
+const UPLOAD_PERIOD: Duration = Duration::from_secs(1);
 
 #[cfg(feature = "timeline")]
 pub const NO_TIMESTAMP: i64 = 0;
