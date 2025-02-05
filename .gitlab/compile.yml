@@ -1,5 +1,6 @@
 "checkout code":
   stage: build
+  tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/mirror/bitnami/git:2.45.2
   variables:
     KUBERNETES_CPU_REQUEST: 1
@@ -17,6 +18,7 @@
 
 "compile extension: debug":
   stage: build
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
   needs:
     - job: "checkout code"
