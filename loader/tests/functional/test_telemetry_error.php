@@ -80,4 +80,5 @@ EOS
 }
 EOS
 ];
+
 assertTelemetry($telemetryLogPath, $metrics);
