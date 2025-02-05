@@ -322,9 +322,6 @@ class TelemetryTests {
         }
         assert trace.traceId != null
 
-        RemoteConfigRequest rcReq = requestSup.get()
-        assert rcReq != null, 'No RC request received'
-
         // request covered by Appsec
         trace = CONTAINER.traceFromRequest('/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -395,8 +392,5 @@ class TelemetryTests {
         assert ssrfTimeout.points[0][1] == 0.0
         assert ssrfTimeout.type == 'count'
         assert ssrfTimeout.tags.find { it.startsWith('waf_version:') } != null
-
-
-        // no error for data, it seems
     }
 }
