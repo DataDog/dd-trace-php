@@ -218,6 +218,31 @@ TEST(RemoteConfigAsmFeaturesListener, AutoUserInstrumSetToAnon)
         remote_config_service->get_auto_user_intrum_mode());
 }
 
+TEST(RemoteConfigAsmFeaturesListener, AutoUserInstrumSetToDisabled)
+{
+    auto remote_config_service = std::make_shared<service_config>();
+    remote_config::asm_features_listener listener(remote_config_service);
+    listener.init();
+
+    EXPECT_EQ(enable_asm_status::NOT_SET,
+        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(auto_user_instrum_mode::UNDEFINED,
+        remote_config_service->get_auto_user_intrum_mode());
+
+    try {
+        listener.on_update(get_asm_enabled_config());
+        listener.on_update(get_auto_user_instrum_config("\"disabled\""));
+        listener.commit();
+    } catch (remote_config::error_applying_config &error) {
+        std::cout << error.what() << std::endl;
+    }
+
+    EXPECT_EQ(enable_asm_status::ENABLED,
+        remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(auto_user_instrum_mode::DISABLED,
+        remote_config_service->get_auto_user_intrum_mode());
+}
+
 TEST(RemoteConfigAsmFeaturesListener, AutoUserInstrumUnknownValue)
 {
     auto remote_config_service = std::make_shared<service_config>();

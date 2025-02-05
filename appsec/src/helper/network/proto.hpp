@@ -175,8 +175,9 @@ struct request_init {
         std::vector<std::string> triggers;
 
         bool force_keep;
+        std::map<std::string, std::string> settings;
 
-        MSGPACK_DEFINE(actions, triggers, force_keep);
+        MSGPACK_DEFINE(actions, triggers, force_keep, settings);
     };
 };
 
@@ -211,8 +212,9 @@ struct request_exec {
         std::vector<std::string> triggers;
 
         bool force_keep;
+        std::map<std::string, std::string> settings;
 
-        MSGPACK_DEFINE(actions, triggers, force_keep);
+        MSGPACK_DEFINE(actions, triggers, force_keep, settings);
     };
 };
 
@@ -296,9 +298,10 @@ struct request_shutdown {
         std::unordered_map<std::string_view,
             std::vector<std::pair<double, std::string>>>
             tel_metrics;
+        std::map<std::string, std::string> settings;
 
-        MSGPACK_DEFINE(
-            actions, triggers, force_keep, meta, metrics, tel_metrics);
+        MSGPACK_DEFINE(actions, triggers, force_keep, meta, metrics,
+            tel_metrics, settings);
     };
 };
 

@@ -110,6 +110,9 @@ void asm_features_listener::commit()
         } else if (dd_tolower(mode_itr->value.GetString()) ==
                    std::string("anonymization")) {
             mode = auto_user_instrum_mode::ANONYMIZATION;
+        } else if (dd_tolower(mode_itr->value.GetString()) ==
+                   std::string("disabled")) {
+            mode = auto_user_instrum_mode::DISABLED;
         }
     }
 
