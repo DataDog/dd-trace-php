@@ -10,6 +10,13 @@
 
 namespace dds {
 enum class enable_asm_status : unsigned { NOT_SET = 0, ENABLED, DISABLED };
+enum class auto_user_instrum_mode : unsigned {
+    UNDEFINED = 0,
+    UNKNOWN,
+    DISABLED,
+    IDENTIFICATION,
+    ANONYMIZATION
+};
 } // namespace dds
 
 template <>
@@ -36,6 +43,36 @@ struct fmt::formatter<std::atomic<dds::enable_asm_status>>
     }
 };
 
+template <>
+struct fmt::formatter<std::atomic<dds::auto_user_instrum_mode>>
+    : fmt::formatter<std::string_view> {
+    auto format(const std::atomic<dds::auto_user_instrum_mode> &mode,
+        format_context &ctx) const
+    {
+        auto val = mode.load();
+        std::string_view name{""};
+        switch (val) {
+        case dds::auto_user_instrum_mode::UNDEFINED:
+            name = "UNDEFINED";
+            break;
+        case dds::auto_user_instrum_mode::UNKNOWN:
+            name = "UNKNOWN";
+            break;
+        case dds::auto_user_instrum_mode::DISABLED:
+            name = "DISABLED";
+            break;
+        case dds::auto_user_instrum_mode::IDENTIFICATION:
+            name = "IDENTIFICATION";
+            break;
+        case dds::auto_user_instrum_mode::ANONYMIZATION:
+            name = "ANONYMIZATION";
+            break;
+        }
+
+        return fmt::formatter<std::string_view>::format(name, ctx);
+    }
+};
+
 namespace dds {
 
 inline std::string_view to_string_view(enable_asm_status status)
@@ -48,6 +85,23 @@ inline std::string_view to_string_view(enable_asm_status status)
     }
     if (status == enable_asm_status::DISABLED) {
         return "DISABLED";
+    }
+    return "UNKNOWN";
+}
+
+inline std::string_view to_string_view(auto_user_instrum_mode mode)
+{
+    if (mode == auto_user_instrum_mode::UNDEFINED) {
+        return "UNDEFINED";
+    }
+    if (mode == auto_user_instrum_mode::DISABLED) {
+        return "DISABLED";
+    }
+    if (mode == auto_user_instrum_mode::IDENTIFICATION) {
+        return "IDENTIFICATION";
+    }
+    if (mode == auto_user_instrum_mode::ANONYMIZATION) {
+        return "ANONYMIZATION";
     }
     return "UNKNOWN";
 }
@@ -71,10 +125,30 @@ struct service_config {
         asm_enabled = enable_asm_status::NOT_SET;
     }
 
+    void set_auto_user_instrum(auto_user_instrum_mode mode)
+    {
+        SPDLOG_DEBUG("Setting auto_user_instrum mode, previous state: {}",
+            auto_user_instrum);
+        auto_user_instrum = mode;
+    }
+
+    void unset_auto_user_instrum()
+    {
+        SPDLOG_DEBUG("Unsetting auto_user_instrum mode, previous state: {}",
+            auto_user_instrum);
+        auto_user_instrum = auto_user_instrum_mode::UNDEFINED;
+    }
+
     enable_asm_status get_asm_enabled_status() { return asm_enabled; }
+    auto_user_instrum_mode get_auto_user_intrum_mode()
+    {
+        return auto_user_instrum;
+    }
 
 protected:
     std::atomic<enable_asm_status> asm_enabled = {enable_asm_status::NOT_SET};
+    std::atomic<auto_user_instrum_mode> auto_user_instrum = {
+        auto_user_instrum_mode::UNDEFINED};
 };
 
 } // namespace dds
