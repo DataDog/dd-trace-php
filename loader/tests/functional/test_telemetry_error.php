@@ -14,7 +14,7 @@ $output = runCLI('-v', true, [
 // Let time to the fork to write the telemetry log
 usleep(5000);
 
-$format = <<<EOS
+$metrics = [<<<EOS
 {
     "metadata": {
         "runtime_name": "php",
@@ -28,10 +28,56 @@ $format = <<<EOS
         {
             "name": "library_entrypoint.error",
             "tags": [
-                "error_type:so_not_found"
+                "error_type:so_not_found",
+                "product:ddtrace"
             ]
         }
     ]
 }
-EOS;
-// assertTelemetry($telemetryLogPath, $format); // FIXME
+EOS
+,
+<<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
+        "runtime_version": "%d.%d.%d%S",
+        "language_name": "php",
+        "language_version": "%d.%d.%d%S",
+        "tracer_version": "%s",
+        "pid": %d
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.error",
+            "tags": [
+                "error_type:so_not_found",
+                "product:datadog-profiling"
+            ]
+        }
+    ]
+}
+EOS
+,
+<<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
+        "runtime_version": "%d.%d.%d%S",
+        "language_name": "php",
+        "language_version": "%d.%d.%d%S",
+        "tracer_version": "%s",
+        "pid": %d
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.error",
+            "tags": [
+                "error_type:so_not_found",
+                "product:ddappsec"
+            ]
+        }
+    ]
+}
+EOS
+];
+assertTelemetry($telemetryLogPath, $metrics);

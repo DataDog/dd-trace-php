@@ -72,21 +72,9 @@ function assertMatchesFormat($output, $wanted_re) {
     }
 }
 
-function assertTelemetry($telemetryLogPath, $format) {
-    $lines = file($telemetryLogPath);
-    assertEquals(count($lines), 2, "2 metrics were expected, but got ".count($lines));
-
-    $start = $lines[0];
-    $end = $lines[1];
-
-    // The order is not guaranteed
-    if (strpos($start, 'library_entrypoint.start') === false) {
-        $start = $lines[1];
-        $end = $lines[0];
-    }
-
-    $payload = json_decode($start, true);
-    $startFormat = <<<EOS
+function assertTelemetry($telemetryLogPath, $metrics) {
+    $metrics = (array) $metrics;
+    $metrics[] = <<<EOS
 {
     "metadata": {
         "runtime_name": "php",
@@ -104,8 +92,29 @@ function assertTelemetry($telemetryLogPath, $format) {
     ]
 }
 EOS;
-    assertMatchesFormat(json_encode($payload, JSON_PRETTY_PRINT), $startFormat);
 
-    $payload = json_decode($end, true);
-    assertMatchesFormat(json_encode($payload, JSON_PRETTY_PRINT), $format);
+    $lines = file($telemetryLogPath);
+    assertEquals(count($lines), count($metrics), count($metrics)." metrics were expected, but got ".count($lines));
+
+    foreach ($lines as $line) {
+        $matched = false;
+        $pretty = json_encode(json_decode($line, true), JSON_PRETTY_PRINT);
+        foreach ($metrics as $k => $m) {
+            try {
+                assertMatchesFormat($pretty, $m);
+                unset($metrics[$k]);
+                $matched = true;
+                break;
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+        if (!$matched) {
+            throw new \Exception("Received an unexpected metric\n".$pretty);
+        }
+    }
+
+    if (count($metrics)) {
+        throw new \Exception("Missing metric(s)\n".print_r($metrics, true));
+    }
 }
