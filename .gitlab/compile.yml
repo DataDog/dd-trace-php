@@ -2,9 +2,6 @@
   stage: build
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/mirror/bitnami/git:2.45.2
-  variables:
-    KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_REQUEST: 1Gi
   script:
     - chown -R $(id -u):$(id -g) .
     - git submodule update --init --recursive
@@ -57,10 +54,6 @@
         - /rust/cargo/
   artifacts:
     paths:
-      - "appsec/third_party/"
-      - "libdatadog/"
-      - "tea/benchmarks/google-benchmark/"
-      - VERSION
       - "tmp/build_extension/"
 
 "compile extension: debug-zts-asan":
