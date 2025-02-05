@@ -56,6 +56,39 @@ void asm_features_listener::parse_asm_activation_config()
     } else {
         service_config_->unset_asm();
     }
+
+    if (!json_helper::field_exists(ruleset_, "auto_user_instrum")) {
+        service_config_->set_auto_user_instrum(
+            auto_user_instrum_mode::UNDEFINED);
+        return;
+    }
+
+    auto auto_user_instrum_itr = json_helper::get_field_of_type(
+        ruleset_, "auto_user_instrum", rapidjson::kObjectType);
+    if (!auto_user_instrum_itr) {
+        service_config_->set_auto_user_instrum(auto_user_instrum_mode::UNKNOWN);
+        return;
+    }
+
+    auto mode_itr = auto_user_instrum_itr.value()->value.FindMember("mode");
+    if (mode_itr == auto_user_instrum_itr.value()->value.MemberEnd()) {
+        service_config_->set_auto_user_instrum(auto_user_instrum_mode::UNKNOWN);
+        return;
+    }
+
+    auto mode = auto_user_instrum_mode::UNKNOWN;
+
+    if (mode_itr->value.GetType() == rapidjson::kStringType) {
+        if (dd_tolower(mode_itr->value.GetString()) ==
+            std::string("identification")) {
+            mode = auto_user_instrum_mode::IDENTIFICATION;
+        } else if (dd_tolower(mode_itr->value.GetString()) ==
+                   std::string("anonymization")) {
+            mode = auto_user_instrum_mode::ANONYMIZATION;
+        }
+    }
+
+    service_config_->set_auto_user_instrum(mode);
 }
 
 void asm_features_listener::parse_auto_user_instrum_config()
