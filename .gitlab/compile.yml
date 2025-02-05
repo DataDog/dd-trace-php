@@ -40,8 +40,9 @@
   artifacts:
     paths:
       - "VERSION"
-      - "tmp/build_extension/"
-      - "target/"
+      - "tmp/build_extension/ddtrace.ldflags"
+      - "tmp/build_extension/modules"
+      - "target/debug/libddtrace_php.a"
 
 "compile extension: debug-zts-asan":
   extends: "compile extension: debug"
