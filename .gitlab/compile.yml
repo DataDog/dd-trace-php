@@ -27,11 +27,11 @@
     SWITCH_PHP_VERSION: "debug"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 6Gi
-  before_script:
+  script:
     - chown -R $(id -u):$(id -g) .
     - git submodule update --init --recursive
     - ./.gitlab/append-build-id.sh
-  script: ".gitlab/compile_extension.sh"
+    - .gitlab/compile_extension.sh
   cache:
     - key:
         prefix: $CI_JOB_NAME
