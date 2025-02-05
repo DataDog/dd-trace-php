@@ -241,6 +241,7 @@ zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
+void ddtrace_infer_proxy_services(void);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str);
 

@@ -661,6 +661,10 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
                 if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
+                    if (stack == DDTRACE_G(inferred_proxy_services_stack)) {
+                        OBJ_RELEASE(&stack->std); // ??
+                        DDTRACE_G(inferred_proxy_services_stack) = NULL;
+                    }
                 } else {
                     ddtrace_drop_span(span);
                 }
@@ -765,6 +769,12 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
 }
 
 void ddtrace_serialize_closed_spans_with_cycle(zval *serialized) {
+    if (DDTRACE_G(inferred_proxy_services_stack)) {
+        ddtrace_close_span_restore_stack(SPANDATA(DDTRACE_G(inferred_proxy_services_stack)->active));
+        OBJ_RELEASE(&DDTRACE_G(inferred_proxy_services_stack)->std);
+        DDTRACE_G(inferred_proxy_services_stack) = NULL; // ??
+    }
+
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
         ddtrace_serialize_closed_spans(serialized);
@@ -795,4 +805,47 @@ zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
     zend_string *str = zend_string_alloc(32, 0);
     snprintf(ZSTR_VAL(str), 33, "%016" PRIx64 "%016" PRIx64, id.high, id.low);
     return str;
+}
+
+void ddtrace_infer_proxy_services(void) {
+    zval *server = zend_hash_str_find(Z_ARRVAL(PG(http_globals)[TRACK_VARS_SERVER]), ZEND_STRL("HTTP_X_DD_PROXY"));
+    if (server && Z_TYPE_P(server) == IS_STRING && Z_STRLEN_P(server) > 0) {
+        ddtrace_span_stack *current_stack = DDTRACE_G(active_stack);
+
+        ddtrace_span_stack *stack = ddtrace_init_root_span_stack();
+        DDTRACE_G(inferred_proxy_services_stack) = stack;
+        ddtrace_switch_span_stack(stack);
+        GC_DELREF(&stack->std); // We don't retain a ref to it, it's now the active_stack
+
+        ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN);
+        GC_DELREF(&span->std); // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
+
+
+        zval *name = &span->property_name;
+        zval_ptr_dtor(name);
+        ZVAL_STR_COPY(name, Z_STR_P(server));
+
+        ddtrace_trace_id inferred_trace_id = span->root->trace_id;
+        uint64_t inferred_span_id = span->span_id;
+
+        ddtrace_switch_span_stack(current_stack);
+        ddtrace_root_span_data *root_span = current_stack->root_span;
+        if (root_span) {
+            root_span->parent_id = inferred_span_id;
+            if (!inferred_trace_id.low && !inferred_trace_id.high) {
+                root_span->trace_id = (ddtrace_trace_id) {
+                        .low = inferred_span_id,
+                        .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
+                };
+            } else {
+                root_span->trace_id = inferred_trace_id;
+            }
+            ddtrace_update_root_id_properties(root_span);
+        } else {
+            DDTRACE_G(distributed_trace_id) = inferred_trace_id;
+            DDTRACE_G(distributed_parent_trace_id) = inferred_span_id;
+        }
+
+        LOG(DEBUG, "Inferred trace_id=%s, span_id=%" PRIu64 " from HTTP_X_DD_PROXY header", Z_STRVAL(span->root->property_trace_id), span->span_id);
+    }
 }

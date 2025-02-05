@@ -1615,6 +1615,10 @@ static void dd_initialize_request(void) {
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
     }
+
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        ddtrace_infer_proxy_services();
+    }
 }
 
 static PHP_RINIT_FUNCTION(ddtrace) {
@@ -1629,6 +1633,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         zai_hook_activate();
         DDTRACE_G(active_stack) = NULL; // This should not be necessary, but somehow sometimes it may be a leftover from a previous request.
         DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
+        DDTRACE_G(inferred_proxy_services_stack) = NULL;
 #if PHP_VERSION_ID < 80000
         ddtrace_autoload_rinit();
 #endif
@@ -1759,6 +1764,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
         OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         DDTRACE_G(active_stack) = NULL;
+        //if (DDTRACE_G(inferred_proxy_services_stack)) {
+        //    OBJ_RELEASE(&DDTRACE_G(inferred_proxy_services_stack)->root_stack->std);
+        //    DDTRACE_G(inferred_proxy_services_stack) = NULL;
+        //}
     }
 
     dd_finalize_sidecar_lifecycle();

@@ -160,6 +160,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     HashTable git_metadata;
     zend_object *git_object;
+
+    ddtrace_span_stack *inferred_proxy_services_stack;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

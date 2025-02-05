@@ -577,7 +577,15 @@ struct superglob_equiv {
     zend_array *post;
 };
 
+static inline bool ddtrace_span_is_inferred_proxy_span_root(ddtrace_root_span_data *span) {
+    return DDTRACE_G(inferred_proxy_services_stack) && DDTRACE_G(inferred_proxy_services_stack)->root_span == span;
+}
+
 static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtrace_root_span_data *span) {
+    if (ddtrace_span_is_inferred_proxy_span_root(span)) {
+        return; // If the span is an inferred proxy span, return early
+    }
+
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     if (data->server){
