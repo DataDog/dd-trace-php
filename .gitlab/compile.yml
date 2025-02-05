@@ -27,6 +27,7 @@
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    GIT_SUBMODULE_PATHS: libdatadog
   script: .gitlab/compile_extension.sh
   cache:
     - key:
