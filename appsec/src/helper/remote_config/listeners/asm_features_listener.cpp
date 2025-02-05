@@ -7,22 +7,51 @@
 #include "../../json_helper.hpp"
 #include "../../utils.hpp"
 #include "../exception.hpp"
-#include <algorithm>
+#include "config_aggregators/asm_features_aggregator.hpp"
 #include <rapidjson/document.h>
 
-void dds::remote_config::asm_features_listener::on_update(const config &config)
-{
-    rapidjson::Document serialized_doc;
+namespace dds::remote_config {
 
-    {
-        const mapped_memory contents{config.read()};
-        if (!json_helper::parse_json(contents, serialized_doc)) {
-            throw error_applying_config("Invalid config contents");
-        }
+void asm_features_listener::init()
+{
+    ruleset_ = rapidjson::Document(rapidjson::kObjectType);
+    aggregator_ = std::make_unique<asm_features_aggregator>();
+    aggregator_->init(&ruleset_.GetAllocator());
+}
+
+void asm_features_listener::on_unapply(const config &config)
+{
+    rapidjson::Document doc(&ruleset_.GetAllocator());
+    if (!json_helper::parse_json(config.read(), doc)) {
+        throw error_applying_config("Invalid config contents");
     }
 
-    auto asm_itr = json_helper::get_field_of_type(
-        serialized_doc, "asm", rapidjson::kObjectType);
+    if (!doc.IsObject()) {
+        throw error_applying_config("Invalid type for config, expected object");
+    }
+
+    // Validate contents and extract available keys
+    for (auto key = doc.MemberBegin(); key != doc.MemberEnd(); ++key) {
+        ruleset_.RemoveMember(key->name);
+        if (key->name == "asm") {
+            service_config_->unset_asm();
+        } else if (key->name == "auto_user_instrum") {
+            service_config_->unset_auto_user_instrum();
+        }
+    }
+}
+
+void asm_features_listener::on_update(const config &config)
+{
+    aggregator_->add(config);
+}
+
+void asm_features_listener::commit()
+{
+    aggregator_->aggregate(ruleset_);
+
+    auto asm_itr =
+        json_helper::get_field_of_type(ruleset_, "asm", rapidjson::kObjectType);
     if (!asm_itr) {
         throw error_applying_config("Invalid config json encoded contents: "
                                     "asm key missing or invalid");
@@ -52,4 +81,39 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
         throw error_applying_config(
             "Invalid config json encoded contents: enabled key invalid");
     }
+
+    if (!json_helper::field_exists(ruleset_, "auto_user_instrum")) {
+        service_config_->set_auto_user_instrum(
+            auto_user_instrum_mode::UNDEFINED);
+        return;
+    }
+
+    auto auto_user_instrum_itr = json_helper::get_field_of_type(
+        ruleset_, "auto_user_instrum", rapidjson::kObjectType);
+    if (!auto_user_instrum_itr) {
+        service_config_->set_auto_user_instrum(auto_user_instrum_mode::UNKNOWN);
+        return;
+    }
+
+    auto mode_itr = auto_user_instrum_itr.value()->value.FindMember("mode");
+    if (mode_itr == auto_user_instrum_itr.value()->value.MemberEnd()) {
+        service_config_->set_auto_user_instrum(auto_user_instrum_mode::UNKNOWN);
+        return;
+    }
+
+    auto mode = auto_user_instrum_mode::UNKNOWN;
+
+    if (mode_itr->value.GetType() == rapidjson::kStringType) {
+        if (dd_tolower(mode_itr->value.GetString()) ==
+            std::string("identification")) {
+            mode = auto_user_instrum_mode::IDENTIFICATION;
+        } else if (dd_tolower(mode_itr->value.GetString()) ==
+                   std::string("anonymization")) {
+            mode = auto_user_instrum_mode::ANONYMIZATION;
+        }
+    }
+
+    service_config_->set_auto_user_instrum(mode);
 }
+
+} // namespace dds::remote_config
