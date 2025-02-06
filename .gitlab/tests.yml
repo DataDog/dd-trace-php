@@ -21,6 +21,8 @@
   services:
     - !reference [.services, test-agent]
   variables:
+    host_os: linux-gnu
+    SWITCH_PHP_VERSION: debug
     COMPOSER_MEMORY_LIMIT: "-1"
     DD_TRACE_ASSUME_COMPILED: "1"
     DDAGENT_HOSTNAME: "127.0.0.1"
@@ -33,6 +35,8 @@
       paths:
         - ~/.composer/cache
   before_script:
+    - mkdir -p "tmp/build_extensions/modules/"
+    - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "/tmp/build_extension/modules/"
     - sudo composer self-update --no-interaction
     - composer update --no-interaction
     - make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension $(if [ -f ${CI_PROJECT_DIR}/target/debug/libddtrace_php.a ]; then echo EXTRA_CONFIGURE_OPTIONS=--with-ddtrace-rust-library=$(pwd)/target/debug/libddtrace_php.a; fi)
