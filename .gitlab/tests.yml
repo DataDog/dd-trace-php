@@ -74,4 +74,6 @@ PHP Language Tests:
     - .gitlab/run_php_language_tests.sh
   artifacts:
     paths:
+      - "tests/output/"
       - "/tmp/artifacts/"
+    when: "always"
