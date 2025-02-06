@@ -750,6 +750,11 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
     HANDLE_METRIC("remote_config.first_pull", DDTRACE_METRIC_TYPE_GAUGE);
     HANDLE_METRIC("remote_config.last_success", DDTRACE_METRIC_TYPE_GAUGE);
 
+    // Rasp
+    HANDLE_METRIC("rasp.timeout", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("rasp.rule.match", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("rasp.rule.eval", DDTRACE_METRIC_TYPE_COUNT);
+
     mlog_g(dd_log_info, "Unknown telemetry metric %.*s", (int)key_len, key_str);
 }
 

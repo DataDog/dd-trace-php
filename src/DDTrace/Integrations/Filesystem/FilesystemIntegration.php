@@ -60,21 +60,24 @@ class FilesystemIntegration extends Integration
            $protocol = isset($protocol[1]) ? $protocol[1]: "";
 
            $addresses = [];
+           $rule = "";
 
            if (empty($protocol) || $protocol === 'file') {
                 $addresses["server.io.fs.file"] = $hook->args[0];
+                $rule = "lfi";
            }
 
            if (in_array($variant, ['file_get_contents', 'fopen']) &&
            in_array($protocol, ['http', 'https', 'ftp', 'ftps'])) {
                 $addresses["server.io.net.url"] = $hook->args[0];
+                $rule = "ssrf";
            }
 
             if (empty($addresses)) {
                 return;
             }
 
-            \datadog\appsec\push_addresses($addresses, true);
+            \datadog\appsec\push_addresses($addresses, $rule);
         };
     }
 

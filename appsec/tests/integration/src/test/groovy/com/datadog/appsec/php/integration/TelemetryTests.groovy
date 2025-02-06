@@ -300,4 +300,100 @@ class TelemetryTests {
         }
         messages
     }
+
+    /**
+     * This test takes a long time (around 10-12 seconds) because the metric
+     * interval is hardcoded to 10 seconds in the metrics.rs.
+     */
+    @Test
+    @Order(4)
+    void 'Rasp telemetry is generated'() {
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // first request to start helper
+        // Generally won't be covered by appsec because it doesn't receive RC data in time
+        // for the response to config_sync
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        RemoteConfigRequest rcReq = requestSup.get()
+        assert rcReq != null, 'No RC request received'
+
+        // request covered by Appsec
+        trace = CONTAINER.traceFromRequest('/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.traceId != null
+
+        TelemetryHelpers.Metric wafReq1
+        TelemetryHelpers.Metric lfiEval
+        TelemetryHelpers.Metric ssrfEval
+        TelemetryHelpers.Metric lfiMatch
+        TelemetryHelpers.Metric ssrfMatch
+        TelemetryHelpers.Metric lfiTimeout
+        TelemetryHelpers.Metric ssrfTimeout
+
+        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
+            lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
+            lfiMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:lfi' in it.tags}
+            lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
+            ssrfEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:ssrf' in it.tags}
+            ssrfMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:ssrf' in it.tags}
+            ssrfTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:ssrf' in it.tags}
+
+             wafReq1 && lfiEval && ssrfEval && lfiMatch && ssrfMatch && lfiTimeout && ssrfTimeout
+        }
+
+        assert wafReq1 != null
+        assert wafReq1.namespace == 'appsec'
+        assert wafReq1.points[0][1] >= 1.0
+        assert wafReq1.tags.find { it.startsWith('event_rules_version:') } != null
+        assert wafReq1.tags.find { it.startsWith('waf_version:') } != null
+        assert wafReq1.type == 'count'
+
+        assert lfiEval != null
+        assert lfiEval.namespace == 'appsec'
+        assert lfiEval.points[0][1] == 3.0
+        assert lfiEval.type == 'count'
+        assert lfiEval.tags.find { it.startsWith('waf_version:') } != null
+
+        assert lfiMatch != null
+        assert lfiMatch.namespace == 'appsec'
+        assert lfiMatch.points[0][1] == 2.0
+        assert lfiMatch.type == 'count'
+        assert lfiMatch.tags.find { it.startsWith('waf_version:') } != null
+
+        assert lfiTimeout != null
+        assert lfiTimeout.namespace == 'appsec'
+        assert lfiTimeout.points[0][1] == 0.0
+        assert lfiTimeout.type == 'count'
+        assert lfiTimeout.tags.find { it.startsWith('waf_version:') } != null
+
+        assert ssrfEval != null
+        assert ssrfEval.namespace == 'appsec'
+        assert ssrfEval.points[0][1] == 2.0
+        assert ssrfEval.type == 'count'
+        assert ssrfEval.tags.find { it.startsWith('waf_version:') } != null
+
+        assert ssrfMatch != null
+        assert ssrfMatch.namespace == 'appsec'
+        assert ssrfMatch.points[0][1] == 1.0
+        assert ssrfMatch.type == 'count'
+        assert ssrfMatch.tags.find { it.startsWith('waf_version:') } != null
+
+        assert ssrfTimeout != null
+        assert ssrfTimeout.namespace == 'appsec'
+        assert ssrfTimeout.points[0][1] == 0.0
+        assert ssrfTimeout.type == 'count'
+        assert ssrfTimeout.tags.find { it.startsWith('waf_version:') } != null
+    }
 }
