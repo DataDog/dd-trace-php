@@ -42,8 +42,7 @@ if [[ -z $PR_NUMBER ]]; then
     --base $CURRENT_BRANCH \
     --head $TARGET_BRANCH \
     --title "chore: update supported versions" \
-    --body "This PR updates the tested versions list automatically." \
-  	--draft
+    --body "This PR updates the tested versions list automatically."
 else
   echo "A PR already exists."
 fi
