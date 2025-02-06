@@ -22,6 +22,8 @@ mod exception;
 mod timeline;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
+use crate::profiling::ShutdownError;
+use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
     ZendResult,
@@ -45,8 +47,6 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Once};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
-
-use crate::zend::datadog_sapi_globals_request_info;
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -889,11 +889,28 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     ZendResult::Success
 }
 
-extern "C" fn shutdown(_extension: *mut ZendExtension) {
+extern "C" fn shutdown(extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
-    trace!("shutdown({:p})", _extension);
+    trace!("shutdown({:p})", extension);
 
-    Profiler::shutdown(Duration::from_secs(2));
+    match Profiler::shutdown(Duration::from_secs(2)) {
+        Ok(hit_timeout) => {
+            // If a timeout was reached, then the thread is probably alive.
+            // This means the engine cannot unload our handle, or else we'd
+            // hit immediate undefined behavior (and likely crash).
+            if hit_timeout {
+                // SAFETY: during mshutdown, we have ownership of the extension
+                // struct. Our threads (which failed to join) do not mutate
+                // this struct at all either, providing no races.
+                unsafe { (*extension).handle = ptr::null_mut() }
+            }
+        }
+        Err(err) => match err {
+            // todo: do we actually need to panic/unwind here? We're already
+            //       shutting down... can we just be graceful?
+            ShutdownError::ThreadPanic { payload } => std::panic::resume_unwind(payload.0),
+        },
+    }
 
     // SAFETY: calling in shutdown before zai config is shutdown, and after
     // all configuration is done being accessed. Well... in the happy-path,

@@ -17,10 +17,9 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
+use crate::profiling::thread_utils::{JoinError, ThreadPanicError};
 use crate::{CLOCKS, TAGS};
 use chrono::Utc;
-#[cfg(feature = "timeline")]
-use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
@@ -35,11 +34,14 @@ use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::mem::forget;
 use std::num::NonZeroI64;
+use std::ops::BitOrAssign;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
+#[cfg(feature = "timeline")]
+use core::{ptr, str};
 #[cfg(feature = "timeline")]
 use std::time::UNIX_EPOCH;
 
@@ -689,33 +691,53 @@ impl Profiler {
     /// Completes the shutdown process; to start it, call [Profiler::stop]
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
+    /// Returns Ok(true) if any thread hit a timeout.
     ///
     /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
-    pub fn shutdown(timeout: Duration) {
+    pub fn shutdown(timeout: Duration) -> Result<bool, ShutdownError> {
         // SAFETY: the `take` access is a thread-safe API, and the PROFILER is
         // not being mutated outside single-threaded phases such  as minit and
         // mshutdown.
         if let Some(profiler) = unsafe { PROFILER.take() } {
-            profiler.join_collector_and_uploader(timeout);
+            Ok(profiler.join_collector_and_uploader(timeout)?)
+        } else {
+            Ok(false)
         }
     }
 
-    pub fn join_collector_and_uploader(self, timeout: Duration) {
+    fn join_collector_and_uploader(self, timeout: Duration) -> Result<bool, ThreadPanicError> {
         if self.should_join.load(Ordering::SeqCst) {
-            thread_utils::join_timeout(
-                self.time_collector_handle,
-                timeout,
-                "Recent samples may be lost.",
-            );
+            let result = thread_utils::join_timeout(self.time_collector_handle, timeout);
+            let mut hit_timeout = if let Err(err) = result {
+                match err {
+                    JoinError::ThreadPanic(err) => Err(err)?,
+                    timeout_err => {
+                        warn!("{}, recent samples may be lost", timeout_err);
+                        true
+                    }
+                }
+            } else {
+                false
+            };
 
             // Wait for the time_collector to join, since that will drop
             // the sender half of the channel that the uploader is
             // holding, allowing it to finish.
-            thread_utils::join_timeout(
-                self.uploader_handle,
-                timeout,
-                "Recent samples are most likely lost.",
-            );
+            let result = thread_utils::join_timeout(self.uploader_handle, timeout);
+            hit_timeout.bitor_assign(if let Err(err) = result {
+                match err {
+                    JoinError::ThreadPanic(err) => Err(err)?,
+                    timeout_err => {
+                        warn!("{}, recent samples are most likely lost", timeout_err);
+                        true
+                    }
+                }
+            } else {
+                false
+            });
+            Ok(hit_timeout)
+        } else {
+            Ok(false)
         }
     }
 
@@ -1286,6 +1308,15 @@ impl Profiler {
             },
         }
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ShutdownError {
+    #[error(transparent)]
+    ThreadPanic {
+        #[from]
+        payload: ThreadPanicError,
+    },
 }
 
 #[cfg(test)]
