@@ -35,8 +35,8 @@
       paths:
         - ~/.composer/cache
   before_script:
-    - mkdir -p "tmp/build_extensions/modules/"
-    - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "/tmp/build_extension/modules/"
+    - mkdir -p "tmp/build_extension/modules/"
+    - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
     - sudo composer self-update --no-interaction
     - composer update --no-interaction
     - make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension $(if [ -f ${CI_PROJECT_DIR}/target/debug/libddtrace_php.a ]; then echo EXTRA_CONFIGURE_OPTIONS=--with-ddtrace-rust-library=$(pwd)/target/debug/libddtrace_php.a; fi)
@@ -54,6 +54,7 @@ PHP Language Tests:
         ARCH: "amd64"
   needs:
     - job: "compile extension: debug"
+      artifacts: true
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "8.4"
