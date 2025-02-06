@@ -21,7 +21,7 @@
   variables:
     host_os: linux-gnu
     SHARED: "1"
-    ASAN: "0"
+    WITH_ASAN: "0"
     CARGO_HOME: "/rust/cargo/"
     SWITCH_PHP_VERSION: "debug"
     KUBERNETES_CPU_REQUEST: 12
@@ -49,7 +49,7 @@
 "compile extension: debug-zts-asan":
   extends: "compile extension: debug"
   variables:
-    ASAN: "1"
+    WITH_ASAN: "1"
     SWITCH_PHP_VERSION: "debug-zts-asan"
   parallel:
     matrix:

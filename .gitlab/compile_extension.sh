@@ -2,7 +2,7 @@
 set -eo pipefail
 
 SWITCH_PHP_VERSION=${SWITCH_PHP_VERSION:-}
-ASAN=${ASAN:-}
+WITH_ASAN=${WITH_ASAN:-}
 CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-target}
 EXTENSION_DIR=${EXTENSION_DIR:-tmp/build_extension}
 MODULES_DIR=${MODULES_DIR:-${EXTENSION_DIR}/modules}
@@ -15,7 +15,8 @@ if [ -n "${SWITCH_PHP_VERSION}" ]; then
   switch-php "${SWITCH_PHP_VERSION}"
 fi
 
-if [ -n "${ASAN}" ]; then
+if [ "${WITH_ASAN}" -eq "1" ]; then
+  export ASAN=1
   export COMPILE_ASAN=1
 fi
 # Compile Rust and PHP in parallel
