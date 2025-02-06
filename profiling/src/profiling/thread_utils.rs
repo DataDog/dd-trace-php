@@ -1,14 +1,15 @@
-#[cfg(php_zts)]
-use crate::sapi::Sapi;
 use crate::SAPI;
-#[cfg(php_zts)]
-use libc::c_char;
 use libc::sched_yield;
-use log::warn;
 use once_cell::sync::OnceCell;
+use std::any::Any;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+
+#[cfg(php_zts)]
+use crate::sapi::Sapi;
+#[cfg(php_zts)]
+use libc::c_char;
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -50,11 +51,23 @@ where
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("failed to join thread because it panicked")]
+pub struct ThreadPanicError(pub Box<dyn Any + Send + 'static>);
+
+#[derive(thiserror::Error, Debug)]
+pub enum JoinError {
+    #[error("timeout of {timeout_ms} ms reached when joining thread {thread}")]
+    Timeout { thread: String, timeout_ms: u128 },
+    #[error(transparent)]
+    ThreadPanic(ThreadPanicError),
+}
+
 /// Waits for the handle to be finished. If finished, it will join the handle.
 /// Otherwise, it will leak the handle.
 /// # Panics
 /// Panics if the thread being joined has panic'd.
-pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
+pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), JoinError> {
     // After notifying the other threads, it's likely they'll need some time
     // to respond adequately. Joining on the JoinHandle is supposed to be the
     // correct way to do this, but we've observed this can panic:
@@ -65,14 +78,16 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
     while !handle.is_finished() {
         unsafe { sched_yield() };
         if start.elapsed() >= timeout {
-            let name = handle.thread().name().unwrap_or("{unknown}");
-            warn!("Timeout of {timeout:?} reached when joining thread '{name}'. {impact}");
-            return;
+            let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
+            let timeout_ms = timeout.as_millis();
+            return Err(JoinError::Timeout { thread, timeout_ms });
         }
     }
 
     if let Err(err) = handle.join() {
-        std::panic::resume_unwind(err)
+        Err(JoinError::ThreadPanic(ThreadPanicError(err)))
+    } else {
+        Ok(())
     }
 }
 
