@@ -16,7 +16,6 @@
 | google/cloud-spanner        | 1.92.1                 | 1.92.1                 |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.9.2                  |
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
-| laminas/laminas-log         | 2.16.1                 | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
 | laravel/framework           | 4.2.22                 | 11.41.3                |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
