@@ -322,6 +322,9 @@ class TelemetryTests {
         }
         assert trace.traceId != null
 
+        RemoteConfigRequest rcReq = requestSup.get()
+        assert rcReq != null, 'No RC request received'
+
         // request covered by Appsec
         trace = CONTAINER.traceFromRequest('/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -345,7 +348,7 @@ class TelemetryTests {
             lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
             ssrfEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:ssrf' in it.tags}
             ssrfMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:ssrf' in it.tags}
-            ssrfTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
+            ssrfTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:ssrf' in it.tags}
 
              wafReq1 && lfiEval && ssrfEval && lfiMatch && ssrfMatch && lfiTimeout && ssrfTimeout
         }
