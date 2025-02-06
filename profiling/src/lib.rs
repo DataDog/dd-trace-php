@@ -889,7 +889,7 @@ extern "C" fn shutdown(_extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", _extension);
 
-    Profiler::shutdown(Duration::from_secs(2));
+    Profiler::shutdown(Duration::from_millis(10));
 
     // SAFETY: calling in shutdown before zai config is shutdown, and after
     // all configuration is done being accessed. Well... in the happy-path,
