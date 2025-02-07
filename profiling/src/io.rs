@@ -122,14 +122,14 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                     return;
                 }
 
-                trace!(
-                    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
-                    overwrite.symbol_name,
-                    (*rel).r_offset,
-                    got_entry,
-                    *got_entry,
-                    *overwrite.orig_func
-                );
+                //trace!(
+                //    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
+                //    overwrite.symbol_name,
+                //    (*rel).r_offset,
+                //    got_entry,
+                //    *got_entry,
+                //    *overwrite.orig_func
+                //);
 
                 // This works for musl based linux distros, but not for libc once
                 *overwrite.orig_func = libc::dlsym(libc::RTLD_NEXT, name_ptr) as *mut ();
@@ -139,14 +139,14 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                 }
                 *got_entry = overwrite.new_func;
 
-                trace!(
-                    "Overrode GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
-                    overwrite.symbol_name,
-                    (*rel).r_offset,
-                    got_entry,
-                    *got_entry,
-                    *overwrite.orig_func
-                );
+                //trace!(
+                //    "Overrode GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
+                //    overwrite.symbol_name,
+                //    (*rel).r_offset,
+                //    got_entry,
+                //    *got_entry,
+                //    *overwrite.orig_func
+                //);
                 continue;
             }
         }
@@ -185,7 +185,7 @@ unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut 
     //libc::raise(libc::SIGTRAP);
 
     // I guess if we try to hook into GOT from `linux-vdso` or `ld-linux` our best outcome will be
-    // that nothing happens, most likely we'll crash
+    // that nothing happens, but most likely we'll crash and we should avoid that.
     if name.contains("linux-vdso") || name.contains("ld-linux") {
         return 0;
     }
@@ -194,15 +194,9 @@ unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut 
     // as such we might sample from another thread even in a NTS build of PHP, which we should not.
     // So instead of crashing (or risking a crash) we currently refrain from collection I/O from
     // name resolution.
-    //if name.contains("resolve") {
-    //    return 0;
-    //}
-
-    trace!(
-        "ELF headers at: 0x{:x}, Library: {}",
-        (*info).dlpi_addr,
-        name
-    );
+    if name.contains("resolve") {
+        return 0;
+    }
 
     override_got_entry(info, overwrites);
 
@@ -216,26 +210,21 @@ struct GotSymbolOverwrite {
 }
 
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, u64, c_int) -> i32 = libc::poll;
+/// The `poll()` libc call has only every been observed when reading/writing to/from a socket,
+/// never when reading/writing to a file. There is two known cases in PHP:
+/// - the PHP stream layer (e.g. `file_get_contents("proto://url")`)
+/// - the curl extension in `curl_exec()`/`curl_multi_exec()`
+/// The `nfds` argument is usually 1, in case of a `curl_multi_exec()` call it is >= 1 and exactly
+/// the number of concurrent requests. In rare cases the `nfds` argument is 0 and fds a
+/// NULL-pointer. This is basically and "old trick" to ms precision sleep() and currently ignored.
 unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c_int) -> i32 {
-    //ORIG_POLL(fds, nfds, timeout)
     let start = Instant::now();
     let ret = ORIG_POLL(fds, nfds, timeout);
     let duration = start.elapsed();
-    //println!(
-    //    "Observed poll of with a duration of {} nanoseconds on {} nfds with a timeout of {}",
-    //    duration.as_nanos(),
-    //    nfds,
-    //    timeout
-    //);
-
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return fds;
-    //}
 
     let io_time_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
@@ -243,9 +232,20 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
         return ret;
     }
 
-    // TODO curl_multi_exec might look at multiple nfds
-    if nfds == 1 && !fds.is_null() {
-        if (*fds).events & 1 == 1 {
+    if !fds.is_null() {
+        if (*fds).revents & 1 == 1 {
+            println!("poll waited on reading");
+            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(duration.as_nanos() as u64)
+            });
+        } else if (*fds).revents & 4 == 4 {
+            println!("poll waited on writing");
+            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(duration.as_nanos() as u64)
+            });
+        } else if (*fds).events & 1 == 1 {
             println!("poll waited on reading");
             SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
@@ -257,50 +257,16 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
+        } else {
+            println!("No idea what happened: {} {}", (*fds).events, (*fds).revents);
         }
     }
 
     ret
 }
 
-static mut ORIG_SELECT: unsafe extern "C" fn(
-    c_int,
-    *mut libc::fd_set,
-    *mut libc::fd_set,
-    *mut libc::fd_set,
-    *mut libc::timeval,
-) -> i32 = libc::select;
-unsafe extern "C" fn observed_select(
-    nfds: c_int,
-    readfds: *mut libc::fd_set,
-    writefds: *mut libc::fd_set,
-    exceptfds: *mut libc::fd_set,
-    timeout: *mut libc::timeval,
-) -> i32 {
-    //ORIG_SELECT(nfds, readfds, writefds, exceptfds, timeout)
-    let start = Instant::now();
-    let fds = ORIG_SELECT(nfds, readfds, writefds, exceptfds, timeout);
-    let duration = start.elapsed();
-    println!(
-        "Observed select of with a duration of {} nanoseconds, nfds {}",
-        duration.as_nanos(),
-        nfds
-    );
-
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return fds;
-    //}
-
-    //IO_READ_PROFILING_STATS.with(|cell| {
-    //    let mut io = cell.borrow_mut();
-    //    io.track(duration.as_nanos() as u64)
-    //});
-
-    fds
-}
-
 static mut ORIG_RECV: unsafe extern "C" fn(c_int, *mut c_void, usize, c_int) -> isize = libc::recv;
+
 unsafe extern "C" fn observed_recv(
     socket: c_int,
     buf: *mut c_void,
@@ -310,35 +276,18 @@ unsafe extern "C" fn observed_recv(
     let start = Instant::now();
     let len = ORIG_RECV(socket, buf, length, flags);
     let duration = start.elapsed();
-    println!(
-        "Observed recv of {len} bytes ({length} bytes buffer) with a duration of {} nanoseconds",
-        duration.as_nanos()
-    );
 
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return len;
-    //}
-
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
-            .unwrap_or(false)
-    });
-    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
-    if io_time_profiling {
+    if io_profiling {
         SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-    }
-
-    if io_size_profiling {
         SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -356,39 +305,21 @@ unsafe extern "C" fn observed_send(
     length: usize,
     flags: c_int,
 ) -> isize {
-    //libc::raise(libc::SIGTRAP);
     let start = Instant::now();
     let len = ORIG_SEND(socket, buf, length, flags);
     let duration = start.elapsed();
-    println!(
-        "Observed send of {len} bytes with a duration of {} nanoseconds",
-        duration.as_nanos()
-    );
 
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return len;
-    //}
-
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
-            .unwrap_or(false)
-    });
-    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
-    if io_time_profiling {
+    if io_profiling {
         SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-    }
-
-    if io_size_profiling {
         SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -403,35 +334,18 @@ unsafe extern "C" fn observed_fwrite(buf: *const c_void, size: usize, n: usize, 
     let start = Instant::now();
     let len = ORIG_FWRITE(buf, size, n, stream);
     let duration = start.elapsed();
-    println!(
-        "Observed fwrite of {len} bytes with a duration of {} nanoseconds",
-        duration.as_nanos()
-    );
 
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return len;
-    //}
-
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
-            .unwrap_or(false)
-    });
-    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
-    if io_time_profiling {
+    if io_profiling {
         FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-    }
-
-    if io_size_profiling {
         FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -447,35 +361,18 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     let start = Instant::now();
     let len = ORIG_WRITE(fd, buf, count);
     let duration = start.elapsed();
-    //println!(
-    //    "Observed write of {len} bytes with a duration of {} nanoseconds",
-    //    duration.as_nanos()
-    //);
 
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return len;
-    //}
-
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
-            .unwrap_or(false)
-    });
-    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
-    if io_time_profiling {
+    if io_profiling {
         FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-    }
-
-    if io_size_profiling {
         FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -486,34 +383,25 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
 }
 
 static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc::FILE) -> usize = libc::fread;
+// So far there seems to be only one situation where a file is read using `fread()` instead of
+// `read()` in PHP and that is when compiling a PHP file, triggered by it being the start file or a
+// userland call to `include()`/`require()` functions.
 unsafe extern "C" fn observed_fread(buf: *mut c_void, size: usize, n: usize, fp: *mut libc::FILE) -> usize {
     let start = Instant::now();
     let len = ORIG_FREAD(buf, size, n, fp);
     let duration = start.elapsed();
-    println!(
-        "Observed fread of {len} bytes with a duration of {} nanoseconds",
-        duration.as_nanos()
-    );
 
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
-            .unwrap_or(false)
-    });
-    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
-    if io_time_profiling {
+    if io_profiling {
         FILE_READ_TIME_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-    }
-
-    if io_size_profiling {
         FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -528,35 +416,18 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     let start = Instant::now();
     let len = ORIG_READ(fd, buf, count);
     let duration = start.elapsed();
-    println!(
-        "Observed read of {len} bytes ({count} bytes buffer) with a duration of {} nanoseconds",
-        duration.as_nanos()
-    );
 
-    //let now = SystemTime::now().duration_since(UNIX_EPOCH);
-    //if now.is_err() {
-    //    return len;
-    //}
-
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_time_enabled)
-            .unwrap_or(false)
-    });
-    let io_size_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_size_enabled)
+            .map(|locals| locals.system_settings().profiling_io_enabled)
             .unwrap_or(false)
     });
 
-    if io_time_profiling {
+    if io_profiling {
         FILE_READ_TIME_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-    }
-
-    if io_size_profiling {
         FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -564,11 +435,6 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     }
 
     len
-}
-
-static mut ORIG_FLOCK: unsafe extern "C" fn(c_int, c_int) -> c_int = libc::flock;
-unsafe extern "C" fn observed_flock(fd: c_int, op: c_int) -> c_int {
-    ORIG_FLOCK(fd, op)
 }
 
 /// Take a sample every 1 second of read I/O
@@ -816,16 +682,6 @@ pub fn io_prof_minit() {
                 symbol_name: "fread",
                 new_func: observed_fread as *mut (),
                 orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "flock",
-                new_func: observed_flock as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_FLOCK) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "select",
-                new_func: observed_select as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_SELECT) as *mut _ as *mut *mut (),
             },
             GotSymbolOverwrite {
                 symbol_name: "poll",
