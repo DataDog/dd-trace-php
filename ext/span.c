@@ -44,9 +44,9 @@ static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
 
     if (span->std.ce == ddtrace_ce_root_span_data) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        LOG(SPAN_TRACE, "Dropping root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
+        LOG(DEBUG, "Dropping root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
     } else {
-        LOG(SPAN_TRACE, "Dropping span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
+        LOG(DEBUG, "Dropping span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
     }
 }
 
@@ -150,7 +150,7 @@ uint64_t ddtrace_nanoseconds_realtime(void) {
     return ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
 }
 
-ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
+ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type, bool is_inferred) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
     bool primary_stack = stack->parent_stack == NULL;
@@ -165,8 +165,11 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     // ensure dtor can be called again
     GC_DEL_FLAGS(&stack->std, IS_OBJ_DESTRUCTOR_CALLED);
 
+    bool child_of_inferred_span = DDTRACE_G(active_stack)->root_span != NULL
+            && DDTRACE_G(active_stack)->root_span->is_inferred_span
+            && DDTRACE_G(active_stack)->root_span->child_root == NULL;
     bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
-    ddtrace_span_data *span = ddtrace_init_span(type, root_span ? ddtrace_ce_root_span_data : ddtrace_ce_span_data);
+    ddtrace_span_data *span = ddtrace_init_span(type, (root_span || child_of_inferred_span) ? ddtrace_ce_root_span_data : ddtrace_ce_span_data);
 
     // All open spans hold a ref to their stack
     ZVAL_OBJ_COPY(&span->property_stack, &stack->std);
@@ -203,7 +206,25 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         ZVAL_NULL(&span->property_parent);
         span->parent = NULL;
 
-        ddtrace_set_root_span_properties(root);
+        ddtrace_set_root_span_properties(root, is_inferred);
+    } else if (child_of_inferred_span) {
+        span->is_child_of_inferred_span = true;
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+        DDTRACE_G(active_stack)->root_span->child_root = root;
+
+        root->trace_id = DDTRACE_G(active_stack)->root_span->trace_id;
+        root->parent_id = DDTRACE_G(active_stack)->root_span->span.span_id;
+        ZVAL_OBJ(&span->property_parent, &DDTRACE_G(active_stack)->root_span->span.std);
+        ddtrace_inherit_span_properties(span, &DDTRACE_G(active_stack)->root_span->span);
+        dd_set_entrypoint_root_span_props_from_globals(root);
+
+        zval *prop_name = &span->property_name;
+        zval_ptr_dtor(prop_name);
+        ZVAL_STR(prop_name, ddtrace_default_service_name());
+
+        zval *prop_service = &span->property_service;
+        zval_ptr_dtor(prop_service);
+        ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
@@ -216,13 +237,13 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
 
     if (root_span) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        LOG(SPAN_TRACE, "Starting new root span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d, parent_SpanStack=%d", Z_STRVAL(root->property_trace_id), span->span_id, root->parent_id, root->stack->std.handle, root->stack->parent_stack->std.handle);
+        LOG(DEBUG, "Starting new root span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d, parent_SpanStack=%d", Z_STRVAL(root->property_trace_id), span->span_id, root->parent_id, root->stack->std.handle, root->stack->parent_stack->std.handle);
 
         if (ddtrace_span_is_entrypoint_root(span)) {
             ddtrace_sidecar_submit_root_span_data();
         }
     } else {
-        LOG(SPAN_TRACE, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
+        LOG(DEBUG, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
     }
 
     return span;
@@ -236,7 +257,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         span = Z_PTR_P(span_zv);
         Z_TYPE_INFO_P(span_zv) += 2;
     } else {
-        span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
+        span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN, false);
 
         // SpanData::$name defaults to fully qualified called name
         zval *prop_name = &span->property_name;
@@ -314,9 +335,9 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     if (target_stack->active) {
         ddtrace_span_data *span = SPANDATA(target_stack->active);
-        LOG(SPAN_TRACE, "Switching to different SpanStack: %d, top of stack: trace_id=%s, span_id=%" PRIu64, target_stack->std.handle, Z_STRVAL(span->root->property_trace_id), span->span_id);
+        LOG(DEBUG, "Switching to different SpanStack: %d, top of stack: trace_id=%s, span_id=%" PRIu64, target_stack->std.handle, Z_STRVAL(span->root->property_trace_id), span->span_id);
     } else {
-        LOG(SPAN_TRACE, "Switching to different SpanStack: %d", target_stack->std.handle);
+        LOG(DEBUG, "Switching to different SpanStack: %d", target_stack->std.handle);
     }
 
     GC_ADDREF(&target_stack->std);
@@ -351,7 +372,7 @@ ddtrace_span_stack *ddtrace_init_root_span_stack(void) {
     span_stack->root_stack = span_stack;
     span_stack->root_span = NULL;
 
-    LOG(SPAN_TRACE, "Creating new root SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
+    LOG(DEBUG, "Creating new root SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
 
     return span_stack;
 }
@@ -363,13 +384,19 @@ ddtrace_span_stack *ddtrace_init_span_stack(void) {
     span_stack->root_stack = DDTRACE_G(active_stack)->root_stack;
     span_stack->root_span = DDTRACE_G(active_stack)->root_span;
 
-    LOG(SPAN_TRACE, "Creating new SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
+    LOG(DEBUG, "Creating new SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
 
     return span_stack;
 }
 
 void ddtrace_push_root_span(void) {
-    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN);
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN, false);
+    // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
+    GC_DELREF(&span->std);
+}
+
+void ddtrace_push_inferred_root_span(void) {
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN, true);
     // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
     GC_DELREF(&span->std);
 }
@@ -555,6 +582,16 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     ddtrace_close_stack_userland_spans_until(span);
 
     ddtrace_close_top_span_without_stack_swap(span);
+
+    // Check if the span is a child of an inferred span and if so, close the parent span
+    /*
+    if (DDTRACE_G(active_stack)->root_span->is_inferred_span && &(DDTRACE_G(active_stack)->root_span->child_root->span) == span)
+    {
+        ddtrace_span_data inferred_span = DDTRACE_G(active_stack)->root_span->span;
+        dd_trace_stop_span_time(&inferred_span);
+        ddtrace_close_span(&inferred_span);
+    }
+     */
 }
 
 void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
@@ -612,9 +649,9 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
 
     if (span->std.ce == ddtrace_ce_root_span_data) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        LOG(SPAN_TRACE, "Closing root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
+        LOG(DEBUG, "Closing root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
     } else {
-        LOG(SPAN_TRACE, "Closing span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
+        LOG(DEBUG, "Closing span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
     }
 
     if (!stack->active || SPANDATA(stack->active)->stack != stack) {
@@ -657,7 +694,7 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
 
             ddtrace_span_data *span;
             while (stack->active && (span = SPANDATA(stack->active))->stack == stack) {
-                LOG(SPAN_TRACE, "Automatically finishing the next span (in shutdown or force flush requested)");
+                LOG(DEBUG, "Automatically finishing the next span (in shutdown or force flush requested)");
                 if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
@@ -795,4 +832,64 @@ zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
     zend_string *str = zend_string_alloc(32, 0);
     snprintf(ZSTR_VAL(str), 33, "%016" PRIx64 "%016" PRIx64, id.high, id.low);
     return str;
+}
+
+void ddtrace_infer_proxy_services(void) {
+    zend_array *server = Z_ARRVAL(PG(http_globals)[TRACK_VARS_SERVER]);
+    zval *proxy_header_system = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY"));
+    zval *proxy_header_start_time_ms = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_REQUEST_TIME_MS"));
+    if (!proxy_header_system || Z_TYPE_P(proxy_header_system) != IS_STRING || Z_STRLEN_P(proxy_header_system) == 0 || !proxy_header_start_time_ms || Z_TYPE_P(proxy_header_start_time_ms) != IS_STRING || Z_STRLEN_P(proxy_header_start_time_ms) == 0) {
+        return;
+    }
+
+    zval *proxy_header_path = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_PATH"));
+    zval *proxy_header_http_method = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_HTTPMETHOD"));
+    zval *proxy_header_domain = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_DOMAIN_NAME"));
+    zval *proxy_header_stage = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_STAGE"));
+
+
+    ddtrace_push_inferred_root_span();
+    ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
+    rsd->is_inferred_span = true;
+
+    zval *prop_name = &rsd->span.property_name;
+    zval_ptr_dtor(prop_name);
+    ZVAL_STR_COPY(prop_name, Z_STR_P(proxy_header_system));
+
+    zval *prop_resource = &rsd->span.property_resource;
+    zval_ptr_dtor(prop_resource);
+    ZVAL_STR(prop_resource, strpprintf(0, "%s %s", Z_STRVAL_P(proxy_header_http_method), Z_STRVAL_P(proxy_header_path)));
+
+    rsd->span.start = (zend_long)zend_strtod(Z_STRVAL_P(proxy_header_start_time_ms), NULL) * 1000000;
+
+    if (proxy_header_domain && Z_TYPE_P(proxy_header_domain) == IS_STRING && Z_STRLEN_P(proxy_header_domain) > 0) {
+        zval *prop_service = &rsd->span.property_service;
+        zval_ptr_dtor(prop_service);
+        ZVAL_STR_COPY(prop_service, Z_STR_P(proxy_header_domain));
+    } // Defaults to DD_SERVICE
+
+    // Set meta component to aws-apigateway
+    zend_array *meta = ddtrace_property_array(&rsd->span.property_meta);
+    zval component;
+    ZVAL_STR(&component, zend_string_init("aws-apigateway", sizeof("aws-apigateway") - 1, 0));
+    zend_hash_str_add_new(meta, ZEND_STRL("component"), &component);
+
+    // Set meta "http.method" to value of x-dd-proxy-httpmethod
+    zval http_method;
+    ZVAL_STR_COPY(&http_method, Z_STR_P(proxy_header_http_method));
+    zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);
+
+    // Set meta "http.url" to x-dd-proxy-domain-name + x-dd-proxy-path
+    zval http_url;
+    ZVAL_STR(&http_url, strpprintf(0, "%s%s", Z_STRVAL_P(proxy_header_domain), Z_STRVAL_P(proxy_header_path)));
+    zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &http_url);
+
+    // Set meta "stage" to x-dd-proxy-stage
+    if (proxy_header_stage && Z_TYPE_P(proxy_header_stage) == IS_STRING && Z_STRLEN_P(proxy_header_stage) > 0) {
+        zval stage;
+        ZVAL_STR_COPY(&stage, Z_STR_P(proxy_header_stage));
+        zend_hash_str_add_new(meta, ZEND_STRL("stage"), &stage);
+    }
+    
+    LOG(DEBUG, "Inferred trace_id=%s, span_id=%" PRIu64 " from HTTP_X_DD_PROXY header", Z_STRVAL(rsd->property_trace_id), rsd->span.span_id);
 }

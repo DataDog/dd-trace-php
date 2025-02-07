@@ -737,7 +737,25 @@ zend_string *ddtrace_active_service_name(void) {
     return ddtrace_default_service_name();
 }
 
-void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
+void dd_set_entrypoint_root_span_props_from_globals(ddtrace_root_span_data *span) {
+    struct superglob_equiv data = {0};
+    {
+        zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
+        if (Z_TYPE_P(_server_zv) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
+            data.server = Z_ARRVAL_P(_server_zv);
+        }
+    }
+    {
+        zval *_post_zv = &PG(http_globals)[TRACK_VARS_POST];
+        if (Z_TYPE_P(_post_zv) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST"))) {
+            data.post = Z_ARRVAL_P(_post_zv);
+        }
+    }
+
+    dd_set_entrypoint_root_span_props(&data, span);
+}
+
+void ddtrace_set_root_span_properties(ddtrace_root_span_data *span, bool is_inferred) {
     ddtrace_update_root_id_properties(span);
 
     span->sampling_rule.rule = INT32_MAX;
@@ -759,22 +777,8 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ZVAL_STR(&zv, encoded_id);
     zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
 
-    if (ddtrace_span_is_entrypoint_root(&span->span)) {
-        struct superglob_equiv data = {0};
-        {
-            zval *_server_zv = &PG(http_globals)[TRACK_VARS_SERVER];
-            if (Z_TYPE_P(_server_zv) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_SERVER"))) {
-                data.server = Z_ARRVAL_P(_server_zv);
-            }
-        }
-        {
-            zval *_post_zv = &PG(http_globals)[TRACK_VARS_POST];
-            if (Z_TYPE_P(_post_zv) == IS_ARRAY || zend_is_auto_global_str(ZEND_STRL("_POST"))) {
-                data.post = Z_ARRVAL_P(_post_zv);
-            }
-        }
-
-        dd_set_entrypoint_root_span_props(&data, span);
+    if (ddtrace_span_is_entrypoint_root(&span->span) && !is_inferred) {
+        dd_set_entrypoint_root_span_props_from_globals(span);
     }
 
     if (get_DD_TRACE_REPORT_HOSTNAME()) {
@@ -1180,6 +1184,17 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
+    } else if (span->std.ce == ddtrace_ce_root_span_data) {
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+        if (root->is_inferred_span) {
+            zval *child_exception_zv = &root->child_root->span.property_exception;
+            has_exception = Z_TYPE_P(child_exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(child_exception_zv), zend_ce_throwable);
+            if (has_exception) {
+                ignore_error = false;
+                enum dd_exception exception_type = Z_PROP_FLAG_P(child_exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
+                ddtrace_exception_to_meta(Z_OBJ_P(child_exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
+            }
+        }
     }
 
     zend_array *span_links = ddtrace_property_array(&span->property_links);

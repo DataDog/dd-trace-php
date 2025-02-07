@@ -1612,6 +1612,10 @@ static void dd_initialize_request(void) {
     ddtrace_distributed_tracing_result distributed_result = ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, NULL);
     ddtrace_apply_distributed_tracing_result(&distributed_result, NULL);
 
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        ddtrace_infer_proxy_services();
+    }
+
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
     }
@@ -2693,6 +2697,10 @@ PHP_FUNCTION(DDTrace_root_span) {
     }
     dd_ensure_root_span();
     ddtrace_root_span_data *span = DDTRACE_G(active_stack)->root_span;
+    if (span && span->is_inferred_span) {
+        span = span->child_root;
+    }
+
     if (span) {
         RETURN_OBJ_COPY(&span->std);
     }
@@ -2709,7 +2717,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     ddtrace_span_data *span;
 
     if (get_DD_TRACE_ENABLED()) {
-        span = ddtrace_open_span(DDTRACE_USER_SPAN);
+        span = ddtrace_open_span(DDTRACE_USER_SPAN, false);
     } else {
         span = ddtrace_init_dummy_span();
     }

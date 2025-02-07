@@ -11,7 +11,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array);
 
 void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_data *span);
-void ddtrace_set_root_span_properties(ddtrace_root_span_data *span);
+void dd_set_entrypoint_root_span_props_from_globals(ddtrace_root_span_data *span);
+void ddtrace_set_root_span_properties(ddtrace_root_span_data *span, bool is_inferred);
 void ddtrace_update_root_id_properties(ddtrace_root_span_data *span);
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent);
 zend_string *ddtrace_default_service_name(void);
