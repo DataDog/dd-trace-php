@@ -60,7 +60,7 @@ impl SampleTypeFilter {
             }
 
             #[cfg(feature = "io_profiling")]
-            if system_settings.profiling_io_time_enabled {
+            if system_settings.profiling_io_enabled {
                 sample_types.push(SAMPLE_TYPES[7]);
                 sample_types_mask[7] = true;
                 sample_types.push(SAMPLE_TYPES[8]);
@@ -69,10 +69,6 @@ impl SampleTypeFilter {
                 sample_types_mask[9] = true;
                 sample_types.push(SAMPLE_TYPES[10]);
                 sample_types_mask[10] = true;
-            }
-
-            #[cfg(feature = "io_profiling")]
-            if system_settings.profiling_io_size_enabled {
                 sample_types.push(SAMPLE_TYPES[11]);
                 sample_types_mask[11] = true;
                 sample_types.push(SAMPLE_TYPES[12]);
