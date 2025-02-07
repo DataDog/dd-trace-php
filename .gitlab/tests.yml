@@ -43,8 +43,9 @@
     - composer update --no-interaction
     - make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension $(if [ -f ${CI_PROJECT_DIR}/target/debug/libddtrace_php.a ]; then echo EXTRA_CONFIGURE_OPTIONS=--with-ddtrace-rust-library=$(pwd)/target/debug/libddtrace_php.a; fi)
     - wait-for test-agent:9126 --timeout=30
-    - mkdir test-results
   after_script:
+    - mv /usr/local/src/php/tests/output/ tests/
+    - mv /tmp/artifacts/ tests/
     - .gitlab/check_test_agent.sh
     - .gitlab/check_for_core_dumps.sh
 
@@ -67,13 +68,13 @@ PHP Language Tests:
     DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
-    TEST_PHP_JUNIT: /tmp/artifacts/tests/php-tests.xml
+    TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TEST: "1"
   script:
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
     - .gitlab/run_php_language_tests.sh
   artifacts:
     paths:
-      - "/usr/local/src/php/tests/output/"
-      - "/tmp/artifacts/"
+      - "tests/output/"
+      - "tests/artifacts/"
     when: "always"
