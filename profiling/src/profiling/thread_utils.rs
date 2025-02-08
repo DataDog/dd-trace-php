@@ -1,7 +1,6 @@
 use crate::SAPI;
 use libc::sched_yield;
 use once_cell::sync::OnceCell;
-use std::any::Any;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -52,22 +51,17 @@ where
 }
 
 #[derive(thiserror::Error, Debug)]
-#[error("failed to join thread because it panicked")]
-pub struct ThreadPanicError(pub Box<dyn Any + Send + 'static>);
-
-#[derive(thiserror::Error, Debug)]
-pub enum JoinError {
-    #[error("timeout of {timeout_ms} ms reached when joining thread {thread}")]
-    Timeout { thread: String, timeout_ms: u128 },
-    #[error(transparent)]
-    ThreadPanic(ThreadPanicError),
+#[error("timeout of {timeout_ms} ms reached when joining thread {thread}")]
+pub struct TimeoutError {
+    thread: String,
+    timeout_ms: u128,
 }
 
 /// Waits for the handle to be finished. If finished, it will join the handle.
-/// Otherwise, it will leak the handle.
+/// Otherwise, it will leak the handle and return an error.
 /// # Panics
-/// Panics if the thread being joined has panic'd.
-pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), JoinError> {
+/// If the thread being joined has panic'd, this will resume the panic.
+pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), TimeoutError> {
     // After notifying the other threads, it's likely they'll need some time
     // to respond adequately. Joining on the JoinHandle is supposed to be the
     // correct way to do this, but we've observed this can panic:
@@ -80,15 +74,14 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Joi
         if start.elapsed() >= timeout {
             let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
             let timeout_ms = timeout.as_millis();
-            return Err(JoinError::Timeout { thread, timeout_ms });
+            return Err(TimeoutError { thread, timeout_ms });
         }
     }
 
     if let Err(err) = handle.join() {
-        Err(JoinError::ThreadPanic(ThreadPanicError(err)))
-    } else {
-        Ok(())
+        std::panic::resume_unwind(err);
     }
+    Ok(())
 }
 
 thread_local! {

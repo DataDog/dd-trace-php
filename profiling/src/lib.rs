@@ -22,7 +22,6 @@ mod exception;
 mod timeline;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
-use crate::profiling::ShutdownError;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -893,23 +892,16 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", extension);
 
-    match Profiler::shutdown(Duration::from_secs(2)) {
-        Ok(hit_timeout) => {
-            // If a timeout was reached, then the thread is probably alive.
-            // This means the engine cannot unload our handle, or else we'd
-            // hit immediate undefined behavior (and likely crash).
-            if hit_timeout {
-                // SAFETY: during mshutdown, we have ownership of the extension
-                // struct. Our threads (which failed to join) do not mutate
-                // this struct at all either, providing no races.
-                unsafe { (*extension).handle = ptr::null_mut() }
-            }
-        }
-        Err(err) => match err {
-            // todo: do we actually need to panic/unwind here? We're already
-            //       shutting down... can we just be graceful?
-            ShutdownError::ThreadPanic { payload } => std::panic::resume_unwind(payload.0),
-        },
+    // If a timeout was reached, then the thread is possibly alive.
+    // This means the engine cannot unload our handle, or else we'd hit
+    // immediate undefined behavior (and likely crash).
+    if let Err(err) = Profiler::shutdown(Duration::from_secs(2)) {
+        // SAFETY: during mshutdown, we have ownership of the extension struct.
+        // Our threads (which failed to join) do not mutate this struct at all
+        // either, providing no races.
+        let num_failures = err.num_failures;
+        error!("{num_failures} thread(s) failed to join, intentionally leaking the extension's handle to prevent unloading");
+        unsafe { (*extension).handle = ptr::null_mut() }
     }
 
     // SAFETY: calling in shutdown before zai config is shutdown, and after
