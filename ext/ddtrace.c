@@ -887,6 +887,9 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     if (result.tracestate) {
         zend_string_release(result.tracestate);
     }
+    if (result.baggage) {
+        zend_string_release(result.baggage);
+    }
 }
 
 /* DDTrace\SpanData */
@@ -1662,6 +1665,11 @@ static void dd_clean_globals(void) {
     if (DDTRACE_G(tracestate)) {
         zend_string_release(DDTRACE_G(tracestate));
         DDTRACE_G(tracestate) = NULL;
+    }
+
+    if (DDTRACE_G(baggage)) {
+        zend_string_release(DDTRACE_G(baggage));
+        DDTRACE_G(baggage) = NULL;
     }
 
     ddtrace_internal_handlers_rshutdown();

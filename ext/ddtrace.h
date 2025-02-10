@@ -128,6 +128,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint64_t distributed_parent_trace_id;
     zend_string *dd_origin;
     zend_reference *curl_multi_injecting_spans;
+    zend_string *baggage;
 
     char *cgroup_file;
     ddog_QueueId sidecar_queue_id;

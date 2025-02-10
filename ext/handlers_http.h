@@ -106,6 +106,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     zend_string *origin = DDTRACE_G(dd_origin);
     zend_array *tracestate_unknown_dd_keys = &DDTRACE_G(tracestate_unknown_dd_keys);
     zend_string *tracestate = DDTRACE_G(tracestate);
+    zend_string *baggage = DDTRACE_G(baggage);
     if (root) {
         if (Z_TYPE(root->property_origin) == IS_STRING && Z_STRLEN(root->property_origin)) {
             origin = Z_STR(root->property_origin);
@@ -118,6 +119,11 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             tracestate = NULL;
         }
         tracestate_unknown_dd_keys = ddtrace_property_array(&root->property_tracestate_tags);
+        if (Z_TYPE(root->property_baggage) == IS_STRING && Z_STRLEN(root->property_baggage)) {
+            baggage = Z_STR(root->property_baggage);
+        } else {
+            baggage = NULL;
+        }
     }
 
     zval headers;
@@ -134,6 +140,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_tracestate = zend_hash_str_exists(inject, ZEND_STRL("tracecontext"));
     bool send_b3 = zend_hash_str_exists(inject, ZEND_STRL("b3")) || zend_hash_str_exists(inject, ZEND_STRL("b3multi"));
     bool send_b3single = zend_hash_str_exists(inject, ZEND_STRL("b3 single header"));
+    bool send_baggage = zend_hash_str_exists(inject, ZEND_STRL("baggage"));
 
     zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
     if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == true) {
@@ -239,6 +246,10 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         }
     }
 
+    if (send_baggage && baggage) {
+        ADD_HEADER("baggage", "%s", ZSTR_VAL(baggage));
+    }
+    
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
