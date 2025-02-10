@@ -932,6 +932,7 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
 #endif
+    span->child_root = NULL;
     return &span->std;
 }
 

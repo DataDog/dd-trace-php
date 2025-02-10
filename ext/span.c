@@ -861,6 +861,7 @@ void ddtrace_infer_proxy_services(void) {
     ZVAL_STR(prop_resource, strpprintf(0, "%s %s", Z_STRVAL_P(proxy_header_http_method), Z_STRVAL_P(proxy_header_path)));
 
     rsd->span.start = (zend_long)zend_strtod(Z_STRVAL_P(proxy_header_start_time_ms), NULL) * 1000000;
+    rsd->span.duration_start = zend_htime() - rsd->span.start;
 
     if (proxy_header_domain && Z_TYPE_P(proxy_header_domain) == IS_STRING && Z_STRLEN_P(proxy_header_domain) > 0) {
         zval *prop_service = &rsd->span.property_service;
