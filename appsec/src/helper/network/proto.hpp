@@ -300,7 +300,6 @@ struct request_shutdown {
         std::unordered_map<std::string_view,
             std::vector<std::pair<double, std::string>>>
             tel_metrics;
-        std::map<std::string, std::string> settings;
 
         MSGPACK_DEFINE(actions, triggers, force_keep, settings, meta, metrics,
             tel_metrics);
