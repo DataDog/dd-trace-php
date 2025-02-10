@@ -865,6 +865,7 @@ void ddtrace_infer_proxy_services(void) {
     span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start); // // Now - offset
 
     if (proxy_header_domain && Z_TYPE_P(proxy_header_domain) == IS_STRING && Z_STRLEN_P(proxy_header_domain) > 0) {
+        LOG(DEBUG, "Inferred service=%s from HTTP_X_DD_PROXY header", Z_STRVAL_P(proxy_header_domain));
         zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, Z_STR_P(proxy_header_domain));
