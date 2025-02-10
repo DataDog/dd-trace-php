@@ -240,7 +240,8 @@ function response_request_init($message, $mergeWithEmpty = true) {
                 ]
             ],
             [], //triggers
-            false //force_keep
+            false, //force_keep
+            [] // settings
         ], $message);
     }
     return response("request_init", $message);
@@ -256,7 +257,8 @@ function response_request_exec($message, $mergeWithEmpty = true) {
                 ]
             ],
             [],
-            false
+            false,
+            []
         ], $message);
     }
     return response("request_exec", $message);
@@ -273,6 +275,7 @@ function response_request_shutdown($message, $mergeWithEmpty = true) {
             ],
             [],
             false,
+            [],
             [],
             [],
             []

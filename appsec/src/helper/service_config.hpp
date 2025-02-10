@@ -92,18 +92,18 @@ inline std::string_view to_string_view(enable_asm_status status)
 inline std::string_view to_string_view(auto_user_instrum_mode mode)
 {
     if (mode == auto_user_instrum_mode::UNDEFINED) {
-        return "UNDEFINED";
+        return "undefined";
     }
     if (mode == auto_user_instrum_mode::DISABLED) {
-        return "DISABLED";
+        return "disabled";
     }
     if (mode == auto_user_instrum_mode::IDENTIFICATION) {
-        return "IDENTIFICATION";
+        return "identification";
     }
     if (mode == auto_user_instrum_mode::ANONYMIZATION) {
-        return "ANONYMIZATION";
+        return "anonymization";
     }
-    return "UNKNOWN";
+    return "unknown";
 }
 
 struct service_config {

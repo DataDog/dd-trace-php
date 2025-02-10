@@ -186,10 +186,10 @@ TEST(BrokerTest, SendRequestShutdown)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force keep
+    packer.pack_map(0); // Settings
     packer.pack_map(0); // Meta
     packer.pack_map(0); // Metrics
     packer.pack_map(0); // Tel_metrics
-    packer.pack_map(0); // Settings
     const auto &expected_data = ss.str();
 
     network::header_t h;
