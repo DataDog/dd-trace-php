@@ -515,7 +515,7 @@ TEST(ClientTest, RequestInit)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
-        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "UNDEFINED");
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "undefined");
     }
 }
 
@@ -618,7 +618,7 @@ TEST(ClientTest, RequestInitBlock)
     }
 }
 
-TEST(ClientTest, RequestInitWithIntrumModeToIdentification)
+TEST(ClientTest, RequestInitWithInstrumModeToIdentification)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -655,11 +655,11 @@ TEST(ClientTest, RequestInitWithIntrumModeToIdentification)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
-        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "IDENTIFICATION");
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "identification");
     }
 }
 
-TEST(ClientTest, RequestInitWithIntrumModeToAnonymization)
+TEST(ClientTest, RequestInitWithInstrumModeToAnonymization)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -696,11 +696,11 @@ TEST(ClientTest, RequestInitWithIntrumModeToAnonymization)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
-        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "ANONYMIZATION");
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "anonymization");
     }
 }
 
-TEST(ClientTest, RequestInitWithIntrumModeToDisabled)
+TEST(ClientTest, RequestInitWithInstrumModeToDisabled)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -737,11 +737,11 @@ TEST(ClientTest, RequestInitWithIntrumModeToDisabled)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
-        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "DISABLED");
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "disabled");
     }
 }
 
-TEST(ClientTest, RequestInitWithIntrumModeToUnknown)
+TEST(ClientTest, RequestInitWithInstrumModeToUnknown)
 {
     auto smanager = std::make_shared<service_manager>();
     auto broker = new mock::broker();
@@ -778,7 +778,7 @@ TEST(ClientTest, RequestInitWithIntrumModeToUnknown)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
-        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "UNKNOWN");
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "unknown");
     }
 }
 

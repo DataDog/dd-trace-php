@@ -6,6 +6,8 @@
 #ifndef DD_ATTRIBUTES_H
 #define DD_ATTRIBUTES_H
 
+#include "configuration.h"
+
 #ifndef __has_feature
 # define __has_feature(x) 0
 #endif
