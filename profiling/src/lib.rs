@@ -896,11 +896,11 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // This means the engine cannot unload our handle, or else we'd hit
     // immediate undefined behavior (and likely crash).
     if let Err(err) = Profiler::shutdown(Duration::from_secs(2)) {
+        let num_failures = err.num_failures;
+        error!("{num_failures} thread(s) failed to join, intentionally leaking the extension's handle to prevent unloading");
         // SAFETY: during mshutdown, we have ownership of the extension struct.
         // Our threads (which failed to join) do not mutate this struct at all
         // either, providing no races.
-        let num_failures = err.num_failures;
-        error!("{num_failures} thread(s) failed to join, intentionally leaking the extension's handle to prevent unloading");
         unsafe { (*extension).handle = ptr::null_mut() }
     }
 
