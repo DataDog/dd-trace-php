@@ -180,6 +180,7 @@ class PackageUpdater
             foreach ($this->errors as $error) {
                 echo "- $error\n";
             }
+            exit(1);
         }
     }
 }
