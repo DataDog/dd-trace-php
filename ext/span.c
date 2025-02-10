@@ -850,27 +850,28 @@ void ddtrace_infer_proxy_services(void) {
 
     ddtrace_push_inferred_root_span();
     ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
+    ddtrace_span_data *span = &rsd->span;
     rsd->is_inferred_span = true;
 
-    zval *prop_name = &rsd->span.property_name;
+    zval *prop_name = &span->property_name;
     zval_ptr_dtor(prop_name);
     ZVAL_STR_COPY(prop_name, Z_STR_P(proxy_header_system));
 
-    zval *prop_resource = &rsd->span.property_resource;
+    zval *prop_resource = &span->property_resource;
     zval_ptr_dtor(prop_resource);
     ZVAL_STR(prop_resource, strpprintf(0, "%s %s", Z_STRVAL_P(proxy_header_http_method), Z_STRVAL_P(proxy_header_path)));
 
-    rsd->span.start = (zend_long)zend_strtod(Z_STRVAL_P(proxy_header_start_time_ms), NULL) * 1000000;
-    rsd->span.duration_start = rsd->span.start;
+    span->start = (zend_long)zend_strtod(Z_STRVAL_P(proxy_header_start_time_ms), NULL) * 1000000;
+    span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start); // // Now - offset
 
     if (proxy_header_domain && Z_TYPE_P(proxy_header_domain) == IS_STRING && Z_STRLEN_P(proxy_header_domain) > 0) {
-        zval *prop_service = &rsd->span.property_service;
+        zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, Z_STR_P(proxy_header_domain));
     } // Defaults to DD_SERVICE
 
     // Set meta component to aws-apigateway
-    zend_array *meta = ddtrace_property_array(&rsd->span.property_meta);
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
     zval component;
     ZVAL_STR(&component, zend_string_init("aws-apigateway", sizeof("aws-apigateway") - 1, 0));
     zend_hash_str_add_new(meta, ZEND_STRL("component"), &component);
