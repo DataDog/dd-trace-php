@@ -1186,7 +1186,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
     } else if (span->std.ce == ddtrace_ce_root_span_data) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        if (root->is_inferred_span) {
+        if (root->is_inferred_span && root->child_root) {
             zval *child_exception_zv = &root->child_root->span.property_exception;
             has_exception = Z_TYPE_P(child_exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(child_exception_zv), zend_ce_throwable);
             if (has_exception) {
