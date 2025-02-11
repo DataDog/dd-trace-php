@@ -225,6 +225,8 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type, bool is_inf
         zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
+        LOG(DEBUG, "Setting child of inferred span's service to: %s", ZSTR_VAL(Z_STR_P(prop_service)));
+        LOG(DEBUG, "Root span's service is: %s", ZSTR_VAL(Z_STR_P(&DDTRACE_G(active_stack)->root_span->span.property_service)));
     } else {
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
@@ -869,6 +871,7 @@ void ddtrace_infer_proxy_services(void) {
         zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, Z_STR_P(proxy_header_domain));
+        LOG(DEBUG, "Verification: service=%s", Z_STRVAL_P(prop_service));
     } // Defaults to DD_SERVICE
 
     // Set meta component to aws-apigateway
@@ -893,6 +896,6 @@ void ddtrace_infer_proxy_services(void) {
         ZVAL_STR_COPY(&stage, Z_STR_P(proxy_header_stage));
         zend_hash_str_add_new(meta, ZEND_STRL("stage"), &stage);
     }
-    
+
     LOG(DEBUG, "Inferred trace_id=%s, span_id=%" PRIu64 " from HTTP_X_DD_PROXY header", Z_STRVAL(rsd->property_trace_id), rsd->span.span_id);
 }

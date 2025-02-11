@@ -681,6 +681,7 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     zval *prop_service = &span->property_service;
     zval_ptr_dtor(prop_service);
     ZVAL_COPY(prop_service, &parent->property_service);
+    LOG(DEBUG, "Inherited service name: %s", Z_STRVAL_P(prop_service));
     zval *prop_type = &span->property_type;
     zval_ptr_dtor(prop_type);
     ZVAL_COPY(prop_type, &parent->property_type);
@@ -819,6 +820,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span, bool is_infe
         ZVAL_STR(prop_name, ddtrace_default_service_name());
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
+        LOG(DEBUG, "Service set to %s when setting root span properties", ZSTR_VAL(Z_STR_P(prop_service)));
 
 
         zend_string *version = get_DD_VERSION();
