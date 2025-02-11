@@ -70,6 +70,7 @@ trait CommonTests {
         assert span.meta."_dd.appsec.usr.id" == 'Admin'
         assert span.meta."_dd.appsec.usr.login" == 'Login'
         assert span.meta."appsec.events.users.signup.track" == 'true'
+        assert span.meta."_dd.appsec.events.users.signup.auto.mode" == 'identification'
     }
 
     @Test
@@ -101,6 +102,7 @@ trait CommonTests {
         assert span.meta."_dd.appsec.usr.id" == 'Admin'
         assert span.meta."_dd.appsec.usr.login" == 'Login'
         assert span.meta."appsec.events.users.login.success.track" == 'true'
+        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == 'identification'
     }
 
     @Test
@@ -134,6 +136,7 @@ trait CommonTests {
         assert span.meta."appsec.events.users.login.failure.usr.login" == 'Login'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.meta."appsec.events.users.login.failure.track" == 'true'
+        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'identification'
     }
 
     @Test

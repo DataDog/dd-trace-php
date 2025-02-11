@@ -585,6 +585,7 @@ TEST(RemoteConfigAsmFeaturesListener, UnapplyWithAsmEnabled)
 
     try {
         listener.on_update(get_asm_enabled_config());
+        listener.on_update(get_auto_user_instrum_config());
         listener.commit();
     } catch (remote_config::error_applying_config &error) {
         std::cout << error.what() << std::endl;
@@ -592,103 +593,14 @@ TEST(RemoteConfigAsmFeaturesListener, UnapplyWithAsmEnabled)
 
     EXPECT_EQ(enable_asm_status::ENABLED,
         remote_config_service->get_asm_enabled_status());
+    EXPECT_EQ(auto_user_instrum_mode::IDENTIFICATION,
+        remote_config_service->get_auto_user_intrum_mode());
 
     listener.on_unapply(get_asm_enabled_config());
 
     EXPECT_EQ(enable_asm_status::NOT_SET,
         remote_config_service->get_asm_enabled_status());
-}
-
-TEST(RemoteConfigAsmFeaturesListener, UnapplyWithEmptyConfig)
-{
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
-    listener.init();
-
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
     EXPECT_EQ(auto_user_instrum_mode::UNDEFINED,
         remote_config_service->get_auto_user_intrum_mode());
-
-    try {
-        listener.on_update(get_asm_enabled_config());
-        listener.commit();
-    } catch (remote_config::error_applying_config &error) {
-        std::cout << error.what() << std::endl;
-    }
-
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
-
-    remote_config::config config = rcmock::get_config("ASM_FEATURES", R"({ })");
-    listener.on_unapply(config);
-
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
-}
-
-TEST(RemoteConfigAsmFeaturesListener, UnapplyWithInvalidKey)
-{
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
-    listener.init();
-
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
-    EXPECT_EQ(auto_user_instrum_mode::UNDEFINED,
-        remote_config_service->get_auto_user_intrum_mode());
-
-    try {
-        listener.on_update(get_asm_enabled_config());
-        listener.commit();
-    } catch (remote_config::error_applying_config &error) {
-        std::cout << error.what() << std::endl;
-    }
-
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
-
-    remote_config::config config =
-        rcmock::get_config("ASM_FEATURES", R"({ "invalid": {}})");
-    listener.on_unapply(config);
-
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
-}
-
-TEST(RemoteConfigAsmFeaturesListener, UnapplyWithInvalidConfig)
-{
-    auto remote_config_service = std::make_shared<service_config>();
-    remote_config::asm_features_listener listener(remote_config_service);
-    listener.init();
-
-    EXPECT_EQ(enable_asm_status::NOT_SET,
-        remote_config_service->get_asm_enabled_status());
-    EXPECT_EQ(auto_user_instrum_mode::UNDEFINED,
-        remote_config_service->get_auto_user_intrum_mode());
-
-    try {
-        listener.on_update(get_asm_enabled_config());
-        listener.commit();
-    } catch (remote_config::error_applying_config &error) {
-        std::cout << error.what() << std::endl;
-    }
-
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
-
-    std::string error_message = "";
-    std::string expected_error_message = "Invalid config contents";
-
-    try {
-        remote_config::config config =
-            rcmock::get_config("ASM_FEATURES", "&&&");
-        listener.on_unapply(config);
-    } catch (remote_config::error_applying_config &error) {
-        error_message = error.what();
-    }
-
-    EXPECT_EQ(enable_asm_status::ENABLED,
-        remote_config_service->get_asm_enabled_status());
 }
 } // namespace dds

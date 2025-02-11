@@ -19,26 +19,10 @@ void asm_features_listener::init()
     aggregator_->init(&ruleset_.GetAllocator());
 }
 
-void asm_features_listener::on_unapply(const config &config)
+void asm_features_listener::on_unapply(const config & /*config*/)
 {
-    rapidjson::Document doc(&ruleset_.GetAllocator());
-    if (!json_helper::parse_json(config.read(), doc)) {
-        throw error_applying_config("Invalid config contents");
-    }
-
-    if (!doc.IsObject()) {
-        throw error_applying_config("Invalid type for config, expected object");
-    }
-
-    // Validate contents and extract available keys
-    for (auto key = doc.MemberBegin(); key != doc.MemberEnd(); ++key) {
-        ruleset_.RemoveMember(key->name);
-        if (key->name == "asm") {
-            service_config_->unset_asm();
-        } else if (key->name == "auto_user_instrum") {
-            service_config_->unset_auto_user_instrum();
-        }
-    }
+    service_config_->unset_asm();
+    service_config_->unset_auto_user_instrum();
 }
 
 void asm_features_listener::on_update(const config &config)

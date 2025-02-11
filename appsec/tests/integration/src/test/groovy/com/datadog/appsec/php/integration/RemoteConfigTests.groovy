@@ -1,5 +1,6 @@
 package com.datadog.appsec.php.integration
 
+import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.mock_agent.rem_cfg.Capability
@@ -343,6 +344,74 @@ class RemoteConfigTests {
 
         status = doReq.call(null, '/hello.php', ['User-agent': 'dd-test-scanner-log-block'])
         assert status == 403
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'test identification auto user instrumentation'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM_FEATURES/asm_auto_user_instrum_identification/config': [auto_user_instrum: [mode: "identification"]],
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/user_login_success_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == 'identification'
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'test anonymized auto user instrumentation'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM_FEATURES/asm_auto_user_instrum_anonymization/config': [auto_user_instrum: [mode: "anonymization"]],
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/user_login_success_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == 'anonymization'
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'test disabled auto user instrumentation'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM_FEATURES/asm_auto_user_instrum_disabled/config': [auto_user_instrum: [mode: "disabled"]],
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/user_login_success_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert !span.meta.containsKey('_dd.appsec.events.users.login.success.auto.mode')
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'test unknown auto user instrumentation'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM_FEATURES/asm_auto_user_instrum_disabled/config': [auto_user_instrum: [mode: "unknown"]],
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/user_login_success_automated.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert !span.meta.containsKey('_dd.appsec.events.users.login.success.auto.mode')
 
         dropRemoteConfig(INITIAL_TARGET)
     }

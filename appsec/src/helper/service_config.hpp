@@ -53,19 +53,19 @@ struct fmt::formatter<std::atomic<dds::auto_user_instrum_mode>>
         std::string_view name{""};
         switch (val) {
         case dds::auto_user_instrum_mode::UNDEFINED:
-            name = "UNDEFINED";
+            name = "undefined";
             break;
         case dds::auto_user_instrum_mode::UNKNOWN:
-            name = "UNKNOWN";
+            name = "unknown";
             break;
         case dds::auto_user_instrum_mode::DISABLED:
-            name = "DISABLED";
+            name = "disabled";
             break;
         case dds::auto_user_instrum_mode::IDENTIFICATION:
-            name = "IDENTIFICATION";
+            name = "identification";
             break;
         case dds::auto_user_instrum_mode::ANONYMIZATION:
-            name = "ANONYMIZATION";
+            name = "anonymization";
             break;
         }
 
