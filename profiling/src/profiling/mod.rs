@@ -719,7 +719,7 @@ impl Profiler {
             }
 
             let num_failures = result1.is_err() as usize + result2.is_err() as usize;
-            result2.or(result1).map_err(|_| JoinError { num_failures })
+            result2.and(result1).map_err(|_| JoinError { num_failures })
         } else {
             Ok(())
         }
