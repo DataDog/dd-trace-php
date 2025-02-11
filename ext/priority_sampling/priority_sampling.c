@@ -127,7 +127,7 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
     }
 
     zval *rule;
-    if (!get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {  // APPSEC_STANDALONE enabled, override sampling rules to be empty
+    if (get_global_DD_APM_TRACING_ENABLED()) {
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (++index >= skip_at) {
                 break;
@@ -291,7 +291,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     bool limited = false;
     if (result.mechanism != DD_MECHANISM_MANUAL && ddtrace_limiter_active() && sampling) {
         if (span->trace_is_limited == DD_TRACE_LIMIT_UNCHECKED) {
-            span->trace_is_limited = ddtrace_limiter_allow() ? DD_TRACE_UNLIMITED : DD_TRACE_LIMITED;
+            span->trace_is_limited = !get_global_DD_APM_TRACING_ENABLED() || ddtrace_limiter_allow() ? DD_TRACE_UNLIMITED : DD_TRACE_LIMITED;
         }
         limited = span->trace_is_limited == DD_TRACE_LIMITED;
     }
