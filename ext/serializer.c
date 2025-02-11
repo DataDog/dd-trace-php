@@ -678,10 +678,16 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
 }
 
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent) {
-    zval *prop_service = &span->property_service;
-    zval_ptr_dtor(prop_service);
-    ZVAL_COPY(prop_service, &parent->property_service);
-    LOG(DEBUG, "Inherited service name: %s", Z_STRVAL_P(prop_service));
+    ddtrace_root_span_data *root = span->stack->root_span;
+    if (&root->span != parent || !root->is_inferred_span) {
+        zval *prop_service = &span->property_service;
+        zval_ptr_dtor(prop_service);
+        ZVAL_COPY(prop_service, &parent->property_service);
+        LOG(DEBUG, "Inherited service name: %s", Z_STRVAL_P(prop_service));
+    } else {
+        LOG(DEBUG, "Child of inferred span; not inheriting service name");
+    }
+
     zval *prop_type = &span->property_type;
     zval_ptr_dtor(prop_type);
     ZVAL_COPY(prop_type, &parent->property_type);
