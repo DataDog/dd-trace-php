@@ -341,9 +341,6 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
      */
     unsafe { zend::zend_register_extension(&extension, handle) };
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    io::io_prof_minit();
-
     #[cfg(feature = "timeline")]
     timeline::timeline_minit();
 
@@ -550,6 +547,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
         #[cfg(feature = "exception_profiling")]
         exception::exception_profiling_first_rinit();
+
+        #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+        io::io_prof_first_rinit();
     });
 
     Profiler::init(system_settings);
