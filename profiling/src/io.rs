@@ -25,9 +25,16 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
     (info >> 32) as u32
 }
 
+///
+///
+/// Safety: Why is anything happening in in here safe? Well generally we can say all of the pointer
+/// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
+/// dynamic linker prior to us messing with the global offset table. If the dynamic library would
+/// not be a valid ELF64, the dynamic linker would have not loaded it.
 unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSymbolOverwrite>) {
     let phdr = (*info).dlpi_phdr;
 
+    // Locate the dynamic programm header (`PT_DYNAMIC`)
     let mut dyn_ptr: *const Elf64_Dyn = ptr::null();
     for i in 0..(*info).dlpi_phnum {
         let phdr_i = phdr.offset(i as isize);
@@ -46,6 +53,9 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
     let mut symtab: *mut Elf64_Sym = ptr::null_mut();
     let mut strtab: *const c_char = ptr::null();
 
+    // The dynamic programm header (`PT_DYNAMIC`) has different sections. We are interessted in the
+    // procedure linkage table (PLT in `DT_JMPREL`), the size of the PLT (`DT_PLTRELSZ`), the
+    // symbol table (`DT_SYMTAB`) and the the string table for the symbol names (`DT_STRTAB`).
     let mut dyn_iter = dyn_ptr;
     loop {
         let d_tag = (*dyn_iter).d_tag as u32;
@@ -54,6 +64,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
         }
         match d_tag {
             DT_JMPREL => {
+                // Relocation entries for the PLT (Procedure Linkage Table)
                 if ((*dyn_iter).d_un.d_ptr as usize) < ((*info).dlpi_addr as usize) {
                     rel_plt = ((*info).dlpi_addr as usize + (*dyn_iter).d_un.d_ptr as usize)
                         as *mut Elf64_Rela;
@@ -62,9 +73,11 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                 }
             }
             DT_PLTRELSZ => {
+                // Size of the PLT relocation entries
                 rel_plt_size = (*dyn_iter).d_un.d_val as usize;
             }
             DT_SYMTAB => {
+                // The symbol table
                 if ((*dyn_iter).d_un.d_ptr as usize) < ((*info).dlpi_addr as usize) {
                     symtab = ((*info).dlpi_addr as usize + (*dyn_iter).d_un.d_ptr as usize)
                         as *mut Elf64_Sym;
@@ -73,6 +86,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                 }
             }
             DT_STRTAB => {
+                // The string table for the symbol names
                 if ((*dyn_iter).d_un.d_ptr as usize) < ((*info).dlpi_addr as usize) {
                     strtab = ((*info).dlpi_addr as usize + (*dyn_iter).d_un.d_ptr as usize)
                         as *const c_char;
@@ -86,28 +100,39 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
     }
 
     if rel_plt.is_null() || rel_plt_size == 0 || symtab.is_null() || strtab.is_null() {
-        trace!("Failed to locate required ELF sections");
+        trace!("Failed to locate required ELF sections (`DT_JMPREL`, `DT_PLTRELSZ`, `DT_SYMTAB` and `DT_STRTAB`)");
         return;
     }
 
     let num_relocs = rel_plt_size / std::mem::size_of::<Elf64_Rela>();
 
+    // For each symbol we want to overwrite (from `overwrites`), we scan the relocation entries.
+    // Once the matching symbol name is found, patch its GOT entry to point to our new function.
     for overwrite in &mut *overwrites {
         for i in 0..num_relocs {
             let rel = rel_plt.add(i);
             let r_type = elf64_r_type((*rel).r_info);
+
+            // Only handle JUMP_SLOT relocations
             if r_type != R_AARCH64_JUMP_SLOT && r_type != R_X86_64_JUMP_SLOT {
                 continue;
             }
+
+            // Get the symbol index for this relocation, then the symbol struct
             let sym_index = elf64_r_sym((*rel).r_info) as usize;
             let sym = symtab.add(sym_index);
+
+            // Access the symbol name via the string table
             let name_offset = (*sym).st_name as isize;
             let name_ptr = strtab.offset(name_offset);
             let name = CStr::from_ptr(name_ptr).to_str().unwrap_or("");
+
             if name == overwrite.symbol_name {
+                // Calculate the GOT entry address
                 let got_entry =
                     ((*info).dlpi_addr as usize + (*rel).r_offset as usize) as *mut *mut ();
 
+                // Change memory protection so we can write to the GOT entry
                 let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
                 let aligned_addr = (got_entry as usize) & !(page_size - 1);
                 if libc::mprotect(
@@ -137,24 +162,10 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                     *overwrite.orig_func = *got_entry;
                 }
                 *got_entry = overwrite.new_func;
-
-                //trace!(
-                //    "Overrode GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
-                //    overwrite.symbol_name,
-                //    (*rel).r_offset,
-                //    got_entry,
-                //    *got_entry,
-                //    *overwrite.orig_func
-                //);
                 continue;
             }
         }
     }
-
-    //trace!(
-    //    "Failed to find symbol in relocation entries: {}",
-    //    CStr::from_ptr(symbol_name).to_string_lossy()
-    //);
 }
 
 unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut c_void) -> c_int {
