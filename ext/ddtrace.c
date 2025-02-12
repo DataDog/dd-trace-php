@@ -383,6 +383,14 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
         ZVAL_COPY(property, new_value);
         zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
+
+        ddtrace_span_data *span = SPANDATA(pspan);
+        if (span->type == DDTRACE_AUTOROOT_SPAN) {
+            ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+            if (root->is_inferred_span) {
+                pspan = pspan->parent; // It should be NULL, but just in case...
+            }
+        }
     }
 }
 
