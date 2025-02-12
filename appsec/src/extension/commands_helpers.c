@@ -592,6 +592,14 @@ static void dd_command_process_settings(mpack_node_t root)
         if (dd_string_equals_lc(
                 key_str, key_len, ZEND_STRL("auto_user_instrum"))) {
             dd_parse_user_collection_mode_rc(value_str, value_len);
+        } else {
+            if (!get_global_DD_APPSEC_TESTING()) {
+                mlog(dd_log_warning,
+                    "Failed to process user collection setting: "
+                    "unknown key %.*s",
+                    (int)key_len, key_str);
+            }
+            return;
         }
     }
 }
