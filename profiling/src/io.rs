@@ -7,15 +7,13 @@ use crate::zend;
 use crate::REQUEST_LOCALS;
 use libc::{c_char, c_int, c_void, dl_phdr_info};
 use log::{error, trace};
-use std::ffi::CStr;
-use std::ptr;
-use std::time::Instant;
-//use std::time::SystemTime;
-//use std::time::UNIX_EPOCH;
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
+use std::ffi::CStr;
+use std::ptr;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::time::Instant;
 
 use rand_distr::{Distribution, Poisson};
 
