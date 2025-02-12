@@ -419,6 +419,8 @@ static void _command_process_stack_trace_parameters(mpack_node_t root)
 static dd_result _command_process_actions(
     mpack_node_t root, struct req_info *ctx);
 
+static void dd_command_process_settings(mpack_node_t root);
+
 /*
  * array(
  *    0: [<"ok" / "record" / "block" / "redirect">,
@@ -559,7 +561,7 @@ static void _set_appsec_span_data(mpack_node_t node)
     }
 }
 
-void dd_command_process_settings(mpack_node_t root)
+static void dd_command_process_settings(mpack_node_t root)
 {
     if (mpack_node_type(root) != mpack_type_map) {
         return;
@@ -572,13 +574,13 @@ void dd_command_process_settings(mpack_node_t root)
         mpack_node_t value = mpack_node_map_value_at(root, i);
 
         if (mpack_node_type(key) != mpack_type_str) {
-            mlog(dd_log_warning,
-                "Failed to process setting: invalid type for key");
+            mlog(dd_log_warning, "Failed to process user collection setting: "
+                                 "invalid type for key");
             return;
         }
         if (mpack_node_type(value) != mpack_type_str) {
-            mlog(dd_log_warning,
-                "Failed to process setting: invalid type for value");
+            mlog(dd_log_warning, "Failed to process user collection setting: "
+                                 "invalid type for value");
             return;
         }
 

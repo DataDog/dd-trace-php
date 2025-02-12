@@ -50,7 +50,7 @@ void asm_features_aggregator::add(const config &config)
         }
     }
 
-    // All keys should be available so no need for extra checks
+    // All keys should be correct so no need to check for their type again.
     for (const auto &key : available_keys) {
         // Make sure we override the value with the latest config.
         ruleset_.RemoveMember(StringRef(key));
