@@ -1318,13 +1318,16 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
     zend_array *service_mappings = get_DD_SERVICE_MAPPING();
     zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
     if (new_root_name) {
+        LOG(DEBUG, "New root service name found: %s", Z_STRVAL_P(new_root_name));
         zend_string_release(Z_STR(prop_root_service_as_string));
         ZVAL_COPY(&prop_root_service_as_string, new_root_name);
     }
 
     if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
+        LOG(DEBUG, "Setting _dd.base_service to %s", Z_STRVAL(prop_root_service_as_string));
         add_assoc_str(meta, "_dd.base_service", Z_STR(prop_root_service_as_string));
     } else {
+        LOG(DEBUG, "Service name matches root service name; not adding _dd.base_service");
         zend_string_release(Z_STR(prop_root_service_as_string));
     }
 

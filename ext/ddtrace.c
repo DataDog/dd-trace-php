@@ -387,6 +387,7 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 }
 
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
+    LOG(DEBUG, "Altering property service to %s", Z_STRVAL_P(new_value));
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
         ddtrace_sidecar_submit_root_span_data_direct(NULL, new_str, get_DD_ENV(), get_DD_VERSION());
