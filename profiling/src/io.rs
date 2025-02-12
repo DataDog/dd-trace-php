@@ -25,7 +25,11 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
     (info >> 32) as u32
 }
 
+/// Override the GOT entry for symbols specified in `overwrites`.
 ///
+/// See: https://cs4401.walls.ninja/notes/lecture/basics_global_offset_table.html
+/// See: https://bottomupcs.com/ch09s03.html
+/// See: https://www.codeproject.com/articles/1032231/what-is-the-symbol-table-and-what-is-the-global-of
 ///
 /// Safety: Why is anything happening in in here safe? Well generally we can say all of the pointer
 /// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
@@ -56,6 +60,11 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
     // The dynamic programm header (`PT_DYNAMIC`) has different sections. We are interessted in the
     // procedure linkage table (PLT in `DT_JMPREL`), the size of the PLT (`DT_PLTRELSZ`), the
     // symbol table (`DT_SYMTAB`) and the the string table for the symbol names (`DT_STRTAB`).
+    //
+    // Addresses in here are sometimes relative, sometimes absolute
+    // - on musl, addresses are relative
+    // - on glibc, addresses are absolutes
+    // https://elixir.bootlin.com/glibc/glibc-2.36/source/elf/get-dynamic-info.h#L84
     let mut dyn_iter = dyn_ptr;
     loop {
         let d_tag = (*dyn_iter).d_tag as u32;
@@ -168,13 +177,15 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
     }
 }
 
+/// Callback function that should be passed to `libc::dl_iterate_phdr()` and gets called for every
+/// shared object.
 unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut c_void) -> c_int {
     let overwrites = &mut *(data as *mut Vec<GotSymbolOverwrite>);
 
     // detect myself ...
     let mut my_info: libc::Dl_info = std::mem::zeroed();
     if libc::dladdr(callback as *const c_void, &mut my_info) == 0 {
-        error!("Did not find my owne `dladdr` and therefore can't hook into the GOT.");
+        error!("Did not find my own `dladdr` and therefore can't hook into the GOT.");
         return 0;
     }
     let my_base_addr = my_info.dli_fbase as usize;
