@@ -52,6 +52,7 @@ ext/json/tests/json_encode_exceptions.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
+ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-double.phpt
 ext/openssl/tests/bug46127.phpt
 ext/openssl/tests/bug48182.phpt
 ext/openssl/tests/bug54992.phpt

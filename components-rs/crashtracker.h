@@ -12,6 +12,40 @@
 #include <stdint.h>
 #include "common.h"
 
+typedef enum  ddog_crasht_CrashInfoBuilder_NewResult_Tag {
+  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_OK,
+  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_ERR,
+}  ddog_crasht_CrashInfoBuilder_NewResult_Tag;
+
+typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
+   ddog_crasht_CrashInfoBuilder_NewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_Handle_CrashInfoBuilder ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+}  ddog_crasht_CrashInfoBuilder_NewResult;
+
+typedef enum  ddog_crasht_StackTrace_NewResult_Tag {
+  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_OK,
+  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_ERR,
+}  ddog_crasht_StackTrace_NewResult_Tag;
+
+typedef struct  ddog_crasht_StackTrace_NewResult {
+   ddog_crasht_StackTrace_NewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_Handle_StackTrace ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+}  ddog_crasht_StackTrace_NewResult;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -91,6 +125,52 @@ struct ddog_VoidResult ddog_crasht_init(struct ddog_crasht_Config config,
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_init_without_receiver(struct ddog_crasht_Config config,
                                                          struct ddog_crasht_Metadata metadata);
+
+/**
+ * Returns a list of signals suitable for use in a crashtracker config.
+ */
+struct ddog_crasht_Slice_CInt ddog_crasht_default_signals(void);
+
+/**
+ * Removes all existing additional tags
+ * Expected to be used after a fork, to reset the additional tags on the child
+ * ATOMICITY:
+ *     This is NOT ATOMIC.
+ *     Should only be used when no conflicting updates can occur,
+ *     e.g. after a fork but before profiling ops start on the child.
+ * # Safety
+ * No safety concerns.
+ */
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_clear_additional_tags(void);
+
+/**
+ * Atomically registers a string as an additional tag.
+ * Useful for tracking what operations were occurring when a crash occurred.
+ * The set does not check for duplicates.
+ *
+ * Returns:
+ *   Ok(handle) on success.  The handle is needed to later remove the id;
+ *   Err() on failure. The most likely cause of failure is that the underlying set is full.
+ *
+ * # Safety
+ * The string argument must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_crasht_Result_Usize ddog_crasht_insert_additional_tag(ddog_CharSlice s);
+
+/**
+ * Atomically removes a completed SpanId.
+ * Useful for tracking what operations were occurring when a crash occurred.
+ * 0 is reserved for "NoId"
+ *
+ * Returns:
+ *   `Ok` on success.
+ *   `Err` on failure.
+ *
+ * # Safety
+ * No safety concerns.
+ */
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_remove_additional_tag(uintptr_t idx);
 
 /**
  * Resets all counters to 0.
@@ -291,7 +371,7 @@ struct ddog_VoidResult ddog_crasht_CrashInfo_upload_to_endpoint(struct ddog_cras
  * No safety issues.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result_HandleCrashInfoBuilder ddog_crasht_CrashInfoBuilder_new(void);
+struct  ddog_crasht_CrashInfoBuilder_NewResult ddog_crasht_CrashInfoBuilder_new(void);
 
 /**
  * # Safety
@@ -306,7 +386,7 @@ void ddog_crasht_CrashInfoBuilder_drop(struct ddog_crasht_Handle_CrashInfoBuilde
  * which has not previously been dropped.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result_HandleCrashInfo ddog_crasht_CrashInfoBuilder_build(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
+struct ddog_crasht_CrashInfo_NewResult ddog_crasht_CrashInfoBuilder_build(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
 
 /**
  * # Safety
@@ -515,7 +595,7 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid_random(struct ddog
  * # Safety
  * No safety issues.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result_HandleStackFrame ddog_crasht_StackFrame_new(void);
+DDOG_CHECK_RETURN struct ddog_crasht_StackFrame_NewResult ddog_crasht_StackFrame_new(void);
 
 /**
  * # Safety
@@ -532,7 +612,7 @@ void ddog_crasht_StackFrame_drop(struct ddog_crasht_Handle_StackFrame *frame);
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_StackFrame_with_ip(struct ddog_crasht_Handle_StackFrame *frame,
-                                                      ddog_CharSlice ip);
+                                                      uintptr_t ip);
 
 /**
  * # Safety
@@ -542,7 +622,7 @@ struct ddog_VoidResult ddog_crasht_StackFrame_with_ip(struct ddog_crasht_Handle_
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_StackFrame_with_module_base_address(struct ddog_crasht_Handle_StackFrame *frame,
-                                                                       ddog_CharSlice module_base_address);
+                                                                       uintptr_t module_base_address);
 
 /**
  * # Safety
@@ -552,7 +632,7 @@ struct ddog_VoidResult ddog_crasht_StackFrame_with_module_base_address(struct dd
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_StackFrame_with_sp(struct ddog_crasht_Handle_StackFrame *frame,
-                                                      ddog_CharSlice sp);
+                                                      uintptr_t sp);
 
 /**
  * # Safety
@@ -562,7 +642,7 @@ struct ddog_VoidResult ddog_crasht_StackFrame_with_sp(struct ddog_crasht_Handle_
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_StackFrame_with_symbol_address(struct ddog_crasht_Handle_StackFrame *frame,
-                                                                  ddog_CharSlice symbol_address);
+                                                                  uintptr_t symbol_address);
 
 /**
  * # Safety
@@ -612,7 +692,7 @@ struct ddog_VoidResult ddog_crasht_StackFrame_with_path(struct ddog_crasht_Handl
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_StackFrame_with_relative_address(struct ddog_crasht_Handle_StackFrame *frame,
-                                                                    ddog_CharSlice relative_address);
+                                                                    uintptr_t relative_address);
 
 /**
  * # Safety
@@ -657,7 +737,7 @@ struct ddog_VoidResult ddog_crasht_StackFrame_with_line(struct ddog_crasht_Handl
  * # Safety
  * No safety issues.
  */
-DDOG_CHECK_RETURN struct ddog_crasht_Result_HandleStackTrace ddog_crasht_StackTrace_new(void);
+DDOG_CHECK_RETURN struct  ddog_crasht_StackTrace_NewResult ddog_crasht_StackTrace_new(void);
 
 /**
  * # Safety
@@ -696,8 +776,8 @@ struct ddog_VoidResult ddog_crasht_StackTrace_set_complete(struct ddog_crasht_Ha
  * The string is copied into the result, and does not need to outlive this call
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_Result_StringWrapper ddog_crasht_demangle(ddog_CharSlice name,
-                                                             enum ddog_crasht_DemangleOptions options);
+struct ddog_StringWrapperResult ddog_crasht_demangle(ddog_CharSlice name,
+                                                     enum ddog_crasht_DemangleOptions options);
 
 /**
  * Receives data from a crash collector via a pipe on `stdin`, formats it into

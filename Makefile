@@ -155,7 +155,7 @@ install_appsec:
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(ALL_TEST_ENV_OVERRIDE) $(TESTS)
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
