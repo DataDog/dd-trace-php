@@ -201,6 +201,11 @@ void dd_parse_user_collection_mode_rc(
         _user_mode_rc = user_mode_anon;
     } else { // If the value is disabled or an unknown value, we disable user ID
              // collection
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog_g(dd_log_warning,
+                "Unknown or disabled remote config user collection mode: %.*s",
+                (int)value_len, value);
+        }
         _user_mode_rc = user_mode_disabled;
     }
 }
