@@ -1283,7 +1283,7 @@ impl Profiler {
                     labels,
                     NO_TIMESTAMP,
                 ) {
-                    Ok(_) => println!(
+                    Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels with to profiler."
                     ),
                     Err(err) => warn!(

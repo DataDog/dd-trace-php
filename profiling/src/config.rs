@@ -1097,10 +1097,7 @@ mod tests {
                 "datadog.profiling.timeline_enabled",
             ),
             #[cfg(feature = "io_profiling")]
-            (
-                b"DD_PROFILING_IO_ENABLED\0",
-                "datadog.profiling.io_enabled",
-            ),
+            (b"DD_PROFILING_IO_ENABLED\0", "datadog.profiling.io_enabled"),
             (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
             (
                 b"DD_PROFILING_OUTPUT_PPROF\0",

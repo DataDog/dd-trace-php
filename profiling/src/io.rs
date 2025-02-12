@@ -1,6 +1,6 @@
 use crate::bindings::{
     Elf64_Dyn, Elf64_Rela, Elf64_Sym, Elf64_Xword, DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_STRTAB,
-    DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT,
+    DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
 };
 use crate::profiling::Profiler;
 use crate::zend;
@@ -93,11 +93,12 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
     }
 
     let num_relocs = rel_plt_size / std::mem::size_of::<Elf64_Rela>();
+
     for overwrite in &mut *overwrites {
         for i in 0..num_relocs {
             let rel = rel_plt.add(i);
             let r_type = elf64_r_type((*rel).r_info);
-            if r_type != R_AARCH64_JUMP_SLOT {
+            if r_type != R_AARCH64_JUMP_SLOT && r_type != R_X86_64_JUMP_SLOT {
                 continue;
             }
             let sym_index = elf64_r_sym((*rel).r_info) as usize;
@@ -122,14 +123,14 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                     return;
                 }
 
-                //trace!(
-                //    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
-                //    overwrite.symbol_name,
-                //    (*rel).r_offset,
-                //    got_entry,
-                //    *got_entry,
-                //    *overwrite.orig_func
-                //);
+                trace!(
+                    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
+                    overwrite.symbol_name,
+                    (*rel).r_offset,
+                    got_entry,
+                    *got_entry,
+                    *overwrite.orig_func
+                );
 
                 // This works for musl based linux distros, but not for libc once
                 *overwrite.orig_func = libc::dlsym(libc::RTLD_NEXT, name_ptr) as *mut ();
@@ -222,43 +223,31 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
     let ret = ORIG_POLL(fds, nfds, timeout);
     let duration = start.elapsed();
 
-    let io_time_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
-    });
-
-    if !io_time_profiling {
-        return ret;
-    }
-
     if !fds.is_null() {
         if (*fds).revents & 1 == 1 {
-            println!("poll waited on reading");
+            // requested events contains reading
             SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
         } else if (*fds).revents & 4 == 4 {
-            println!("poll waited on writing");
+            // requested events contains writing
             SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
         } else if (*fds).events & 1 == 1 {
-            println!("poll waited on reading");
+            // socket became readable
             SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
         } else if (*fds).events & 4 == 4 {
-            println!("poll waited on writing");
+            // socket became writeable
             SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
-        } else {
-            println!("No idea what happened: {} {}", (*fds).events, (*fds).revents);
         }
     }
 
@@ -277,22 +266,14 @@ unsafe extern "C" fn observed_recv(
     let len = ORIG_RECV(socket, buf, length, flags);
     let duration = start.elapsed();
 
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
+    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
     });
-
-    if io_profiling {
-        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
@@ -309,52 +290,45 @@ unsafe extern "C" fn observed_send(
     let len = ORIG_SEND(socket, buf, length, flags);
     let duration = start.elapsed();
 
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
+    SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
     });
-
-    if io_profiling {
-        SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
 
-static mut ORIG_FWRITE: unsafe extern "C" fn(*const c_void, usize, usize, *mut libc::FILE) -> usize = libc::fwrite;
-unsafe extern "C" fn observed_fwrite(buf: *const c_void, size: usize, n: usize, stream: *mut libc::FILE) -> usize {
+static mut ORIG_FWRITE: unsafe extern "C" fn(
+    *const c_void,
+    usize,
+    usize,
+    *mut libc::FILE,
+) -> usize = libc::fwrite;
+unsafe extern "C" fn observed_fwrite(
+    buf: *const c_void,
+    size: usize,
+    n: usize,
+    stream: *mut libc::FILE,
+) -> usize {
     let start = Instant::now();
     let len = ORIG_FWRITE(buf, size, n, stream);
     let duration = start.elapsed();
 
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
+    FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
     });
-
-    if io_profiling {
-        FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
-
 
 static mut ORIG_WRITE: unsafe extern "C" fn(c_int, *const c_void, usize) -> isize = libc::write;
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
@@ -362,51 +336,41 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     let len = ORIG_WRITE(fd, buf, count);
     let duration = start.elapsed();
 
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
+    FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
     });
-
-    if io_profiling {
-        FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
 
-static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc::FILE) -> usize = libc::fread;
+static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc::FILE) -> usize =
+    libc::fread;
 // So far there seems to be only one situation where a file is read using `fread()` instead of
 // `read()` in PHP and that is when compiling a PHP file, triggered by it being the start file or a
 // userland call to `include()`/`require()` functions.
-unsafe extern "C" fn observed_fread(buf: *mut c_void, size: usize, n: usize, fp: *mut libc::FILE) -> usize {
+unsafe extern "C" fn observed_fread(
+    buf: *mut c_void,
+    size: usize,
+    n: usize,
+    fp: *mut libc::FILE,
+) -> usize {
     let start = Instant::now();
     let len = ORIG_FREAD(buf, size, n, fp);
     let duration = start.elapsed();
 
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
+    FILE_READ_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
     });
-
-    if io_profiling {
-        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
@@ -417,22 +381,14 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     let len = ORIG_READ(fd, buf, count);
     let duration = start.elapsed();
 
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
+    FILE_READ_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
     });
-
-    if io_profiling {
-        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
@@ -441,17 +397,17 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
 /// Will be initialized on first RINIT and is controlled by a INI_SYSTEM, so we do not need a
 /// thread local for the profiling interval.
 pub static SOCKET_READ_TIME_PROFILING_INTERVAL: AtomicU64 =
-    AtomicU64::new(std::time::Duration::from_millis(1).as_nanos() as u64);
+    AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static SOCKET_WRITE_TIME_PROFILING_INTERVAL: AtomicU64 =
-    AtomicU64::new(std::time::Duration::from_millis(1).as_nanos() as u64);
+    AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static FILE_READ_TIME_PROFILING_INTERVAL: AtomicU64 =
-    AtomicU64::new(std::time::Duration::from_millis(1).as_nanos() as u64);
+    AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static FILE_WRITE_TIME_PROFILING_INTERVAL: AtomicU64 =
-    AtomicU64::new(std::time::Duration::from_millis(1).as_nanos() as u64);
-pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1);
-pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1);
-pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1);
-pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1);
+    AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
+pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
 
 pub trait IOCollector {
     fn collect(&self, profiler: &Profiler, value: u64);
@@ -587,7 +543,6 @@ impl<C: IOCollector> IOProfilingStats<C> {
     }
 
     fn track(&mut self, value: u64) {
-        println!("{}", self.next_sample);
         if let Some(next_sample) = self.next_sample.checked_sub(value) {
             self.next_sample = next_sample;
             return;
@@ -650,48 +605,59 @@ thread_local! {
     );
 }
 
-pub fn io_prof_minit() {
-    unsafe {
-        let mut overwrites = vec![
-            GotSymbolOverwrite {
-                symbol_name: "recv",
-                new_func: observed_recv as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_RECV) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "send",
-                new_func: observed_send as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "write",
-                new_func: observed_write as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_WRITE) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "read",
-                new_func: observed_read as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_READ) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "fwrite",
-                new_func: observed_fwrite as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_FWRITE) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "fread",
-                new_func: observed_fread as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
-            },
-            GotSymbolOverwrite {
-                symbol_name: "poll",
-                new_func: observed_poll as *mut (),
-                orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
-            },
-        ];
-        libc::dl_iterate_phdr(
-            Some(callback),
-            &mut overwrites as *mut _ as *mut libc::c_void,
-        );
-    };
+pub fn io_prof_first_rinit() {
+    let io_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_io_enabled)
+            .unwrap_or(false)
+    });
+
+    trace!("I/O profiling: {io_profiling:?}");
+
+    if io_profiling {
+        unsafe {
+            let mut overwrites = vec![
+                GotSymbolOverwrite {
+                    symbol_name: "recv",
+                    new_func: observed_recv as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_RECV) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "send",
+                    new_func: observed_send as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "write",
+                    new_func: observed_write as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_WRITE) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "read",
+                    new_func: observed_read as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_READ) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "fwrite",
+                    new_func: observed_fwrite as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_FWRITE) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "fread",
+                    new_func: observed_fread as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "poll",
+                    new_func: observed_poll as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
+                },
+            ];
+            trace!("I/O profiling: {io_profiling:?}");
+            libc::dl_iterate_phdr(
+                Some(callback),
+                &mut overwrites as *mut _ as *mut libc::c_void,
+            );
+        };
+    }
 }
