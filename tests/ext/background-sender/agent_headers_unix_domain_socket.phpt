@@ -20,7 +20,7 @@ include __DIR__ . '/../includes/request_replayer.inc';
 $rr = new RequestReplayer();
 $rr->replayRequest(); // clear
 
-RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL")));
+$proxy = RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL")));
 
 \DDTrace\start_span();
 \DDTrace\close_span();

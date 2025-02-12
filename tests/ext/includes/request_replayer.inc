@@ -2,6 +2,17 @@
 
 include __DIR__ . '/dummy_filesystem_integration.inc'; //This file uses wrapped function file_get_contents
 
+class ProxyContainer {
+    public $proc;
+    public function __construct($proc) {
+        $this->proc = $proc;
+    }
+
+    public function __destruct() {
+        proc_terminate($this->proc, 9);
+    }
+}
+
 class RequestReplayer
 {
     /**
@@ -130,24 +141,26 @@ class RequestReplayer
 ignore_user_abort(true); /* prevent bailout... */
 $server = stream_socket_server("unix://' . $socketPath . '");
 print "1\n"; /* ready marker */
-if (!$client = stream_socket_accept($server, 5)) {
-    return;
-}
-$replayer = stream_socket_client("request-replayer:80");
-$all = $read = [$client, $replayer];
-foreach ($read as $fp) stream_set_blocking($fp, false);
-while (stream_select($read, $w, $e, null)) {
-    $data = fread($fp = reset($read), 4096);
-    if ($data == "") {
-        return;
+while ($client = stream_socket_accept($server, 5)) {
+    file_put_contents("/tmp/unix-proxy-' . basename($socketPath) . '", "connected\n", FILE_APPEND);
+    $replayer = stream_socket_client("request-replayer:80");
+    $all = $read = [$client, $replayer];
+    foreach ($read as $fp) stream_set_blocking($fp, false);
+    while (stream_select($read, $w, $e, null)) {
+        $data = fread($fp = reset($read), 4096);
+        if ($data == "") {
+            file_put_contents("/tmp/unix-proxy-' . basename($socketPath) . '", "end\n", FILE_APPEND);
+            break;
+        }
+        file_put_contents("/tmp/unix-proxy-' . basename($socketPath) . '", "$data\n", FILE_APPEND);
+        fwrite($fp == $replayer ? $client : $replayer, $data);
+        $read = $all;
     }
-    fwrite($fp == $replayer ? $client : $replayer, $data);
-    $read = $all;
 }
 ');
 
-        static $unix_proxy_process_reference;
-        $unix_proxy_process_reference = popen(PHP_BINARY . " -r '$code'", 'r');
-        fread($unix_proxy_process_reference, 1); // ready
+        $proc = proc_open(PHP_BINARY . " -r '$code'", [STDIN, ["pipe", "w"], STDERR], $pipes);
+        fread($pipes[1], 1); // ready
+        return new ProxyContainer($proc);
     }
 }

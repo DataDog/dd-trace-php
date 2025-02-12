@@ -870,7 +870,6 @@ typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,
   DDOG_CRASHT_BUILD_ID_TYPE_GO,
   DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_PE,
   DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
 } ddog_crasht_BuildIdType;
 
@@ -888,7 +887,7 @@ typedef enum ddog_crasht_ErrorKind {
 typedef enum ddog_crasht_FileType {
   DDOG_CRASHT_FILE_TYPE_APK,
   DDOG_CRASHT_FILE_TYPE_ELF,
-  DDOG_CRASHT_FILE_TYPE_PDB,
+  DDOG_CRASHT_FILE_TYPE_PE,
 } ddog_crasht_FileType;
 
 /**
@@ -1116,38 +1115,13 @@ typedef struct ddog_crasht_Handle_CrashInfoBuilder {
   struct ddog_crasht_CrashInfoBuilder *inner;
 } ddog_crasht_Handle_CrashInfoBuilder;
 
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleCrashInfoBuilder_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_BUILDER_OK_HANDLE_CRASH_INFO_BUILDER,
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_BUILDER_ERR_HANDLE_CRASH_INFO_BUILDER,
-} ddog_crasht_Result_HandleCrashInfoBuilder_Tag;
+typedef enum ddog_crasht_CrashInfo_NewResult_Tag {
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
+} ddog_crasht_CrashInfo_NewResult_Tag;
 
-typedef struct ddog_crasht_Result_HandleCrashInfoBuilder {
-  ddog_crasht_Result_HandleCrashInfoBuilder_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_Handle_CrashInfoBuilder ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_crasht_Result_HandleCrashInfoBuilder;
-
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_ERR_HANDLE_CRASH_INFO,
-} ddog_crasht_Result_HandleCrashInfo_Tag;
-
-typedef struct ddog_crasht_Result_HandleCrashInfo {
-  ddog_crasht_Result_HandleCrashInfo_Tag tag;
+typedef struct ddog_crasht_CrashInfo_NewResult {
+  ddog_crasht_CrashInfo_NewResult_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_CrashInfo ok;
@@ -1156,7 +1130,7 @@ typedef struct ddog_crasht_Result_HandleCrashInfo {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_Result_HandleCrashInfo;
+} ddog_crasht_CrashInfo_NewResult;
 
 typedef struct ddog_crasht_OsInfo {
   ddog_CharSlice architecture;
@@ -1213,17 +1187,13 @@ typedef struct ddog_crasht_Handle_StackFrame {
   struct ddog_crasht_StackFrame *inner;
 } ddog_crasht_Handle_StackFrame;
 
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleStackFrame_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_STACK_FRAME_OK_HANDLE_STACK_FRAME,
-  DDOG_CRASHT_RESULT_HANDLE_STACK_FRAME_ERR_HANDLE_STACK_FRAME,
-} ddog_crasht_Result_HandleStackFrame_Tag;
+typedef enum ddog_crasht_StackFrame_NewResult_Tag {
+  DDOG_CRASHT_STACK_FRAME_NEW_RESULT_OK,
+  DDOG_CRASHT_STACK_FRAME_NEW_RESULT_ERR,
+} ddog_crasht_StackFrame_NewResult_Tag;
 
-typedef struct ddog_crasht_Result_HandleStackFrame {
-  ddog_crasht_Result_HandleStackFrame_Tag tag;
+typedef struct ddog_crasht_StackFrame_NewResult {
+  ddog_crasht_StackFrame_NewResult_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_StackFrame ok;
@@ -1232,59 +1202,24 @@ typedef struct ddog_crasht_Result_HandleStackFrame {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_Result_HandleStackFrame;
+} ddog_crasht_StackFrame_NewResult;
 
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleStackTrace_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_STACK_TRACE_OK_HANDLE_STACK_TRACE,
-  DDOG_CRASHT_RESULT_HANDLE_STACK_TRACE_ERR_HANDLE_STACK_TRACE,
-} ddog_crasht_Result_HandleStackTrace_Tag;
+typedef enum ddog_StringWrapperResult_Tag {
+  DDOG_STRING_WRAPPER_RESULT_OK,
+  DDOG_STRING_WRAPPER_RESULT_ERR,
+} ddog_StringWrapperResult_Tag;
 
-typedef struct ddog_crasht_Result_HandleStackTrace {
-  ddog_crasht_Result_HandleStackTrace_Tag tag;
+typedef struct ddog_StringWrapperResult {
+  ddog_StringWrapperResult_Tag tag;
   union {
     struct {
-      struct ddog_crasht_Handle_StackTrace ok;
+      struct ddog_StringWrapper ok;
     };
     struct {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_Result_HandleStackTrace;
-
-/**
- * A wrapper for returning owned strings from FFI
- */
-typedef struct ddog_crasht_StringWrapper {
-  /**
-   * This is a String stuffed into the vec.
-   */
-  struct ddog_Vec_U8 message;
-} ddog_crasht_StringWrapper;
-
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_StringWrapper_Tag {
-  DDOG_CRASHT_RESULT_STRING_WRAPPER_OK_STRING_WRAPPER,
-  DDOG_CRASHT_RESULT_STRING_WRAPPER_ERR_STRING_WRAPPER,
-} ddog_crasht_Result_StringWrapper_Tag;
-
-typedef struct ddog_crasht_Result_StringWrapper {
-  ddog_crasht_Result_StringWrapper_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_StringWrapper ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_crasht_Result_StringWrapper;
+} ddog_StringWrapperResult;
 
 #ifdef __cplusplus
 extern "C" {
