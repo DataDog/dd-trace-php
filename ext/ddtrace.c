@@ -2512,6 +2512,12 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
             RETVAL_TRUE;
+        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
+            zval *name = ZVAL_VARARG_PARAM(params, 0);
+            zval *version = ZVAL_VARARG_PARAM(params, 1);
+            if (Z_TYPE_P(name) == IS_STRING && Z_TYPE_P(version) == IS_STRING) {
+                ddtrace_telemetry_notify_integration_version(Z_STRVAL_P(name), Z_STRLEN_P(name), Z_STRVAL_P(version), Z_STRLEN_P(version));
+            }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {
                 RETURN_FALSE;
@@ -3315,8 +3321,11 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
     RETURN_NULL();
 }
 
-static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
-                                                          ZEND_MOD_END};
+static const zend_module_dep ddtrace_module_deps[] = {
+        ZEND_MOD_REQUIRED("json")
+        ZEND_MOD_REQUIRED("standard")
+        ZEND_MOD_OPTIONAL("openetelemetry") // make sure we load after otel to insert the hook function if it doesn't exist yet
+        ZEND_MOD_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,

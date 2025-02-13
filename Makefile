@@ -1252,10 +1252,10 @@ endef
 test_opentelemetry_beta: tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer-beta.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_opentelemetry_tests, TESTSUITE_VENDOR_DIR=vendor-beta)
 
-tests/OpenTelemetry/composer-beta.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-beta.json
-	$(call run_composer_with_lock,tests/OpenTelemetry,composer-beta.json)
+tests/OpenTelemetry/composer-%.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-%.json
+	$(call run_composer_with_lock,tests/OpenTelemetry,composer-$(*).json)
 
-test_opentelemetry_1: tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+test_opentelemetry_1: tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
 	$(call run_opentelemetry_tests)
 
 test_opentracing_10: global_test_run_dependencies tests/OpenTracer1Unit/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Custom/OpenTracing/composer.lock-php$(PHP_MAJOR_MINOR)

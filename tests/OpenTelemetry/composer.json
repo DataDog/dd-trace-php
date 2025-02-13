@@ -3,7 +3,13 @@
     "require": {
         "open-telemetry/sdk": "1.0.*||1.1.*",
         "open-telemetry/extension-propagator-b3": "1.0.*||1.1.*",
-        "open-telemetry/opentelemetry-logger-monolog": "1.0.*||1.1.*"
+        "open-telemetry/opentelemetry-logger-monolog": "1.0.*||1.1.*",
+        "open-telemetry/opentelemetry-auto-io": "^0.0.12"
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "config": {
+        "platform": {
+            "ext-opentelemetry": "1"
+        }
+    }
 }

@@ -185,10 +185,14 @@ void ddtrace_telemetry_finalize(void) {
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
+    ddtrace_telemetry_notify_integration_version(name, name_len, "", 0);
+}
+
+void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len) {
     if (ddtrace_sidecar && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
-        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), integration,
-                                              DDOG_CHARSLICE_C(""), true);
+        ddog_CharSlice ver = (ddog_CharSlice) {.len = version_len, .ptr = version};
+        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), integration, ver, true);
     }
 }
 

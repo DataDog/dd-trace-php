@@ -26,6 +26,7 @@ void ddtrace_telemetry_rinit(void);
 void ddtrace_telemetry_rshutdown(void);
 ddog_TelemetryWorkerHandle *ddtrace_build_telemetry_handle(void);
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len);
+void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len);
 void ddtrace_telemetry_finalize(void);
 void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar);
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span);
