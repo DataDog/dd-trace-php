@@ -2730,7 +2730,7 @@ jobs:
             cd libunwind-1.8.1
             ./configure CFLAGS="-g -O3" --disable-tests
             make -j 8
-            make install
+            sudo make install
             cd ..
             <<# parameters.asan >>COMPILE_ASAN=1<</ parameters.asan >> SHARED=1 host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/debug/libddtrace_php.a .
@@ -3163,7 +3163,7 @@ jobs:
             cd libunwind-1.8.1
             ./configure CFLAGS="-g -O3" --disable-tests
             make -j 8
-            make install
+            sudo make install
             cd ..
             SHARED=1 PROFILE=tracer-release host_os=linux-musl ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m)-alpine.a
@@ -3244,7 +3244,7 @@ jobs:
             cd libunwind-1.8.1
             ./configure CFLAGS="-g -O3" --disable-tests
             make -j 8
-            make install
+            sudo make install
             cd ..
             make RUST_DEBUG_BUILD=1
             cp -v tmp/build_extension/modules/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
@@ -3599,7 +3599,7 @@ jobs:
             cd libunwind-1.8.1
             ./configure CFLAGS="-g -O3" --disable-tests
             make -j 8
-            make install
+            sudo make install
             cd ..
             SHARED=1 PROFILE=tracer-release host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m).a
