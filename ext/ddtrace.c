@@ -374,29 +374,44 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
+static inline void dd_alter_prop_common(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str, bool skip_inferred) {
     UNUSED(old_value, new_str);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
+        if (skip_inferred) {
+            ddtrace_span_data *span = SPANDATA(pspan);
+            if (span && span->type == DDTRACE_AUTOROOT_SPAN) {
+                ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+                if (root->is_inferred_span) {
+                    pspan = pspan->parent; // It should be NULL, but just in case...
+                    continue;
+                }
+            }
+        }
+
         zval *property = (zval *) (prop_offset + (char *) pspan), garbage = *property;
         ZVAL_COPY(property, new_value);
         zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
-
-        ddtrace_span_data *span = SPANDATA(pspan);
-        if (span->type == DDTRACE_AUTOROOT_SPAN) {
-            ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-            if (root->is_inferred_span) {
-                pspan = pspan->parent; // It should be NULL, but just in case...
-            }
-        }
     }
+}
+
+static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
+    dd_alter_prop_common(prop_offset, old_value, new_value, new_str, false);
+}
+
+static inline void dd_alter_prop_skip_inferred_span(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
+    dd_alter_prop_common(prop_offset, old_value, new_value, new_str, true);
 }
 
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     LOG(DEBUG, "Altering property service to %s", Z_STRVAL_P(new_value));
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        dd_alter_prop_skip_inferred_span(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    } else {
+        dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    }
     if (DDTRACE_G(request_initialized)) {
         ddtrace_sidecar_submit_root_span_data_direct(NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }

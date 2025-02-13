@@ -584,16 +584,6 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     ddtrace_close_stack_userland_spans_until(span);
 
     ddtrace_close_top_span_without_stack_swap(span);
-
-    // Check if the span is a child of an inferred span and if so, close the parent span
-    /*
-    if (DDTRACE_G(active_stack)->root_span->is_inferred_span && &(DDTRACE_G(active_stack)->root_span->child_root->span) == span)
-    {
-        ddtrace_span_data inferred_span = DDTRACE_G(active_stack)->root_span->span;
-        dd_trace_stop_span_time(&inferred_span);
-        ddtrace_close_span(&inferred_span);
-    }
-     */
 }
 
 void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
