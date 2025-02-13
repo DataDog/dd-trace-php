@@ -137,6 +137,7 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_PHP_SOURCES="\
         ext/handlers_curl.c \
         ext/hook/uhook_attributes.c \
+        ext/hook/uhook_otel.c \
     "
     ZAI_RESOLVER_SUFFIX=""
 

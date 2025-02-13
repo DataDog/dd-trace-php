@@ -1244,7 +1244,7 @@ test_opentelemetry_beta: _test_opentelemetry_beta_setup tests/Frameworks/Custom/
 	$(call run_opentelemetry_tests)
 
 _test_opentelemetry_1_setup: global_test_run_dependencies
-	$(call setup_opentelemetry,tests/OpenTelemetry/composer-1.json)
+	$(call setup_opentelemetry,tests/OpenTelemetry/composer-1$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').json)
 
 test_opentelemetry_1: _test_opentelemetry_1_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_opentelemetry_tests)

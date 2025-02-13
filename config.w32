@@ -67,7 +67,7 @@ if (PHP_DDTRACE != 'no') {
 
 	var DDTRACE_HOOK_SOURCES = "uhook.c uhook_legacy.c";
 	if (version >= 800) {
-		DDTRACE_HOOK_SOURCES += " uhook_attributes.c";
+		DDTRACE_HOOK_SOURCES += " uhook_attributes.c uhook_otel.c";
 	}
 
 	var zai_dirname = configure_module_dirname + "/zend_abstract_interface";
