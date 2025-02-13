@@ -2725,6 +2725,13 @@ jobs:
       - run:
           name: Compile sidecar
           command: |
+            curl -LO https://github.com/libunwind/libunwind/releases/download/v1.8.1/libunwind-1.8.1.tar.gz
+            tar -xvzf libunwind-1.8.1.tar.gz
+            cd libunwind-1.8.1
+            ./configure CFLAGS="-g -O3" --disable-tests
+            make -j 8
+            make install
+            cd ..
             <<# parameters.asan >>COMPILE_ASAN=1<</ parameters.asan >> SHARED=1 host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/debug/libddtrace_php.a .
       - persist_to_workspace:
@@ -3151,7 +3158,13 @@ jobs:
             # Workaround "error: failed to run custom build command for `aws-lc-sys v0.20.0`"
             cargo install --force --locked bindgen-cli
             export PATH="/root/.cargo/bin:$PATH"
-
+            curl -LO https://github.com/libunwind/libunwind/releases/download/v1.8.1/libunwind-1.8.1.tar.gz
+            tar -xvzf libunwind-1.8.1.tar.gz
+            cd libunwind-1.8.1
+            ./configure CFLAGS="-g -O3" --disable-tests
+            make -j 8
+            make install
+            cd ..
             SHARED=1 PROFILE=tracer-release host_os=linux-musl ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m)-alpine.a
             objcopy --compress-debug-sections ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.so libddtrace_php_$(uname -m)-alpine.so
@@ -3226,6 +3239,13 @@ jobs:
           command: |
             set -eo pipefail
             switch-php debug-zts-asan
+            curl -LO https://github.com/libunwind/libunwind/releases/download/v1.8.1/libunwind-1.8.1.tar.gz
+            tar -xvzf libunwind-1.8.1.tar.gz
+            cd libunwind-1.8.1
+            ./configure CFLAGS="-g -O3" --disable-tests
+            make -j 8
+            make install
+            cd ..
             make RUST_DEBUG_BUILD=1
             cp -v tmp/build_extension/modules/ddtrace.so extensions_$(uname -m)/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - run:
@@ -3574,6 +3594,13 @@ jobs:
           name: Compile sidecar
           command: |
             set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
+            curl -LO https://github.com/libunwind/libunwind/releases/download/v1.8.1/libunwind-1.8.1.tar.gz
+            tar -xvzf libunwind-1.8.1.tar.gz
+            cd libunwind-1.8.1
+            ./configure CFLAGS="-g -O3" --disable-tests
+            make -j 8
+            make install
+            cd ..
             SHARED=1 PROFILE=tracer-release host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m).a
             objcopy --compress-debug-sections ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.so libddtrace_php_$(uname -m).so
