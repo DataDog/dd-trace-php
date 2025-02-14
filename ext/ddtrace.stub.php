@@ -546,6 +546,12 @@ namespace DDTrace {
     function start_trace_span(float $startTime = 0): SpanData {}
 
     /**
+     * @internal
+     * @return RootSpanData|null The newly created inferred root span, or 'null' if headers extraction failed.
+     */
+    function start_inferred_span(array $headers): RootSpanData|null {}
+
+    /**
      * Get the active stack
      *
      * @return SpanStack|null A copy of the active stack, or 'null' if the tracer is disabled. Won't happen

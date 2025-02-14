@@ -397,10 +397,13 @@ void ddtrace_push_root_span(void) {
     GC_DELREF(&span->std);
 }
 
-void ddtrace_push_inferred_root_span(void) {
+ddtrace_span_data *ddtrace_push_inferred_root_span(void) {
     ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN, true);
     // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
     GC_DELREF(&span->std);
+    ddtrace_root_span_data *rsd = ROOTSPANDATA(&span->std);
+    rsd->is_inferred_span = true;
+    return span;
 }
 
 DDTRACE_PUBLIC zend_object *ddtrace_get_root_span()
@@ -826,24 +829,38 @@ zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
     return str;
 }
 
-void ddtrace_infer_proxy_services(void) {
-    zend_array *server = Z_ARRVAL(PG(http_globals)[TRACK_VARS_SERVER]);
-    zval *proxy_header_system = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY"));
-    zval *proxy_header_start_time_ms = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_REQUEST_TIME_MS"));
-    if (!proxy_header_system || Z_TYPE_P(proxy_header_system) != IS_STRING || Z_STRLEN_P(proxy_header_system) == 0 || !proxy_header_start_time_ms || Z_TYPE_P(proxy_header_start_time_ms) != IS_STRING || Z_STRLEN_P(proxy_header_start_time_ms) == 0) {
-        return;
+ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
+    zval *proxy_header_system = zend_hash_str_find(headers, ZEND_STRL("HTTP_X_DD_PROXY"));
+    if (!proxy_header_system) {
+        proxy_header_system = zend_hash_str_find(headers, ZEND_STRL("x-dd-proxy"));
+    }
+    zval *proxy_header_start_time_ms = zend_hash_str_find(headers, ZEND_STRL("HTTP_X_DD_PROXY_REQUEST_TIME_MS"));
+    if (!proxy_header_start_time_ms) {
+        proxy_header_start_time_ms = zend_hash_str_find(headers, ZEND_STRL("x-dd-proxy-request-time-ms"));
     }
 
-    zval *proxy_header_path = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_PATH"));
-    zval *proxy_header_http_method = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_HTTPMETHOD"));
-    zval *proxy_header_domain = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_DOMAIN_NAME"));
-    zval *proxy_header_stage = zend_hash_str_find(server, ZEND_STRL("HTTP_X_DD_PROXY_STAGE"));
+    if (!proxy_header_system || Z_TYPE_P(proxy_header_system) != IS_STRING || Z_STRLEN_P(proxy_header_system) == 0 || !proxy_header_start_time_ms || Z_TYPE_P(proxy_header_start_time_ms) != IS_STRING || Z_STRLEN_P(proxy_header_start_time_ms) == 0) {
+        return NULL;
+    }
 
+    zval *proxy_header_path = zend_hash_str_find(headers, ZEND_STRL("HTTP_X_DD_PROXY_PATH"));
+    if (!proxy_header_path) {
+        proxy_header_path = zend_hash_str_find(headers, ZEND_STRL("x-dd-proxy-path"));
+    }
+    zval *proxy_header_http_method = zend_hash_str_find(headers, ZEND_STRL("HTTP_X_DD_PROXY_HTTPMETHOD"));
+    if (!proxy_header_http_method) {
+        proxy_header_http_method = zend_hash_str_find(headers, ZEND_STRL("x-dd-proxy-httpmethod"));
+    }
+    zval *proxy_header_domain = zend_hash_str_find(headers, ZEND_STRL("HTTP_X_DD_PROXY_DOMAIN_NAME"));
+    if (!proxy_header_domain) {
+        proxy_header_domain = zend_hash_str_find(headers, ZEND_STRL("x-dd-proxy-domain-name"));
+    }
+    zval *proxy_header_stage = zend_hash_str_find(headers, ZEND_STRL("HTTP_X_DD_PROXY_STAGE"));
+    if (!proxy_header_stage) {
+        proxy_header_stage = zend_hash_str_find(headers, ZEND_STRL("x-dd-proxy-stage"));
+    }
 
-    ddtrace_push_inferred_root_span();
-    ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
-    ddtrace_span_data *span = &rsd->span;
-    rsd->is_inferred_span = true;
+    ddtrace_span_data *span = ddtrace_push_inferred_root_span();
 
     zval *prop_name = &span->property_name;
     zval_ptr_dtor(prop_name);
@@ -887,5 +904,13 @@ void ddtrace_infer_proxy_services(void) {
         zend_hash_str_add_new(meta, ZEND_STRL("stage"), &stage);
     }
 
+    ddtrace_root_span_data *rsd = ROOTSPANDATA(&span->std);
     LOG(DEBUG, "Inferred trace_id=%s, span_id=%" PRIu64 " from HTTP_X_DD_PROXY header", Z_STRVAL(rsd->property_trace_id), rsd->span.span_id);
+
+    return rsd;
+}
+
+void ddtrace_infer_proxy_services(void) {
+    zend_array *server = Z_ARRVAL(PG(http_globals)[TRACK_VARS_SERVER]);
+    ddtrace_open_inferred_span(server);
 }

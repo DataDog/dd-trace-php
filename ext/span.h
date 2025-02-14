@@ -214,7 +214,7 @@ ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
 void ddtrace_push_root_span(void);
-void ddtrace_push_inferred_root_span(void);
+ddtrace_span_data *ddtrace_push_inferred_root_span(void);
 
 ddtrace_span_data *ddtrace_active_span(void);
 static inline ddtrace_span_properties *ddtrace_active_span_props(void) {
@@ -245,6 +245,7 @@ zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
+ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers);
 void ddtrace_infer_proxy_services(void);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str);

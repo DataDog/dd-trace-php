@@ -1572,6 +1572,7 @@ static void dd_rinit_once(void) {
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request(void) {
+    LOG(DEBUG, "dd_initialize_request");
     DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
@@ -1638,10 +1639,12 @@ static void dd_initialize_request(void) {
     ddtrace_apply_distributed_tracing_result(&distributed_result, NULL);
 
     if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        LOG(DEBUG, "Inferred proxy services enabled");
         ddtrace_infer_proxy_services();
     }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
+        LOG(DEBUG, "Root span generation enabled");
         ddtrace_push_root_span();
     }
 }
@@ -1662,7 +1665,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         ddtrace_autoload_rinit();
 #endif
     }
-
+    LOG(DEBUG, "RINIT");
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
     }
@@ -2767,6 +2770,26 @@ PHP_FUNCTION(DDTrace_start_trace_span) {
         GC_DELREF(&stack->std); // We don't retain a ref to it, it's now the active_stack
     }
     dd_start_span(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+/* {{{ proto RootSpanData|null DDTrace\start_inferred_span(array $headers) */
+PHP_FUNCTION(DDTrace_start_inferred_span) {
+    zval *headers_zv = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &headers_zv) != SUCCESS) {
+        RETURN_THROWS();
+    }
+    zend_array *headers = Z_ARRVAL_P(headers_zv);
+
+    if (!get_DD_TRACE_ENABLED() || !get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    LOG(DEBUG, "Starting inferred span");
+    ddtrace_root_span_data *root_span = ddtrace_open_inferred_span(headers);
+    if (root_span) {
+        RETURN_OBJ_COPY(&root_span->std);
+    }
+    RETURN_NULL();
 }
 
 static void dd_set_span_finish_time(ddtrace_span_data *span, double finish_time_seconds) {
