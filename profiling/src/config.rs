@@ -349,7 +349,7 @@ pub(crate) enum ConfigId {
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
     ProfilingExceptionSamplingDistance,
-    ProfilingIOEnabled,
+    ProfilingExperimentalIOEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
     ProfilingWallTimeEnabled,
@@ -378,7 +378,7 @@ impl ConfigId {
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
             ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
-            ProfilingIOEnabled => b"DD_PROFILING_IO_ENABLED\0",
+            ProfilingExperimentalIOEnabled => b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             // Note: this group is meant only for debugging and testing. Please
@@ -549,7 +549,7 @@ unsafe fn profiling_io_enabled() -> bool {
     profiling_enabled()
         && (profiling_experimental_features_enabled()
             || get_system_bool(
-                ProfilingIOEnabled,
+                ProfilingExperimentalIOEnabled,
                 DEFAULT_SYSTEM_SETTINGS.profiling_io_enabled,
             ))
 }
@@ -896,8 +896,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingIOEnabled),
-                    name: ProfilingIOEnabled.env_var_name(),
+                    id: transmute::<ConfigId, u16>(ProfilingExperimentalIOEnabled),
+                    name: ProfilingExperimentalIOEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
                     aliases: ptr::null_mut(),
