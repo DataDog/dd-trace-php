@@ -67,15 +67,25 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        <![CDATA[
+      <![CDATA[
 ## Tracer
 ### Fixed
-- Block signals for sqlsrv_connect function #3035
-- Fall back to stderr if the log path contains colons #3044
+- Add track_error: false on ignored caught exceptions #3074
+- Log fd opening on windows #3076
+- Validate `DD_TRACE_AGENT_URL` #3050
 ## Profiler
 ### Fixed
-- PHP 8.4 crash with opcache optimizer #3038
-- Crash during preloading with neighboring ZendMM extension #3037
+- Combine thread timeout errors properly #3081
+- Avoid dlclose if threads did not join #3075
+- guard VERSION against CRLF characters #3049
+### Chore
+- Apply cargo fmt and fix feature builds #3064
+### Internal
+- Update dependencies #3052
+- Bump libdatadog to v15 #3048
+## AppSec
+### Internal
+- Trim CRLF chars on version file on Remote Config #3051
 ]]></notes>
     <contents>
         <dir name="/">
