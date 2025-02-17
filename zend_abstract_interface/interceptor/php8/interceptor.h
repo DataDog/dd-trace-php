@@ -12,5 +12,8 @@ void zai_interceptor_startup(void);
 void zai_interceptor_activate(void);
 void zai_interceptor_deactivate(void);
 void zai_interceptor_shutdown(void);
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+void zai_interceptor_rinit(void);
+#endif
 
 #endif  // ZAI_INTERCEPTOR_H
