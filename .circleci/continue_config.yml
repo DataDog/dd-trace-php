@@ -3165,6 +3165,7 @@ jobs:
             # Workaround "error: failed to run custom build command for `aws-lc-sys v0.20.0`"
             cargo install --force --locked bindgen-cli
             export PATH="/root/.cargo/bin:$PATH"
+            apk add curl
             curl -LO https://github.com/libunwind/libunwind/releases/download/v1.8.1/libunwind-1.8.1.tar.gz
             tar -xvzf libunwind-1.8.1.tar.gz
             cd libunwind-1.8.1
@@ -3626,8 +3627,9 @@ jobs:
             patch -p1 < 6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
             ./configure CFLAGS="-g -O3" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
             make -j 8
-            SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
-            $SUDO make install
+            # SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
+            # $SUDO make install
+            make install
             cd ..
             SHARED=1 PROFILE=tracer-release host_os=linux-gnu ./compile_rust.sh
             cp -v ${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a libddtrace_php_$(uname -m).a
