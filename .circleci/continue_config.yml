@@ -2730,7 +2730,7 @@ jobs:
             cd libunwind-1.8.1
             curl -LO https://github.com/libunwind/libunwind/pull/748/commits/6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
             patch -p1 < 6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
-            ./configure CFLAGS="-g -O3" --disable-tests
+            ./configure CFLAGS="-g -O3" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
             make -j 8
             SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             $SUDO make install
@@ -3166,7 +3166,7 @@ jobs:
             cd libunwind-1.8.1
             curl -LO https://github.com/libunwind/libunwind/pull/748/commits/6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
             patch -p1 < 6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
-            ./configure CFLAGS="-g -O3" --disable-tests
+            ./configure CFLAGS="-g -O3" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
             make -j 8
             SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             $SUDO make install
@@ -3250,7 +3250,7 @@ jobs:
             cd libunwind-1.8.1
             curl -LO https://github.com/libunwind/libunwind/pull/748/commits/6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
             patch -p1 < 6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
-            ./configure CFLAGS="-g -O3" --disable-tests
+            ./configure CFLAGS="-g -O3" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
             make -j 8
             SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             $SUDO make install
@@ -3608,7 +3608,7 @@ jobs:
             cd libunwind-1.8.1
             curl -LO https://github.com/libunwind/libunwind/pull/748/commits/6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
             patch -p1 < 6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
-            ./configure CFLAGS="-g -O3" --disable-tests
+            ./configure CFLAGS="-g -O3" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
             make -j 8
             SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             $SUDO make install
