@@ -198,7 +198,9 @@ class SwooleIntegration extends Integration
                     && ((int)$rootSpan->meta[Tag::HTTP_STATUS_CODE]) >= 500
                     && $ex = \DDTrace\find_active_exception()
                 ) {
-                    $rootSpan->exception = $ex;
+                    do {
+                        $rootSpan->exception = $ex;
+                    } while ($rootSpan = $rootSpan->parent);
                 }
             }
         );
