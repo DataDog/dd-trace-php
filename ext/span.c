@@ -901,6 +901,8 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
         zend_hash_str_add_new(meta, ZEND_STRL("stage"), &stage);
     }
 
+    add_assoc_long(&span->property_meta, "_dd.inferred_span", 1);
+
     ddtrace_root_span_data *rsd = ROOTSPANDATA(&span->std);
     LOG(DEBUG, "Inferred trace_id=%s, span_id=%" PRIu64 " from HTTP_X_DD_PROXY header", Z_STRVAL(rsd->property_trace_id), rsd->span.span_id);
 
