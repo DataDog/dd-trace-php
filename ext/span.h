@@ -23,6 +23,7 @@ enum ddtrace_span_dataype {
     DDTRACE_INTERNAL_SPAN,
     DDTRACE_USER_SPAN,
     DDTRACE_AUTOROOT_SPAN,
+    DDTRACE_INFERRED_SPAN,
     DDTRACE_SPAN_CLOSED,
 };
 
@@ -108,8 +109,7 @@ struct ddtrace_root_span_data {
     ddtrace_rule_result sampling_rule;
     bool explicit_sampling_priority;
     enum ddtrace_trace_limited trace_is_limited;
-    bool is_inferred_span;
-    struct ddtrace_root_span_data *child_root; // Only used when inferring proxy services
+    struct ddtrace_root_span_data *child_root; // Only used when inferring proxy services (type: DDTRACE_INFERRED_SPAN)
 
     union {
         ddtrace_span_data;
@@ -209,7 +209,7 @@ void ddtrace_init_span_stacks(void);
 void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
-ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type, bool is_inferred);
+ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);

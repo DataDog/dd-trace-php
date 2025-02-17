@@ -150,7 +150,7 @@ uint64_t ddtrace_nanoseconds_realtime(void) {
     return ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
 }
 
-ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type, bool is_inferred) {
+ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
     bool primary_stack = stack->parent_stack == NULL;
@@ -165,9 +165,8 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type, bool is_inf
     // ensure dtor can be called again
     GC_DEL_FLAGS(&stack->std, IS_OBJ_DESTRUCTOR_CALLED);
 
-    bool child_of_inferred_span = DDTRACE_G(active_stack)->root_span != NULL
-            && DDTRACE_G(active_stack)->root_span->is_inferred_span
-            && DDTRACE_G(active_stack)->root_span->child_root == NULL;
+    ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
+    bool child_of_inferred_span = rsd != NULL && rsd->type == DDTRACE_INFERRED_SPAN && rsd->child_root == NULL;
     bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
     ddtrace_span_data *span = ddtrace_init_span(type, (root_span || child_of_inferred_span) ? ddtrace_ce_root_span_data : ddtrace_ce_span_data);
 
@@ -206,7 +205,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type, bool is_inf
         ZVAL_NULL(&span->property_parent);
         span->parent = NULL;
 
-        ddtrace_set_root_span_properties(root, is_inferred);
+        ddtrace_set_root_span_properties(root);
     } else if (child_of_inferred_span) {
         span->is_child_of_inferred_span = true;
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
@@ -259,7 +258,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
         span = Z_PTR_P(span_zv);
         Z_TYPE_INFO_P(span_zv) += 2;
     } else {
-        span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN, false);
+        span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
 
         // SpanData::$name defaults to fully qualified called name
         zval *prop_name = &span->property_name;
@@ -392,17 +391,15 @@ ddtrace_span_stack *ddtrace_init_span_stack(void) {
 }
 
 void ddtrace_push_root_span(void) {
-    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN, false);
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN);
     // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
     GC_DELREF(&span->std);
 }
 
 ddtrace_span_data *ddtrace_push_inferred_root_span(void) {
-    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN, true);
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INFERRED_SPAN);
     // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
     GC_DELREF(&span->std);
-    ddtrace_root_span_data *rsd = ROOTSPANDATA(&span->std);
-    rsd->is_inferred_span = true;
     return span;
 }
 
@@ -690,7 +687,7 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
             ddtrace_span_data *span;
             while (stack->active && (span = SPANDATA(stack->active))->stack == stack) {
                 LOG(DEBUG, "Automatically finishing the next span (in shutdown or force flush requested)");
-                if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && span->type == DDTRACE_AUTOROOT_SPAN)) {
+                if (get_DD_AUTOFINISH_SPANS() || (force_close_root_span && (span->type == DDTRACE_AUTOROOT_SPAN || span->type == DDTRACE_INFERRED_SPAN))) {
                     dd_trace_stop_span_time(span);
                     ddtrace_close_span(span);
                 } else {

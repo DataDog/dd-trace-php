@@ -136,7 +136,7 @@ static void dd_multi_inject_headers(zend_object *mh) {
         zend_object *ch;
         ZEND_HASH_FOREACH_PTR(handles, ch) {
             if (DDTRACE_G(curl_multi_injecting_spans) && Z_TYPE(DDTRACE_G(curl_multi_injecting_spans)->val) == IS_ARRAY) {
-                ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN, false);
+                ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
                 dd_inject_distributed_tracing_headers(ch);
                 ddtrace_close_span(span);
                 span->duration = 1;

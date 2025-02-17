@@ -679,7 +679,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
 
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent) {
     ddtrace_root_span_data *root = span->stack->root_span;
-    if (&root->span != parent || !root->is_inferred_span) {
+    if (&root->span != parent || root->type != DDTRACE_INFERRED_SPAN) {
         zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
         ZVAL_COPY(prop_service, &parent->property_service);
@@ -762,7 +762,7 @@ void dd_set_entrypoint_root_span_props_from_globals(ddtrace_root_span_data *span
     dd_set_entrypoint_root_span_props(&data, span);
 }
 
-void ddtrace_set_root_span_properties(ddtrace_root_span_data *span, bool is_inferred) {
+void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_update_root_id_properties(span);
 
     span->sampling_rule.rule = INT32_MAX;
@@ -784,7 +784,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span, bool is_infe
     ZVAL_STR(&zv, encoded_id);
     zend_hash_str_add_new(meta, ZEND_STRL("runtime-id"), &zv);
 
-    if (ddtrace_span_is_entrypoint_root(&span->span) && !is_inferred) {
+    if (ddtrace_span_is_entrypoint_root(&span->span) && span->type != DDTRACE_INFERRED_SPAN) {
         dd_set_entrypoint_root_span_props_from_globals(span);
     }
 
@@ -1194,7 +1194,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
     } else if (span->std.ce == ddtrace_ce_root_span_data) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        if (root->is_inferred_span && root->child_root) {
+        if (root->child_root) { // Can't check for DDTRACE_INFERRED_SPAN because the span is now closed
             zval *child_exception_zv = &root->child_root->span.property_exception;
             has_exception = Z_TYPE_P(child_exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(child_exception_zv), zend_ce_throwable);
             if (has_exception) {

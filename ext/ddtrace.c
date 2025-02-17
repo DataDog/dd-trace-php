@@ -381,12 +381,9 @@ static inline void dd_alter_prop_common(size_t prop_offset, zval *old_value, zva
     while (pspan) {
         if (skip_inferred) {
             ddtrace_span_data *span = SPANDATA(pspan);
-            if (span && span->type == DDTRACE_AUTOROOT_SPAN) {
-                ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-                if (root->is_inferred_span) {
-                    pspan = pspan->parent; // It should be NULL, but just in case...
-                    continue;
-                }
+            if (span && span->type == DDTRACE_INFERRED_SPAN) {
+                pspan = pspan->parent; // It should be NULL, but just in case...
+                continue;
             }
         }
 
@@ -2725,7 +2722,7 @@ PHP_FUNCTION(DDTrace_root_span) {
     }
     dd_ensure_root_span();
     ddtrace_root_span_data *span = DDTRACE_G(active_stack)->root_span;
-    if (span && span->is_inferred_span) {
+    if (span && span->type == DDTRACE_INFERRED_SPAN) {
         span = span->child_root;
     }
 
@@ -2745,7 +2742,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
     ddtrace_span_data *span;
 
     if (get_DD_TRACE_ENABLED()) {
-        span = ddtrace_open_span(DDTRACE_USER_SPAN, false);
+        span = ddtrace_open_span(DDTRACE_USER_SPAN);
     } else {
         span = ddtrace_init_dummy_span();
     }
