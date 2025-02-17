@@ -49,7 +49,7 @@ class SwooleIntegration extends Integration
                 $hook->data['inferredSpan'] = $inferredSpan;
 
                 $rootSpan = $hook->span($inferredSpan ?: new SpanStack());
-                Logger::get()->debug("Root span: " . var_export($rootSpan, true));
+                Logger::get()->debug("Created root span");
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;

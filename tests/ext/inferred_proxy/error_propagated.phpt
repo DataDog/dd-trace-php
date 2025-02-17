@@ -1,5 +1,5 @@
 --TEST--
-Should create parent and child spans for a 200
+Should create parent and child spans for error
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -8,7 +8,7 @@ DD_SERVICE=aws-server
 DD_ENV=local-prod
 DD_VERSION=1.0
 
-DD_TRACE_DEBUG=1
+DD_TRACE_DEBUG=0
 
 DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
 HTTP_X_DD_PROXY=aws-apigateway
@@ -39,16 +39,6 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer;
 
-
-$parent = \DDTrace\start_span(0.120);
-$span = \DDTrace\start_span(0.130);
-$span->name = "child";
-
-\DDTrace\root_span()->meta['foo'] = 'bar'; // It MUST set it on $parent
-
-//\DDTrace\close_spans_until(null);
-
-/*
 function oops()
 {
     http_response_code(500);
@@ -64,12 +54,12 @@ try {
 } catch (\Exception $e) {
     //
 }
-*/
 
 dd_trace_close_all_spans_and_flush(); // Simulates end of request
 
 $body = json_decode($rr->waitForDataAndReplay()["body"], true);
 echo json_encode($body, JSON_PRETTY_PRINT);
+/*
 
 $apiGwSpanDuration = $body[0][0]['duration'];
 $apiGwSpanStart = $body[0][0]['start'];
@@ -78,6 +68,7 @@ $webRequestSpanStart = $body[0][1]['start'];
 
 echo "API GW End: " . ($apiGwSpanStart + $apiGwSpanDuration) . PHP_EOL;
 echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PHP_EOL;
+*/
 
 //$span = dd_trace_serialize_closed_spans();
 
@@ -95,6 +86,7 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
             "resource": "GET \/test",
             "service": "example.com",
             "type": "web",
+            "error": 1,
             "meta": {
                 "runtime-id": "%s",
                 "component": "aws-apigateway",
@@ -104,7 +96,10 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
                 "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",
-                "http.status_code": "200",
+                "error.message": "Uncaught Exception (500): An exception occurred in %s\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php:10",
+                "error.type": "Exception",
+                "error.stack": "#0 %s\/tmp\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php(18): oops()\n#1 {main}",
+                "http.status_code": "500",
                 "_dd.p.tid": "%s"
             },
             "metrics": {
@@ -120,39 +115,26 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
             "trace_id": "13930160852258120406",
             "span_id": "11788048577503494824",
             "parent_id": "13930160852258120406",
-            "start": 120000000,
+            "start": %d,
             "duration": %d,
-            "name": "web.request",
+            "name": "request",
             "resource": "GET \/foo",
             "service": "aws-server",
             "type": "web",
+            "error": 1,
             "meta": {
                 "http.url": "http:\/\/localhost:8888\/foo",
                 "http.method": "GET",
-                "foo": "bar",
                 "env": "local-prod",
                 "version": "1.0",
+                "error.message": "Uncaught Exception (500): An exception occurred in %s\/tmp\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php:10",
+                "error.type": "Exception",
+                "error.stack": "#0 %s\/tmp\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php(18): oops()\n#1 {main}",
                 "_dd.p.tid": "%s",
                 "_dd.base_service": "example.com"
             },
             "metrics": {
                 "_sampling_priority_v1": 1
-            }
-        },
-        {
-            "trace_id": "13930160852258120406",
-            "span_id": "13874630024467741450",
-            "parent_id": "11788048577503494824",
-            "start": 130000000,
-            "duration": %d,
-            "name": "child",
-            "resource": "child",
-            "service": "aws-server",
-            "type": "web",
-            "meta": {
-                "env": "local-prod",
-                "version": "1.0",
-                "_dd.base_service": "example.com"
             }
         }
     ]

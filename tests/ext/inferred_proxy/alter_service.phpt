@@ -1,5 +1,5 @@
 --TEST--
-Should create parent and child spans for a 200
+Inferred span's service shouldn't change on ini_change of datadog.service
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -39,49 +39,34 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer;
 
+$headers = [
+    "host" => "localhost",
+    "accept" => "*/*",
+    "x-dd-proxy" => "aws-apigateway",
+    "x-dd-proxy-request-time-ms" => "1739261376000",
+    "x-dd-proxy-path" => "/test",
+    "x-dd-proxy-httpmethod" => "GET",
+    "x-dd-proxy-domain-name" => "example.com",
+    "x-dd-proxy-stage" => "aws-prod",
+    "x-datadog-sampling-priority" => "1",
+    "x-datadog-tags" => "_dd.p.tid=67adbd8500000000,_dd.p.dm=-0",
+    "x-datadog-trace-id" => "3094185682341082955",
+    "x-datadog-parent-id" => "3094185682341082955",
+    "traceparent" => "00-67adbd85000000002af0c17c010a374b-2af0c17c010a374b-01",
+    "tracestate" => "dd=p:2af0c17c010a374b;t.dm:-0"
+];
+
+ini_set('datadog.service', 'my_service');
+
 
 $parent = \DDTrace\start_span(0.120);
 $span = \DDTrace\start_span(0.130);
 $span->name = "child";
 
-\DDTrace\root_span()->meta['foo'] = 'bar'; // It MUST set it on $parent
-
-//\DDTrace\close_spans_until(null);
-
-/*
-function oops()
-{
-    http_response_code(500);
-    throw new \Exception('An exception occurred');
-}
-
-\DDTrace\trace_function('oops', function($span) {
-    $span->name = 'request';
-});
-
-try {
-    oops();
-} catch (\Exception $e) {
-    //
-}
-*/
-
 dd_trace_close_all_spans_and_flush(); // Simulates end of request
 
 $body = json_decode($rr->waitForDataAndReplay()["body"], true);
 echo json_encode($body, JSON_PRETTY_PRINT);
-
-$apiGwSpanDuration = $body[0][0]['duration'];
-$apiGwSpanStart = $body[0][0]['start'];
-$webRequestSpanDuration = $body[0][1]['duration'];
-$webRequestSpanStart = $body[0][1]['start'];
-
-echo "API GW End: " . ($apiGwSpanStart + $apiGwSpanDuration) . PHP_EOL;
-echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PHP_EOL;
-
-//$span = dd_trace_serialize_closed_spans();
-
-//echo json_encode($span, JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
@@ -124,12 +109,11 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
             "duration": %d,
             "name": "web.request",
             "resource": "GET \/foo",
-            "service": "aws-server",
+            "service": "my_service",
             "type": "web",
             "meta": {
                 "http.url": "http:\/\/localhost:8888\/foo",
                 "http.method": "GET",
-                "foo": "bar",
                 "env": "local-prod",
                 "version": "1.0",
                 "_dd.p.tid": "%s",
@@ -147,7 +131,7 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
             "duration": %d,
             "name": "child",
             "resource": "child",
-            "service": "aws-server",
+            "service": "my_service",
             "type": "web",
             "meta": {
                 "env": "local-prod",
