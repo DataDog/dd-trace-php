@@ -109,6 +109,7 @@ $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSIO
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
+	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))

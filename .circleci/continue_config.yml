@@ -911,6 +911,7 @@ jobs:
             if [[ "<<parameters.xdebug_version_one>>" == "3.4.0" ]]; then
               ln -s $(php-config --extension-dir)/xdebug-3.4.0.so $(php-config --extension-dir)/xdebug-3.4.0alpha2-dev.so
             fi
+            sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
             php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_one >>)
             if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
               php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so tests/xdebug/$(targetdir << parameters.xdebug_version_two >>)
@@ -978,7 +979,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/$(if [[ << parameters.make_target >> == *opcache* ]]; then echo opcache; else echo ext; fi) /tmp/artifacts/tests
           when: on_fail
@@ -1028,7 +1029,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core*" -type f | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
             find /tmp/artifacts/tests -name '*.phpt' -delete
@@ -1080,7 +1081,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
             find /tmp/artifacts/tests -name '*.phpt' -delete
@@ -1179,7 +1180,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
             find /tmp/artifacts/tests -name '*.phpt' -delete
           when: on_fail
@@ -1303,7 +1304,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
           when: on_fail
@@ -1766,7 +1767,7 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -o -name 'sidecar.log' \) -exec cp --parents '{}' /tmp/artifacts \;
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
           when: on_fail
       - run:
@@ -1962,11 +1963,15 @@ jobs:
             foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
                 $c = file_get_contents($f);
                 $n = preg_replace(["/\)#[0-9]+ \(/", "/[0-9]+ is not a valid/"], [")#%d (", "%d is not a valid"], $c);
+                if (PHP_VERSION_ID >= 80200) {
+                    $n = preg_replace_callback("{(?<=, tmps=)\d+(?=\))}", function ($m) { return $m[0] + 1; }, $n); /* observer temporary */
+                }
                 if ($c !== $n) {
                     file_put_contents($f, str_replace("--EXPECT--", "--EXPECTF--", $n));
                 }
             }
             PHP
+            sed -i 's/\bdl(/(bool)(/' run-tests.php # we know all extensions in extension_dir are loadable, so just skip that check
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
@@ -1977,7 +1982,7 @@ jobs:
           command: |
             cd /usr/local/src/php
             mkdir -p /tmp/artifacts/core_dumps
-            find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             mkdir -p /tmp/artifacts/diffs
             find -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts/diffs \;
           when: on_fail
@@ -2060,7 +2065,7 @@ jobs:
             mkdir -p /tmp/artifacts
             find ~/datadog/tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' /tmp/artifacts \;
             mkdir -p /tmp/artifacts/core_dumps
-            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find /tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
           when: on_fail
       - store_artifacts:
@@ -2135,7 +2140,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
             find /tmp/artifacts/tests -name '*.phpt' -delete
@@ -2189,7 +2194,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
             ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
             find /tmp/artifacts/tests -name '*.phpt' -delete
@@ -5004,7 +5009,6 @@ workflows:
                 - PHP_MAJOR=8 PHP_MINOR=1
                 - PHP_MAJOR=8 PHP_MINOR=2
                 - PHP_MAJOR=8 PHP_MINOR=3
-                - PHP_MAJOR=8 PHP_MINOR=4
       - verify_debian:
           requires: [ "package extension" ]
           matrix:

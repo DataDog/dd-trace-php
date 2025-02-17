@@ -1314,6 +1314,7 @@ dependencies = [
  "anyhow",
  "backtrace",
  "blazesym",
+ "cc",
  "chrono",
  "ddcommon 0.0.1",
  "ddtelemetry",
@@ -1321,6 +1322,8 @@ dependencies = [
  "hyper 0.14.32",
  "libc 0.2.169",
  "nix 0.27.1",
+ "num-derive",
+ "num-traits",
  "os_info",
  "page_size",
  "portable-atomic",
@@ -3459,6 +3462,17 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
+name = "num-derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
 
 [[package]]
 name = "num-integer"

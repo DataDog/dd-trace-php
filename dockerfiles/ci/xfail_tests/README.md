@@ -64,6 +64,10 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 - `ext/soap/tests/bug77088.phpt`
 - `ext/spl/tests/gh8318.phpt`
 
+## Tests checking for DO_ICALL
+
+On PHP 8.0 and PHP 8.1 we override zend_execute_internal, which causes DO_FCALL instead of DO_ICALL opcodes to be emitted. Skipping some `ext/opcache` tests there.
+
 ---
 
 # Specific tests
