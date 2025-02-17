@@ -2,7 +2,7 @@
 
 require_once __DIR__.'/assert.php';
 
-set_exception_handler(function (\Throwable $ex) {
+set_exception_handler(function ($ex) {
     $trace = $ex->getTrace();
     $file = $trace[0]['file'] ?: '';
     $line = $trace[0]['line'] ?: '';
@@ -88,6 +88,10 @@ function debug() {
 
 function use_valgrind() {
     return (bool) (isset($_SERVER['TEST_USE_VALGRIND']) ? $_SERVER['TEST_USE_VALGRIND'] : false);
+}
+
+function php_minor_version() {
+    return PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
 }
 
 function skip_if_php5() {
