@@ -1622,7 +1622,7 @@ static void dd_initialize_request(void) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 80000 || (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500)
     zai_interceptor_rinit();
 #endif
 

@@ -27,7 +27,14 @@ static void clean_ctx(struct eval_ctx *ctx) {
         zend_arena *arena = ctx->arena;
         do {
             zend_arena *prev = arena->prev;
-            for (zval *cur = (zval *)((char *)arena + ZEND_MM_ALIGNED_SIZE(sizeof(zend_arena))); cur < (zval *)arena->ptr; ++cur) {
+#ifdef ZEND_TRACK_ARENA_ALLOC
+            for (zval **ptr = (zval **)arena->ptrs; ptr < (zval **)arena->ptr; ++ptr)
+            {
+                zval *cur = *ptr;
+#else
+            for (zval *cur = (zval *)((char *)arena + ZEND_MM_ALIGNED_SIZE(sizeof(zend_arena))); cur < (zval *)arena->ptr; ++cur)
+            {
+#endif
                 zval_ptr_dtor(cur);
             }
             arena = prev;
