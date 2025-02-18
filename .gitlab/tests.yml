@@ -51,17 +51,9 @@
 
 PHP Language Tests:
   extends: .base_test
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: "8.4"
-        ARCH: "amd64"
   needs:
     - job: "compile extension: debug"
       artifacts: true
-      parallel:
-        matrix:
-          - PHP_MAJOR_MINOR: "8.4"
-            ARCH: "amd64"
   variables:
     DD_TRACE_STARTUP_LOGS: "0"
     DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
