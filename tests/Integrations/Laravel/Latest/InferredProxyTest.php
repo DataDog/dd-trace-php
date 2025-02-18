@@ -26,8 +26,6 @@ class InferredProxyTest extends WebFrameworkTestCase
 
     public function testInferredProxy()
     {
-        self::putEnvAndReloadConfig(['DD_SERVICE=my_service']);
-
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
                 GetSpec::create(
