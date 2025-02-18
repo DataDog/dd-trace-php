@@ -61,7 +61,27 @@ class InferredProxyTest extends WebFrameworkTestCase
             );
         });
 
-        echo json_encode($traces, JSON_PRETTY_PRINT);
+        $this->snapshotFromTraces($traces);
+    }
+
+    public function testInferredProxyException()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(
+                GetSpec::create(
+                    'A GET throwing an exception',
+                    '/error?key=value&pwd=should_redact',
+                    [
+                        'x-dd-proxy: aws-apigateway',
+                        'x-dd-proxy-request-time-ms: 1739261376000',
+                        'x-dd-proxy-path: /test',
+                        'x-dd-proxy-httpmethod: GET',
+                        'x-dd-proxy-domain-name: example.com',
+                        'x-dd-proxy-stage: aws-prod',
+                    ]
+                )
+            );
+        });
 
         $this->snapshotFromTraces($traces);
     }

@@ -96,7 +96,54 @@ class InferredProxyTest extends WebFrameworkTestCase
             }
         }
 
-        echo json_encode($apigwTrace, JSON_PRETTY_PRINT);
+        $this->snapshotFromTraces([$apigwTrace]);
+    }
+
+    public function testInferredProxyException()
+    {
+        $until = function ($request) {
+            $body = $request["body"] ?? [];
+            $traces = empty($body) ? [[]] : json_decode($body, true);
+
+            foreach ($traces as $trace) {
+                foreach ($trace as $span) {
+                    if ($span
+                        && isset($span["name"])
+                        && $span["name"] === "laravel.request"
+                        && (str_contains($span["resource"], 'App\\Http\\Controllers') || $span["resource"] === 'GET /does_not_exist')
+                    ) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        };
+
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(
+                GetSpec::create(
+                    'A GET throwing an exception',
+                    '/error?key=value&pwd=should_redact',
+                    [
+                        'x-dd-proxy: aws-apigateway',
+                        'x-dd-proxy-request-time-ms: 1739261376000',
+                        'x-dd-proxy-path: /test',
+                        'x-dd-proxy-httpmethod: GET',
+                        'x-dd-proxy-domain-name: example.com',
+                        'x-dd-proxy-stage: aws-prod',
+                    ]
+                )
+            );
+        }, null, $until);
+
+        $apigwTrace = null;
+        foreach ($traces as $trace) {
+            if ($trace[0]["name"] === "aws-apigateway") {
+                $apigwTrace = $trace;
+                break;
+            }
+        }
 
         $this->snapshotFromTraces([$apigwTrace]);
     }
