@@ -17,6 +17,7 @@
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "service.hpp"
+#include "service_config.hpp"
 #include "std_logging.hpp"
 
 using namespace std::chrono_literals;
@@ -302,6 +303,10 @@ bool client::handle_command(network::request_init::request &command)
     context_.emplace(*service_->get_engine());
 
     auto response = publish<network::request_init>(command);
+    if (response) {
+        response->settings["auto_user_instrum"] = to_string_view(
+            service_->get_service_config()->get_auto_user_intrum_mode());
+    }
 
     return send_message<network::request_init>(response);
 }

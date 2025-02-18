@@ -202,6 +202,26 @@ json_helper::get_field_of_type(
     return get_field_of_type(*parent_field, key, type);
 }
 
+bool json_helper::field_exists(
+    const rapidjson::Value &parent_field, std::string_view key)
+{
+    return parent_field.FindMember(key.data()) != parent_field.MemberEnd();
+}
+
+bool json_helper::field_exists(
+    const rapidjson::Value::ConstMemberIterator &parent_field,
+    std::string_view key)
+{
+    return field_exists(parent_field->value, key);
+}
+
+bool json_helper::field_exists(
+    const rapidjson::Value::ConstValueIterator parent_field,
+    std::string_view key)
+{
+    return field_exists(*parent_field, key);
+}
+
 bool json_helper::parse_json(
     std::string_view content, rapidjson::Document &output)
 {
