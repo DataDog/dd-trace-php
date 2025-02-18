@@ -2,6 +2,8 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+error_reporting(E_ALL & ~E_DEPRECATED);
+
 // This script HAS to invoke at least two integrations via deferred integration loading mechanism.
 
 // PDO

@@ -104,6 +104,7 @@ typedef struct {
 
 typedef struct {
     ddog_Probe probe;
+    bool removed;
     zend_string *function;
     zend_string *scope;
     zend_string *file;
@@ -150,6 +151,7 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
     def->file = NULL;
     def->function = NULL;
     def->scope = NULL;
+    def->removed = false;
 
     const ddog_ProbeTarget *target = &probe->target;
     if (target->type_name.len) {
@@ -267,7 +269,7 @@ static void dd_submit_probe_eval_error_snapshot(const ddog_Probe *probe, ddog_Ve
 static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_probe_def *def = auxiliary;
     ddtrace_span_data *span = ddtrace_active_span();
-    if (!span) {
+    if (!span || def->removed) {
         return;
     }
     UNUSED(invocation, dynamic);
@@ -423,6 +425,17 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         return;
     }
 
+    if (def->parent.removed) {
+        if (dyn->payload) {
+            ddog_drop_debugger_payload(dyn->payload);
+            zend_string_release(dyn->service);
+            if (dyn->capture_arena) {
+                zend_arena_destroy(dyn->capture_arena);
+            }
+        }
+        return;
+    }
+
     if (def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_EXIT && !dd_log_probe_eval_condition(def, execute_data, retval)) {
         return;
     }
@@ -490,7 +503,7 @@ static int64_t dd_set_log_probe(const ddog_Probe *probe, const ddog_MaybeShmLimi
 static void dd_metric_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_probe_def *def = auxiliary;
     UNUSED(invocation, dynamic);
-    if (dd_probe_file_mismatch(def, execute_data)) {
+    if (def->removed || dd_probe_file_mismatch(def, execute_data)) {
         return;
     }
 
@@ -584,6 +597,7 @@ static void dd_remove_live_debugger_probe(int64_t id) {
     if ((def = zend_hash_index_find_ptr(&DDTRACE_G(active_rc_hooks), (zend_ulong)id))) {
         zend_string *scope = def->scope ? zend_string_copy(def->scope) : NULL;
         zend_string *func = def->function ? zend_string_copy(def->function) : NULL;
+        def->removed = true;
         zai_hook_remove(
                 def->scope ? (zai_str)ZAI_STR_FROM_ZSTR(def->scope) : (zai_str)ZAI_STR_EMPTY,
                 def->function ? (zai_str)ZAI_STR_FROM_ZSTR(def->function) : (zai_str)ZAI_STR_EMPTY,

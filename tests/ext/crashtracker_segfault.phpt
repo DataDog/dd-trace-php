@@ -52,10 +52,11 @@ $rr->waitForRequest(function ($request) {
 --EXPECTF--
 %A{
     "message": {
-        "additional_stacktraces": [],
+%A
         "files": {
 %A
         },
+        "incomplete": false,
         "metadata": {
             "library_name": "dd-trace-php",
             "library_version": "%s",
@@ -67,13 +68,12 @@ $rr->waitForRequest(function ($request) {
         "os_info": {
 %A
         },
-        "span_ids": [],
-        "tags": [],
-        "trace_ids": []
+        "timestamp": "%s",
+        "uuid": "%s"
     },
     "level": "ERROR",
     "count": 1,
     "stack_trace": "%s",
-    "tags": "%ssigname:SIGSEGV%s",
+    "tags": "%ssi_signo_human_readable:SIGSEGV%S",
     "is_sensitive": true
 }%A

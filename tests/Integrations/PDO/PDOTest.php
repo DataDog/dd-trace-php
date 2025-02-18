@@ -725,13 +725,7 @@ final class PDOTest extends IntegrationTestCase
         $pdo = $this->pdoInstance($opts);
 
         $this->isolateTracer(function () use ($pdo) {
-            $pdo->beginTransaction();
-            $stmt = $pdo->prepare("INSERT INTO tests (name) VALUES (?)");
-
-            for ($i = 0; $i < 1000; $i++) {
-                $stmt->execute(['Jerry']);
-            }
-            $pdo->commit();
+            $pdo->query("INSERT INTO tests (name) VALUES " . str_repeat("('Jerry'), ", 999) . "('Jerry')");
         });
         return $pdo;
     }

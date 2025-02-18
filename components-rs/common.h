@@ -369,8 +369,6 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_RASP_LFI,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_RASP_SSRF,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
 } ddog_RemoteConfigProduct;
 
@@ -872,7 +870,6 @@ typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,
   DDOG_CRASHT_BUILD_ID_TYPE_GO,
   DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_PE,
   DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
 } ddog_crasht_BuildIdType;
 
@@ -890,7 +887,7 @@ typedef enum ddog_crasht_ErrorKind {
 typedef enum ddog_crasht_FileType {
   DDOG_CRASHT_FILE_TYPE_APK,
   DDOG_CRASHT_FILE_TYPE_ELF,
-  DDOG_CRASHT_FILE_TYPE_PDB,
+  DDOG_CRASHT_FILE_TYPE_PE,
 } ddog_crasht_FileType;
 
 /**
@@ -918,6 +915,7 @@ typedef enum ddog_crasht_OpTypes {
 
 /**
  * See https://man7.org/linux/man-pages/man2/sigaction.2.html
+ * MUST REMAIN IN SYNC WITH THE ENUM IN emit_sigcodes.c
  */
 typedef enum ddog_crasht_SiCodes {
   DDOG_CRASHT_SI_CODES_BUS_ADRALN,
@@ -925,6 +923,14 @@ typedef enum ddog_crasht_SiCodes {
   DDOG_CRASHT_SI_CODES_BUS_MCEERR_AO,
   DDOG_CRASHT_SI_CODES_BUS_MCEERR_AR,
   DDOG_CRASHT_SI_CODES_BUS_OBJERR,
+  DDOG_CRASHT_SI_CODES_ILL_BADSTK,
+  DDOG_CRASHT_SI_CODES_ILL_COPROC,
+  DDOG_CRASHT_SI_CODES_ILL_ILLADR,
+  DDOG_CRASHT_SI_CODES_ILL_ILLOPC,
+  DDOG_CRASHT_SI_CODES_ILL_ILLOPN,
+  DDOG_CRASHT_SI_CODES_ILL_ILLTRP,
+  DDOG_CRASHT_SI_CODES_ILL_PRVOPC,
+  DDOG_CRASHT_SI_CODES_ILL_PRVREG,
   DDOG_CRASHT_SI_CODES_SEGV_ACCERR,
   DDOG_CRASHT_SI_CODES_SEGV_BNDERR,
   DDOG_CRASHT_SI_CODES_SEGV_MAPERR,
@@ -938,16 +944,45 @@ typedef enum ddog_crasht_SiCodes {
   DDOG_CRASHT_SI_CODES_SI_TKILL,
   DDOG_CRASHT_SI_CODES_SI_USER,
   DDOG_CRASHT_SI_CODES_SYS_SECCOMP,
+  DDOG_CRASHT_SI_CODES_UNKNOWN,
 } ddog_crasht_SiCodes;
 
 /**
  * See https://man7.org/linux/man-pages/man7/signal.7.html
  */
 typedef enum ddog_crasht_SignalNames {
+  DDOG_CRASHT_SIGNAL_NAMES_SIGHUP,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGINT,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGQUIT,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGILL,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGTRAP,
   DDOG_CRASHT_SIGNAL_NAMES_SIGABRT,
   DDOG_CRASHT_SIGNAL_NAMES_SIGBUS,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGFPE,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGKILL,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGUSR1,
   DDOG_CRASHT_SIGNAL_NAMES_SIGSEGV,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGUSR2,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGPIPE,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGALRM,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGTERM,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGCHLD,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGCONT,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGSTOP,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGTSTP,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGTTIN,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGTTOU,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGURG,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGXCPU,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGXFSZ,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGVTALRM,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGPROF,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGWINCH,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGIO,
   DDOG_CRASHT_SIGNAL_NAMES_SIGSYS,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGEMT,
+  DDOG_CRASHT_SIGNAL_NAMES_SIGINFO,
+  DDOG_CRASHT_SIGNAL_NAMES_UNKNOWN,
 } ddog_crasht_SignalNames;
 
 /**
@@ -971,9 +1006,6 @@ typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
 typedef struct ddog_crasht_CrashInfoBuilder ddog_crasht_CrashInfoBuilder;
 
-/**
- * All fields are hex encoded integers.
- */
 typedef struct ddog_crasht_StackFrame ddog_crasht_StackFrame;
 
 typedef struct ddog_crasht_StackTrace ddog_crasht_StackTrace;
@@ -1017,6 +1049,20 @@ typedef struct ddog_crasht_Slice_CharSlice {
   uintptr_t len;
 } ddog_crasht_Slice_CharSlice;
 
+typedef struct ddog_crasht_Slice_I32 {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const int32_t *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_I32;
+
 typedef struct ddog_crasht_Config {
   struct ddog_crasht_Slice_CharSlice additional_files;
   bool create_alt_stack;
@@ -1027,6 +1073,11 @@ typedef struct ddog_crasht_Config {
    */
   const struct ddog_Endpoint *endpoint;
   enum ddog_crasht_StacktraceCollection resolve_frames;
+  /**
+   * The set of signals we should be registered for.
+   * If empty, use the default set.
+   */
+  struct ddog_crasht_Slice_I32 signals;
   /**
    * Timeout in milliseconds before the signal handler starts tearing things down to return.
    * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
@@ -1082,6 +1133,20 @@ typedef struct ddog_crasht_Metadata {
   const struct ddog_Vec_Tag *tags;
 } ddog_crasht_Metadata;
 
+typedef struct ddog_crasht_Slice_CInt {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const int *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_crasht_Slice_CInt;
+
 /**
  * A generic result type for when an operation may fail,
  * or may return <T> in case of success.
@@ -1119,38 +1184,13 @@ typedef struct ddog_crasht_Handle_CrashInfoBuilder {
   struct ddog_crasht_CrashInfoBuilder *inner;
 } ddog_crasht_Handle_CrashInfoBuilder;
 
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleCrashInfoBuilder_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_BUILDER_OK_HANDLE_CRASH_INFO_BUILDER,
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_BUILDER_ERR_HANDLE_CRASH_INFO_BUILDER,
-} ddog_crasht_Result_HandleCrashInfoBuilder_Tag;
+typedef enum ddog_crasht_CrashInfo_NewResult_Tag {
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
+  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
+} ddog_crasht_CrashInfo_NewResult_Tag;
 
-typedef struct ddog_crasht_Result_HandleCrashInfoBuilder {
-  ddog_crasht_Result_HandleCrashInfoBuilder_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_Handle_CrashInfoBuilder ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_crasht_Result_HandleCrashInfoBuilder;
-
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
-  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_ERR_HANDLE_CRASH_INFO,
-} ddog_crasht_Result_HandleCrashInfo_Tag;
-
-typedef struct ddog_crasht_Result_HandleCrashInfo {
-  ddog_crasht_Result_HandleCrashInfo_Tag tag;
+typedef struct ddog_crasht_CrashInfo_NewResult {
+  ddog_crasht_CrashInfo_NewResult_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_CrashInfo ok;
@@ -1159,7 +1199,7 @@ typedef struct ddog_crasht_Result_HandleCrashInfo {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_Result_HandleCrashInfo;
+} ddog_crasht_CrashInfo_NewResult;
 
 typedef struct ddog_crasht_OsInfo {
   ddog_CharSlice architecture;
@@ -1216,17 +1256,13 @@ typedef struct ddog_crasht_Handle_StackFrame {
   struct ddog_crasht_StackFrame *inner;
 } ddog_crasht_Handle_StackFrame;
 
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleStackFrame_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_STACK_FRAME_OK_HANDLE_STACK_FRAME,
-  DDOG_CRASHT_RESULT_HANDLE_STACK_FRAME_ERR_HANDLE_STACK_FRAME,
-} ddog_crasht_Result_HandleStackFrame_Tag;
+typedef enum ddog_crasht_StackFrame_NewResult_Tag {
+  DDOG_CRASHT_STACK_FRAME_NEW_RESULT_OK,
+  DDOG_CRASHT_STACK_FRAME_NEW_RESULT_ERR,
+} ddog_crasht_StackFrame_NewResult_Tag;
 
-typedef struct ddog_crasht_Result_HandleStackFrame {
-  ddog_crasht_Result_HandleStackFrame_Tag tag;
+typedef struct ddog_crasht_StackFrame_NewResult {
+  ddog_crasht_StackFrame_NewResult_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_StackFrame ok;
@@ -1235,59 +1271,24 @@ typedef struct ddog_crasht_Result_HandleStackFrame {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_Result_HandleStackFrame;
+} ddog_crasht_StackFrame_NewResult;
 
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_HandleStackTrace_Tag {
-  DDOG_CRASHT_RESULT_HANDLE_STACK_TRACE_OK_HANDLE_STACK_TRACE,
-  DDOG_CRASHT_RESULT_HANDLE_STACK_TRACE_ERR_HANDLE_STACK_TRACE,
-} ddog_crasht_Result_HandleStackTrace_Tag;
+typedef enum ddog_StringWrapperResult_Tag {
+  DDOG_STRING_WRAPPER_RESULT_OK,
+  DDOG_STRING_WRAPPER_RESULT_ERR,
+} ddog_StringWrapperResult_Tag;
 
-typedef struct ddog_crasht_Result_HandleStackTrace {
-  ddog_crasht_Result_HandleStackTrace_Tag tag;
+typedef struct ddog_StringWrapperResult {
+  ddog_StringWrapperResult_Tag tag;
   union {
     struct {
-      struct ddog_crasht_Handle_StackTrace ok;
+      struct ddog_StringWrapper ok;
     };
     struct {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_Result_HandleStackTrace;
-
-/**
- * A wrapper for returning owned strings from FFI
- */
-typedef struct ddog_crasht_StringWrapper {
-  /**
-   * This is a String stuffed into the vec.
-   */
-  struct ddog_Vec_U8 message;
-} ddog_crasht_StringWrapper;
-
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_crasht_Result_StringWrapper_Tag {
-  DDOG_CRASHT_RESULT_STRING_WRAPPER_OK_STRING_WRAPPER,
-  DDOG_CRASHT_RESULT_STRING_WRAPPER_ERR_STRING_WRAPPER,
-} ddog_crasht_Result_StringWrapper_Tag;
-
-typedef struct ddog_crasht_Result_StringWrapper {
-  ddog_crasht_Result_StringWrapper_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_StringWrapper ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_crasht_Result_StringWrapper;
+} ddog_StringWrapperResult;
 
 #ifdef __cplusplus
 extern "C" {

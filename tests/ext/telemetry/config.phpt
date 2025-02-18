@@ -14,6 +14,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=
 DD_AUTOLOAD_NO_COMPILE=
 DD_TRACE_GIT_METADATA_ENABLED=0
+DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
@@ -74,12 +75,19 @@ Array
 
     [2] => Array
         (
+            [name] => trace.ignore_agent_sampling_rates
+            [value] => 1
+            [origin] => EnvVar
+        )
+
+    [3] => Array
+        (
             [name] => trace.generate_root_span
             [value] => 0
             [origin] => EnvVar
         )
 
-    [3] => Array
+    [4] => Array
         (
             [name] => trace.git_metadata_enabled
             [value] => 0
