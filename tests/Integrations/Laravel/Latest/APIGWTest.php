@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integrations\Laravel\Latest;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class InferredProxyTest extends WebFrameworkTestCase
+class APIGWTest extends WebFrameworkTestCase
 {
     public static $database = "laravel11";
 
