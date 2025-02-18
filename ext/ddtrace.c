@@ -403,7 +403,6 @@ static inline void dd_alter_prop_skip_inferred_span(size_t prop_offset, zval *ol
 }
 
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    LOG(DEBUG, "Altering property service to %s", Z_STRVAL_P(new_value));
     if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
         dd_alter_prop_skip_inferred_span(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
     } else {
@@ -1662,7 +1661,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         ddtrace_autoload_rinit();
 #endif
     }
-    LOG(DEBUG, "RINIT");
+
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
     }
