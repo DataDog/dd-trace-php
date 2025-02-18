@@ -7,6 +7,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class InferredProxyTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel11";
+
     public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Latest/public/index.php';
