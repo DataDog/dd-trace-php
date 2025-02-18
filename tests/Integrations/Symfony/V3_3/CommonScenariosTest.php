@@ -9,9 +9,19 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/index.php';
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '3.3.18';
     }
 
     /**

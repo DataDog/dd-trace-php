@@ -15,7 +15,7 @@ class DistributedTraceTest extends WebFrameworkTestCase
         \dd_trace_disable_in_request();
     }
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }

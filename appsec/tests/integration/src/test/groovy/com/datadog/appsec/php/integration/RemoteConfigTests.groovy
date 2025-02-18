@@ -84,6 +84,8 @@ class RemoteConfigTests {
                 Capability.ASM_CUSTOM_RULES,
                 Capability.ASM_CUSTOM_BLOCKING_RESPONSE,
                 Capability.ASM_TRUSTED_IPS,
+                Capability.ASM_RASP_LFI,
+                Capability.ASM_RASP_SSRF,
         ].each { assert it in capSet }
 
         doReq.call(403)

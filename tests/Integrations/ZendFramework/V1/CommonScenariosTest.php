@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_12/public/index.php';
     }
@@ -19,6 +19,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
 	        'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'zendframework/zf1';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '1.12.20';
     }
 
     /**

@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SyntheticsTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }

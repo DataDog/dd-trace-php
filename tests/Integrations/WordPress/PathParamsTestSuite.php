@@ -17,9 +17,9 @@ class PathParamsTestSuite extends AppsecTestCase
             )
         );
 
-        $events = AppsecStatus::getInstance()->getEvents(['push_address'], ['server.request.path_params']);
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.request.path_params']);
         $this->assertEquals(1, count($events));
-        $this->assertEquals('hello-world', $events[0]["server.request.path_params"]['name']);
+        $this->assertEquals('hello-world', $events[0][0]["server.request.path_params"]['name']);
     }
 
     public function testCategory()
@@ -31,9 +31,9 @@ class PathParamsTestSuite extends AppsecTestCase
             )
         );
 
-        $events = AppsecStatus::getInstance()->getEvents(['push_address'], ['server.request.path_params']);
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.request.path_params']);
         $this->assertEquals(1, count($events));
-        $this->assertEquals('uncategorized', $events[0]["server.request.path_params"]['category_name']);
+        $this->assertEquals('uncategorized', $events[0][0]["server.request.path_params"]['category_name']);
     }
 
     public function testAuthor()
@@ -45,9 +45,9 @@ class PathParamsTestSuite extends AppsecTestCase
             )
         );
 
-        $events = AppsecStatus::getInstance()->getEvents(['push_address'], ['server.request.path_params']);
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.request.path_params']);
         $this->assertEquals(1, count($events));
-        $this->assertEquals('test', $events[0]["server.request.path_params"]['author_name']);
+        $this->assertEquals('test', $events[0][0]["server.request.path_params"]['author_name']);
     }
 
     public function testNonExistingPost()
@@ -59,7 +59,7 @@ class PathParamsTestSuite extends AppsecTestCase
             )
         );
 
-        $events = AppsecStatus::getInstance()->getEvents(['push_address'], ['server.request.path_params']);
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.request.path_params']);
         $this->assertEquals(0, count($events));
     }
 }

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Memcache;
 
-use DDTrace\Integrations\SpanTaxonomy;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -41,6 +40,11 @@ final class MemcacheTest extends IntegrationTestCase
             'DD_SERVICE',
             'DD_TRACE_MEMCACHED_OBFUSCATION',
         ];
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-memcache';
     }
 
     public function testAdd()

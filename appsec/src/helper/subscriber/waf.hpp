@@ -15,6 +15,7 @@
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace dds::waf {
 
@@ -36,12 +37,20 @@ public:
         listener &operator=(listener &&) noexcept;
         ~listener() override;
 
-        void call(dds::parameter_view &data, event &event, bool rasp) override;
+        void call(dds::parameter_view &data, event &event,
+            const std::string &rasp_rule) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void submit_metrics(metrics::telemetry_submitter &msubmitter) override;
 
     protected:
+        struct rasp_telemetry_metrics {
+            unsigned evaluated = 0;
+            unsigned matches = 0;
+            unsigned timeouts = 0;
+        };
+        std::unordered_map<std::string, rasp_telemetry_metrics> rasp_metrics_ =
+            {};
         ddwaf_context handle_{};
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};

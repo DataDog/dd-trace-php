@@ -17,7 +17,7 @@ final class GitMetadataTest extends WebFrameworkTestCase
 {
     const GIT_DIR = __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/.git';
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }

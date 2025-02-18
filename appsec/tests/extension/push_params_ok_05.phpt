@@ -8,7 +8,7 @@ DD_APPSEC_RASP_ENABLED=false
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown,root_span_get_metrics};
-use function datadog\appsec\push_address;
+use function datadog\appsec\push_addresses;
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -18,8 +18,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-$is_rasp = true;
-push_address("server.request.path_params", 1234, $is_rasp);
+push_addresses(["server.request.path_params" => 1234], "lfi");
 var_dump(rshutdown());
 print_r(root_span_get_metrics());
 

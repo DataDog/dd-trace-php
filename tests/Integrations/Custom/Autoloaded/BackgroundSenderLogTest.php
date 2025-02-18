@@ -9,7 +9,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
 {
     const BGS_FLUSH_INTERVAL_MS = 500;
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }

@@ -16,7 +16,7 @@ class FilesystemIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
-        if (!function_exists('datadog\appsec\push_address')) {
+        if (!function_exists('datadog\appsec\push_addresses')) {
             //Dont load Appsec wrappers is not available
             return Integration::NOT_LOADED;
         }
@@ -51,20 +51,33 @@ class FilesystemIntegration extends Integration
     private static function preHook($variant)
     {
         return static function (HookData $hook) use ($variant) {
-            if (count($hook->args) == 0 || !is_string($hook->args[0])) {
+           if (count($hook->args) == 0 || !is_string($hook->args[0])) {
+               return;
+           }
+
+           $protocol = [];
+           $uri_parsed = preg_match('/^([a-z]+)\:\/\//', $hook->args[0], $protocol);
+           $protocol = isset($protocol[1]) ? $protocol[1]: "";
+
+           $addresses = [];
+           $rule = "";
+
+           if (empty($protocol) || $protocol === 'file') {
+                $addresses["server.io.fs.file"] = $hook->args[0];
+                $rule = "lfi";
+           }
+
+           if (in_array($variant, ['file_get_contents', 'fopen']) &&
+           in_array($protocol, ['http', 'https', 'ftp', 'ftps'])) {
+                $addresses["server.io.net.url"] = $hook->args[0];
+                $rule = "ssrf";
+           }
+
+            if (empty($addresses)) {
                 return;
             }
 
-            $protocol = [];
-            if (
-                preg_match('/^[a-z]+\:\/\//', $hook->args[0], $protocol) &&
-                isset($protocol[0]) &&
-                $protocol[0] !== 'file')
-            {
-                return;
-            }
-
-            \datadog\appsec\push_address("server.io.fs.file", $hook->args[0], true);
+            \datadog\appsec\push_addresses($addresses, $rule);
         };
     }
 

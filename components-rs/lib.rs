@@ -10,11 +10,14 @@ pub mod telemetry;
 use std::borrow::Cow;
 use std::ffi::c_char;
 use std::ptr::null_mut;
+use http::Uri;
 use ddcommon::entity_id::{get_container_id, set_cgroup_file};
+use http::uri::Scheme;
 use uuid::Uuid;
 
 pub use datadog_crashtracker_ffi::*;
 pub use datadog_sidecar_ffi::*;
+use ddcommon::{parse_uri, Endpoint};
 use ddcommon_ffi::slice::AsBytes;
 pub use ddcommon_ffi::*;
 pub use ddtelemetry_ffi::*;
@@ -64,4 +67,19 @@ pub unsafe extern "C" fn ddtrace_strip_invalid_utf8(input: *const c_char, len: *
 #[no_mangle]
 pub unsafe extern "C" fn ddtrace_drop_rust_string(input: *mut c_char, len: usize) {
     _ = String::from_raw_parts(input as *mut u8, len, len);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddtrace_parse_agent_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    parse_uri(url.to_utf8_lossy().as_ref())
+        .ok()
+        .and_then(|url| if url.authority().is_none() { None } else { Some(url) })
+        .map(|mut url| {
+            if url.scheme().is_none() {
+                let mut parts = url.into_parts();
+                parts.scheme = Some(Scheme::HTTP);
+                url = Uri::from_parts(parts).unwrap();
+            }
+            Box::new(Endpoint::from_url(url))
+        })
 }

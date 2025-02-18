@@ -9,7 +9,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "magento24";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Magento/Version_2_4/pub/index.php';
     }
@@ -20,6 +20,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'APP_NAME' => 'magento_test_app',
             'DD_TRACE_PDO_ENABLED' => 'false'
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'magento/magento2';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '2.4.6';
     }
 
     public function testScenarioGetReturnString()

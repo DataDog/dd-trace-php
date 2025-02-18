@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
     }
@@ -19,6 +19,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'test_symfony_34',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '3.3.47';
     }
 
     /**

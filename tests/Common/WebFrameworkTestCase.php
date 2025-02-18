@@ -76,16 +76,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         parent::ddTearDown();
     }
 
-    /**
-     * Returns the application index.php file full path.
-     *
-     * @return string|null
-     */
-    protected static function getAppIndexScript()
-    {
-        return null;
-    }
-
     protected static function getRoadrunnerVersion()
     {
         return null;

@@ -474,7 +474,7 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     RETURN_TRUE;
 }
 
-static PHP_FUNCTION(datadog_appsec_push_address)
+static PHP_FUNCTION(datadog_appsec_push_addresses)
 {
     struct timespec start;
     struct timespec end;
@@ -482,40 +482,36 @@ static PHP_FUNCTION(datadog_appsec_push_address)
     long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to push_address "
+        mlog(dd_log_debug, "Trying to access to push_addresses "
                            "function while appsec is disabled");
         return;
     }
 
-    zend_string *key = NULL;
-    zval *value = NULL;
-    bool rasp = false;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz|b", &key, &value, &rasp) ==
+    zval *addresses = NULL;
+    zend_string *rasp_rule = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|S", &addresses, &rasp_rule) ==
         FAILURE) {
         RETURN_FALSE;
     }
 
-    if (rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
-        return;
+    if (Z_TYPE_P(addresses) != IS_ARRAY) {
+        RETURN_FALSE;
     }
 
-    zval parameters_zv;
-    zend_array *parameters_arr = zend_new_array(1);
-    ZVAL_ARR(&parameters_zv, parameters_arr);
-    zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
-    Z_TRY_ADDREF_P(value);
+    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
+        !get_global_DD_APPSEC_RASP_ENABLED()) {
+        return;
+    }
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
-        zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "No connection; skipping push_address");
+        mlog_g(dd_log_debug, "No connection; skipping push_addresses");
         return;
     }
 
-    dd_result res = dd_request_exec(conn, &parameters_zv, rasp);
-    zval_ptr_dtor(&parameters_zv);
+    dd_result res = dd_request_exec(conn, addresses, rasp_rule);
 
-    if (rasp) {
+    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
         elapsed =
             ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
@@ -549,16 +545,16 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_INFO(0, "data")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_address_arginfo, 0, 0, IS_VOID, 1)
-ZEND_ARG_INFO(0, key)
-ZEND_ARG_INFO(0, value)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    push_addresses_arginfo, 0, 0, IS_VOID, 1)
+ZEND_ARG_INFO(0, addresses)
 ZEND_ARG_INFO(0, rasp)
 ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_addresses", PHP_FN(datadog_appsec_push_addresses), push_addresses_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {

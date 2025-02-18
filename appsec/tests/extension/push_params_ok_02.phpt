@@ -6,7 +6,7 @@ datadog.appsec.enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
-use function datadog\appsec\push_address;
+use function datadog\appsec\push_addresses;
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -17,7 +17,7 @@ $helper = Helper::createInitedRun([
 ]);
 
 var_dump(rinit());
-push_address("server.request.path_params", "some string");
+push_addresses(["server.request.path_params" => "some string"]);
 var_dump(rshutdown());
 
 var_dump($helper->get_command("request_exec"));
@@ -32,7 +32,7 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    bool(false)
+    string(0) ""
     [1]=>
     array(1) {
       ["server.request.path_params"]=>

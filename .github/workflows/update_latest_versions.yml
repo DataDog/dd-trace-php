@@ -1,0 +1,49 @@
+name: Update Latest Versions
+
+on:
+  workflow_dispatch: # can be triggered manually
+  schedule:
+    - cron: "30 6 * * 1" # weekly on Monday at 6:30 AM
+
+jobs:
+  update-latest-versions:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
+        with:
+          php-version: '8.3'
+
+      - name: Install PHP Tracer # Required by test bootstrap
+        run: |
+          curl -Lo /tmp/datadog-setup.php https://github.com/DataDog/dd-trace-php/releases/latest/download/datadog-setup.php
+          sudo php /tmp/datadog-setup.php --php-bin=all
+          rm /tmp/datadog-setup.php
+
+      - name: Update Test Dependencies
+        run: make composer_tests_update
+
+      - name: Update Latest Versions
+        run: php tests/PackageUpdater.php
+
+      - name: Show changes
+        run: git diff
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@67ccf781d68cd99b580ae25a5c18a1cc84ffff1f # v7.0.6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update latest versions"
+          title: "chore: update latest versions"
+          branch: "update-latest-versions"
+          base: "master"
+          delete-branch: true
+          body: This PR updates the latest pinned versions of the test dependencies.

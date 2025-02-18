@@ -51,6 +51,11 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ];
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'ext-curl';
+    }
+
     private static function commonCurlInfoTags()
     {
         $tags = [

@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_3_10/webroot/index.php';
     }
@@ -20,6 +20,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_SERVICE' => 'cakephp_test_app',
             'DD_TRACE_DEBUG' => 'true',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'cakephp/cakephp';
     }
 
     /**

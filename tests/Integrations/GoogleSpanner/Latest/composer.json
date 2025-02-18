@@ -1,0 +1,8 @@
+{
+    "require": {
+        "google/cloud-spanner": "1.93.1"
+    },
+    "provide": {
+        "ext-grpc": "*"
+    }
+}

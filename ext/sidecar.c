@@ -37,7 +37,7 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
 }
 
 ddog_SidecarTransport *dd_sidecar_connection_factory(void) {
-    // Should not happen
+    // Should not happen, unless the agent url is malformed
     if (!ddtrace_endpoint) {
         return NULL;
     }
@@ -171,11 +171,15 @@ ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void) {
         agent_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
     } else {
         char *agent_url = ddtrace_agent_url();
-        agent_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        agent_endpoint = ddtrace_parse_agent_url((ddog_CharSlice) {.ptr = agent_url, .len = strlen(agent_url)});
+        if (!agent_endpoint) {
+            LOG(ERROR, "Invalid DD_TRACE_AGENT_URL: %s. A proper agent URL must be unix:///path/to/agent.sock or http://hostname:port/.", agent_url);
+        }
         free(agent_url);
     }
 
-    if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+
+    if (agent_endpoint && ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
         ddog_endpoint_set_test_token(agent_endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 

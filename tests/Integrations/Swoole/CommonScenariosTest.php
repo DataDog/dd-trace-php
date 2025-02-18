@@ -11,7 +11,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../Frameworks/Swoole/index.php';
     }
@@ -36,6 +36,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getInis(), [
             'extension' => 'swoole.so',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-swoole';
     }
 
     /**

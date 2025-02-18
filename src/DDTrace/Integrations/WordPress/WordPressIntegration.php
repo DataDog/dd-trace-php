@@ -55,12 +55,12 @@ class WordPressIntegration extends Integration
 
         \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
             if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
-                if (function_exists('\datadog\appsec\push_address') &&
+                if (function_exists('\datadog\appsec\push_addresses') &&
                     \property_exists($This, 'query_vars') &&
                     function_exists('is_404') && is_404() === false) {
                     $parameters = $This->query_vars;
                     if (count($parameters) > 0) {
-                        \datadog\appsec\push_address("server.request.path_params", $parameters);
+                        \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                     }
                 }
             }
@@ -80,6 +80,9 @@ class WordPressIntegration extends Integration
                 if (!($retval instanceof $userClass)) {
                     //Login failed
                     if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                        return;
+                    }
+                    if (empty($username)) {
                         return;
                     }
                     $errorClass = '\WP_Error';

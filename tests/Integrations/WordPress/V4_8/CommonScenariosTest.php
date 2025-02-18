@@ -12,7 +12,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 {
     public static $database = "wp48";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_4_8/index.php';
     }
@@ -31,6 +31,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_TRACE_WORDPRESS_CALLBACKS' => '0',
             'DD_TRACE_MYSQLI_ENABLED' => '0',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'wordpress';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '4.8.10';
     }
 
     public function testScenarioGetReturnString()
