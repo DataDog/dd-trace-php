@@ -8,7 +8,8 @@ use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class InferredProxyTest extends WebFrameworkTestCase
+// Nota Bene: This test HAS to run first. This is because other Roadrunner tests are setting persisting distributed tags.
+class APIGWTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {

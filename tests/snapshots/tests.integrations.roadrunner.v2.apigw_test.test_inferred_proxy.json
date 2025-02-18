@@ -5,12 +5,12 @@
     "resource": "GET /simple",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 7104662190533113224,
+    "parent_id": 1018392648284749904,
     "type": "cli",
     "meta": {
       "_dd.inferred_span": "1",
       "_dd.p.dm": "0",
-      "_dd.p.tid": "67b455a800000000",
+      "_dd.p.tid": "67b45c9500000000",
       "component": "aws-apigateway",
       "env": "local-test",
       "http.method": "GET",
@@ -22,7 +22,7 @@
       "http.request.headers.x-dd-proxy-stage": "aws-prod",
       "http.status_code": "200",
       "http.url": "http://localhost/simple?key=value&<redacted>",
-      "runtime-id": "359d51e2-d5d9-4e02-86d0-abb244bc082f",
+      "runtime-id": "853263cf-31b4-4204-8a89-b001e2d59ec1",
       "stage": "aws-prod",
       "version": "1.0"
     },
@@ -40,7 +40,7 @@
        "type": "web",
        "meta": {
          "_dd.base_service": "example.com",
-         "_dd.p.tid": "67b455a800000000",
+         "_dd.p.tid": "67b45c9500000000",
          "component": "roadrunner",
          "env": "local-test",
          "span.kind": "server",
