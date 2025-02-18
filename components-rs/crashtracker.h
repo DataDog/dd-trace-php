@@ -809,6 +809,11 @@ DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_receiver_entry_point_stdin(
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_receiver_entry_point_unix_socket(ddog_CharSlice socket_path);
 
+DDOG_CHECK_RETURN
+bool ddog_crasht_init_windows(void* module,
+    struct ddog_Endpoint* endpoint,
+    struct ddog_crasht_Metadata metadata);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus
