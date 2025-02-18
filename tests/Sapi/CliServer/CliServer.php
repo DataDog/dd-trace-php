@@ -93,9 +93,7 @@ final class CliServer implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
-        if (!$this->process->isRunning()) {
-            error_log("[cli-server] Error starting: " . $this->process->getErrorOutput());
-        }
+        error_log("[cli-server] Startup errors: " . $this->process->getErrorOutput());
     }
 
     public function stop()
