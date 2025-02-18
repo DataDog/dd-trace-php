@@ -70,6 +70,8 @@
 #include "sidecar.h"
 #ifndef _WIN32
 #include "signals.h"
+#else
+#include "crashtracking_windows.h"
 #endif
 #include "span.h"
 #include "startup_logging.h"
@@ -1551,6 +1553,10 @@ static void dd_rinit_once(void) {
     ddtrace_signals_first_rinit();
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_init_and_start_writer();
+    }
+#else
+    if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED()) {
+        init_crash_tracking();
     }
 #endif
 

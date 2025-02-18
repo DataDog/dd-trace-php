@@ -55,6 +55,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " telemetry.c";
 	DDTRACE_EXT_SOURCES += " threads.c";
 	DDTRACE_EXT_SOURCES += " user_request.c";
+	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	if (version >= 800 && version < 802) {
 		DDTRACE_EXT_SOURCES += " weakrefs.c";
 	}
@@ -168,7 +169,7 @@ if (PHP_DDTRACE != 'no') {
 
 	ADD_FLAG("STATIC_EXT_OBJS", cargo_lib);
 	ADD_FLAG("DEPS_DDTRACE", cargo_lib);
-	ADD_FLAG("LIBS_DDTRACE", "userenv.lib crypt32.lib Powrprof.lib Secur32.Lib ncrypt.lib ntdll.lib oleaut32.lib " + cargo_lib);
+	ADD_FLAG("LIBS_DDTRACE", "userenv.lib crypt32.lib Powrprof.lib Secur32.Lib ncrypt.lib ntdll.lib oleaut32.lib psapi.lib shlwapi.lib ws2_32.lib wsock32.lib RuntimeObject.lib SHCore.lib dbghelp.lib " + cargo_lib);
 
 	var defpath = configure_module_dirname + "/ddtrace.def";
 	deffile = FSO.CreateTextFile(defpath, true);
