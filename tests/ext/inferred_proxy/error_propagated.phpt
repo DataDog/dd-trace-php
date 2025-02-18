@@ -59,20 +59,6 @@ dd_trace_close_all_spans_and_flush(); // Simulates end of request
 
 $body = json_decode($rr->waitForDataAndReplay()["body"], true);
 echo json_encode($body, JSON_PRETTY_PRINT);
-/*
-
-$apiGwSpanDuration = $body[0][0]['duration'];
-$apiGwSpanStart = $body[0][0]['start'];
-$webRequestSpanDuration = $body[0][1]['duration'];
-$webRequestSpanStart = $body[0][1]['start'];
-
-echo "API GW End: " . ($apiGwSpanStart + $apiGwSpanDuration) . PHP_EOL;
-echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PHP_EOL;
-*/
-
-//$span = dd_trace_serialize_closed_spans();
-
-//echo json_encode($span, JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
@@ -93,6 +79,7 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
                 "http.method": "GET",
                 "http.url": "example.com\/test",
                 "stage": "aws-prod",
+                "_dd.inferred_span": "1",
                 "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",

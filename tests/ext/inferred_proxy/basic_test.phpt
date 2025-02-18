@@ -8,7 +8,7 @@ DD_SERVICE=aws-server
 DD_ENV=local-prod
 DD_VERSION=1.0
 
-DD_TRACE_DEBUG=1
+DD_TRACE_DEBUG=0
 
 DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
 HTTP_X_DD_PROXY=aws-apigateway
@@ -39,49 +39,16 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer;
 
-
 $parent = \DDTrace\start_span(0.120);
 $span = \DDTrace\start_span(0.130);
 $span->name = "child";
 
 \DDTrace\root_span()->meta['foo'] = 'bar'; // It MUST set it on $parent
 
-//\DDTrace\close_spans_until(null);
-
-/*
-function oops()
-{
-    http_response_code(500);
-    throw new \Exception('An exception occurred');
-}
-
-\DDTrace\trace_function('oops', function($span) {
-    $span->name = 'request';
-});
-
-try {
-    oops();
-} catch (\Exception $e) {
-    //
-}
-*/
-
 dd_trace_close_all_spans_and_flush(); // Simulates end of request
 
 $body = json_decode($rr->waitForDataAndReplay()["body"], true);
 echo json_encode($body, JSON_PRETTY_PRINT);
-
-$apiGwSpanDuration = $body[0][0]['duration'];
-$apiGwSpanStart = $body[0][0]['start'];
-$webRequestSpanDuration = $body[0][1]['duration'];
-$webRequestSpanStart = $body[0][1]['start'];
-
-echo "API GW End: " . ($apiGwSpanStart + $apiGwSpanDuration) . PHP_EOL;
-echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PHP_EOL;
-
-//$span = dd_trace_serialize_closed_spans();
-
-//echo json_encode($span, JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
@@ -101,6 +68,7 @@ echo "Web Request End: " . ($webRequestSpanStart + $webRequestSpanDuration) . PH
                 "http.method": "GET",
                 "http.url": "example.com\/test",
                 "stage": "aws-prod",
+                "_dd.inferred_span": "1",
                 "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",

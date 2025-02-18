@@ -8,7 +8,7 @@ DD_SERVICE=aws-server
 DD_ENV=local-prod
 DD_VERSION=1.0
 
-DD_TRACE_DEBUG=1
+DD_TRACE_DEBUG=0
 
 DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
 HTTP_X_DD_PROXY=aws-apigateway
@@ -39,25 +39,7 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer;
 
-$headers = [
-    "host" => "localhost",
-    "accept" => "*/*",
-    "x-dd-proxy" => "aws-apigateway",
-    "x-dd-proxy-request-time-ms" => "1739261376000",
-    "x-dd-proxy-path" => "/test",
-    "x-dd-proxy-httpmethod" => "GET",
-    "x-dd-proxy-domain-name" => "example.com",
-    "x-dd-proxy-stage" => "aws-prod",
-    "x-datadog-sampling-priority" => "1",
-    "x-datadog-tags" => "_dd.p.tid=67adbd8500000000,_dd.p.dm=-0",
-    "x-datadog-trace-id" => "3094185682341082955",
-    "x-datadog-parent-id" => "3094185682341082955",
-    "traceparent" => "00-67adbd85000000002af0c17c010a374b-2af0c17c010a374b-01",
-    "tracestate" => "dd=p:2af0c17c010a374b;t.dm:-0"
-];
-
-ini_set('datadog.service', 'my_service');
-
+ini_set('datadog.service', 'my_service'); // Changes web.request's service
 
 $parent = \DDTrace\start_span(0.120);
 $span = \DDTrace\start_span(0.130);
@@ -86,6 +68,7 @@ echo json_encode($body, JSON_PRETTY_PRINT);
                 "http.method": "GET",
                 "http.url": "example.com\/test",
                 "stage": "aws-prod",
+                "_dd.inferred_span": "1",
                 "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",
