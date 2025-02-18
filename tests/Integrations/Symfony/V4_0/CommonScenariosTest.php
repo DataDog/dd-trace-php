@@ -22,6 +22,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         ]);
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

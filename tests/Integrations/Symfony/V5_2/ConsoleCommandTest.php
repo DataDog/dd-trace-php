@@ -13,6 +13,11 @@ class ConsoleCommandTest extends IntegrationTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_5_2/bin/console';
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'symfony/console';
+    }
+
     public function testScenario()
     {
         list($traces) = $this->inCli(self::getConsoleScript(), [

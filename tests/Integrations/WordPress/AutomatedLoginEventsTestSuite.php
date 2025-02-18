@@ -45,6 +45,15 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $this->assertEquals($name, $events[0]['metadata']['name']);
     }
 
+    public function testHittingLoginPageDoesNotGenerateUserEvent()
+    {
+        $spec = GetSpec::create('request', '/wp-login.php');
+        $this->call($spec, [CURLOPT_FOLLOWLOCATION => true, CURLOPT_COOKIESESSION => true]);
+
+        $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event_automated']);
+        $this->assertEquals(0, count($events));
+    }
+
     public function testUserLoginFailureEventWhenUserDoesNotExists()
     {
         $email = 'non-existing@email.com';

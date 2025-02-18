@@ -265,6 +265,7 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
 #ifdef CFG_TEST
     (void)dest;
     (void)view;
+    (void)persistent;
     ZEND_ASSERT(0);
 #else
     if (view.len == 0) {

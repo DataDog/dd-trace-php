@@ -52,7 +52,7 @@ void engine::update(
 }
 
 std::optional<engine::result> engine::context::publish(
-    parameter &&param, bool rasp)
+    parameter &&param, const std::string &rasp_rule)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
@@ -83,7 +83,7 @@ std::optional<engine::result> engine::context::publish(
         }
         try {
             const auto &listener = it->second;
-            listener->call(data, event_, rasp);
+            listener->call(data, event_, rasp_rule);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }

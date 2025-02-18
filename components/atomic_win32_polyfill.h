@@ -7,7 +7,8 @@
 #define atomic_fetch_sub(var, val) atomic_fetch_add(var, -(val))
 #define atomic_fetch_or _InterlockedOr64
 #define atomic_fetch_and _InterlockedAnd64
-#define atomic_compare_exchange_strong(var, expected, val) _InterlockedCompareExchange64(var, *(expected), val)
+#define atomic_compare_exchange_strong(var, expected, val) (_InterlockedCompareExchange64(var, val, *(expected)) == *(expected))
+#define atomic_compare_exchange_strong_int(var, expected, val) (_InterlockedCompareExchange(var, val, *(expected)) == *(expected))
 
 // "Simple reads and writes to properly aligned 64 bit [also 32 bit] variables are atomic on 64-bit windows"
 #define atomic_store(var, val) (*var = val)

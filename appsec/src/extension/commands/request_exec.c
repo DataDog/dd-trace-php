@@ -6,6 +6,7 @@
 
 #include "request_exec.h"
 #include "../commands_helpers.h"
+#include "../ddappsec.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
 #include <php.h>
@@ -14,7 +15,7 @@
 
 struct ctx {
     struct req_info req_info; // dd_command_proc_resp_verd_span_data expect it
-    bool rasp;
+    zend_string *nullable rasp_rule;
     zval *nonnull data;
 };
 
@@ -29,7 +30,8 @@ static const dd_command_spec _spec = {
     .config_features_cb = dd_command_process_config_features_unexpected,
 };
 
-dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data, bool rasp)
+dd_result dd_request_exec(
+    dd_conn *nonnull conn, zval *nonnull data, zend_string *nullable rasp_rule)
 {
     if (Z_TYPE_P(data) != IS_ARRAY) {
         mlog(dd_log_debug, "Invalid data provided to command request_exec, "
@@ -37,7 +39,7 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data, bool rasp)
         return dd_error;
     }
 
-    struct ctx ctx = {.rasp = rasp, .data = data};
+    struct ctx ctx = {.rasp_rule = rasp_rule, .data = data};
 
     return dd_command_exec_req_info(conn, &_spec, &ctx.req_info);
 }
@@ -47,7 +49,7 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     assert(_ctx != NULL);
     struct ctx *ctx = _ctx;
 
-    mpack_write(w, ctx->rasp);
+    dd_mpack_write_nullable_zstr(w, ctx->rasp_rule);
     dd_mpack_write_zval(w, ctx->data);
 
     return dd_success;

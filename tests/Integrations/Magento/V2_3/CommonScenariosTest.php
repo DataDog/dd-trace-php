@@ -10,4 +10,9 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Magento\V2_4\Commo
     {
         return __DIR__ . '/../../../Frameworks/Magento/Version_2_3/pub/index.php';
     }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '2.3.7';
+    }
 }

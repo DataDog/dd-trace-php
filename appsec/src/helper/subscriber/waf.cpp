@@ -301,12 +301,15 @@ instance::listener::~listener()
 }
 
 void instance::listener::call(
-    dds::parameter_view &data, event &event, bool rasp)
+    dds::parameter_view &data, event &event, const std::string &rasp_rule)
 {
     ddwaf_result res;
     DDWAF_RET_CODE code;
     auto run_waf = [&]() {
-        code = ddwaf_run(handle_, data, nullptr, &res, waf_timeout_.count());
+        dds::parameter_view *persistent = rasp_rule.empty() ? &data : nullptr;
+        dds::parameter_view *ephemeral = rasp_rule.empty() ? nullptr : &data;
+        code = ddwaf_run(
+            handle_, persistent, ephemeral, &res, waf_timeout_.count());
     };
 
     if (spdlog::should_log(spdlog::level::debug)) {
@@ -332,8 +335,11 @@ void instance::listener::call(
     const std::unique_ptr<ddwaf_result, decltype(&ddwaf_result_free)> scope(
         &res, ddwaf_result_free);
 
-    // NOLINTNEXTLINE
-    total_runtime_ += res.total_runtime / 1000.0;
+    if (rasp_rule.empty()) {
+        // RASP WAF call should not be counted on total_runtime_
+        // NOLINTNEXTLINE
+        total_runtime_ += res.total_runtime / 1000.0;
+    }
     if (res.timeout) {
         waf_hit_timeout_ = true;
     }
@@ -346,12 +352,17 @@ void instance::listener::call(
             break;
         }
     }
-    if (rasp) {
+    if (!rasp_rule.empty()) {
         // NOLINTNEXTLINE
         rasp_runtime_ += res.total_runtime / 1000.0;
         rasp_calls_++;
         if (res.timeout) {
             rasp_timeouts_ += 1;
+            rasp_metrics_[rasp_rule].timeouts++;
+        }
+        rasp_metrics_[rasp_rule].evaluated++;
+        if (code == DDWAF_MATCH) {
+            rasp_metrics_[rasp_rule].matches++;
         }
     }
 
@@ -418,6 +429,18 @@ void instance::listener::submit_metrics(
         if (rasp_timeouts_ > 0) {
             msubmitter.submit_span_metric(
                 metrics::rasp_timeout, rasp_timeouts_);
+        }
+
+        for (auto const &rule : rasp_metrics_) {
+            metrics::telemetry_tags tags;
+            tags.add("rule_type", rule.first);
+            tags.add("waf_version", ddwaf_get_version());
+            msubmitter.submit_metric(
+                metrics::telemetry_rasp_rule_eval, rule.second.evaluated, tags);
+            msubmitter.submit_metric(
+                metrics::telemetry_rasp_rule_match, rule.second.matches, tags);
+            msubmitter.submit_metric(
+                metrics::telemetry_rasp_timeout, rule.second.timeouts, tags);
         }
     }
 
