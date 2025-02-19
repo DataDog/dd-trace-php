@@ -5,5 +5,8 @@
         "open-telemetry/extension-propagator-b3": "@beta",
         "open-telemetry/opentelemetry-logger-monolog": "@beta"
     },
-    "minimum-stability": "beta"
+    "minimum-stability": "beta",
+    "config": {
+        "vendor-dir": "vendor-beta/"
+    }
 }

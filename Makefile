@@ -1152,10 +1152,13 @@ define run_benchmarks_with_ddprof
 endef
 
 define run_composer_with_lock
-	rm $1/composer.lock-php* 2>/dev/null || true
+	rm $1/$(if $2,$(2:.json=.lock),composer.lock)-php* 2>/dev/null || true
+	$(eval CURRENT_COMPOSER:=$(COMPOSER))
+	$(if $(2), $(eval COMPOSER:=COMPOSER=$2 $(COMPOSER)))
 	$(call run_composer_with_retry,$1,)
+	$(eval COMPOSER:=$(CURRENT_COMPOSER))
 	find $1/vendor* \( -name Tests -prune -o -name tests -prune \) -exec rm -rf '{}' \;
-	touch $1/composer.lock-php$(PHP_MAJOR_MINOR)
+	touch $1/$(if $2,$(2:.json=.lock),composer.lock)-php$(PHP_MAJOR_MINOR)
 endef
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
@@ -1240,26 +1243,19 @@ benchmarks: benchmarks_run_dependencies call_benchmarks
 
 benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
-define setup_opentelemetry
-	cp $(1) $(dir $(1))/composer.json
-endef
-
 define run_opentelemetry_tests
-	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
+	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0 $1)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 	$(eval TEST_EXTRA_ENV=)
 endef
 
-_test_opentelemetry_beta_setup: global_test_run_dependencies
-	$(call setup_opentelemetry,tests/OpenTelemetry/composer-beta.json)
+test_opentelemetry_beta: tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer-beta.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_opentelemetry_tests, TESTSUITE_VENDOR_DIR=vendor-beta)
 
-test_opentelemetry_beta: _test_opentelemetry_beta_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_opentelemetry_tests)
+tests/OpenTelemetry/composer-beta.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-beta.json
+	$(call run_composer_with_lock,tests/OpenTelemetry,composer-beta.json)
 
-_test_opentelemetry_1_setup: global_test_run_dependencies
-	$(call setup_opentelemetry,tests/OpenTelemetry/composer-1.json)
-
-test_opentelemetry_1: _test_opentelemetry_1_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+test_opentelemetry_1: tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_opentelemetry_tests)
 
 test_opentracing_10: global_test_run_dependencies tests/OpenTracer1Unit/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Custom/OpenTracing/composer.lock-php$(PHP_MAJOR_MINOR)
