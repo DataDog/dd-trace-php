@@ -981,6 +981,7 @@ TEST_WEB_82 := \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
 	test_web_laravel_latest \
+	test_web_apigw \
 	test_web_laravel_octane_latest \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -1042,6 +1043,7 @@ TEST_WEB_83 := \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
 	test_web_laravel_latest \
+	test_web_apigw \
 	test_web_laravel_octane_latest \
 	test_web_lumen_81 \
 	test_web_lumen_90 \
@@ -1311,6 +1313,8 @@ test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=)
 test_integrations_swoole_5: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
+test_web_apigw: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,--testsuite=api-gateway-test)
 test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=cakephp-28-test)
 test_web_cakephp_310: global_test_run_dependencies tests/Frameworks/CakePHP/Version_3_10/composer.lock-php$(PHP_MAJOR_MINOR)

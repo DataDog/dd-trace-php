@@ -5,13 +5,13 @@
     "resource": "GET /test",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 10950178965489427610,
+    "parent_id": 3960688414599440033,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.inferred_span": "1",
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "67b4653800000000",
+      "_dd.p.tid": "67b5998f00000000",
       "component": "aws-apigateway",
       "env": "local-test",
       "error.message": "Uncaught Exception (500): Controller error in /home/circleci/app/tests/Frameworks/Laravel/Latest/app/Http/Controllers/CommonSpecsController.php:19",
@@ -20,7 +20,7 @@
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "example.com/test",
-      "runtime-id": "74f55080-3f8f-4708-8283-24d6bb7d160a",
+      "runtime-id": "696b2e43-4025-464d-8b9b-1ce63ba78d6e",
       "stage": "aws-prod",
       "version": "1.0"
     },
@@ -39,7 +39,7 @@
        "error": 1,
        "meta": {
          "_dd.base_service": "example.com",
-         "_dd.p.tid": "67b4653800000000",
+         "_dd.p.tid": "67b5998f00000000",
          "component": "laravel",
          "env": "local-test",
          "error.message": "Uncaught Exception (500): Controller error in /home/circleci/app/tests/Frameworks/Laravel/Latest/app/Http/Controllers/CommonSpecsController.php:19",

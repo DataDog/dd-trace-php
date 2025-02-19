@@ -5,8 +5,16 @@ namespace DDTrace\Tests\Integrations\Laravel;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class APIGWTestSuite extends WebFrameworkTestCase
+
+class APIGWTest extends WebFrameworkTestCase
 {
+    public static $database = "laravel11";
+
+    public static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../Frameworks/Laravel/Latest/public/index.php';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [

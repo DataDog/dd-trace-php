@@ -73,6 +73,9 @@
         <testsuite name="laravel-octane-latest-test">
             <directory>./Integrations/Laravel/Octane/Latest</directory>
         </testsuite>
+        <testsuite name="api-gateway-test">
+            <file>./Integrations/Laravel/APIGWTest.php</file>
+        </testsuite>
         <testsuite name="opentelemetry1">
             <directory suffix=".phpt">./OpenTelemetry/Integration/Context/Fiber</directory>
             <directory>./OpenTelemetry/Unit/API</directory>
