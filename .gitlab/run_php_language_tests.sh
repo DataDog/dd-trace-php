@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+# Helper to parse version strings for comparison
+function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+
 sudo rm -f /opt/php/debug/conf.d/memcached.ini
 if [[ ! "${XFAIL_LIST:-none}" == "none" ]]; then
   cp "${XFAIL_LIST}" /usr/local/src/php/xfail_tests.list
@@ -23,9 +26,16 @@ foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))
     }
 }
 PHP
+
+# -j flag is only available in PHP 7.4+
+extra_args=""
+if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
+  extra_args="-j$(nproc)"
+fi
+
 php run-tests.php -q \
   -p /usr/local/bin/php \
   --show-diff \
   -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
   -d datadog.trace.sources_path=/home/circleci/datadog/src \
-  -j5
+  $extra_args

@@ -27,7 +27,6 @@
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-    GIT_SUBMODULE_PATHS: libdatadog
   script: .gitlab/compile_extension.sh
   after_script: |
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"

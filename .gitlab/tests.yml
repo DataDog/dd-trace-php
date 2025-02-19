@@ -44,8 +44,8 @@
     - make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension $(if [ -f ${CI_PROJECT_DIR}/target/debug/libddtrace_php.a ]; then echo EXTRA_CONFIGURE_OPTIONS=--with-ddtrace-rust-library=$(pwd)/target/debug/libddtrace_php.a; fi)
     - wait-for test-agent:9126 --timeout=30
   after_script:
-    - mv /usr/local/src/php/tests/output/ tests/
-    - mv /tmp/artifacts/ tests/
+    - mv /usr/local/src/php/tests/output/*.log tests/ || true
+    - mv /tmp/artifacts/ tests/ || true
     - .gitlab/check_test_agent.sh
     - .gitlab/check_for_core_dumps.sh
 
@@ -66,6 +66,8 @@ PHP Language Tests:
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
     - .gitlab/run_php_language_tests.sh
   artifacts:
+    reports:
+      junit: "tests/artifacts/tests/php-tests.xml"
     paths:
       - "tests/output/"
       - "tests/artifacts/"
