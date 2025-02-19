@@ -19,32 +19,24 @@ void asm_features_listener::init()
     aggregator_->init(&ruleset_.GetAllocator());
 }
 
-void asm_features_listener::on_unapply(const config & /*config*/)
-{
-    service_config_->unset_asm();
-    service_config_->unset_auto_user_instrum();
-}
-
 void asm_features_listener::on_update(const config &config)
 {
     aggregator_->add(config);
 }
 
-void asm_features_listener::commit()
+void asm_features_listener::parse_asm_activation_config()
 {
-    aggregator_->aggregate(ruleset_);
-
     auto asm_itr =
         json_helper::get_field_of_type(ruleset_, "asm", rapidjson::kObjectType);
     if (!asm_itr) {
-        throw error_applying_config("Invalid config json encoded contents: "
-                                    "asm key missing or invalid");
+        service_config_->unset_asm();
+        return;
     }
 
     auto enabled_itr = asm_itr.value()->value.FindMember("enabled");
     if (enabled_itr == asm_itr.value()->value.MemberEnd()) {
-        throw error_applying_config(
-            "Invalid config json encoded contents: enabled key missing");
+        service_config_->unset_asm();
+        return;
     }
 
     if (enabled_itr->value.GetType() == rapidjson::kStringType) {
@@ -62,13 +54,14 @@ void asm_features_listener::commit()
         // when appsec should not be enabled
         service_config_->disable_asm();
     } else {
-        throw error_applying_config(
-            "Invalid config json encoded contents: enabled key invalid");
+        service_config_->unset_asm();
     }
+}
 
+void asm_features_listener::parse_auto_user_instrum_config()
+{
     if (!json_helper::field_exists(ruleset_, "auto_user_instrum")) {
-        service_config_->set_auto_user_instrum(
-            auto_user_instrum_mode::UNDEFINED);
+        service_config_->unset_auto_user_instrum();
         return;
     }
 
@@ -101,6 +94,13 @@ void asm_features_listener::commit()
     }
 
     service_config_->set_auto_user_instrum(mode);
+}
+
+void asm_features_listener::commit()
+{
+    aggregator_->aggregate(ruleset_);
+    parse_asm_activation_config();
+    parse_auto_user_instrum_config();
 }
 
 } // namespace dds::remote_config

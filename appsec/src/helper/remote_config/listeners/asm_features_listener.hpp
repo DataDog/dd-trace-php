@@ -21,7 +21,7 @@ public:
 
     void init() override;
     void on_update(const config &config) override;
-    void on_unapply(const config &config) override;
+    void on_unapply(const config &config) override {}
     void commit() override;
 
     [[nodiscard]] std::unordered_set<product> get_supported_products() override
@@ -30,6 +30,9 @@ public:
     }
 
 protected:
+    void parse_asm_activation_config();
+    void parse_auto_user_instrum_config();
+
     std::shared_ptr<service_config> service_config_;
     rapidjson::Document ruleset_;
     config_aggregator_base::unique_ptr aggregator_;

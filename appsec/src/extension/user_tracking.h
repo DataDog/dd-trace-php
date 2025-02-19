@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "zai_string/string.h"
 #include "attributes.h"
 #include <zend.h>
 

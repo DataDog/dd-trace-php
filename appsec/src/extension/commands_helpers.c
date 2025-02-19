@@ -574,14 +574,14 @@ static void dd_command_process_settings(mpack_node_t root)
         mpack_node_t value = mpack_node_map_value_at(root, i);
 
         if (mpack_node_type(key) != mpack_type_str) {
-            mlog(dd_log_warning, "Failed to process user collection setting: "
+            mlog(dd_log_warning, "Failed to process unknown setting: "
                                  "invalid type for key");
-            return;
+            continue;
         }
         if (mpack_node_type(value) != mpack_type_str) {
-            mlog(dd_log_warning, "Failed to process user collection setting: "
+            mlog(dd_log_warning, "Failed to process unknown setting: "
                                  "invalid type for value");
-            return;
+            continue;
         }
 
         const char *key_str = mpack_node_str(key);
@@ -599,7 +599,6 @@ static void dd_command_process_settings(mpack_node_t root)
                     "unknown key %.*s",
                     (int)key_len, key_str);
             }
-            return;
         }
     }
 }
