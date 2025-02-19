@@ -1413,6 +1413,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
+    // Make sure it's available for appsec, i.e. before disabling
+    dd_ip_extraction_startup();
+
     if (ddtrace_disable) {
         return SUCCESS;
     }
@@ -1452,7 +1455,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_engine_hooks_minit();
 
     ddtrace_integrations_minit();
-    dd_ip_extraction_startup();
     ddtrace_serializer_startup();
 
     ddtrace_live_debugger_minit();
