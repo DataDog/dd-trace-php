@@ -374,6 +374,11 @@ tests/classes/clone_002.phpt
 tests/classes/clone_004.phpt
 tests/lang/type_hints_002.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt
 
 Zend/tests/dval_to_lval_64.phpt
 Zend/tests/int_overflow_64bit.phpt
