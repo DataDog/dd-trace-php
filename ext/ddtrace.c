@@ -1568,7 +1568,6 @@ static void dd_rinit_once(void) {
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
 static void dd_initialize_request(void) {
-    LOG(DEBUG, "dd_initialize_request");
     DDTRACE_G(distributed_trace_id) = (ddtrace_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
@@ -1635,12 +1634,10 @@ static void dd_initialize_request(void) {
     ddtrace_apply_distributed_tracing_result(&distributed_result, NULL);
 
     if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
-        LOG(DEBUG, "Inferred proxy services enabled");
         ddtrace_infer_proxy_services();
     }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
-        LOG(DEBUG, "Root span generation enabled");
         ddtrace_push_root_span();
     }
 }
@@ -2780,7 +2777,6 @@ PHP_FUNCTION(DDTrace_start_inferred_span) {
         RETURN_NULL();
     }
 
-    LOG(DEBUG, "Starting inferred span");
     ddtrace_root_span_data *root_span = ddtrace_open_inferred_span(headers);
     if (root_span) {
         RETURN_OBJ_COPY(&root_span->std);

@@ -683,9 +683,6 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
         zval *prop_service = &span->property_service;
         zval_ptr_dtor(prop_service);
         ZVAL_COPY(prop_service, &parent->property_service);
-        LOG(DEBUG, "Inherited service name: %s", Z_STRVAL_P(prop_service));
-    } else {
-        LOG(DEBUG, "Child of inferred span; not inheriting service name");
     }
 
     zval *prop_type = &span->property_type;
@@ -826,7 +823,6 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         ZVAL_STR(prop_name, ddtrace_default_service_name());
         zval_ptr_dtor(prop_service);
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
-        LOG(DEBUG, "Service set to %s when setting root span properties", ZSTR_VAL(Z_STR_P(prop_service)));
 
 
         zend_string *version = get_DD_VERSION();
@@ -1318,16 +1314,13 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
     zend_array *service_mappings = get_DD_SERVICE_MAPPING();
     zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
     if (new_root_name) {
-        LOG(DEBUG, "New root service name found: %s", Z_STRVAL_P(new_root_name));
         zend_string_release(Z_STR(prop_root_service_as_string));
         ZVAL_COPY(&prop_root_service_as_string, new_root_name);
     }
 
     if (!zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
-        LOG(DEBUG, "Setting _dd.base_service to %s", Z_STRVAL(prop_root_service_as_string));
         add_assoc_str(meta, "_dd.base_service", Z_STR(prop_root_service_as_string));
     } else {
-        LOG(DEBUG, "Service name matches root service name; not adding _dd.base_service");
         zend_string_release(Z_STR(prop_root_service_as_string));
     }
 
