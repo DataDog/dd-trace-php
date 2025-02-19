@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Roadrunner;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
@@ -158,28 +157,22 @@ class RoadrunnerIntegration extends Integration
                     return;
                 }
 
-                $inferredProxyServicesEnabled = \dd_trace_env_config('DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED');
-                $inferredSpan = null;
-                if ($inferredProxyServicesEnabled && $retval && $retval->headers) {
-                    // $retval->headers is an array of arrays, so we need to flatten it
-                    // for instance: "X-Dd-Proxy" -> {0: "aws-apigateway"}
-                    // should become: "x-dd-proxy" -> "aws-apigateway"
-                    $headers = [];
+                $headers = [];
+                if ($retval) {
                     foreach ($retval->headers as $headername => $header) {
-                        $header = implode(", ", $header); // Headers that we are interested in should be single-valued
+                        $header = implode(", ", $header);
                         $headers[strtolower($headername)] = $header;
                     }
-                    Logger::get()->debug(var_export($headers, true));
-                    // Convert $retval->headers keys to lowercase
+                }
+
+                $inferredProxyServicesEnabled = \dd_trace_env_config('DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED');
+                $inferredSpan = null;
+                if ($inferredProxyServicesEnabled && $headers) {
                     $inferredSpan = \DDTrace\start_inferred_span($headers);
-                    Logger::get()->debug("Inferred span? " . ($inferredSpan ? "yes" : "no"));
                 }
                 $hook->data['inferredSpan'] = $inferredSpan;
 
-                Logger::get()->debug("Starting request span");
                 $activeSpan = $inferredSpan ? \DDTrace\start_span() : \DDTrace\start_trace_span();
-                Logger::get()->debug("Active Span ID: " . $activeSpan->id);
-                Logger::get()->debug("Created root span");
 
                 $activeSpan->service = $service;
                 $activeSpan->name = "web.request";
@@ -199,11 +192,6 @@ class RoadrunnerIntegration extends Integration
                     $activeSpan = null;
                     $inferredSpan = null;
                 } else {
-                    $headers = [];
-                    foreach ($retval->headers as $headername => $header) {
-                        $header = implode(", ", $header);
-                        $headers[strtolower($headername)] = $header;
-                    }
                     \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });

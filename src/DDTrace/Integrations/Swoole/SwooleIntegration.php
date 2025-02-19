@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\Logger;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -44,12 +43,10 @@ class SwooleIntegration extends Integration
                 $inferredSpan = null;
                 if ($inferredProxyServicesEnabled) {
                     $inferredSpan = \DDTrace\start_inferred_span($request->header);
-                    Logger::get()->debug("Inferred span? " . ($inferredSpan ? "yes" : "no"));
                 }
                 $hook->data['inferredSpan'] = $inferredSpan;
 
                 $rootSpan = $hook->span($inferredSpan ?: new SpanStack());
-                Logger::get()->debug("Created root span");
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;
@@ -117,12 +114,10 @@ class SwooleIntegration extends Integration
             function (HookData $hook) {
                 $inferredSpan = $hook->data['inferredSpan'];
                 if ($inferredSpan) {
-                    Logger::get()->debug("Closing inferred span");
                     $autofinishConfig = ini_get('datadog.autofinish_spans');
                     ini_set('datadog.autofinish_spans', 'true');
+                    \DDTrace\switch_stack($inferredSpan);
                     dd_trace_close_all_spans_and_flush();
-                    //dd_trace_synchronous_flush(1);
-                    //set_distributed_tracing_context("0", "0");
                     ini_set('datadog.autofinish_spans', $autofinishConfig);
                 }
             }
