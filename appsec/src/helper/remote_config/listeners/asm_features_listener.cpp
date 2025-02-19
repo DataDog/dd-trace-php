@@ -56,10 +56,12 @@ void asm_features_listener::parse_asm_activation_config()
     } else {
         service_config_->unset_asm();
     }
+}
 
+void asm_features_listener::parse_auto_user_instrum_config()
+{
     if (!json_helper::field_exists(ruleset_, "auto_user_instrum")) {
-        service_config_->set_auto_user_instrum(
-            auto_user_instrum_mode::UNDEFINED);
+        service_config_->unset_auto_user_instrum();
         return;
     }
 
