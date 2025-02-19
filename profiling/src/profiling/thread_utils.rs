@@ -1,14 +1,14 @@
-#[cfg(php_zts)]
-use crate::sapi::Sapi;
 use crate::SAPI;
-#[cfg(php_zts)]
-use libc::c_char;
 use libc::sched_yield;
-use log::warn;
 use once_cell::sync::OnceCell;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+
+#[cfg(php_zts)]
+use crate::sapi::Sapi;
+#[cfg(php_zts)]
+use libc::c_char;
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -50,11 +50,18 @@ where
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("timeout of {timeout_ms} ms reached when joining thread {thread}")]
+pub struct TimeoutError {
+    thread: String,
+    timeout_ms: u128,
+}
+
 /// Waits for the handle to be finished. If finished, it will join the handle.
-/// Otherwise, it will leak the handle.
+/// Otherwise, it will leak the handle and return an error.
 /// # Panics
-/// Panics if the thread being joined has panic'd.
-pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
+/// If the thread being joined has panic'd, this will resume the panic.
+pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), TimeoutError> {
     // After notifying the other threads, it's likely they'll need some time
     // to respond adequately. Joining on the JoinHandle is supposed to be the
     // correct way to do this, but we've observed this can panic:
@@ -65,15 +72,16 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration, impact: &str) {
     while !handle.is_finished() {
         unsafe { sched_yield() };
         if start.elapsed() >= timeout {
-            let name = handle.thread().name().unwrap_or("{unknown}");
-            warn!("Timeout of {timeout:?} reached when joining thread '{name}'. {impact}");
-            return;
+            let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
+            let timeout_ms = timeout.as_millis();
+            return Err(TimeoutError { thread, timeout_ms });
         }
     }
 
     if let Err(err) = handle.join() {
-        std::panic::resume_unwind(err)
+        std::panic::resume_unwind(err);
     }
+    Ok(())
 }
 
 thread_local! {

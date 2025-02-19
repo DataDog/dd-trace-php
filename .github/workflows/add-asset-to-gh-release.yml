@@ -1,0 +1,25 @@
+name: Add assets to release
+
+on:
+  workflow_dispatch:
+    inputs:
+      packagesUrl:
+        description: 'URL for `packages.tar.gz` to add to release'
+        required: true
+      releaseVersion:
+        description: 'Version to add the assets to'
+        required: true
+
+jobs:
+  add-assets-to-release:
+    runs-on: ubuntu-latest-8-cores
+    steps:
+      - run: |
+          curl -L -o packages.tar.gz $PACKAGES_URL
+          tar -xvzf packages.tar.gz
+          cd build/packages/
+          gh release upload -R DataDog/dd-trace-php --clobber $RELEASE *
+        env:
+          PACKAGES_URL: ${{ inputs.packagesUrl }}
+          RELEASE: ${{ inputs.releaseVersion }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

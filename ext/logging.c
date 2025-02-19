@@ -9,6 +9,10 @@
 #include "configuration.h"
 #include <main/SAPI.h>
 
+#ifndef _WIN32
+#define atomic_compare_exchange_strong_int atomic_compare_exchange_strong
+#endif
+
 
 static void dd_log_set_level(bool debug) {
     bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
@@ -83,7 +87,7 @@ void ddtrace_log_rinit(char *error_log) {
     time(&now);
     atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
     int expected = -1;
-    if (!atomic_compare_exchange_strong(&ddtrace_error_log_fd, &expected, desired)) {
+    if (!atomic_compare_exchange_strong_int(&ddtrace_error_log_fd, &expected, desired)) {
         // if it didn't exchange, then we need to free it
         close(desired);
     }

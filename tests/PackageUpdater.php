@@ -68,7 +68,7 @@ class PackageUpdater
 
             $this->updatePackageVersion($library, $composer);
         } catch (Throwable $e) {
-            $this->errors[] = "Error processing $file: " . $e->getMessage();
+            $this->errors[] = "Error processing $file: " . $e->getMessage() . PHP_EOL . $e->getTraceAsString();
         }
     }
 
@@ -91,7 +91,9 @@ class PackageUpdater
     {
         foreach (['getAppIndexScript', 'getConsoleScript'] as $method) {
             if (method_exists($className, $method)) {
-                $dir = dirname(call_user_func([$className, $method]));
+                $scriptPath = call_user_func([$className, $method]);
+                if (!$scriptPath) continue;
+                $dir = dirname($scriptPath);
                 while (basename($dir) !== 'Frameworks') {
                     $possible = "$dir/composer.json";
                     if (file_exists($possible)) {
@@ -178,6 +180,7 @@ class PackageUpdater
             foreach ($this->errors as $error) {
                 echo "- $error\n";
             }
+            exit(1);
         }
     }
 }

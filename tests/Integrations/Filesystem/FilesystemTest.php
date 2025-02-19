@@ -22,15 +22,15 @@ final class FilesystemTest extends AppsecTestCase
             ]);
         }
 
-    protected function assertEvent(string $value, $traces, $ssrf = false)
+    protected function assertEvent(string $value, $traces, string $rasp_rule)
     {
        $events = AppsecStatus::getInstance()->getEvents();
        $this->assertEquals(1, count($events));
        $this->assertEquals(1, count($events[0][0]));
-       $key = !$ssrf ? "server.io.fs.file" : "server.io.net.url";
+       $key = $rasp_rule == "lfi" ? "server.io.fs.file" : "server.io.net.url";
        $this->assertEquals($value, $events[0][0][$key]);
        $this->assertEquals('push_addresses', $events[0]['eventName']);
-       $this->assertTrue($events[0]['rasp']);
+       $this->assertEquals($rasp_rule, $events[0]['rasp_rule']);
     }
 
     public function ssrfProtocols()
@@ -54,7 +54,7 @@ final class FilesystemTest extends AppsecTestCase
             TestCase::assertSame('OK', $response);
         });
 
-       $this->assertEvent($url, $traces, true);
+       $this->assertEvent($url, $traces, "ssrf");
     }
 
     public function testInvalidProtocol()
@@ -80,19 +80,21 @@ final class FilesystemTest extends AppsecTestCase
     }
 
     /**
+    * With no protocol all default to files system wrapper and therefore lfi
     * @dataProvider wrappedFunctions
     */
     public function testNoProtocol($targetFunction, $ssrf)
     {
         $traces = $this->tracesFromWebRequest(function () use($targetFunction) {
             $response = $this->call(GetSpec::create('Root', '/?function='.$targetFunction.'&path=./somefile'));
-
+            //The str_replace replace is because the content of the file is sent to the output on some functions only
             TestCase::assertSame('OK', str_replace('some content', '', $response));
         });
-       $this->assertEvent('./somefile', $traces, false);
+       $this->assertEvent('./somefile', $traces, "lfi");
     }
 
     /**
+    * With file protocol always use LFI
     * @dataProvider wrappedFunctions
     */
     public function testWithFileProtocol($targetFunction, $ssrf)
@@ -101,10 +103,11 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function='.$targetFunction.'&path=file://somefile'));
             TestCase::assertSame('OK', $response);
         });
-       $this->assertEvent('file://somefile', $traces, false);
+       $this->assertEvent('file://somefile', $traces, "lfi");
     }
 
     /**
+    * HTTP protocol is valid for SSRF
     * @dataProvider wrappedFunctions
     */
     public function testWithHttpProtocol($targetFunction, $ssrf)
@@ -113,10 +116,9 @@ final class FilesystemTest extends AppsecTestCase
             $response = $this->call(GetSpec::create('Root', '/?function='.$targetFunction.'&path=http://some.url'));
             TestCase::assertSame('OK', $response);
         });
-        $events = AppsecStatus::getInstance()->getEvents();
         if ($ssrf) {
-            $this->assertEvent('http://some.url', $traces, $ssrf);
-        } else { //Only lfi and non valid protocol
+            $this->assertEvent('http://some.url', $traces, "ssrf");
+        } else {
             $this->assertEquals(0, count(AppsecStatus::getInstance()->getEvents()));
         }
     }

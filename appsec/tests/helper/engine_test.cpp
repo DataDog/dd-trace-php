@@ -25,7 +25,8 @@ namespace mock {
 class listener : public dds::subscriber::listener {
 public:
     MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
-    MOCK_METHOD3(call, void(dds::parameter_view &, dds::event &, bool));
+    MOCK_METHOD3(
+        call, void(dds::parameter_view &, dds::event &, const std::string &));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
@@ -72,10 +73,11 @@ TEST(EngineTest, SingleSubscriptor)
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([]() {
         auto listener = std::make_unique<mock::listener>();
         EXPECT_CALL(*listener, call(_, _, _))
-            .WillRepeatedly(Invoke([](dds::parameter_view &data,
-                                       dds::event &event_, bool rasp) -> void {
-                event_.actions.push_back({dds::action_type::block, {}});
-            }));
+            .WillRepeatedly(
+                Invoke([](dds::parameter_view &data, dds::event &event_,
+                           std::string rasp) -> void {
+                    event_.actions.push_back({dds::action_type::block, {}});
+                }));
         return listener;
     }));
 
@@ -105,7 +107,7 @@ TEST(EngineTest, MultipleSubscriptors)
     auto blocker = std::make_unique<mock::listener>();
     EXPECT_CALL(*blocker, call(_, _, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   bool rasp) -> void {
+                                   std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
             if (subs.find(data[0].parameterName) != subs.end()) {
                 event_.data.push_back("some event");
@@ -116,7 +118,7 @@ TEST(EngineTest, MultipleSubscriptors)
     auto recorder = std::make_unique<mock::listener>();
     EXPECT_CALL(*recorder, call(_, _, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   bool rasp) -> void {
+                                   std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
             if (subs.find(data[0].parameterName) != subs.end()) {
                 event_.data.push_back("some event");
@@ -225,13 +227,14 @@ TEST(EngineTest, StatefulSubscriptor)
         auto listener = std::make_unique<mock::listener>();
         EXPECT_CALL(*listener, call(_, _, _))
             .Times(3)
-            .WillRepeatedly(Invoke([&attempt](dds::parameter_view &data,
-                                       dds::event &event_, bool rasp) -> void {
-                if (attempt == 2 || attempt == 5) {
-                    event_.actions.push_back({dds::action_type::block, {}});
-                }
-                attempt++;
-            }));
+            .WillRepeatedly(
+                Invoke([&attempt](dds::parameter_view &data, dds::event &event_,
+                           std::string rasp) -> void {
+                    if (attempt == 2 || attempt == 5) {
+                        event_.actions.push_back({dds::action_type::block, {}});
+                    }
+                    attempt++;
+                }));
         return listener;
     }));
 
@@ -281,7 +284,7 @@ TEST(EngineTest, WafDefaultActions)
     auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   bool rasp) -> void {
+                                   std::string rasp) -> void {
             event_.actions.push_back({dds::action_type::redirect, {}});
             event_.actions.push_back({dds::action_type::block, {}});
             event_.actions.push_back({dds::action_type::stack_trace, {}});
@@ -325,7 +328,7 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
     auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   bool rasp) -> void {
+                                   std::string rasp) -> void {
             event_.actions.push_back({dds::action_type::invalid, {}});
             event_.actions.push_back({dds::action_type::block, {}});
         }));
@@ -936,7 +939,7 @@ TEST(EngineTest, RateLimiterForceKeep)
     auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   bool rasp) -> void {
+                                   std::string rasp) -> void {
             event_.actions.push_back({dds::action_type::redirect, {}});
         }));
 
@@ -964,7 +967,7 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
         auto listener = std::make_unique<mock::listener>();
         EXPECT_CALL(*listener, call(_, _, _))
             .WillOnce(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                 bool rasp) -> void {
+                                 std::string rasp) -> void {
                 event_.actions.push_back({dds::action_type::redirect, {}});
             }));
         return listener;

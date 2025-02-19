@@ -1299,6 +1299,22 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
     if (error && !ignore_error) {
         add_assoc_long(el, "error", 1);
+
+        if (Z_TYPE(span->property_exception) == IS_OBJECT) {
+            ddtrace_span_data *parent = span;
+            while (parent->parent) {
+                parent = SPANDATA(parent->parent);
+                if (Z_TYPE(parent->property_exception) == IS_OBJECT && Z_OBJ(parent->property_exception) == Z_OBJ(span->property_exception)) {
+                    zval *zv;
+                    if ((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta), ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
+                        add_assoc_string(el, "track_error", "false");
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     if (span->root->trace_id.high && is_root_span) {

@@ -19,8 +19,6 @@ use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_
 use crate::config::SystemSettings;
 use crate::{CLOCKS, TAGS};
 use chrono::Utc;
-#[cfg(feature = "timeline")]
-use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
@@ -40,6 +38,8 @@ use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
+#[cfg(feature = "timeline")]
+use core::{ptr, str};
 #[cfg(feature = "timeline")]
 use std::time::UNIX_EPOCH;
 
@@ -689,33 +689,39 @@ impl Profiler {
     /// Completes the shutdown process; to start it, call [Profiler::stop]
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
+    /// Returns Ok(true) if any thread hit a timeout.
     ///
     /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
-    pub fn shutdown(timeout: Duration) {
+    pub fn shutdown(timeout: Duration) -> Result<(), JoinError> {
         // SAFETY: the `take` access is a thread-safe API, and the PROFILER is
         // not being mutated outside single-threaded phases such  as minit and
         // mshutdown.
         if let Some(profiler) = unsafe { PROFILER.take() } {
-            profiler.join_collector_and_uploader(timeout);
+            profiler.join_collector_and_uploader(timeout)
+        } else {
+            Ok(())
         }
     }
 
-    pub fn join_collector_and_uploader(self, timeout: Duration) {
+    fn join_collector_and_uploader(self, timeout: Duration) -> Result<(), JoinError> {
         if self.should_join.load(Ordering::SeqCst) {
-            thread_utils::join_timeout(
-                self.time_collector_handle,
-                timeout,
-                "Recent samples may be lost.",
-            );
+            let result1 = thread_utils::join_timeout(self.time_collector_handle, timeout);
+            if let Err(err) = &result1 {
+                warn!("{err}, recent samples may be lost");
+            }
 
             // Wait for the time_collector to join, since that will drop
             // the sender half of the channel that the uploader is
             // holding, allowing it to finish.
-            thread_utils::join_timeout(
-                self.uploader_handle,
-                timeout,
-                "Recent samples are most likely lost.",
-            );
+            let result2 = thread_utils::join_timeout(self.uploader_handle, timeout);
+            if let Err(err) = &result2 {
+                warn!("{err}, recent samples are most likely lost");
+            }
+
+            let num_failures = result1.is_err() as usize + result2.is_err() as usize;
+            result2.and(result1).map_err(|_| JoinError { num_failures })
+        } else {
+            Ok(())
         }
     }
 
@@ -1286,6 +1292,10 @@ impl Profiler {
             },
         }
     }
+}
+
+pub struct JoinError {
+    pub num_failures: usize,
 }
 
 #[cfg(test)]
