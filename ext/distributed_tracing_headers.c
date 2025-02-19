@@ -522,3 +522,15 @@ bool ddtrace_read_zai_header(zai_str zai_header, const char *lowercase_header, z
     *header_value = zend_string_copy(*header_value);
     return true;
 }
+
+bool ddtrace_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(zai_header);
+    zend_array *array = (zend_array *) data;
+    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
+    if (!value) {
+        return false;
+    }
+
+    *header_value = zval_get_string(value);
+    return true;
+}

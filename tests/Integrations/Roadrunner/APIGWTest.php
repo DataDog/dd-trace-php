@@ -1,19 +1,16 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Roadrunner\V2;
+namespace DDTrace\Tests\Integrations\Roadrunner;
 
-use DDTrace\Tag;
-use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 // Nota Bene: This test HAS to run first. This is because other Roadrunner tests are setting persisting distributed tags.
 class APIGWTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Roadrunner/Version_2/worker.php';
+        return __DIR__ . '/../../Frameworks/Roadrunner/Version_2/worker.php';
     }
 
     public static function getTestedLibrary()

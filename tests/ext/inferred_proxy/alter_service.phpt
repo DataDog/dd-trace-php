@@ -64,11 +64,11 @@ echo json_encode($body, JSON_PRETTY_PRINT);
             "type": "web",
             "meta": {
                 "runtime-id": "%s",
-                "component": "aws-apigateway",
                 "http.method": "GET",
                 "http.url": "example.com\/test",
                 "stage": "aws-prod",
                 "_dd.inferred_span": "1",
+                "component": "aws-apigateway",
                 "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",

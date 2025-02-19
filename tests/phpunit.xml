@@ -75,6 +75,8 @@
         </testsuite>
         <testsuite name="api-gateway-test">
             <file>./Integrations/Laravel/APIGWTest.php</file>
+            <file>./Integrations/Laravel/Octane/APIGWTest.php</file>
+            <file>./Integrations/Roadrunner/APIGWTest.php</file>
         </testsuite>
         <testsuite name="opentelemetry1">
             <directory suffix=".phpt">./OpenTelemetry/Integration/Context/Fiber</directory>

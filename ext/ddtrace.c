@@ -3117,18 +3117,6 @@ static bool dd_read_userspace_header(zai_str zai_header, const char *lowercase_h
     return true;
 }
 
-static bool dd_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
-    UNUSED(zai_header);
-    zend_array *array = (zend_array *) data;
-    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
-    if (!value) {
-        return false;
-    }
-
-    *header_value = zval_get_string(value);
-    return true;
-}
-
 static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
     UNUSED(return_value);
 
@@ -3171,7 +3159,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     func.fci.param_count = 1;
 
     if (array) {
-        return ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+        return ddtrace_read_distributed_tracing_ids(ddtrace_read_array_header, array);
     } else if (use_server_headers) {
         return ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, &func);
     } else {

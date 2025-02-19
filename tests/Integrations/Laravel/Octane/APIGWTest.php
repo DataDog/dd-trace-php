@@ -1,15 +1,15 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\Octane\Latest;
+namespace DDTrace\Tests\Integrations\Laravel\Octane;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class InferredProxyTest extends WebFrameworkTestCase
+class APIGWTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../../Frameworks/Laravel/Octane/Latest/artisan';
+        return __DIR__ . '/../../../Frameworks/Laravel/Octane/Latest/artisan';
     }
 
     protected static function isOctane()
@@ -19,7 +19,7 @@ class InferredProxyTest extends WebFrameworkTestCase
 
     public static function ddSetUpBeforeClass()
     {
-        $swooleIni = file_get_contents(__DIR__ . '/../swoole.ini');
+        $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
 
         $currentDir = getcwd();
         $isLocalDevEnv = strpos($currentDir, 'datadog') === false;
