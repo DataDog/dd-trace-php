@@ -1,3 +1,5 @@
+#define _CRASHTRACKING_COLLECTOR
+
 #include "ddtrace.h"
 #include "sidecar.h"
 
