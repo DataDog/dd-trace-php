@@ -831,12 +831,8 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(read_header, headers);
 
     if (!result.system || !result.start_time_ms) {
-        if (result.system) {
-            zend_string_release(result.system);
-        }
-        if (result.start_time_ms) {
-            zend_string_release(result.start_time_ms);
-        }
+        if (result.system) zend_string_release(result.system);
+        if (result.start_time_ms) zend_string_release(result.start_time_ms);
         return NULL;
     }
 
