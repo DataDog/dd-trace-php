@@ -1861,6 +1861,7 @@ dependencies = [
  "tracing-core",
  "tracing-subscriber",
  "uuid",
+ "zwohash",
 ]
 
 [[package]]

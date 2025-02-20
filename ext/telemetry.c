@@ -22,12 +22,14 @@ ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
     return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 }
 
-void ddtrace_integration_error_telemetryf(const char* format, ...) {
-    va_list va;
+void ddtrace_integration_error_telemetryf(const char *format, ...) {
+    va_list va, va2;
     va_start(va, format);
     char buf[0x100];
     ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
-    int len = vsnprintf(buf, sizeof(buf), format, va);
+    va_copy(va2, va);
+    int len = vsnprintf(buf, sizeof(buf), format, va2);
+    va_end(va2);
     if (len > (int)sizeof(buf)) {
         char *msg = malloc(len + 1);
         len = vsnprintf(msg, len + 1, format, va);
@@ -39,7 +41,7 @@ void ddtrace_integration_error_telemetryf(const char* format, ...) {
     va_end(va);
 }
 
-const char *ddtrace_telemetry_redact_file(const char* file) {
+const char *ddtrace_telemetry_redact_file(const char *file) {
     const char *redacted_substring = strstr(file, "/DDTrace");
     if (redacted_substring != NULL) {
         return redacted_substring;

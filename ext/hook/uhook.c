@@ -179,8 +179,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
                              deffile, defline, scope, colon, name, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
                 ddtrace_integration_error_telemetryf("Error raised in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
-                             ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), 
-                             PG(last_error_lineno));
+                             ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
             }
         }
     })
