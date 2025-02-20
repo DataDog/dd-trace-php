@@ -830,7 +830,13 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     ddtrace_read_header *read_header = headers ? ddtrace_read_array_header : ddtrace_read_zai_header;
     ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(read_header, headers);
 
-    if (!result.system || !result.start_time_ms ) {
+    if (!result.system || !result.start_time_ms) {
+        if (result.system) {
+            zend_string_release(result.system);
+        }
+        if (result.start_time_ms) {
+            zend_string_release(result.start_time_ms);
+        }
         return NULL;
     }
 
@@ -842,7 +848,9 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     ddtrace_assign_variable(&span->property_name, &zv);
 
     zval_ptr_dtor(&span->property_resource);
-    ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result.http_method), ZSTR_VAL(result.path)));
+    if (result.http_method && result.path) {
+        ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result.http_method), ZSTR_VAL(result.path)));
+    }
 
     span->start = (zend_long)zend_strtod(ZSTR_VAL(result.start_time_ms), NULL) * 1000000;
     span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start);
@@ -854,11 +862,15 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
-    ZVAL_STR_COPY(&zv, result.http_method);
-    zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
+    if (result.http_method) {
+        ZVAL_STR_COPY(&zv, result.http_method);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
+    }
 
-    ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result.domain), ZSTR_VAL(result.path)));
-    zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
+    if (result.domain && result.path) {
+        ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result.domain), ZSTR_VAL(result.path)));
+        zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
+    }
 
     if (result.stage) {
         ZVAL_STR_COPY(&zv, result.stage);
@@ -869,10 +881,10 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     add_assoc_string(&span->property_meta, "component", "aws-apigateway");
 
     zend_string_release(result.start_time_ms);
-    zend_string_release(result.path);
-    zend_string_release(result.http_method);
-    zend_string_release(result.domain);
-    zend_string_release(result.stage);
+    if (result.path) zend_string_release(result.path);
+    if (result.http_method) zend_string_release(result.http_method);
+    if (result.domain) zend_string_release(result.domain);
+    if (result.stage) zend_string_release(result.stage);
 
     return ROOTSPANDATA(&span->std);
 }
