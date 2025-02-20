@@ -211,14 +211,6 @@ unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut 
         return 0;
     }
 
-    // `curl_exec()` will spawn a new thread for name resolution. GOT hooking follows threads and
-    // as such we might sample from another thread even in a NTS build of PHP, which we should not.
-    // So instead of crashing (or risking a crash) we currently refrain from collection I/O from
-    // name resolution.
-    if name.contains("resolve") {
-        return 0;
-    }
-
     override_got_entry(info, overwrites);
 
     0
@@ -563,6 +555,17 @@ impl<C: IOCollector> IOProfilingStats<C> {
     }
 
     fn track(&mut self, value: u64) {
+        let zend_thread = REQUEST_LOCALS.with(|cell| {
+            let locals = cell.borrow();
+            locals.vm_interrupt_addr.is_null()
+        });
+        if !zend_thread {
+            // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
+            // follows threads and as such we might sample from another (non PHP) thread even in a
+            // NTS build of PHP. We have observed crashes for these cases, so instead of crashing
+            // (or risking a crash) we refrain from collection I/O.
+            return;
+        }
         if let Some(next_sample) = self.next_sample.checked_sub(value) {
             self.next_sample = next_sample;
             return;
