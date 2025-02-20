@@ -112,7 +112,7 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
+	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
