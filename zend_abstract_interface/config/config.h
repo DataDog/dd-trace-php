@@ -101,4 +101,6 @@ bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
 
+bool zai_config_is_initialized(void);
+
 #endif  // ZAI_CONFIG_H
