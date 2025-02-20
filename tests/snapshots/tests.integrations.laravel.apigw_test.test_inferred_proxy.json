@@ -1,6 +1,6 @@
 [[
   {
-    "name": "aws-apigateway",
+    "name": "aws.apigateway",
     "service": "example.com",
     "resource": "GET /test",
     "trace_id": 0,

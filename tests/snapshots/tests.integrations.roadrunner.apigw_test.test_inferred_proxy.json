@@ -1,6 +1,6 @@
 [[
   {
-    "name": "aws-apigateway",
+    "name": "aws.apigateway",
     "service": "example.com",
     "resource": "GET /simple",
     "trace_id": 0,
@@ -14,7 +14,7 @@
       "component": "aws-apigateway",
       "env": "local-test",
       "http.method": "GET",
-      "http.request.headers.x-dd-proxy": "aws-apigateway",
+      "http.request.headers.x-dd-proxy": "aws.apigateway",
       "http.request.headers.x-dd-proxy-domain-name": "example.com",
       "http.request.headers.x-dd-proxy-httpmethod": "GET",
       "http.request.headers.x-dd-proxy-path": "/test",

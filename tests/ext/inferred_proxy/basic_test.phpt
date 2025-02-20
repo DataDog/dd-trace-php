@@ -11,7 +11,7 @@ DD_VERSION=1.0
 DD_TRACE_DEBUG=0
 
 DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
-HTTP_X_DD_PROXY=aws-apigateway
+HTTP_X_DD_PROXY=aws.apigateway
 HTTP_X_DD_PROXY_REQUEST_TIME_MS=100
 HTTP_X_DD_PROXY_PATH=/test
 HTTP_X_DD_PROXY_HTTPMETHOD=GET
@@ -58,7 +58,7 @@ echo json_encode($body, JSON_PRETTY_PRINT);
             "span_id": "13930160852258120406",
             "start": 100000000,
             "duration": %d,
-            "name": "aws-apigateway",
+            "name": "aws.apigateway",
             "resource": "GET \/test",
             "service": "example.com",
             "type": "web",
