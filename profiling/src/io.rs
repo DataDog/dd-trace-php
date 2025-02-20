@@ -203,8 +203,6 @@ unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut 
             .unwrap_or("[Unknown]")
     };
 
-    //libc::raise(libc::SIGTRAP);
-
     // I guess if we try to hook into GOT from `linux-vdso` or `ld-linux` our best outcome will be
     // that nothing happens, but most likely we'll crash and we should avoid that.
     if name.contains("linux-vdso") || name.contains("ld-linux") {
