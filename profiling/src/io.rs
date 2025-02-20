@@ -137,7 +137,9 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
             let name = CStr::from_ptr(name_ptr).to_str().unwrap_or("");
 
             if name == overwrite.symbol_name {
-                // Calculate the GOT entry address
+                // Calculate the GOT entry address. Per the ELF spec, `r_offset` for pointer-sized
+                // relocations (such as GOT entries) is guaranteed to be pointer-aligned, see:
+                // https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst#5733relocation-operations
                 let got_entry =
                     ((*info).dlpi_addr as usize + (*rel).r_offset as usize) as *mut *mut ();
 
