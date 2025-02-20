@@ -288,6 +288,30 @@ unsafe extern "C" fn observed_recv(
     len
 }
 
+static mut ORIG_RECVMSG: unsafe extern "C" fn(c_int, *mut libc::msghdr, c_int) -> isize =
+    libc::recvmsg;
+
+unsafe extern "C" fn observed_recvmsg(
+    socket: c_int,
+    msg: *mut libc::msghdr,
+    flags: c_int,
+) -> isize {
+    let start = Instant::now();
+    let len = ORIG_RECVMSG(socket, msg, flags);
+    let duration = start.elapsed();
+
+    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
+    });
+    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64);
+    });
+
+    len
+}
+
 static mut ORIG_SEND: unsafe extern "C" fn(c_int, *const c_void, usize, c_int) -> isize =
     libc::send;
 unsafe extern "C" fn observed_send(
@@ -298,6 +322,29 @@ unsafe extern "C" fn observed_send(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_SEND(socket, buf, length, flags);
+    let duration = start.elapsed();
+
+    SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
+    });
+    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
+
+    len
+}
+
+static mut ORIG_SENDMSG: unsafe extern "C" fn(c_int, *const libc::msghdr, c_int) -> isize =
+    libc::sendmsg;
+unsafe extern "C" fn observed_sendmsg(
+    socket: c_int,
+    msg: *const libc::msghdr,
+    flags: c_int,
+) -> isize {
+    let start = Instant::now();
+    let len = ORIG_SENDMSG(socket, msg, flags);
     let duration = start.elapsed();
 
     SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
@@ -644,9 +691,19 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_RECV) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
+                    symbol_name: "recvmsg",
+                    new_func: observed_recvmsg as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_RECVMSG) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
                     symbol_name: "send",
                     new_func: observed_send as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "sendmsg",
+                    new_func: observed_sendmsg as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_SENDMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "write",
