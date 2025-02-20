@@ -170,14 +170,14 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
             const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
             log("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
                              type, deffile, defline, scope, colon, name, msg);
-            if (get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+            if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
                 ddtrace_integration_error_telemetryf("%s thrown in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s",
                              type, ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, msg);
             }
         } else if (PG(last_error_message)) {
             log("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
                              deffile, defline, scope, colon, name, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
-            if (get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+            if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
                 ddtrace_integration_error_telemetryf("Error raised in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
                              ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), 
                              PG(last_error_lineno));

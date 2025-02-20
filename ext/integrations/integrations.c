@@ -97,8 +97,8 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             do {
                 zend_class_entry *ce = zend_lookup_class(aux->classname);
                 if (!ce) {
-                    if (get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                    LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
                         ddtrace_integration_error_telemetryf("Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
                     }
                     success = true;
@@ -106,8 +106,8 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 }
 
                 if (!instanceof_function(ce, ddtrace_ce_integration)) {
-                    if (get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                    LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
                         ddtrace_integration_error_telemetryf("Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     }
                     success = true;
@@ -142,8 +142,8 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                             unload_hooks = false;
                             break;
                         default:
-                            if (get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                                LOG(WARN, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                            LOG(WARN, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                            if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
                                 ddtrace_integration_error_telemetryf("Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
                             }
                             break;
@@ -152,7 +152,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
             } while (0);
         } zend_catch {
         } zend_end_try();
-        if ((!success || PG(last_error_message)) && get_DD_TRACE_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+        if ((!success || PG(last_error_message)) && get_DD_TRACE_ENABLED()) {
             LOGEV(WARN, {
                 zend_object *ex = EG(exception);
                 if (ex) {
@@ -160,13 +160,17 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)) : "<exit>";
                     log("%s thrown in ddtrace's integration autoloader for %s: %s",
                         type, ZSTR_VAL(aux->classname), msg);
-                    ddtrace_integration_error_telemetryf("%s thrown in ddtrace's integration autoloader for %s: %s",
-                        type, ZSTR_VAL(aux->classname), msg);
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                        ddtrace_integration_error_telemetryf("%s thrown in ddtrace's integration autoloader for %s: %s",
+                            type, ZSTR_VAL(aux->classname), msg);
+                    }
                 } else if (PG(last_error_message)) {
                     log("Error raised in ddtrace's integration autoloader for %s: %s in %s on line %d",
                         ZSTR_VAL(aux->classname), LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
-                    ddtrace_integration_error_telemetryf("Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
-                        ZSTR_VAL(aux->classname), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                        ddtrace_integration_error_telemetryf("Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
+                            ZSTR_VAL(aux->classname), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
+                    }
                 }
             })
         }
