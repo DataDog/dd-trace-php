@@ -836,14 +836,14 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(tracestate)) {
             ZVAL_STR_COPY(&span->property_tracestate, DDTRACE_G(tracestate));
         }
-        if (DDTRACE_G(baggage)) {
-            ZVAL_STR_COPY(&span->property_baggage, DDTRACE_G(baggage));
-        }
 
         SEPARATE_ARRAY(&span->property_propagated_tags);
         zend_hash_copy(Z_ARR(span->property_propagated_tags), &DDTRACE_G(propagated_root_span_tags), zval_add_ref);
         SEPARATE_ARRAY(&span->property_tracestate_tags);
         zend_hash_copy(Z_ARR(span->property_tracestate_tags), &DDTRACE_G(tracestate_unknown_dd_keys), zval_add_ref);
+        SEPARATE_ARRAY(&span->property_baggage);
+        zend_hash_copy(Z_ARR(span->property_baggage), &DDTRACE_G(baggage), zval_add_ref);
+
         if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
             ZVAL_LONG(&span->property_propagated_sampling_priority, DDTRACE_G(propagated_priority_sampling));
         }

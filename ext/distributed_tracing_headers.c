@@ -17,6 +17,7 @@ static ddtrace_distributed_tracing_result dd_init_empty_result(void) {
     zend_hash_init(&result.tracestate_unknown_dd_keys, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.propagated_tags, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.meta_tags, 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&result.baggage, 8, unused, ZVAL_PTR_DTOR, 0);
     return result;
 }
 
@@ -42,11 +43,51 @@ static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
     }
 }
 
+static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, HashTable *baggage) {
+    while (baggage_ptr < baggage_end) {
+        char *key_start = baggage_ptr;
+        while (baggage_ptr < baggage_end && *baggage_ptr != '=') {
+            ++baggage_ptr;
+        }
+        if (baggage_ptr >= baggage_end || *baggage_ptr != '=') break;
+
+        size_t key_len = baggage_ptr - key_start;
+        ++baggage_ptr; // skip '='
+
+        char *value_start = baggage_ptr;
+        while (baggage_ptr < baggage_end && *baggage_ptr != ',') {
+            ++baggage_ptr;
+        }
+
+        size_t value_len = baggage_ptr - value_start;
+        if (key_len > 0 && value_len > 0) {
+            zend_string *key = zend_string_init(key_start, key_len, 0);
+            zval value;
+            ZVAL_STRINGL(&value, value_start, value_len);
+            zend_hash_update(baggage, key, &value);
+            zend_string_release(key);
+        }
+
+        if (baggage_ptr < baggage_end && *baggage_ptr == ',') {
+            ++baggage_ptr; // skip ','
+        }
+    }
+}
+
 static ddtrace_distributed_tracing_result ddtrace_read_distributed_baggage(ddtrace_read_header *read_header, void *data) {
+    zend_string *baggage_header;
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
-    read_header((zai_str)ZAI_STRL("BAGGAGE"), "baggage", &result.baggage, data);
+    if (!read_header((zai_str)ZAI_STRL("BAGGAGE"), "baggage", &baggage_header, data)) {
+        return result;
+    }
 
+    char *baggage_ptr = ZSTR_VAL(baggage_header);
+    char *baggage_end = baggage_ptr + ZSTR_LEN(baggage_header);
+
+    ddtrace_deserialize_baggage(baggage_ptr, baggage_end, &result.baggage);
+
+    zend_string_release(baggage_header);
     return result;
 }
 
@@ -375,7 +416,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
 
         if (!has_trace) {
             zend_string *existing_origin = result.origin;
-            zend_string *existing_baggage = result.baggage;
+            zend_array existing_baggage = result.baggage;
 
             if (result.meta_tags.arData) {
                 zend_hash_destroy(&result.meta_tags);
@@ -401,15 +442,23 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 }
             }
 
-            if (existing_baggage) {
-                if (result.baggage) {
-                    zend_string_release(result.baggage);
-                }
-                result.baggage = existing_baggage;
-                zend_string_release(existing_baggage);
+            if (existing_baggage.arData) {
+                zend_string *key;
+                zval *value;
+                ZEND_HASH_FOREACH_STR_KEY_VAL(&existing_baggage, key, value) {
+                    zend_string *new_key = zend_string_dup(key, 0);
+                    zval new_value;
+                    ZVAL_DUP(&new_value, value);
+
+                    zend_hash_update(&result.baggage, new_key, &new_value);
+                    zend_string_release(new_key);
+                } ZEND_HASH_FOREACH_END();
+
+                zend_hash_destroy(&existing_baggage);
             }
         } else {
             ddtrace_distributed_tracing_result new_result = func(read_header, data);
+
             if (result.trace_id.low == new_result.trace_id.low && result.trace_id.high == new_result.trace_id.high) {
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
@@ -435,17 +484,27 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 }
             }
 
+            if (new_result.baggage.arData) {
+                zend_string *key;
+                zval *value;
+                ZEND_HASH_FOREACH_STR_KEY_VAL(&new_result.baggage, key, value) {
+                    zend_string *new_key = zend_string_dup(key, 0);
+                    zval new_value;
+                    ZVAL_DUP(&new_value, value);
+
+                    zend_hash_update(&result.baggage, new_key, &new_value);
+                    zend_string_release(new_key);
+                } ZEND_HASH_FOREACH_END();
+            }
+
             if (new_result.tracestate) {
                 zend_string_release(new_result.tracestate);
             }
             if (new_result.origin) {
                 zend_string_release(new_result.origin);
-            } 
-            if (!result.baggage && new_result.baggage) {
-                result.baggage = new_result.baggage;
-                new_result.baggage = NULL;
             }
 
+            zend_hash_destroy(&new_result.baggage);
             zend_hash_destroy(&new_result.meta_tags);
             zend_hash_destroy(&new_result.propagated_tags);
             zend_hash_destroy(&new_result.tracestate_unknown_dd_keys);
@@ -473,6 +532,10 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         *Z_ARR(zv) = result->propagated_tags;
         ddtrace_assign_variable(&span->property_propagated_tags, &zv);
 
+        ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
+        *Z_ARR(zv) = result->baggage;
+        ddtrace_assign_variable(&span->property_baggage, &zv);
+
         zend_hash_copy(root_meta, &result->meta_tags, NULL);
 
         if (result->origin) {
@@ -483,11 +546,6 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (result->tracestate) {
             ZVAL_STR(&zv, result->tracestate);
             ddtrace_assign_variable(&span->property_tracestate, &zv);
-        }
-
-        if (result->baggage) {
-            ZVAL_STR(&zv, result->baggage);
-            ddtrace_assign_variable(&span->property_baggage, &zv);
         }
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
@@ -504,6 +562,8 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         DDTRACE_G(propagated_root_span_tags) = result->propagated_tags;
         zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
         DDTRACE_G(tracestate_unknown_dd_keys) = result->tracestate_unknown_dd_keys;
+        zend_hash_destroy(&DDTRACE_G(baggage));
+        DDTRACE_G(baggage) = result->baggage;
         zend_hash_copy(&DDTRACE_G(root_span_tags_preset), &result->meta_tags, NULL);
         if (DDTRACE_G(dd_origin)) {
             zend_string_release(DDTRACE_G(dd_origin));
@@ -512,11 +572,6 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (DDTRACE_G(tracestate)) {
             zend_string_release(DDTRACE_G(tracestate));
         }
-        DDTRACE_G(tracestate) = result->tracestate;
-        if (DDTRACE_G(baggage)) {
-            zend_string_release(DDTRACE_G(baggage));
-        }
-        DDTRACE_G(baggage) = result->baggage;
 
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;

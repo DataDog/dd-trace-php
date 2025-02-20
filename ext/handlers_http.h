@@ -101,12 +101,44 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
     return NULL;
 }
 
+static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
+    smart_str serialized_baggage = {0};
+    zend_string *key;
+    zval *value;
+    bool first_entry = true;
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL(baggage, key, value) {
+        if (!key || Z_TYPE_P(value) != IS_STRING) {
+            continue; // Skip invalid entries
+        }
+
+        if (!first_entry) {
+            smart_str_appendc(&serialized_baggage, ','); // Add comma separator
+        } else {
+            first_entry = false;
+        }
+
+        // Append key=value
+        smart_str_appendl(&serialized_baggage, ZSTR_VAL(key), ZSTR_LEN(key));
+        smart_str_appendc(&serialized_baggage, '=');
+        smart_str_appendl(&serialized_baggage, Z_STRVAL_P(value), Z_STRLEN_P(value));
+    } ZEND_HASH_FOREACH_END();
+
+    if (!serialized_baggage.s) {
+        smart_str_free(&serialized_baggage);
+    } else {
+        smart_str_0(&serialized_baggage); // Null-terminate
+    }
+
+    return serialized_baggage.s;
+}
+
 static inline void ddtrace_inject_distributed_headers_config(zend_array *array, bool key_value_pairs, zend_array *inject) {
     ddtrace_root_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? SPANDATA(DDTRACE_G(active_stack)->active)->root : NULL;
     zend_string *origin = DDTRACE_G(dd_origin);
     zend_array *tracestate_unknown_dd_keys = &DDTRACE_G(tracestate_unknown_dd_keys);
     zend_string *tracestate = DDTRACE_G(tracestate);
-    zend_string *baggage = DDTRACE_G(baggage);
+    zend_array *baggage = &DDTRACE_G(baggage);
     if (root) {
         if (Z_TYPE(root->property_origin) == IS_STRING && Z_STRLEN(root->property_origin)) {
             origin = Z_STR(root->property_origin);
@@ -119,11 +151,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             tracestate = NULL;
         }
         tracestate_unknown_dd_keys = ddtrace_property_array(&root->property_tracestate_tags);
-        if (Z_TYPE(root->property_baggage) == IS_STRING && Z_STRLEN(root->property_baggage)) {
-            baggage = Z_STR(root->property_baggage);
-        } else {
-            baggage = NULL;
-        }
+        baggage = ddtrace_property_array(&root->property_baggage);
     }
 
     zval headers;
@@ -246,8 +274,13 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         }
     }
 
-    if (send_baggage && baggage) {
-        ADD_HEADER("baggage", "%s", ZSTR_VAL(baggage));
+    if (send_baggage) {
+        zend_string *full_baggage = ddtrace_serialize_baggage(baggage);
+
+        if (full_baggage) {
+            ADD_HEADER("baggage", "%.*s", (int)ZSTR_LEN(full_baggage), ZSTR_VAL(full_baggage));
+            zend_string_release(full_baggage);
+        }
     }
     
     if (propagated_tags) {

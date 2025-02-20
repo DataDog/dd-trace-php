@@ -881,14 +881,13 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
+    zend_hash_destroy(&result.baggage);
+
     if (result.origin) {
         zend_string_release(result.origin);
     }
     if (result.tracestate) {
         zend_string_release(result.tracestate);
-    }
-    if (result.baggage) {
-        zend_string_release(result.baggage);
     }
 }
 
@@ -1649,6 +1648,7 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
+    zend_hash_destroy(&DDTRACE_G(baggage));
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
@@ -1665,11 +1665,6 @@ static void dd_clean_globals(void) {
     if (DDTRACE_G(tracestate)) {
         zend_string_release(DDTRACE_G(tracestate));
         DDTRACE_G(tracestate) = NULL;
-    }
-
-    if (DDTRACE_G(baggage)) {
-        zend_string_release(DDTRACE_G(baggage));
-        DDTRACE_G(baggage) = NULL;
     }
 
     ddtrace_internal_handlers_rshutdown();

@@ -10,7 +10,7 @@ typedef struct {
     uint64_t parent_id;
     zend_string *origin;
     zend_string *tracestate;
-    zend_string *baggage;
+    HashTable baggage;
     HashTable tracestate_unknown_dd_keys;
     HashTable propagated_tags;
     HashTable meta_tags;

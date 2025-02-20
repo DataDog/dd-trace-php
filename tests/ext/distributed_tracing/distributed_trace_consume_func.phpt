@@ -2,9 +2,8 @@
 Test consume_distributed_tracing_headers() with function argument
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_PROPAGATION_STYLE_INJECT=datadog,tracecontext,baggage
-DD_TRACE_PROPAGATION_STYLE_EXTRACT=datadog,tracecontext,baggage
-
+DD_TRACE_PROPAGATION_STYLE_INJECT=datadog,baggage,tracecontext
+DD_TRACE_PROPAGATION_STYLE_EXTRACT=baggage,datadog,tracecontext
 --FILE--
 <?php
 
