@@ -68,11 +68,11 @@ array(2) {
   [0]=>
   array(6) {
     ["message"]=>
-    string(135) "DivisionByZeroError thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:4 for curl_exec(): Division by zero"
+    string(183) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:9 for curl_setopt(): Undefined variable $a in <redacted>/integration_runtime_error.php on line 10"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
-    int(3)
+    int(1)
     ["stack_trace"]=>
     NULL
     ["tags"]=>
@@ -83,11 +83,11 @@ array(2) {
   [1]=>
   array(6) {
     ["message"]=>
-    string(183) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:9 for curl_setopt(): Undefined variable $a in <redacted>/integration_runtime_error.php on line 10"
+    string(135) "DivisionByZeroError thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:4 for curl_exec(): Division by zero"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
-    int(1)
+    int(3)
     ["stack_trace"]=>
     NULL
     ["tags"]=>

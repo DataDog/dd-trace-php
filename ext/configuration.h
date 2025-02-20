@@ -126,7 +126,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = ddtrace_alter_dd_trace_disabled_config,               \
            .env_config_fallback = ddtrace_conf_otel_traces_exporter)                                           \
     CONFIG(BOOL, DD_INSTRUMENTATION_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)     \
-    CONFIG(BOOL, DD_TELEMETRY_LOG_COLLECTION_ENABLED, "true", .ini_change = zai_config_system_ini_change)      \
+    CONFIG(BOOL, DD_TELEMETRY_LOG_COLLECTION_ENABLED, "true")                                                  \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                     \
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \

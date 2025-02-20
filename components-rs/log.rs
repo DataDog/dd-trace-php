@@ -213,28 +213,3 @@ pub extern "C" fn ddog_get_logs_count(level: CharSlice) -> u32 {
         *counter.entry(level).or_default()
     });
 }
-
-#[no_mangle]
-pub extern "C" fn ddog_get_integration_error_log() -> *const c_char {
-    return INTEGRATION_ERROR_LOGS.with(|logs| {
-        let mut logs = logs.borrow_mut();
-        if !logs.is_empty() {
-            match CString::new(logs.pop().unwrap().as_str()) {
-                Ok(c_string) => {
-                    c_string.into_raw()
-                }
-                Err(_) => std::ptr::null(),
-            }
-        } else {
-            std::ptr::null()
-        }
-    });
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_add_integration_error_log(log: CharSlice) {
-    INTEGRATION_ERROR_LOGS.with(|logs| {
-        logs.borrow_mut().push(log.to_utf8_lossy().to_string());
-    });
-}
-

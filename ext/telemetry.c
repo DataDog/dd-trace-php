@@ -22,6 +22,37 @@ ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
     return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 }
 
+void ddtrace_integration_error_telemetryf(const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    char buf[0x100];
+    ddog_SidecarActionsBuffer* buffer = ddtrace_telemetry_buffer();
+    int len = vsnprintf(buf, sizeof(buf), format, va);
+    if (len > (int)sizeof(buf)) {
+        char *msg = malloc(len + 1);
+        len = vsnprintf(msg, len + 1, format, va);
+        ddog_sidecar_telemetry_add_integration_log_buffer(buffer, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
+        free(msg);
+    } else {
+        ddog_sidecar_telemetry_add_integration_log_buffer(buffer, (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
+    }
+    va_end(va);
+}
+
+const char* ddtrace_telemetry_redact_file(const char* file) {
+    const char* redacted_substring = strstr(file, "/DDTrace");
+    if (redacted_substring != NULL) {
+        return redacted_substring;
+    } else {
+        // Should not happen but will serve as a gate keepers
+        const char * php_file_name = strrchr(file, '/');
+        if (php_file_name) {
+            return php_file_name;
+        }
+        return "";
+    }
+}
+
 static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
     UNUSED(invocation, auxiliary, dynamic);
 
@@ -150,17 +181,6 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     dd_commit_metrics();
-
-    // Integration error logs
-    if (get_global_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-        char* log = (char*) ddog_get_integration_error_log();
-        while (log != NULL) {
-            ddog_CharSlice logSlice = (ddog_CharSlice){ .ptr = log, .len = strlen(log) };
-            ddog_sidecar_telemetry_add_integration_log_buffer(buffer, logSlice);
-            log = (char*) ddog_get_integration_error_log();
-        }
-    }
-
     ddtrace_ffi_try("Failed flushing telemetry buffer",
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
 
