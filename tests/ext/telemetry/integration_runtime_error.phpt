@@ -2,7 +2,6 @@
 Send logs from integration
 --SKIPIF--
 <?php
-if (!extension_loaded('curl')) die('skip: curl extension required');
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
 if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to telemetry");
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
@@ -13,27 +12,26 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_TELEMETRY_LOG_COLLECTION_ENABLED=1
 DD_TRACE_LOG_LEVEL=warn
-DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-runtime-error-telemetry.out"
 --FILE--
 <?php
-include 'curl_helper.inc';
 
-DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {
-    $span->name = 'curl_exec';
+function foo() {
+    echo "foo\n";
+}
+
+DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
+    $span->name = 'foo';
     5/0;
 });
 
-DDTrace\trace_function('curl_setopt', function (\DDTrace\SpanData $span) {
+DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
     $span->name = $a;
 });
 
-$ch = curl_init('https://raw.githubusercontent.com/DataDog/dd-trace-php/master/README.md');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_exec($ch);
-curl_exec($ch);
-curl_exec($ch);
+foo();
+foo();
 
 dd_trace_internal_fn("finalize_telemetry");
 
@@ -60,19 +58,21 @@ for ($i = 0; $i < 100; ++$i) {
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error raised in ddtrace's closure defined at /home/circleci/app/tmp/build_extension/tests/ext/telemetry/integration_runtime_error.php:9 for curl_setopt(): Undefined variable $a in /home/circleci/app/tmp/build_extension/tests/ext/telemetry/integration_runtime_error.php on line 10
-[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at /home/circleci/app/tmp/build_extension/tests/ext/telemetry/integration_runtime_error.php:4 for curl_exec(): Division by zero
-[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at /home/circleci/app/tmp/build_extension/tests/ext/telemetry/integration_runtime_error.php:4 for curl_exec(): Division by zero
-[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at /home/circleci/app/tmp/build_extension/tests/ext/telemetry/integration_runtime_error.php:4 for curl_exec(): Division by zero
+foo
+[ddtrace] [warning] Error raised in ddtrace's closure defined at %s/integration_runtime_error.php:12 for foo(): Undefined variable $a in %s/integration_runtime_error.php on line 13
+[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at %s/integration_runtime_error.php:7 for foo(): Division by zero
+foo
+[ddtrace] [warning] Error raised in ddtrace's closure defined at %s/integration_runtime_error.php:12 for foo(): Undefined variable $a in %s/integration_runtime_error.php on line 13
+[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at %s/integration_runtime_error.php:7 for foo(): Division by zero
 array(2) {
   [0]=>
   array(6) {
     ["message"]=>
-    string(183) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:9 for curl_setopt(): Undefined variable $a in <redacted>/integration_runtime_error.php on line 10"
+    string(176) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:12 for foo(): Undefined variable $a in <redacted>/integration_runtime_error.php on line 13"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
-    int(1)
+    int(2)
     ["stack_trace"]=>
     NULL
     ["tags"]=>
@@ -83,11 +83,11 @@ array(2) {
   [1]=>
   array(6) {
     ["message"]=>
-    string(135) "DivisionByZeroError thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:4 for curl_exec(): Division by zero"
+    string(129) "DivisionByZeroError thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:7 for foo(): Division by zero"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
-    int(3)
+    int(2)
     ["stack_trace"]=>
     NULL
     ["tags"]=>
@@ -96,7 +96,6 @@ array(2) {
     bool(false)
   }
 }
-
 --CLEAN--
 <?php
 
