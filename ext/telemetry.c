@@ -26,7 +26,7 @@ void ddtrace_integration_error_telemetryf(const char* format, ...) {
     va_list va;
     va_start(va, format);
     char buf[0x100];
-    ddog_SidecarActionsBuffer* buffer = ddtrace_telemetry_buffer();
+    ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
     int len = vsnprintf(buf, sizeof(buf), format, va);
     if (len > (int)sizeof(buf)) {
         char *msg = malloc(len + 1);
@@ -39,13 +39,13 @@ void ddtrace_integration_error_telemetryf(const char* format, ...) {
     va_end(va);
 }
 
-const char* ddtrace_telemetry_redact_file(const char* file) {
-    const char* redacted_substring = strstr(file, "/DDTrace");
+const char *ddtrace_telemetry_redact_file(const char* file) {
+    const char *redacted_substring = strstr(file, "/DDTrace");
     if (redacted_substring != NULL) {
         return redacted_substring;
     } else {
         // Should not happen but will serve as a gate keepers
-        const char * php_file_name = strrchr(file, '/');
+        const char *php_file_name = strrchr(file, '/');
         if (php_file_name) {
             return php_file_name;
         }

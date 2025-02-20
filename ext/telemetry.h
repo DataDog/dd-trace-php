@@ -22,7 +22,7 @@ typedef struct _trace_api_metrics {
 
 ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void);
 void ddtrace_integration_error_telemetryf(const char *format, ...);
-const char* ddtrace_telemetry_redact_file(const char* file);
+const char *ddtrace_telemetry_redact_file(const char *file);
 void ddtrace_telemetry_first_init(void);
 void ddtrace_telemetry_rinit(void);
 void ddtrace_telemetry_rshutdown(void);

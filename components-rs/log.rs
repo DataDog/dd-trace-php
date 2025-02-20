@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::c_char;
-use std::ffi::CString;
 use std::fmt::Debug;
 use std::str::FromStr;
 use tracing::Level;
@@ -40,7 +39,6 @@ pub static mut ddog_log_callback: Option<extern "C" fn(CharSlice)> = None;
 // Avoid RefCell for performance
 std::thread_local! {
     static LOGGED_MSGS: RefCell<BTreeSet<String>> = RefCell::default();
-    static INTEGRATION_ERROR_LOGS: RefCell<Vec<String>> = RefCell::default();
     static TRACING_GUARDS: RefCell<Option<tracing_core::dispatcher::DefaultGuard>> = RefCell::default();
     static COUNTERS: RefCell<HashMap<Level, u32>> = RefCell::default();
 }
