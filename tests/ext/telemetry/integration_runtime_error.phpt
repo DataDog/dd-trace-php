@@ -23,11 +23,11 @@ function foo() {
 
 DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
     $span->name = 'foo';
-    5/0;
+    throw new Exception("test");
 });
 
 DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
-    $span->name = $a;
+    trigger_error("Testnotice", E_USER_NOTICE);
 });
 
 foo();
@@ -59,16 +59,16 @@ for ($i = 0; $i < 100; ++$i) {
 ?>
 --EXPECTF--
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %s/integration_runtime_error.php:12 for foo(): Undefined variable $a in %s/integration_runtime_error.php on line 13
-[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at %s/integration_runtime_error.php:7 for foo(): Division by zero
+[ddtrace] [warning] Error raised in ddtrace's closure defined at %s/integration_runtime_error.php:12 for foo(): Testnotice in %s/integration_runtime_error.php on line 13
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s/integration_runtime_error.php:7 for foo(): test
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %s/integration_runtime_error.php:12 for foo(): Undefined variable $a in %s/integration_runtime_error.php on line 13
-[ddtrace] [warning] DivisionByZeroError thrown in ddtrace's closure defined at %s/integration_runtime_error.php:7 for foo(): Division by zero
+[ddtrace] [warning] Error raised in ddtrace's closure defined at %s/integration_runtime_error.php:12 for foo(): Testnotice in %s/integration_runtime_error.php on line 13
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s/integration_runtime_error.php:7 for foo(): test
 array(2) {
   [0]=>
   array(6) {
     ["message"]=>
-    string(176) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:12 for foo(): Undefined variable $a in <redacted>/integration_runtime_error.php on line 13"
+    string(165) "Error raised in ddtrace's closure defined at <redacted>/integration_runtime_error.php:12 for foo(): Testnotice in <redacted>/integration_runtime_error.php on line 13"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
@@ -83,7 +83,7 @@ array(2) {
   [1]=>
   array(6) {
     ["message"]=>
-    string(129) "DivisionByZeroError thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:7 for foo(): Division by zero"
+    string(107) "Exception thrown in ddtrace's closure defined at <redacted>/integration_runtime_error.php:7 for foo(): test"
     ["level"]=>
     string(4) "WARN"
     ["count"]=>
