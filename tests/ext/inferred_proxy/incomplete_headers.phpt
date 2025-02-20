@@ -1,5 +1,5 @@
 --TEST--
-Should create parent and child spans for a 200
+An Inferred Span should not be created on missing headers
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
