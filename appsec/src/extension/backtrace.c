@@ -245,7 +245,9 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         array_init(meta_struct);
     } else if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
         if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_trace, "Field meta_struct is not an array");
+            mlog(dd_log_trace,
+                "Field 'meta_struct' is of type '%d', expected 'array'",
+                Z_TYPE_P(meta_struct));
         }
         return false;
     }
@@ -262,7 +264,9 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         mlog(dd_log_trace, "Backtrace stack created");
     } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
         if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_trace, "Field stack is not an array");
+            mlog(dd_log_trace,
+                "Field 'stack' is of type '%d', expected 'array'",
+                Z_TYPE_P(dd_stack));
         }
         return false;
     } else {
@@ -270,7 +274,8 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
     }
 
     if (Z_TYPE_P(exploit) != IS_ARRAY) {
-        mlog(dd_log_trace, "Field exploit is not an array");
+        mlog(dd_log_trace, "Field 'exploit' is of type '%d', expected 'array'",
+            Z_TYPE_P(exploit));
         return false;
     }
 
