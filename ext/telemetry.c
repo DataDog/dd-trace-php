@@ -42,12 +42,17 @@ void ddtrace_integration_error_telemetryf(const char *format, ...) {
 }
 
 const char *ddtrace_telemetry_redact_file(const char *file) {
-    const char *redacted_substring = strstr(file, "/DDTrace");
+#ifdef _WIN32
+#define SEPARATOR_CHAR "\\"
+#else
+#define SEPARATOR_CHAR "/"
+#endif
+    const char *redacted_substring = strstr(file, SEPARATOR_CHAR "DDTrace");
     if (redacted_substring != NULL) {
         return redacted_substring;
     } else {
         // Should not happen but will serve as a gate keepers
-        const char *php_file_name = strrchr(file, '/');
+        const char *php_file_name = strrchr(file, SEPARATOR_CHAR[0]);
         if (php_file_name) {
             return php_file_name;
         }
