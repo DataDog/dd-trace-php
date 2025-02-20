@@ -35,7 +35,7 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
 /// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
 /// dynamic linker prior to us messing with the global offset table. If the dynamic library would
 /// not be a valid ELF64, the dynamic linker would have not loaded it.
-unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSymbolOverwrite>) {
+unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSymbolOverwrite>) -> bool {
     let phdr = (*info).dlpi_phdr;
 
     // Locate the dynamic programm header (`PT_DYNAMIC`)
@@ -49,7 +49,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
     }
     if dyn_ptr.is_null() {
         trace!("Failed to locate dynamic section");
-        return;
+        return false;
     }
 
     let mut rel_plt: *mut Elf64_Rela = ptr::null_mut();
@@ -110,7 +110,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
 
     if rel_plt.is_null() || rel_plt_size == 0 || symtab.is_null() || strtab.is_null() {
         trace!("Failed to locate required ELF sections (`DT_JMPREL`, `DT_PLTRELSZ`, `DT_SYMTAB` and `DT_STRTAB`)");
-        return;
+        return false;
     }
 
     let num_relocs = rel_plt_size / std::mem::size_of::<Elf64_Rela>();
@@ -154,7 +154,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
                 {
                     let err = *libc::__errno_location();
                     trace!("mprotect failed: {}", err);
-                    return;
+                    return false;
                 }
 
                 trace!(
@@ -177,6 +177,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSy
             }
         }
     }
+    true
 }
 
 /// Callback function that should be passed to `libc::dl_iterate_phdr()` and gets called for every
@@ -211,7 +212,11 @@ unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut 
         return 0;
     }
 
-    override_got_entry(info, overwrites);
+    if override_got_entry(info, overwrites) {
+        trace!("Hooked into {name}");
+    } else {
+        trace!("Hooking {name} failed");
+    }
 
     0
 }
@@ -682,8 +687,6 @@ pub fn io_prof_first_rinit() {
             .unwrap_or(false)
     });
 
-    trace!("I/O profiling: {io_profiling:?}");
-
     if io_profiling {
         unsafe {
             let mut overwrites = vec![
@@ -733,7 +736,6 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
                 },
             ];
-            trace!("I/O profiling: {io_profiling:?}");
             libc::dl_iterate_phdr(
                 Some(callback),
                 &mut overwrites as *mut _ as *mut libc::c_void,
