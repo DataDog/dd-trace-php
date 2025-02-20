@@ -55,7 +55,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " telemetry.c";
 	DDTRACE_EXT_SOURCES += " threads.c";
 	DDTRACE_EXT_SOURCES += " user_request.c";
-    DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
+	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	if (version >= 800 && version < 802) {
 		DDTRACE_EXT_SOURCES += " weakrefs.c";
 	}
@@ -86,7 +86,7 @@ if (PHP_DDTRACE != 'no') {
 	} else {
 		ADD_FLAG("CFLAGS_DDTRACE", " /Zc:preprocessor ");
 	}
-	
+
 	ADD_SOURCES(configure_module_dirname + "/ext", DDTRACE_EXT_SOURCES, "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/ext/hook", DDTRACE_HOOK_SOURCES, "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/ext/integrations", "exec_integration.c integrations.c", "ddtrace");
