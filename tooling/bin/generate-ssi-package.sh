@@ -33,11 +33,11 @@ for architecture in "${architectures[@]}"; do
 
     mkdir -p ${gnu}/loader ${musl}/loader
 
-    ln libddtrace_php_${architecture}.so ${gnu}/loader/libddtrace_php.so
-    ln libddtrace_php_${architecture}-alpine.so ${musl}/loader/libddtrace_php.so
+    cp libddtrace_php_${architecture}.so ${gnu}/loader/libddtrace_php.so
+    cp libddtrace_php_${architecture}-alpine.so ${musl}/loader/libddtrace_php.so
 
-    ln dd_library_loader-${architecture}-linux-gnu.so ${gnu}/loader/dd_library_loader.so
-    ln dd_library_loader-${architecture}-linux-musl.so ${musl}/loader/dd_library_loader.so
+    cp dd_library_loader-${architecture}-linux-gnu.so ${gnu}/loader/dd_library_loader.so
+    cp dd_library_loader-${architecture}-linux-musl.so ${musl}/loader/dd_library_loader.so
 
     echo 'zend_extension=${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so' > ${gnu}/loader/dd_library_loader.ini
     echo 'zend_extension=${DD_LOADER_PACKAGE_PATH}/linux-musl/loader/dd_library_loader.so' > ${musl}/loader/dd_library_loader.ini
@@ -54,11 +54,11 @@ for architecture in "${architectures[@]}"; do
 
         mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
         # gnu
-        ln ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
-        ln ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
+        cp ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
+        cp ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
         # musl
-        ln ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
-        ln ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
+        cp ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
+        cp ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
 
         ########################
         # Profiling
@@ -67,14 +67,14 @@ for architecture in "${architectures[@]}"; do
         if [[ ${php_api} -ge 20160303 ]]; then
             mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
             # gnu
-            ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
+            cp ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
                 ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
-            ln ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
+            cp ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
                 ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
             # musl
-            ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
+            cp ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
                 ${musl}/profiling/ext/${php_api}/datadog-profiling.so
-            ln ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
+            cp ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
                 ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
         fi
 
@@ -84,11 +84,11 @@ for architecture in "${architectures[@]}"; do
 
         mkdir -p ${gnu}/appsec/ext/${php_api} ${musl}/appsec/ext/${php_api}
         # gnu
-        ln ./appsec_${architecture}/ddappsec-${php_api}.so ${gnu}/appsec/ext/${php_api}/ddappsec.so
-        ln ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${gnu}/appsec/ext/${php_api}/ddappsec-zts.so
+        cp ./appsec_${architecture}/ddappsec-${php_api}.so ${gnu}/appsec/ext/${php_api}/ddappsec.so
+        cp ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${gnu}/appsec/ext/${php_api}/ddappsec-zts.so
         # musl
-        ln ./appsec_${architecture}/ddappsec-${php_api}-alpine.so ${musl}/appsec/ext/${php_api}/ddappsec.so
-        ln ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
+        cp ./appsec_${architecture}/ddappsec-${php_api}-alpine.so ${musl}/appsec/ext/${php_api}/ddappsec.so
+        cp ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
     done
 
     # Trace
@@ -97,15 +97,20 @@ for architecture in "${architectures[@]}"; do
 
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
-    ln "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
-    ln "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
+    cp "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
+    cp "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
 
     ########################
     # Final archives
     ########################
 
+    # Strip symbols to reduce the package size
+    if [[ "${architecture}" == "x86_64" ]]; then
+        find "${root}" -name '*.so' -print0 | xargs -0 strip
+    fi
+
     echo "$release_version_sanitized" > ${root}/version
-    ln ./loader/packaging/requirements.json ${root}/requirements.json
+    cp ./loader/packaging/requirements.json ${root}/requirements.json
 
     tar -czv \
         -f ${packages_build_dir}/dd-library-php-ssi-${release_version}-$architecture-linux.tar.gz \
