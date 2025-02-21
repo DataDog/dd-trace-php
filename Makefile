@@ -1093,6 +1093,7 @@ TEST_WEB_84 := \
 	test_web_cakephp_latest \
 	test_web_codeigniter_22 \
 	test_web_codeigniter_31 \
+	test_web_laravel_latest \
 	test_web_laravel_octane_latest \
 	test_web_lumen_100 \
 	test_web_nette_latest \
@@ -1103,7 +1104,7 @@ TEST_WEB_84 := \
 	test_web_custom \
 	test_web_zend_1_21
 
-# to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
+# to check: , test_web_slim_latest, test_integrations_phpredis6
 
 FILTER ?= .
 MAX_RETRIES := 3
