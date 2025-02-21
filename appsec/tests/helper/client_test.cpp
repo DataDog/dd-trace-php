@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
 #include "parameter.hpp"
+#include "service_config.hpp"
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
@@ -514,6 +515,7 @@ TEST(ClientTest, RequestInit)
         EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "undefined");
     }
 }
 
@@ -613,6 +615,170 @@ TEST(ClientTest, RequestInitBlock)
         EXPECT_STREQ(
             msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToIdentification)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::IDENTIFICATION);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "identification");
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToAnonymization)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::ANONYMIZATION);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "anonymization");
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToDisabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::DISABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "disabled");
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToUnknown)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::UNKNOWN);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "unknown");
     }
 }
 

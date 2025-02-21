@@ -6,13 +6,13 @@
 #include "commands_helpers.h"
 #include "backtrace.h"
 #include "commands_ctx.h"
-#include "configuration.h"
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "tags.h"
+#include "user_tracking.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
 #include <stdatomic.h>
@@ -419,6 +419,8 @@ static void _command_process_stack_trace_parameters(mpack_node_t root)
 static dd_result _command_process_actions(
     mpack_node_t root, struct req_info *ctx);
 
+static void dd_command_process_settings(mpack_node_t root);
+
 /*
  * array(
  *    0: [<"ok" / "record" / "block" / "redirect">,
@@ -435,9 +437,10 @@ static dd_result _command_process_actions(
 #define RESP_INDEX_ACTION_PARAMS 0
 #define RESP_INDEX_APPSEC_SPAN_DATA 1
 #define RESP_INDEX_FORCE_KEEP 2
-#define RESP_INDEX_SPAN_META 3
-#define RESP_INDEX_SPAN_METRICS 4
-#define RESP_INDEX_TELEMETRY_METRICS 5
+#define RESP_INDEX_SETTINGS 3
+#define RESP_INDEX_SPAN_META 4
+#define RESP_INDEX_SPAN_METRICS 5
+#define RESP_INDEX_TELEMETRY_METRICS 6
 
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, void *unspecnull _ctx)
@@ -459,6 +462,11 @@ dd_result dd_command_proc_resp_verd_span_data(
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
         dd_tags_set_sampling_priority();
+    }
+
+    if (mpack_node_array_length(root) >= RESP_INDEX_SETTINGS + 1) {
+        mpack_node_t settings = mpack_node_array_at(root, RESP_INDEX_SETTINGS);
+        dd_command_process_settings(settings);
     }
 
     if (mpack_node_array_length(root) >= RESP_INDEX_SPAN_METRICS + 1 &&
@@ -550,6 +558,48 @@ static void _set_appsec_span_data(mpack_node_t node)
     for (size_t i = 0; i < mpack_node_array_length(node); i++) {
         mpack_node_t frag = mpack_node_array_at(node, i);
         _add_appsec_span_data_frag(frag);
+    }
+}
+
+static void dd_command_process_settings(mpack_node_t root)
+{
+    if (mpack_node_type(root) != mpack_type_map) {
+        return;
+    }
+
+    size_t count = mpack_node_map_count(root);
+
+    for (size_t i = 0; i < count; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+
+        if (mpack_node_type(key) != mpack_type_str) {
+            mlog(dd_log_warning, "Failed to process unknown setting: "
+                                 "invalid type for key");
+            continue;
+        }
+        if (mpack_node_type(value) != mpack_type_str) {
+            mlog(dd_log_warning, "Failed to process unknown setting: "
+                                 "invalid type for value");
+            continue;
+        }
+
+        const char *key_str = mpack_node_str(key);
+        const char *value_str = mpack_node_str(value);
+        size_t key_len = mpack_node_strlen(key);
+        size_t value_len = mpack_node_strlen(value);
+
+        if (dd_string_equals_lc(
+                key_str, key_len, ZEND_STRL("auto_user_instrum"))) {
+            dd_parse_user_collection_mode_rc(value_str, value_len);
+        } else {
+            if (!get_global_DD_APPSEC_TESTING()) {
+                mlog(dd_log_warning,
+                    "Failed to process user collection setting: "
+                    "unknown key %.*s",
+                    (int)key_len, key_str);
+            }
+        }
     }
 }
 
