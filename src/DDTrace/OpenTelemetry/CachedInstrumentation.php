@@ -32,7 +32,6 @@ use OpenTelemetry\SDK\Common\InstrumentationScope\Configurator;
         public function spanBuilder(string $spanName): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
             $spanBuilder = $this->tracer->spanBuilder($spanName);
-            //print new \Exception;
             $spanBuilder->setAttribute("component", $this->name);
             return $spanBuilder;
         }
