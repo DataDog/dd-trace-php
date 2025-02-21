@@ -1,1512 +1,264 @@
-Q := @
-, := ,
-PROJECT_ROOT := ${PWD}
-TRACER_SOURCE_DIR := $(PROJECT_ROOT)/src/
-ASAN ?= $(shell ldd $(shell which php) 2>/dev/null | grep -q asan && echo 1)
-SHELL = /bin/bash
-APPSEC_SOURCE_DIR = $(PROJECT_ROOT)/appsec/
-BUILD_SUFFIX = extension
-BUILD_DIR_NAME = tmp/build_$(BUILD_SUFFIX)
-BUILD_DIR = $(PROJECT_ROOT)/$(BUILD_DIR_NAME)
-BUILD_DIR_APPSEC = $(BUILD_DIR)/appsec/
-ZAI_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_zai$(if $(ASAN),_asan)
-TEA_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_tea$(if $(ASAN),_asan)
-TEA_INSTALL_DIR = $(TEA_BUILD_DIR)/opt
-TEA_BUILD_TESTS ?= OFF
-TEA_BUILD_BENCHMARKS ?= OFF
-TEA_BENCHMARK_REPETITIONS ?= 10
-# Note: If the tea benchmark format or output is changed, make changes to ./benchmark/runall.sh
-TEA_BENCHMARK_FORMAT ?= json
-TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tracer-tea-bench-results.$(TEA_BENCHMARK_FORMAT)
-BENCHMARK_EXTRA ?=
-COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
-SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
-AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
-WALL_FLAGS = -Wall -Wextra
-CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
-LDFLAGS ?=
-PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -r 'print ini_get("extension_dir");')
-PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -n -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
-ARCHITECTURE = $(shell uname -m)
-QUIET_TESTS := ${CIRCLE_SHA1}
-RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
-EXTRA_CONFIGURE_OPTIONS ?=
-ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
-MAX_TEST_PARALLELISM ?= $(shell nproc)
-ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000
-
-VERSION := $(shell cat VERSION)
-
-INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
-
-RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
-
-# shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
-
-C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,data-pipeline,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
-ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
-TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-INIT_HOOK_TEST_FILES = $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-M4_FILES = $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(BUILD_DIR)/config.m4
-XDEBUG_SO_FILE = $(shell find $(shell php-config --extension-dir) -type f -name "xdebug*.so" -exec basename {} \; | tail -n 1)
-
-# Make 'sed -i' portable
-ifeq ($(shell { sed --version 2>&1 || echo ''; } | grep GNU > /dev/null && echo GNU || true),GNU)
-	SED_I = sed -i
-else
-	SED_I = sed -i ''
-endif
-
-all: $(BUILD_DIR)/configure $(SO_FILE)
-
-# The following differentiation exists so we can build only (but always) the relevant files while executing tests
-#  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
-#  - when a `.c` changes, we copy the file to the build dir and we DO the specific .lo build and linking
-#  - when a `.h` (or anything else) changes, we remove all .lo files from the build directory so a full build is done
-# The latter, avoids that during development we change something in a header included in multiple .c files, then we
-# change only one of those .c files, we only rebuild that one, we SEGFAULT.
-#
-# Note: while this adds some complexity, as a matter of facts it does not impact production builds in CI which are done
-# from scratch. But the benefits are that we can have the quickest possible `modify --> test` cycle possible.
-$(BUILD_DIR)/tests/%: tests/%
-	$(Q) echo Copying tests/$* to $@
-	$(Q) mkdir -p $(dir $@)
-	$(Q) cp -a tests/$* $@
-
-$(BUILD_DIR)/%.c: %.c
-	$(Q) echo Copying $*.c to $@
-	$(Q) mkdir -p $(dir $@)
-	$(Q) cp -a $*.c $@
-
-$(BUILD_DIR)/%Cargo.toml: %Cargo.toml
-	$(Q) echo Copying $*Cargo.toml to $@
-	$(Q) mkdir -p $(dir $@)
-	$(Q) cp -a $*Cargo.toml $@
-	$(SED_I) -E 's/"\.\.\/([^"]*)"/"..\/..\/..\/\1"/' $@
-
-$(BUILD_DIR)/Cargo.toml: Cargo.toml
-	$(Q) echo Copying Cargo.toml to $@
-	$(Q) mkdir -p $(dir $@)
-	$(Q) cp -a Cargo.toml $@
-	$(SED_I) -E 's/, "profiling",?//' $@
-
-$(BUILD_DIR)/%: %
-	$(Q) echo Copying $* to $@
-	$(Q) mkdir -p $(dir $@)
-	$(Q) cp -a $* $@
-	$(Q) rm -f tmp/build_extension/ext/**/*.lo
+# Generated by configure.js
+PHP_SRC_DIR =C:\git\dd-trace-php
+PHP_CL=cl.exe 
 
-JUNIT_RESULTS_DIR := $(shell pwd)
+PHP_COMPILER_SHORT=vs17 
 
-all: $(BUILD_DIR)/configure $(SO_FILE)
-
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
-	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
+PHP_ARCHITECTURE=x64 
 
-$(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
-	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
-	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
+LINK=link.exe 
 
-$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
+NMAKE=nmake.exe 
 
-$(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
-	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
-
-$(AR_FILE): $(ALL_OBJECT_FILES)
-	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all
-
-$(PHP_EXTENSION_DIR)/ddtrace.so: $(SO_FILE)
-	$(Q) $(SUDO) $(if $(ASSUME_COMPILED),cp $(BUILD_DIR)/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so,$(MAKE) -C $(BUILD_DIR) install)
-
-install: $(PHP_EXTENSION_DIR)/ddtrace.so
-
-set_static_option:
-	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)
-
-static: set_static_option $(AR_FILE)
-
-$(INI_FILE):
-	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
-
-install_ini: $(INI_FILE)
-
-delete_ini:
-	$(SUDO) rm $(INI_FILE)
-
-install_appsec:
-	cmake -S $(APPSEC_SOURCE_DIR) -B $(BUILD_DIR_APPSEC)
-	cd $(BUILD_DIR_APPSEC);make extension ddappsec-helper
-	cp $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
-	cp $(BUILD_DIR_APPSEC)/libddappsec-helper.so $(PHP_EXTENSION_DIR)/libddappsec-helper.so
-	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
-	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.helper_socket_path=/tmp/ddappsec.sock" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.helper_lock_path=/tmp/ddappsec.lock" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" | $(SUDO) tee -a $(INI_FILE)
-
-install_all: install install_ini
-
-run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) $(TESTS)
-
-test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
-
-test_c_coverage: dist_clean
-	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
-
-test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	( \
-	DD_TRACE_CLI_ENABLED=0 DD_TRACE_DEBUG=1 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS) || true; \
-	! grep -E 'Successfully triggered flush with trace of size|=== Total [0-9]+ memory leaks detected ===|Segmentation fault|Assertion ' $$(find $(BUILD_DIR)/$(TESTS) -name "*.out" | grep -v segfault_backtrace_enabled.out); \
-	)
-
-test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
-
-test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
-
-test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
-
-test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
-	( \
-	set -xe; \
-	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
-	sed -i 's/stream_socket_accept($$listenSock, 5)/stream_socket_accept($$listenSock, 20)/' $(BUILD_DIR)/run-tests.php; \
-	export USE_ZEND_ALLOC=0; \
-	export ZEND_DONT_UNLOAD_MODULES=1; \
-	export USE_TRACKED_ALLOC=1; \
-	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access bash -c '$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) -d pcre.jit=0 $(INIT_HOOK_TEST_FILES)'; \
-	)
-
-test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
-
-test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	( \
-	set -xe; \
-	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
-	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
-	\
-	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
-	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
-	)
-
-build_tea: TEA_BUILD_TESTS=ON
-build_tea: TEA_PREFIX_PATH=/opt/catch2
-build_tea: build_tea_common
-
-build_tea_benchmarks: TEA_BUILD_BENCHMARKS=ON
-build_tea_benchmarks: TEA_PREFIX_PATH=/opt/gbench
-build_tea_benchmarks: build_tea_common
-
-build_tea_common:
-	$(Q) test -f $(TEA_BUILD_DIR)/.built || \
-	( \
-		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-		cd $(TEA_BUILD_DIR); \
-		CMAKE_PREFIX_PATH=$(TEA_PREFIX_PATH) \
-		cmake \
-			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-			-DCMAKE_BUILD_TYPE=Debug \
-			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-			-DBUILD_TEA_BENCHMARKING=$(TEA_BUILD_BENCHMARKS) \
-			-DPhpConfig_ROOT=$(shell php-config --prefix) \
-			$(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) \
-		$(PROJECT_ROOT)/tea; \
-		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built; \
-	)
-
-test_tea: clean_tea build_tea
-	( \
-		$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(MAKE) -C $(TEA_BUILD_DIR) test; \
-		! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
-	)
-
-benchmarks_tea: clean_tea build_tea_benchmarks
-	$(TEA_BUILD_DIR)/benchmarks/tea_benchmarks \
-		--benchmark_repetitions=$(TEA_BENCHMARK_REPETITIONS) \
-		--benchmark_out=$(TEA_BENCHMARK_OUTPUT) \
-		--benchmark_format=$(TEA_BENCHMARK_FORMAT) \
-		--benchmark_time_unit=ms
-
-install_tea: build_tea
-	$(Q) test -f $(TEA_BUILD_DIR)/.installed || \
-	( \
-		$(MAKE) -C $(TEA_BUILD_DIR) install; \
-		touch $(TEA_BUILD_DIR)/.installed; \
-	)
-
-build_tea_coverage: TEA_BUILD_TESTS=ON
-build_tea_coverage:
-	$(Q) test -f $(TEA_BUILD_DIR)/.built.coverage || \
-	( \
-		mkdir -p "$(TEA_BUILD_DIR)" "$(TEA_INSTALL_DIR)"; \
-		cd $(TEA_BUILD_DIR); \
-		CMAKE_PREFIX_PATH=/opt/catch2 \
-		cmake \
-			-DCMAKE_INSTALL_PREFIX=$(TEA_INSTALL_DIR) \
-			-DCMAKE_BUILD_TYPE=Debug \
-			-DBUILD_TEA_TESTING=$(TEA_BUILD_TESTS) \
-			-DCMAKE_C_FLAGS="-O0 --coverage" \
-			-DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
-			-DCMAKE_MODULE_LINKER_FLAGS="--coverage" \
-			-DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-			-DPhpConfig_ROOT=$(shell php-config --prefix) \
-		$(PROJECT_ROOT)/tea; \
-		$(MAKE) $(MAKEFLAGS) && touch $(TEA_BUILD_DIR)/.built.coverage; \
-	)
-
-test_tea_coverage: clean_tea build_tea_coverage
-	( \
-	$(MAKE) -C $(TEA_BUILD_DIR) test; \
-	! grep -e "=== Total .* memory leaks detected ===" $(TEA_BUILD_DIR)/Testing/Temporary/LastTest.log; \
-	)
-
-install_tea_coverage: build_tea_coverage
-	$(Q) test -f $(TEA_BUILD_DIR)/.installed.coverage || \
-	( \
-		$(MAKE) -C $(TEA_BUILD_DIR) install; \
-		touch $(TEA_BUILD_DIR)/.installed.coverage; \
-	)
-
-clean_tea:
-	rm -rf $(TEA_BUILD_DIR)
-
-build_zai: install_tea
-	( \
-		mkdir -p "$(ZAI_BUILD_DIR)"; \
-		cd $(ZAI_BUILD_DIR); \
-		CMAKE_PREFIX_PATH=/opt/catch2 \
-		Tea_ROOT=$(TEA_INSTALL_DIR) \
-		cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON $(if $(ASAN), -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/cmake/asan.cmake) -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
-		$(MAKE) $(MAKEFLAGS); \
-	)
-
-test_zai: build_zai
-	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") $(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
-
-build_zai_coverage: install_tea_coverage
-	( \
-	mkdir -p "$(ZAI_BUILD_DIR)"; \
-	cd $(ZAI_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 \
-	Tea_ROOT=$(TEA_INSTALL_DIR) \
-	cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(shell php-config --prefix) $(PROJECT_ROOT)/zend_abstract_interface; \
-	$(MAKE) $(MAKEFLAGS); \
-	)
-
-test_zai_coverage: build_zai_coverage
-	$(MAKE) -C $(ZAI_BUILD_DIR) test $(shell [ -z "${TESTS}"] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(ZAI_BUILD_DIR)/Testing/Temporary/LastTest.log
-
-clean_zai:
-	rm -rf $(ZAI_BUILD_DIR)
-
-build_components_coverage:
-	( \
-	mkdir -p "$(COMPONENTS_BUILD_DIR)"; \
-	cd $(COMPONENTS_BUILD_DIR); \
-	CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_SHARED_LINKER_FLAGS="--coverage" -DCMAKE_MODULE_LINKER_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" $(PROJECT_ROOT)/components; \
-	$(MAKE) $(MAKEFLAGS); \
-	)
-
-test_components_coverage: build_components_coverage
-	$(MAKE) -C $(COMPONENTS_BUILD_DIR) test $(shell [ -z "${TESTS}" ] || echo "ARGS='--test-dir ${TESTS}'") && ! grep -e "=== Total .* memory leaks detected ===" $(COMPONENTS_BUILD_DIR)/Testing/Temporary/LastTest.log
-
-test_coverage_collect:
-	$(Q) lcov \
-		--directory $(PROJECT_ROOT)/tmp \
-		--capture \
-		--exclude "/usr/include/*.h" \
-		--exclude "/usr/include/*/*/*" \
-		--exclude "/opt/php/*/include/php/Zend/*" \
-		--exclude "$(BUILD_DIR)/components/*/*" \
-		--exclude "$(BUILD_DIR)/components-rs/*" \
-		--exclude "$(BUILD_DIR)/zend_abstract_interface/*/*" \
-		--exclude "$(BUILD_DIR)/ext/vendor/*/*" \
-		--exclude "$(BUILD_DIR)/src/dogstatsd/*" \
-		--exclude "$(BUILD_DIR)/src/dogstatsd/dogstatsd_client/*" \
-		--output-file $(PROJECT_ROOT)/tmp/coverage.info
-	$(Q) $(SED_I) 's+tmp/build_extension/ext+ext+g' $(PROJECT_ROOT)/tmp/coverage.info
-
-test_coverage_output:
-	$(Q) genhtml \
-		--legend \
-		--title "PHP v$(shell php-config --version) / dd-trace-php combined coverage" \
-		-o $(PROJECT_ROOT)/coverage \
-		--prefix $(PROJECT_ROOT) \
-		$(PROJECT_ROOT)/tmp/coverage.info
-
-test_coverage: dist_clean test_components_coverage test_tea_coverage test_zai_coverage test_c_coverage test_coverage_collect test_coverage_output
-
-clean_components:
-	rm -rf $(COMPONENTS_BUILD_DIR)
-
-dist_clean:
-	rm -rf $(BUILD_DIR) $(TEA_BUILD_DIR) $(ZAI_BUILD_DIR) $(COMPONENTS_BUILD_DIR)
-
-clean:
-	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
-	rm -f $(BUILD_DIR)/configure*
-	rm -f $(SO_FILE)
-	rm -f composer.lock composer.lock-php$(PHP_MAJOR_MINOR)
-	echo $(ZAI_BUILD_DIR)
-
-sudo:
-	$(eval SUDO:=sudo)
-
-debug:
-	$(eval CFLAGS=$(CFLAGS) -O0 -g)
-
-prod:
-	$(eval CFLAGS=$(CFLAGS) -O2 -g0)
-
-strict:
-	$(eval CFLAGS=-Wall -Werror -Wextra)
-
-clang_find_files_to_lint:
-	@find . \( \
-	-path ./.git -prune -o \
-	-path ./tmp -prune -o \
-	-path ./vendor -prune -o \
-	-path ./tests -prune -o \
-	-path ./ext/vendor/mpack -prune -o \
-	-path ./ext/vendor/mt19937 -prune -o \
-	-path ./tooling/generation -prune -o \
-	-type f \) \
-	\( -iname "*.h" -o -iname "*.c" \)
-
-CLANG_FORMAT := clang-format-6.0
-
-clang_format_check:
-	@while read fname; do \
-		changes=$$($(CLANG_FORMAT) -output-replacements-xml $$fname | grep -c "<replacement " || true); \
-		if [ $$changes != 0 ]; then \
-			$(CLANG_FORMAT) -output-replacements-xml $$fname; \
-			echo "$$fname did not pass clang-format, consider running: make clang_format_fix"; \
-			touch .failure; \
-		fi \
-	done <<< $$($(MAKE) clang_find_files_to_lint)
-
-clang_format_fix:
-	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
-
-cbindgen: remove_cbindgen generate_cbindgen
-
-remove_cbindgen:
-	rm -f components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
-
-generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h
-	( \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtrace-php  \
-			--config cbindgen.toml \
-			--output $(PROJECT_ROOT)/components-rs/ddtrace.h; \
-		cd libdatadog; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
-			--config ddcommon-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/components-rs/common.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
-			--config live-debugger-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
-			--config ddtelemetry-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
-			--config sidecar-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-crashtracker-ffi  \
-			--config crashtracker-ffi/cbindgen.toml \
-			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
-		if test -d $(PROJECT_ROOT)/tmp; then \
-			mkdir -pv "$(BUILD_DIR)"; \
-			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
-		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h  \
-	)
-
-cbindgen_binary:
-	if ! command -v cbindgen &> /dev/null; then \
-		cargo install cbindgen; \
-	fi
-
-EXT_DIR:=/opt/datadog-php
-PACKAGE_NAME:=datadog-php-tracer
-FPM_DIR_OPTS=--directories $(EXT_DIR)/etc --config-files $(EXT_DIR)/etc -s dir
-define FPM_FILES
-	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
-		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
-		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
-		src=$(EXT_DIR)/dd-trace-sources
-endef
-define FPM_OPTS
-	-a $(1) -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3-Clause License" --version $(VERSION) \
-		--provides $(PACKAGE_NAME) --vendor DataDog  --url "https://docs.datadoghq.com/tracing/setup/php/" --no-depends \
-		$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) $(shell test $(1) = windows || echo --after-install=package/post-install.sh)
-endef
-
-PACKAGES_BUILD_DIR:=build/packages
-
-$(PACKAGES_BUILD_DIR):
-	mkdir -p "$@"
-
-.deb.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t deb $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-.rpm.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-.apk.%: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(call FPM_OPTS, $(*)) --depends=bash --depends=curl --depends=libgcc $(call FPM_FILES, $(*))
-
-# Example .tar.gz.aarch64, .tar.gz.x86_64
-.tar.gz.%: $(PACKAGES_BUILD_DIR)
-	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)
-	rm -rf /tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
-	fpm -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
-
-bundle.tar.gz: $(PACKAGES_BUILD_DIR)
-	bash ./tooling/bin/generate-final-artifact.sh \
-		$(VERSION) \
-		$(PACKAGES_BUILD_DIR) \
-		$(PROJECT_ROOT)
-
-$(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
-	bash ./tooling/bin/generate-installers.sh \
-		$(VERSION) \
-		$(PACKAGES_BUILD_DIR)
-
-build_pecl_package:
-	BUILD_DIR='$(BUILD_DIR)/'; \
-	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock"; \
-	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
-
-dbgsym.tar.gz:
-	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)
-
-installer_packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
-	tar --use-compress-program=pigz --exclude='dd-library-php-ssi-*' -cf packages.tar.gz $(PACKAGES_BUILD_DIR) --owner=0 --group=0
-
-ssi_packages: $(PACKAGES_BUILD_DIR)
-	bash ./tooling/bin/generate-ssi-package.sh \
-		$(VERSION) \
-		$(PACKAGES_BUILD_DIR)
-
-calculate_package_sha256_sums: $(PACKAGES_BUILD_DIR)/datadog-setup.php installer_packages
-	(cd build/packages && find . -type f -exec sha256sum {} + > ../../package_sha256sums)
-
-packages: $(PACKAGES_BUILD_DIR)/datadog-setup.php ssi_packages installer_packages
-
-# Generates the src/bridge/_generated_*.php files.
-generate:
-	@composer -dtooling/generation update
-	@composer -dtooling/generation generate
-	@composer -dtooling/generation verify
-
-# Generates the stubs file for the public API
-generate_stubs:
-	@composer -dtooling/stubs update
-	@composer -dtooling/stubs generate
-
-tested_versions:
-	@composer -dtooling/tested_versions generate
-	mkdir -p /tmp/artifacts
-	cp tests/tested_versions/tested_versions.json /tmp/artifacts/tested_versions.json
-
-# Find all generated core dumps, sorted by date descending
-cores:
-	find . -path "./*/vendor" -prune -false -o \( -type f -regex ".*\/core\.?[0-9]*" \) -printf "%T@ %Tc %p\n" | sort -n -r
-
-########################################################################################################################
-# TESTS
-########################################################################################################################
-TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE)
-TEST_EXTRA_INI ?=
-TEST_EXTRA_ENV ?=
-
-### DDTrace tests ###
-TESTS_ROOT = ./tests
-COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
-DDPROF_IDENTIFIER ?=
-PHPUNIT_OPTS ?=
-PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
-PHPUNIT_COVERAGE ?=
-PHPBENCH_OPTS ?=
-PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
-PHPBENCH_OPCACHE_CONFIG ?= $(TESTS_ROOT)/phpbench-opcache.json
-PHPBENCH = $(TESTS_ROOT)/Benchmarks/vendor/bin/phpbench $(PHPBENCH_OPTS) run
-PHPCOV = $(TESTS_ROOT)/vendor/bin/phpcov
-TELEMETRY_ENABLED=0
-
-TEST_INTEGRATIONS_70 := \
-	test_integrations_deferred_loading \
-	test_integrations_curl \
-	test_integrations_kafka \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_1x \
-	test_integrations_mysqli \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_pcntl \
-	test_integrations_phpredis3 \
-	test_integrations_phpredis4 \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_sqlsrv
-
-TEST_WEB_70 := \
-	test_metrics \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_nette_24 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2049 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_wordpress_61 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_71 := \
-	test_integrations_deferred_loading \
-	test_integrations_amqp2 \
-	test_integrations_curl \
-	test_integrations_kafka \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_1x \
-	test_integrations_monolog1 \
-	test_integrations_mysqli \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_pcntl \
-	test_integrations_phpredis3 \
-	test_integrations_phpredis4 \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_sqlsrv \
-	test_opentracing_10
-
-TEST_WEB_71 := \
-	test_metrics \
-	test_web_cakephp_28 \
-	test_web_cakephp_310 \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_laravel_42 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_nette_24 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_yii_2049 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_wordpress_61 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_72 := \
-	test_integrations_deferred_loading \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_kafka \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_1x \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_mysqli \
-	test_integrations_pdo \
-	test_integrations_elasticsearch1 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_phpredis3 \
-	test_integrations_phpredis4 \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_sqlsrv \
-	test_opentracing_10
-
-TEST_WEB_72 := \
-	test_metrics \
-	test_web_cakephp_310 \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_89 \
-	test_web_laravel_42 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_nette_24 \
-	test_web_nette_31 \
-	test_web_slim_312 \
-	test_web_slim_48 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_symfony_44 \
-	test_web_symfony_50 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_wordpress_61 \
-	test_web_yii_2049 \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_73 :=\
-	test_integrations_deferred_loading \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_kafka \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_1x \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_mysqli \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_phpredis3 \
-	test_integrations_phpredis4 \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_sqlsrv \
-	test_opentracing_10
-
-TEST_WEB_73 := \
-	test_metrics \
-	test_web_cakephp_310 \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_89 \
-	test_web_laminas_mvc_33 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_laravel_8x \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_lumen_81 \
-	test_web_magento_23 \
-	test_web_nette_24 \
-	test_web_nette_31 \
-	test_web_slim_312 \
-	test_web_slim_48 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_symfony_44 \
-	test_web_symfony_50 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_wordpress_61 \
-	test_web_yii_latest \
-	test_web_zend_1 \
-	test_web_custom
-
-TEST_INTEGRATIONS_74 := \
-	test_integrations_deferred_loading \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_kafka \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_latest \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_mysqli \
-	test_opentelemetry_1 \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch_latest \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_phpredis3 \
-	test_integrations_phpredis4 \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_roadrunner \
-	test_integrations_sqlsrv \
-	test_opentracing_10
-
-TEST_WEB_74 := \
-	test_metrics \
-	test_web_cakephp_310 \
-	test_web_cakephp_45 \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_89 \
-	test_web_drupal_95 \
-	test_web_laminas_mvc_33 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_laravel_8x \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_lumen_81 \
-	test_web_magento_23 \
-	test_web_nette_24 \
-	test_web_nette_31 \
-	test_web_slim_312 \
-	test_web_slim_latest \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_44 \
-	test_web_symfony_50 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_wordpress_59 \
-	test_web_wordpress_61 \
-	test_web_yii_latest \
-	test_web_zend_1 \
-	test_web_custom
-
-# NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that only
-# shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
-# Since we run tests in CI using php debug builds, we run test_integrations_phpredis5 in a separate non-debug container.
-TEST_INTEGRATIONS_80 := \
-	test_integrations_deferred_loading \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_kafka \
-	test_integrations_laminaslog2 \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_latest \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_mysqli \
-	test_opentelemetry_1 \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_googlespanner_latest \
-	test_integrations_guzzle5 \
-	test_integrations_guzzle6 \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
-	test_opentracing_10
-
-TEST_WEB_80 := \
-	test_metrics \
-	test_web_cakephp_45 \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_95 \
-	test_web_laminas_rest_latest \
-	test_web_laminas_mvc_33 \
-	test_web_laravel_8x \
-	test_web_laravel_9x \
-	test_web_lumen_81 \
-	test_web_lumen_90 \
-	test_web_nette_24 \
-	test_web_nette_31 \
-	test_web_slim_312 \
-	test_web_slim_latest \
-	test_web_symfony_44 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_59 \
-	test_web_wordpress_61 \
-	test_web_yii_latest \
-	test_web_zend_1_21 \
-	test_web_custom
-
-TEST_INTEGRATIONS_81 := \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_deferred_loading \
-	test_integrations_kafka \
-	test_integrations_laminaslog2 \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_latest \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_monolog_latest \
-	test_integrations_mysqli \
-	test_integrations_openai_latest \
-	test_opentelemetry_1 \
-	test_opentelemetry_beta \
-	test_integrations_googlespanner_latest \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
-	test_opentracing_10
-
-TEST_WEB_81 := \
-	test_metrics \
-	test_web_cakephp_45 \
-	test_web_cakephp_latest \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_95 \
-	test_web_drupal_101 \
-	test_web_laminas_rest_latest \
-	test_web_laminas_mvc_33 \
-	test_web_laminas_mvc_latest \
-	test_web_laravel_8x \
-	test_web_laravel_9x \
-	test_web_laravel_10x \
-	test_web_lumen_81 \
-	test_web_lumen_90 \
-	test_web_magento_24 \
-	test_web_nette_24 \
-	test_web_nette_latest \
-	test_web_slim_312 \
-	test_web_slim_latest \
-	test_web_symfony_52 \
-	test_web_wordpress_59 \
-	test_web_wordpress_61 \
-	test_web_custom \
-	test_web_zend_1_21
-#	test_web_yii_latest \
-
-TEST_INTEGRATIONS_82 := \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_deferred_loading \
-	test_integrations_kafka \
-	test_integrations_laminaslog2 \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_latest \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_monolog_latest \
-	test_integrations_mysqli \
-	test_integrations_openai_latest \
-	test_opentelemetry_1 \
-	test_opentelemetry_beta \
-	test_integrations_googlespanner_latest \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch_latest \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_frankenphp \
-	test_integrations_roadrunner \
-	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
-	test_opentracing_10
-
-TEST_WEB_82 := \
-	test_metrics \
-	test_web_cakephp_45 \
-	test_web_cakephp_latest \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_95 \
-	test_web_drupal_101 \
-	test_web_laminas_rest_latest \
-	test_web_laminas_mvc_latest \
-	test_web_laravel_8x \
-	test_web_laravel_9x \
-	test_web_laravel_10x \
-	test_web_laravel_latest \
-	test_web_laravel_octane_latest \
-	test_web_lumen_81 \
-	test_web_lumen_90 \
-	test_web_lumen_100 \
-	test_web_magento_24 \
-	test_web_nette_24 \
-	test_web_nette_latest \
-	test_web_slim_312 \
-	test_web_slim_latest \
-	test_web_symfony_52 \
-	test_web_symfony_62 \
-	test_web_symfony_latest \
-	test_web_wordpress_59 \
-	test_web_wordpress_61 \
-	test_web_custom \
-	test_web_zend_1_21
-#	test_web_yii_latest \
-
-TEST_INTEGRATIONS_83 := \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_deferred_loading \
-	test_integrations_kafka \
-	test_integrations_laminaslog2 \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_latest \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_monolog_latest \
-	test_integrations_mysqli \
-	test_integrations_openai_latest \
-	test_opentelemetry_1 \
-	test_opentelemetry_beta \
-	test_integrations_googlespanner_latest \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch_latest \
-	test_integrations_phpredis5 \
-	test_integrations_predis_1 \
-	test_integrations_predis_latest \
-	test_integrations_frankenphp \
-	test_integrations_roadrunner \
-	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
-	test_opentracing_10
-
-TEST_WEB_83 := \
-	test_metrics \
-	test_web_cakephp_45 \
-	test_web_cakephp_latest \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_drupal_95 \
-	test_web_laravel_8x \
-	test_web_laravel_9x \
-	test_web_laravel_10x \
-	test_web_laravel_latest \
-	test_web_laravel_octane_latest \
-	test_web_lumen_81 \
-	test_web_lumen_90 \
-	test_web_lumen_100 \
-	test_web_nette_24 \
-	test_web_nette_latest \
-	test_web_slim_312 \
-	test_web_slim_latest \
-	test_web_symfony_52 \
-	test_web_symfony_62 \
-	test_web_symfony_latest \
-	test_web_wordpress_59 \
-	test_web_wordpress_61 \
-	test_web_custom \
-	test_web_zend_1_21
-
-TEST_INTEGRATIONS_84 := \
-	test_integrations_amqp2 \
-	test_integrations_amqp_latest \
-	test_integrations_curl \
-	test_integrations_deferred_loading \
-	test_integrations_kafka \
-	test_integrations_laminaslog2 \
-	test_integrations_memcache \
-	test_integrations_memcached \
-	test_integrations_mongodb_latest \
-	test_integrations_monolog1 \
-	test_integrations_monolog2 \
-	test_integrations_monolog_latest \
-	test_integrations_mysqli \
-	test_integrations_openai_latest \
-	test_opentelemetry_1 \
-	test_integrations_googlespanner_latest \
-	test_integrations_guzzle_latest \
-	test_integrations_pcntl \
-	test_integrations_pdo \
-	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch_latest \
-	test_integrations_predis_latest \
-	test_integrations_frankenphp \
-	test_integrations_roadrunner \
-	test_integrations_sqlsrv \
-	test_integrations_swoole_5 \
-	test_opentracing_10
-
-TEST_WEB_84 := \
-	test_metrics \
-	test_web_cakephp_latest \
-	test_web_codeigniter_22 \
-	test_web_codeigniter_31 \
-	test_web_laravel_octane_latest \
-	test_web_lumen_100 \
-	test_web_nette_latest \
-	test_web_slim_312 \
-	test_web_symfony_latest \
-	test_web_wordpress_59 \
-	test_web_wordpress_61 \
-	test_web_custom \
-	test_web_zend_1_21
-
-# to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
-
-FILTER ?= .
-MAX_RETRIES := 3
-
-# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
-define run_composer_with_retry
-	for i in $$(seq 1 $(MAX_RETRIES)); do \
-		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
-		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
-	done \
-
-	mkdir -p /tmp/artifacts
-	$(COMPOSER) --working-dir=$1 show -f json | grep -o '"name": "[^"]*\|"version": "[^"]*' | paste -d';' - - | sed 's/"name": //; s/"version": //' | tr -d '"' >> "/tmp/artifacts/web_versions.csv"
-endef
-
-define run_tests_without_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(shell (test $(TELEMETRY_ENABLED) && echo 1) || (test $(PHP_MAJOR_MINOR) -ge 83 && echo 1) || echo 0) -d datadog.trace.sidecar_trace_sender=$(shell test $(PHP_MAJOR_MINOR) -ge 83 && echo 1 || echo 0) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER)
-endef
-
-define run_tests_with_coverage
-	$(TEST_EXTRA_ENV) $(ENV_OVERRIDE) php -d zend_extension=$(XDEBUG_SO_FILE) -d xdebug.mode=coverage $(TEST_EXTRA_INI) -d datadog.instrumentation_telemetry_enabled=$(TELEMETRY_ENABLED) $(TRACER_SOURCES_INI) $(PHPUNIT) $(1) --filter=$(FILTER) --coverage-php reports/cov/$(coverage_file)
-endef
-
-# Note: The condition below only checks for existence - i.e., whether PHPUNIT_COVERAGE is set to anything.
-define run_tests
-	$(eval coverage_file := $(shell echo $(1) | tr '[:upper:]' '[:lower:]' | tr '/=' '_' | tr -d '-').cov) \
-	$(if $(PHPUNIT_COVERAGE),$(call run_tests_with_coverage,$(1)),$(call run_tests_without_coverage,$(1)))
-endef
-
-define run_tests_debug
-	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
-	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
-		tee >(grep -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
-		{ ! (grep -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
-		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1)
-	$(eval TEST_EXTRA_ENV=)
-endef
-
-
-define run_benchmarks
-	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
-endef
-
-define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
-endef
-
-define run_composer_with_lock
-	rm $1/$(if $2,$(2:.json=.lock),composer.lock)-php* 2>/dev/null || true
-	$(eval CURRENT_COMPOSER:=$(COMPOSER))
-	$(if $(2), $(eval COMPOSER:=COMPOSER=$2 $(COMPOSER)))
-	$(call run_composer_with_retry,$1,)
-	$(eval COMPOSER:=$(CURRENT_COMPOSER))
-	find $1/vendor* \( -name Tests -prune -o -name tests -prune \) -exec rm -rf '{}' \;
-	touch $1/$(if $2,$(2:.json=.lock),composer.lock)-php$(PHP_MAJOR_MINOR)
-endef
-
-# use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
-dev:
-	$(Q) :
-	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
-
-use_generated:
-	$(Q) :
-	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=)
-
-clean_test:
-	find $(TESTS_ROOT)/ -not \( -name "Frameworks" -prune \) -not \( -name "ext" -prune \) -not \( -name "randomized" -prune \) -name "composer.lock" -o -name "vendor" -print -exec rm -rf {} \;
-	find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
-
-composer_tests_update:
-	$(call run_composer_with_lock,$(TESTS_ROOT))
-
-global_test_run_dependencies: install_all $(TESTS_ROOT)/./composer.lock-php$(PHP_MAJOR_MINOR)
-
-test_all: \
-	test_unit \
-	test_integration \
-	test_auto_instrumentation \
-	test_composer \
-	test_distributed_tracing \
-	test_integrations \
-	test_web
-
-test: global_test_run_dependencies
-	$(call run_tests,$(TESTS))
-
-test_unit: global_test_run_dependencies
-	$(call run_tests,--testsuite=unit $(TESTS))
-	DD_TRACE_AGENT_RETRIES=3 DD_TRACE_AGENT_FLUSH_INTERVAL=333 DD_TRACE_AGENT_URL=http://request-replayer:80 $(call run_tests,tests/Unit/Util/OrphansTest.php)
-test_unit_coverage: global_test_run_dependencies
-	PHPUNIT_COVERAGE=1 $(MAKE) test_unit
-
-test_integration: global_test_run_dependencies
-	$(call run_tests,--testsuite=integration $(TESTS))
-test_integration_coverage:
-	PHPUNIT_COVERAGE=1 $(MAKE) test_integration
-
-test_auto_instrumentation: global_test_run_dependencies
-	$(call run_tests,--testsuite=auto-instrumentation $(TESTS))
-	# Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
-	git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
-test_auto_instrumentation_coverage:
-	PHPUNIT_COVERAGE=1 $(MAKE) test_auto_instrumentation
-
-test_composer: global_test_run_dependencies
-	$(call run_tests,--testsuite=composer-tests $(TESTS))
-test_composer_coverage:
-	PHPUNIT_COVERAGE=1 $(MAKE) test_composer
-
-test_distributed_tracing: global_test_run_dependencies
-	$(call run_tests,--testsuite=distributed-tracing $(TESTS))
-test_distributed_tracing_coverage:
-	PHPUNIT_COVERAGE=1 $(MAKE) test_distributed_tracing
-
-test_metrics: global_test_run_dependencies
-	$(call run_tests,--testsuite=metrics $(TESTS))
-
-benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
-
-call_benchmarks:
-	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
-		$(call run_benchmarks_with_ddprof,$(PHPBENCH_CONFIG)); \
-	else \
-		$(call run_benchmarks,$(PHPBENCH_CONFIG)); \
-	fi
-
-call_benchmarks_opcache:
-	if [ -n "$(DDPROF_IDENTIFIER)" ]; then \
-		$(call run_benchmarks_with_ddprof,$(PHPBENCH_OPCACHE_CONFIG)); \
-	else \
-		$(call run_benchmarks,$(PHPBENCH_OPCACHE_CONFIG)); \
-	fi
-
-benchmarks: benchmarks_run_dependencies call_benchmarks
-
-benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
-
-define run_opentelemetry_tests
-	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0 $1)
-	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
-	$(eval TEST_EXTRA_ENV=)
-endef
-
-test_opentelemetry_beta: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer-beta$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
-	$(call run_opentelemetry_tests, TESTSUITE_VENDOR_DIR=vendor-beta)
-
-tests/OpenTelemetry/composer-%.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-%.json
-	$(call run_composer_with_lock,tests/OpenTelemetry,composer-$(*).json)
-
-test_opentelemetry_1: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
-	$(call run_opentelemetry_tests)
-
-test_opentracing_10: global_test_run_dependencies tests/OpenTracer1Unit/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Custom/OpenTracing/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests,tests/OpenTracer1Unit)
-	$(call run_tests,tests/OpenTracing)
-
-test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
-test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
-
-test_web_coverage:
-	PHPUNIT_COVERAGE=1 $(MAKE) test_web
-test_integrations_coverage:
-	PHPUNIT_COVERAGE=1 $(MAKE) test_integrations
-
-test_integrations_amqp2: global_test_run_dependencies tests/Integrations/AMQP/V2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/AMQP/V2)
-test_integrations_amqp_latest: global_test_run_dependencies tests/Integrations/AMQP/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/AMQP/Latest)
-test_integrations_deferred_loading: global_test_run_dependencies tests/Integrations/DeferredLoading/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/DeferredLoading)
-test_integrations_filesystem: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Filesystem)
-test_integrations_curl: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Curl)
-test_integrations_elasticsearch1: global_test_run_dependencies tests/Integrations/Elasticsearch/V1/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Elasticsearch/V1)
-test_integrations_elasticsearch7: global_test_run_dependencies tests/Integrations/Elasticsearch/V7/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Elasticsearch/V7)
-test_integrations_elasticsearch_latest: global_test_run_dependencies tests/Integrations/Elasticsearch/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Elasticsearch/Latest)
-test_integrations_guzzle5: global_test_run_dependencies tests/Integrations/Guzzle/V5/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Guzzle/V5)
-test_integrations_guzzle6: global_test_run_dependencies  tests/Integrations/Guzzle/V6/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Guzzle/V6)
-test_integrations_guzzle_latest: global_test_run_dependencies tests/Integrations/Guzzle/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Guzzle/Latest)
-test_integrations_kafka: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Kafka)
-test_integrations_laminaslog2: global_test_run_dependencies tests/Integrations/Logs/LaminasLogV2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Logs/LaminasLogV2)
-test_integrations_memcached: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Memcached)
-test_integrations_memcache: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Memcache)
-test_integrations_monolog1: global_test_run_dependencies tests/Integrations/Logs/MonologV1/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Logs/MonologV1)
-test_integrations_monolog2: global_test_run_dependencies tests/Integrations/Logs/MonologV2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Logs/MonologV2)
-test_integrations_monolog_latest: global_test_run_dependencies tests/Integrations/Logs/MonologLatest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Logs/MonologLatest)
-test_integrations_mysqli: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Mysqli)
-test_integrations_mongo: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/Mongo)
-test_integrations_mongodb_1x: global_test_run_dependencies tests/Integrations/MongoDB/V1_x/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/MongoDB/V1_x)
-test_integrations_mongodb_latest: global_test_run_dependencies tests/Integrations/MongoDB/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/MongoDB/Latest)
-test_integrations_openai_latest: global_test_run_dependencies tests/Integrations/OpenAI/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(eval TELEMETRY_ENABLED=1)
-	$(call run_tests_debug,tests/Integrations/OpenAI/Latest)
- 	$(eval TELEMETRY_ENABLED=0)
-test_integrations_pcntl: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/PCNTL)
-test_integrations_pdo: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/PDO)
-test_integrations_phpredis3: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=redis-3.1.6.so)
-	$(call run_tests_debug,tests/Integrations/PHPRedis/V3)
-	$(eval TEST_EXTRA_INI=)
-test_integrations_phpredis4: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=redis-4.3.0.so)
-	$(call run_tests_debug,tests/Integrations/PHPRedis/V4)
-	$(eval TEST_EXTRA_INI=)
-test_integrations_phpredis5: global_test_run_dependencies
-	$(eval TEST_EXTRA_ENV=DD_IGNORE_ARGINFO_ZPP_CHECK=1)
-	$(eval TEST_EXTRA_INI=-d extension=redis-5.3.7.so)
-	$(call run_tests_debug,tests/Integrations/PHPRedis/V5)
-	$(eval TEST_EXTRA_INI=)
-	$(eval TEST_EXTRA_ENV=)
-test_integrations_predis_1: global_test_run_dependencies tests/Integrations/Predis/V1/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Predis/V1)
-test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Predis/Latest)
-test_integrations_frankenphp: global_test_run_dependencies
-	$(call run_tests_debug,--testsuite=frankenphp-test)
-test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
-test_integrations_googlespanner_latest: global_test_run_dependencies tests/Integrations/GoogleSpanner/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(eval TEST_EXTRA_ENV=ZEND_DONT_UNLOAD_MODULES=1)
-	$(eval TEST_EXTRA_INI=-d extension=grpc.so)
-	$(call run_tests_debug,tests/Integrations/GoogleSpanner/Latest)
-	$(eval TEST_EXTRA_INI=)
-	$(eval TEST_EXTRA_ENV=)
-test_integrations_sqlsrv: global_test_run_dependencies
-	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
-	$(call run_tests_debug,tests/Integrations/SQLSRV)
-	$(eval TEST_EXTRA_INI=)
-test_integrations_swoole_5: global_test_run_dependencies
-	$(call run_tests_debug,--testsuite=swoole-test)
-test_web_cakephp_28: global_test_run_dependencies tests/Frameworks/CakePHP/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=cakephp-28-test)
-test_web_cakephp_310: global_test_run_dependencies tests/Frameworks/CakePHP/Version_3_10/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=cakephp-310-test)
-test_web_cakephp_45: global_test_run_dependencies tests/Frameworks/CakePHP/Version_4_5/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=cakephp-45-test)
-test_web_cakephp_latest: global_test_run_dependencies tests/Frameworks/CakePHP/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=cakephp-latest-test)
-test_web_codeigniter_22: global_test_run_dependencies
-	$(call run_tests_debug,--testsuite=codeigniter-22-test)
-test_web_codeigniter_31: global_test_run_dependencies tests/Frameworks/CodeIgniter/Version_3_1/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=codeigniter-31-test)
-test_web_drupal_89: global_test_run_dependencies tests/Frameworks/Drupal/Version_8_9/core/composer.lock-php tests/Frameworks/Drupal/Version_8_9/composer.lock-php
-	$(call run_tests_debug,tests/Integrations/Drupal/V8_9)
-test_web_drupal_95: global_test_run_dependencies tests/Frameworks/Drupal/Version_9_5/core/composer.lock-php tests/Frameworks/Drupal/Version_9_5/composer.lock-php
-	$(call run_tests_debug,tests/Integrations/Drupal/V9_5)
-test_web_drupal_101: global_test_run_dependencies tests/Frameworks/Drupal/Version_10_1/core/composer.lock-php tests/Frameworks/Drupal/Version_10_1/composer.lock-php
-	$(call run_tests_debug,tests/Integrations/Drupal/V10_1)
-test_web_laminas_rest_latest: global_test_run_dependencies tests/Frameworks/Laminas/ApiTools/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laminas/ApiTools/Latest)
-test_web_laminas_mvc_33: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Version_3_3/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laminas/Mvc/V3_3)
-test_web_laminas_mvc_latest: global_test_run_dependencies tests/Frameworks/Laminas/Mvc/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laminas/Mvc/Latest)
-test_web_laravel_42: global_test_run_dependencies tests/Frameworks/Laravel/Version_4_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
-	$(call run_tests_debug,tests/Integrations/Laravel/V4)
-test_web_laravel_57: global_test_run_dependencies tests/Frameworks/Laravel/Version_5_7/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Laravel/V5_7)
-test_web_laravel_58: global_test_run_dependencies tests/Frameworks/Laravel/Version_5_8/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-58-test)
-test_web_laravel_8x: global_test_run_dependencies tests/Frameworks/Laravel/Version_8_x/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-8x-test)
-test_web_laravel_9x: global_test_run_dependencies tests/Frameworks/Laravel/Version_9_x/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-9x-test)
-test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-10x-test)
-test_web_laravel_latest: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-latest-test)
-test_web_laravel_octane_latest: global_test_run_dependencies tests/Frameworks/Laravel/Octane/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=laravel-octane-latest-test)
-test_web_lumen_52: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Lumen/V5_2)
-test_web_lumen_56: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_6/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Lumen/V5_6)
-test_web_lumen_58: global_test_run_dependencies tests/Frameworks/Lumen/Version_5_8/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Lumen/V5_8)
-test_web_lumen_81: global_test_run_dependencies tests/Frameworks/Lumen/Version_8_1/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Lumen/V8_1)
-test_web_lumen_90: global_test_run_dependencies tests/Frameworks/Lumen/Version_9_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Lumen/V9_0)
-test_web_lumen_100: global_test_run_dependencies tests/Frameworks/Lumen/Version_10_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Lumen/V10_0)
-test_web_slim_312: global_test_run_dependencies tests/Frameworks/Slim/Version_3_12/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=slim-312-test)
-test_web_slim_48: global_test_run_dependencies tests/Frameworks/Slim/Version_4_8/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=slim-48-test)
-test_web_slim_latest: global_test_run_dependencies tests/Frameworks/Slim/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=slim-latest-test)
-test_web_symfony_23: global_test_run_dependencies tests/Frameworks/Symfony/Version_2_3/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Symfony/V2_3)
-test_web_symfony_28: global_test_run_dependencies tests/Frameworks/Symfony/Version_2_8/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Symfony/V2_8)
-test_web_symfony_30: global_test_run_dependencies tests/Frameworks/Symfony/Version_3_0/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V3_0)
-test_web_symfony_33: global_test_run_dependencies tests/Frameworks/Symfony/Version_3_3/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V3_3)
-test_web_symfony_34: global_test_run_dependencies tests/Frameworks/Symfony/Version_3_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V3_4)
-test_web_symfony_40: global_test_run_dependencies
-	# We hit broken updates in this unmaintained version, so we committed a
-	# working composer.lock and we composer install instead of composer update
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install --no-dev
-	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V4_0)
-test_web_symfony_42: global_test_run_dependencies tests/Frameworks/Symfony/Version_4_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V4_2)
-test_web_symfony_44: global_test_run_dependencies tests/Frameworks/Symfony/Version_4_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,--testsuite=symfony-44-test)
-test_web_symfony_50: global_test_run_dependencies
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
-	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V5_0)
-test_web_symfony_51: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_1/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,tests/Integrations/Symfony/V5_1)
-test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,--testsuite=symfony-52-test)
-test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,--testsuite=symfony-62-test)
-test_web_symfony_latest: global_test_run_dependencies tests/Frameworks/Symfony/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Latest/bin/console cache:clear --no-warmup --env=prod
-	$(call run_tests_debug,--testsuite=symfony-latest-test)
-test_web_wordpress_48: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/WordPress/V4_8)
-test_web_wordpress_55: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/WordPress/V5_5)
-test_web_wordpress_59: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/WordPress/V5_9)
-test_web_wordpress_61: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/WordPress/V6_1)
-test_web_yii_2049: global_test_run_dependencies tests/Frameworks/Yii/Version_2_0_49/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Yii/V2_0_49)
-test_web_yii_latest: global_test_run_dependencies tests/Frameworks/Yii/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Yii/Latest)
-test_web_magento_23: global_test_run_dependencies tests/Frameworks/Magento/Version_2_3/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Magento/V2_3)
-test_web_magento_24: global_test_run_dependencies tests/Frameworks/Magento/Version_2_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Magento/V2_4)
-test_web_nette_24: global_test_run_dependencies tests/Frameworks/Nette/Version_2_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Nette/V2_4)
-test_web_nette_31: global_test_run_dependencies tests/Frameworks/Nette/Version_3_1/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Nette/V3_1)
-test_web_nette_latest: global_test_run_dependencies tests/Frameworks/Nette/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,tests/Integrations/Nette/Latest)
-test_web_zend_1: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/ZendFramework/V1)
-test_web_zend_1_21: global_test_run_dependencies
-	$(call run_tests_debug,tests/Integrations/ZendFramework/V1_21)
-test_web_custom: global_test_run_dependencies tests/Frameworks/Custom/Version_Autoloaded/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
-
-tests/Frameworks/Drupal/%/composer.lock-php: tests/Frameworks/Drupal/%/composer.json
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs)
-	touch tests/Frameworks/Drupal/$(*)/composer.lock-php
-
-tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json
-	$(call run_composer_with_lock,tests/$(*))
-
-merge_coverage_reports:
-	php -d memory_limit=-1 $(PHPCOV) merge --clover reports/coverage.xml reports/cov
-
-### Api tests ###
-API_TESTS_ROOT := ./tests/api
-
-test_api_unit: composer.lock global_test_run_dependencies
-	$(ENV_OVERRIDE) php $(TRACER_SOURCES_INI) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
-
-# Just test it does not crash, i.e. the exit code
-test_internal_api_randomized: $(SO_FILE)
-	$(if $(ASAN), DD_TRACE_DEBUG=1 USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) php -n -ddatadog.trace.cli_enabled=1 -d extension=$(SO_FILE) tests/internal-api-stress-test.php 2> >(grep -A 1000 ==============)
-
-composer.lock: composer.json
-	$(call run_composer_with_retry,,)
-
-.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary
+MAKE_LIB=lib.exe 
+
+BISON=bison.exe 
+
+BISON_FLAGS=-Wall 
+
+SED=sed.exe 
+
+RE2C=re2c.exe 
+
+RE2C_FLAGS=--no-generation-date 
+
+ZIP=zip.exe 
+
+LEMON=lemon.exe 
+
+7ZA=7za.exe 
+
+MC=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\\x64\mc.exe 
+
+MT=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\\x64\mt.exe 
+
+PHP_PREFIX=C:\php 
+
+BASE_INCLUDES=/I C:\php-sdk/include /I C:\php-sdk/include/main /I C:\php-sdk/include/Zend /I C:\php-sdk/include/TSRM /I C:\php-sdk/include/ext 
+
+CFLAGS_PHP_OBJ=$(CFLAGS_PHP) $(STATIC_EXT_CFLAGS) 
+
+PHP_LDFLAGS=$(DLL_LDFLAGS) /nodefaultlib:libcmt 
+
+LIBS=kernel32.lib ole32.lib user32.lib advapi32.lib shell32.lib ws2_32.lib Dnsapi.lib psapi.lib bcrypt.lib 
+
+ZTS=1 
+
+PHP_ZTS_ARCHIVE_POSTFIX= 
+
+BUILD_DIR=C:\git\dd-trace-php\x64\Release_TS 
+
+PHPDLL=php8ts.dll 
+
+PHPLIB=php8ts.lib 
+
+PHP_BUILD=C:\git\dd-trace-php\no 
+
+CFLAGS=/nologo $(BASE_INCLUDES) /D _WINDOWS /D WINDOWS=1 /D ZEND_WIN32=1 /D PHP_WIN32=1 /D WIN32 /D _MBCS /D _USE_MATH_DEFINES /FD /wd4996 /Qspectre /guard:cf /Zc:inline /Gw /Zc:__cplusplus /d2FuncCache1 /Zc:preprocessor /Zc:wchar_t /MP /Zi /LD /MD /Ox /D NDebug /D NDEBUG /GF /D ZEND_DEBUG=0 /D ZTS=1 /I "C:\git\dd-trace-php\no\include" 
+
+LDFLAGS=/nologo /GUARD:CF /d2:-AllowCompatibleILVersions /incremental:no /debug /opt:ref,icf /libpath:"\"C:\git\dd-trace-php\no\lib\"" 
+
+ARFLAGS=/libpath:"\"C:\git\dd-trace-php\no\lib\"" 
+
+SNAPSHOT_TEMPLATE=no 
+
+PHP_DIR=C:\php-sdk 
+
+PHP_SIMD_SCALE=SSE2 
+
+CARGO=cargo.exe 
+
+CFLAGS_PHP=/D _USRDLL /D PHP_EXPORTS /D LIBZEND_EXPORTS /D TSRM_EXPORTS /D SAPI_EXPORTS /D WINVER=0x0602 /D COMPILE_DL_DDTRACE 
+
+CFLAGS_BD_EXT=/Fp$(BUILD_DIR)\ext\ /FR$(BUILD_DIR)\ext\ /Fd$(BUILD_DIR)\ext\ 
+
+EXT_TARGETS=php_ddtrace.dll 
+
+CFLAGS_DDTRACE_OBJ=$(CFLAGS_DDTRACE) 
+
+CFLAGS_DDTRACE=/D ZEND_COMPILE_DL_EXT=1 /D COMPILE_DL_DDTRACE /D DDTRACE_EXPORTS=1 /I C:\git\dd-trace-php /I C:\git\dd-trace-php/ext /I C:\git\dd-trace-php/zend_abstract_interface /Zc:preprocessor 
+
+CFLAGS_BD_=/Fp$(BUILD_DIR)\\ /FR$(BUILD_DIR)\\ /Fd$(BUILD_DIR)\\ 
+
+DDTRACE_GLOBAL_OBJS=$(BUILD_DIR)\ext\ddtrace.obj $(BUILD_DIR)\\agent_info.obj $(BUILD_DIR)\\arrays.obj $(BUILD_DIR)\\asm_event.obj $(BUILD_DIR)\\auto_flush.obj $(BUILD_DIR)\\autoload_php_files.obj $(BUILD_DIR)\\collect_backtrace.obj $(BUILD_DIR)\\compat_string.obj $(BUILD_DIR)\\configuration.obj $(BUILD_DIR)\\crashtracking_windows.obj $(BUILD_DIR)\\ddshared.obj $(BUILD_DIR)\\distributed_tracing_headers.obj $(BUILD_DIR)\\dogstatsd.obj $(BUILD_DIR)\\engine_api.obj $(BUILD_DIR)\\engine_hooks.obj $(BUILD_DIR)\\exception_serialize.obj $(BUILD_DIR)\\excluded_modules.obj $(BUILD_DIR)\\git.obj $(BUILD_DIR)\\handlers_api.obj $(BUILD_DIR)\\handlers_curl.obj $(BUILD_DIR)\\handlers_exception.obj $(BUILD_DIR)\\handlers_fiber.obj $(BUILD_DIR)\\handlers_internal.obj $(BUILD_DIR)\\handlers_kafka.obj $(BUILD_DIR)\\handlers_pcntl.obj $(BUILD_DIR)\\ip_extraction.obj $(BUILD_DIR)\\live_debugger.obj $(BUILD_DIR)\\logging.obj $(BUILD_DIR)\\memory_limit.obj $(BUILD_DIR)\\otel_config.obj $(BUILD_DIR)\\profiling.obj $(BUILD_DIR)\\random.obj $(BUILD_DIR)\\remote_config.obj $(BUILD_DIR)\\serializer.obj $(BUILD_DIR)\\sidecar.obj $(BUILD_DIR)\\span.obj $(BUILD_DIR)\\standalone_limiter.obj $(BUILD_DIR)\\startup_logging.obj $(BUILD_DIR)\\telemetry.obj $(BUILD_DIR)\\threads.obj $(BUILD_DIR)\\user_request.obj $(BUILD_DIR)\\uhook.obj $(BUILD_DIR)\\uhook_attributes.obj $(BUILD_DIR)\\uhook_legacy.obj $(BUILD_DIR)\\uhook_otel.obj $(BUILD_DIR)\\exec_integration.obj $(BUILD_DIR)\\integrations.obj $(BUILD_DIR)\\limiter.obj $(BUILD_DIR)\\priority_sampling.obj $(BUILD_DIR)\\tracer_tag_propagation.obj $(BUILD_DIR)\\config.obj $(BUILD_DIR)\\config_decode.obj $(BUILD_DIR)\\config_ini.obj $(BUILD_DIR)\\config_runtime.obj $(BUILD_DIR)\\env.obj $(BUILD_DIR)\\exceptions.obj $(BUILD_DIR)\\headers.obj $(BUILD_DIR)\\hook.obj $(BUILD_DIR)\\json.obj $(BUILD_DIR)\\string.obj $(BUILD_DIR)\\call.obj $(BUILD_DIR)\\lookup.obj $(BUILD_DIR)\\uri_normalization.obj $(BUILD_DIR)\\jit_blacklist.obj $(BUILD_DIR)\\sandbox.obj $(BUILD_DIR)\\interceptor.obj $(BUILD_DIR)\\resolver.obj $(BUILD_DIR)\\mpack.obj $(BUILD_DIR)\\mt19937-64.obj $(BUILD_DIR)\\log.obj $(BUILD_DIR)\\sapi.obj $(BUILD_DIR)\\string_view.obj 
+
+DDTRACE_GLOBAL_OBJS_RESP=@"C:\git\dd-trace-php\x64\Release_TS\resp\DDTRACE_GLOBAL_OBJS.txt" 
+
+STATIC_EXT_OBJS=$(BUILD_DIR)/target/debug/ddtrace_php.lib 
+
+DEPS_DDTRACE=$(BUILD_DIR)/target/debug/ddtrace_php.lib 
+
+LIBS_DDTRACE=userenv.lib crypt32.lib Powrprof.lib Secur32.Lib ncrypt.lib ntdll.lib oleaut32.lib psapi.lib shlwapi.lib ws2_32.lib wsock32.lib RuntimeObject.lib SHCore.lib dbghelp.lib $(BUILD_DIR)/target/debug/ddtrace_php.lib 
+
+DLL_LDFLAGS=/dll /def:C:\git\dd-trace-php\ddtrace.def 
+
+BUILD_DIRS_SUB=C:\git\dd-trace-php\x64\Release_TS ext 
+
+PHP_TEST_INI_PATH=""
+
+CC="$(PHP_CL)"
+LD="$(LINK)"
+MC="$(MC)"
+MT="$(MT)"
+
+PHPSDK_DIR=$(PHP_DIR)
+PHPLIB=$(PHPSDK_DIR)\lib\$(PHPLIB)
+LDFLAGS=$(LDFLAGS) /libpath:"$(PHPSDK_DIR)\lib\;$(PHPSDK_DIR)"
+BUILD_DIR_DEV=$(PHPSDK_DIR)
+
+!if "$(DEBUGGER)" == "1"
+DEBUGGER_CMD=devenv
+DEBUGGER_ARGS=/debugexe
+!else
+DEBUGGER_CMD=
+DEBUGGER_ARGS=
+!endif
+
+all: $(EXT_TARGETS) $(PECL_TARGETS)
+
+build_dirs: $(BUILD_DIR) $(BUILD_DIRS_SUB)
+
+clean-pecl:
+	@echo Cleaning PECL targets only
+	-rd /s /q $(BUILD_DIR)\pecl
+
+clean-all:
+	@echo Cleaning standard build dirs
+	cd $(BUILD_DIR)
+	@for %D in (_x $(BUILD_DIRS_SUB)) do @if exist %D @rd /s /q %D
+	-@del /f /q $(BUILD_DIR)\*.res $(BUILD_DIR)\*.manifest $(BUILD_DIR)\*.lib $(BUILD_DIR)\*.ilk $(BUILD_DIR)\*.pdb $(BUILD_DIR)\*.exp $(PHPDEF) $(BUILD_DIR)\*.rc $(BUILD_DIR)\*.dbg $(BUILD_DIR)\*.bin $(BUILD_DIR)\php*.dll $(BUILD_DIR)\php*.exe > NUL
+
+clean: clean-pecl
+	@echo Cleaning distribution build dirs
+	cd $(BUILD_DIR)
+	@for %D in (_x $(BUILD_DIRS_SUB)) do @if exist %D @del /F /Q %D\*.* > NUL
+	-@del /F /Q $(BUILD_DIR)\*.res $(BUILD_DIR)\*.lib $(BUILD_DIR)\*.ilk $(BUILD_DIR)\*.pdb $(BUILD_DIR)\*.exp $(PHPDEF) $(BUILD_DIR)\php-$(PHP_VERSION_STRING)-Win32.zip $(BUILD_DIR)\pecl-$(PHP_VERSION_STRING)-Win32.zip > NUL
+
+!if "$(EXT_TARGETS)" == ""
+_EXTENSION_DLL=$(PECL_TARGETS)
+!else
+_EXTENSION_DLL=$(EXT_TARGETS)
+!endif
+
+!if $(PHP_TEST_INI_PATH) == ""
+test: set-tmp-env
+	$(DEBUGGER_CMD) $(DEBUGGER_ARGS) "$(PHP_PREFIX)\php.exe" -d open_basedir= -d output_buffering=0 run-tests.php -p "$(PHP_PREFIX)\php.exe" -d extension=$(BUILD_DIR)\$(_EXTENSION_DLL) $(TESTS)
+
+run: set-tmp-env
+	$(DEBUGGER_CMD) $(DEBUGGER_ARGS) "$(PHP_PREFIX)\php.exe" -n -d extension=$(BUILD_DIR)\\$(_EXTENSION_DLL) $(ARGS)
+!else
+test: set-tmp-env
+	$(DEBUGGER_CMD) $(DEBUGGER_ARGS) "$(PHP_PREFIX)\php.exe" -n -d open_basedir= -d output_buffering=0 -d memory_limit=-1 run-tests.php -p "$(PHP_PREFIX)\php.exe" -n -c $(PHP_TEST_INI_PATH) $(TESTS)
+
+run: set-tmp-env
+	$(DEBUGGER_CMD) $(DEBUGGER_ARGS) "$(PHP_PREFIX)\php.exe" -n -c $(PHP_TEST_INI_PATH) $(ARGS)
+!endif
+
+!if $(MT) == ""
+_VC_MANIFEST_EMBED_EXE=
+_VC_MANIFEST_EMBED_DLL=
+!else
+_VC_MANIFEST_EMBED_EXE= if exist $@.manifest $(MT) -nologo -manifest $@.manifest -outputresource:$@;1
+_VC_MANIFEST_EMBED_DLL= if exist $@.manifest $(MT) -nologo -manifest $@.manifest -outputresource:$@;2
+!endif
+
+install: build-headers  build-bins
+build-headers:
+	@if not exist $(BUILD_DIR_DEV)\include mkdir $(BUILD_DIR_DEV)\include >nul
+	@for %D in ($(INSTALL_HEADERS_DIR)) do @if not exist $(BUILD_DIR_DEV)\include\%D mkdir $(BUILD_DIR_DEV)\include\%D >nul
+	@for %D in ($(INSTALL_HEADERS_DIR)) do @copy %D*.h $(BUILD_DIR_DEV)\include\%D /y >nul
+
+build-bins:
+	@copy $(BUILD_DIR)\php_ddtrace.lib $(BUILD_DIR_DEV)\lib
+  @if not exist $(PHP_PREFIX) mkdir $(PHP_PREFIX) >nul
+  @if not exist $(PHP_PREFIX)\ext mkdir $(PHP_PREFIX)\ext >nul
+	@copy $(BUILD_DIR)\php_ddtrace.dll $(PHP_PREFIX)\ext
+
+set-tmp-env:
+	@set PATH=$(PHP_BUILD)\bin;$(PATH)
+
+
+dump-tmp-env: set-tmp-env
+	@set
+
+
+
+# objects for EXT ddtrace
+
+$(BUILD_DIR)\ext\ddtrace.obj: C:\git\dd-trace-php\ext\ddtrace.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\ext\ $(CFLAGS_BD_EXT) /c C:\git\dd-trace-php\ext\ddtrace.c 
+
+$(BUILD_DIR)\php_ddtrace.dll.res: $(PHP_DIR)\build\template.rc
+	$(RC) /nologo  $(BASE_INCLUDES) /I $(PHP_DIR)/include /n /fo $(BUILD_DIR)\php_ddtrace.dll.res /d FILE_DESCRIPTION="\"php_ddtrace.dll\"" /d FILE_NAME="\"php_ddtrace.dll\"" /d URL="\"https://www.php.net\"" /d INTERNAL_NAME="\"DDTRACE extension\"" /d THANKS_GUYS="\"\"" $(PHP_DIR)\build\template.rc
+
+$(BUILD_DIR)\php_ddtrace.dll.manifest: C:\php-sdk\build\default.manifest
+	@copy C:\php-sdk\build\default.manifest $(BUILD_DIR)\php_ddtrace.dll.manifest >nul
+$(BUILD_DIR)\php_ddtrace.lib: $(BUILD_DIR)\php_ddtrace.dll
+
+$(BUILD_DIR)\php_ddtrace.dll: $(DEPS_DDTRACE) $(DDTRACE_GLOBAL_OBJS) $(PHPLIB) $(BUILD_DIR)\php_ddtrace.dll.res $(BUILD_DIR)\php_ddtrace.dll.manifest
+	"$(LINK)" $(DDTRACE_GLOBAL_OBJS_RESP) $(PHPLIB) $(LIBS_DDTRACE) $(LIBS) $(BUILD_DIR)\php_ddtrace.dll.res /out:$(BUILD_DIR)\php_ddtrace.dll $(DLL_LDFLAGS) $(LDFLAGS) $(LDFLAGS_DDTRACE)
+	-@$(_VC_MANIFEST_EMBED_DLL)
+
+php_ddtrace.dll: $(BUILD_DIR)\php_ddtrace.dll
+	@echo EXT ddtrace build complete
+
+$(BUILD_DIR)\\agent_info.obj $(BUILD_DIR)\\arrays.obj $(BUILD_DIR)\\asm_event.obj $(BUILD_DIR)\\auto_flush.obj $(BUILD_DIR)\\autoload_php_files.obj $(BUILD_DIR)\\collect_backtrace.obj $(BUILD_DIR)\\compat_string.obj $(BUILD_DIR)\\configuration.obj $(BUILD_DIR)\\crashtracking_windows.obj $(BUILD_DIR)\\ddshared.obj $(BUILD_DIR)\\distributed_tracing_headers.obj $(BUILD_DIR)\\dogstatsd.obj $(BUILD_DIR)\\engine_api.obj $(BUILD_DIR)\\engine_hooks.obj $(BUILD_DIR)\\exception_serialize.obj $(BUILD_DIR)\\excluded_modules.obj $(BUILD_DIR)\\git.obj $(BUILD_DIR)\\handlers_api.obj $(BUILD_DIR)\\handlers_curl.obj $(BUILD_DIR)\\handlers_exception.obj $(BUILD_DIR)\\handlers_fiber.obj $(BUILD_DIR)\\handlers_internal.obj $(BUILD_DIR)\\handlers_kafka.obj $(BUILD_DIR)\\handlers_pcntl.obj $(BUILD_DIR)\\ip_extraction.obj $(BUILD_DIR)\\live_debugger.obj $(BUILD_DIR)\\logging.obj $(BUILD_DIR)\\memory_limit.obj $(BUILD_DIR)\\otel_config.obj $(BUILD_DIR)\\profiling.obj $(BUILD_DIR)\\random.obj $(BUILD_DIR)\\remote_config.obj $(BUILD_DIR)\\serializer.obj $(BUILD_DIR)\\sidecar.obj $(BUILD_DIR)\\span.obj $(BUILD_DIR)\\standalone_limiter.obj $(BUILD_DIR)\\startup_logging.obj $(BUILD_DIR)\\telemetry.obj $(BUILD_DIR)\\threads.obj $(BUILD_DIR)\\user_request.obj: C:\git\dd-trace-php\ext\agent_info.c C:\git\dd-trace-php\ext\arrays.c C:\git\dd-trace-php\ext\asm_event.c C:\git\dd-trace-php\ext\auto_flush.c C:\git\dd-trace-php\ext\autoload_php_files.c C:\git\dd-trace-php\ext\collect_backtrace.c C:\git\dd-trace-php\ext\compat_string.c C:\git\dd-trace-php\ext\configuration.c C:\git\dd-trace-php\ext\crashtracking_windows.c C:\git\dd-trace-php\ext\ddshared.c C:\git\dd-trace-php\ext\distributed_tracing_headers.c C:\git\dd-trace-php\ext\dogstatsd.c C:\git\dd-trace-php\ext\engine_api.c C:\git\dd-trace-php\ext\engine_hooks.c C:\git\dd-trace-php\ext\exception_serialize.c C:\git\dd-trace-php\ext\excluded_modules.c C:\git\dd-trace-php\ext\git.c C:\git\dd-trace-php\ext\handlers_api.c C:\git\dd-trace-php\ext\handlers_curl.c C:\git\dd-trace-php\ext\handlers_exception.c C:\git\dd-trace-php\ext\handlers_fiber.c C:\git\dd-trace-php\ext\handlers_internal.c C:\git\dd-trace-php\ext\handlers_kafka.c C:\git\dd-trace-php\ext\handlers_pcntl.c C:\git\dd-trace-php\ext\ip_extraction.c C:\git\dd-trace-php\ext\live_debugger.c C:\git\dd-trace-php\ext\logging.c C:\git\dd-trace-php\ext\memory_limit.c C:\git\dd-trace-php\ext\otel_config.c C:\git\dd-trace-php\ext\profiling.c C:\git\dd-trace-php\ext\random.c C:\git\dd-trace-php\ext\remote_config.c C:\git\dd-trace-php\ext\serializer.c C:\git\dd-trace-php\ext\sidecar.c C:\git\dd-trace-php\ext\span.c C:\git\dd-trace-php\ext\standalone_limiter.c C:\git\dd-trace-php\ext\startup_logging.c C:\git\dd-trace-php\ext\telemetry.c C:\git\dd-trace-php\ext\threads.c C:\git\dd-trace-php\ext\user_request.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\agent_info.c C:\git\dd-trace-php\ext\arrays.c C:\git\dd-trace-php\ext\asm_event.c C:\git\dd-trace-php\ext\auto_flush.c C:\git\dd-trace-php\ext\autoload_php_files.c C:\git\dd-trace-php\ext\collect_backtrace.c C:\git\dd-trace-php\ext\compat_string.c C:\git\dd-trace-php\ext\configuration.c C:\git\dd-trace-php\ext\crashtracking_windows.c C:\git\dd-trace-php\ext\ddshared.c C:\git\dd-trace-php\ext\distributed_tracing_headers.c C:\git\dd-trace-php\ext\dogstatsd.c C:\git\dd-trace-php\ext\engine_api.c C:\git\dd-trace-php\ext\engine_hooks.c C:\git\dd-trace-php\ext\exception_serialize.c C:\git\dd-trace-php\ext\excluded_modules.c C:\git\dd-trace-php\ext\git.c C:\git\dd-trace-php\ext\handlers_api.c C:\git\dd-trace-php\ext\handlers_curl.c C:\git\dd-trace-php\ext\handlers_exception.c C:\git\dd-trace-php\ext\handlers_fiber.c C:\git\dd-trace-php\ext\handlers_internal.c C:\git\dd-trace-php\ext\handlers_kafka.c C:\git\dd-trace-php\ext\handlers_pcntl.c C:\git\dd-trace-php\ext\ip_extraction.c C:\git\dd-trace-php\ext\live_debugger.c C:\git\dd-trace-php\ext\logging.c C:\git\dd-trace-php\ext\memory_limit.c C:\git\dd-trace-php\ext\otel_config.c C:\git\dd-trace-php\ext\profiling.c C:\git\dd-trace-php\ext\random.c C:\git\dd-trace-php\ext\remote_config.c C:\git\dd-trace-php\ext\serializer.c C:\git\dd-trace-php\ext\sidecar.c C:\git\dd-trace-php\ext\span.c C:\git\dd-trace-php\ext\standalone_limiter.c C:\git\dd-trace-php\ext\startup_logging.c C:\git\dd-trace-php\ext\telemetry.c C:\git\dd-trace-php\ext\threads.c C:\git\dd-trace-php\ext\user_request.c 
+$(BUILD_DIR)\\uhook.obj $(BUILD_DIR)\\uhook_attributes.obj $(BUILD_DIR)\\uhook_legacy.obj $(BUILD_DIR)\\uhook_otel.obj: C:\git\dd-trace-php\ext\hook\uhook.c C:\git\dd-trace-php\ext\hook\uhook_attributes.c C:\git\dd-trace-php\ext\hook\uhook_legacy.c C:\git\dd-trace-php\ext\hook\uhook_otel.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\hook\uhook.c C:\git\dd-trace-php\ext\hook\uhook_attributes.c C:\git\dd-trace-php\ext\hook\uhook_legacy.c C:\git\dd-trace-php\ext\hook\uhook_otel.c 
+$(BUILD_DIR)\\exec_integration.obj $(BUILD_DIR)\\integrations.obj: C:\git\dd-trace-php\ext\integrations\exec_integration.c C:\git\dd-trace-php\ext\integrations\integrations.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\integrations\exec_integration.c C:\git\dd-trace-php\ext\integrations\integrations.c 
+$(BUILD_DIR)\\limiter.obj: C:\git\dd-trace-php\ext\limiter\limiter.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\limiter\limiter.c 
+$(BUILD_DIR)\\priority_sampling.obj: C:\git\dd-trace-php\ext\priority_sampling\priority_sampling.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\priority_sampling\priority_sampling.c 
+$(BUILD_DIR)\\tracer_tag_propagation.obj: C:\git\dd-trace-php\ext\tracer_tag_propagation\tracer_tag_propagation.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\tracer_tag_propagation\tracer_tag_propagation.c 
+$(BUILD_DIR)\\config.obj $(BUILD_DIR)\\config_decode.obj $(BUILD_DIR)\\config_ini.obj $(BUILD_DIR)\\config_runtime.obj: C:\git\dd-trace-php\zend_abstract_interface\config\config.c C:\git\dd-trace-php\zend_abstract_interface\config\config_decode.c C:\git\dd-trace-php\zend_abstract_interface\config\config_ini.c C:\git\dd-trace-php\zend_abstract_interface\config\config_runtime.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\config\config.c C:\git\dd-trace-php\zend_abstract_interface\config\config_decode.c C:\git\dd-trace-php\zend_abstract_interface\config\config_ini.c C:\git\dd-trace-php\zend_abstract_interface\config\config_runtime.c 
+$(BUILD_DIR)\\env.obj: C:\git\dd-trace-php\zend_abstract_interface\env\env.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\env\env.c 
+$(BUILD_DIR)\\exceptions.obj: C:\git\dd-trace-php\zend_abstract_interface\exceptions\exceptions.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\exceptions\exceptions.c 
+$(BUILD_DIR)\\headers.obj: C:\git\dd-trace-php\zend_abstract_interface\headers\headers.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\headers\headers.c 
+$(BUILD_DIR)\\hook.obj: C:\git\dd-trace-php\zend_abstract_interface\hook\hook.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\hook\hook.c 
+$(BUILD_DIR)\\json.obj: C:\git\dd-trace-php\zend_abstract_interface\json\json.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\json\json.c 
+$(BUILD_DIR)\\string.obj: C:\git\dd-trace-php\zend_abstract_interface\zai_string\string.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\zai_string\string.c 
+$(BUILD_DIR)\\call.obj $(BUILD_DIR)\\lookup.obj: C:\git\dd-trace-php\zend_abstract_interface\symbols\call.c C:\git\dd-trace-php\zend_abstract_interface\symbols\lookup.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\symbols\call.c C:\git\dd-trace-php\zend_abstract_interface\symbols\lookup.c 
+$(BUILD_DIR)\\uri_normalization.obj: C:\git\dd-trace-php\zend_abstract_interface\uri_normalization\uri_normalization.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\uri_normalization\uri_normalization.c 
+$(BUILD_DIR)\\jit_blacklist.obj: C:\git\dd-trace-php\zend_abstract_interface\jit_utils\jit_blacklist.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\jit_utils\jit_blacklist.c 
+$(BUILD_DIR)\\sandbox.obj: C:\git\dd-trace-php\zend_abstract_interface\sandbox\php8\sandbox.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\sandbox\php8\sandbox.c 
+$(BUILD_DIR)\\interceptor.obj $(BUILD_DIR)\\resolver.obj: C:\git\dd-trace-php\zend_abstract_interface\interceptor\php8\interceptor.c C:\git\dd-trace-php\zend_abstract_interface\interceptor\php8\resolver.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\zend_abstract_interface\interceptor\php8\interceptor.c C:\git\dd-trace-php\zend_abstract_interface\interceptor\php8\resolver.c 
+$(BUILD_DIR)\\mpack.obj: C:\git\dd-trace-php\ext\vendor\mpack\mpack.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\vendor\mpack\mpack.c 
+$(BUILD_DIR)\\mt19937-64.obj: C:\git\dd-trace-php\ext\vendor\mt19937\mt19937-64.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\ext\vendor\mt19937\mt19937-64.c 
+$(BUILD_DIR)\\log.obj: C:\git\dd-trace-php\components\log\log.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\components\log\log.c 
+$(BUILD_DIR)\\sapi.obj: C:\git\dd-trace-php\components\sapi\sapi.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\components\sapi\sapi.c 
+$(BUILD_DIR)\\string_view.obj: C:\git\dd-trace-php\components\string_view\string_view.c
+	$(CC) $(CFLAGS_DDTRACE_OBJ) $(CFLAGS) /Fo$(BUILD_DIR)\\ $(CFLAGS_BD_) /c C:\git\dd-trace-php\components\string_view\string_view.c 
+
+
+CARGO_TARGET_DIR=$(BUILD_DIR)/target/
+!if [set CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)]
+!endif
+!if [set RUSTC_BOOTSTRAP=1]
+!endif
+!if [set RUSTFLAGS=--cfg windows_seh_wrapper]
+!endif
+$(BUILD_DIR)/target/debug/ddtrace_php.lib: libdatadog\alloc\src\chain.rs libdatadog\alloc\src\lib.rs libdatadog\alloc\src\linear.rs libdatadog\alloc\src\utils.rs libdatadog\alloc\src\virtual_alloc.rs libdatadog\alloc\Cargo.toml libdatadog\bin\debug\build\cbindgen-4f1ca3c73b111735\out\depfile_tests.rs libdatadog\bin\debug\build\cbindgen-4f1ca3c73b111735\out\tests.rs libdatadog\bin\i686-pc-windows-msvc\debug\build\mime_guess-0a1ef04d894d7452\out\mime_types_generated.rs libdatadog\bin\i686-pc-windows-msvc\debug\build\typenum-7316254fa6168acb\out\consts.rs libdatadog\bin\i686-pc-windows-msvc\debug\build\typenum-7316254fa6168acb\out\op.rs libdatadog\bin\i686-pc-windows-msvc\debug\build\typenum-7316254fa6168acb\out\tests.rs libdatadog\bin\i686-pc-windows-msvc\release\build\mime_guess-9acb7e6f1d57e940\out\mime_types_generated.rs libdatadog\bin\i686-pc-windows-msvc\release\build\typenum-0e93279d6d300df8\out\consts.rs libdatadog\bin\i686-pc-windows-msvc\release\build\typenum-0e93279d6d300df8\out\op.rs libdatadog\bin\i686-pc-windows-msvc\release\build\typenum-0e93279d6d300df8\out\tests.rs libdatadog\bin\release\build\cbindgen-9d75795673878a3d\out\depfile_tests.rs libdatadog\bin\release\build\cbindgen-9d75795673878a3d\out\tests.rs libdatadog\bin\x86_64-pc-windows-msvc\debug\build\mime_guess-293d582fdb7e7c1e\out\mime_types_generated.rs libdatadog\bin\x86_64-pc-windows-msvc\debug\build\typenum-743090a3d2d5562f\out\consts.rs libdatadog\bin\x86_64-pc-windows-msvc\debug\build\typenum-743090a3d2d5562f\out\op.rs libdatadog\bin\x86_64-pc-windows-msvc\debug\build\typenum-743090a3d2d5562f\out\tests.rs libdatadog\bin\x86_64-pc-windows-msvc\release\build\mime_guess-3db3daba795af69b\out\mime_types_generated.rs libdatadog\bin\x86_64-pc-windows-msvc\release\build\typenum-8ec5b0a0eb86a521\out\consts.rs libdatadog\bin\x86_64-pc-windows-msvc\release\build\typenum-8ec5b0a0eb86a521\out\op.rs libdatadog\bin\x86_64-pc-windows-msvc\release\build\typenum-8ec5b0a0eb86a521\out\tests.rs libdatadog\bin_tests\src\bin\crashtracker_bin_test.rs libdatadog\bin_tests\src\bin\crashtracker_receiver.rs libdatadog\bin_tests\src\bin\test_the_tests.rs libdatadog\bin_tests\src\modes\unix\mod.rs libdatadog\bin_tests\src\modes\unix\test_000_donothing.rs libdatadog\bin_tests\src\modes\unix\test_001_sigpipe.rs libdatadog\bin_tests\src\modes\unix\test_002_sigchld.rs libdatadog\bin_tests\src\modes\unix\test_003_sigchld_with_exec.rs libdatadog\bin_tests\src\modes\unix\test_004_donothing_sigstack.rs libdatadog\bin_tests\src\modes\unix\test_005_sigpipe_sigstack.rs libdatadog\bin_tests\src\modes\unix\test_006_sigchld_sigstack.rs libdatadog\bin_tests\src\modes\unix\test_007_chaining.rs libdatadog\bin_tests\src\modes\unix\test_008_fork.rs libdatadog\bin_tests\src\modes\behavior.rs libdatadog\bin_tests\src\modes\mod.rs libdatadog\bin_tests\src\lib.rs libdatadog\bin_tests\tests\crashtracker_bin_test.rs libdatadog\bin_tests\tests\test_the_tests.rs libdatadog\bin_tests\Cargo.toml libdatadog\build-common\src\cbindgen.rs libdatadog\build-common\src\lib.rs libdatadog\build-common\Cargo.toml libdatadog\builder\build\main.rs libdatadog\builder\src\arch\apple.rs libdatadog\builder\src\arch\linux.rs libdatadog\builder\src\arch\mod.rs libdatadog\builder\src\arch\musl.rs libdatadog\builder\src\arch\windows.rs libdatadog\builder\src\bin\release.rs libdatadog\builder\src\builder.rs libdatadog\builder\src\common.rs libdatadog\builder\src\crashtracker.rs libdatadog\builder\src\lib.rs libdatadog\builder\src\module.rs libdatadog\builder\src\profiling.rs libdatadog\builder\src\utils.rs libdatadog\builder\Cargo.toml libdatadog\crashtracker\src\bin\crashtracker_receiver.rs libdatadog\crashtracker\src\collector\additional_tags.rs libdatadog\crashtracker\src\collector\api.rs libdatadog\crashtracker\src\collector\atomic_set.rs libdatadog\crashtracker\src\collector\counters.rs libdatadog\crashtracker\src\collector\crash_handler.rs libdatadog\crashtracker\src\collector\emitters.rs libdatadog\crashtracker\src\collector\mod.rs libdatadog\crashtracker\src\collector\saguard.rs libdatadog\crashtracker\src\collector\spans.rs libdatadog\crashtracker\src\crash_info\builder.rs libdatadog\crashtracker\src\crash_info\error_data.rs libdatadog\crashtracker\src\crash_info\experimental.rs libdatadog\crashtracker\src\crash_info\metadata.rs libdatadog\crashtracker\src\crash_info\mod.rs libdatadog\crashtracker\src\crash_info\os_info.rs libdatadog\crashtracker\src\crash_info\proc_info.rs libdatadog\crashtracker\src\crash_info\sig_info.rs libdatadog\crashtracker\src\crash_info\spans.rs libdatadog\crashtracker\src\crash_info\stacktrace.rs libdatadog\crashtracker\src\crash_info\telemetry.rs libdatadog\crashtracker\src\crash_info\test_utils.rs libdatadog\crashtracker\src\crash_info\unknown_value.rs libdatadog\crashtracker\src\receiver\entry_points.rs libdatadog\crashtracker\src\receiver\mod.rs libdatadog\crashtracker\src\receiver\receive_report.rs libdatadog\crashtracker\src\shared\configuration.rs libdatadog\crashtracker\src\shared\constants.rs libdatadog\crashtracker\src\shared\mod.rs libdatadog\crashtracker\src\lib.rs libdatadog\crashtracker\build.rs libdatadog\crashtracker\Cargo.toml libdatadog\crashtracker-ffi\src\collector\additional_tags.rs libdatadog\crashtracker-ffi\src\collector\counters.rs libdatadog\crashtracker-ffi\src\collector\datatypes.rs libdatadog\crashtracker-ffi\src\collector\mod.rs libdatadog\crashtracker-ffi\src\collector\spans.rs libdatadog\crashtracker-ffi\src\collector_windows\api.rs libdatadog\crashtracker-ffi\src\collector_windows\mod.rs libdatadog\crashtracker-ffi\src\crash_info\api.rs libdatadog\crashtracker-ffi\src\crash_info\builder.rs libdatadog\crashtracker-ffi\src\crash_info\metadata.rs libdatadog\crashtracker-ffi\src\crash_info\mod.rs libdatadog\crashtracker-ffi\src\crash_info\os_info.rs libdatadog\crashtracker-ffi\src\crash_info\proc_info.rs libdatadog\crashtracker-ffi\src\crash_info\sig_info.rs libdatadog\crashtracker-ffi\src\crash_info\span.rs libdatadog\crashtracker-ffi\src\crash_info\stackframe.rs libdatadog\crashtracker-ffi\src\crash_info\stacktrace.rs libdatadog\crashtracker-ffi\src\crash_info\thread_data.rs libdatadog\crashtracker-ffi\src\demangler\datatypes.rs libdatadog\crashtracker-ffi\src\demangler\mod.rs libdatadog\crashtracker-ffi\src\lib.rs libdatadog\crashtracker-ffi\src\receiver.rs libdatadog\crashtracker-ffi\build.rs libdatadog\crashtracker-ffi\Cargo.toml libdatadog\data-pipeline\benches\main.rs libdatadog\data-pipeline\benches\span_concentrator_bench.rs libdatadog\data-pipeline\examples\send-traces-with-stats.rs libdatadog\data-pipeline\src\agent_info\fetcher.rs libdatadog\data-pipeline\src\agent_info\mod.rs libdatadog\data-pipeline\src\agent_info\schema.rs libdatadog\data-pipeline\src\span_concentrator\aggregation.rs libdatadog\data-pipeline\src\span_concentrator\mod.rs libdatadog\data-pipeline\src\span_concentrator\tests.rs libdatadog\data-pipeline\src\telemetry\error.rs libdatadog\data-pipeline\src\telemetry\metrics.rs libdatadog\data-pipeline\src\telemetry\mod.rs libdatadog\data-pipeline\src\trace_exporter\agent_response.rs libdatadog\data-pipeline\src\trace_exporter\error.rs libdatadog\data-pipeline\src\trace_exporter\mod.rs libdatadog\data-pipeline\src\health_metrics.rs libdatadog\data-pipeline\src\lib.rs libdatadog\data-pipeline\src\stats_exporter.rs libdatadog\data-pipeline\tests\test_fetch_info.rs libdatadog\data-pipeline\Cargo.toml libdatadog\data-pipeline-ffi\src\error.rs libdatadog\data-pipeline-ffi\src\lib.rs libdatadog\data-pipeline-ffi\src\response.rs libdatadog\data-pipeline-ffi\src\trace_exporter.rs libdatadog\data-pipeline-ffi\build.rs libdatadog\data-pipeline-ffi\Cargo.toml libdatadog\ddcommon\src\connector\conn_stream.rs libdatadog\ddcommon\src\connector\errors.rs libdatadog\ddcommon\src\connector\mod.rs libdatadog\ddcommon\src\connector\named_pipe.rs libdatadog\ddcommon\src\connector\uds.rs libdatadog\ddcommon\src\entity_id\unix\cgroup_inode.rs libdatadog\ddcommon\src\entity_id\unix\container_id.rs libdatadog\ddcommon\src\entity_id\unix\mod.rs libdatadog\ddcommon\src\entity_id\mod.rs libdatadog\ddcommon\src\azure_app_services.rs libdatadog\ddcommon\src\config.rs libdatadog\ddcommon\src\cstr.rs libdatadog\ddcommon\src\lib.rs libdatadog\ddcommon\src\rate_limiter.rs libdatadog\ddcommon\src\tag.rs libdatadog\ddcommon\Cargo.toml libdatadog\ddcommon-ffi\src\array_queue.rs libdatadog\ddcommon-ffi\src\cstr.rs libdatadog\ddcommon-ffi\src\endpoint.rs libdatadog\ddcommon-ffi\src\error.rs libdatadog\ddcommon-ffi\src\handle.rs libdatadog\ddcommon-ffi\src\lib.rs libdatadog\ddcommon-ffi\src\option.rs libdatadog\ddcommon-ffi\src\result.rs libdatadog\ddcommon-ffi\src\slice.rs libdatadog\ddcommon-ffi\src\string.rs libdatadog\ddcommon-ffi\src\tags.rs libdatadog\ddcommon-ffi\src\timespec.rs libdatadog\ddcommon-ffi\src\utils.rs libdatadog\ddcommon-ffi\src\vec.rs libdatadog\ddcommon-ffi\build.rs libdatadog\ddcommon-ffi\Cargo.toml libdatadog\ddsketch\src\lib.rs libdatadog\ddsketch\src\pb.rs libdatadog\ddsketch\build.rs libdatadog\ddsketch\Cargo.toml libdatadog\ddtelemetry\examples\tm-metrics-worker-test.rs libdatadog\ddtelemetry\examples\tm-ping.rs libdatadog\ddtelemetry\examples\tm-send-sketch.rs libdatadog\ddtelemetry\examples\tm-worker-test.rs libdatadog\ddtelemetry\src\data\common.rs libdatadog\ddtelemetry\src\data\metrics.rs libdatadog\ddtelemetry\src\data\mod.rs libdatadog\ddtelemetry\src\data\payload.rs libdatadog\ddtelemetry\src\data\payloads.rs libdatadog\ddtelemetry\src\worker\builder.rs libdatadog\ddtelemetry\src\worker\http_client.rs libdatadog\ddtelemetry\src\worker\mod.rs libdatadog\ddtelemetry\src\worker\scheduler.rs libdatadog\ddtelemetry\src\worker\store.rs libdatadog\ddtelemetry\src\config.rs libdatadog\ddtelemetry\src\info.rs libdatadog\ddtelemetry\src\lib.rs libdatadog\ddtelemetry\src\metrics.rs libdatadog\ddtelemetry\Cargo.toml libdatadog\ddtelemetry-ffi\src\builder\expanded.rs libdatadog\ddtelemetry-ffi\src\builder\macros.rs libdatadog\ddtelemetry-ffi\src\builder.rs libdatadog\ddtelemetry-ffi\src\lib.rs libdatadog\ddtelemetry-ffi\src\worker_handle.rs libdatadog\ddtelemetry-ffi\build.rs libdatadog\ddtelemetry-ffi\Cargo.toml libdatadog\dogstatsd\src\aggregator.rs libdatadog\dogstatsd\src\constants.rs libdatadog\dogstatsd\src\datadog.rs libdatadog\dogstatsd\src\dogstatsd.rs libdatadog\dogstatsd\src\errors.rs libdatadog\dogstatsd\src\flusher.rs libdatadog\dogstatsd\src\lib.rs libdatadog\dogstatsd\src\metric.rs libdatadog\dogstatsd\tests\integration_test.rs libdatadog\dogstatsd\Cargo.toml libdatadog\dogstatsd-client\src\lib.rs libdatadog\dogstatsd-client\Cargo.toml libdatadog\dynamic-configuration\src\data.rs libdatadog\dynamic-configuration\src\lib.rs libdatadog\dynamic-configuration\Cargo.toml libdatadog\ipc\benches\ipc.rs libdatadog\ipc\macros\src\lib.rs libdatadog\ipc\macros\Cargo.toml libdatadog\ipc\src\platform\channel\metadata.rs libdatadog\ipc\src\platform\channel\mod.rs libdatadog\ipc\src\platform\unix\channel\async_channel.rs libdatadog\ipc\src\platform\unix\channel\metadata.rs libdatadog\ipc\src\platform\unix\channel.rs libdatadog\ipc\src\platform\unix\locks.rs libdatadog\ipc\src\platform\unix\mem_handle.rs libdatadog\ipc\src\platform\unix\mem_handle_macos.rs libdatadog\ipc\src\platform\unix\message.rs libdatadog\ipc\src\platform\unix\mod.rs libdatadog\ipc\src\platform\unix\platform_handle.rs libdatadog\ipc\src\platform\unix\sockets.rs libdatadog\ipc\src\platform\windows\channel\async_channel.rs libdatadog\ipc\src\platform\windows\channel\metadata.rs libdatadog\ipc\src\platform\windows\channel.rs libdatadog\ipc\src\platform\windows\mem_handle.rs libdatadog\ipc\src\platform\windows\message.rs libdatadog\ipc\src\platform\windows\mod.rs libdatadog\ipc\src\platform\windows\named_pipe.rs libdatadog\ipc\src\platform\windows\platform_handle.rs libdatadog\ipc\src\platform\mem_handle.rs libdatadog\ipc\src\platform\message.rs libdatadog\ipc\src\platform\mod.rs libdatadog\ipc\src\platform\platform_handle.rs libdatadog\ipc\src\transport\blocking.rs libdatadog\ipc\src\transport\mod.rs libdatadog\ipc\src\example_interface.rs libdatadog\ipc\src\handles.rs libdatadog\ipc\src\lib.rs libdatadog\ipc\src\rate_limiter.rs libdatadog\ipc\src\sequential.rs libdatadog\ipc\tarpc\example-service\src\client.rs libdatadog\ipc\tarpc\example-service\src\lib.rs libdatadog\ipc\tarpc\example-service\src\server.rs libdatadog\ipc\tarpc\example-service\Cargo.toml libdatadog\ipc\tarpc\plugins\src\lib.rs libdatadog\ipc\tarpc\plugins\tests\server.rs libdatadog\ipc\tarpc\plugins\tests\service.rs libdatadog\ipc\tarpc\plugins\Cargo.toml libdatadog\ipc\tarpc\tarpc\examples\compression.rs libdatadog\ipc\tarpc\tarpc\examples\custom_transport.rs libdatadog\ipc\tarpc\tarpc\examples\pubsub.rs libdatadog\ipc\tarpc\tarpc\examples\readme.rs libdatadog\ipc\tarpc\tarpc\examples\tracing.rs libdatadog\ipc\tarpc\tarpc\src\client\in_flight_requests.rs libdatadog\ipc\tarpc\tarpc\src\server\limits\channels_per_key.rs libdatadog\ipc\tarpc\tarpc\src\server\limits\requests_per_channel.rs libdatadog\ipc\tarpc\tarpc\src\server\incoming.rs libdatadog\ipc\tarpc\tarpc\src\server\in_flight_requests.rs libdatadog\ipc\tarpc\tarpc\src\server\limits.rs libdatadog\ipc\tarpc\tarpc\src\server\testing.rs libdatadog\ipc\tarpc\tarpc\src\server\tokio.rs libdatadog\ipc\tarpc\tarpc\src\transport\channel.rs libdatadog\ipc\tarpc\tarpc\src\util\serde.rs libdatadog\ipc\tarpc\tarpc\src\cancellations.rs libdatadog\ipc\tarpc\tarpc\src\client.rs libdatadog\ipc\tarpc\tarpc\src\context.rs libdatadog\ipc\tarpc\tarpc\src\lib.rs libdatadog\ipc\tarpc\tarpc\src\serde_transport.rs libdatadog\ipc\tarpc\tarpc\src\server.rs libdatadog\ipc\tarpc\tarpc\src\trace.rs libdatadog\ipc\tarpc\tarpc\src\transport.rs libdatadog\ipc\tarpc\tarpc\src\util.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\serde_transport\must_use_tcp_connect.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\tokio\must_use_channel_executor.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\tokio\must_use_server_executor.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\must_use_request_dispatch.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\tarpc_server_missing_async.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\tarpc_service_arg_pat.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\tarpc_service_fn_new.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail\tarpc_service_fn_serve.rs libdatadog\ipc\tarpc\tarpc\tests\compile_fail.rs libdatadog\ipc\tarpc\tarpc\tests\dataservice.rs libdatadog\ipc\tarpc\tarpc\tests\service_functional.rs libdatadog\ipc\tarpc\tarpc\Cargo.toml libdatadog\ipc\tarpc\Cargo.toml libdatadog\ipc\tests\blocking_client.rs libdatadog\ipc\tests\flock.rs libdatadog\ipc\build.rs libdatadog\ipc\Cargo.toml libdatadog\library-config\src\lib.rs libdatadog\library-config\Cargo.toml libdatadog\library-config-ffi\src\lib.rs libdatadog\library-config-ffi\build.rs libdatadog\library-config-ffi\Cargo.toml libdatadog\live-debugger\src\debugger_defs.rs libdatadog\live-debugger\src\expr_defs.rs libdatadog\live-debugger\src\expr_eval.rs libdatadog\live-debugger\src\lib.rs libdatadog\live-debugger\src\parse_json.rs libdatadog\live-debugger\src\probe_defs.rs libdatadog\live-debugger\src\redacted_names.rs libdatadog\live-debugger\src\sender.rs libdatadog\live-debugger\Cargo.toml libdatadog\live-debugger-ffi\src\data.rs libdatadog\live-debugger-ffi\src\evaluator.rs libdatadog\live-debugger-ffi\src\lib.rs libdatadog\live-debugger-ffi\src\parse.rs libdatadog\live-debugger-ffi\src\sender.rs libdatadog\live-debugger-ffi\src\send_data.rs libdatadog\live-debugger-ffi\build.rs libdatadog\live-debugger-ffi\Cargo.toml libdatadog\profiling\benches\interning_strings.rs libdatadog\profiling\benches\main.rs libdatadog\profiling\examples\profiles.rs libdatadog\profiling\src\collections\identifiable\mod.rs libdatadog\profiling\src\collections\identifiable\string_id.rs libdatadog\profiling\src\collections\string_table\mod.rs libdatadog\profiling\src\collections\string_table\wordpress_test_data.rs libdatadog\profiling\src\collections\mod.rs libdatadog\profiling\src\collections\string_storage.rs libdatadog\profiling\src\exporter\config.rs libdatadog\profiling\src\exporter\errors.rs libdatadog\profiling\src\exporter\mod.rs libdatadog\profiling\src\internal\observation\mod.rs libdatadog\profiling\src\internal\observation\observations.rs libdatadog\profiling\src\internal\observation\timestamped_observations.rs libdatadog\profiling\src\internal\observation\trimmed_observation.rs libdatadog\profiling\src\internal\owned_types\mod.rs libdatadog\profiling\src\internal\profile\fuzz_tests.rs libdatadog\profiling\src\internal\profile\mod.rs libdatadog\profiling\src\internal\endpoints.rs libdatadog\profiling\src\internal\endpoint_stats.rs libdatadog\profiling\src\internal\function.rs libdatadog\profiling\src\internal\label.rs libdatadog\profiling\src\internal\location.rs libdatadog\profiling\src\internal\mapping.rs libdatadog\profiling\src\internal\mod.rs libdatadog\profiling\src\internal\sample.rs libdatadog\profiling\src\internal\stack_trace.rs libdatadog\profiling\src\internal\timestamp.rs libdatadog\profiling\src\internal\upscaling.rs libdatadog\profiling\src\internal\value_type.rs libdatadog\profiling\src\pprof\mod.rs libdatadog\profiling\src\pprof\proto.rs libdatadog\profiling\src\pprof\sliced_proto.rs libdatadog\profiling\src\pprof\test_utils.rs libdatadog\profiling\src\serializer\compressed_streaming_encoder.rs libdatadog\profiling\src\serializer\mod.rs libdatadog\profiling\src\api.rs libdatadog\profiling\src\iter.rs libdatadog\profiling\src\lib.rs libdatadog\profiling\tests\form.rs libdatadog\profiling\tests\wordpress.rs libdatadog\profiling\Cargo.toml libdatadog\profiling-ffi\src\exporter.rs libdatadog\profiling-ffi\src\lib.rs libdatadog\profiling-ffi\src\profiles.rs libdatadog\profiling-ffi\src\string_storage.rs libdatadog\profiling-ffi\build.rs libdatadog\profiling-ffi\Cargo.toml libdatadog\profiling-replayer\src\main.rs libdatadog\profiling-replayer\src\profile_index.rs libdatadog\profiling-replayer\src\replayer.rs libdatadog\profiling-replayer\Cargo.toml libdatadog\remote-config\examples\remote_config_fetch.rs libdatadog\remote-config\src\fetch\fetcher.rs libdatadog\remote-config\src\fetch\mod.rs libdatadog\remote-config\src\fetch\multitarget.rs libdatadog\remote-config\src\fetch\shared.rs libdatadog\remote-config\src\fetch\single.rs libdatadog\remote-config\src\fetch\test_server.rs libdatadog\remote-config\src\file_change_tracker.rs libdatadog\remote-config\src\file_storage.rs libdatadog\remote-config\src\lib.rs libdatadog\remote-config\src\parse.rs libdatadog\remote-config\src\path.rs libdatadog\remote-config\src\targets.rs libdatadog\remote-config\Cargo.toml libdatadog\serverless\src\main.rs libdatadog\serverless\Cargo.toml libdatadog\sidecar\macros\src\lib.rs libdatadog\sidecar\macros\Cargo.toml libdatadog\sidecar\src\service\telemetry\app_instance.rs libdatadog\sidecar\src\service\telemetry\enqueued_telemetry_data.rs libdatadog\sidecar\src\service\telemetry\enqueued_telemetry_stats.rs libdatadog\sidecar\src\service\telemetry\mod.rs libdatadog\sidecar\src\service\tracing\mod.rs libdatadog\sidecar\src\service\tracing\trace_flusher.rs libdatadog\sidecar\src\service\tracing\trace_send_data.rs libdatadog\sidecar\src\service\agent_info.rs libdatadog\sidecar\src\service\blocking.rs libdatadog\sidecar\src\service\debugger_diagnostics_bookkeeper.rs libdatadog\sidecar\src\service\exception_hash_rate_limiter.rs libdatadog\sidecar\src\service\instance_id.rs libdatadog\sidecar\src\service\mod.rs libdatadog\sidecar\src\service\queue_id.rs libdatadog\sidecar\src\service\remote_configs.rs libdatadog\sidecar\src\service\request_identification.rs libdatadog\sidecar\src\service\runtime_info.rs libdatadog\sidecar\src\service\runtime_metadata.rs libdatadog\sidecar\src\service\serialized_tracer_header_tags.rs libdatadog\sidecar\src\service\session_info.rs libdatadog\sidecar\src\service\sidecar_interface.rs libdatadog\sidecar\src\service\sidecar_server.rs libdatadog\sidecar\src\setup\mod.rs libdatadog\sidecar\src\setup\unix.rs libdatadog\sidecar\src\setup\windows.rs libdatadog\sidecar\src\agent_remote_config.rs libdatadog\sidecar\src\config.rs libdatadog\sidecar\src\crashtracker.rs libdatadog\sidecar\src\dump.rs libdatadog\sidecar\src\entry.rs libdatadog\sidecar\src\lib.rs libdatadog\sidecar\src\log.rs libdatadog\sidecar\src\one_way_shared_memory.rs libdatadog\sidecar\src\self_telemetry.rs libdatadog\sidecar\src\shm_remote_config.rs libdatadog\sidecar\src\tokio_util.rs libdatadog\sidecar\src\tracer.rs libdatadog\sidecar\src\unix.rs libdatadog\sidecar\src\watchdog.rs libdatadog\sidecar\src\windows.rs libdatadog\sidecar\Cargo.toml libdatadog\sidecar-ffi\src\lib.rs libdatadog\sidecar-ffi\tests\sidecar.rs libdatadog\sidecar-ffi\build.rs libdatadog\sidecar-ffi\Cargo.toml libdatadog\spawn_worker\src\unix\fork.rs libdatadog\spawn_worker\src\unix\mod.rs libdatadog\spawn_worker\src\unix\spawn.rs libdatadog\spawn_worker\src\lib.rs libdatadog\spawn_worker\src\win32.rs libdatadog\spawn_worker\tests\trampoline_unix.rs libdatadog\spawn_worker\tests\trampoline_windows.rs libdatadog\spawn_worker\build.rs libdatadog\spawn_worker\Cargo.toml libdatadog\symbolizer-ffi\src\lib.rs libdatadog\symbolizer-ffi\src\symbolize.rs libdatadog\symbolizer-ffi\build.rs libdatadog\symbolizer-ffi\Cargo.toml libdatadog\target\debug\build\basic-cookies-7246d65990f92538\out\cookie_grammar.rs libdatadog\target\debug\build\cbindgen-078d2f187ee96cfb\out\depfile_tests.rs libdatadog\target\debug\build\cbindgen-078d2f187ee96cfb\out\tests.rs libdatadog\target\debug\build\cbindgen-aa89969896a646f4\out\depfile_tests.rs libdatadog\target\debug\build\cbindgen-aa89969896a646f4\out\tests.rs libdatadog\target\debug\build\crunchy-685b87b02a0fe24b\out\lib.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\protos\ddsketch_full.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\protos\dd_metric.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\protos\dd_trace.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\protos\mod.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\api.mod.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\datadog.api.v1.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\datadog.config.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\datadog.model.v1.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\datadog.remoteagent.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\datadog.workloadmeta.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\google.api.rs libdatadog\target\debug\build\datadog-protos-c9589072ce3c6786\out\remoteagent.mod.rs libdatadog\target\debug\build\ddsketch-agent-66671b1ff7b71807\out\config.rs libdatadog\target\debug\build\mime_guess-aadf5b492577aab2\out\mime_types_generated.rs libdatadog\target\debug\build\protobuf-3eeca0591b4673cd\out\version.rs libdatadog\target\debug\build\protobuf-a3ecb976b566d9fa\out\version.rs libdatadog\target\debug\build\target-triple-218e7cc97eefa723\out\macros.rs libdatadog\target\debug\build\typenum-28d2da54e9ec7b8a\out\consts.rs libdatadog\target\debug\build\typenum-28d2da54e9ec7b8a\out\op.rs libdatadog\target\debug\build\typenum-28d2da54e9ec7b8a\out\tests.rs libdatadog\tests\spawn_from_lib\src\lib.rs libdatadog\tests\spawn_from_lib\tests\spawn.rs libdatadog\tests\spawn_from_lib\tests\spawn_unix.rs libdatadog\tests\spawn_from_lib\build.rs libdatadog\tests\spawn_from_lib\Cargo.toml libdatadog\tinybytes\src\bytes_string.rs libdatadog\tinybytes\src\lib.rs libdatadog\tinybytes\src\test.rs libdatadog\tinybytes\Cargo.toml libdatadog\tools\cc_utils\src\lib.rs libdatadog\tools\cc_utils\Cargo.toml libdatadog\tools\sidecar_mockgen\src\bin\sidecar_mockgen.rs libdatadog\tools\sidecar_mockgen\src\lib.rs libdatadog\tools\sidecar_mockgen\Cargo.toml libdatadog\tools\src\bin\dedup_headers.rs libdatadog\tools\src\lib.rs libdatadog\tools\Cargo.toml libdatadog\trace-mini-agent\src\config.rs libdatadog\trace-mini-agent\src\env_verifier.rs libdatadog\trace-mini-agent\src\http_utils.rs libdatadog\trace-mini-agent\src\lib.rs libdatadog\trace-mini-agent\src\mini_agent.rs libdatadog\trace-mini-agent\src\stats_flusher.rs libdatadog\trace-mini-agent\src\stats_processor.rs libdatadog\trace-mini-agent\src\trace_flusher.rs libdatadog\trace-mini-agent\src\trace_processor.rs libdatadog\trace-mini-agent\Cargo.toml libdatadog\trace-normalization\benches\normalization_utils.rs libdatadog\trace-normalization\src\lib.rs libdatadog\trace-normalization\src\normalizer.rs libdatadog\trace-normalization\src\normalize_utils.rs libdatadog\trace-normalization\src\utf8_helpers.rs libdatadog\trace-normalization\Cargo.toml libdatadog\trace-obfuscation\benches\benchmarks\credit_cards_bench.rs libdatadog\trace-obfuscation\benches\benchmarks\ip_address_bench.rs libdatadog\trace-obfuscation\benches\benchmarks\mod.rs libdatadog\trace-obfuscation\benches\benchmarks\redis_obfuscation_bench.rs libdatadog\trace-obfuscation\benches\benchmarks\replace_trace_tags_bench.rs libdatadog\trace-obfuscation\benches\benchmarks\sql_obfuscation_bench.rs libdatadog\trace-obfuscation\benches\trace_obfuscation.rs libdatadog\trace-obfuscation\src\credit_cards.rs libdatadog\trace-obfuscation\src\http.rs libdatadog\trace-obfuscation\src\ip_address.rs libdatadog\trace-obfuscation\src\lib.rs libdatadog\trace-obfuscation\src\memcached.rs libdatadog\trace-obfuscation\src\obfuscate.rs libdatadog\trace-obfuscation\src\obfuscation_config.rs libdatadog\trace-obfuscation\src\redis.rs libdatadog\trace-obfuscation\src\redis_tokenizer.rs libdatadog\trace-obfuscation\src\replacer.rs libdatadog\trace-obfuscation\src\sql.rs libdatadog\trace-obfuscation\Cargo.toml libdatadog\trace-protobuf\src\lib.rs libdatadog\trace-protobuf\src\pb.rs libdatadog\trace-protobuf\src\pb_test.rs libdatadog\trace-protobuf\src\remoteconfig.rs libdatadog\trace-protobuf\src\serde.rs libdatadog\trace-protobuf\build.rs libdatadog\trace-protobuf\Cargo.toml libdatadog\trace-utils\benches\deserialization.rs libdatadog\trace-utils\benches\main.rs libdatadog\trace-utils\src\msgpack_decoder\decode\error.rs libdatadog\trace-utils\src\msgpack_decoder\decode\map.rs libdatadog\trace-utils\src\msgpack_decoder\decode\meta_struct.rs libdatadog\trace-utils\src\msgpack_decoder\decode\metrics.rs libdatadog\trace-utils\src\msgpack_decoder\decode\mod.rs libdatadog\trace-utils\src\msgpack_decoder\decode\number.rs libdatadog\trace-utils\src\msgpack_decoder\decode\span_link.rs libdatadog\trace-utils\src\msgpack_decoder\decode\string.rs libdatadog\trace-utils\src\msgpack_decoder\v04\mod.rs libdatadog\trace-utils\src\msgpack_decoder\v04\span.rs libdatadog\trace-utils\src\msgpack_decoder\mod.rs libdatadog\trace-utils\src\send_data\mod.rs libdatadog\trace-utils\src\send_data\send_data_result.rs libdatadog\trace-utils\src\send_with_retry\mod.rs libdatadog\trace-utils\src\send_with_retry\retry_strategy.rs libdatadog\trace-utils\src\span\v04\mod.rs libdatadog\trace-utils\src\span\v04\span.rs libdatadog\trace-utils\src\span\v04\trace_utils.rs libdatadog\trace-utils\src\span\mod.rs libdatadog\trace-utils\src\test_utils\datadog_test_agent.rs libdatadog\trace-utils\src\test_utils\mod.rs libdatadog\trace-utils\src\config_utils.rs libdatadog\trace-utils\src\lib.rs libdatadog\trace-utils\src\stats_utils.rs libdatadog\trace-utils\src\tracer_header_tags.rs libdatadog\trace-utils\src\tracer_payload.rs libdatadog\trace-utils\src\trace_utils.rs libdatadog\trace-utils\tests\test_send_data.rs libdatadog\trace-utils\Cargo.toml libdatadog\Cargo.toml components-rs\php_sidecar_mockgen\src\bin\php_sidecar_mockgen.rs components-rs\php_sidecar_mockgen\Cargo.toml components-rs\Cargo.toml components-rs\lib.rs components-rs\log.rs components-rs\remote_config.rs components-rs\sidecar.rs components-rs\telemetry.rs
+	$(CARGO) build --package ddtrace-php 
+
+
+
