@@ -100,6 +100,7 @@
 #endif
 #include "ddtrace_arginfo.h"
 #include "distributed_tracing_headers.h"
+#include "inferred_proxy_headers.h"
 #include "live_debugger.h"
 #include "agent_info.h"
 
@@ -1659,6 +1660,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 #endif
     }
 
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        ddtrace_init_proxy_info_map();
+    }
+
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
     }
@@ -1802,6 +1807,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
+
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        ddtrace_free_proxy_info_map();
+    }
 
     return SUCCESS;
 }

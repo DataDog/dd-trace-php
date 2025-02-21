@@ -23,11 +23,10 @@ class APIGWTest extends WebFrameworkTestCase
             'DD_ENV' => 'local-test',
             'DD_VERSION' => '1.0',
             'DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED' => 'true',
-            //'DD_TRACE_HEADER_TAGS' => 'x-dd-proxy-domain-name,x-dd-proxy,x-dd-proxy-httpmethod,x-dd-proxy-path,x-dd-proxy-request-time-ms,x-dd-proxy-stage',
         ]);
     }
 
-    public function testInferredProxy()
+    public function testLaravelInferredProxy()
     {
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
@@ -35,7 +34,7 @@ class APIGWTest extends WebFrameworkTestCase
                     'A simple GET request returning a string',
                     '/simple?key=value&pwd=should_redact',
                     [
-                        'x-dd-proxy: aws.apigateway',
+                        'x-dd-proxy: aws-apigateway',
                         'x-dd-proxy-request-time-ms: 1739261376000',
                         'x-dd-proxy-path: /test',
                         'x-dd-proxy-httpmethod: GET',
@@ -47,7 +46,7 @@ class APIGWTest extends WebFrameworkTestCase
         });
     }
 
-    public function testInferredProxyException()
+    public function testLaravelInferredProxyException()
     {
         $this->tracesFromWebRequestSnapshot(function () {
             $this->call(
@@ -55,7 +54,7 @@ class APIGWTest extends WebFrameworkTestCase
                     'A GET throwing an exception',
                     '/error?key=value&pwd=should_redact',
                     [
-                        'x-dd-proxy: aws.apigateway',
+                        'x-dd-proxy: aws-apigateway',
                         'x-dd-proxy-request-time-ms: 1739261376000',
                         'x-dd-proxy-path: /test',
                         'x-dd-proxy-httpmethod: GET',

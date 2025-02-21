@@ -48,7 +48,7 @@ class APIGWTest extends WebFrameworkTestCase
                     'A simple GET request returning a string',
                     '/simple?key=value&pwd=should_redact',
                     [
-                        'x-dd-proxy: aws.apigateway',
+                        'x-dd-proxy: aws-apigateway',
                         'x-dd-proxy-request-time-ms: 1739261376000',
                         'x-dd-proxy-path: /test',
                         'x-dd-proxy-httpmethod: GET',
@@ -70,7 +70,7 @@ class APIGWTest extends WebFrameworkTestCase
                     'A GET throwing an exception',
                     '/error?key=value&pwd=should_redact',
                     [
-                        'x-dd-proxy: aws.apigateway',
+                        'x-dd-proxy: aws-apigateway',
                         'x-dd-proxy-request-time-ms: 1739261376000',
                         'x-dd-proxy-path: /test',
                         'x-dd-proxy-httpmethod: GET',

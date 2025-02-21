@@ -836,12 +836,17 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
         return NULL;
     }
 
+    const ddtrace_proxy_info *proxy_info = ddtrace_get_proxy_info(result.system);
+    if (!proxy_info) {
+        zend_string_release(result.system);
+        zend_string_release(result.start_time_ms);
+        return NULL;
+    }
+
     ddtrace_span_data *span = ddtrace_push_inferred_root_span();
 
-    zval zv;
-
-    ZVAL_STR(&zv, result.system);
-    ddtrace_assign_variable(&span->property_name, &zv);
+    zval_ptr_dtor(&span->property_name);
+    ZVAL_STR(&span->property_name, zend_string_init(proxy_info->span_name, strlen(proxy_info->span_name), 0));
 
     zval_ptr_dtor(&span->property_resource);
     if (result.http_method && result.path) {
@@ -850,6 +855,8 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
 
     span->start = (zend_long)zend_strtod(ZSTR_VAL(result.start_time_ms), NULL) * 1000000;
     span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start);
+
+    zval zv;
 
     if (result.domain) {
         ZVAL_STR_COPY(&zv, result.domain);
@@ -874,8 +881,9 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     }
 
     add_assoc_long(&span->property_meta, "_dd.inferred_span", 1);
-    add_assoc_string(&span->property_meta, "component", "aws-apigateway");
+    add_assoc_string(&span->property_meta, "component", proxy_info->component);
 
+    zend_string_release(result.system);
     zend_string_release(result.start_time_ms);
     if (result.path) zend_string_release(result.path);
     if (result.http_method) zend_string_release(result.http_method);
