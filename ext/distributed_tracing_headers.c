@@ -572,6 +572,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (DDTRACE_G(tracestate)) {
             zend_string_release(DDTRACE_G(tracestate));
         }
+        DDTRACE_G(tracestate) = result->tracestate;
 
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;
