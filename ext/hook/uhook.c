@@ -1112,6 +1112,7 @@ static void dd_uhook_closure_free_wrapper(zend_object *object) {
 
 #if PHP_VERSION_ID >= 80000
 void zai_uhook_attributes_minit(void);
+void dd_register_opentelemetry_wrapper(void);
 #endif
 void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
@@ -1125,6 +1126,7 @@ void zai_uhook_minit(int module_number) {
 
 #if PHP_VERSION_ID >= 80000
     zai_uhook_attributes_minit();
+    dd_register_opentelemetry_wrapper();
 #endif
 
     // get hold of a Closure object to access handlers

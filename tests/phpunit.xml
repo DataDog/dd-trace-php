@@ -80,6 +80,7 @@
             <directory>./OpenTelemetry/Unit/Propagation</directory>
             <directory>./OpenTelemetry/Integration/API</directory>
             <directory phpVersion="8.1.0" phpVersionOperator="&gt;=">./OpenTelemetry/Integration/Context</directory>
+            <directory phpVersion="8.2.0" phpVersionOperator="&gt;=">./OpenTelemetry/Integration/SpanProvenanceTest.php</directory>
             <directory>./OpenTelemetry/Integration/Logs</directory>
             <directory>./OpenTelemetry/Integration/SDK</directory>
             <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>

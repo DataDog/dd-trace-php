@@ -1,6 +1,8 @@
 {
     "require": {
         "php": ">=7.4",
-        "open-telemetry/sdk": "^1.0"
+        "open-telemetry/sdk": "^1.0",
+        "symfony/http-client": "*",
+        "nyholm/psr7": "*"
     }
 }
