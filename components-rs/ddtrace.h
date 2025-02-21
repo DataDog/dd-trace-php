@@ -270,4 +270,7 @@ void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActi
                                                          double metric_value,
                                                          ddog_CharSlice tags);
 
+void ddog_sidecar_telemetry_add_integration_log_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                                       ddog_CharSlice log);
+
 #endif /* DDTRACE_PHP_H */
