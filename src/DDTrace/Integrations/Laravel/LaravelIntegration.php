@@ -522,7 +522,6 @@ class LaravelIntegration extends Integration
             }
         );
 
-
         return Integration::LOADED;
     }
 
