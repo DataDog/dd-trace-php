@@ -520,6 +520,9 @@ static dd_result _command_process_actions(
         } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace")) {
             _command_process_stack_trace_parameters(
                 mpack_node_array_at(action, 1));
+            if (res == dd_success) {
+                res = dd_should_record;
+            }
         }
     }
 
