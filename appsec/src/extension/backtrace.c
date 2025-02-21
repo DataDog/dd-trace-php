@@ -19,6 +19,8 @@ static const char QUALIFIED_NAME_SEPARATOR[] = "::";
 
 static zend_string *_frames_key;
 static zend_string *_language_key;
+//static zend_string *_message_key;
+//static zend_string *_message_value;
 static zend_string *_php_value;
 static zend_string *_exploit_key;
 static zend_string *_dd_stack_key;
@@ -188,8 +190,11 @@ void dd_generate_backtrace(zend_string *nullable id, zval *nonnull dd_backtrace)
     ZVAL_STR_COPY(&language, _php_value);
     zval id_zv;
     ZVAL_STR_COPY(&id_zv, id);
+//    zval message;
+//    ZVAL_STR_COPY(&message, _message_value);
     zend_hash_add(Z_ARRVAL_P(dd_backtrace), _language_key, &language);
     zend_hash_add(Z_ARRVAL_P(dd_backtrace), _id_key, &id_zv);
+//    zend_hash_add(Z_ARRVAL_P(dd_backtrace), _message_key, &message);
 
     zval frames;
     zval php_backtrace;
@@ -213,7 +218,10 @@ static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)
 
 bool dd_report_exploit_backtrace(zend_string *nullable id)
 {
+    mlog(dd_log_trace, "Generating backtrace");
     if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
+        mlog(dd_log_trace, "Backtrace generation is disabled with "
+                           "DD_APPSEC_STACK_TRACE_ENABLED");
         return false;
     }
 
@@ -241,6 +249,11 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
     if (Z_TYPE_P(meta_struct) == IS_NULL) {
         array_init(meta_struct);
     } else if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_trace,
+                "Field 'meta_struct' is of type '%d', expected 'array'",
+                Z_TYPE_P(meta_struct));
+        }
         return false;
     }
 
@@ -253,13 +266,21 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         exploit = zend_hash_add_new(
             Z_ARR_P(dd_stack), _exploit_key, &EG(uninitialized_zval));
         array_init(exploit);
+        mlog(dd_log_trace, "Backtrace stack created");
     } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_trace,
+                "Field 'stack' is of type '%d', expected 'array'",
+                Z_TYPE_P(dd_stack));
+        }
         return false;
     } else {
         exploit = zend_hash_find(Z_ARR_P(dd_stack), _exploit_key);
     }
 
     if (Z_TYPE_P(exploit) != IS_ARRAY) {
+        mlog(dd_log_trace, "Field 'exploit' is of type '%d', expected 'array'",
+            Z_TYPE_P(exploit));
         return false;
     }
 
@@ -277,9 +298,13 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
 
     if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) ==
         NULL) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Error adding Stacktrace");
+        }
         return false;
     }
 
+    mlog(dd_log_trace, "Stacktrace generated");
     return true;
 }
 
@@ -328,6 +353,8 @@ void dd_backtrace_startup()
 {
     _frames_key = zend_string_init_interned(LSTRARG("frames"), 1);
     _language_key = zend_string_init_interned(LSTRARG("language"), 1);
+//    _message_key = zend_string_init_interned(LSTRARG("message"), 1);
+//    _message_value = zend_string_init_interned(LSTRARG("Default message"), 1);
     _php_value = zend_string_init_interned(LSTRARG("php"), 1);
     _exploit_key = zend_string_init_interned(LSTRARG("exploit"), 1);
     _dd_stack_key = zend_string_init_interned(LSTRARG("_dd.stack"), 1);
