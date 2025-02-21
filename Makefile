@@ -782,6 +782,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_roadrunner \
@@ -848,6 +849,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
@@ -902,6 +904,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_sqlsrv \
@@ -960,6 +963,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
@@ -1024,6 +1028,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
+	test_integrations_phpredis6 \
 	test_integrations_predis_1 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
@@ -1081,6 +1086,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch_latest \
+	test_integrations_phpredis6 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_roadrunner \
@@ -1104,7 +1110,7 @@ TEST_WEB_84 := \
 	test_web_custom \
 	test_web_zend_1_21
 
-# to check: , test_web_slim_latest, test_integrations_phpredis6
+# TODO: Add test_web_slim_latest once 4.15.0 is released; test_web_drupal_95,
 
 FILTER ?= .
 MAX_RETRIES := 3
@@ -1335,6 +1341,12 @@ test_integrations_phpredis5: global_test_run_dependencies
 	$(eval TEST_EXTRA_ENV=DD_IGNORE_ARGINFO_ZPP_CHECK=1)
 	$(eval TEST_EXTRA_INI=-d extension=redis-5.3.7.so)
 	$(call run_tests_debug,tests/Integrations/PHPRedis/V5)
+	$(eval TEST_EXTRA_INI=)
+	$(eval TEST_EXTRA_ENV=)
+test_integrations_phpredis6: global_test_run_dependencies
+	$(eval TEST_EXTRA_ENV=DD_IGNORE_ARGINFO_ZPP_CHECK=1)
+	$(eval TEST_EXTRA_INI=-d extension=redis.so)
+	$(call run_tests_debug,tests/Integrations/PHPRedis/V6)
 	$(eval TEST_EXTRA_INI=)
 	$(eval TEST_EXTRA_ENV=)
 test_integrations_predis_1: global_test_run_dependencies tests/Integrations/Predis/V1/composer.lock-php$(PHP_MAJOR_MINOR)

@@ -188,6 +188,7 @@ else
   fi
   if [[ $PHP_VERSION_ID -ge 84 ]]; then
     pecl install redis-6.1.0
+    mv $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-6.1.0.so
   fi
 
 fi
