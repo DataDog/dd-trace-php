@@ -110,6 +110,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->assertEquals(0, count($loginEvents)); // Auth does not generate appsec events
         $this->assertEquals(1, count($authenticatedEvents));
+        $this->assertEquals($id, $authenticatedEvents[0]['userId']);
         $this->disableSession();
     }
 }
