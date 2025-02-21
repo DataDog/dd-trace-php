@@ -6,7 +6,7 @@ use DDTrace\Integrations\Integration;
 
 class WordPressIntegration extends Integration
 {
-    const NAME = 'wordpress';
+    public const NAME = 'wordpress';
 
     /**
      * @var string
@@ -53,11 +53,13 @@ class WordPressIntegration extends Integration
             return true;
         });
 
-        \DDTrace\hook_method('WP', 'main',  null, function ($This, $scope, $args) {
+        \DDTrace\hook_method('WP', 'main', null, function ($This, $scope, $args) {
             if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
-                if (function_exists('\datadog\appsec\push_addresses') &&
+                if (
+                    function_exists('\datadog\appsec\push_addresses') &&
                     \property_exists($This, 'query_vars') &&
-                    function_exists('is_404') && is_404() === false) {
+                        function_exists('is_404') && is_404() === false
+                ) {
                     $parameters = $This->query_vars;
                     if (count($parameters) > 0) {
                         \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
@@ -126,11 +128,6 @@ class WordPressIntegration extends Integration
                     return;
                 }
 
-                $errorClass = '\WP_Error';
-                if ($retval instanceof $errorClass) {
-                    return;
-                }
-
                 $metadata = [];
                 $login = null;
 
@@ -147,6 +144,29 @@ class WordPressIntegration extends Integration
                     $login,
                     $retval,
                     $metadata
+                );
+            }
+        );
+
+        \DDTrace\hook_function(
+            'wp_get_current_user',
+            null,
+            function ($args, $retval) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                $userClass = '\WP_User';
+
+                if (!$retval instanceof $userClass) {
+                    return;
+                }
+
+                $data = \property_exists($retval, 'data') ? $retval->data : null;
+                $id = \property_exists($data, 'ID') ? $data->ID : null;
+
+                \datadog\appsec\track_authenticated_user_event_automated(
+                    $id,
                 );
             }
         );
