@@ -23,6 +23,7 @@ enum ddtrace_span_dataype {
     DDTRACE_INTERNAL_SPAN,
     DDTRACE_USER_SPAN,
     DDTRACE_AUTOROOT_SPAN,
+    DDTRACE_INFERRED_SPAN,
     DDTRACE_SPAN_CLOSED,
 };
 
@@ -86,6 +87,7 @@ struct ddtrace_span_data {
     bool notify_user_req_end;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
+    bool is_child_of_inferred_span;
 
     union {
         ddtrace_span_properties;
@@ -107,6 +109,7 @@ struct ddtrace_root_span_data {
     ddtrace_rule_result sampling_rule;
     bool explicit_sampling_priority;
     enum ddtrace_trace_limited trace_is_limited;
+    struct ddtrace_root_span_data *child_root; // Only used when inferring proxy services (type: DDTRACE_INFERRED_SPAN)
 
     union {
         ddtrace_span_data;
@@ -211,6 +214,7 @@ ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
 void ddtrace_push_root_span(void);
+ddtrace_span_data *ddtrace_push_inferred_root_span(void);
 
 ddtrace_span_data *ddtrace_active_span(void);
 static inline ddtrace_span_properties *ddtrace_active_span_props(void) {
@@ -241,6 +245,8 @@ zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_string(ddtrace_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
 zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id);
+ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers);
+void ddtrace_infer_proxy_services(void);
 
 bool ddtrace_span_alter_root_span_config(zval *old_value, zval *new_value, zend_string *new_str);
 
@@ -250,7 +256,7 @@ static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
 
 static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
     // The parent stack of a true top-level stack does never have a parent stack itself
-    return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
+    return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack) && !span->is_child_of_inferred_span;
 }
 
 #endif  // DD_SPAN_H

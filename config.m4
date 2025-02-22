@@ -188,6 +188,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_kafka.c \
     ext/handlers_pcntl.c \
     ext/handlers_signal.c \
+    ext/inferred_proxy_headers.c \
     ext/integrations/exec_integration.c \
     ext/integrations/integrations.c \
     ext/ip_extraction.c \

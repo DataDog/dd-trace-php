@@ -137,15 +137,17 @@ class RoadrunnerIntegration extends Integration
         $recCall = 0;
 
         \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::waitRequest',
-            function () use (&$activeSpan, &$suppressResponse) {
+            function () use (&$inferredSpan, &$activeSpan, &$suppressResponse) {
                 if ($activeSpan) {
                     \DDTrace\close_spans_until($activeSpan);
                     \DDTrace\close_span();
+                    dd_trace_close_all_spans_and_flush();
                 }
                 $activeSpan = null;
+                $inferredSpan = null;
                 $suppressResponse = null;
             },
-            function (HookData $hook) use (&$activeSpan, &$suppressResponse, $integration, $service, &$recCall) {
+            function (HookData $hook) use (&$inferredSpan, &$activeSpan, &$suppressResponse, $integration, $service, &$recCall) {
                 /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $retval = $hook->returned;
                 if (!$retval && !$hook->exception) {
@@ -155,7 +157,22 @@ class RoadrunnerIntegration extends Integration
                     return;
                 }
 
-                $activeSpan = \DDTrace\start_trace_span();
+                $headers = [];
+                if ($retval) {
+                    foreach ($retval->headers as $headername => $header) {
+                        $header = implode(", ", $header);
+                        $headers[strtolower($headername)] = $header;
+                    }
+                }
+
+                $inferredProxyServicesEnabled = \dd_trace_env_config('DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED');
+                $inferredSpan = null;
+                if ($inferredProxyServicesEnabled && $headers) {
+                    $inferredSpan = \DDTrace\start_inferred_span($headers);
+                }
+                $hook->data['inferredSpan'] = $inferredSpan;
+
+                $activeSpan = $inferredSpan ? \DDTrace\start_span() : \DDTrace\start_trace_span();
 
                 $activeSpan->service = $service;
                 $activeSpan->name = "web.request";
@@ -165,26 +182,32 @@ class RoadrunnerIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;
-                    \DDTrace\close_span();
-                    $activeSpan = null;
-                } else {
-                    $headers = [];
-                    foreach ($retval->headers as $headername => $header) {
-                        $header = implode(", ", $header);
-                        $headers[strtolower($headername)] = $header;
+                    if ($inferredSpan) {
+                        $inferredSpan->exception = $hook->exception;
                     }
+                    \DDTrace\close_span();
+                    if ($inferredSpan) {
+                        dd_trace_close_all_spans_and_flush();
+                    }
+                    $activeSpan = null;
+                    $inferredSpan = null;
+                } else {
                     \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });
 
-                    $res = notify_start($activeSpan, RoadrunnerIntegration::build_req_spec($retval), $retval->body);
+                    $res = notify_start($inferredSpan ?: $activeSpan, RoadrunnerIntegration::build_req_spec($retval), $retval->body);
                     if ($res) {
                         // block on start
                         RoadrunnerIntegration::ensure_headers_map_fmt($res['headers']);
 
                         $this->respond($res['status'], $res['body'] ?? '', $res['headers']);
                         \DDTrace\close_span();
+                        if ($inferredSpan) {
+                            dd_trace_close_all_spans_and_flush();
+                        }
                         $activeSpan = null;
+                        $inferredSpan = null;
 
                         if ($recCall++ > 128) {
                             // too many recursive calls. Exit so that the worker can be restarted
@@ -199,7 +222,7 @@ class RoadrunnerIntegration extends Integration
                     } else {
                         $thiz = $this;
                         // to support block midrequest
-                        set_blocking_function($activeSpan,
+                        set_blocking_function($inferredSpan ?: $activeSpan,
                             static function ($res) use (&$activeSpan, &$suppressResponse, $thiz) {
                                 RoadrunnerIntegration::ensure_headers_map_fmt($res['headers']);
                                 $thiz->respond($res['status'], $res['body'] ?? '', $res['headers']);
@@ -210,7 +233,7 @@ class RoadrunnerIntegration extends Integration
                 }
             });
 
-        $respondBefore = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+        $respondBefore = function (HookData $hook) use (&$inferredSpan, &$activeSpan, &$suppressResponse) {
             $hook->disableJitInlining();
             if (!$activeSpan || count($hook->args) < 3) {
                 return;
@@ -237,7 +260,7 @@ class RoadrunnerIntegration extends Integration
                 // send arbitrary addresses.
                 $body = null;
             }
-            $blocking = notify_commit($activeSpan, $hook->args[0], $hook->args[2], $body);
+            $blocking = notify_commit($inferredSpan ?: $activeSpan, $hook->args[0], $hook->args[2], $body);
             if ($blocking) {
                 $hook->args[0] = $blocking['status'];
                 $hook->args[1] = $blocking['body'];
@@ -246,7 +269,7 @@ class RoadrunnerIntegration extends Integration
             }
         };
 
-        $respondAfter = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+        $respondAfter = function (HookData $hook) use (&$inferredSpan, &$activeSpan, &$suppressResponse) {
             if (!$activeSpan || count($hook->args) < 3) {
                 return;
             }
@@ -257,8 +280,14 @@ class RoadrunnerIntegration extends Integration
             $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
             if ($hook->exception && empty($activeSpan->exception)) {
                 $activeSpan->exception = $hook->exception;
+                if ($inferredSpan) {
+                    $inferredSpan->exception = $hook->exception;
+                }
             } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {
                 $activeSpan->exception = $ex;
+                if ($inferredSpan) {
+                    $inferredSpan->exception = $ex;
+                }
             }
         };
 
