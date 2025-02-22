@@ -6,7 +6,7 @@ Distributed tracing header tags propagate asm events with curl_exec()
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 HTTP_X_DATADOG_TRACE_ID=42
-DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED=1
+DD_APM_TRACING_ENABLED=0
 --FILE--
 <?php
 
