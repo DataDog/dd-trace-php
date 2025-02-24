@@ -97,13 +97,14 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
 
-    if live_debugging_enabled {
-        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugger)
-    }
-
     if appsec_features {
         DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
         DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
+        DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
+    }
+
+    if live_debugging_enabled {
+        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugger)
     }
 
     if appsec_config {

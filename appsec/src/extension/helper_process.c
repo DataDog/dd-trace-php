@@ -206,7 +206,7 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
 
     enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
 
-    *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
+    *appsec_features = true;
     // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
     *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
 
