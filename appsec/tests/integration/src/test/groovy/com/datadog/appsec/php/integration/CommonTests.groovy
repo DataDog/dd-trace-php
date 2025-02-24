@@ -275,6 +275,39 @@ trait CommonTests {
         assert exploit.frames[2].line == 15
     }
 
+    @Test
+    void 'test stack generation without blocking'() {
+        HttpRequest req = container.buildReq('/generate_stack.php?id=stack_user_no_block').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+
+        Span span = trace.first()
+
+        assert span.meta."appsec.event" == 'true'
+
+        InputStream stream = new ByteArrayInputStream( span.meta_struct."_dd.stack".decodeBase64() )
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(stream)
+        List<Object> stacks = []
+        stacks << MsgpackHelper.unpackSingle(unpacker)
+        Object exploit = stacks.first().exploit.first()
+
+        assert exploit.language == "php"
+        assert exploit.id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        assert exploit.frames[0].file == "generate_stack.php"
+        assert exploit.frames[0].function == "one"
+        assert exploit.frames[0].id == 0
+        assert exploit.frames[0].line == 8
+        assert exploit.frames[1].file == "generate_stack.php"
+        assert exploit.frames[1].function == "two"
+        assert exploit.frames[1].id == 1
+        assert exploit.frames[1].line == 12
+        assert exploit.frames[2].file == "generate_stack.php"
+        assert exploit.frames[2].function == "three"
+        assert exploit.frames[2].id == 2
+        assert exploit.frames[2].line == 15
+    }
+
      static Stream<Arguments> getTestLfiData() {
             return Arrays.stream(new Arguments[]{
                     Arguments.of("file_put_contents", "/tmp/dummy", 9),
