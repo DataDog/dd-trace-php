@@ -180,7 +180,6 @@ pub fn alloc_prof_rshutdown() {
         let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
         let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
         let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-        // Safety: `unwrap()` is safe here, as `heap` is initialized in `RINIT`
         let heap = unsafe { (*zend_mm_state).heap };
         if heap.is_none() {
             return;
