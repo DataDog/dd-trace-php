@@ -14,6 +14,7 @@ use Swoole\Http\Server;
 use function DDTrace\consume_distributed_tracing_headers;
 use function DDTrace\extract_ip_from_headers;
 use function DDTrace\Internal\handle_fork;
+use function DDTrace\set_distributed_tracing_context;
 
 class SwooleIntegration extends Integration
 {
@@ -34,17 +35,24 @@ class SwooleIntegration extends Integration
         \DDTrace\install_hook(
             $callback,
             function (HookData $hook) use ($integration, $server, $scheme) {
-                $rootSpan = $hook->span(new SpanStack());
+                $args = $hook->args;
+                /** @var Request $request */
+                $request = $args[0];
+
+                $inferredProxyServicesEnabled = \dd_trace_env_config('DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED');
+                $inferredSpan = null;
+                if ($inferredProxyServicesEnabled) {
+                    $inferredSpan = \DDTrace\start_inferred_span($request->header);
+                }
+                $hook->data['inferredSpan'] = $inferredSpan;
+
+                $rootSpan = $hook->span($inferredSpan ?: new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;
                 $rootSpan->meta[Tag::COMPONENT] = SwooleIntegration::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
-
-                $args = $hook->args;
-                /** @var Request $request */
-                $request = $args[0];
 
                 $headers = [];
                 $allowedHeaders = \dd_trace_env_config('DD_TRACE_HEADER_TAGS');
@@ -102,6 +110,16 @@ class SwooleIntegration extends Integration
                 $rootSpan->meta[Tag::HTTP_URL] = Normalizer::uriNormalizeincomingPath($url);
 
                 unset($rootSpan->meta['closure.declaration']);
+            },
+            function (HookData $hook) {
+                $inferredSpan = $hook->data['inferredSpan'];
+                if ($inferredSpan) {
+                    $autofinishConfig = ini_get('datadog.autofinish_spans');
+                    ini_set('datadog.autofinish_spans', 'true');
+                    \DDTrace\switch_stack($inferredSpan);
+                    dd_trace_close_all_spans_and_flush();
+                    ini_set('datadog.autofinish_spans', $autofinishConfig);
+                }
             }
         );
     }
@@ -175,7 +193,9 @@ class SwooleIntegration extends Integration
                     && ((int)$rootSpan->meta[Tag::HTTP_STATUS_CODE]) >= 500
                     && $ex = \DDTrace\find_active_exception()
                 ) {
-                    $rootSpan->exception = $ex;
+                    do {
+                        $rootSpan->exception = $ex;
+                    } while ($rootSpan = $rootSpan->parent);
                 }
             }
         );
