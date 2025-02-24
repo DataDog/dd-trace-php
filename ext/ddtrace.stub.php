@@ -284,6 +284,12 @@ namespace DDTrace {
          * @var GitMetadata|null The git metadata of the span
          */
         public GitMetadata|null $gitMetadata = null;
+
+        /**
+         * @var array In OpenTelemetry, Baggage is contextual information that resides next to context.
+         * Baggage is a key-value store, which means it lets you propagate any data you like alongside context regardless of trace ids existence.
+         */
+        public array $baggage = [];
     }
 
     /**
