@@ -245,11 +245,10 @@ pub fn alloc_prof_rshutdown() {
         let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
         let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
 
-        if unsafe { (*zend_mm_state).heap.is_null() } {
+        let heap = unsafe { (*zend_mm_state).heap };
+        if heap.is_null() {
             return;
         }
-
-        let heap = unsafe { (*zend_mm_state).heap };
 
         unsafe {
             zend::zend_mm_get_custom_handlers_ex(
