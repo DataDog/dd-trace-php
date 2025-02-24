@@ -184,6 +184,7 @@ pub fn alloc_prof_rshutdown() {
         // SAFETY: UnsafeCell::get() ensures non-null, and the object should
         // be valid for reads during rshutdown.
         let Some(heap) =  (unsafe { (*zend_mm_state).heap }) else {
+            // The heap can be None if a fork happens outside the request.
             return;
         };
 

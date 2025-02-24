@@ -35,7 +35,10 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
 /// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
 /// dynamic linker prior to us messing with the global offset table. If the dynamic library would
 /// not be a valid ELF64, the dynamic linker would have not loaded it.
-unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSymbolOverwrite>) -> bool {
+unsafe fn override_got_entry(
+    info: *mut dl_phdr_info,
+    overwrites: *mut Vec<GotSymbolOverwrite>,
+) -> bool {
     let phdr = (*info).dlpi_phdr;
 
     // Locate the dynamic programm header (`PT_DYNAMIC`)
