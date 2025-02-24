@@ -29,7 +29,8 @@ printf "Test load loader\n\n"
 DD_TRACE_DEBUG=1 php -n -d zend_extension=${PWD}/modules/dd_library_loader.so -v
 
 printf "\nRunning PHPT tests\n"
-php -n run-tests.php -q -p $(which php) -n -d zend_extension=${PWD}/modules/dd_library_loader.so --show-diff
+# point extension_dir into nirvana to avoid issues with dl()
+php -n run-tests.php -q -p $(which php) -n -d extension_dir=/dev/shm/ -d zend_extension=${PWD}/modules/dd_library_loader.so --show-diff
 
 printf "\nRunning functional tests\n\n"
 failure=0

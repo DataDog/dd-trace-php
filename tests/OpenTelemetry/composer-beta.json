@@ -3,7 +3,14 @@
     "require": {
         "open-telemetry/sdk": "@beta",
         "open-telemetry/extension-propagator-b3": "@beta",
-        "open-telemetry/opentelemetry-logger-monolog": "@beta"
+        "open-telemetry/opentelemetry-logger-monolog": "@beta",
+        "open-telemetry/opentelemetry-auto-io": "^0.0.12"
     },
-    "minimum-stability": "beta"
+    "minimum-stability": "beta",
+    "config": {
+        "platform": {
+            "ext-opentelemetry": "1"
+        },
+        "vendor-dir": "vendor-beta/"
+    }
 }

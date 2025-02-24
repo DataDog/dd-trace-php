@@ -913,12 +913,20 @@ void zai_interceptor_execute_internal_with_handler(INTERNAL_FUNCTION_PARAMETERS,
 }
 #endif
 
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+zend_internal_function **preloaded_enum_functions = NULL;
+#endif
+
 void zai_interceptor_setup_resolving_post_startup(void);
 
 // extension handles are supposed to be frozen at post_startup time and observer extension handle allocation
 // incidentally is right before the defacto freeze via zend_finalize_system_id
 static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+    uint32_t classes = zend_hash_num_elements(CG(class_table));
+#endif
+
     zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
     zai_hook_post_startup();
@@ -929,6 +937,34 @@ zend_result zai_interceptor_post_startup(void) {
 
 #ifdef __GNUC__
     zai_interceptor_avoid_compile_opt = true; // Reset it in case MINIT gets re-executed
+#endif
+
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+    if (classes != zend_hash_num_elements(CG(class_table))) {
+        // We suppose some preloading happened here
+        zend_class_entry *ce;
+        int num = 0;
+        ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+            if ((ce->ce_flags & ZEND_ACC_ENUM) && ce->type != ZEND_INTERNAL_CLASS) {
+                num += ce->enum_backing_type == IS_UNDEF ? 1 : 3;
+            }
+        } ZEND_HASH_FOREACH_END();
+        if (num) {
+            preloaded_enum_functions = pemalloc(sizeof(zend_function *) * (num + 1), 1);
+            int idx = 0;
+            ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+                if ((ce->ce_flags & ZEND_ACC_ENUM) && ce->type != ZEND_INTERNAL_CLASS) {
+                    zend_function *function;
+                    ZEND_HASH_FOREACH_PTR(&ce->function_table, function) {
+                        if (!ZEND_USER_CODE(function->type)) {
+                            preloaded_enum_functions[idx++] = &function->internal_function;
+                        }
+                    } ZEND_HASH_FOREACH_END();
+                }
+            } ZEND_HASH_FOREACH_END();
+            preloaded_enum_functions[idx] = NULL;
+        }
+    }
 #endif
 
     return result;
@@ -1007,6 +1043,18 @@ void zai_interceptor_activate(void) {
     zai_interceptor_reset_resolver();
 #endif
 }
+
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+void zai_interceptor_rinit(void) {
+    if (preloaded_enum_functions) {
+        zend_internal_function **zif = preloaded_enum_functions;
+        size_t cache_size = zend_internal_run_time_cache_reserved_size();
+        do {
+            ZEND_MAP_PTR_SET((*zif)->run_time_cache, zend_arena_calloc(&CG(arena), 1, cache_size));
+        } while (*++zif);
+    }
+}
+#endif
 
 void zai_interceptor_deactivate(void) {
     zend_hash_destroy(&zai_hook_memory);

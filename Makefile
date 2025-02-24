@@ -25,18 +25,19 @@ AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
 LDFLAGS ?=
-PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'print ini_get("extension_dir");')
-PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
+PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -r 'print ini_get("extension_dir");')
+PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -n -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 ARCHITECTURE = $(shell uname -m)
 QUIET_TESTS := ${CIRCLE_SHA1}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
+ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000
 
 VERSION := $(shell cat VERSION)
 
-INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
+INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
@@ -108,9 +109,10 @@ $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSIO
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
+	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
+	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
@@ -154,10 +156,10 @@ install_appsec:
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) $(TESTS)
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -169,7 +171,7 @@ test_c_disabled: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-te
 	)
 
 test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) DD_TRACE_GIT_METADATA_ENABLED=0 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
@@ -196,12 +198,11 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	export DD_TRACE_GIT_METADATA_ENABLED=0; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 build_tea: TEA_BUILD_TESTS=ON
@@ -531,7 +532,7 @@ cores:
 # TESTS
 ########################################################################################################################
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 DD_TRACE_GIT_METADATA_ENABLED=false
+ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE)
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
@@ -1058,6 +1059,52 @@ TEST_WEB_83 := \
 	test_web_custom \
 	test_web_zend_1_21
 
+TEST_INTEGRATIONS_84 := \
+	test_integrations_amqp2 \
+	test_integrations_amqp_latest \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_kafka \
+	test_integrations_laminaslog2 \
+	test_integrations_memcache \
+	test_integrations_memcached \
+	test_integrations_mongodb_latest \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog_latest \
+	test_integrations_mysqli \
+	test_integrations_openai_latest \
+	test_opentelemetry_1 \
+	test_integrations_googlespanner_latest \
+	test_integrations_guzzle_latest \
+	test_integrations_pcntl \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch_latest \
+	test_integrations_predis_latest \
+	test_integrations_frankenphp \
+	test_integrations_roadrunner \
+	test_integrations_sqlsrv \
+	test_integrations_swoole_5 \
+	test_opentracing_10
+
+TEST_WEB_84 := \
+	test_metrics \
+	test_web_cakephp_latest \
+	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
+	test_web_laravel_octane_latest \
+	test_web_lumen_100 \
+	test_web_nette_latest \
+	test_web_slim_312 \
+	test_web_symfony_latest \
+	test_web_wordpress_59 \
+	test_web_wordpress_61 \
+	test_web_custom \
+	test_web_zend_1_21
+
+# to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
+
 FILTER ?= .
 MAX_RETRIES := 3
 
@@ -1105,10 +1152,13 @@ define run_benchmarks_with_ddprof
 endef
 
 define run_composer_with_lock
-	rm $1/composer.lock-php* 2>/dev/null || true
+	rm $1/$(if $2,$(2:.json=.lock),composer.lock)-php* 2>/dev/null || true
+	$(eval CURRENT_COMPOSER:=$(COMPOSER))
+	$(if $(2), $(eval COMPOSER:=COMPOSER=$2 $(COMPOSER)))
 	$(call run_composer_with_retry,$1,)
+	$(eval COMPOSER:=$(CURRENT_COMPOSER))
 	find $1/vendor* \( -name Tests -prune -o -name tests -prune \) -exec rm -rf '{}' \;
-	touch $1/composer.lock-php$(PHP_MAJOR_MINOR)
+	touch $1/$(if $2,$(2:.json=.lock),composer.lock)-php$(PHP_MAJOR_MINOR)
 endef
 
 # use this as the first target if you want to use uncompiled files instead of the _generated_*.php compiled file.
@@ -1193,26 +1243,19 @@ benchmarks: benchmarks_run_dependencies call_benchmarks
 
 benchmarks_opcache: benchmarks_run_dependencies call_benchmarks_opcache
 
-define setup_opentelemetry
-	cp $(1) $(dir $(1))/composer.json
-endef
-
 define run_opentelemetry_tests
-	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0)
+	$(eval TEST_EXTRA_ENV=$(shell [ $(PHP_MAJOR_MINOR) -ge 81 ] && echo "OTEL_PHP_FIBERS_ENABLED=1" || echo '') DD_TRACE_OTEL_ENABLED=1 DD_TRACE_GENERATE_ROOT_SPAN=0 $1)
 	$(call run_tests,--testsuite=opentelemetry1 $(TESTS))
 	$(eval TEST_EXTRA_ENV=)
 endef
 
-_test_opentelemetry_beta_setup: global_test_run_dependencies
-	$(call setup_opentelemetry,tests/OpenTelemetry/composer-beta.json)
+test_opentelemetry_beta: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer-beta$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
+	$(call run_opentelemetry_tests, TESTSUITE_VENDOR_DIR=vendor-beta)
 
-test_opentelemetry_beta: _test_opentelemetry_beta_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
-	$(call run_opentelemetry_tests)
+tests/OpenTelemetry/composer-%.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-%.json
+	$(call run_composer_with_lock,tests/OpenTelemetry,composer-$(*).json)
 
-_test_opentelemetry_1_setup: global_test_run_dependencies
-	$(call setup_opentelemetry,tests/OpenTelemetry/composer-1.json)
-
-test_opentelemetry_1: _test_opentelemetry_1_setup tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR)
+test_opentelemetry_1: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
 	$(call run_opentelemetry_tests)
 
 test_opentracing_10: global_test_run_dependencies tests/OpenTracer1Unit/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Custom/OpenTracing/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1302,9 +1345,11 @@ test_integrations_frankenphp: global_test_run_dependencies
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_googlespanner_latest: global_test_run_dependencies tests/Integrations/GoogleSpanner/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(eval TEST_EXTRA_ENV=ZEND_DONT_UNLOAD_MODULES=1)
 	$(eval TEST_EXTRA_INI=-d extension=grpc.so)
 	$(call run_tests_debug,tests/Integrations/GoogleSpanner/Latest)
 	$(eval TEST_EXTRA_INI=)
+	$(eval TEST_EXTRA_ENV=)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)

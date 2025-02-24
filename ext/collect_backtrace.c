@@ -61,7 +61,7 @@ static void debug_backtrace_get_args(zend_execute_data *call, zval *arg_array) {
 #if PHP_VERSION_ID >= 70100
                 if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_HAS_SYMBOL_TABLE))
 #else
-                    if (call->symbol_table)
+                if (call->symbol_table)
 #endif
                 {
                     /* In case of attached symbol_table, values on stack may be invalid
@@ -222,7 +222,7 @@ static inline zend_bool skip_internal_handler(zend_execute_data *skip) /* {{{ */
 /* Copy of zend_fetch_debug_backtrace with ability to gather local variables */
 void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int options, int limit)
 {
-    zend_execute_data *call;
+    zend_execute_data *call, *last_call = NULL;
     zend_object *object;
     bool fake_frame = 0;
     int lineno, frameno = 0;
@@ -274,6 +274,7 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
 
     if (skip_last) {
         /* skip debug_backtrace() */
+        last_call = call;
         call = call->prev_execute_data;
     }
 
@@ -331,9 +332,12 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
                 zval *arg = zend_get_zval_ptr(op_data, op_data->op1_type, &op_data->op1, call);
                 if (Z_TYPE_P(arg) == IS_UNDEF) goto not_frameless_call;
             }
+            zend_function *func = ZEND_FLF_FUNC(opline);
+            if (last_call && last_call->func == func) {
+                goto not_frameless_call;
+            }
             stack_frame = zend_new_array(8);
             zend_hash_real_init_mixed(stack_frame);
-            zend_function *func = ZEND_FLF_FUNC(opline);
             zend_string *name = func->common.function_name;
             ZVAL_STRINGL(&tmp, ZSTR_VAL(name), ZSTR_LEN(name));
             _zend_hash_append_ex(stack_frame, ZSTR_KNOWN(ZEND_STR_FUNCTION), &tmp, 1);
@@ -392,7 +396,7 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
         }
         not_frameless_call:
 #else
-        UNUSED(prev_stack_frame);
+        UNUSED(prev_stack_frame, last_call);
 #endif
 
         /* We use _zend_hash_append*() and the array must be preallocated */
@@ -566,6 +570,7 @@ void ddtrace_fetch_debug_backtrace(zval *return_value, int skip_last, int option
         } else {
             fake_frame = 0;
             include_filename = filename;
+            last_call = call;
             call = prev;
         }
     }

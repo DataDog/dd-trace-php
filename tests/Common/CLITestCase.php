@@ -92,9 +92,6 @@ abstract class CLITestCase extends IntegrationTestCase
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
         `$commandToExecute`;
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-            \dd_trace_synchronous_flush();
-        }
     }
 
     /**

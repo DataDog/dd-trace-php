@@ -121,7 +121,7 @@ TEST(BrokerTest, SendRequestInit)
     packer.pack_array(1);             // Array of messages
     packer.pack_array(2);             // First message
     pack_str(packer, "request_init"); // Type
-    packer.pack_array(3);
+    packer.pack_array(4);
     packer.pack_array(1); // Array of actions
     packer.pack_array(2); // First action
     pack_str(packer, "block");
@@ -134,6 +134,9 @@ TEST(BrokerTest, SendRequestInit)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force_keep
+    packer.pack_map(1);
+    pack_str(packer, "auto_user_instrum");
+    pack_str(packer, "DISABLED");
 
     const auto &expected_data = ss.str();
 
@@ -149,6 +152,7 @@ TEST(BrokerTest, SendRequestInit)
         {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
     response->force_keep = true;
+    response->settings["auto_user_instrum"] = "DISABLED";
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);
@@ -169,7 +173,7 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(1);                 // Array of messages
     packer.pack_array(2);                 // First message
     pack_str(packer, "request_shutdown"); // Type
-    packer.pack_array(6);
+    packer.pack_array(7);
     packer.pack_array(1);
     packer.pack_array(2);
     pack_str(packer, "block");
@@ -182,9 +186,10 @@ TEST(BrokerTest, SendRequestShutdown)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force keep
-    packer.pack_map(0);
-    packer.pack_map(0);
-    packer.pack_map(0);
+    packer.pack_map(0); // Settings
+    packer.pack_map(0); // Meta
+    packer.pack_map(0); // Metrics
+    packer.pack_map(0); // Tel_metrics
     const auto &expected_data = ss.str();
 
     network::header_t h;
@@ -219,7 +224,7 @@ TEST(BrokerTest, SendRequestExec)
     packer.pack_array(1);             // Array of messages
     packer.pack_array(2);             // First message
     pack_str(packer, "request_exec"); // Type
-    packer.pack_array(3);
+    packer.pack_array(4);
     packer.pack_array(1);
     packer.pack_array(2);
     pack_str(packer, "block");
@@ -232,6 +237,7 @@ TEST(BrokerTest, SendRequestExec)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force keep
+    packer.pack_map(0); // Settings
     const auto &expected_data = ss.str();
 
     network::header_t h;

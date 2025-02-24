@@ -21,13 +21,21 @@ class PredisTest extends IntegrationTestCase
 
     protected function ddSetUp()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST']);
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+        ]);
         parent::ddSetUp();
     }
 
     protected function ddTearDown()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST']);
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
+            'DD_SERVICE',
+        ]);
         parent::ddTearDown();
     }
 
@@ -355,6 +363,25 @@ class PredisTest extends IntegrationTestCase
 
         $span = $traces[0][0];
         $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+    }
+
+    public function testNoFakeServices()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_SERVICE=configured_service',
+            'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true',
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client(["host" => $this->host]);
+            $client->connect();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.connect', 'configured_service', 'redis', 'Predis.Client.connect')
+                ->withExactTags($this->baseTags()),
+        ]);
     }
 
     private function baseTags()

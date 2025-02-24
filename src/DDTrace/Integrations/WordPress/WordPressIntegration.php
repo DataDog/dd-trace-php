@@ -82,6 +82,9 @@ class WordPressIntegration extends Integration
                     if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                         return;
                     }
+                    if (empty($username)) {
+                        return;
+                    }
                     $errorClass = '\WP_Error';
                     $exists = $retval instanceof $errorClass &&
                         \property_exists($retval, 'errors') &&

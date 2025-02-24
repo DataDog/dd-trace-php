@@ -30,6 +30,7 @@ serde_with = "3.6.0"
 lazy_static = "1.4"
 log = "0.4.20"
 env_logger = "0.10.1"
+zwohash = "0.1.2"
 uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
 tempfile = {version = "3.3"}

@@ -39,7 +39,7 @@ echo 'Done.' . PHP_EOL;
 --EXPECTF--
 [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 
-datadog-container-id: 34dc0b5e626f2c5c4c5170e34b10e765-1234567890
+datadog-container-id:%s34dc0b5e626f2c5c4c5170e34b10e765-1234567890
 datadog-meta-lang: php
 
 Done.

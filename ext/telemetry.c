@@ -6,6 +6,7 @@
 #include "telemetry.h"
 #include "serializer.h"
 #include "sidecar.h"
+#include <string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -19,6 +20,44 @@ ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
         return DDTRACE_G(telemetry_buffer);
     }
     return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
+}
+
+void ddtrace_integration_error_telemetryf(const char *format, ...) {
+    va_list va, va2;
+    va_start(va, format);
+    char buf[0x100];
+    ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
+    va_copy(va2, va);
+    int len = vsnprintf(buf, sizeof(buf), format, va2);
+    va_end(va2);
+    if (len > (int)sizeof(buf)) {
+        char *msg = malloc(len + 1);
+        len = vsnprintf(msg, len + 1, format, va);
+        ddog_sidecar_telemetry_add_integration_log_buffer(buffer, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
+        free(msg);
+    } else {
+        ddog_sidecar_telemetry_add_integration_log_buffer(buffer, (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
+    }
+    va_end(va);
+}
+
+const char *ddtrace_telemetry_redact_file(const char *file) {
+#ifdef _WIN32
+#define SEPARATOR_CHAR "\\"
+#else
+#define SEPARATOR_CHAR "/"
+#endif
+    const char *redacted_substring = strstr(file, SEPARATOR_CHAR "DDTrace");
+    if (redacted_substring != NULL) {
+        return redacted_substring;
+    } else {
+        // Should not happen but will serve as a gate keepers
+        const char *php_file_name = strrchr(file, SEPARATOR_CHAR[0]);
+        if (php_file_name) {
+            return php_file_name;
+        }
+        return "";
+    }
 }
 
 static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
@@ -149,7 +188,6 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     dd_commit_metrics();
-
     ddtrace_ffi_try("Failed flushing telemetry buffer",
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
 
@@ -185,10 +223,14 @@ void ddtrace_telemetry_finalize(void) {
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
+    ddtrace_telemetry_notify_integration_version(name, name_len, "", 0);
+}
+
+void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len) {
     if (ddtrace_sidecar && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
-        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), integration,
-                                              DDOG_CHARSLICE_C(""), true);
+        ddog_CharSlice ver = (ddog_CharSlice) {.len = version_len, .ptr = version};
+        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), integration, ver, true);
     }
 }
 
