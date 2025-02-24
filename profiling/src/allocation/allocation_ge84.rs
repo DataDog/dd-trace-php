@@ -249,7 +249,7 @@ pub fn alloc_prof_rshutdown() {
         // be valid for reads during rshutdown.
         let heap = unsafe { (*zend_mm_state).heap };
 
-        // The heap ptr can be null if a fork has happens outside the request.
+        // The heap ptr can be null if a fork happens outside the request.
         if heap.is_null() {
             return;
         }
