@@ -245,8 +245,12 @@ pub fn alloc_prof_rshutdown() {
         let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
         let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
 
-        // Safety: `unwrap()` is safe here, as `heap` is initialized in `MINIT`
+        if unsafe { (*zend_mm_state).heap.is_null() } {
+            return;
+        }
+
         let heap = unsafe { (*zend_mm_state).heap };
+
         unsafe {
             zend::zend_mm_get_custom_handlers_ex(
                 heap,
