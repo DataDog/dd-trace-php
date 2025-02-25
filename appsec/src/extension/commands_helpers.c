@@ -105,6 +105,8 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         __attribute__((cleanup(_imsg_cleanup))) dd_imsg *nullable destroy_imsg =
             &imsg;
 
+        // TODO: it seems we only look at the first response? Why even support
+        //       several responses then?
         mpack_node_t first_response = mpack_node_array_at(imsg.root, 0);
         mpack_error_t err = mpack_node_error(first_response);
         if (err != mpack_ok) {
@@ -142,6 +144,10 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
             res = spec->config_features_cb(first_message, ctx);
         } else if (dd_mpack_node_str_eq(type, spec->name, spec->name_len)) {
             res = spec->incoming_cb(first_message, ctx);
+        } else if (dd_mpack_node_lstr_eq(type, "error")) {
+            mlog(dd_log_info,
+                "Helper responded with an error. Check helper logs");
+            return dd_helper_error;
         } else {
             mlog(dd_log_debug,
                 "Received message for command %.*s unexpected: %.*s\n", NAME_L,
@@ -247,12 +253,6 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(
     dd_result res = dd_conn_recv(conn, &imsg->_data, &imsg->_size);
     if (res) {
         return res;
-    }
-
-    if (imsg->_size == 1) {
-        // The helper process sent an error response, this is a non-fatal
-        // error to indicate the message could not be processed.
-        return dd_helper_error;
     }
 
     mpack_tree_init(&imsg->_tree, imsg->_data, imsg->_size);
