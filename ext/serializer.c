@@ -797,6 +797,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     if (parent_root) {
         ddtrace_inherit_span_properties(&span->span, &parent_root->span);
         ZVAL_COPY(&span->property_origin, &parent_root->property_origin);
+        ZVAL_COPY(&span->property_baggage, &parent_root->property_baggage);
     } else {
         zval *prop_type = &span->property_type;
         zval *prop_name = &span->property_name;
@@ -840,6 +841,9 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         zend_hash_copy(Z_ARR(span->property_propagated_tags), &DDTRACE_G(propagated_root_span_tags), zval_add_ref);
         SEPARATE_ARRAY(&span->property_tracestate_tags);
         zend_hash_copy(Z_ARR(span->property_tracestate_tags), &DDTRACE_G(tracestate_unknown_dd_keys), zval_add_ref);
+        SEPARATE_ARRAY(&span->property_baggage);
+        zend_hash_copy(Z_ARR(span->property_baggage), &DDTRACE_G(baggage), zval_add_ref);
+
         if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
             ZVAL_LONG(&span->property_propagated_sampling_priority, DDTRACE_G(propagated_priority_sampling));
         }

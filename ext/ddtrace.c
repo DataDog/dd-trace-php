@@ -881,6 +881,8 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
+    zend_hash_destroy(&result.baggage);
+
     if (result.origin) {
         zend_string_release(result.origin);
     }
@@ -1648,6 +1650,7 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
+    zend_hash_destroy(&DDTRACE_G(baggage));
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
