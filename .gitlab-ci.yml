@@ -13,6 +13,7 @@ variables:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
+  REPO_NOTIFICATION_CHANNEL: "#apm-php"
 
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
