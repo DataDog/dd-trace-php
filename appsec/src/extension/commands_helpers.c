@@ -484,14 +484,12 @@ static dd_result _command_process_actions(
     mpack_node_t root, struct req_info *ctx)
 {
     size_t actions = mpack_node_array_length(root);
-    bool block = false;
-    bool redirect = false;
-    bool record = false;
+    dd_result res = dd_success;
 
     for (size_t i = 0; i < actions; i++) {
         mpack_node_t action = mpack_node_array_at(root, i);
 
-        // expected: ['ok' / 'record' / 'block' / 'redirect' / 'stack_trace']
+        // expected: ['ok' / 'record' / 'block' / 'redirect']
         mpack_node_t verdict = mpack_node_array_at(action, 0);
         if (mlog_should_log(dd_log_debug)) {
             const char *verd_str = mpack_node_str(verdict);
@@ -505,36 +503,27 @@ static dd_result _command_process_actions(
         }
 
         // Parse parameters
-        if (dd_mpack_node_lstr_eq(verdict, "block") && !redirect &&
-            !block) { // Redirect take over block
-            block = true;
+        if (dd_mpack_node_lstr_eq(verdict, "block") && res != dd_should_block &&
+            res != dd_should_redirect) { // Redirect take over block
+            res = dd_should_block;
             _command_process_block_parameters(mpack_node_array_at(action, 1));
             dd_tags_add_blocked();
-        } else if (dd_mpack_node_lstr_eq(verdict, "redirect") && !redirect) {
+        } else if (dd_mpack_node_lstr_eq(verdict, "redirect") &&
+                   res != dd_should_redirect) {
+            res = dd_should_redirect;
             _command_process_redirect_parameters(
                 mpack_node_array_at(action, 1));
             dd_tags_add_blocked();
-            redirect = true;
-        } else if (dd_mpack_node_lstr_eq(verdict, "record")) {
-            record = true;
+        } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
+                   res == dd_success) {
+            res = dd_should_record;
         } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace")) {
             _command_process_stack_trace_parameters(
                 mpack_node_array_at(action, 1));
-            record = true;
         }
     }
 
-    if (redirect) {
-        return dd_should_redirect;
-    }
-    if (block) {
-        return dd_should_block;
-    }
-    if (record) {
-        return dd_should_record;
-    }
-
-    return dd_success;
+    return res;
 }
 
 static void _add_appsec_span_data_frag(mpack_node_t node)
