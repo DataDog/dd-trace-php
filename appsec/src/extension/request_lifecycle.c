@@ -278,7 +278,12 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         } else {
             dd_result res = dd_config_sync(conn,
                 &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
-            if (res) {
+            if (res == dd_network) {
+                mlog_g(dd_log_info, "request_init/config_sync failed with "
+                                    "dd_network; closing "
+                                    "connection to helper");
+                dd_helper_close_conn();
+            } else if (res) {
                 mlog_g(dd_log_info,
                     "Failed to sync remote config path on rshutdown: %s",
                     dd_result_to_string(res));

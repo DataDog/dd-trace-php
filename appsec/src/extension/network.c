@@ -282,9 +282,12 @@ dd_result dd_conn_recv(dd_conn *nonnull conn, char *nullable *nonnull data,
 
     if (memcmp(h.code, "dds", 4) != 0) {
         mlog(dd_log_warning,
-            "Invalid message header from helper. First four bytes are "
-            "0x%02X%02X%02X%02x",
-            h.code[0], h.code[1], h.code[2], h.code[3]);
+            "Invalid message header from helper. First eight bytes are "
+            "%02X%02X%02X%02x%02X%02X%02X%02x",
+            ((unsigned char *)&h)[0], ((unsigned char *)&h)[1],
+            ((unsigned char *)&h)[2], ((unsigned char *)&h)[3],
+            ((unsigned char *)&h)[4], ((unsigned char *)&h)[5],
+            ((unsigned char *)&h)[6], ((unsigned char *)&h)[7]);
         // to force the connection closed. It may be we half-read a previous
         // message, so a reconnection can help
         return dd_network;
