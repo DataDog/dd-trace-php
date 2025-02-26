@@ -44,15 +44,15 @@ static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
 }
 
 static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, HashTable *baggage) {
-    while (baggage_ptr < baggage_end) {
+    for (;;) {
         char *key_start = baggage_ptr;
         while (baggage_ptr < baggage_end && *baggage_ptr != '=') {
             ++baggage_ptr;
         }
-        if (baggage_ptr >= baggage_end || *baggage_ptr != '=') break;
+        if (baggage_ptr >= baggage_end) break;
 
         size_t key_len = baggage_ptr - key_start;
-        ++baggage_ptr; // skip '='
+        ++baggage_ptr;
 
         char *value_start = baggage_ptr;
         while (baggage_ptr < baggage_end && *baggage_ptr != ',') {
@@ -61,16 +61,11 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
 
         size_t value_len = baggage_ptr - value_start;
         if (key_len > 0 && value_len > 0) {
-            zend_string *key = zend_string_init(key_start, key_len, 0);
             zval value;
             ZVAL_STRINGL(&value, value_start, value_len);
-            zend_hash_update(baggage, key, &value);
-            zend_string_release(key);
+            zend_hash_str_update(baggage, key_start, key_len, &value);
         }
-
-        if (baggage_ptr < baggage_end && *baggage_ptr == ',') {
-            ++baggage_ptr; // skip ','
-        }
+        ++baggage_ptr;
     }
 }
 
@@ -443,18 +438,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             }
 
             if (existing_baggage.arData) {
-                zend_string *key;
-                zval *value;
-                ZEND_HASH_FOREACH_STR_KEY_VAL(&existing_baggage, key, value) {
-                    zend_string *new_key = zend_string_dup(key, 0);
-                    zval new_value;
-                    ZVAL_DUP(&new_value, value);
-
-                    zend_hash_update(&result.baggage, new_key, &new_value);
-                    zend_string_release(new_key);
-                } ZEND_HASH_FOREACH_END();
-
-                zend_hash_destroy(&existing_baggage);
+                result.baggage = existing_baggage;
             }
         } else {
             ddtrace_distributed_tracing_result new_result = func(read_header, data);
