@@ -1304,11 +1304,17 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80500
 zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 void ddtrace_init_known_strings(void) {
+#if PHP_VERSION_ID < 80500
+#undef ZEND_STR_PARENT
+    ddtrace_known_strings[ZEND_STR_PARENT] = zend_string_init_interned(ZEND_STRL("parent"), 1);
+#endif
+#if PHP_VERSION_ID < 70300
 #undef ZEND_STR_NAME
     ddtrace_known_strings[ZEND_STR_NAME] = zend_string_init_interned(ZEND_STRL("name"), 1);
+#endif
 #if PHP_VERSION_ID < 70200
 #undef ZEND_STR_RESOURCE
     ddtrace_known_strings[ZEND_STR_RESOURCE] = zend_string_init_interned(ZEND_STRL("resource"), 1);
@@ -1354,7 +1360,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80500
     ddtrace_init_known_strings();
 #endif
 
