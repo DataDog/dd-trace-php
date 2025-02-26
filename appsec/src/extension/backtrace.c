@@ -265,7 +265,8 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
     }
 
     if (Z_TYPE_P(exploit) != IS_ARRAY) {
-        mlog(dd_log_warning, "Field 'exploit' is of type '%d', expected 'array'",
+        mlog(dd_log_warning,
+            "Field 'exploit' is of type '%d', expected 'array'",
             Z_TYPE_P(exploit));
         return false;
     }
