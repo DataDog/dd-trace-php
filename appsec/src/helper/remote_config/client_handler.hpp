@@ -36,7 +36,7 @@ public:
         const remote_config::settings &rc_settings,
         const std::shared_ptr<engine> &engine_ptr,
         std::shared_ptr<metrics::telemetry_submitter> msubmitter,
-        bool dynamic_enablement);
+        bool /* dynamic_enablement */);
 
     void poll();
 

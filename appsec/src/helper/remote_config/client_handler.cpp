@@ -31,7 +31,7 @@ std::unique_ptr<client_handler> client_handler::from_settings(
     const remote_config::settings &rc_settings,
     const std::shared_ptr<engine> &engine_ptr,
     std::shared_ptr<metrics::telemetry_submitter> msubmitter,
-    bool dynamic_enablement)
+    bool /* dynamic_enablement */)
 {
     if (!rc_settings.enabled) {
         return {};

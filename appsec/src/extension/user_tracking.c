@@ -43,15 +43,12 @@ static hash_fetch_ops_t _hash_fetch_ops;
 static PHP_FUNCTION(set_user_wrapper)
 {
     if (DDAPPSEC_G(active) || UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
-        zend_string *user_id = NULL;
+        zend_string *user_id;
         HashTable *metadata = NULL;
         zend_bool propagate = false;
         if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(),
-                "S|hb", &user_id, &metadata, &propagate) == SUCCESS) {
-            if (user_id != NULL) {
-                dd_find_and_apply_verdict_for_user(
-                    user_id, zend_string_init_interned(LSTRARG("login"), 1));
-            }
+                "SS|hb", &user_id, &metadata, &propagate) == SUCCESS) {
+            dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
         }
     }
 
