@@ -824,7 +824,7 @@ zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
     return str;
 }
 
-void free_inferred_proxy_result(ddtrace_inferred_proxy_result *result) {
+static void free_inferred_proxy_result(ddtrace_inferred_proxy_result *result) {
     zend_string_release(result->system);
     zend_string_release(result->start_time_ms);
     if (result->http_method) zend_string_release(result->http_method);
