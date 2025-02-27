@@ -5,26 +5,22 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 static HashTable proxy_info_map;
 
 void ddtrace_add_proxy_info(const char *system, const char *span_name, const char *component) {
-    ddtrace_proxy_info *info = emalloc(sizeof(ddtrace_proxy_info));
+    ddtrace_proxy_info *info = pemalloc(sizeof(ddtrace_proxy_info), 1);
     info->span_name = span_name;
     info->component = component;
     zend_hash_str_add_ptr(&proxy_info_map, system, strlen(system), info);
 }
 
+static void dd_proxy_info_dtor(zval *zv) {
+    pefree(Z_PTR_P(zv), 1);
+}
+
 void ddtrace_init_proxy_info_map(void) {
-    zend_hash_init(&proxy_info_map, 8, NULL, NULL, 1);
+    zend_hash_init(&proxy_info_map, 8, NULL, (dtor_func_t)dd_proxy_info_dtor, 1);
 
     ddtrace_add_proxy_info("aws-apigateway", "aws.apigateway", "aws-apigateway");
 
     // Add more proxies using ddtrace_add_proxy_info
-}
-
-void ddtrace_free_proxy_info_map(void) {
-    ddtrace_proxy_info *info;
-    ZEND_HASH_FOREACH_PTR(&proxy_info_map, info) {
-        efree(info);
-    } ZEND_HASH_FOREACH_END();
-    zend_hash_destroy(&proxy_info_map);
 }
 
 ddtrace_inferred_proxy_result ddtrace_read_inferred_proxy_headers(ddtrace_read_header *read_header, void *data) {

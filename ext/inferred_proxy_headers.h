@@ -21,6 +21,5 @@ typedef struct {
 ddtrace_inferred_proxy_result ddtrace_read_inferred_proxy_headers(ddtrace_read_header *read_header, void *data);
 const ddtrace_proxy_info* ddtrace_get_proxy_info(zend_string *system);
 void ddtrace_init_proxy_info_map(void);
-void ddtrace_free_proxy_info_map(void);
 
 #endif // DD_INFERRED_PROXY_HEADERS_H

@@ -167,7 +167,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     GC_DEL_FLAGS(&stack->std, IS_OBJ_DESTRUCTOR_CALLED);
 
     ddtrace_root_span_data *rsd = DDTRACE_G(active_stack)->root_span;
-    bool child_of_inferred_span = rsd != NULL && rsd->type == DDTRACE_INFERRED_SPAN && rsd->child_root == NULL;
+    bool child_of_inferred_span = rsd != NULL && rsd->type == DDTRACE_INFERRED_SPAN && rsd->inferred_root == NULL;
     bool root_span = DDTRACE_G(active_stack)->root_span == NULL;
     ddtrace_span_data *span = ddtrace_init_span(type, (root_span || child_of_inferred_span) ? ddtrace_ce_root_span_data : ddtrace_ce_span_data);
 
@@ -208,9 +208,8 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
 
         ddtrace_set_root_span_properties(root);
     } else if (child_of_inferred_span) {
-        span->is_child_of_inferred_span = true;
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        DDTRACE_G(active_stack)->root_span->child_root = root;
+        DDTRACE_G(active_stack)->root_span->inferred_root = root;
 
         root->trace_id = DDTRACE_G(active_stack)->root_span->trace_id;
         root->parent_id = DDTRACE_G(active_stack)->root_span->span.span_id;

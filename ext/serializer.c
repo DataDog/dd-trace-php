@@ -1181,6 +1181,13 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
 
     zval *exception_zv = &span->property_exception;
     bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+    if (!has_exception && span->std.ce == ddtrace_ce_root_span_data) { // inherit exception on inferred span from child root
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+        if (root->inferred_root) { // Can't check for DDTRACE_INFERRED_SPAN because the span is now closed
+            exception_zv = &root->inferred_root->span.property_exception;
+            has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
+        }
+    }
     if (has_exception) {
         ignore_error = false;
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
@@ -1188,17 +1195,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
-    } else if (span->std.ce == ddtrace_ce_root_span_data) {
-        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        if (root->child_root) { // Can't check for DDTRACE_INFERRED_SPAN because the span is now closed
-            zval *child_exception_zv = &root->child_root->span.property_exception;
-            has_exception = Z_TYPE_P(child_exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(child_exception_zv), zend_ce_throwable);
-            if (has_exception) {
-                ignore_error = false;
-                enum dd_exception exception_type = Z_PROP_FLAG_P(child_exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
-                ddtrace_exception_to_meta(Z_OBJ_P(child_exception_zv), service_name, span->start, meta, dd_add_meta_array, exception_type);
-            }
-        }
     }
 
     zend_array *span_links = ddtrace_property_array(&span->property_links);

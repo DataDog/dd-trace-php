@@ -382,7 +382,7 @@ static inline void dd_alter_prop_common(size_t prop_offset, zval *old_value, zva
     while (pspan) {
         if (skip_inferred) {
             ddtrace_span_data *span = SPANDATA(pspan);
-            if (span && span->type == DDTRACE_INFERRED_SPAN) {
+            if (span->type == DDTRACE_INFERRED_SPAN) {
                 pspan = pspan->parent; // It should be NULL, but just in case...
                 continue;
             }
@@ -953,7 +953,7 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
 #endif
-    span->child_root = NULL;
+    span->inferred_root = NULL;
     return &span->std;
 }
 
@@ -1481,6 +1481,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_minit_remote_config();
     ddtrace_appsec_minit();
 
+    ddtrace_init_proxy_info_map();
+
     return SUCCESS;
 }
 
@@ -1660,10 +1662,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 #endif
     }
 
-    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
-        ddtrace_init_proxy_info_map();
-    }
-
     if (get_DD_TRACE_ENABLED()) {
         dd_initialize_request();
     }
@@ -1807,10 +1805,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
-
-    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
-        ddtrace_free_proxy_info_map();
-    }
 
     return SUCCESS;
 }
@@ -2728,7 +2722,7 @@ PHP_FUNCTION(DDTrace_root_span) {
     dd_ensure_root_span();
     ddtrace_root_span_data *span = DDTRACE_G(active_stack)->root_span;
     if (span && span->type == DDTRACE_INFERRED_SPAN) {
-        span = span->child_root;
+        span = span->inferred_root;
     }
 
     if (span) {

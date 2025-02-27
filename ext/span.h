@@ -87,7 +87,6 @@ struct ddtrace_span_data {
     bool notify_user_req_end;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
-    bool is_child_of_inferred_span;
 
     union {
         ddtrace_span_properties;
@@ -109,7 +108,7 @@ struct ddtrace_root_span_data {
     ddtrace_rule_result sampling_rule;
     bool explicit_sampling_priority;
     enum ddtrace_trace_limited trace_is_limited;
-    struct ddtrace_root_span_data *child_root; // Only used when inferring proxy services (type: DDTRACE_INFERRED_SPAN)
+    struct ddtrace_root_span_data *inferred_root; // Only used when inferring proxy services (type: DDTRACE_INFERRED_SPAN)
 
     union {
         ddtrace_span_data;
@@ -256,7 +255,9 @@ static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
 
 static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
     // The parent stack of a true top-level stack does never have a parent stack itself
-    return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack) && !span->is_child_of_inferred_span;
+    return span->std.ce == ddtrace_ce_root_span_data
+        && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack)
+        && (!span->root || !span->root->inferred_root || &span->root->inferred_root->span != span);
 }
 
 #endif  // DD_SPAN_H
