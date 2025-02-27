@@ -165,7 +165,7 @@ TEST(ClientTest, ClientInit)
     EXPECT_EQ(msg_res->metrics.size(), 2);
     // For small enough integers this comparison should work, otherwise replace
     // with EXPECT_NEAR.
-    EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 4.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 5.0);
     EXPECT_EQ(msg_res->metrics[metrics::event_rules_failed], 0.0);
 }
 
@@ -821,6 +821,39 @@ TEST(ClientTest, EventWithMultipleActions)
         EXPECT_TRUE(msg_res->actions[1].parameters.empty());
         EXPECT_STREQ(msg_res->actions[2].verdict.c_str(), "stack_trace");
         EXPECT_FALSE(msg_res->actions[2].parameters["stack_id"].empty());
+    }
+}
+
+TEST(ClientTest, StackTraceNeverComesAlone)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+        msg.data.add("http.client_ip", parameter::string("192.168.1.3"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_EQ(msg_res->actions.size(), 2);
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "stack_trace");
+        EXPECT_STREQ(msg_res->actions[1].verdict.c_str(), "record");
     }
 }
 

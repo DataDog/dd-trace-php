@@ -56,6 +56,31 @@
       ]
     },
     {
+      "id": "blk-001-003",
+      "name": "Generate stack",
+      "tags": {
+        "type": "block_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "data": "users_with_stack"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "stack_trace"
+      ]
+    },
+    {
       "id": "rasp-001-001",
       "name": "Path traversal attack",
       "tags": {
@@ -134,7 +159,7 @@
       ]
     },
     {
-      "id": "blk-001-003",
+      "id": "blk-001-004",
       "name": "Block User Addresses",
       "tags": {
         "type": "block_user",
@@ -6952,7 +6977,16 @@
         }
       ]
     },
-
+    {
+      "id": "users_with_stack",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "stack_user_no_block",
+          "expiration": 0
+        }
+      ]
+    },
     {
       "id": "redirected_users",
       "type": "data_with_expiration",

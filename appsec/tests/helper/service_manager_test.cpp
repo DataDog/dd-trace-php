@@ -34,7 +34,7 @@ TEST(ServiceManagerTest, LoadRulesOK)
     auto *service_rp = service.get();
     auto metrics = service->drain_legacy_metrics();
     EXPECT_EQ(manager.get_cache().size(), 1);
-    EXPECT_EQ(metrics[metrics::event_rules_loaded], 4);
+    EXPECT_EQ(metrics[metrics::event_rules_loaded], 5);
 
     // loading again should take from the cache
     auto service2 = manager.create_service(engine_settings, {}, {});
