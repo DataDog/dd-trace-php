@@ -28,6 +28,11 @@ ddtrace_inferred_proxy_result ddtrace_read_inferred_proxy_headers(ddtrace_read_h
 
     read_header((zai_str)ZAI_STRL("X_DD_PROXY"), "x-dd-proxy", &result.system, data);
     read_header((zai_str)ZAI_STRL("X_DD_PROXY_REQUEST_TIME_MS"), "x-dd-proxy-request-time-ms", &result.start_time_ms, data);
+
+    if (!result.system || !result.start_time_ms) {
+        return result;
+    }
+
     read_header((zai_str)ZAI_STRL("X_DD_PROXY_PATH"), "x-dd-proxy-path", &result.path, data);
     read_header((zai_str)ZAI_STRL("X_DD_PROXY_HTTPMETHOD"), "x-dd-proxy-httpmethod", &result.http_method, data);
     read_header((zai_str)ZAI_STRL("X_DD_PROXY_DOMAIN_NAME"), "x-dd-proxy-domain-name", &result.domain, data);

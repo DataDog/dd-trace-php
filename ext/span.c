@@ -824,14 +824,22 @@ zend_string *ddtrace_trace_id_as_hex_string(ddtrace_trace_id id) {
     return str;
 }
 
+void free_inferred_proxy_result(ddtrace_inferred_proxy_result *result) {
+    zend_string_release(result->system);
+    zend_string_release(result->start_time_ms);
+    if (result->http_method) zend_string_release(result->http_method);
+    if (result->path) zend_string_release(result->path);
+    if (result->domain) zend_string_release(result->domain);
+    if (result->stage) zend_string_release(result->stage);
+}
+
 
 ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     ddtrace_read_header *read_header = headers ? ddtrace_read_array_header : ddtrace_read_zai_header;
     ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(read_header, headers);
 
     if (!result.system || !result.start_time_ms) {
-        if (result.system) zend_string_release(result.system);
-        if (result.start_time_ms) zend_string_release(result.start_time_ms);
+        free_inferred_proxy_result(&result);
         return NULL;
     }
 
@@ -852,7 +860,7 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
         ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result.http_method), ZSTR_VAL(result.path)));
     }
 
-    span->start = (zend_long)zend_strtod(ZSTR_VAL(result.start_time_ms), NULL) * 1000000;
+    span->start = ZEND_ATOL(ZSTR_VAL(result.start_time_ms)) * 1000000;
     span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start);
 
     zval zv;
@@ -882,12 +890,7 @@ ddtrace_root_span_data *ddtrace_open_inferred_span(zend_array *headers) {
     add_assoc_long(&span->property_meta, "_dd.inferred_span", 1);
     add_assoc_string(&span->property_meta, "component", proxy_info->component);
 
-    zend_string_release(result.system);
-    zend_string_release(result.start_time_ms);
-    if (result.path) zend_string_release(result.path);
-    if (result.http_method) zend_string_release(result.http_method);
-    if (result.domain) zend_string_release(result.domain);
-    if (result.stage) zend_string_release(result.stage);
+    free_inferred_proxy_result(&result);
 
     return ROOTSPANDATA(&span->std);
 }
