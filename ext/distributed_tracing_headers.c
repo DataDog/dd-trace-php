@@ -516,10 +516,6 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         *Z_ARR(zv) = result->propagated_tags;
         ddtrace_assign_variable(&span->property_propagated_tags, &zv);
 
-        ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
-        *Z_ARR(zv) = result->baggage;
-        ddtrace_assign_variable(&span->property_baggage, &zv);
-
         zend_hash_copy(root_meta, &result->meta_tags, NULL);
 
         if (result->origin) {
@@ -546,8 +542,6 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         DDTRACE_G(propagated_root_span_tags) = result->propagated_tags;
         zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
         DDTRACE_G(tracestate_unknown_dd_keys) = result->tracestate_unknown_dd_keys;
-        zend_hash_destroy(&DDTRACE_G(baggage));
-        DDTRACE_G(baggage) = result->baggage;
         zend_hash_copy(&DDTRACE_G(root_span_tags_preset), &result->meta_tags, NULL);
         if (DDTRACE_G(dd_origin)) {
             zend_string_release(DDTRACE_G(dd_origin));
@@ -562,6 +556,16 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
         }
+    }
+
+    // x2 xD
+    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
+        ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
+        *Z_ARR(zv) = result->baggage;
+        ddtrace_assign_variable(&SPANDATA(DDTRACE_G(active_stack)->active)->property_baggage, &zv);
+    } else {
+        zend_hash_destroy(&DDTRACE_G(baggage));
+        DDTRACE_G(baggage) = result->baggage;
     }
 
     result->meta_tags.pDestructor = NULL; // we moved values directly

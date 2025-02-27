@@ -923,7 +923,13 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
 
 static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_data *span = ecalloc(1, sizeof(*span));
-    return dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+    dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&span->property_baggage);
+#endif
+
+    return &span->std;
 }
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
@@ -933,7 +939,6 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     // Not handled in arginfo on these old versions
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
-    array_init(&span->property_baggage);
 #endif
     return &span->std;
 }

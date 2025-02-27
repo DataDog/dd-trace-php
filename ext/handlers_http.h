@@ -151,7 +151,11 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             tracestate = NULL;
         }
         tracestate_unknown_dd_keys = ddtrace_property_array(&root->property_tracestate_tags);
-        baggage = ddtrace_property_array(&root->property_baggage);
+    }
+
+    // Maybe the issue later on...
+    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
+        baggage = ddtrace_property_array(&SPANDATA(DDTRACE_G(active_stack)->active)->property_baggage);
     }
 
     zval headers;

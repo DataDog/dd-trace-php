@@ -91,6 +91,8 @@ struct ddtrace_span_data {
         ddtrace_span_properties;
         ddtrace_span_properties props;
     };
+
+    zval property_baggage;
 };
 
 static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
@@ -122,7 +124,6 @@ struct ddtrace_root_span_data {
     zval property_parent_id;
     zval property_trace_id;
     zval property_git_metadata;
-    zval property_baggage;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {

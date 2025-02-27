@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 3e5816ef45654bc111875f74d66de5e7d478437f */
+ * Stub hash: 6e8257ed381152bceba6d69fee0b0bbf475a1cbe */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -725,6 +725,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_declare_typed_property(class_entry, property_stack_name, &property_stack_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_stack_class_DDTrace_SpanStack, 0, 0));
 	zend_string_release(property_stack_name);
 
+	zval property_baggage_default_value;
+	ZVAL_EMPTY_ARRAY(&property_baggage_default_value);
+	zend_string *property_baggage_name = zend_string_init("baggage", sizeof("baggage") - 1, 1);
+	zend_declare_typed_property(class_entry, property_baggage_name, &property_baggage_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_baggage_name);
+
 	return class_entry;
 }
 
@@ -789,12 +795,6 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 	zend_string *property_gitMetadata_class_DDTrace_GitMetadata = zend_string_init("DDTrace\\GitMetadata", sizeof("DDTrace\\GitMetadata")-1, 1);
 	zend_declare_typed_property(class_entry, property_gitMetadata_name, &property_gitMetadata_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_gitMetadata_class_DDTrace_GitMetadata, 0, MAY_BE_NULL));
 	zend_string_release(property_gitMetadata_name);
-
-	zval property_baggage_default_value;
-	ZVAL_EMPTY_ARRAY(&property_baggage_default_value);
-	zend_string *property_baggage_name = zend_string_init("baggage", sizeof("baggage") - 1, 1);
-	zend_declare_typed_property(class_entry, property_baggage_name, &property_baggage_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
-	zend_string_release(property_baggage_name);
 
 	return class_entry;
 }
