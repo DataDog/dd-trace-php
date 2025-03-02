@@ -805,7 +805,7 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
     for (struct curl_slist *current = dd_agent_curl_headers; current; current = current->next) {
         headers = curl_slist_append(headers, current->data);
     }
-    headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
+    // headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Content-Type: application/msgpack");
 
     char buffer[300];
