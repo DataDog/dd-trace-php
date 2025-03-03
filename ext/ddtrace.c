@@ -1312,11 +1312,17 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80500
 zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 void ddtrace_init_known_strings(void) {
+#if PHP_VERSION_ID < 80500
+#undef ZEND_STR_PARENT
+    ddtrace_known_strings[ZEND_STR_PARENT] = zend_string_init_interned(ZEND_STRL("parent"), 1);
+#endif
+#if PHP_VERSION_ID < 70300
 #undef ZEND_STR_NAME
     ddtrace_known_strings[ZEND_STR_NAME] = zend_string_init_interned(ZEND_STRL("name"), 1);
+#endif
 #if PHP_VERSION_ID < 70200
 #undef ZEND_STR_RESOURCE
     ddtrace_known_strings[ZEND_STR_RESOURCE] = zend_string_init_interned(ZEND_STRL("resource"), 1);
@@ -1362,7 +1368,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80500
     ddtrace_init_known_strings();
 #endif
 
@@ -1421,6 +1427,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
+    // Make sure it's available for appsec, i.e. before disabling
+    dd_ip_extraction_startup();
+
     if (ddtrace_disable) {
         return SUCCESS;
     }
@@ -1460,7 +1469,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_engine_hooks_minit();
 
     ddtrace_integrations_minit();
-    dd_ip_extraction_startup();
     ddtrace_serializer_startup();
 
     ddtrace_live_debugger_minit();
@@ -1576,7 +1584,7 @@ static void dd_initialize_request(void) {
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
-    if (!DDTRACE_G(agent_config_reader)) {
+    if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (ddtrace_endpoint) {
                 DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
@@ -1628,7 +1636,7 @@ static void dd_initialize_request(void) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 80000 || (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500)
     zai_interceptor_rinit();
 #endif
 
@@ -2313,7 +2321,7 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar_globals();
+    ddtrace_reset_sidecar();
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
@@ -2519,6 +2527,12 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
             RETVAL_TRUE;
+        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
+            zval *name = ZVAL_VARARG_PARAM(params, 0);
+            zval *version = ZVAL_VARARG_PARAM(params, 1);
+            if (Z_TYPE_P(name) == IS_STRING && Z_TYPE_P(version) == IS_STRING) {
+                ddtrace_telemetry_notify_integration_version(Z_STRVAL_P(name), Z_STRLEN_P(name), Z_STRVAL_P(version), Z_STRLEN_P(version));
+            }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {
                 RETURN_FALSE;
@@ -3322,8 +3336,11 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
     RETURN_NULL();
 }
 
-static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
-                                                          ZEND_MOD_END};
+static const zend_module_dep ddtrace_module_deps[] = {
+        ZEND_MOD_REQUIRED("json")
+        ZEND_MOD_REQUIRED("standard")
+        ZEND_MOD_OPTIONAL("openetelemetry") // make sure we load after otel to insert the hook function if it doesn't exist yet
+        ZEND_MOD_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,

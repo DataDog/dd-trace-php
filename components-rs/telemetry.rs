@@ -12,6 +12,9 @@ use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
+use ddtelemetry::worker::LogIdentifier;
+use zwohash::ZwoHasher;
+use std::hash::{Hash, Hasher};
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -165,4 +168,25 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
         metric_value,
         tags,
     )));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    log: CharSlice
+) {
+    let mut hasher = ZwoHasher::default();
+    log.hash(&mut hasher);
+    let action = TelemetryActions::AddLog((
+        LogIdentifier {indentifier: hasher.finish()},
+        data::Log {
+            message: log.to_utf8_lossy().into_owned(),
+            level: data::LogLevel::Warn,
+            stack_trace: None,
+            count: 1,
+            tags: String::new(),
+            is_sensitive: false,
+        })
+    );
+    buffer.buffer.push(SidecarAction::Telemetry(action));
 }

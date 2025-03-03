@@ -6,12 +6,14 @@
 
 #include "user_tracking.h"
 #include "commands/request_exec.h"
+#include "compatibility.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
 #include "helper_process.h"
 #include "logging.h"
 #include "php_compat.h"
+#include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
@@ -21,6 +23,8 @@
 #include <ext/hash/php_hash.h>
 
 static THREAD_LOCAL_ON_ZTS user_collection_mode _user_mode = user_mode_disabled;
+static THREAD_LOCAL_ON_ZTS user_collection_mode _user_mode_rc =
+    user_mode_undefined;
 
 static zend_string *_user_mode_anon_zstr;
 static zend_string *_user_mode_ident_zstr;
@@ -28,6 +32,7 @@ static zend_string *_user_mode_disabled_zstr;
 static zend_string *_sha256_algo_zstr;
 
 static void (*_ddtrace_set_user)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static void _register_test_objects(void);
 
 #if PHP_VERSION_ID < 80000
 typedef const php_hash_ops *(*hash_fetch_ops_t)(
@@ -77,6 +82,8 @@ void dd_user_tracking_startup(void)
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 #endif
+
+    _register_test_objects();
 
     if (!dd_trace_loaded()) {
         return;
@@ -132,6 +139,12 @@ void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
         Z_ARRVAL(data_zv), "usr.id", sizeof("usr.id") - 1, &user_id_zv);
 
     dd_result res = dd_request_exec(conn, &data_zv, false);
+    if (res == dd_network) {
+        mlog_g(dd_log_info, "request_exec failed with dd_network; closing "
+                            "connection to helper");
+        dd_helper_close_conn();
+    }
+
     zval_ptr_dtor(&data_zv);
 
     dd_tags_set_event_user_id(user_id);
@@ -179,6 +192,28 @@ bool dd_parse_user_collection_mode(
     ZVAL_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
 
     return true;
+}
+
+void dd_parse_user_collection_mode_rc(
+    const char *nonnull value, size_t value_len)
+{
+    if (dd_string_equals_lc(value, value_len, ZEND_STRL("undefined"))) {
+        _user_mode_rc = user_mode_undefined;
+    } else if (dd_string_equals_lc(
+                   value, value_len, ZEND_STRL("identification"))) {
+        _user_mode_rc = user_mode_ident;
+    } else if (dd_string_equals_lc(
+                   value, value_len, ZEND_STRL("anonymization"))) {
+        _user_mode_rc = user_mode_anon;
+    } else { // If the value is disabled or an unknown value, we disable user ID
+             // collection
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog_g(dd_log_warning,
+                "Unknown or disabled remote config user collection mode: %.*s",
+                (int)value_len, value);
+        }
+        _user_mode_rc = user_mode_disabled;
+    }
 }
 
 zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info)
@@ -240,17 +275,49 @@ zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info)
     return anon_user_id;
 }
 
-user_collection_mode dd_get_user_collection_mode() { return _user_mode; }
+user_collection_mode dd_get_user_collection_mode()
+{
+    return _user_mode_rc != user_mode_undefined ? _user_mode_rc : _user_mode;
+}
 
 zend_string *nonnull dd_get_user_collection_mode_zstr()
 {
-    if (_user_mode == user_mode_ident) {
+    user_collection_mode mode = dd_get_user_collection_mode();
+
+    if (mode == user_mode_ident) {
         return _user_mode_ident_zstr;
     }
 
-    if (_user_mode == user_mode_anon) {
+    if (mode == user_mode_anon) {
         return _user_mode_anon_zstr;
     }
 
     return _user_mode_disabled_zstr;
+}
+
+PHP_FUNCTION(datadog_appsec_testing_dump_user_collection_mode)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        return;
+    }
+
+    RETURN_STR(dd_get_user_collection_mode_zstr());
+}
+
+// clang-format off
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_user_collection_mode_arginfo, 0, 0, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "dump_user_collection_mode", PHP_FN(datadog_appsec_testing_dump_user_collection_mode), dump_user_collection_mode_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
+// clang-format on
+
+static void _register_test_objects()
+{
+    if (!get_global_DD_APPSEC_TESTING()) {
+        return;
+    }
+    dd_phpobj_reg_funcs(functions);
 }

@@ -36,6 +36,7 @@ typedef struct _zai_hooks_entry {
     void ***run_time_cache; // used only if Closure
 #endif
     bool is_generator;
+    bool is_internal;
     // However, for non-Closure functions, we may not track the run_time_cache, as it may not yet have been initialized when first resolved
 #endif
     // On PHP 7, we only go by resolved; we don't have to care about individual rt_caches
@@ -188,6 +189,7 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
         }
     } else if (hooks->run_time_cache) {
         zend_function func;
+        func.type = hooks->is_internal ? ZEND_INTERNAL_FUNCTION : ZEND_USER_FUNCTION;
         func.common.fn_flags = hooks->is_generator ? ZEND_ACC_GENERATOR : 0;
         func.op_array.opcodes = (void *)(uintptr_t *)(install_address << 5); // does not need to be valid, but sufficient to get install_address
 #if PHP_VERSION_ID >= 80200
@@ -399,6 +401,7 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
         hooks->run_time_cache = ZEND_MAP_PTR(resolved->common.run_time_cache);
 #endif
     }
+    hooks->is_internal = ZEND_USER_CODE(resolved->type);
     hooks->is_generator = (resolved->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
     if (hooks->is_generator) {
 #if ZAI_JIT_BLACKLIST_ACTIVE

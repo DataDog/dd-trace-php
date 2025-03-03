@@ -913,7 +913,7 @@ class AMQPTest extends IntegrationTestCase
 
         foreach ($receiveTraces as $receiveTrace) {
             // Spans: connect -> queue_declare -> basic_consume & basic_consume_ok -> basic_deliver
-            if ($receiveTrace[0]["name"] == "amqp.basic.deliver") {
+            if ($receiveTrace[0]["name"] == "amqp.basic.deliver" && isset($receiveTrace[0]["parent_id"])) {
                 $basicDeliverSpan = $receiveTrace[0];
                 break;
             }

@@ -448,6 +448,8 @@ void dd_trace_emit_asm_event(void)
         return;
     }
 
+    mlog(dd_log_trace, "Emitting ASM event");
+
     _ddtrace_emit_asm_event();
 }
 

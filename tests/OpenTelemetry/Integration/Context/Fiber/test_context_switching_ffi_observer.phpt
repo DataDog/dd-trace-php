@@ -8,7 +8,8 @@ OTEL_PHP_FIBERS_ENABLED=1
 <?php
 use OpenTelemetry\Context\Context;
 
-require_once './tests/OpenTelemetry/vendor/autoload.php';
+$vendorDir = getenv("TESTSUITE_VENDOR_DIR") ?: "vendor";
+require_once "./tests/OpenTelemetry/$vendorDir/autoload.php";
 
 $key = Context::createKey('-');
 $scope = Context::getCurrent()

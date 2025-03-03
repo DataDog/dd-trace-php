@@ -180,8 +180,14 @@ pub fn alloc_prof_rshutdown() {
         let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
         let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
         let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
-        // Safety: `unwrap()` is safe here, as `heap` is initialized in `RINIT`
-        let heap = unsafe { (*zend_mm_state).heap.unwrap() };
+
+        // SAFETY: UnsafeCell::get() ensures non-null, and the object should
+        // be valid for reads during rshutdown.
+        let Some(heap) =  (unsafe { (*zend_mm_state).heap }) else {
+            // The heap can be None if a fork happens outside the request.
+            return;
+        };
+
         unsafe {
             zend::zend_mm_get_custom_handlers(
                 heap,

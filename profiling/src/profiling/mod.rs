@@ -76,6 +76,14 @@ pub struct SampleValues {
     alloc_size: i64,
     timeline: i64,
     exception: i64,
+    socket_read_time: i64,
+    socket_write_time: i64,
+    file_read_time: i64,
+    file_write_time: i64,
+    socket_read_size: i64,
+    socket_write_size: i64,
+    file_read_size: i64,
+    file_write_size: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -1197,6 +1205,98 @@ impl Profiler {
         }
     }
 
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_read_time = socket_io_read_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_write_time = socket_io_write_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_read_time = file_io_read_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_write_time = file_io_write_time;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_read_size = socket_io_read_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_write_size = socket_io_write_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_read_size = file_io_read_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_write_size = file_io_write_size;
+        })
+    }
+
+    #[cfg(feature = "io_profiling")]
+    pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
+    where
+        F: FnOnce(&mut SampleValues),
+    {
+        let result = collect_stack_sample(execute_data);
+        match result {
+            Ok(frames) => {
+                let depth = frames.len();
+                let labels = Profiler::common_labels(0);
+
+                let n_labels = labels.len();
+
+                let mut values = SampleValues::default();
+                set_value(&mut values);
+
+                match self.prepare_and_send_message(
+                    frames,
+                    values,
+                    labels,
+                    NO_TIMESTAMP,
+                ) {
+                    Ok(_) => trace!(
+                        "Sent stack sample of {depth} frames, {n_labels} labels with to profiler."
+                    ),
+                    Err(err) => warn!(
+                        "Failed to send stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
+                    ),
+                }
+            }
+            Err(err) => {
+                warn!("Failed to collect stack sample: {err}")
+            }
+        }
+    }
+
     /// Creates the common message labels for all samples.
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
@@ -1324,6 +1424,7 @@ mod tests {
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: true,
+            profiling_io_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
@@ -1340,6 +1441,14 @@ mod tests {
             alloc_size: 50,
             timeline: 60,
             exception: 70,
+            socket_read_time: 80,
+            socket_write_time: 90,
+            file_read_time: 100,
+            file_write_time: 110,
+            socket_read_size: 120,
+            socket_write_size: 130,
+            file_read_size: 140,
+            file_write_size: 150,
         }
     }
 

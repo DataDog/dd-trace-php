@@ -130,7 +130,6 @@ class PredisIntegration extends Integration
     {
         $tags = [];
         $connection = $predis->getConnection();
-        $service = PredisIntegration::DEFAULT_SERVICE_NAME;
 
         if ($connection instanceof NodeConnectionInterface) {
             $connectionParameters = $connection->getParameters();
@@ -144,6 +143,7 @@ class PredisIntegration extends Integration
                         ? $connectionParameters->path
                         : $connectionParameters->host)
                 );
+                ObjectKVStore::put($predis->getConnection(), 'service', $service);
             }
         }
 
@@ -161,7 +161,6 @@ class PredisIntegration extends Integration
             }
         }
 
-        ObjectKVStore::put($predis->getConnection(), 'service', $service);
         ObjectKVStore::put($predis->getConnection(), 'connection_meta', $tags);
     }
 
@@ -175,7 +174,12 @@ class PredisIntegration extends Integration
      */
     public static function setMetaAndServiceFromConnection($predis, SpanData $span)
     {
-        $span->service = ObjectKVStore::get($predis->getConnection(), 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
+        $service = ObjectKVStore::get($predis->getConnection(), 'service');
+        if ($service) {
+            $span->meta[Tag::SERVICE_NAME] = $service;
+        } else {
+            Integration::handleInternalSpanServiceName($span, PredisIntegration::DEFAULT_SERVICE_NAME);
+        }
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PredisIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = PredisIntegration::SYSTEM;

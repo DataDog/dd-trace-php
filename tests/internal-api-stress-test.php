@@ -116,9 +116,14 @@ function generate_garbage()
     return $garbage;
 }
 
+$minFunctionArgs = [];
+
 function call_function(ReflectionFunction $function)
 {
-    $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : 0;
+    global $minFunctionArgs;
+    print "Executing: {$function->name}\n";
+
+    $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : ($minFunctionArgs[$function->name] ?? 0);
     $invocations = $i == 0 ? [[]] : [];
     for (; $i < $function->getNumberOfParameters(); ++$i) {
         foreach ($invocations as $invocation) {
@@ -130,10 +135,16 @@ function call_function(ReflectionFunction $function)
         }
     }
 
-    foreach ($invocations as $invocation) {
+    foreach ($invocations as &$invocation) {
         try {
             $function->invokeArgs($invocation);
         } catch (ArgumentCountError $e) {
+            $minFunctionArgs[$function->name] = $argc = count($invocation);
+            foreach ($invocations as $k => $cur) {
+                if (count($cur) <= $argc) {
+                    unset($invocations[$k]);
+                }
+            }
         } catch (TypeError $e) {
         }
     }

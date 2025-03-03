@@ -17,6 +17,7 @@
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "service.hpp"
+#include "service_config.hpp"
 #include "std_logging.hpp"
 
 using namespace std::chrono_literals;
@@ -235,28 +236,42 @@ std::shared_ptr<typename T::response> client::publish(
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto res = context_->publish(std::move(command.data), rasp_rule);
         if (res) {
+            bool event_action = false;
+            bool stack_trace = false;
             for (auto &act : res->actions) {
                 dds::network::action_struct new_action;
                 switch (act.type) {
                 case dds::action_type::block:
                     new_action.verdict = network::verdict::block;
                     new_action.parameters = std::move(act.parameters);
+                    event_action = true;
                     break;
                 case dds::action_type::redirect:
                     new_action.verdict = network::verdict::redirect;
                     new_action.parameters = std::move(act.parameters);
+                    event_action = true;
                     break;
                 case dds::action_type::stack_trace:
+                    stack_trace = true;
                     new_action.verdict = network::verdict::stack_trace;
                     new_action.parameters = std::move(act.parameters);
                     break;
                 case dds::action_type::record:
                 default:
+                    event_action = true;
                     new_action.verdict = network::verdict::record;
                     new_action.parameters = {};
                     break;
                 }
                 response->actions.push_back(new_action);
+            }
+            if (!event_action && stack_trace) {
+                // Stacktrace needs to send a record as well so Appsec event is
+                // generated
+                dds::network::action_struct extra_record_action;
+                extra_record_action.verdict = network::verdict::record;
+                extra_record_action.parameters = {};
+                response->actions.push_back(extra_record_action);
             }
             response->triggers = std::move(res->events);
             response->force_keep = res->force_keep;
@@ -302,6 +317,10 @@ bool client::handle_command(network::request_init::request &command)
     context_.emplace(*service_->get_engine());
 
     auto response = publish<network::request_init>(command);
+    if (response) {
+        response->settings["auto_user_instrum"] = to_string_view(
+            service_->get_service_config()->get_auto_user_intrum_mode());
+    }
 
     return send_message<network::request_init>(response);
 }

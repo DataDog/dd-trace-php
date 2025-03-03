@@ -7,31 +7,36 @@
 #include "../../json_helper.hpp"
 #include "../../utils.hpp"
 #include "../exception.hpp"
-#include <algorithm>
+#include "config_aggregators/asm_features_aggregator.hpp"
 #include <rapidjson/document.h>
 
-void dds::remote_config::asm_features_listener::on_update(const config &config)
+namespace dds::remote_config {
+
+void asm_features_listener::init()
 {
-    rapidjson::Document serialized_doc;
+    ruleset_ = rapidjson::Document(rapidjson::kObjectType);
+    aggregator_ = std::make_unique<asm_features_aggregator>();
+    aggregator_->init(&ruleset_.GetAllocator());
+}
 
-    {
-        const mapped_memory contents{config.read()};
-        if (!json_helper::parse_json(contents, serialized_doc)) {
-            throw error_applying_config("Invalid config contents");
-        }
-    }
+void asm_features_listener::on_update(const config &config)
+{
+    aggregator_->add(config);
+}
 
-    auto asm_itr = json_helper::get_field_of_type(
-        serialized_doc, "asm", rapidjson::kObjectType);
+void asm_features_listener::parse_asm_activation_config()
+{
+    auto asm_itr =
+        json_helper::get_field_of_type(ruleset_, "asm", rapidjson::kObjectType);
     if (!asm_itr) {
-        throw error_applying_config("Invalid config json encoded contents: "
-                                    "asm key missing or invalid");
+        service_config_->unset_asm();
+        return;
     }
 
     auto enabled_itr = asm_itr.value()->value.FindMember("enabled");
     if (enabled_itr == asm_itr.value()->value.MemberEnd()) {
-        throw error_applying_config(
-            "Invalid config json encoded contents: enabled key missing");
+        service_config_->unset_asm();
+        return;
     }
 
     if (enabled_itr->value.GetType() == rapidjson::kStringType) {
@@ -49,7 +54,53 @@ void dds::remote_config::asm_features_listener::on_update(const config &config)
         // when appsec should not be enabled
         service_config_->disable_asm();
     } else {
-        throw error_applying_config(
-            "Invalid config json encoded contents: enabled key invalid");
+        service_config_->unset_asm();
     }
 }
+
+void asm_features_listener::parse_auto_user_instrum_config()
+{
+    if (!json_helper::field_exists(ruleset_, "auto_user_instrum")) {
+        service_config_->unset_auto_user_instrum();
+        return;
+    }
+
+    auto auto_user_instrum_itr = json_helper::get_field_of_type(
+        ruleset_, "auto_user_instrum", rapidjson::kObjectType);
+    if (!auto_user_instrum_itr) {
+        service_config_->set_auto_user_instrum(auto_user_instrum_mode::UNKNOWN);
+        return;
+    }
+
+    auto mode_itr = auto_user_instrum_itr.value()->value.FindMember("mode");
+    if (mode_itr == auto_user_instrum_itr.value()->value.MemberEnd()) {
+        service_config_->set_auto_user_instrum(auto_user_instrum_mode::UNKNOWN);
+        return;
+    }
+
+    auto mode = auto_user_instrum_mode::UNKNOWN;
+
+    if (mode_itr->value.GetType() == rapidjson::kStringType) {
+        if (dd_tolower(mode_itr->value.GetString()) ==
+            std::string("identification")) {
+            mode = auto_user_instrum_mode::IDENTIFICATION;
+        } else if (dd_tolower(mode_itr->value.GetString()) ==
+                   std::string("anonymization")) {
+            mode = auto_user_instrum_mode::ANONYMIZATION;
+        } else if (dd_tolower(mode_itr->value.GetString()) ==
+                   std::string("disabled")) {
+            mode = auto_user_instrum_mode::DISABLED;
+        }
+    }
+
+    service_config_->set_auto_user_instrum(mode);
+}
+
+void asm_features_listener::commit()
+{
+    aggregator_->aggregate(ruleset_);
+    parse_asm_activation_config();
+    parse_auto_user_instrum_config();
+}
+
+} // namespace dds::remote_config

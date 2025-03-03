@@ -12,7 +12,7 @@ void ddtrace_sidecar_setup(bool appsec_features, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_features, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_shutdown(void);
-void ddtrace_reset_sidecar_globals(void);
+void ddtrace_reset_sidecar(void);
 void ddtrace_sidecar_submit_root_span_data(void);
 void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);
 void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);

@@ -90,14 +90,15 @@ namespace {
 
     // ensure the integration-specific autoloader is loaded
     $hook = function ($object, $scope, $args) {
+        $vendorDir = getenv("TESTSUITE_VENDOR_DIR") ?: "vendor";
         $path = dirname($args[0]);
         if (strpos($path, "vendor")) {
             return; // No nested vendor
         }
         while (strlen($path) > strlen(__DIR__)) {
-            if (file_exists("$path/vendor/autoload.php")) {
+            if (file_exists("$path/$vendorDir/autoload.php")) {
                 putenv("COMPOSER_ROOT_VERSION=1.0.0"); // silence composer
-                \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath = "$path/vendor/autoload.php";
+                \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath = "$path/$vendorDir/autoload.php";
                 require_once \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath;
                 return;
             } elseif (file_exists("$path/composer.json")) {
