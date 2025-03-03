@@ -153,7 +153,6 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         tracestate_unknown_dd_keys = ddtrace_property_array(&root->property_tracestate_tags);
     }
 
-    // Maybe the issue later on...
     if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
         baggage = ddtrace_property_array(&SPANDATA(DDTRACE_G(active_stack)->active)->property_baggage);
     }

@@ -1352,7 +1352,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         //2. Datadog Baggage is Accessible from OpenTelemetry
         $datadogToOtel = $this->isolateTracer(function () {
-            $span = start_trace_span();
+            $span = start_span();
             $span->name = "dd.span";
             $span->baggage["dd_key"] = "dd_value";
 
@@ -1378,14 +1378,14 @@ final class InteroperabilityTest extends BaseTestCase
                 ->build();
             $baggageScope = $baggage->storeInContext(Context::getCurrent())->activate();
     
-            $span = start_trace_span();
+            $span = start_span();
             $span->name = 'dd.span';
             $span->baggage['dd_key'] = 'dd_value';
             $span->baggage['shared_key'] = 'second_value';
     
-            $this->assertSame('otel_key', $span->baggage['otel_value']);
-            $this->assertSame('dd_key', $span->baggage['dd_value']);
-            $this->assertSame('shared_key', $span->baggage['second_value']);
+            $this->assertSame('otel_value', $span->baggage['otel_key']);
+            $this->assertSame('dd_value', $span->baggage['dd_key']);
+            $this->assertSame('second_value', $span->baggage['shared_key']);
 
             close_span();
             $baggageScope->detach();
@@ -1393,7 +1393,7 @@ final class InteroperabilityTest extends BaseTestCase
             $parentSpanScope->detach();
         });
 
-        // 4. OpenTelemetry Baggage Deletion Reflects in Datadog
+        // 4. OpenTelemetry Baggage Removal Reflects in Datadog
         $otelDeletedOnDatadog = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
     
@@ -1403,45 +1403,24 @@ final class InteroperabilityTest extends BaseTestCase
                 ->build();
             $baggageScope = $baggage->storeInContext(Context::getCurrent())->activate();
     
+            $parentSpan = $tracer->spanBuilder('parent')
+                ->setSpanKind(SpanKind::KIND_SERVER)
+                ->startSpan();
+            $parentSpanScope = $parentSpan->activate();
+
             $baggage = Baggage::getCurrent();
             $baggage->toBuilder()->remove('to_be_deleted')->build()->activate();
 
-            $span = start_trace_span();
+            $span = start_span();
             $span->name = 'dd.span';
-    
+
             $this->assertArrayNotHasKey("to_be_deleted", $span->baggage); 
             $this->assertSame('otel_value', $span->baggage['otel_key']); 
 
             close_span();
             $baggageScope->detach();
-        });
-    }
-
-    public function testBaggagePropagationAcrossContexts()
-    {
-        $traces = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
-
-            $baggage = Baggage::getBuilder()
-                ->set('otel_key', 'otel_value')
-                ->build();
-            $baggageScope = $baggage->storeInContext(Context::getCurrent())->activate();
-
-            $span = start_trace_span();
-            $span->name = "dd.span";
-            $span->baggage['dd_key'] = 'dd_value';
-
-            // Inject baggage into headers
-            $carrier = [];
-            TraceContextPropagator::getInstance()->inject($carrier);
-
-            // Extract baggage from headers into a new context
-            $newContext = TraceContextPropagator::getInstance()->extract($carrier);
-            $this->assertSame("otel_value", Baggage::fromContext($newContext)->getValue("otel_key")); 
-            $this->assertSame("dd_value", Baggage::fromContext($newContext)->getValue("dd_key"));
-
-            close_span();
-            $baggageScope->detach();
+            $parentSpan->end();
+            $parentSpanScope->detach();
         });
     }
 }

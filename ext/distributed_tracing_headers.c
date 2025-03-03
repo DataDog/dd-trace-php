@@ -81,7 +81,6 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_baggage(ddtra
     char *baggage_end = baggage_ptr + ZSTR_LEN(baggage_header);
 
     ddtrace_deserialize_baggage(baggage_ptr, baggage_end, &result.baggage);
-
     zend_string_release(baggage_header);
     return result;
 }
@@ -558,7 +557,6 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         }
     }
 
-    // x2 xD
     if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->baggage;

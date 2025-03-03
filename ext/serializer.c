@@ -688,6 +688,10 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     zval_ptr_dtor(prop_type);
     ZVAL_COPY(prop_type, &parent->property_type);
 
+    zval *prop_baggage = &span->property_baggage;
+    zval_ptr_dtor(prop_baggage);
+    ZVAL_COPY(prop_baggage, &parent->property_baggage);
+
     zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
 
     zval *prop_version = &span->property_version;
