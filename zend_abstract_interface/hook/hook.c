@@ -205,7 +205,8 @@ static void zai_hook_entries_destroy(zai_hooks_entry *hooks, zend_ulong install_
 #endif
 
     zend_hash_iterators_remove(&hooks->hooks);
-    zend_hash_destroy(&hooks->hooks);
+    // This may lead to the last reference to a closure being removed.... which in turn will attempt a removal from this HashTable. Hence graceful.
+    zend_hash_graceful_destroy(&hooks->hooks);
 
     efree(hooks);
 }
