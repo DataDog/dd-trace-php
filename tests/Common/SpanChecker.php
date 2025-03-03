@@ -55,6 +55,14 @@ final class SpanChecker
         }
     }
 
+    public static function dumpTracesGraph(array $traces)
+    {
+        $self = new self;
+        $flattened = $self->flattenTraces($traces);
+        $actualGraph = $self->buildSpansGraph($flattened);
+        return self::dumpSpansGraph($actualGraph);
+    }
+
     public static function dumpSpansGraph(array $spansGraph, int $indent = 0)
     {
         $out = "";
