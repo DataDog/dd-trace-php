@@ -93,7 +93,7 @@ if (PHP_DDTRACE != 'no') {
 	ADD_SOURCES(configure_module_dirname + "/ext/priority_sampling", "priority_sampling.c", "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/ext/tracer_tag_propagation", "tracer_tag_propagation.c", "ddtrace");
 
-	ADD_SOURCES(zai_dirname + "/config", "config.c config_decode.c config_ini.c config_runtime.c", "ddtrace");
+	ADD_SOURCES(zai_dirname + "/config", "config.c config_decode.c config_ini.c config_stable_file.c config_runtime.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/env", "env.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/exceptions", "exceptions.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/headers", "headers.c", "ddtrace");

@@ -228,6 +228,7 @@ void zai_config_first_time_rinit(bool in_request) {
 void zai_config_rinit(void) {
     zai_config_runtime_config_ctor();
     zai_config_ini_rinit();
+    zai_config_stable_file_rinit();
 }
 
 void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }

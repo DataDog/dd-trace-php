@@ -1,4 +1,4 @@
-add_library(zai_config config.c config_decode.c config_ini.c config_runtime.c)
+add_library(zai_config config.c config_decode.c config_ini.c config_stable_file.c config_runtime.c)
 
 target_include_directories(
   zai_config PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
