@@ -43,14 +43,12 @@ static hash_fetch_ops_t _hash_fetch_ops;
 static PHP_FUNCTION(set_user_wrapper)
 {
     if (DDAPPSEC_G(active) || UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
-        zend_string *user_id = NULL;
+        zend_string *user_id;
         HashTable *metadata = NULL;
         zend_bool propagate = false;
         if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(),
                 "S|hb", &user_id, &metadata, &propagate) == SUCCESS) {
-            if (user_id != NULL) {
-                dd_find_and_apply_verdict_for_user(user_id);
-            }
+            dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
         }
     }
 
@@ -113,7 +111,7 @@ void dd_user_tracking_shutdown(void)
     }
 }
 
-void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
+void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id, zend_string *nonnull user_login)
 {
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
@@ -133,10 +131,15 @@ void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id)
     zval user_id_zv;
     ZVAL_STR_COPY(&user_id_zv, user_id);
 
+    zval user_login_zv;
+    ZVAL_STR_COPY(&user_login_zv, user_login);
+
     zval data_zv;
-    ZVAL_ARR(&data_zv, zend_new_array(1));
+    ZVAL_ARR(&data_zv, zend_new_array(2));
     zend_hash_str_add_new(
         Z_ARRVAL(data_zv), "usr.id", sizeof("usr.id") - 1, &user_id_zv);
+    zend_hash_str_add_new(
+        Z_ARRVAL(data_zv), "usr.login", sizeof("usr.login") - 1, &user_login_zv);
 
     dd_result res = dd_request_exec(conn, &data_zv, false);
     if (res == dd_network) {
