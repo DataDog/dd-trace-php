@@ -44,6 +44,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         public function init()
         {
             $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000), token varchar(100))");
+            $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_blocked_events (event varchar(1000), token varchar(100))");
         }
 
         public function setDefaults()
@@ -52,6 +53,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
                 return;
             }
             $this->getDbPdo()->exec("DELETE FROM appsec_events WHERE token = '" . ini_get("datadog.trace.agent_test_session_token") . "'");
+            $this->getDbPdo()->exec("DELETE FROM appsec_blocked_events WHERE token = '" . ini_get("datadog.trace.agent_test_session_token") . "'");
         }
 
         public function addEvent(array $event, $eventName)
@@ -59,9 +61,15 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             if (!$this->initiated()) {
                 return;
             }
-
             $event['eventName'] = $eventName;
+            $eventIsBlocked = $this->getDbPdo()
+                              ->query("SELECT * FROM appsec_blocked_events WHERE event = '".json_encode($event)."' and token = '" . ini_get("datadog.trace.agent_test_session_token") . "'")
+                              ->rowCount() > 0;
             $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_events VALUES ('%s', '%s')", json_encode($event), ini_get("datadog.trace.agent_test_session_token")));
+
+            if ($eventIsBlocked) {
+                \DDTrace\Testing\trigger_error("Datadog blocked the request and NON RELEVANT TEXT FROM HERE", E_ERROR);
+            }
         }
 
         public function getEvents(array $names = [], array $addresses = [])
@@ -83,6 +91,10 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             }
 
             return $result;
+        }
+
+        public function simulateBlockOnEvent($event) {
+            $this->getDbPdo()->exec(sprintf("INSERT INTO appsec_blocked_events VALUES ('%s', '%s')", json_encode($event), ini_get("datadog.trace.agent_test_session_token")));
         }
     }
 }
