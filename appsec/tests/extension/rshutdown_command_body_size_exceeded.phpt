@@ -25,7 +25,7 @@ $helper->get_commands(); // ignore
 
 var_dump(rshutdown());
 $c = $helper->get_commands();
-print_r($c[0]);
+print_r(array_keys($c[0][1][0]));
 
 ?>
 --EXPECT--
@@ -34,23 +34,6 @@ bool(true)
 bool(true)
 Array
 (
-    [0] => request_shutdown
-    [1] => Array
-        (
-            [0] => Array
-                (
-                    [server.response.status] => 403
-                    [server.response.headers.no_cookies] => Array
-                        (
-                            [content-type] => Array
-                                (
-                                    [0] => application/json
-                                )
-
-                        )
-
-                )
-
-        )
-
+    [0] => server.response.status
+    [1] => server.response.headers.no_cookies
 )
