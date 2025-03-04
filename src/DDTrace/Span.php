@@ -406,6 +406,59 @@ class Span extends DataSpan
         return $this->context->baggageItems;
     }
 
+    // OPENTELEMETRY Baggage API Below:
+
+    /**
+     * Sets a baggage entry.
+     * @param string $key The baggage key.
+     * @param mixed $value The baggage value.
+     * @return void
+     */
+    public function setBaggage($key, $value)
+    {
+        if ($key !== '') {
+            $this->baggage[$key] = $value;
+        }
+    }
+
+    /**
+     * Retrieves a baggage entry by key.
+     * @param string $key The baggage key.
+     * @return mixed|null Returns the value if found, otherwise null.
+     */
+    public function getBaggage($key)
+    {
+        return $this->baggage[$key] ?? null;
+    }
+
+    /**
+     * Retrieves all baggage entries.
+     * @return array Returns an associative array of all baggage items.
+     */
+    public function getAllBaggage()
+    {
+        return $this->baggage;
+    }
+
+    /**
+     * Removes a specific baggage entry.
+     * @param string $key The baggage key to remove.
+     * @return void
+     */
+    public function removeBaggage($key)
+    {
+        unset($this->baggage[$key]);
+    }
+
+    /**
+     * Clears all baggage entries.
+     * @return void
+     */
+    public function removeAllBaggage()
+    {
+        $this->baggage = [];
+    }
+
     public function __destruct()
     {
         if (!$this->isFinished()) {
