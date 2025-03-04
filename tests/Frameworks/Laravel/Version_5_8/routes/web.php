@@ -27,4 +27,8 @@ Route::get('queue/jobFailure', 'QueueTestController@jobFailure');
 Route::get('queue/workOn', 'QueueTestController@workOn');
 Route::get('login/auth', 'LoginTestController@auth');
 Route::get('login/signup', 'LoginTestController@register');
-Route::get('/behind_auth', 'LoginTestController@behind_auth')->middleware('auth');
+Route::group(array('before' => 'auth'), function()
+{
+   Route::get('/behind_auth', 'LoginTestController@behind_auth');
+});
+Route::get('rasp', 'RaspTestController@rasp');
