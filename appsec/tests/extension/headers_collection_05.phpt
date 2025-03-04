@@ -2,8 +2,6 @@
 All headers are collected when track_user_login_failure_event is triggered by user
 --INI--
 extension=ddtrace.so
-datadog.appsec.log_file=/tmp/php_appsec_test.log
-datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7
