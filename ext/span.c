@@ -18,6 +18,7 @@
 #include "user_request.h"
 #include "zend_types.h"
 #include "sidecar.h"
+#include "inferred_proxy_headers.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -150,6 +151,87 @@ uint64_t ddtrace_nanoseconds_realtime(void) {
     return ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
 }
 
+static void free_inferred_proxy_result(ddtrace_inferred_proxy_result *result) {
+    if (result->system) zend_string_release(result->system);
+    if (result->start_time_ms) zend_string_release(result->start_time_ms);
+    if (result->http_method) zend_string_release(result->http_method);
+    if (result->path) zend_string_release(result->path);
+    if (result->domain) zend_string_release(result->domain);
+    if (result->stage) zend_string_release(result->stage);
+}
+
+
+ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtrace_root_span_data *root) {
+    ddtrace_read_header *read_header = headers ? ddtrace_read_array_header : ddtrace_read_zai_header;
+    ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(read_header, headers);
+
+    if (!result.system || !result.start_time_ms) {
+        free_inferred_proxy_result(&result);
+        return NULL;
+    }
+
+    const ddtrace_proxy_info *proxy_info = ddtrace_get_proxy_info(result.system);
+    if (!proxy_info) {
+        zend_string_release(result.system);
+        zend_string_release(result.start_time_ms);
+        return NULL;
+    }
+
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_INFERRED_SPAN, ddtrace_ce_inferred_span_data);
+    ZVAL_OBJ(&root->property_inferred_span, &span->std);
+    Z_TRY_ADDREF_P(&root->property_inferred_span);
+
+    span->span_id = ddtrace_generate_span_id();
+    ddtrace_set_global_span_properties(span);
+    Z_TRY_ADDREF_P(&span->property_id);
+    ZVAL_COPY(&span->property_env, &root->property_env);
+    ZVAL_COPY(&span->property_version, &root->property_version);
+
+
+    zval_ptr_dtor(&span->property_name);
+    ZVAL_STR(&span->property_name, zend_string_init(proxy_info->span_name, strlen(proxy_info->span_name), 0));
+
+    zval_ptr_dtor(&span->property_resource);
+    if (result.http_method && result.path) {
+        ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result.http_method), ZSTR_VAL(result.path)));
+    }
+
+    span->start = ZEND_ATOL(ZSTR_VAL(result.start_time_ms)) * 1000000;
+    span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start);
+
+    zval zv;
+
+    if (result.domain) {
+        ZVAL_STR_COPY(&zv, result.domain);
+        ddtrace_assign_variable(&span->property_service, &zv);
+    }
+
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+
+    if (result.http_method) {
+        ZVAL_STR_COPY(&zv, result.http_method);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
+    }
+
+    if (result.domain && result.path) {
+        ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result.domain), ZSTR_VAL(result.path)));
+        zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
+    }
+
+    if (result.stage) {
+        ZVAL_STR_COPY(&zv, result.stage);
+        zend_hash_str_add_new(meta, ZEND_STRL("stage"), &zv);
+    }
+
+    add_assoc_long(&span->property_meta, "_dd.inferred_span", 1);
+    add_assoc_string(&span->property_meta, "component", proxy_info->component);
+    ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
+
+    free_inferred_proxy_result(&result);
+
+    return INFERRED_SPANDATA(&span->std);
+}
+
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
@@ -223,6 +305,12 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         }
     } else {
         LOG(SPAN_TRACE, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
+    }
+
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED() && !DDTRACE_G(inferred_span_created)) {
+        LOG(DEBUG, "Infered proxy services enabled");
+        ddtrace_inferred_span_data *inferred_span = ddtrace_open_inferred_span(NULL, ROOTSPANDATA(&span->std));
+        DDTRACE_G(inferred_span_created) = inferred_span != NULL;
     }
 
     return span;
@@ -546,6 +634,16 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     // Closing a span (esp. when leaving a traced function) autoswitches the stacks if necessary
     if (span->stack != DDTRACE_G(active_stack)) {
         ddtrace_switch_span_stack(span->stack);
+    }
+
+    if (span->std.ce == ddtrace_ce_root_span_data) {
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+        zval *inferred_span_zv = &root->property_inferred_span;
+        if (Z_TYPE_P(inferred_span_zv) == IS_OBJECT) {
+            ddtrace_span_data *inferred_span_data = OBJ_SPANDATA(Z_OBJ_P(inferred_span_zv));
+            dd_trace_stop_span_time(inferred_span_data);
+            inferred_span_data->type = DDTRACE_SPAN_CLOSED;
+        }
     }
 
     // Telemetry: increment the spans_created counter

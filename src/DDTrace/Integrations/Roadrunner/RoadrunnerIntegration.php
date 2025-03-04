@@ -157,6 +157,17 @@ class RoadrunnerIntegration extends Integration
 
                 $activeSpan = \DDTrace\start_trace_span();
 
+                $headers = [];
+                foreach ($retval->headers as $headername => $header) {
+                    $header = implode(", ", $header);
+                    $headers[strtolower($headername)] = $header;
+                }
+
+                $inferredProxyServicesEnabled = \dd_trace_env_config('DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED');
+                if ($inferredProxyServicesEnabled && $headers) {
+                    \DDTrace\start_inferred_span($headers, $activeSpan);
+                }
+
                 $activeSpan->service = $service;
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
@@ -168,11 +179,6 @@ class RoadrunnerIntegration extends Integration
                     \DDTrace\close_span();
                     $activeSpan = null;
                 } else {
-                    $headers = [];
-                    foreach ($retval->headers as $headername => $header) {
-                        $header = implode(", ", $header);
-                        $headers[strtolower($headername)] = $header;
-                    }
                     \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });

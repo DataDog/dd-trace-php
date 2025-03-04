@@ -240,6 +240,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED, "false")                                           \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
+    CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                             \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

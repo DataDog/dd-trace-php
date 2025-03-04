@@ -23,6 +23,7 @@ enum ddtrace_span_dataype {
     DDTRACE_INTERNAL_SPAN,
     DDTRACE_USER_SPAN,
     DDTRACE_AUTOROOT_SPAN,
+    DDTRACE_INFERRED_SPAN,
     DDTRACE_SPAN_CLOSED,
 };
 
@@ -101,6 +102,17 @@ static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
     return OBJ_SPANDATA(&obj->std);
 }
 
+struct ddtrace_inferred_span_data {
+    union {
+        ddtrace_span_data;
+        ddtrace_span_data span;
+    };
+};
+
+static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
+    return (ddtrace_inferred_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_inferred_span_data, std));
+}
+
 struct ddtrace_root_span_data {
     ddtrace_trace_id trace_id;
     uint64_t parent_id;
@@ -122,6 +134,7 @@ struct ddtrace_root_span_data {
     zval property_parent_id;
     zval property_trace_id;
     zval property_git_metadata;
+    zval property_inferred_span;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
@@ -207,6 +220,7 @@ void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
+ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtrace_root_span_data *root);
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);

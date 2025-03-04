@@ -233,6 +233,8 @@ namespace DDTrace {
         public function hexId(): string {}
     }
 
+    class InferredSpanData extends SpanData {}
+
     class RootSpanData extends SpanData {
         /**
          * @var string The origin site of the trace. Propagated through distributed tracing by default.
@@ -284,6 +286,8 @@ namespace DDTrace {
          * @var GitMetadata|null The git metadata of the span
          */
         public GitMetadata|null $gitMetadata = null;
+
+        public InferredSpanData|null $inferredSpan = null;
     }
 
     /**
@@ -514,6 +518,11 @@ namespace DDTrace {
      * @return SpanData|false The newly started span, or 'false' if a wrong parameter was given.
      */
     function start_span(float $startTime = 0): SpanData|false {}
+
+    /**
+     * @internal
+     */
+    function start_inferred_span(array $headers, SpanData $rootSpan): InferredSpanData|null {}
 
     /**
      * Close the currently active user-span on the top of the stack

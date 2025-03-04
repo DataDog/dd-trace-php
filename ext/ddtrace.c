@@ -100,6 +100,7 @@
 #endif
 #include "ddtrace_arginfo.h"
 #include "distributed_tracing_headers.h"
+#include "inferred_proxy_headers.h"
 #include "live_debugger.h"
 #include "agent_info.h"
 
@@ -891,12 +892,14 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
+zend_class_entry *ddtrace_ce_inferred_span_data;
 zend_class_entry *ddtrace_ce_root_span_data;
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
 HashTable dd_root_span_data_duplicated_properties_table;
 #endif
 zend_class_entry *ddtrace_ce_span_stack;
 zend_object_handlers ddtrace_span_data_handlers;
+zend_object_handlers ddtrace_inferred_span_data_handlers;
 zend_object_handlers ddtrace_root_span_data_handlers;
 zend_object_handlers ddtrace_span_stack_handlers;
 
@@ -922,6 +925,11 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
 static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_data *span = ecalloc(1, sizeof(*span));
     return dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+}
+
+static zend_object *ddtrace_inferred_span_data_create(zend_class_entry *class_type) {
+    ddtrace_inferred_span_data *span = ecalloc(1, sizeof(*span));
+    return dd_init_span_data_object(class_type, &span->span, &ddtrace_inferred_span_data_handlers);
 }
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
@@ -1028,6 +1036,18 @@ static zend_object *ddtrace_span_data_clone_obj(zend_object *old_obj) {
     zend_objects_clone_members(new_obj, old_obj);
     return new_obj;
 }
+
+#if PHP_VERSION_ID < 80000
+static zend_object *ddtrace_inferred_span_data_clone_obj(zval *old_zv) {
+    zend_object *old_obj = Z_OBJ_P(old_zv);
+#else
+static zend_object *ddtrace_inferred_span_data_clone_obj(zend_object *old_obj) {
+#endif
+    zend_object *new_obj = ddtrace_inferred_span_data_create(old_obj->ce);
+    zend_objects_clone_members(new_obj, old_obj);
+    return new_obj;
+}
+
 
 #if PHP_VERSION_ID < 80000
 static zend_object *ddtrace_root_span_data_clone_obj(zval *old_zv) {
@@ -1226,6 +1246,14 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
     ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
     ddtrace_span_data_handlers.get_constructor = ddtrace_span_data_get_constructor;
+
+    ddtrace_ce_inferred_span_data = register_class_DDTrace_InferredSpanData(ddtrace_ce_span_data);
+    ddtrace_ce_inferred_span_data->create_object = ddtrace_inferred_span_data_create;
+
+    memcpy(&ddtrace_inferred_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
+    ddtrace_inferred_span_data_handlers.offset = XtOffsetOf(ddtrace_inferred_span_data, std);
+    ddtrace_inferred_span_data_handlers.clone_obj = ddtrace_inferred_span_data_clone_obj;
+
 
     ddtrace_ce_root_span_data = register_class_DDTrace_RootSpanData(ddtrace_ce_span_data);
     ddtrace_ce_root_span_data->create_object = ddtrace_root_span_data_create;
@@ -1467,6 +1495,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_minit_remote_config();
     ddtrace_appsec_minit();
 
+    ddtrace_init_proxy_info_map();
+
     return SUCCESS;
 }
 
@@ -1561,6 +1591,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
     DDTRACE_G(asm_event_emitted) = false;
+    DDTRACE_G(inferred_span_created) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
@@ -1785,6 +1816,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
+    DDTRACE_G(inferred_span_created) = false;
 
     return SUCCESS;
 }
@@ -2740,6 +2772,36 @@ PHP_FUNCTION(DDTrace_start_span) {
     dd_start_span(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
+/* {{{ proto InferredSpanData\null DDTrace\start_inferred_span(array $headers, SpanData $rootSpan) */
+PHP_FUNCTION(DDTrace_start_inferred_span) {
+    zval *headers_zv = NULL;
+    zval *root_span_zv = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "aO", &headers_zv, &root_span_zv, ddtrace_ce_span_data) == FAILURE) {
+        RETURN_THROWS();
+    }
+
+    if (!get_DD_TRACE_ENABLED() || !get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    // Check that the root span is an instance of ddtrace_ce_root_span_data
+    if (Z_OBJCE_P(root_span_zv) != ddtrace_ce_root_span_data) {
+        LOG_LINE(ERROR, "Expected root span to be an instance of DDTrace\\RootSpanData");
+        RETURN_NULL();
+    }
+
+
+
+    zend_array *headers = Z_ARRVAL_P(headers_zv);
+    ddtrace_root_span_data *root_span = ROOTSPANDATA(Z_OBJ_P(root_span_zv));
+
+    ddtrace_inferred_span_data *inferred_span = ddtrace_open_inferred_span(headers, root_span);
+    if (inferred_span) {
+        RETURN_OBJ(&inferred_span->std);
+    }
+    RETURN_NULL();
+}
+
 /* {{{ proto string DDTrace\start_trace_span() */
 PHP_FUNCTION(DDTrace_start_trace_span) {
     if (get_DD_TRACE_ENABLED()) {
@@ -3079,18 +3141,6 @@ static bool dd_read_userspace_header(zai_str zai_header, const char *lowercase_h
     return true;
 }
 
-static bool dd_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
-    UNUSED(zai_header);
-    zend_array *array = (zend_array *) data;
-    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
-    if (!value) {
-        return false;
-    }
-
-    *header_value = zval_get_string(value);
-    return true;
-}
-
 static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
     UNUSED(return_value);
 
@@ -3133,7 +3183,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     func.fci.param_count = 1;
 
     if (array) {
-        return ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+        return ddtrace_read_distributed_tracing_ids(ddtrace_read_array_header, array);
     } else if (use_server_headers) {
         return ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, &func);
     } else {
