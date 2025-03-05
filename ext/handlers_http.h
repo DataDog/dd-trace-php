@@ -101,6 +101,24 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
     return NULL;
 }
 
+static inline zend_string *ddtrace_percent_encode(const char *str, size_t len) {
+    smart_str encoded = {0};
+
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = str[i];
+
+        // Encode only if required (space, ",", ",", ";", "\", non-printable, or non-ASCII)
+        if (c == ' ' || c == '"' || c == ',' || c == ';' || c == '\\' || c < 0x20 || c > 0x7E) {
+            smart_str_append_printf(&encoded, "%%%02X", c);
+        } else {
+            smart_str_appendc(&encoded, c);
+        }
+    }
+
+    smart_str_0(&encoded);
+    return encoded.s;
+}
+
 static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
     smart_str serialized_baggage = {0};
     zend_string *key;
@@ -114,7 +132,20 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(baggage, key, value) {
         if (!key || Z_TYPE_P(value) != IS_STRING) {
-            continue;
+            continue; // Skip invalid entries
+        }
+
+        // Ensure key contains only valid characters
+        bool valid_key = true;
+        for (size_t i = 0; i < ZSTR_LEN(key); i++) {
+            char c = ZSTR_VAL(key)[i];
+            if (!(isalnum(c) || strchr("!#$%&'*+-.^_`|~", c))) {
+                valid_key = false;
+                break;
+            }
+        }
+        if (!valid_key) {
+            continue; // Skip invalid keys
         }
 
         // Check if adding another item exceeds max allowed items
@@ -123,10 +154,14 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
             break;
         }
 
+        // Encode value
+        zend_string *encoded_value = ddtrace_percent_encode(Z_STRVAL_P(value), Z_STRLEN_P(value));
+
         // Compute new size including separator, key, `=`, and value
-        size_t new_size = current_size + (first_entry ? 0 : 1) + ZSTR_LEN(key) + 1 + Z_STRLEN_P(value);
+        size_t new_size = current_size + (first_entry ? 0 : 1) + ZSTR_LEN(key) + 1 + ZSTR_LEN(encoded_value);
         if (new_size > max_bytes) {
             exceeded_bytes = true;
+            zend_string_release(encoded_value);
             break;
         }
 
@@ -136,9 +171,12 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
             first_entry = false;
         }
 
+        // Append key=value pair
         smart_str_appendl(&serialized_baggage, ZSTR_VAL(key), ZSTR_LEN(key));
         smart_str_appendc(&serialized_baggage, '=');
-        smart_str_appendl(&serialized_baggage, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        smart_str_appendl(&serialized_baggage, ZSTR_VAL(encoded_value), ZSTR_LEN(encoded_value));
+
+        zend_string_release(encoded_value);
 
         current_size = new_size;
         item_count++;
