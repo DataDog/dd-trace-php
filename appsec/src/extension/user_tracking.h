@@ -19,7 +19,8 @@ typedef enum _user_collection_mode {
 void dd_user_tracking_startup(void);
 void dd_user_tracking_shutdown(void);
 
-void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id);
+void dd_find_and_apply_verdict_for_user(
+    zend_string *nonnull user_id, zend_string *nonnull user_login);
 
 bool dd_parse_user_collection_mode(
     zai_str value, zval *nonnull decoded_value, bool persistent);
