@@ -138,7 +138,7 @@ public:
 
     static std::shared_ptr<service> from_settings(
         const dds::engine_settings &eng_settings,
-        const remote_config::settings &rc_settings, bool dynamic_enablement);
+        const remote_config::settings &rc_settings);
 
     [[nodiscard]] std::shared_ptr<engine> get_engine() const
     {

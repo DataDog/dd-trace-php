@@ -1,6 +1,6 @@
 | Library                     | Min. Supported Version | Max. Supported Version |
 |-----------------------------|------------------------|------------------------|
-| cakephp/cakephp             | 3.10.5                 | 5.1.5                  |
+| cakephp/cakephp             | 3.10.5                 | 5.1.6                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 8.17.0                 |
 | ext-PDO                     | 7.0.33                 | 8.3.14                 |
@@ -13,20 +13,20 @@
 | ext-redis                   | 3.1.6                  | 5.3.7                  |
 | ext-sqlsrv                  | 5.3.0                  | 5.12.0                 |
 | ext-swoole                  | 5.1.6                  | 6.0.0                  |
-| google/cloud-spanner        | 1.93.1                 | 1.93.1                 |
+| google/cloud-spanner        | 1.95.0                 | 1.95.0                 |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.9.2                  |
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.16.1                 | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 11.42.1                |
+| laravel/framework           | 4.2.22                 | 11.43.2                |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
-| laravel/octane              | 2.7.0                  | 2.7.0                  |
+| laravel/octane              | 2.8.0                  | 2.8.0                  |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
 | mongodb/mongodb             | 1.8.0                  | 1.20.0                 |
 | monolog/monolog             | 1.27.1                 | 3.8.1                  |
 | nette/application           | 2.4.17                 | 3.2.6                  |
 | openai-php/client           | 0.10.3                 | 0.10.3                 |
-| php-amqplib/php-amqplib     | 2.12.1                 | 3.7.2                  |
+| php-amqplib/php-amqplib     | 2.12.1                 | 3.7.3                  |
 | predis/predis               | 1.1.10                 | 2.3.0                  |
 | shardj/zf1-future           | 1.21.4                 | 1.21.4                 |
 | slim/slim                   | 3.12.5                 | 4.14.0                 |

@@ -414,7 +414,7 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
-        bool appsec_features = false;
+        bool appsec_activation = false;
         bool appsec_config = false;
 
 #ifndef _WIN32
@@ -434,7 +434,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_features, &appsec_config);
+        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
         if (!enable_sidecar) {
             enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
         }
@@ -444,7 +444,7 @@ static void dd_activate_once(void) {
         {
             bool request_startup = PG(during_request_startup);
             PG(during_request_startup) = false;
-            ddtrace_sidecar_setup(appsec_features, appsec_config);
+            ddtrace_sidecar_setup(appsec_activation, appsec_config);
             PG(during_request_startup) = request_startup;
         }
 #ifndef _WIN32
