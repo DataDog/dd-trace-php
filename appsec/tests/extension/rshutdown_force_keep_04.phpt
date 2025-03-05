@@ -3,7 +3,6 @@ Force keep on rshutdown, overrides rinit
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
-datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown, root_span_get_metrics};

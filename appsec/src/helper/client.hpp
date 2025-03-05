@@ -64,6 +64,18 @@ public:
     void update_remote_config_path(std::string_view path);
 
 protected:
+    void set_service(std::shared_ptr<service> service)
+    {
+        service_ = std::move(service);
+        if (!service_) {
+            sample_acc_.reset();
+            return;
+        }
+        std::optional<sampler> &sampler = service_->get_schema_sampler();
+        sample_acc_ =
+            sampler.has_value() ? sampler->new_accessor_up() : nullptr;
+    }
+
     template <typename T>
     std::shared_ptr<typename T::response> publish(
         typename T::request &command, const std::string &rasp_rule = "");
@@ -75,7 +87,10 @@ protected:
     std::unique_ptr<network::base_broker> broker_;
     std::shared_ptr<service_manager> service_manager_;
     std::optional<dds::engine_settings> engine_settings_;
-    std::shared_ptr<service> service_ = {nullptr};
+
+    std::shared_ptr<service> service_;
+    std::unique_ptr<sampler::table_accessor> sample_acc_; // depends on service_
+
     std::optional<engine::context> context_;
     std::optional<bool> client_enabled_conf;
     bool request_enabled_ = {false};

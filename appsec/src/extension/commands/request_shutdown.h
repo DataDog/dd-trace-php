@@ -22,6 +22,7 @@ struct req_shutdown_info {
         const zend_array *nonnull resp_headers_arr;
     };
     zend_string *nullable entity;
+    uint64_t api_sec_samp_key;
 };
 
 dd_result dd_request_shutdown(

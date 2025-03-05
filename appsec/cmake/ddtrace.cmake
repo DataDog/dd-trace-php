@@ -8,7 +8,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CARGO_BUILD_CMD "${CARGO_BUILD_CMD} --release")
 elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     set(CARGO_BUILD_CMD "${CARGO_BUILD_CMD} --release")
-    set(CARGO_BUILD_ENV "RUSTFLAGS='-C debuginfo=2'")
+    set(CARGO_BUILD_ENV RUSTFLAGS='-C\ debuginfo=2')
 endif()
 
 set(LIBDATADOG_DIR "${CMAKE_SOURCE_DIR}/../libdatadog")
@@ -32,7 +32,6 @@ add_custom_target(ddtrace_exports
     COMMAND bash -c "sed 's/^/_/' '${CMAKE_SOURCE_DIR}'/../ddtrace.sym > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../ddtrace.sym
-    VERBATIM
 )
 endif()
 
@@ -56,7 +55,7 @@ ExternalProject_Add(components_rs_proj
     PREFIX ${CMAKE_BINARY_DIR}/components_rs
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/../components-rs
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND RUSTC_BOOTSTRAP=1 ${CARGO_BUILD_ENV} cargo build --target-dir=${CMAKE_BINARY_DIR}/components_rs
+    BUILD_COMMAND sh -c RUSTC_BOOTSTRAP=1\ ${CARGO_BUILD_ENV}\ ${CARGO_BUILD_CMD}\ --target-dir=${CMAKE_BINARY_DIR}/components_rs
     INSTALL_COMMAND ""
     DEPENDS libdatadog_stamp
     BUILD_IN_SOURCE TRUE
