@@ -88,9 +88,13 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/config/config.h",
     "../zend_abstract_interface/config/config_decode.h",
     "../zend_abstract_interface/config/config_ini.h",
+    "../zend_abstract_interface/config/config_stable_file.h",
     "../zend_abstract_interface/env/env.h",
     "../zend_abstract_interface/exceptions/exceptions.h",
     "../zend_abstract_interface/json/json.h",
+
+    "../components-rs/common.h",
+    "../components-rs/library-config.h",
 ];
 
 #[allow(clippy::too_many_arguments)]
@@ -119,6 +123,7 @@ fn build_zend_php_ffis(
     let zai_c_files = [
         "../zend_abstract_interface/config/config_decode.c",
         "../zend_abstract_interface/config/config_ini.c",
+        "../zend_abstract_interface/config/config_stable_file.c",
         "../zend_abstract_interface/config/config.c",
         "../zend_abstract_interface/config/config_runtime.c",
         "../zend_abstract_interface/env/env.c",
@@ -170,7 +175,8 @@ fn build_zend_php_ffis(
             str::replace(php_config_includes, "-I", "")
                 .split(' ')
                 .map(Path::new)
-                .chain([Path::new("../zend_abstract_interface")]),
+                .chain([Path::new("../zend_abstract_interface")])
+                .chain([Path::new("../")]),
         )
         .flag_if_supported("-fuse-ld=lld")
         .flag_if_supported("-std=c11")
@@ -244,6 +250,7 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .header("src/php_ffi.h")
         .header("../ext/handlers_api.h")
         .clang_arg("-I../zend_abstract_interface")
+        .clang_arg("-I../")
         // Block some zend items that we'll provide manual definitions for
         .blocklist_item("zai_str_s")
         .blocklist_item("zai_str")
