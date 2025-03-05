@@ -118,7 +118,7 @@ impl Uploader {
               $( ($type_str:expr, $interval:expr, $count:expr) ),+ $(,)? ) => {
                 $(
                     if let Some(offset) = $sample_types.iter().position(|&x| x.r#type == $type_str) {
-                        let upscaling_info = UpscalingInfo::PoissonCount {
+                        let upscaling_info = UpscalingInfo::PoissonNonSampleTypeCount {
                             sum_value_offset: offset,
                             count_value: $count.swap(0, Ordering::SeqCst),
                             sampling_distance: $interval.load(Ordering::SeqCst),

@@ -1298,7 +1298,7 @@ dependencies = [
 [[package]]
 name = "datadog-alloc"
 version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#797805b154196381b933aa2d47ca811c75ecb2d4"
+source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#90f471f4e25e9cbb6dca02c64750462e607b9754"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1478,7 +1478,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#797805b154196381b933aa2d47ca811c75ecb2d4"
+source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#90f471f4e25e9cbb6dca02c64750462e607b9754"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1739,7 +1739,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#797805b154196381b933aa2d47ca811c75ecb2d4"
+source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#90f471f4e25e9cbb6dca02c64750462e607b9754"
 dependencies = [
  "anyhow",
  "cc",
