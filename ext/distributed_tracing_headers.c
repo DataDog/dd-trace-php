@@ -17,6 +17,7 @@ static ddtrace_distributed_tracing_result dd_init_empty_result(void) {
     zend_hash_init(&result.tracestate_unknown_dd_keys, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.propagated_tags, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.meta_tags, 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&result.baggage, 8, unused, ZVAL_PTR_DTOR, 0);
     return result;
 }
 
@@ -40,6 +41,133 @@ static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
         }
         zend_hash_str_del(&result->meta_tags, ZEND_STRL("_dd.p.tid"));
     }
+}
+
+static inline int hex2int(char c) {
+    return (c >= '0' && c <= '9') ? c - '0' :
+           (c >= 'a' && c <= 'f') ? c - 'a' + 10 :
+           (c >= 'A' && c <= 'F') ? c - 'A' + 10 : -1;
+}
+
+static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, HashTable *baggage) {
+    bool is_malformed = false;
+
+    while (baggage_ptr < baggage_end) {
+        // Extract key
+        char *key_start = baggage_ptr;
+        while (baggage_ptr < baggage_end && *baggage_ptr != '=') {
+            ++baggage_ptr;
+        }
+
+        if (*baggage_ptr != '=') {
+            is_malformed = true;
+            break;
+        }
+
+        size_t key_len = baggage_ptr - key_start;
+        ++baggage_ptr; // Move past '='
+
+        // Extract value
+        char *value_start = baggage_ptr;
+        while (baggage_ptr < baggage_end && *baggage_ptr != ',') {
+            ++baggage_ptr;
+        }
+
+        size_t value_len = baggage_ptr - value_start;
+        
+        if (key_len == 0 || value_len == 0) {
+            is_malformed = true;
+            break;
+        }
+
+        // Allocate strings for decoded key and value
+        zend_string *decoded_key = zend_string_alloc(key_len, 0);
+        zend_string *decoded_value = zend_string_alloc(value_len, 0);
+
+        char *out_key = ZSTR_VAL(decoded_key);
+        char *out_value = ZSTR_VAL(decoded_value);
+
+        // Decode key
+        char *in = key_start, *end = key_start + key_len;
+        while (in < end) {
+            if (*in == '%' && (in + 2 < end) && isxdigit((unsigned char)in[1]) && isxdigit((unsigned char)in[2])) {
+                int high = hex2int(in[1]);
+                int low = hex2int(in[2]);
+                if (high == -1 || low == -1) {
+                    is_malformed = true;
+                    break;
+                }
+                *out_key++ = (char)((high << 4) + low);
+                in += 3;
+            } else {
+                *out_key++ = *in++;
+            }
+        }
+        ZSTR_LEN(decoded_key) = out_key - ZSTR_VAL(decoded_key);
+        ZSTR_VAL(decoded_key)[ZSTR_LEN(decoded_key)] = '\0'; // ✅ Explicitly null-terminate
+
+        // Decode value
+        in = value_start, end = value_start + value_len;
+        while (in < end) {
+            if (*in == '%' && (in + 2 < end) && isxdigit((unsigned char)in[1]) && isxdigit((unsigned char)in[2])) {
+                int high = hex2int(in[1]);
+                int low = hex2int(in[2]);
+                if (high == -1 || low == -1) {
+                    is_malformed = true;
+                    break;
+                }
+                *out_value++ = (char)((high << 4) + low);
+                in += 3;
+            } else {
+                *out_value++ = *in++;
+            }
+        }
+        ZSTR_LEN(decoded_value) = out_value - ZSTR_VAL(decoded_value);
+        ZSTR_VAL(decoded_value)[ZSTR_LEN(decoded_value)] = '\0'; // ✅ Explicitly null-terminate
+
+        // Validate key (per RFC7230)
+        for (size_t i = 0; i < ZSTR_LEN(decoded_key); i++) {
+            char c = ZSTR_VAL(decoded_key)[i];
+            if (!(isalnum(c) || strchr("!#$%&'*+-.^_`|~", c))) {
+                is_malformed = true;
+                break;
+            }
+        }
+
+        if (is_malformed) {
+            zend_string_release(decoded_key);
+            zend_string_release(decoded_value);
+            break;
+        }
+
+        // Store key-value in baggage
+        zval baggage_value;
+        ZVAL_STR(&baggage_value, decoded_value);
+        zend_hash_update(baggage, decoded_key, &baggage_value);
+        zend_string_release(decoded_key);
+
+        ++baggage_ptr; // Move past ','
+    }
+
+    if (is_malformed) {
+        zend_hash_clean(baggage);
+    }
+}
+
+static ddtrace_distributed_tracing_result ddtrace_read_distributed_baggage(ddtrace_read_header *read_header, void *data) {
+    zend_string *baggage_header;
+    ddtrace_distributed_tracing_result result = dd_init_empty_result();
+
+    if (!read_header((zai_str)ZAI_STRL("BAGGAGE"), "baggage", &baggage_header, data)) {
+        return result;
+    }
+
+    char *baggage_ptr = ZSTR_VAL(baggage_header);
+    char *baggage_end = baggage_ptr + ZSTR_LEN(baggage_header);
+
+    ddtrace_deserialize_baggage(baggage_ptr, baggage_end, &result.baggage);
+    zend_string_release(baggage_header);
+    return result;
 }
 
 static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_datadog(ddtrace_read_header *read_header, void *data) {
@@ -359,12 +487,16 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             func = ddtrace_read_distributed_tracing_ids_b3;
         } else if (!has_trace && zend_string_equals_literal(extraction_style, "b3 single header")) {
             func = ddtrace_read_distributed_tracing_ids_b3_single_header;
+        } else if (zend_string_equals_literal(extraction_style, "baggage")) {
+            func = ddtrace_read_distributed_baggage;
         } else {
             continue;
         }
 
         if (!has_trace) {
             zend_string *existing_origin = result.origin;
+            zend_array existing_baggage = result.baggage;
+
             if (result.meta_tags.arData) {
                 zend_hash_destroy(&result.meta_tags);
             }
@@ -388,8 +520,13 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                     result.origin = existing_origin;
                 }
             }
+
+            if (existing_baggage.arData) {
+                result.baggage = existing_baggage;
+            }
         } else {
             ddtrace_distributed_tracing_result new_result = func(read_header, data);
+
             if (result.trace_id.low == new_result.trace_id.low && result.trace_id.high == new_result.trace_id.high) {
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
@@ -415,12 +552,27 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 }
             }
 
+            if (new_result.baggage.arData) {
+                zend_string *key;
+                zval *value;
+                ZEND_HASH_FOREACH_STR_KEY_VAL(&new_result.baggage, key, value) {
+                    zend_string *new_key = zend_string_dup(key, 0);
+                    zval new_value;
+                    ZVAL_DUP(&new_value, value);
+
+                    zend_hash_update(&result.baggage, new_key, &new_value);
+                    zend_string_release(new_key);
+                } ZEND_HASH_FOREACH_END();
+            }
+
             if (new_result.tracestate) {
                 zend_string_release(new_result.tracestate);
             }
             if (new_result.origin) {
                 zend_string_release(new_result.origin);
             }
+
+            zend_hash_destroy(&new_result.baggage);
             zend_hash_destroy(&new_result.meta_tags);
             zend_hash_destroy(&new_result.propagated_tags);
             zend_hash_destroy(&new_result.tracestate_unknown_dd_keys);
@@ -488,6 +640,15 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
         }
+    }
+
+    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
+        ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
+        *Z_ARR(zv) = result->baggage;
+        ddtrace_assign_variable(&SPANDATA(DDTRACE_G(active_stack)->active)->property_baggage, &zv);
+    } else {
+        zend_hash_destroy(&DDTRACE_G(baggage));
+        DDTRACE_G(baggage) = result->baggage;
     }
 
     result->meta_tags.pDestructor = NULL; // we moved values directly

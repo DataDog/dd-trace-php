@@ -330,6 +330,54 @@ final class SpanTest extends BaseTestCase
         $this->assertSame([1710563033, 2041643438], $randInts);
     }
 
+    public function testBaggageApiOperations()
+    {
+        $span = $this->createSpan();
+
+        // Test setting and getting a baggage
+        $span->setBaggage('user_id', 123);
+        $this->assertEquals(123, $span->getBaggage('user_id'));
+
+        // Test setting multiple entries and retrieving all baggage
+        $span->setBaggage('session_id', 'abc123');
+        $expectedBaggage = [
+            'user_id' => 123,
+            'session_id' => 'abc123'
+        ];
+        $this->assertEquals($expectedBaggage, $span->getAllBaggage());
+
+        // Test removing a single baggage
+        $span->removeBaggage('user_id');
+        $this->assertNull($span->getBaggage('user_id'));
+        $this->assertEquals(['session_id' => 'abc123'], $span->getAllBaggage());
+
+        // Test removing all baggage entries
+        $span->removeAllBaggage();
+        $this->assertEmpty($span->getAllBaggage());
+
+        // Test overwriting an existing key
+        $span->setBaggage('user_id', 123);
+        $span->setBaggage('user_id', 456);
+        $this->assertEquals(456, $span->getBaggage('user_id'));
+
+        // Test setting empty keys (should be ignored)
+        $span->setBaggage('', 'some_value');
+        $this->assertEquals(['user_id' => 456], $span->getAllBaggage());
+
+        // Test setting empty values (should still be stored)
+        $span->setBaggage('empty_value', '');
+        $this->assertEquals('', $span->getBaggage('empty_value'));
+  
+        // Test removing a non-existent key (should not cause errors)
+        $span->removeBaggage('non_existent_key');
+        $this->assertEquals(['user_id' => 456, 'empty_value' => ''], $span->getAllBaggage());
+
+        // Test clearing an already empty baggage
+        $span->removeAllBaggage();
+        $span->removeAllBaggage();
+        $this->assertEmpty($span->getAllBaggage());
+    }
+
     private function createSpan($realSpan = false)
     {
         $context = SpanContext::createAsRoot();

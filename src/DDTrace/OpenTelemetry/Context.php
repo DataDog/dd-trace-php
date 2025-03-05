@@ -8,6 +8,8 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
+use OpenTelemetry\API\Baggage\Baggage;
+use OpenTelemetry\API\Baggage\BaggageBuilder;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeFactory;
@@ -32,6 +34,7 @@ final class Context implements ContextInterface
 
     // Optimization for spans to avoid copying the context array.
     private static ContextKeyInterface $spanContextKey;
+    private static ContextKeyInterface $baggageContextKey;
     private ?object $span = null;
     /** @var array<int, mixed> */
     private array $context = [];
@@ -41,6 +44,7 @@ final class Context implements ContextInterface
     private function __construct()
     {
         self::$spanContextKey = ContextKeys::span();
+        self::$baggageContextKey = ContextKeys::baggage();
     }
 
     public static function createKey(string $key): ContextKeyInterface
@@ -257,6 +261,20 @@ final class Context implements ContextInterface
         }
 
         $id = spl_object_id($key);
+
+        if ($key === self::$baggageContextKey) {
+            if ( $this->span instanceof SDK\Span){
+                $currentDdSpan = $self->span?->getDDSpan();
+                if ($currentDdSpan !== null) {
+                    $currentDdSpan->baggage = [];
+                    foreach($value->getAll() as $baggageKey => $baggageEntry) {
+                        $currentDdSpan->baggage[$baggageKey] = $baggageEntry->getValue();
+                    }
+                    return $self;
+                }
+            }
+        }
+        
         if ($value !== null) {
             $self->context[$id] = $value;
             $self->contextKeys[$id] ??= $key;
@@ -275,6 +293,19 @@ final class Context implements ContextInterface
         if ($key === self::$spanContextKey) {
             /** @psalm-suppress InvalidReturnStatement */
             return $this->span;
+        }
+
+        if ($key === self::$baggageContextKey) {
+            if ( $this->span instanceof SDK\Span){
+                $currentDdSpan = $this->span?->getDDSpan();
+                if($currentDdSpan) {
+                    $baggageBuilder = new BaggageBuilder();
+                    foreach($currentDdSpan->baggage as $baggageKey => $baggageValue) {
+                        $baggageBuilder->set($baggageKey, $baggageValue);
+                    }
+                    return $baggageBuilder->build();
+                }
+            }
         }
 
         return $this->context[spl_object_id($key)] ?? null;

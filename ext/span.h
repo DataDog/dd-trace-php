@@ -91,6 +91,8 @@ struct ddtrace_span_data {
         ddtrace_span_properties;
         ddtrace_span_properties props;
     };
+
+    zval property_baggage;
 };
 
 static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
