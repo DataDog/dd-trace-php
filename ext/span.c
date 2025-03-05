@@ -179,11 +179,9 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtr
 
     ddtrace_span_data *span = ddtrace_init_span(DDTRACE_INFERRED_SPAN, ddtrace_ce_inferred_span_data);
     ZVAL_OBJ(&root->property_inferred_span, &span->std);
-    Z_TRY_ADDREF_P(&root->property_inferred_span);
 
     span->span_id = ddtrace_generate_span_id();
     ddtrace_set_global_span_properties(span);
-    Z_TRY_ADDREF_P(&span->property_id);
     ZVAL_COPY(&span->property_env, &root->property_env);
     ZVAL_COPY(&span->property_version, &root->property_version);
 
