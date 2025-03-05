@@ -487,10 +487,10 @@ pub static FILE_READ_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static FILE_WRITE_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
-pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
-pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
-pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
-pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
+pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
 
 pub static SOCKET_READ_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static SOCKET_WRITE_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
