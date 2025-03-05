@@ -45,7 +45,11 @@ use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-#[cfg(any(feature = "allocation_profiling", feature = "exception_profiling", feature = "io_profiling"))]
+#[cfg(any(
+    feature = "allocation_profiling",
+    feature = "exception_profiling",
+    feature = "io_profiling"
+))]
 use datadog_profiling::api::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]

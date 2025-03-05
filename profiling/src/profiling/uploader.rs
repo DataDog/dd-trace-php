@@ -138,14 +138,46 @@ impl Uploader {
         add_io_profiling_rules!(
             profile,
             index.sample_types,
-            ("socket-read-time", SOCKET_READ_TIME_PROFILING_INTERVAL, SOCKET_READ_TIME_SAMPLE_COUNT),
-            ("socket-write-time", SOCKET_WRITE_TIME_PROFILING_INTERVAL, SOCKET_WRITE_TIME_SAMPLE_COUNT),
-            ("file-io-read-time", FILE_READ_TIME_PROFILING_INTERVAL, FILE_READ_TIME_SAMPLE_COUNT),
-            ("file-io-write-time", FILE_WRITE_TIME_PROFILING_INTERVAL, FILE_WRITE_TIME_SAMPLE_COUNT),
-            ("socket-read-size", SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_SIZE_SAMPLE_COUNT),
-            ("socket-write-size", SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_SIZE_SAMPLE_COUNT),
-            ("file-io-read-size", FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_SIZE_SAMPLE_COUNT),
-            ("file-io-write-size", FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_SIZE_SAMPLE_COUNT)
+            (
+                "socket-read-time",
+                SOCKET_READ_TIME_PROFILING_INTERVAL,
+                SOCKET_READ_TIME_SAMPLE_COUNT
+            ),
+            (
+                "socket-write-time",
+                SOCKET_WRITE_TIME_PROFILING_INTERVAL,
+                SOCKET_WRITE_TIME_SAMPLE_COUNT
+            ),
+            (
+                "file-io-read-time",
+                FILE_READ_TIME_PROFILING_INTERVAL,
+                FILE_READ_TIME_SAMPLE_COUNT
+            ),
+            (
+                "file-io-write-time",
+                FILE_WRITE_TIME_PROFILING_INTERVAL,
+                FILE_WRITE_TIME_SAMPLE_COUNT
+            ),
+            (
+                "socket-read-size",
+                SOCKET_READ_SIZE_PROFILING_INTERVAL,
+                SOCKET_READ_SIZE_SAMPLE_COUNT
+            ),
+            (
+                "socket-write-size",
+                SOCKET_WRITE_SIZE_PROFILING_INTERVAL,
+                SOCKET_WRITE_SIZE_SAMPLE_COUNT
+            ),
+            (
+                "file-io-read-size",
+                FILE_READ_SIZE_PROFILING_INTERVAL,
+                FILE_READ_SIZE_SAMPLE_COUNT
+            ),
+            (
+                "file-io-write-size",
+                FILE_WRITE_SIZE_PROFILING_INTERVAL,
+                FILE_WRITE_SIZE_SAMPLE_COUNT
+            )
         );
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;
