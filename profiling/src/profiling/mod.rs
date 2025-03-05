@@ -45,7 +45,7 @@ use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-#[cfg(any(feature = "allocation_profiling", feature = "exception_profiling"))]
+#[cfg(any(feature = "allocation_profiling", feature = "exception_profiling", feature = "io_profiling"))]
 use datadog_profiling::api::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
@@ -67,7 +67,7 @@ static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
 ///  1. Always enabled types.
 ///  2. On by default types.
 ///  3. Off by default types.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SampleValues {
     interrupt_count: i64,
     wall_time: i64,
@@ -1284,10 +1284,10 @@ impl Profiler {
                     NO_TIMESTAMP,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels with to profiler."
+                        "Sent I/O stack sample of {depth} frames, {n_labels} labels with to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
+                        "Failed to send I/O stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
                     ),
                 }
             }

@@ -290,10 +290,12 @@ unsafe extern "C" fn observed_recv(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -314,10 +316,12 @@ unsafe extern "C" fn observed_recvmsg(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64);
-    });
+    if len > 0 {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64);
+        });
+    }
 
     len
 }
@@ -338,10 +342,12 @@ unsafe extern "C" fn observed_send(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -361,10 +367,12 @@ unsafe extern "C" fn observed_sendmsg(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -389,10 +397,12 @@ unsafe extern "C" fn observed_fwrite(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -407,10 +417,12 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -434,10 +446,12 @@ unsafe extern "C" fn observed_fread(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -452,10 +466,12 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -471,10 +487,19 @@ pub static FILE_READ_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static FILE_WRITE_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
-pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
-pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
-pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
-pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
+pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
+pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
+pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024);
+
+pub static SOCKET_READ_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static SOCKET_WRITE_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static FILE_READ_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static FILE_WRITE_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static SOCKET_READ_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static SOCKET_WRITE_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static FILE_READ_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static FILE_WRITE_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
 
 pub trait IOCollector {
     fn collect(&self, profiler: &Profiler, value: u64);
@@ -483,6 +508,7 @@ pub trait IOCollector {
 pub struct SocketReadTimeCollector;
 impl IOCollector for SocketReadTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        SOCKET_READ_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_read_time(
@@ -496,6 +522,7 @@ impl IOCollector for SocketReadTimeCollector {
 pub struct SocketWriteTimeCollector;
 impl IOCollector for SocketWriteTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        SOCKET_WRITE_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_write_time(
@@ -509,6 +536,7 @@ impl IOCollector for SocketWriteTimeCollector {
 pub struct FileReadTimeCollector;
 impl IOCollector for FileReadTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        FILE_READ_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_read_time(
@@ -522,6 +550,7 @@ impl IOCollector for FileReadTimeCollector {
 pub struct FileWriteTimeCollector;
 impl IOCollector for FileWriteTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        FILE_WRITE_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_write_time(
@@ -535,6 +564,7 @@ impl IOCollector for FileWriteTimeCollector {
 pub struct SocketReadSizeCollector;
 impl IOCollector for SocketReadSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        SOCKET_READ_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_read_size(
@@ -548,6 +578,7 @@ impl IOCollector for SocketReadSizeCollector {
 pub struct SocketWriteSizeCollector;
 impl IOCollector for SocketWriteSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        SOCKET_WRITE_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_write_size(
@@ -561,6 +592,7 @@ impl IOCollector for SocketWriteSizeCollector {
 pub struct FileReadSizeCollector;
 impl IOCollector for FileReadSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        FILE_READ_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_read_size(
@@ -574,6 +606,7 @@ impl IOCollector for FileReadSizeCollector {
 pub struct FileWriteSizeCollector;
 impl IOCollector for FileWriteSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
+        FILE_WRITE_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_write_size(
@@ -612,7 +645,7 @@ impl<C: IOCollector> IOProfilingStats<C> {
     fn track(&mut self, value: u64) {
         let zend_thread = REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
-            locals.vm_interrupt_addr.is_null()
+            !locals.vm_interrupt_addr.is_null()
         });
         if !zend_thread {
             // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
