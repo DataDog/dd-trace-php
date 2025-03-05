@@ -34,8 +34,9 @@ void zai_config_stable_file_rinit(void) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
             ddog_CStr name = ddog_library_config_name_to_env(cfg->name);
 
+            (void)(name);
             // printf("Setting env variable: %s=%s\n", name.ptr, cfg->value.ptr);
-            setenv(name.ptr, cfg->value.ptr, 1);
+            // setenv(name.ptr, cfg->value.ptr, 1);
         }
     } else {
         ddog_Error err = config_result.err;
@@ -43,4 +44,5 @@ void zai_config_stable_file_rinit(void) {
         ddog_Error_drop(&err);
     }
 
+    ddog_library_configurator_drop(configurator);
 }
