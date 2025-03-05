@@ -111,7 +111,8 @@ void dd_user_tracking_shutdown(void)
     }
 }
 
-void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id, zend_string *nonnull user_login)
+void dd_find_and_apply_verdict_for_user(
+    zend_string *nonnull user_id, zend_string *nonnull user_login)
 {
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
@@ -131,15 +132,22 @@ void dd_find_and_apply_verdict_for_user(zend_string *nonnull user_id, zend_strin
     zval user_id_zv;
     ZVAL_STR_COPY(&user_id_zv, user_id);
 
-    zval user_login_zv;
-    ZVAL_STR_COPY(&user_login_zv, user_login);
-
     zval data_zv;
-    ZVAL_ARR(&data_zv, zend_new_array(2));
+
+    if (ZSTR_LEN(user_login) > 0) {
+        array_init_size(&data_zv, 2);
+
+        zval user_login_zv;
+        ZVAL_STR_COPY(&user_login_zv, user_login);
+
+        zend_hash_str_add_new(Z_ARRVAL(data_zv), "usr.login",
+            sizeof("usr.login") - 1, &user_login_zv);
+    } else {
+        array_init_size(&data_zv, 1);
+    }
+
     zend_hash_str_add_new(
         Z_ARRVAL(data_zv), "usr.id", sizeof("usr.id") - 1, &user_id_zv);
-    zend_hash_str_add_new(
-        Z_ARRVAL(data_zv), "usr.login", sizeof("usr.login") - 1, &user_login_zv);
 
     dd_result res = dd_request_exec(conn, &data_zv, false);
     if (res == dd_network) {

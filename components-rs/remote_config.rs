@@ -86,7 +86,7 @@ pub struct LiveDebuggerState {
 #[no_mangle]
 pub unsafe extern "C" fn ddog_init_remote_config(
     live_debugging_enabled: bool,
-    appsec_features: bool,
+    appsec_activation: bool,
     appsec_config: bool,
 ) {
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
 
-    if appsec_features {
+    if appsec_activation {
         DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
     }
 
