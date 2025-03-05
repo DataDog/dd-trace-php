@@ -13,45 +13,29 @@ use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
-#[cfg(any(feature = "exception_profiling", feature = "allocation_profiling"))]
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
 
-#[cfg(feature = "io_profiling")]
+#[cfg(any(
+    feature = "exception_profiling",
+    feature = "allocation_profiling",
+    feature = "io_profiling"
+))]
+use std::sync::atomic::Ordering;
+
+#[cfg(all(feature = "io_profiling", target_os = "linux"))]
 use datadog_profiling::api::UpscalingInfo;
 
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_READ_SIZE_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_READ_SIZE_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_READ_TIME_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_READ_TIME_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_WRITE_SIZE_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_WRITE_SIZE_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_WRITE_TIME_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::FILE_WRITE_TIME_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_READ_SIZE_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_READ_SIZE_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_READ_TIME_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_READ_TIME_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_WRITE_SIZE_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_WRITE_SIZE_SAMPLE_COUNT;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_WRITE_TIME_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
-use crate::io::SOCKET_WRITE_TIME_SAMPLE_COUNT;
+#[cfg(all(feature = "io_profiling", target_os = "linux"))]
+use crate::io::{
+    FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_SIZE_SAMPLE_COUNT,
+    FILE_READ_TIME_PROFILING_INTERVAL, FILE_READ_TIME_SAMPLE_COUNT,
+    FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_SIZE_SAMPLE_COUNT,
+    FILE_WRITE_TIME_PROFILING_INTERVAL, FILE_WRITE_TIME_SAMPLE_COUNT,
+    SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_SIZE_SAMPLE_COUNT,
+    SOCKET_READ_TIME_PROFILING_INTERVAL, SOCKET_READ_TIME_SAMPLE_COUNT,
+    SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_SIZE_SAMPLE_COUNT,
+    SOCKET_WRITE_TIME_PROFILING_INTERVAL, SOCKET_WRITE_TIME_SAMPLE_COUNT,
+};
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -112,29 +96,32 @@ impl Uploader {
         let index = message.index;
         let mut profile = message.profile;
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         macro_rules! add_io_profiling_rules {
             ( $profile:expr, $sample_types:expr,
               $( ($type_str:expr, $interval:expr, $count:expr) ),+ $(,)? ) => {
                 $(
                     if let Some(offset) = $sample_types.iter().position(|&x| x.r#type == $type_str) {
-                        let upscaling_info = UpscalingInfo::PoissonNonSampleTypeCount {
-                            sum_value_offset: offset,
-                            count_value: $count.swap(0, Ordering::SeqCst),
-                            sampling_distance: $interval.load(Ordering::SeqCst),
-                        };
-                        if let Err(err) = $profile.add_upscaling_rule(&[offset], "", "", upscaling_info) {
-                            warn!(
-                                "Failed to add upscaling rule for {}: samples reported may be incorrect: {err}",
-                                $type_str
-                            );
+                        let count_value = $count.swap(0, Ordering::SeqCst);
+                        if count_value > 0 {
+                            let upscaling_info = UpscalingInfo::PoissonNonSampleTypeCount {
+                                sum_value_offset: offset,
+                                count_value,
+                                sampling_distance: $interval.load(Ordering::SeqCst),
+                            };
+                            if let Err(err) = $profile.add_upscaling_rule(&[offset], "", "", upscaling_info) {
+                                warn!(
+                                    "Failed to add upscaling rule for {}: samples reported may be incorrect: {err}",
+                                    $type_str
+                                );
+                            }
                         }
                     }
                 )+
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         add_io_profiling_rules!(
             profile,
             index.sample_types,

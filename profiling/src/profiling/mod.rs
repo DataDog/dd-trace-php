@@ -1209,63 +1209,63 @@ impl Profiler {
         }
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_time = socket_io_read_time;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_time = socket_io_write_time;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_time = file_io_read_time;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_time = file_io_write_time;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_size = socket_io_read_size;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_size = socket_io_write_size;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_size = file_io_read_size;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_size = file_io_write_size;
         })
     }
 
-    #[cfg(feature = "io_profiling")]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
     pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
     where
         F: FnOnce(&mut SampleValues),
