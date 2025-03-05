@@ -22,6 +22,7 @@ crossbeam-channel = { version = "0.5", default-features = false, features = ["st
 datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
 datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
 ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
+datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", tag = "v16.0.3" } # FIXME: version
 env_logger = { version = "0.11", default-features = false }
 indexmap = { version = "2.2" }
 lazy_static = { version = "1.4" }

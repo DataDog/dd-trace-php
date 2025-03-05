@@ -11,7 +11,7 @@ file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
 
 add_library(zai STATIC ${ZAI_SOURCE})
 target_link_libraries(zai PRIVATE PhpConfig)
-target_include_directories(zai PUBLIC ../zend_abstract_interface)
+target_include_directories(zai PUBLIC ../zend_abstract_interface ..)
 set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)

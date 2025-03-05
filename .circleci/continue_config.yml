@@ -2663,8 +2663,8 @@ jobs:
           command: |
             make build_pecl_package
             mkdir -p ./pecl && cp datadog_trace-*.tgz ./pecl
-      #- store_artifacts:
-      #    path: pecl
+      - store_artifacts:
+         path: pecl
       - persist_to_workspace:
           root: .
           paths: [pecl]

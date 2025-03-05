@@ -2,6 +2,7 @@ add_library(zai_config config.c config_decode.c config_ini.c config_stable_file.
 
 target_include_directories(
   zai_config PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+                    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/..>
                     $<INSTALL_INTERFACE:include>)
 
 target_compile_features(zai_config PUBLIC c_std_99)
