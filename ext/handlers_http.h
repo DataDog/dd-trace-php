@@ -106,22 +106,42 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
     zend_string *key;
     zval *value;
     bool first_entry = true;
+    uint64_t max_bytes = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_BAGGAGE_MAX_BYTES) ? get_DD_TRACE_BAGGAGE_MAX_BYTES() : 8192;
+    uint64_t max_items = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_BAGGAGE_MAX_ITEMS) ? get_DD_TRACE_BAGGAGE_MAX_ITEMS() : 64;
+    size_t current_size = 0;
+    size_t item_count = 0;
+    bool exceeded_items = false, exceeded_bytes = false;
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(baggage, key, value) {
         if (!key || Z_TYPE_P(value) != IS_STRING) {
-            continue; // Skip invalid entries
+            continue;
+        }
+
+        // Check if adding another item exceeds max allowed items
+        if (item_count >= max_items) {
+            exceeded_items = true;
+            break;
+        }
+
+        // Compute new size including separator, key, `=`, and value
+        size_t new_size = current_size + (first_entry ? 0 : 1) + ZSTR_LEN(key) + 1 + Z_STRLEN_P(value);
+        if (new_size > max_bytes) {
+            exceeded_bytes = true;
+            break;
         }
 
         if (!first_entry) {
-            smart_str_appendc(&serialized_baggage, ','); // Add comma separator
+            smart_str_appendc(&serialized_baggage, ',');
         } else {
             first_entry = false;
         }
 
-        // Append key=value
         smart_str_appendl(&serialized_baggage, ZSTR_VAL(key), ZSTR_LEN(key));
         smart_str_appendc(&serialized_baggage, '=');
         smart_str_appendl(&serialized_baggage, Z_STRVAL_P(value), Z_STRLEN_P(value));
+
+        current_size = new_size;
+        item_count++;
     } ZEND_HASH_FOREACH_END();
 
     if (!serialized_baggage.s) {
