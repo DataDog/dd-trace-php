@@ -99,7 +99,7 @@ class SwooleIntegration extends Integration
                 $path = $request->server['request_uri'] ?? $request->server['path_info'] ?? '';
                 $query = isset($request->server['query_string']) ? '?' . $request->server['query_string'] : '';
                 $url = $scheme . $host . $path . $query;
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::uriNormalizeincomingPath($url);
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($url);
 
                 unset($rootSpan->meta['closure.declaration']);
             }

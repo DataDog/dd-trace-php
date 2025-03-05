@@ -23,7 +23,7 @@ void zai_config_runtime_config_ctor(void) {
     if (runtime_config_initialized == true) return;
     runtime_config = emalloc(sizeof(zval) * ZAI_CONFIG_ENTRIES_COUNT_MAX);
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         ZVAL_COPY(&runtime_config[i], &zai_config_memoized_entries[i].decoded_value);
     }
     runtime_config_initialized = true;
@@ -31,7 +31,7 @@ void zai_config_runtime_config_ctor(void) {
 
 void zai_config_runtime_config_dtor(void) {
     if (runtime_config_initialized != true) return;
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zval_ptr_dtor(&runtime_config[i]);
     }
     efree(runtime_config);
