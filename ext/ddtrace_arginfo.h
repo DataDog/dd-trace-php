@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d06db74c5c91fc903d125fe835bb28178f248421 */
+ * Stub hash: 2948bdff7804f9136a8bd0b900036236dd613c98 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -50,11 +50,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_DDTrace_start_span, 0, 0, DDTrace\\SpanData, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_inferred_span, 0, 2, DDTrace\\InferredSpanData, 1)
-	ZEND_ARG_TYPE_INFO(0, headers, IS_ARRAY, 0)
-	ZEND_ARG_OBJ_INFO(0, rootSpan, DDTrace\\SpanData, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_close_span, 0, 0, IS_FALSE, 1)
@@ -320,7 +315,6 @@ ZEND_FUNCTION(DDTrace_close_spans_until);
 ZEND_FUNCTION(DDTrace_active_span);
 ZEND_FUNCTION(DDTrace_root_span);
 ZEND_FUNCTION(DDTrace_start_span);
-ZEND_FUNCTION(DDTrace_start_inferred_span);
 ZEND_FUNCTION(DDTrace_close_span);
 ZEND_FUNCTION(DDTrace_update_span_duration);
 ZEND_FUNCTION(DDTrace_start_trace_span);
@@ -405,7 +399,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "active_span"), zif_DDTrace_active_span, arginfo_DDTrace_active_span, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "root_span"), zif_DDTrace_root_span, arginfo_DDTrace_root_span, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "start_span"), zif_DDTrace_start_span, arginfo_DDTrace_start_span, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "start_inferred_span"), zif_DDTrace_start_inferred_span, arginfo_DDTrace_start_inferred_span, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "close_span"), zif_DDTrace_close_span, arginfo_DDTrace_close_span, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "update_span_duration"), zif_DDTrace_update_span_duration, arginfo_DDTrace_update_span_duration, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "start_trace_span"), zif_DDTrace_start_trace_span, arginfo_DDTrace_start_trace_span, 0, NULL, NULL)

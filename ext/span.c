@@ -18,7 +18,6 @@
 #include "user_request.h"
 #include "zend_types.h"
 #include "sidecar.h"
-#include "inferred_proxy_headers.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -161,19 +160,16 @@ static void free_inferred_proxy_result(ddtrace_inferred_proxy_result *result) {
 }
 
 
-ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtrace_root_span_data *root) {
-    ddtrace_read_header *read_header = headers ? ddtrace_read_array_header : ddtrace_read_zai_header;
-    ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(read_header, headers);
-
-    if (!result.system || !result.start_time_ms) {
-        free_inferred_proxy_result(&result);
+ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_result *result, ddtrace_root_span_data *root) {
+    if (!result->system || !result->start_time_ms) {
+        free_inferred_proxy_result(result);
         return NULL;
     }
 
-    const ddtrace_proxy_info *proxy_info = ddtrace_get_proxy_info(result.system);
+    const ddtrace_proxy_info *proxy_info = ddtrace_get_proxy_info(result->system);
     if (!proxy_info) {
-        zend_string_release(result.system);
-        zend_string_release(result.start_time_ms);
+        zend_string_release(result->system);
+        zend_string_release(result->start_time_ms);
         return NULL;
     }
 
@@ -190,34 +186,34 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtr
     ZVAL_STR(&span->property_name, zend_string_init(proxy_info->span_name, strlen(proxy_info->span_name), 0));
 
     zval_ptr_dtor(&span->property_resource);
-    if (result.http_method && result.path) {
-        ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result.http_method), ZSTR_VAL(result.path)));
+    if (result->http_method && result->path) {
+        ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result->http_method), ZSTR_VAL(result->path)));
     }
 
-    span->start = ZEND_ATOL(ZSTR_VAL(result.start_time_ms)) * 1000000;
+    span->start = ZEND_ATOL(ZSTR_VAL(result->start_time_ms)) * 1000000;
     span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start);
 
     zval zv;
 
-    if (result.domain) {
-        ZVAL_STR_COPY(&zv, result.domain);
+    if (result->domain) {
+        ZVAL_STR_COPY(&zv, result->domain);
         ddtrace_assign_variable(&span->property_service, &zv);
     }
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
-    if (result.http_method) {
-        ZVAL_STR_COPY(&zv, result.http_method);
+    if (result->http_method) {
+        ZVAL_STR_COPY(&zv, result->http_method);
         zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
     }
 
-    if (result.domain && result.path) {
-        ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result.domain), ZSTR_VAL(result.path)));
+    if (result->domain && result->path) {
+        ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result->domain), ZSTR_VAL(result->path)));
         zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
     }
 
-    if (result.stage) {
-        ZVAL_STR_COPY(&zv, result.stage);
+    if (result->stage) {
+        ZVAL_STR_COPY(&zv, result->stage);
         zend_hash_str_add_new(meta, ZEND_STRL("stage"), &zv);
     }
 
@@ -225,7 +221,7 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtr
     add_assoc_string(&span->property_meta, "component", proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
 
-    free_inferred_proxy_result(&result);
+    free_inferred_proxy_result(result);
 
     return INFERRED_SPANDATA(&span->std);
 }
@@ -306,8 +302,8 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     }
 
     if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED() && !DDTRACE_G(inferred_span_created)) {
-        LOG(DEBUG, "Infered proxy services enabled");
-        ddtrace_inferred_span_data *inferred_span = ddtrace_open_inferred_span(NULL, ROOTSPANDATA(&span->std));
+        ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(ddtrace_read_zai_header, NULL);
+        ddtrace_inferred_span_data *inferred_span = ddtrace_open_inferred_span(&result, ROOTSPANDATA(&span->std));
         DDTRACE_G(inferred_span_created) = inferred_span != NULL;
     }
 

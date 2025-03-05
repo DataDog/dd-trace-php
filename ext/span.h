@@ -10,6 +10,7 @@
 #include "ddtrace.h"
 #include "ddtrace_export.h"
 #include "priority_sampling/priority_sampling.h"
+#include "inferred_proxy_headers.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
@@ -220,7 +221,7 @@ void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
-ddtrace_inferred_span_data *ddtrace_open_inferred_span(zend_array *headers, ddtrace_root_span_data *root);
+ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_result *result, ddtrace_root_span_data *root);
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);

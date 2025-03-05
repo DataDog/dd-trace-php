@@ -520,11 +520,6 @@ namespace DDTrace {
     function start_span(float $startTime = 0): SpanData|false {}
 
     /**
-     * @internal
-     */
-    function start_inferred_span(array $headers, SpanData $rootSpan): InferredSpanData|null {}
-
-    /**
      * Close the currently active user-span on the top of the stack
      *
      * @param float $finishTime Finish time in seconds. Defaults to now if zero.

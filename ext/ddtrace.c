@@ -2772,36 +2772,6 @@ PHP_FUNCTION(DDTrace_start_span) {
     dd_start_span(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-/* {{{ proto InferredSpanData\null DDTrace\start_inferred_span(array $headers, SpanData $rootSpan) */
-PHP_FUNCTION(DDTrace_start_inferred_span) {
-    zval *headers_zv = NULL;
-    zval *root_span_zv = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "aO", &headers_zv, &root_span_zv, ddtrace_ce_span_data) == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    if (!get_DD_TRACE_ENABLED() || !get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
-        RETURN_NULL();
-    }
-
-    // Check that the root span is an instance of ddtrace_ce_root_span_data
-    if (Z_OBJCE_P(root_span_zv) != ddtrace_ce_root_span_data) {
-        LOG_LINE(ERROR, "Expected root span to be an instance of DDTrace\\RootSpanData");
-        RETURN_NULL();
-    }
-
-
-
-    zend_array *headers = Z_ARRVAL_P(headers_zv);
-    ddtrace_root_span_data *root_span = ROOTSPANDATA(Z_OBJ_P(root_span_zv));
-
-    ddtrace_inferred_span_data *inferred_span = ddtrace_open_inferred_span(headers, root_span);
-    if (inferred_span) {
-        RETURN_OBJ(&inferred_span->std);
-    }
-    RETURN_NULL();
-}
-
 /* {{{ proto string DDTrace\start_trace_span() */
 PHP_FUNCTION(DDTrace_start_trace_span) {
     if (get_DD_TRACE_ENABLED()) {
@@ -3141,42 +3111,48 @@ static bool dd_read_userspace_header(zai_str zai_header, const char *lowercase_h
     return true;
 }
 
-static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
+static bool parse_tracing_headers_common(INTERNAL_FUNCTION_PARAMETERS, dd_fci_fcc_pair *func, bool *use_server_headers, zend_array **array) {
     UNUSED(return_value);
-
-    dd_fci_fcc_pair func;
-    bool use_server_headers = false;
-    zend_array *array = NULL;
+    *use_server_headers = false;
+    *array = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        DD_PARAM_PROLOGUE(0, 0);
-        if (Z_TYPE_P(_arg) == IS_NULL) {
-            use_server_headers = true;
-        } else if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
-            if (!_error) {
-                zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
-                _error_code = ZPP_ERROR_FAILURE;
-                break;
-            } else if (Z_TYPE_P(_arg) == IS_ARRAY) {
-                array = Z_ARR_P(_arg);
-                efree(_error);
-            } else {
-                _error_code = ZPP_ERROR_WRONG_CALLBACK;
-                break;
-            }
+            DD_PARAM_PROLOGUE(0, 0);
+            if (Z_TYPE_P(_arg) == IS_NULL) {
+                *use_server_headers = true;
+            } else if (UNEXPECTED(!zend_parse_arg_func(_arg, &func->fci, &func->fcc, false, &_error, true))) {
+                if (!_error) {
+                    zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
+                    _error_code = ZPP_ERROR_FAILURE;
+                    break;
+                } else if (Z_TYPE_P(_arg) == IS_ARRAY) {
+                    *array = Z_ARR_P(_arg);
+                    efree(_error);
+                } else {
+                    _error_code = ZPP_ERROR_WRONG_CALLBACK;
+                    break;
+                }
 #if PHP_VERSION_ID < 70300
-        } else if (UNEXPECTED(_error != NULL)) {
+                } else if (UNEXPECTED(_error != NULL)) {
 #if PHP_VERSION_ID < 70200
             zend_wrong_callback_error(E_DEPRECATED, 1, _error);
 #else
             zend_wrong_callback_error(_flags & ZEND_PARSE_PARAMS_THROW, E_DEPRECATED, 1, _error);
 #endif
 #endif
-        }
-    ZEND_PARSE_PARAMETERS_END_EX(*success = false; return (ddtrace_distributed_tracing_result){0});
+            }
+    ZEND_PARSE_PARAMETERS_END_EX(return false);
 
-    *success = true;
-    if (!get_DD_TRACE_ENABLED()) {
+    return true;
+}
+
+static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
+    dd_fci_fcc_pair func;
+    bool use_server_headers;
+    zend_array *array;
+
+    *success = parse_tracing_headers_common(INTERNAL_FUNCTION_PARAM_PASSTHRU, &func, &use_server_headers, &array);
+    if (!*success || !get_DD_TRACE_ENABLED()) {
         return (ddtrace_distributed_tracing_result){0};
     }
 
@@ -3191,11 +3167,37 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     }
 }
 
+static ddtrace_inferred_proxy_result dd_parse_inferred_proxy_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
+    dd_fci_fcc_pair func;
+    bool use_server_headers;
+    zend_array *array;
+
+    *success = parse_tracing_headers_common(INTERNAL_FUNCTION_PARAM_PASSTHRU, &func, &use_server_headers, &array);
+    if (!*success || !get_DD_TRACE_ENABLED() || !get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        return (ddtrace_inferred_proxy_result){0};
+    }
+
+    func.fci.param_count = 1;
+
+    if (array) {
+        return ddtrace_read_inferred_proxy_headers(ddtrace_read_array_header, array);
+    } else if (use_server_headers) {
+        return ddtrace_read_inferred_proxy_headers(ddtrace_read_zai_header, &func);
+    } else {
+        return ddtrace_read_inferred_proxy_headers(dd_read_userspace_header, &func);
+    }
+}
+
 PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     bool success;
     ddtrace_distributed_tracing_result result = dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
     if (success && get_DD_TRACE_ENABLED()) {
         ddtrace_apply_distributed_tracing_result(&result, DDTRACE_G(active_stack)->root_span);
+    }
+
+    ddtrace_inferred_proxy_result inferred_result = dd_parse_inferred_proxy_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
+    if (success && Z_TYPE(DDTRACE_G(active_stack)->root_span->property_inferred_span) != IS_OBJECT) {
+        ddtrace_open_inferred_span(&inferred_result, DDTRACE_G(active_stack)->root_span);
     }
 
     RETURN_NULL();

@@ -46,11 +46,6 @@ class SwooleIntegration extends Integration
                 /** @var Request $request */
                 $request = $args[0];
 
-                $inferredProxyServicesEnabled = \dd_trace_env_config('DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED');
-                if ($inferredProxyServicesEnabled) {
-                    \DDTrace\start_inferred_span($request->header, $rootSpan);
-                }
-
                 $headers = [];
                 $allowedHeaders = \dd_trace_env_config('DD_TRACE_HEADER_TAGS');
                 foreach ($request->header as $name => $value) {
