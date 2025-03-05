@@ -8,6 +8,11 @@ use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V10_X\CommonScenariosTest
 {
+    protected function getScriptLocation()
+    {
+        return __DIR__ . '/../../../../Frameworks/Laravel/Latest/artisan';
+    }
+
     public function testCommandWithNoArguments()
     {
        $this->retrieveDumpedData();

@@ -1,0 +1,355 @@
+[[
+  {
+    "name": "aws.apigateway",
+    "service": "example.com",
+    "resource": "GET /test",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 1294047343476012967,
+    "type": "web",
+    "meta": {
+      "_dd.inferred_span": "1",
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "67c6c39e00000000",
+      "component": "aws-apigateway",
+      "env": "local-test",
+      "http.method": "GET",
+      "http.status_code": "200",
+      "http.url": "example.com/test",
+      "stage": "aws-prod",
+      "version": "1.0"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "laravel.request",
+       "service": "my_service",
+       "resource": "App\\Http\\Controllers\\CommonSpecsController@simple simple_route",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel",
+         "env": "local-test",
+         "http.method": "GET",
+         "http.route": "simple",
+         "http.status_code": "200",
+         "http.url": "http://localhost/simple?key=value&<redacted>",
+         "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
+         "laravel.route.name": "simple_route",
+         "runtime-id": "623165af-6ef7-4fb7-87d5-0e8d31296627",
+         "span.kind": "server",
+         "version": "1.0"
+       }
+     },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+          "trace_id": 0,
+          "span_id": 3,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+          "trace_id": 0,
+          "span_id": 6,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+          "trace_id": 0,
+          "span_id": 7,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+          "trace_id": 0,
+          "span_id": 8,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+          "trace_id": 0,
+          "span_id": 9,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+          "trace_id": 0,
+          "span_id": 10,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+          "trace_id": 0,
+          "span_id": 11,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.provider.load",
+          "service": "my_service",
+          "resource": "Illuminate\\Foundation\\ProviderRepository::load",
+          "trace_id": 0,
+          "span_id": 12,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+          "trace_id": 0,
+          "span_id": 13,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+          "trace_id": 0,
+          "span_id": 14,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+          "trace_id": 0,
+          "span_id": 15,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Routing\\Events\\Routing",
+          "trace_id": 0,
+          "span_id": 16,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+          "trace_id": 0,
+          "span_id": 17,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.action",
+          "service": "my_service",
+          "resource": "simple",
+          "trace_id": 0,
+          "span_id": 18,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
+          "trace_id": 0,
+          "span_id": 19,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
+          "trace_id": 0,
+          "span_id": 20,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
+          "trace_id": 0,
+          "span_id": 21,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
+          "trace_id": 0,
+          "span_id": 22,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
+          "trace_id": 0,
+          "span_id": 23,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        },
+        {
+          "name": "laravel.event.handle",
+          "service": "my_service",
+          "resource": "Illuminate\\Foundation\\Events\\Terminating",
+          "trace_id": 0,
+          "span_id": 24,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laravel",
+            "env": "local-test",
+            "version": "1.0"
+          }
+        }]]
