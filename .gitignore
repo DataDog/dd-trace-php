@@ -67,3 +67,4 @@ packages.json
 package-lock.json
 yarn.lock
 cookies.txt
+tests/tested_versions
