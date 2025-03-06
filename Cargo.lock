@@ -1297,8 +1297,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#90f471f4e25e9cbb6dca02c64750462e607b9754"
+version = "15.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1459,7 +1459,7 @@ dependencies = [
  "datadog-alloc",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 15.0.0",
+ "ddcommon 15.1.0",
  "env_logger 0.11.6",
  "indexmap 2.7.1",
  "lazy_static",
@@ -1477,8 +1477,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#90f471f4e25e9cbb6dca02c64750462e607b9754"
+version = "15.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1486,7 +1486,7 @@ dependencies = [
  "bytes",
  "chrono",
  "datadog-alloc",
- "ddcommon 15.0.0",
+ "ddcommon 15.1.0",
  "derivative",
  "futures",
  "futures-core",
@@ -1738,8 +1738,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/poisson-upscaling#90f471f4e25e9cbb6dca02c64750462e607b9754"
+version = "15.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
 dependencies = [
  "anyhow",
  "cc",

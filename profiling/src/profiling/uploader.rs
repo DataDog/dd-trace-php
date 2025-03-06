@@ -94,7 +94,10 @@ impl Uploader {
 
     fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
         let index = message.index;
+        #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         let mut profile = message.profile;
+        #[cfg(not(all(feature = "io_profiling", target_os = "linux")))]
+        let profile = message.profile;
 
         #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         macro_rules! add_io_profiling_rules {

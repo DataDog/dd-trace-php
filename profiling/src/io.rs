@@ -3,19 +3,18 @@ use crate::bindings::{
     DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
 };
 use crate::profiling::Profiler;
-use crate::zend;
-use crate::REQUEST_LOCALS;
-use libc::{c_char, c_int, c_void, dl_phdr_info};
+use crate::{zend, REQUEST_LOCALS};
+use libc::{c_char, c_int, c_void, dl_phdr_info, fstat, stat, S_IFMT, S_IFSOCK};
 use log::{error, trace};
 use rand::rngs::ThreadRng;
+use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
 use std::ffi::CStr;
+use std::mem::MaybeUninit;
+use std::os::unix::io::RawFd;
 use std::ptr;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
-
-use rand_distr::{Distribution, Poisson};
 
 fn elf64_r_type(info: Elf64_Xword) -> u32 {
     (info & 0xffffffff) as u32
@@ -418,10 +417,17 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
         io.track(duration.as_nanos() as u64)
     });
     if len > 0 {
-        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        if fd_is_socket(fd) {
+            SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        } else {
+            FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
     }
 
     len
@@ -467,13 +473,34 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
         io.track(duration.as_nanos() as u64)
     });
     if len > 0 {
-        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        if fd_is_socket(fd) {
+            SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        } else {
+            FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
     }
 
     len
+}
+
+/// Returns `true` if the given `fd` is a socket. It could also be a regular file, directory, pipe,
+/// character or block device, in which case we declare this as file I/O and not socket I/O.
+fn fd_is_socket(fd: RawFd) -> bool {
+    let mut statbuf = MaybeUninit::<stat>::uninit();
+
+    if unsafe { fstat(fd, statbuf.as_mut_ptr()) } == -1 {
+        return false; // If fstat fails, assume it's not a regular file
+    }
+
+    let statbuf = unsafe { statbuf.assume_init() };
+
+    (statbuf.st_mode & S_IFMT) == S_IFSOCK
 }
 
 /// Take a sample every 1 second of read I/O
