@@ -1,7 +1,7 @@
 --TEST--
-Span creation with distributed context
+Span creation with distributed context set before starting span
 --ENV--
-DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_AUTO_FLUSH_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_AUTOFINISH_SPANS=1
 DD_SERVICE=aws-server
@@ -18,10 +18,7 @@ HTTP_X_DD_PROXY_HTTPMETHOD=GET
 HTTP_X_DD_PROXY_DOMAIN_NAME=example.com
 HTTP_X_DD_PROXY_STAGE=aws-prod
 
-HTTP_X_DATADOG_TRACE_ID=1
-HTTP_X_DATADOG_PARENT_ID=2
-HTTP_X_DATADOG_ORIGIN=rum
-HTTP_X_DATADOG_SAMPLING_PRIORITY=2
+DD_TRACE_PROPAGATION_STYLE=tracecontext
 
 METHOD=GET
 SERVER_NAME=localhost:8888
@@ -44,13 +41,13 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer;
 
+DDTrace\consume_distributed_tracing_headers([
+    "traceparent" => "00-0000000000000000000000000000002a-0000000000000001-01",
+    "tracestate" => "dd=p:00000000000000bb;p:00000000000000bb;s:1;o:rum;t.dm:-4;t.usr.id:12345",
+]);
+
 $parent = \DDTrace\start_span(0.120);
-$span = \DDTrace\start_span(0.130);
-$span->name = "child";
-
-\DDTrace\root_span()->meta['foo'] = 'bar'; // It MUST set it on $parent
-
-dd_trace_close_all_spans_and_flush(); // Simulates end of request
+\DDTrace\close_span();
 
 $body = json_decode($rr->waitForDataAndReplay()["body"], true);
 echo json_encode($body, JSON_PRETTY_PRINT);
@@ -59,9 +56,9 @@ echo json_encode($body, JSON_PRETTY_PRINT);
 [
     [
         {
-            "trace_id": "1",
+            "trace_id": "42",
             "span_id": "11788048577503494824",
-            "parent_id": "2",
+            "parent_id": "1",
             "start": 100000000,
             "duration": %d,
             "name": "aws.apigateway",
@@ -69,7 +66,9 @@ echo json_encode($body, JSON_PRETTY_PRINT);
             "service": "example.com",
             "type": "web",
             "meta": {
-                "_dd.p.dm": "-0",
+                "_dd.parent_id": "00000000000000bb",
+                "_dd.p.dm": "-4",
+                "_dd.p.usr.id": "12345",
                 "http.method": "GET",
                 "http.url": "example.com\/test",
                 "stage": "aws-prod",
@@ -82,11 +81,11 @@ echo json_encode($body, JSON_PRETTY_PRINT);
                 "_dd.p.tid": "0"
             },
             "metrics": {
-                "_sampling_priority_v1": 2
+                "_sampling_priority_v1": 1
             }
         },
         {
-            "trace_id": "1",
+            "trace_id": "42",
             "span_id": "13930160852258120406",
             "parent_id": "11788048577503494824",
             "start": 120000000,
@@ -96,10 +95,11 @@ echo json_encode($body, JSON_PRETTY_PRINT);
             "service": "aws-server",
             "type": "web",
             "meta": {
+                "_dd.parent_id": "00000000000000bb",
+                "_dd.p.usr.id": "12345",
                 "runtime-id": "%s",
                 "http.url": "http:\/\/localhost:8888\/foo",
                 "http.method": "GET",
-                "foo": "bar",
                 "env": "local-prod",
                 "version": "1.0",
                 "http.status_code": "200",
@@ -110,22 +110,6 @@ echo json_encode($body, JSON_PRETTY_PRINT);
                 "php.compilation.total_time_ms": %f,
                 "php.memory.peak_usage_bytes": %d,
                 "php.memory.peak_real_usage_bytes": %d
-            }
-        },
-        {
-            "trace_id": "1",
-            "span_id": "13874630024467741450",
-            "parent_id": "13930160852258120406",
-            "start": 130000000,
-            "duration": %d,
-            "name": "child",
-            "resource": "child",
-            "service": "aws-server",
-            "type": "web",
-            "meta": {
-                "env": "local-prod",
-                "version": "1.0",
-                "_dd.origin": "rum"
             }
         }
     ]

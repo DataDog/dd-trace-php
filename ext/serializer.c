@@ -1433,7 +1433,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         ddtrace_root_span_data *root_span = ROOTSPANDATA(&span->std);
         zval *inferred_span_zv = &root_span->property_inferred_span;
-        if (Z_TYPE_P(inferred_span_zv) == IS_OBJECT) {
+        if (Z_TYPE_P(inferred_span_zv) == IS_OBJECT && Z_OBJCE_P(inferred_span_zv) == ddtrace_ce_inferred_span_data) {
             inferred_span = OBJ_SPANDATA(Z_OBJ_P(inferred_span_zv));
             inferred_span->root = root_span;
         }

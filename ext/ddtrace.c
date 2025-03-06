@@ -3190,14 +3190,15 @@ static ddtrace_inferred_proxy_result dd_parse_inferred_proxy_headers_function(IN
 
 PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     bool success;
+
+    ddtrace_inferred_proxy_result inferred_result = dd_parse_inferred_proxy_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
+    if (success && DDTRACE_G(active_stack)->root_span && Z_TYPE(DDTRACE_G(active_stack)->root_span->property_inferred_span) != IS_OBJECT) {
+        ddtrace_open_inferred_span(&inferred_result, DDTRACE_G(active_stack)->root_span);
+    }
+
     ddtrace_distributed_tracing_result result = dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
     if (success && get_DD_TRACE_ENABLED()) {
         ddtrace_apply_distributed_tracing_result(&result, DDTRACE_G(active_stack)->root_span);
-    }
-
-    ddtrace_inferred_proxy_result inferred_result = dd_parse_inferred_proxy_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
-    if (success && Z_TYPE(DDTRACE_G(active_stack)->root_span->property_inferred_span) != IS_OBJECT) {
-        ddtrace_open_inferred_span(&inferred_result, DDTRACE_G(active_stack)->root_span);
     }
 
     RETURN_NULL();

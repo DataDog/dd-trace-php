@@ -202,6 +202,8 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
+    zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
+
     if (result->http_method) {
         ZVAL_STR_COPY(&zv, result->http_method);
         zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
