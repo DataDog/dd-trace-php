@@ -1099,6 +1099,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "csv",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -1273,17 +1274,18 @@ dependencies = [
  "bytes",
  "criterion",
  "datadog-ddsketch",
+ "datadog-trace-normalization",
+ "datadog-trace-obfuscation",
  "datadog-trace-protobuf",
  "datadog-trace-utils",
  "ddcommon 0.0.1",
- "ddtelemetry",
  "dogstatsd-client",
  "either",
+ "futures",
  "httpmock",
  "hyper 0.14.32",
  "log",
  "rand 0.8.5",
- "regex",
  "rmp-serde",
  "serde",
  "serde_json",
@@ -1295,8 +1297,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v15.0.0#0ef49864317b0728648b2b7f26fe2f1deeeeebc4"
+version = "15.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1310,7 +1312,6 @@ dependencies = [
  "anyhow",
  "backtrace",
  "blazesym",
- "cc",
  "chrono",
  "ddcommon 0.0.1",
  "ddtelemetry",
@@ -1318,8 +1319,6 @@ dependencies = [
  "hyper 0.14.32",
  "libc 0.2.169",
  "nix 0.27.1",
- "num-derive",
- "num-traits",
  "os_info",
  "page_size",
  "portable-atomic",
@@ -1460,7 +1459,7 @@ dependencies = [
  "datadog-alloc",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 15.0.0",
+ "ddcommon 15.1.0",
  "env_logger 0.11.6",
  "indexmap 2.7.1",
  "lazy_static",
@@ -1478,8 +1477,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v15.0.0#0ef49864317b0728648b2b7f26fe2f1deeeeebc4"
+version = "15.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1487,7 +1486,7 @@ dependencies = [
  "bytes",
  "chrono",
  "datadog-alloc",
- "ddcommon 15.0.0",
+ "ddcommon 15.1.0",
  "derivative",
  "futures",
  "futures-core",
@@ -1545,6 +1544,8 @@ dependencies = [
  "arrayref",
  "base64 0.22.1",
  "bincode",
+ "bytes",
+ "cadence",
  "chrono",
  "console-subscriber",
  "data-pipeline",
@@ -1555,23 +1556,30 @@ dependencies = [
  "datadog-live-debugger",
  "datadog-remote-config",
  "datadog-sidecar-macros",
+ "datadog-trace-normalization",
+ "datadog-trace-protobuf",
  "datadog-trace-utils",
  "ddcommon 0.0.1",
  "ddtelemetry",
  "dogstatsd-client",
  "futures",
+ "hashbrown 0.14.5",
  "http 0.2.12",
  "httpmock",
  "hyper 0.14.32",
+ "io-lifetimes",
  "lazy_static",
  "libc 0.2.169",
  "manual_future",
  "memory-stats",
  "microseh",
  "nix 0.27.1",
+ "pin-project",
  "prctl",
  "priority-queue",
  "rand 0.8.5",
+ "regex",
+ "rmp-serde",
  "sendfd",
  "serde",
  "serde_json",
@@ -1579,6 +1587,7 @@ dependencies = [
  "sha2",
  "simd-json",
  "spawn_worker",
+ "sys-info",
  "tempfile",
  "tinybytes",
  "tokio",
@@ -1586,6 +1595,7 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+ "uuid",
  "winapi 0.3.9",
  "windows",
  "windows-sys 0.52.0",
@@ -1632,6 +1642,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "datadog-trace-obfuscation"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "criterion",
+ "datadog-trace-protobuf",
+ "datadog-trace-utils",
+ "ddcommon 0.0.1",
+ "duplicate",
+ "log",
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "datadog-trace-protobuf"
 version = "0.0.1"
 dependencies = [
@@ -1673,7 +1701,6 @@ dependencies = [
  "rmpv",
  "serde",
  "serde_json",
- "tempfile",
  "testcontainers",
  "tinybytes",
  "tokio",
@@ -1711,8 +1738,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "15.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v15.0.0#0ef49864317b0728648b2b7f26fe2f1deeeeebc4"
+version = "15.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
 dependencies = [
  "anyhow",
  "cc",
@@ -1947,10 +1974,12 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "cadence",
+ "datadog-ddsketch",
+ "datadog-trace-normalization",
+ "datadog-trace-protobuf",
  "ddcommon 0.0.1",
  "http 0.2.12",
  "serde",
- "tokio",
  "tracing",
 ]
 
@@ -3428,17 +3457,6 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
-
-[[package]]
-name = "num-derive"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.96",
-]
 
 [[package]]
 name = "num-integer"
