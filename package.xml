@@ -70,15 +70,11 @@
         <![CDATA[
 ## Tracer
 ### Fixed
-- Handle EINTR in blocking ipc sender Datadog/libdatadog#900
+- Fallback to writing shared memory files to /tmp, if shm_open returns ENOTSUP Datadog/libdatadog#910
 
 ## Profiling
 ### Fixed
-- fork() call handling before rinit #3104
-
-## Application Security Management
-### Fixed
-- Fix unhandled dd_network; fix log message; fix handling of helper errors #3107
+- I/O upscaling and allocation to the right sample type #3118
 ]]></notes>
     <contents>
         <dir name="/">
