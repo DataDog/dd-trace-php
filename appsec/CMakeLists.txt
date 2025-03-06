@@ -53,7 +53,7 @@ if (DD_APPSEC_BUILD_EXTENSION)
 endif()
 
 if (DD_APPSEC_BUILD_HELPER)
-    include ("cmake/helper.cmake")
+    include("cmake/helper.cmake")
 endif()
 
 include(cmake/clang-tidy.cmake)

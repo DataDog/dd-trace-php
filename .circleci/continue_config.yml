@@ -1546,8 +1546,15 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update
             # clang-tidy 16 crashes so we use 17 instead
-            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
+            apt install -y wget sudo git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: Install rust
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh
+            chmod +x /tmp/rustup.sh
+            /tmp/rustup.sh -y --default-toolchain 1.78
+            sudo ln -s $HOME/.cargo/bin/* /usr/bin/
       - run:
           name: CMake
           command: |
