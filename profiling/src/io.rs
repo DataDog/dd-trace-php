@@ -385,13 +385,13 @@ static mut ORIG_FWRITE: unsafe extern "C" fn(
     *mut libc::FILE,
 ) -> usize = libc::fwrite;
 unsafe extern "C" fn observed_fwrite(
-    buf: *const c_void,
+    ptr: *const c_void,
     size: usize,
-    n: usize,
+    nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FWRITE(buf, size, n, stream);
+    let len = ORIG_FWRITE(ptr, size, nobj, stream);
     let duration = start.elapsed();
 
     FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
@@ -441,13 +441,13 @@ static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc
 // `read()` in PHP and that is when compiling a PHP file, triggered by it being the start file or a
 // userland call to `include()`/`require()` functions.
 unsafe extern "C" fn observed_fread(
-    buf: *mut c_void,
+    ptr: *mut c_void,
     size: usize,
-    n: usize,
-    fd: *mut libc::FILE,
+    nobj: usize,
+    stream: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FREAD(buf, size, n, fd);
+    let len = ORIG_FREAD(ptr, size, nobj, stream);
     let duration = start.elapsed();
 
     FILE_READ_TIME_PROFILING_STATS.with(|cell| {
