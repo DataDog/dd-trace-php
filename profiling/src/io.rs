@@ -4,6 +4,7 @@ use crate::bindings::{
 };
 use crate::profiling::Profiler;
 use crate::{zend, REQUEST_LOCALS};
+use ahash::{HashMap, HashMapExt};
 use libc::{c_char, c_int, c_void, dl_phdr_info, fstat, stat, S_IFMT, S_IFSOCK};
 use log::{error, trace};
 use rand::rngs::ThreadRng;
@@ -14,6 +15,7 @@ use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
 use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 fn elf64_r_type(info: Elf64_Xword) -> u32 {
@@ -442,10 +444,10 @@ unsafe extern "C" fn observed_fread(
     buf: *mut c_void,
     size: usize,
     n: usize,
-    fp: *mut libc::FILE,
+    fd: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FREAD(buf, size, n, fp);
+    let len = ORIG_FREAD(buf, size, n, fd);
     let duration = start.elapsed();
 
     FILE_READ_TIME_PROFILING_STATS.with(|cell| {
@@ -489,18 +491,41 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     len
 }
 
+static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
+/// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
+unsafe extern "C" fn observed_close(fd: i32) -> i32 {
+    let ret = ORIG_CLOSE(fd);
+    let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut cache = cache.lock().unwrap();
+    cache.remove(&fd);
+    ret
+}
+
+/// "Is socket"-cache for `read()`/`write()` calls
+static FD_CACHE: OnceLock<Mutex<HashMap<RawFd, bool>>> = OnceLock::new();
+
 /// Returns `true` if the given `fd` is a socket. It could also be a regular file, directory, pipe,
 /// character or block device, in which case we declare this as file I/O and not socket I/O.
 fn fd_is_socket(fd: RawFd) -> bool {
-    let mut statbuf = MaybeUninit::<stat>::uninit();
-
-    if unsafe { fstat(fd, statbuf.as_mut_ptr()) } == -1 {
-        return false; // If fstat fails, assume it's not a regular file
+    let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(&is_socket) = cache.lock().unwrap().get(&fd) {
+        return is_socket;
     }
 
-    let statbuf = unsafe { statbuf.assume_init() };
+    let mut statbuf = MaybeUninit::<stat>::uninit();
+    let is_socket = unsafe {
+        if fstat(fd, statbuf.as_mut_ptr()) == -1 {
+            false // Assume it's not a socket if fstat fails
+        } else {
+            let statbuf = statbuf.assume_init();
+            (statbuf.st_mode & S_IFMT) == S_IFSOCK
+        }
+    };
 
-    (statbuf.st_mode & S_IFMT) == S_IFSOCK
+    let mut cache = cache.lock().unwrap();
+    cache.insert(fd, is_socket);
+
+    is_socket
 }
 
 /// Take a sample every 1 second of read I/O
@@ -792,6 +817,11 @@ pub fn io_prof_first_rinit() {
                     symbol_name: "fread",
                     new_func: observed_fread as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "close",
+                    new_func: observed_close as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_CLOSE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "poll",
