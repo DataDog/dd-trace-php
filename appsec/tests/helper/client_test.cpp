@@ -38,8 +38,7 @@ class service_manager : public dds::service_manager {
 public:
     MOCK_METHOD(std::shared_ptr<dds::service>, create_service,
         (const dds::engine_settings &settings,
-            const dds::remote_config::settings &rc_settings,
-            bool dynamic_enablement),
+            const dds::remote_config::settings &rc_settings),
         (override));
 };
 
@@ -196,7 +195,7 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _))
         .Times(1)
         .WillOnce(Return(service));
 
@@ -230,7 +229,7 @@ TEST(ClientTest, ClientInitGeneratesRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _))
         .Times(1)
         .WillOnce(Return(service));
 
@@ -2268,7 +2267,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
 
-        EXPECT_CALL(*smanager, create_service(_, _, true))
+        EXPECT_CALL(*smanager, create_service(_, _))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -2284,7 +2283,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -2300,7 +2299,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));

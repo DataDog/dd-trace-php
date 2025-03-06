@@ -166,8 +166,8 @@ bool client::handle_command(const network::client_init::request &command)
     client_enabled_conf = command.enabled_configuration;
 
     try {
-        service_ = service_manager_->create_service(eng_settings,
-            command.rc_settings, !client_enabled_conf.has_value());
+        service_ =
+            service_manager_->create_service(eng_settings, command.rc_settings);
 
         // save engine settings so we can recreate the service if rc path
         // changes
@@ -473,8 +473,7 @@ void client::update_remote_config_path(std::string_view path)
         rc_settings.shmem_path = path;
     }
 
-    service_ =
-        service_manager_->create_service(*engine_settings_, rc_settings, true);
+    service_ = service_manager_->create_service(*engine_settings_, rc_settings);
 }
 
 bool client::run_client_init()

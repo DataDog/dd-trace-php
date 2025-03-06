@@ -181,13 +181,13 @@ static void _read_settings()
 __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     sidecar_enable_appsec_t nonnull enable_appsec,
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    bool *nonnull appsec_features, bool *nonnull appsec_conf)
+    bool *nonnull appsec_activation, bool *nonnull appsec_conf)
 {
     dd_appsec_rinit_once();
 
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED ||
         get_global_DD_APPSEC_TESTING()) {
-        *appsec_features = false;
+        *appsec_activation = false;
         *appsec_conf = false;
         return false;
     }
@@ -206,7 +206,7 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
 
     enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
 
-    *appsec_features = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
+    *appsec_activation = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
     // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
     *appsec_conf = get_global_DD_APPSEC_RULES()->len == 0;
 

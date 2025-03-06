@@ -63,22 +63,19 @@ TEST(ServiceTest, ServicePickSchemaExtractionSamples)
     auto service_config = std::make_shared<dds::service_config>();
 
     { // All requests are picked
-        auto s = service::from_settings(
-            create_engine_settings(true, 1.0), {}, false);
+        auto s = service::from_settings(create_engine_settings(true, 1.0), {});
 
         EXPECT_TRUE(s->get_schema_sampler()->picked());
     }
 
     { // Static constructor. It does not pick based on rate
-        auto s = service::from_settings(
-            create_engine_settings(true, 0.0), {}, false);
+        auto s = service::from_settings(create_engine_settings(true, 0.0), {});
 
         EXPECT_FALSE(s->get_schema_sampler()->picked());
     }
 
     { // Static constructor. It does not pick if disabled
-        auto s = service::from_settings(
-            create_engine_settings(false, 1.0), {}, false);
+        auto s = service::from_settings(create_engine_settings(false, 1.0), {});
 
         EXPECT_FALSE(s->get_schema_sampler()->picked());
     }

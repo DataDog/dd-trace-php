@@ -30,8 +30,7 @@ std::unique_ptr<client_handler> client_handler::from_settings(
     std::shared_ptr<dds::service_config> service_config,
     const remote_config::settings &rc_settings,
     const std::shared_ptr<engine> &engine_ptr,
-    std::shared_ptr<metrics::telemetry_submitter> msubmitter,
-    bool dynamic_enablement)
+    std::shared_ptr<metrics::telemetry_submitter> msubmitter)
 {
     if (!rc_settings.enabled) {
         return {};
@@ -42,11 +41,8 @@ std::unique_ptr<client_handler> client_handler::from_settings(
     }
 
     std::vector<std::shared_ptr<remote_config::listener_base>> listeners = {};
-    if (dynamic_enablement) {
-        listeners.emplace_back(
-            std::make_shared<remote_config::asm_features_listener>(
-                service_config));
-    }
+    listeners.emplace_back(
+        std::make_shared<remote_config::asm_features_listener>(service_config));
 
     if (eng_settings.rules_file.empty()) {
         listeners.emplace_back(std::make_shared<remote_config::engine_listener>(
