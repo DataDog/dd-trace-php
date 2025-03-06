@@ -523,6 +523,23 @@ class LaravelIntegration extends Integration
             }
         );
 
+        //Laravel 4
+        \DDTrace\install_hook(
+            'Illuminate\Exception\PlainDisplayer::display',
+             null,
+             function (HookData $hook) use ($integration) {
+                if (strpos($hook->args[0]->getMessage(), 'Datadog blocked the request') !== false) {
+                     if (!$hook->returned instanceof \Symfony\Component\HttpFoundation\Response) {
+                        return;
+                     }
+                     $response = $hook->returned;
+                     $response->setContent('&nbsp;');
+                     $hook->overrideReturnValue($response);
+                }
+             }
+        );
+
+        //Laravel > 4
          \DDTrace\install_hook(
             'Illuminate\Foundation\Exceptions\Handler::shouldntReport',
              null,
