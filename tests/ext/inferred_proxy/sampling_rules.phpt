@@ -4,9 +4,8 @@ Priority sampling rules should use the inferred span's service & resource
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "service": "foo", "resource": "bar"},{"sample_rate": 0.3, "service": "example.com", "resource": "GET \/test"}]
 DD_TRACE_SAMPLING_RULES_FORMAT=regex
 
-DD_TRACE_AUTO_FLUSH_ENABLED=1
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_AUTOFINISH_SPANS=1
 DD_SERVICE=foo
 
 DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
@@ -22,12 +21,6 @@ SERVER_NAME=localhost:8888
 SCRIPT_NAME=/foo.php
 REQUEST_URI=/foo
 
-DD_AGENT_HOST=request-replayer
-DD_TRACE_AGENT_PORT=80
-DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
-DD_TRACE_AGENT_FLUSH_INTERVAL=666
-DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
-
 DD_TRACE_DEBUG_PRNG_SEED=42
 --GET--
 foo=bar
@@ -35,64 +28,57 @@ foo=bar
 --FILE--
 <?php
 
-include __DIR__ . '/../includes/request_replayer.inc';
-
-$rr = new RequestReplayer;
-
 $parent = \DDTrace\start_span(0.120);
 \DDTrace\close_span();
 
-$body = json_decode($rr->waitForDataAndReplay()["body"], true);
-echo json_encode($body, JSON_PRETTY_PRINT);
+echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
-    [
-        {
-            "trace_id": "13930160852258120406",
-            "span_id": "11788048577503494824",
-            "start": 100000000,
-            "duration": %d,
-            "name": "aws.apigateway",
-            "resource": "GET \/test",
-            "service": "example.com",
-            "type": "web",
-            "meta": {
-                "http.method": "GET",
-                "http.url": "example.com\/test",
-                "stage": "aws-prod",
-                "_dd.inferred_span": "1",
-                "component": "aws-apigateway",
-                "http.status_code": "200",
-                "_dd.p.tid": "%s"
-            },
-            "metrics": {
-                "_sampling_priority_v1": -1,
-                "_dd.rule_psr": 0.3
-            }
+    {
+        "trace_id": "13930160852258120406",
+        "span_id": "11788048577503494824",
+        "start": 100000000,
+        "duration": %d,
+        "name": "aws.apigateway",
+        "resource": "GET \/test",
+        "service": "example.com",
+        "type": "web",
+        "meta": {
+            "http.method": "GET",
+            "http.url": "example.com\/test",
+            "stage": "aws-prod",
+            "_dd.inferred_span": "1",
+            "component": "aws-apigateway",
+            "http.status_code": "200",
+            "_dd.p.tid": "%s"
         },
-        {
-            "trace_id": "13930160852258120406",
-            "span_id": "13930160852258120406",
-            "parent_id": "11788048577503494824",
-            "start": 120000000,
-            "duration": %d,
-            "name": "web.request",
-            "resource": "GET \/foo",
-            "service": "foo",
-            "type": "web",
-            "meta": {
-                "runtime-id": "%s",
-                "http.url": "http:\/\/localhost:8888\/foo",
-                "http.method": "GET",
-                "http.status_code": "200"
-            },
-            "metrics": {
-                "process_id": %d,
-                "php.compilation.total_time_ms": %f,
-                "php.memory.peak_usage_bytes": %d,
-                "php.memory.peak_real_usage_bytes": %d
-            }
+        "metrics": {
+            "_sampling_priority_v1": -1,
+            "_dd.rule_psr": 0.3
         }
-    ]
+    },
+    {
+        "trace_id": "13930160852258120406",
+        "span_id": "13930160852258120406",
+        "parent_id": "11788048577503494824",
+        "start": 120000000,
+        "duration": %d,
+        "name": "web.request",
+        "resource": "GET \/foo",
+        "service": "foo",
+        "type": "web",
+        "meta": {
+            "runtime-id": "%s",
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "http.method": "GET",
+            "http.status_code": "200"
+        },
+        "metrics": {
+            "process_id": %d,
+            "php.compilation.total_time_ms": %f,
+            "php.memory.peak_usage_bytes": %d,
+            "php.memory.peak_real_usage_bytes": %d
+        }
+    }
 ]
