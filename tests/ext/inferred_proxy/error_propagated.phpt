@@ -79,18 +79,18 @@ echo json_encode($body, JSON_PRETTY_PRINT);
                 "stage": "aws-prod",
                 "_dd.inferred_span": "1",
                 "component": "aws-apigateway",
-                "error.message": "Uncaught Exception (500): An exception occurred in %s\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php:10",
-                "error.type": "Exception",
-                "error.stack": "#0 %s\/tmp\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php(18): oops()\n#1 {main}",
-                "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",
                 "http.status_code": "500",
-                "_dd.p.tid": "%s"
+                "_dd.p.tid": "%s",
+                "error.type": "Exception",
+                "error.message": "Uncaught Exception (500): An exception occurred in %s\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php:10",
+                "error.stack": "#0 %s\/tmp\/build_extension\/tests\/ext\/inferred_proxy\/error_propagated.php(18): oops()\n#1 {main}",
+                "_dd.p.dm": "-0"
             },
             "metrics": {
-                "_dd.agent_psr": 1,
-                "_sampling_priority_v1": 1
+                "_sampling_priority_v1": 1,
+                "_dd.agent_psr": 1
             }
         },
         {

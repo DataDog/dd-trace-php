@@ -1755,26 +1755,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
 
     _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
-    if (inferred_span) {
-        zval *serialized_meta = zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta"));
-        zend_array *meta = Z_ARR_P(serialized_meta);
-        zend_array *inferred_span_meta = ddtrace_property_array(&inferred_span->property_meta);
-        zend_array *inferred_span_metrics = ddtrace_property_array(&inferred_span->property_metrics);
-
-        transfer_data(metrics, inferred_span_metrics, ZEND_STRL("_dd.agent_psr"), true);
-        transfer_data(metrics, inferred_span_metrics, ZEND_STRL("_dd.rule_psr"), true);
-        transfer_data(metrics, inferred_span_metrics, ZEND_STRL("_dd.limit_psr"), true);
-
-        transfer_data(meta, inferred_span_meta, ZEND_STRL("error.message"), false);
-        transfer_data(meta, inferred_span_meta, ZEND_STRL("error.type"), false);
-        transfer_data(meta, inferred_span_meta, ZEND_STRL("error.stack"), false);
-        transfer_data(meta, inferred_span_meta, ZEND_STRL("error.ignored"), false);
-        transfer_data(meta, inferred_span_meta, ZEND_STRL("_dd.p.dm"), true);
-        transfer_data(meta, inferred_span_meta, ZEND_STRL("_dd.p.tid"), true);
-
-        ddtrace_serialize_span_to_array(inferred_span, array);
-    }
-
     zval metrics_zv;
     array_init(&metrics_zv);
     zend_string *str_key;
@@ -1806,6 +1786,28 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             add_assoc_double(&metrics_zv, "php.memory.peak_usage_bytes", zend_memory_peak_usage(false));
             add_assoc_double(&metrics_zv, "php.memory.peak_real_usage_bytes", zend_memory_peak_usage(true));
         }
+    }
+
+    if (inferred_span) {
+        ddtrace_serialize_span_to_array(inferred_span, array);
+
+        zend_array *serialized_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta")));
+        zend_array *serialized_metrics = Z_ARR(metrics_zv);
+
+        zval *serialized_inferred_span = zend_hash_index_find(Z_ARR_P(array), zend_hash_num_elements(Z_ARR_P(array)) - 1);
+        zend_array *serialized_inferred_span_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("meta")));
+        zend_array *serialized_inferred_span_metrics = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("metrics")));
+
+        transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.agent_psr"), true);
+        transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.rule_psr"), true);
+        transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.limit_psr"), true);
+
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.message"), false);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.type"), false);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.stack"), false);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.ignored"), false);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.dm"), true);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.tid"), true);
     }
 
     LOGEV(SPAN, {

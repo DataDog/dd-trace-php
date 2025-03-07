@@ -67,8 +67,8 @@ echo json_encode($body, JSON_PRETTY_PRINT);
                 "_dd.p.tid": "%s"
             },
             "metrics": {
-                "_dd.rule_psr": 0.3,
-                "_sampling_priority_v1": -1
+                "_sampling_priority_v1": -1,
+                "_dd.rule_psr": 0.3
             }
         },
         {

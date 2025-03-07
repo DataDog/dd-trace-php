@@ -98,15 +98,15 @@ echo json_encode($body, JSON_PRETTY_PRINT);
                 "stage": "aws-prod",
                 "_dd.inferred_span": "1",
                 "component": "aws-apigateway",
-                "_dd.p.dm": "-0",
                 "env": "local-prod",
                 "version": "1.0",
                 "http.status_code": "200",
-                "_dd.p.tid": "%s"
+                "_dd.p.tid": "%s",
+                "_dd.p.dm": "-0"
             },
             "metrics": {
-                "_dd.agent_psr": 1,
-                "_sampling_priority_v1": 1
+                "_sampling_priority_v1": 1,
+                "_dd.agent_psr": 1
             }
         },
         {
