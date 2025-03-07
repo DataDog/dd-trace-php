@@ -240,8 +240,8 @@ class RatchetIntegration extends Integration
             }
 
             $frameNum = 0;
-            $hookFn = function ($isClose) use ($handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
-                return function (HookData $hook) use ($isClose, $handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
+            $hookFn = function ($isControl) use ($handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
+                return function (HookData $hook) use ($isControl, $handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
                     // In the Websocket client case we only get hold of the websocket instance after it was constructed
                     // I.e. we need to fetch the handshake from the Client\WebSocket class ($handler).
                     if (!$handshake) {
@@ -253,7 +253,7 @@ class RatchetIntegration extends Integration
                     }
 
                     $message = $hook->args[0];
-                    if ($isClose && $message->getOpcode() !== Frame::OP_CLOSE) {
+                    if ($isControl && $message->getOpcode() !== Frame::OP_CLOSE) {
                         return;
                     }
 
@@ -275,7 +275,7 @@ class RatchetIntegration extends Integration
                         }
                     }
 
-                    if ($isClose) {
+                    if ($isControl) {
                         $span->name = "websocket.close";
                         $closePayload = $message->getPayload();
                         if (\strlen($closePayload) >= 2) {
