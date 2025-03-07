@@ -306,6 +306,9 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DDTrace_SpanData_hexId arginfo_DDTrace_startup_logs
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DDTrace_SpanData_root, 0, 0, DDTrace\\RootSpanData, 0)
+ZEND_END_ARG_INFO()
+
 #define arginfo_class_DDTrace_Integration_init arginfo_dd_trace_dd_get_memory_limit
 
 ZEND_FUNCTION(DDTrace_trace_method);
@@ -391,6 +394,7 @@ ZEND_METHOD(DDTrace_SpanData, getDuration);
 ZEND_METHOD(DDTrace_SpanData, getStartTime);
 ZEND_METHOD(DDTrace_SpanData, getLink);
 ZEND_METHOD(DDTrace_SpanData, hexId);
+ZEND_METHOD(DDTrace_SpanData, root);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "trace_method"), zif_DDTrace_trace_method, arginfo_DDTrace_trace_method, 0, NULL, NULL)
@@ -492,6 +496,7 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 	ZEND_ME(DDTrace_SpanData, getStartTime, arginfo_class_DDTrace_SpanData_getStartTime, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, getLink, arginfo_class_DDTrace_SpanData_getLink, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_SpanData, hexId, arginfo_class_DDTrace_SpanData_hexId, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_SpanData, root, arginfo_class_DDTrace_SpanData_root, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 

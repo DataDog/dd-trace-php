@@ -1,0 +1,5 @@
+{
+    "require": {
+        "react/promise": "^1.0"
+    }
+}

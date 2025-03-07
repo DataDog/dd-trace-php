@@ -34,9 +34,10 @@ final class SpanChecker
         $actualGraph = $this->buildSpansGraph($flattenTraces);
         if ($assertExactCount && \count($actualGraph) != \count($expectedFlameGraph)) {
             TestCase::fail(\sprintf(
-                'Wrong number of root spans. Expected %d, actual: %s',
+                "Wrong number of root spans. Expected %d, actual: %s\nReceived Spans graph:\n%s",
                 \count($expectedFlameGraph),
-                \count($actualGraph)
+                \count($actualGraph),
+                SpanChecker::dumpSpansGraph($actualGraph)
             ));
         }
 

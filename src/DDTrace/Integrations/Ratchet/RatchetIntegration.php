@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\ReactPromise\ReactPromiseIntegration;
 use DDTrace\RootSpanData;
 use DDTrace\SpanData;
 use DDTrace\SpanLink;
@@ -28,12 +29,7 @@ use Ratchet\RFC6455\Messaging\MessageBuffer;
 use Ratchet\Server\IoConnection;
 use Ratchet\WebSocket\WsConnection;
 use Ratchet\WebSocket\WsServer;
-use function DDTrace\active_stack;
-use function DDTrace\close_span;
-use function DDTrace\create_stack;
 use function DDTrace\get_priority_sampling;
-use function DDTrace\start_span;
-use function DDTrace\switch_stack;
 use function DDTrace\UserRequest\notify_commit;
 use function DDTrace\UserRequest\notify_start;
 
@@ -64,10 +60,8 @@ class RatchetIntegration extends Integration
         $integration = $this;
         $service = \ddtrace_config_app_name('ratchet');
 
-        \DDTrace\install_hook(Connector::class . "::__invoke", function (HookData $hook) {
+        ReactPromiseIntegration::tracePromiseFunction(Connector::class . "::__invoke", function (HookData $hook, SpanData $span) {
             $url = $hook->args[0];
-            create_stack();
-            $hook->data = $span = start_span();
             $span->name = 'Ratchet\Client\Connector.__invoke';
             $span->resource = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($url);
             $span->type = Type::HTTP_CLIENT;
@@ -81,43 +75,22 @@ class RatchetIntegration extends Integration
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
             }
-        }, function (HookData $hook) {
-            $span = $hook->data;
-            $rootSpan = \DDTrace\root_span();
-            if ($hook->exception) {
-                $span->exception = $hook->exception;
-                close_span();
-            } else {
-                $hook->returned->then(function ($websocket) use ($span, $rootSpan) {
-                    ObjectKVStore::put($websocket, "handshake", $span);
-                    ObjectKVStore::put($websocket, "handshake_root", $rootSpan);
+        }, function (HookData $hook, SpanData $span, $websocket) {
+            ObjectKVStore::put($websocket, "handshake", $span);
+            ObjectKVStore::put($websocket, "handshake_root", $span->root());
 
-                    $span->meta[Tag::HTTP_STATUS_CODE] = $websocket->response->getStatusCode();
-                    $span->meta["http.upgraded"] = '1';
-
-                    $stackBefore = active_stack();
-                    switch_stack($span);
-                    get_priority_sampling(); // force a sampling decision
-                    close_span();
-                    switch_stack($stackBefore);
-                }, function ($exception) use ($span) {
-                    if ($exception instanceof \DomainException) {
-                        // has the http status line as message
-                        $parts = explode(" ", $exception->getMessage());
-                        if (count($parts) == 3 && is_numeric($parts[1])) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = (int)$parts[1];
-                        } else {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = 101;
-                        }
-                    }
-                    $span->exception = $exception;
-
-                    $stackBefore = active_stack();
-                    switch_stack($span);
-                    close_span();
-                    switch_stack($stackBefore);
-                });
-                switch_stack();
+            $span->meta[Tag::HTTP_STATUS_CODE] = $websocket->response->getStatusCode();
+            $span->meta["http.upgraded"] = '1';
+            get_priority_sampling(); // force a sampling decision
+        }, function (HookData $hook, SpanData $span, $exception) {
+            if ($exception instanceof \DomainException) {
+                // has the http status line as message
+                $parts = explode(" ", $exception->getMessage());
+                if (count($parts) == 3 && is_numeric($parts[1])) {
+                    $span->meta[Tag::HTTP_STATUS_CODE] = (int)$parts[1];
+                } else {
+                    $span->meta[Tag::HTTP_STATUS_CODE] = 101;
+                }
             }
         });
 

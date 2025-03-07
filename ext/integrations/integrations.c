@@ -138,7 +138,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                             LOG(DEBUG, "Integration %s not loaded, possibly unsupported version. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
-                            LOG(DEBUG, "Integration {name} not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
                             unload_hooks = false;
                             break;
                         default:
@@ -253,6 +253,9 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_CAKEPHP, "Cake\\Http\\Server", "__construct",
                                          "DDTrace\\Integrations\\CakePHP\\CakePHPIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_DISCORDPHP, "Discord\\Discord", "__construct",
+                                         "DDTrace\\Integrations\\DiscordPHP\\DiscordPHPIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "exec",
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
@@ -440,6 +443,9 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Http\\HttpServerInterface", "onOpen",
                                          "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_REACTPROMISE, "React\\Promise\\Promise", "__construct",
+                                         "DDTrace\\Integrations\\ReactPromise\\ReactPromiseIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ROADRUNNER, "Spiral\\RoadRunner\\Http\\HttpWorker", "waitRequest",
                                          "DDTrace\\Integrations\\Roadrunner\\RoadrunnerIntegration");
