@@ -75,6 +75,7 @@
 ## Profiling
 ### Fixed
 - I/O upscaling and allocation to the right sample type #3118
+- fix `DD_TAGS` support #3121
 ]]></notes>
     <contents>
         <dir name="/">
