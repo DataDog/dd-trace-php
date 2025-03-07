@@ -2734,7 +2734,7 @@ jobs:
               yum install -y patch
             fi
             patch -p1 < 6ae71b3ea71bff0f38c7a6a05beda30b7dce1ef6.patch
-            ./configure CFLAGS="-g -O3" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
+            ./configure CFLAGS="-g -O3 -fPIC" --disable-tests --disable-minidebuginfo --disable-zlibdebuginfo
             make -j 8
             SUDO=$(! command -v sudo >/dev/null || echo "sudo -E")
             $SUDO make install
