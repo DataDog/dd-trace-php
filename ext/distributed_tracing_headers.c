@@ -449,8 +449,8 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         ddtrace_assign_variable(&span->property_propagated_tags, &zv);
 
         zend_hash_copy(root_meta, &result->meta_tags, NULL);
-        if (Z_TYPE(span->property_inferred_span) == IS_OBJECT && Z_OBJCE(span->property_inferred_span) == ddtrace_ce_inferred_span_data) {
-            ddtrace_span_data *inferred_span = OBJ_SPANDATA(Z_OBJ(span->property_inferred_span));
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(span);
+        if (inferred_span) {
             zend_array *inferred_meta = ddtrace_property_array(&inferred_span->property_meta);
             zend_hash_copy(inferred_meta, &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
         }

@@ -59,9 +59,8 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
     zval *service = &span->property_service;
     zval *resource = &span->property_resource;
     if (span->std.ce == ddtrace_ce_root_span_data) {
-        ddtrace_root_span_data *root_span = ROOTSPANDATA(&span->std);
-        if (Z_TYPE(root_span->property_inferred_span) == IS_OBJECT && Z_OBJCE(root_span->property_inferred_span) == ddtrace_ce_inferred_span_data) {
-            ddtrace_span_data *inferred_span = OBJ_SPANDATA(Z_OBJ(root_span->property_inferred_span));
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
+        if (inferred_span) {
             service = &inferred_span->property_service;
             resource = &inferred_span->property_resource;
         }

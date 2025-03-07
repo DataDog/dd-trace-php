@@ -2,7 +2,6 @@
 Priority sampling rules should use the inferred span's service & resource
 --ENV--
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7, "service": "foo", "resource": "bar"},{"sample_rate": 0.3, "service": "example.com", "resource": "GET \/test"}]
-DD_TRACE_GENERATE_ROOT_SPAN=1
 DD_TRACE_SAMPLING_RULES_FORMAT=regex
 
 DD_TRACE_AUTO_FLUSH_ENABLED=1

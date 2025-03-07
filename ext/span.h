@@ -268,4 +268,12 @@ static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
     return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
 }
 
+static inline ddtrace_span_data *ddtrace_get_inferred_span(ddtrace_root_span_data *root) {
+    zval *inferred_span_zv = &root->property_inferred_span;
+    if (Z_TYPE_P(inferred_span_zv) == IS_OBJECT && Z_OBJCE_P(inferred_span_zv) == ddtrace_ce_inferred_span_data) {
+        return OBJ_SPANDATA(Z_OBJ_P(inferred_span_zv));
+    }
+    return NULL;
+}
+
 #endif  // DD_SPAN_H

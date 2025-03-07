@@ -633,12 +633,10 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     }
 
     if (span->std.ce == ddtrace_ce_root_span_data) {
-        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-        zval *inferred_span_zv = &root->property_inferred_span;
-        if (Z_TYPE_P(inferred_span_zv) == IS_OBJECT && Z_OBJCE_P(inferred_span_zv) == ddtrace_ce_inferred_span_data) {
-            ddtrace_span_data *inferred_span_data = OBJ_SPANDATA(Z_OBJ_P(inferred_span_zv));
-            dd_trace_stop_span_time(inferred_span_data);
-            inferred_span_data->type = DDTRACE_SPAN_CLOSED;
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
+        if (inferred_span) {
+            dd_trace_stop_span_time(inferred_span);
+            inferred_span->type = DDTRACE_SPAN_CLOSED;
         }
     }
 
