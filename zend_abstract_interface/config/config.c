@@ -134,6 +134,7 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
     if (!zai_json_setup_bindings()) return false;
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
+    zai_config_stable_file_minit();
     return true;
 }
 
@@ -149,6 +150,7 @@ void zai_config_mshutdown(void) {
         zend_hash_destroy(&zai_config_name_map);
     }
     zai_config_ini_mshutdown();
+    zai_config_stable_file_mshutdown();
 }
 
 void zai_config_runtime_config_ctor(void);
