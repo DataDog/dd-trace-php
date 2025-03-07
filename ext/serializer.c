@@ -1874,9 +1874,7 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_array_destroy(Z_ARR(meta_struct_zv));
     }
 
-    add_next_index_zval(array, el);
-
-    return el;
+    return zend_hash_next_index_insert(Z_ARR_P(array), el);
 }
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
