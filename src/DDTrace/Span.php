@@ -43,6 +43,8 @@ class Span extends DataSpan
     {
         $this->internalSpan = $internalSpan;
         $this->context = $context;
+        $internalSpan->baggage += $context->baggageItems;
+        $context->baggageItems = &$internalSpan->baggage;
     }
 
     /**
@@ -387,7 +389,7 @@ class Span extends DataSpan
      */
     public function addBaggageItem($key, $value)
     {
-        $this->context = $this->context->withBaggageItem($key, $value);
+        $this->internalSpan->baggage[$key] = $value;
     }
 
     /**
@@ -395,7 +397,7 @@ class Span extends DataSpan
      */
     public function getBaggageItem($key)
     {
-        return $this->context->getBaggageItem($key);
+        return $this->internalSpan->baggage[$key] ?? null;
     }
 
     /**
@@ -403,60 +405,23 @@ class Span extends DataSpan
      */
     public function getAllBaggageItems()
     {
-        return $this->context->baggageItems;
-    }
-
-    // OPENTELEMETRY Baggage API Below:
-
-    /**
-     * Sets a baggage entry.
-     * @param string $key The baggage key.
-     * @param mixed $value The baggage value.
-     * @return void
-     */
-    public function setBaggage($key, $value)
-    {
-        if ($key !== '') {
-            $this->baggage[$key] = $value;
-        }
+        return $this->internalSpan->baggage;
     }
 
     /**
-     * Retrieves a baggage entry by key.
-     * @param string $key The baggage key.
-     * @return mixed|null Returns the value if found, otherwise null.
+     * {@inheritdoc}
      */
-    public function getBaggage($key)
+    public function removeBaggageItem($key)
     {
-        return $this->baggage[$key] ?? null;
+        unset($this->internalSpan->baggage[$key]);
     }
 
     /**
-     * Retrieves all baggage entries.
-     * @return array Returns an associative array of all baggage items.
+     * {@inheritdoc}
      */
-    public function getAllBaggage()
+    public function removeAllBaggageItems()
     {
-        return $this->baggage;
-    }
-
-    /**
-     * Removes a specific baggage entry.
-     * @param string $key The baggage key to remove.
-     * @return void
-     */
-    public function removeBaggage($key)
-    {
-        unset($this->baggage[$key]);
-    }
-
-    /**
-     * Clears all baggage entries.
-     * @return void
-     */
-    public function removeAllBaggage()
-    {
-        $this->baggage = [];
+        $this->internalSpan->baggage = [];
     }
 
     public function __destruct()

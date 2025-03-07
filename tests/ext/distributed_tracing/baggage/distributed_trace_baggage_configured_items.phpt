@@ -1,5 +1,5 @@
 --TEST--
-Test baggage header interaction with default configurations
+Test baggage header interaction with items limit configured
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_BAGGAGE_MAX_ITEMS=2

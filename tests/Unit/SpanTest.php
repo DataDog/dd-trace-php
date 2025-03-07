@@ -378,6 +378,35 @@ final class SpanTest extends BaseTestCase
         $this->assertEmpty($span->getAllBaggage());
     }
 
+    public function testApiBaggageMergingWithHeaders()
+    {
+        // Step 1: Set baggage using API before a request
+        $span = new Span(\DDTrace\start_trace_span(), SpanContext::createAsRoot());
+        $span->addBaggageItem('user_id', '123');
+        $span->addBaggageItem('serverNode', 'local');
+        $span->addBaggageItem('session', 'abc123');
+
+        // Step 2: Simulate an incoming request with baggage in the headers
+        $incomingHeaders = [
+            'baggage' => 'user_id=999,serverNode=remote,env=production'
+        ];
+
+        // Step 3: Consume the request headers (Simulate extraction)
+        \DDTrace\consume_distributed_tracing_headers(function ($header) use ($incomingHeaders) {
+            return $incomingHeaders[$header] ?? null;
+        });
+
+        // Step 4: Start a new span (merging should happen here)
+        $newSpan = $this->createSpan(true);
+        $expectedMergedBaggage = [
+            'user_id' => '999', // Overwritten by request header
+            'serverNode' => 'remote', // Overwritten by request header
+            'session' => 'abc123', // Preserved from API-set baggage
+            'env' => 'production' // New from request header
+        ];
+        $this->assertEquals($expectedMergedBaggage, $newSpan->getAllBaggageItems());
+    }
+
     private function createSpan($realSpan = false)
     {
         $context = SpanContext::createAsRoot();

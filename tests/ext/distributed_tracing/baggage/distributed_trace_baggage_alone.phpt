@@ -2,16 +2,11 @@
 Test baggage header behavior when configured by itself
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_TRACE_PROPAGATION_STYLE=baggage
 --FILE--
 <?php
 
 DDTrace\consume_distributed_tracing_headers(function ($header) {
     return [
-            "x-datadog-trace-id" => 42,
-            "x-datadog-parent-id" => 10,
-            "x-datadog-origin" => "datadog",
-            "x-datadog-sampling-priority" => 3,
             "baggage" => "user.id=123,session.id=abc"
         ][$header] ?? null;
 });

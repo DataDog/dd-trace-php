@@ -12,6 +12,7 @@ use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
 use Fiber;
 use OpenTelemetry\API\Baggage\Baggage;
+use OpenTelemetry\API\Baggage\Propagation\BaggagePropagator;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanContext;
@@ -1423,4 +1424,30 @@ final class InteroperabilityTest extends BaseTestCase
             $parentSpanScope->detach();
         });
     }
+
+    public function testEndToEndBaggage()
+    {
+        // 1. Injected baggage is kept in the context
+        $otelContextExample = $this->isolateTracer(function () {
+            $baggage = Baggage::getBuilder()
+                ->set('user_id', '12345')
+                ->set('session', 'xyz')
+                ->build();
+            $context = Context::getCurrent()->withContextValue($baggage);
+            
+            // Step 2: Inject into Headers
+            $carrier = [];
+            BaggagePropagator::getInstance()->inject($carrier, null, $context);
+            
+            // Step 3: Extract into a New Context
+            $newContext = BaggagePropagator::getInstance()->extract($carrier);
+            
+            // Step 4: Validate the Extracted Baggage Items
+            $extractedBaggage = Baggage::fromContext($newContext);
+            
+            $this->assertSame($extractedBaggage->getValue('user_id'), '12345');
+            $this->assertSame($extractedBaggage->getValue('session'), 'xyz');
+        });
+    }
+
 }
