@@ -26,6 +26,26 @@ void zai_config_stable_file_minit(void) {
         ddog_library_configurator_with_fleet_path(configurator, path);
     }
 
+    // FIXME: without the call to ddog_library_configurator_with_process_info,
+    // some AppSec's integration tests fails
+#define DDOG_SLICE_CHARSLICE(arr) \
+    ((ddog_Slice_CharSlice){.ptr = arr, .len = sizeof(arr) / sizeof(arr[0])})
+
+    ddog_CharSlice args[] = {
+        DDOG_CHARSLICE_C("/usr/bin/php"),
+    };
+
+    ddog_CharSlice envp[] = {
+        DDOG_CHARSLICE_C("FOO=BAR"),
+    };
+    ddog_ProcessInfo process_info = {
+        .args = DDOG_SLICE_CHARSLICE(args),
+        .envp = DDOG_SLICE_CHARSLICE(envp),
+        .language = DDOG_CHARSLICE_C("php")
+    };
+    ddog_library_configurator_with_process_info(configurator, process_info);
+    //
+
     config_result = ddog_library_configurator_get(configurator);
 }
 
