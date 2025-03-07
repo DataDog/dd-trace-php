@@ -93,12 +93,16 @@ final class CliServer implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
+        error_log(sprintf("[cli-server] Process is %d", $this->process->getPid()));
+        error_log(sprintf("[cli-server] Error at start: %s", $this->process->getErrorOutput()));
     }
 
     public function stop()
     {
         error_log("[cli-server] Stopping...");
-        $this->process->stop(0);
+        $exitCode = $this->process->stop(0);
+        error_log(sprintf("[cli-server] Stopped with: %d", $exitCode));
+        $this->process->wait();
     }
 
     public function isFastCgi()
