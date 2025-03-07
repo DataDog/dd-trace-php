@@ -1,0 +1,56 @@
+[[
+  {
+    "name": "aws.apigateway",
+    "service": "example.com",
+    "resource": "GET /test",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 3978455880403641907,
+    "type": "web",
+    "meta": {
+      "_dd.inferred_span": "1",
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "67cb015300000000",
+      "component": "aws-apigateway",
+      "env": "local-test",
+      "error.message": "Uncaught Exception: Error page in /home/circleci/app/tests/Frameworks/Roadrunner/Version_2/worker.php:26",
+      "error.stack": "#0 {main}",
+      "error.type": "Exception",
+      "http.method": "GET",
+      "http.url": "example.com/test",
+      "stage": "aws-prod",
+      "version": "1.0"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "web.request",
+       "service": "roadrunner_test_app",
+       "resource": "GET /error",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "error": 1,
+       "meta": {
+         "component": "roadrunner",
+         "env": "local-test",
+         "error.message": "Uncaught Exception: Error page in /home/circleci/app/tests/Frameworks/Roadrunner/Version_2/worker.php:26",
+         "error.stack": "#0 {main}",
+         "error.type": "Exception",
+         "http.method": "GET",
+         "http.request.headers.x-dd-proxy": "aws-apigateway",
+         "http.request.headers.x-dd-proxy-domain-name": "example.com",
+         "http.request.headers.x-dd-proxy-httpmethod": "GET",
+         "http.request.headers.x-dd-proxy-path": "/test",
+         "http.request.headers.x-dd-proxy-request-time-ms": "1739261376000",
+         "http.request.headers.x-dd-proxy-stage": "aws-prod",
+         "http.status_code": "500",
+         "http.url": "http://localhost/error?key=value&<redacted>",
+         "runtime-id": "fd6e51db-bf2d-40fe-aa43-ae7c29474411",
+         "span.kind": "server",
+         "version": "1.0"
+       }
+     }]]
