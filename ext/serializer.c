@@ -1426,7 +1426,7 @@ void transfer_data(zend_array *source, zend_array *destination, const char *key,
 }
 
 
-void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
+zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
     ddtrace_span_data *inferred_span = NULL;
@@ -1789,14 +1789,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     if (inferred_span) {
-        ddtrace_serialize_span_to_array(inferred_span, array);
+        zval *serialized_inferred_span = ddtrace_serialize_span_to_array(inferred_span, array);
+        zend_array *serialized_inferred_span_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("meta")));
+        zend_array *serialized_inferred_span_metrics = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("metrics")));
 
         zend_array *serialized_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta")));
         zend_array *serialized_metrics = Z_ARR(metrics_zv);
-
-        zval *serialized_inferred_span = zend_hash_index_find(Z_ARR_P(array), zend_hash_num_elements(Z_ARR_P(array)) - 1);
-        zend_array *serialized_inferred_span_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("meta")));
-        zend_array *serialized_inferred_span_metrics = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("metrics")));
 
         transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.agent_psr"), true);
         transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.rule_psr"), true);
@@ -1877,6 +1875,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     add_next_index_zval(array, el);
+
+    return el;
 }
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
