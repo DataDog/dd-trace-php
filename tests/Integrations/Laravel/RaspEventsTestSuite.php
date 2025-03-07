@@ -10,6 +10,7 @@ class RaspEventsTestSuite extends AppsecTestCase
 {
     public function testWhenRequestIsBlockedLaravelPageIsNotDisplayed()
     {
+        sleep(5);
         $eventToBlock = [
             "rasp_rule" => "lfi",
             0 => [
