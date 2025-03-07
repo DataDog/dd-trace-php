@@ -12,6 +12,7 @@ use core::mem::{swap, transmute, MaybeUninit};
 use core::ptr;
 use core::str::FromStr;
 pub use datadog_profiling::exporter::Uri;
+use ddcommon::tag::{parse_tags, Tag};
 use libc::c_char;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
@@ -645,6 +646,16 @@ pub(crate) unsafe fn version() -> Option<String> {
 
 /// # Safety
 /// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn tags() -> (Vec<Tag>, Option<String>) {
+    match get_str(Tags) {
+        None => (Vec::new(), None),
+        Some(dd_tags) => parse_tags(&dd_tags),
+    }
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
 /// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn trace_agent_port() -> Option<u16> {
     let port = get_system_zend_long(TraceAgentPort).unwrap_or(0);
@@ -978,7 +989,11 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(Tags),
                     name: Tags.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_MAP,
+                    // Using a string here means we're going to parse the
+                    // string into tags over and over, but since it needs to
+                    // be a valid zval for destruction, we can't just use a
+                    // Box::leak of Vec<Tag> or something.
+                    type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::new(),
                     aliases: ptr::null_mut(),
                     aliases_count: 0,
