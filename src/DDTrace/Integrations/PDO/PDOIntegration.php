@@ -54,6 +54,17 @@ class PDOIntegration extends Integration
             PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
         });
 
+        if (PHP_VERSION_ID >= 80400) {
+            // public PDO::connect ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
+            \DDTrace\trace_method('PDO', 'connect', function (SpanData $span, array $args, $pdo) {
+                Integration::handleOrphan($span);
+                $span->name = $span->resource = 'PDO.connect';
+                $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
+                ObjectKVStore::put($pdo, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+                PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
+            });
+        }
+
         // public int PDO::exec(string $query)
         \DDTrace\install_hook('PDO::exec', function (HookData $hook) use ($integration) {
             list($query) = $hook->args;
