@@ -145,7 +145,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
         char *scope = "";
         char *colon = "";
         char *name = "(unknown function)";
-        if (execute_data->func && execute_data->func->common.function_name) {
+        if (execute_data && execute_data->func && execute_data->func->common.function_name) {
             zend_function *fbc = execute_data->func;
             name = ZSTR_VAL(fbc->common.function_name);
             if (fbc->common.scope) {

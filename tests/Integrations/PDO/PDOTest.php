@@ -157,6 +157,22 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPDOConnectOk()
+    {
+        if (PHP_VERSION_ID < 80400) {
+            $this->markTestSkipped('Test relies on PDO::connect() which was added in PHP 8.4');
+            return;
+        }
+
+        $traces = $this->isolateTracer(function () {
+            \PDO::connect($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.connect', 'pdo', 'sql', 'PDO.connect')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
     public function testPDOSplitByDomain()
     {
         self::putEnv('DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE=true');

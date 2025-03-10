@@ -38,7 +38,7 @@ service::service(std::shared_ptr<engine> engine,
 
 std::shared_ptr<service> service::from_settings(
     const dds::engine_settings &eng_settings,
-    const remote_config::settings &rc_settings, bool dynamic_enablement)
+    const remote_config::settings &rc_settings)
 {
     std::shared_ptr<metrics_impl> msubmitter = std::make_shared<metrics_impl>();
 
@@ -48,8 +48,7 @@ std::shared_ptr<service> service::from_settings(
     auto service_config = std::make_shared<dds::service_config>();
 
     auto client_handler = remote_config::client_handler::from_settings(
-        eng_settings, service_config, rc_settings, engine_ptr, msubmitter,
-        dynamic_enablement);
+        eng_settings, service_config, rc_settings, engine_ptr, msubmitter);
 
     return create_shared(engine_ptr, std::move(service_config),
         std::move(client_handler), std::move(msubmitter),
