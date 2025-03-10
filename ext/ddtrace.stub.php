@@ -213,6 +213,15 @@ namespace DDTrace {
         public readonly SpanStack $stack;
 
         /**
+         * @var \Closure(self $span)[] $handler Defines handlers which will be invoked in reverse order when this span
+         * is closed.
+         * These handlers will not be called when the span is dropped.
+         * This array is cleared upon span drop or close.
+         * The passed $span parameter is this instance.
+         */
+        public array $onClose = [];
+
+        /**
          * @return int Get the current span duration, in nanoseconds
          */
         public function getDuration(): int {}
@@ -308,6 +317,15 @@ namespace DDTrace {
          * @var SpanData|null The active span
          */
         public SpanData|null $active = null;
+
+        /**
+         * @var \Closure(SpanData $span):(false|null)[] The observers to be called when a span on top of this span stack is started.
+         * This property is inherited when child span stacks are created.
+         * The handler can remove itself (globally) from further invocation by returning false.
+         * Maintained as an array of references (promoted to reference on nested create_stack) to ensure propagation of
+         * removal.
+         */
+        public array $spanCreationObservers = [];
     }
 
     interface Integration {
@@ -350,7 +368,7 @@ namespace DDTrace {
      *
      * @param string $className The name of the class that contains the method.
      * @param string $methodName The name of the method to instrument.
-     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Exception|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Throwable|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData', an array of
      * arguments from the instrumented call, the return value of the instrumented call, and an instance of the exception
@@ -362,6 +380,8 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the method be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
+     *
+     * Note that this closure will be bound to the object (or scope if static) of the target method.
      * @return bool 'true' if the call was successfully instrumented, else 'false'
      */
     function trace_method(
@@ -379,7 +399,7 @@ namespace DDTrace {
      * Additional tags are set on the span from the closure (called a tracing closure).
      *
      * @param string $functionName The name of the function to trace.
-     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Exception|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Throwable|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData' that writes
      * to the span properties, an array of arguments from the instrumented call, the return value of the instrumented
@@ -400,7 +420,7 @@ namespace DDTrace {
      * This function allows to define pre- and post-hooks that will be executed before and after the function is called.
      *
      * @param string $functionName The name of the function to be instrumented.
-     * @param \Closure(object ):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * @param \Closure(array $args, mixed $retval, \Throwable|null $exception):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
      * A pre-hook function that will be called before the instrumented function is
      * executed. This can be useful for things like asserting the function is passed the  correct arguments.
      *
@@ -410,7 +430,7 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
-     * @param \Closure(array $args, mixed $retval, \Exception|null $exception):void|null $posthook A post-hook function that will be called after
+     * @param \Closure(array $args, mixed $retval, \Throwable|null $exception):void|null $posthook A post-hook function that will be called after
      * the instrumented function is executed. This can be useful for things like formatting output data or logging the
      * results of the function call.
      *
@@ -429,7 +449,7 @@ namespace DDTrace {
      *
      * @param string $className The name of the class that contains the method.
      * @param string $methodName The name of the method to instrument.
-     * @param \Closure(mixed $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * @param \Closure(object $object, string $scope, array $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
      * A pre-hook function that will be called before the instrumented
      * method is executed. This can be useful for things like asserting the method is passed the correct arguments.
      *
@@ -439,7 +459,7 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
-     * @param \Closure(object $object, string $scope, array $args, mixed $retval, \Exception|null $exception):void|null $posthook A post-hook function that will be called after
+     * @param \Closure(object $object, string $scope, array $args, mixed $retval, \Throwable|null $exception):void|null $posthook A post-hook function that will be called after
      * the instrumented method is executed. This can be useful for things like formatting output data or logging the
      * results of the method call.
      *
@@ -593,12 +613,12 @@ namespace DDTrace {
     /**
      * Sanitize an exception
      *
-     * @param \Exception|\Throwable $exception
+     * @param \Throwable $exception
      * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
      * in a hook function.
      * @return string
      */
-    function get_sanitized_exception_trace(\Exception|\Throwable $exception, int $skipFrames = 0): string {}
+    function get_sanitized_exception_trace(\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,

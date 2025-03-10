@@ -25,7 +25,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (21) {
+object(DDTrace\RootSpanData)#%d (22) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -67,16 +67,25 @@ object(DDTrace\RootSpanData)#%d (21) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
+      ["spanCreationObservers"]=>
+      array(0) {
+      }
     }
     ["active"]=>
     *RECURSION*
+    ["spanCreationObservers"]=>
+    array(0) {
+    }
+  }
+  ["onClose"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
@@ -91,7 +100,7 @@ object(DDTrace\RootSpanData)#%d (21) {
   ["gitMetadata"]=>
   NULL
 }
-object(DDTrace\RootSpanData)#%d (21) {
+object(DDTrace\RootSpanData)#%d (22) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -133,16 +142,19 @@ object(DDTrace\RootSpanData)#%d (21) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
+      ["spanCreationObservers"]=>
+      array(0) {
+      }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (21) {
+    object(DDTrace\RootSpanData)#%d (22) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -184,7 +196,10 @@ object(DDTrace\RootSpanData)#%d (21) {
       ["parent"]=>
       NULL
       ["stack"]=>
-      *RECURSION*%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+      *RECURSION*
+      ["onClose"]=>
+      array(0) {
+      }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
       }
@@ -198,6 +213,12 @@ object(DDTrace\RootSpanData)#%d (21) {
       ["gitMetadata"]=>
       NULL
     }
+    ["spanCreationObservers"]=>
+    array(0) {
+    }
+  }
+  ["onClose"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {

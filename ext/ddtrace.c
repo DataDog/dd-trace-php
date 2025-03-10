@@ -912,6 +912,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     array_init(&span->property_links);
     array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
+    array_init(&span->property_on_close);
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -944,6 +945,10 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     // Explicitly assign property-mapped NULLs
     stack->active = NULL;
     stack->parent_stack = NULL;
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&stack->property_span_creation_observers);
+#endif
     return &stack->std;
 }
 
@@ -2730,6 +2735,10 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
 
     if (start_time_seconds > 0) {
         span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
+    }
+
+    if (get_DD_TRACE_ENABLED()) {
+        ddtrace_observe_opened_span(span);
     }
 
     RETURN_OBJ(&span->std);
