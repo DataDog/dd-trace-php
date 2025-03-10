@@ -389,7 +389,9 @@ class Span extends DataSpan
      */
     public function addBaggageItem($key, $value)
     {
-        $this->internalSpan->baggage[$key] = $value;
+        if ($key !== '') {
+            $this->internalSpan->baggage[$key] = $value;
+        }
     }
 
     /**

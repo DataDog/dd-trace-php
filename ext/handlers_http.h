@@ -5,6 +5,7 @@
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
 #include <Zend/zend_smart_str.h>
+#include <components/log/log.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -128,7 +129,6 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
     uint64_t max_items = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_BAGGAGE_MAX_ITEMS) ? get_DD_TRACE_BAGGAGE_MAX_ITEMS() : 64;
     size_t current_size = 0;
     size_t item_count = 0;
-    bool exceeded_items = false, exceeded_bytes = false;
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(baggage, key, value) {
         if (!key || Z_TYPE_P(value) != IS_STRING) {
@@ -150,7 +150,7 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
 
         // Check if adding another item exceeds max allowed items
         if (item_count >= max_items) {
-            exceeded_items = true;
+            LOG(WARN, "Baggage item limit of %ld exceeded, dropping excess items.", max_items);
             break;
         }
 
@@ -160,8 +160,8 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
         // Compute new size including separator, key, `=`, and value
         size_t new_size = current_size + (first_entry ? 0 : 1) + ZSTR_LEN(key) + 1 + ZSTR_LEN(encoded_value);
         if (new_size > max_bytes) {
-            exceeded_bytes = true;
             zend_string_release(encoded_value);
+            LOG(WARN, "Baggage header size of %ld bytes exceeded, dropping excess items.", max_bytes);
             break;
         }
 

@@ -143,7 +143,7 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
         // Store key-value in baggage
         zval baggage_value;
         ZVAL_STR(&baggage_value, decoded_value);
-        zend_hash_update(baggage, decoded_key, &baggage_value);
+        zend_symtable_update(baggage, decoded_key, &baggage_value);
         zend_string_release(decoded_key);
 
         ++baggage_ptr; // Move past ','
@@ -597,6 +597,20 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         *Z_ARR(zv) = result->tracestate_unknown_dd_keys;
         ddtrace_assign_variable(&span->property_tracestate_tags, &zv);
 
+        zend_array *existing_baggage = ddtrace_property_array(&span->property_baggage);
+        zend_string *key;
+        zend_ulong key_i;
+        zval *val;
+        ZEND_HASH_FOREACH_KEY_VAL(&result->baggage, key_i, key, val) {
+                if (key) {
+                    zend_hash_update(existing_baggage, key, val);
+                } else {
+                    zend_hash_index_update(existing_baggage, key_i, val);
+                }
+                Z_TRY_ADDREF_P(val);
+        } ZEND_HASH_FOREACH_END();
+        zend_hash_destroy(&result->baggage);
+
         if (result->trace_id.low || result->trace_id.high) {
             span->trace_id = result->trace_id;
             span->parent_id = result->parent_id;
@@ -615,21 +629,14 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (DDTRACE_G(tracestate)) {
             zend_string_release(DDTRACE_G(tracestate));
         }
-        DDTRACE_G(tracestate) = result->tracestate;
-
+        DDTRACE_G(tracestate) = result->tracestate;  
+        zend_hash_destroy(&DDTRACE_G(baggage));
+        DDTRACE_G(baggage) = result->baggage;
+        
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
         }
-    }
-
-    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
-        ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
-        *Z_ARR(zv) = result->baggage;
-        ddtrace_assign_variable(&SPANDATA(DDTRACE_G(active_stack)->active)->property_baggage, &zv);
-    } else {
-        zend_hash_destroy(&DDTRACE_G(baggage));
-        DDTRACE_G(baggage) = result->baggage;
     }
 
     result->meta_tags.pDestructor = NULL; // we moved values directly

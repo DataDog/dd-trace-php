@@ -2,6 +2,7 @@
 Test baggage header behavior when configured by itself
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_PROPAGATION_STYLE=baggage
 --FILE--
 <?php
 
