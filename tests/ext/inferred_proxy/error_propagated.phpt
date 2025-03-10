@@ -69,8 +69,8 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.status_code": "500",
             "error.type": "Exception",
             "_dd.p.tid": "%s",
-            "error.message": "Uncaught Exception (500): An exception occurred in %s\/tests\/ext\/inferred_proxy\/error_propagated.php:6",
-            "error.stack": "#0 %s\/tests\/ext\/inferred_proxy\/error_propagated.php(14): oops()\n#1 {main}",
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:6",
+            "error.stack": "#0 %serror_propagated.php(14): oops()\n#1 {main}",
             "_dd.p.dm": "-0"
         },
         "metrics": {
@@ -95,9 +95,9 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.method": "GET",
             "env": "local-prod",
             "version": "1.0",
-            "error.message": "Uncaught Exception (500): An exception occurred in %s\/tests\/ext\/inferred_proxy\/error_propagated.php:6",
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:6",
             "error.type": "Exception",
-            "error.stack": "#0 %s\/tests\/ext\/inferred_proxy\/error_propagated.php(14): oops()\n#1 {main}",
+            "error.stack": "#0 %serror_propagated.php(14): oops()\n#1 {main}",
             "http.status_code": "500"
         },
         "metrics": {
