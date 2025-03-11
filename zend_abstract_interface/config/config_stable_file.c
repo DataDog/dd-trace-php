@@ -12,6 +12,60 @@ ddog_Configurator *configurator = NULL;
 // In phase 2, as planned, the call will move to RINIT
 ddog_Result_VecLibraryConfig config_result = {0};
 
+bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf) {
+    ddog_Vec_LibraryConfig configs = config_result.ok;
+    for (uintptr_t i = 0; i < configs.len; i++) {
+        const ddog_LibraryConfig *cfg = &configs.ptr[i];
+        ddog_CStr library_name = ddog_library_config_name_to_env(cfg->name);
+        if (strcmp(name.ptr, library_name.ptr) == 0) {
+            strcpy(buf.ptr, cfg->value.ptr);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool zai_config_stable_file_find_entry(zai_str config_name, zai_config_id *id) {
+    for (zai_config_id i = 0; i < zai_config_memoized_entries_count; ++i) {
+        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
+        for (uint8_t n = 0; n < memoized->names_count; ++n) {
+            zai_str name = ZAI_STR_NEW(memoized->names[n].ptr, memoized->names[n].len);
+            if (strcmp(name.ptr, config_name.ptr) == 0) {
+                *id = i;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static void zai_config_stable_file_apply_config(int stage) {
+    if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_ERR_VEC_LIBRARY_CONFIG) {
+        return;
+    }
+
+    ddog_Vec_LibraryConfig configs = config_result.ok;
+    for (uintptr_t i = 0; i < configs.len; i++) {
+        const ddog_LibraryConfig *cfg = &configs.ptr[i];
+        ddog_CStr name = ddog_library_config_name_to_env(cfg->name);
+
+        zai_config_id config_id;
+        zai_str config_name = {.ptr = name.ptr, .len = name.length};
+        if (!zai_config_stable_file_find_entry(config_name, &config_id)) {
+            continue;
+        }
+
+        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[config_id];
+        zend_ini_entry *entry = memoized->ini_entries[0]; // FIXME: is [0] OK here?
+
+        zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, false);
+        ZaiConfigOnUpdateIni(entry, value, NULL, NULL, NULL, stage);
+        zend_string_release(value);
+    }
+}
+
 void zai_config_stable_file_minit(void) {
     configurator = ddog_library_configurator_new(false, DDOG_CHARSLICE_C("php"));
 
@@ -59,43 +113,6 @@ void zai_config_stable_file_mshutdown(void) {
     }
 }
 
-static bool zai_config_stable_file_find_entry(zai_str config_name, zai_config_id *id) {
-    for (zai_config_id i = 0; i < zai_config_memoized_entries_count; ++i) {
-        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        for (uint8_t n = 0; n < memoized->names_count; ++n) {
-            zai_str name = ZAI_STR_NEW(memoized->names[n].ptr, memoized->names[n].len);
-            if (strcmp(name.ptr, config_name.ptr) == 0) {
-                *id = i;
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 void zai_config_stable_file_rinit(void) {
-    if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_ERR_VEC_LIBRARY_CONFIG) {
-        return;
-    }
-
-    ddog_Vec_LibraryConfig configs = config_result.ok;
-    for (uintptr_t i = 0; i < configs.len; i++) {
-        const ddog_LibraryConfig *cfg = &configs.ptr[i];
-        ddog_CStr name = ddog_library_config_name_to_env(cfg->name);
-
-        zai_config_id config_id;
-        zai_str config_name = {.ptr = name.ptr, .len = name.length};
-        if (zai_config_stable_file_find_entry(config_name, &config_id)) {
-            zval new_zv;
-            ZVAL_UNDEF(&new_zv);
-            zai_config_memoized_entry *memoized = &zai_config_memoized_entries[config_id];
-
-            zai_str config_value = {.ptr = cfg->value.ptr, .len = cfg->value.length};
-            if (zai_config_decode_value(config_value, memoized->type, memoized->parser, &new_zv, /* persistent */ false)) {
-                zai_config_replace_runtime_config(config_id, &new_zv);
-                zval_ptr_dtor(&new_zv);
-            }
-        }
-    }
+    zai_config_stable_file_apply_config(PHP_INI_STAGE_RUNTIME);
 }
