@@ -115,6 +115,13 @@ function skip_if_not_php8() {
     }
 }
 
+function skip_if_not_at_least_php71() {
+    if (PHP_MAJOR_VERSION < 7 || (PHP_MAJOR_VERSION === 7 && PHP_MINOR_VERSION === 0)) {
+        echo "Skip: test requires PHP 7.1+\n";
+        exit(0);
+    }
+}
+
 function skip_if_opcache_missing() {
     $output = runCLI('-dzend_extension=opcache -m');
     if (strpos($output, 'Zend OPcache') === false) {

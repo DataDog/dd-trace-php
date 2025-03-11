@@ -195,12 +195,19 @@ static void appsec_pre_minit_hook(void) {
     }
 }
 
+static void profiling_pre_minit_hook(void) {
+    HashTable *configuration_hash = php_ini_get_configuration_hash();
+    if (configuration_hash) {
+        ddloader_ini_set_configuration(ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
+    }
+}
+
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
     DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, NULL,
+    DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, profiling_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
     DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, appsec_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_END})),
