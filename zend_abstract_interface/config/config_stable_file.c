@@ -61,7 +61,7 @@ static void zai_config_stable_file_apply_config(int stage) {
         zend_ini_entry *entry = memoized->ini_entries[0]; // FIXME: is [0] OK here?
 
         zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, false);
-        ZaiConfigOnUpdateIni(entry, value, NULL, NULL, NULL, stage);
+        zend_alter_ini_entry_ex(entry->name, value, PHP_INI_USER, stage, 0);
         zend_string_release(value);
     }
 }
