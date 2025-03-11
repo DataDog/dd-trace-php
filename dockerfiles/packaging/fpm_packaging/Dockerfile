@@ -3,7 +3,7 @@ FROM cimg/ruby:3.3.4 AS base
 USER root
 WORKDIR /home/circleci
 
-RUN apt-get update && apt-get -y install vim less build-essential rpm lintian jq
+RUN apt-get update && apt-get -y install vim less build-essential rpm lintian jq binutils-aarch64-linux-gnu
 
 # Need at least tar 1.35 to work around concurrency problems with atime and inode count checks
 # See also: https://stackoverflow.com/a/77765876

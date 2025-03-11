@@ -105,9 +105,11 @@ for architecture in "${architectures[@]}"; do
     ########################
 
     # Strip symbols to reduce the package size
-    # if [[ "${architecture}" == "x86_64" ]]; then
-    #     find "${root}" -name '*.so' -print0 | xargs -0 strip
-    # fi
+    if [[ "${architecture}" == "x86_64" ]]; then
+        find "${root}" -name '*.so' -print0 | xargs -0 strip
+    elif [[ "${architecture}" == "aarch64" ]]; then
+        find "${root}" -name '*.so' -print0 | xargs -0 aarch64-linux-gnu-strip
+    fi
 
     echo "$release_version_sanitized" > ${root}/version
     cp ./loader/packaging/requirements.json ${root}/requirements.json
