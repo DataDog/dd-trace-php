@@ -1,3 +1,5 @@
+include(cmake/components_rs.cmake)
+
 configure_file(src/extension/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/extension/version.h)
 
 find_package(PhpConfig REQUIRED)
@@ -10,8 +12,8 @@ file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
  ../zend_abstract_interface/zai_string/*.c)
 
 add_library(zai STATIC ${ZAI_SOURCE})
-target_link_libraries(zai PRIVATE PhpConfig)
-target_include_directories(zai PUBLIC ../zend_abstract_interface)
+target_link_libraries(zai PRIVATE PhpConfig components_rs)
+target_include_directories(zai PUBLIC ../zend_abstract_interface ..)
 set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
