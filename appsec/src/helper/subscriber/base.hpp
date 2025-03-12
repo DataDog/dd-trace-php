@@ -35,6 +35,13 @@ public:
         virtual void submit_metrics(
             metrics::telemetry_submitter &msubmitter) = 0;
     };
+    struct changeset {
+        std::unordered_map<std::string, parameter> added;
+        std::unordered_set<std::string> removed;
+
+        std::optional<std::pair<std::string, parameter>> added_asm_dd;
+        std::optional<std::string> removed_asm_dd;
+    };
 
     subscriber() = default;
     virtual ~subscriber() = default;
@@ -47,8 +54,8 @@ public:
     virtual std::string_view get_name() = 0;
     virtual std::unordered_set<std::string> get_subscriptions() = 0;
     virtual std::unique_ptr<listener> get_listener() = 0;
-    virtual std::unique_ptr<subscriber> update(
-        parameter &rule, metrics::telemetry_submitter &submit_metric) = 0;
+    virtual std::unique_ptr<subscriber> update(const changeset &changeset,
+        metrics::telemetry_submitter &submit_metric) = 0;
 };
 
 } // namespace dds

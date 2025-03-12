@@ -5,9 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../../../config.hpp"
 #include "../../../json_helper.hpp"
-#include "../../../parameter.hpp"
 #include "config_aggregator.hpp"
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
@@ -17,10 +15,10 @@ namespace dds::remote_config {
 
 class asm_dd_aggregator : public config_aggregator_base {
 public:
+    static constexpr const char *ASM_DD_ADDED{"asm_dd_added"};
+    static constexpr const char *ASM_DD_REMOVED{"asm_dd_removed"};
+
     asm_dd_aggregator() = default;
-    explicit asm_dd_aggregator(std::string fallback_rules_file)
-        : fallback_rules_file_(std::move(fallback_rules_file))
-    {}
     asm_dd_aggregator(const asm_dd_aggregator &) = delete;
     asm_dd_aggregator(asm_dd_aggregator &&) = default;
     asm_dd_aggregator &operator=(const asm_dd_aggregator &) = delete;
@@ -29,7 +27,15 @@ public:
 
     void init(rapidjson::Document::AllocatorType *allocator) override
     {
-        ruleset_ = rapidjson::Document(rapidjson::kObjectType, allocator);
+        change_set_ = rapidjson::Document(rapidjson::kObjectType, allocator);
+
+        auto asm_dd_added_str = rapidjson::Value{ASM_DD_ADDED, *allocator};
+        change_set_.AddMember(std::move(asm_dd_added_str),
+            rapidjson::Value{rapidjson::kObjectType}, *allocator);
+
+        auto asm_dd_removed_str = rapidjson::Value{ASM_DD_REMOVED, *allocator};
+        change_set_.AddMember(std::move(asm_dd_removed_str),
+            rapidjson::Value{rapidjson::kStringType}, *allocator);
     }
 
     void add(const config &config) override;
@@ -37,12 +43,12 @@ public:
 
     void aggregate(rapidjson::Document &doc) override
     {
-        json_helper::merge_objects(doc, ruleset_, doc.GetAllocator());
+        json_helper::merge_objects(doc, change_set_, doc.GetAllocator());
     }
 
 protected:
-    std::string fallback_rules_file_{};
-    rapidjson::Document ruleset_;
+    auto &allocator() { return change_set_.GetAllocator(); }
+    rapidjson::Document change_set_;
 };
 
 } // namespace dds::remote_config

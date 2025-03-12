@@ -146,10 +146,10 @@ void json_to_object(ddwaf_object *object, T &doc)
     }
 }
 
-dds::parameter json_to_parameter(const rapidjson::Document &doc)
+dds::parameter json_to_parameter(const rapidjson::Value &value)
 {
     dds::parameter obj;
-    json_to_object(obj, doc);
+    json_to_object(obj, value);
     return obj;
 }
 

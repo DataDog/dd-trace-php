@@ -272,7 +272,6 @@ TEST(ClientTest, ClientInitInvalidRules)
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
-    EXPECT_TRUE(doc.HasMember("unknown matcher: squash"));
     EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
 
     EXPECT_EQ(msg_res->metrics.size(), 2);

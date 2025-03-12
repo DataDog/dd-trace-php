@@ -22,6 +22,19 @@ const std::string waf_rule =
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
+namespace {
+dds::parameter param_from_file(std::string_view sv)
+{
+    rapidjson::Document doc;
+    std::string file_content{dds::read_file(sv)};
+    rapidjson::ParseResult const result = doc.Parse(file_content);
+    if ((result == nullptr) || !doc.IsObject()) {
+        throw dds::parsing_error("invalid json rule");
+    }
+    return dds::json_to_parameter(doc);
+}
+} // namespace
+
 namespace dds {
 
 template <typename Mutex>
@@ -44,7 +57,7 @@ TEST(WafTest, InitWithInvalidRules)
 {
     engine_settings cs;
     cs.rules_file = create_sample_rules_invalid();
-    auto ruleset = engine_ruleset::from_path(cs.rules_file);
+    auto ruleset = param_from_file(cs.rules_file);
     mock::tel_submitter submitm{};
 
     EXPECT_CALL(submitm, submit_span_meta(metrics::waf_version,
@@ -58,14 +71,35 @@ TEST(WafTest, InitWithInvalidRules)
 
     EXPECT_CALL(submitm, submit_metric("waf.init"sv, 1, _));
     EXPECT_CALL(
-        submitm, submit_metric("waf.config_errors", 4.,
+        submitm, submit_metric("waf.config_errors", 3.,
                      metrics::telemetry_tags::from_string(
                          std::string{"waf_version:"} + ddwaf_get_version() +
                          ",event_rules_version:1.2.3,"
                          "config_key:rules,scope:item")));
 
+    // diagnostics
+    // rules:
+    //   loaded:
+    //     - "5"
+    //   failed:
+    //     - "1"
+    //     - "2"
+    //     - "3"
+    //     - "4"
+    //   skipped: []
+    //   errors:
+    //     missing key 'type':
+    //       - "1"
+    //       - "3"
+    //     missing key 'inputs':
+    //       - "4"
+    //   warnings:
+    //     unknown operator: 'squash':
+    //       - "2"
+    // ruleset_version: "1.2.3"
+
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(cs, ruleset, submitm)};
+        waf::instance::from_settings(cs, std::move(ruleset), submitm)};
 
     Mock::VerifyAndClearExpectations(&submitm);
 
@@ -74,7 +108,8 @@ TEST(WafTest, InitWithInvalidRules)
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
-    EXPECT_TRUE(doc.HasMember("unknown matcher: squash"));
+    // warning is not included in _dd.appsec.event_rules.errors
+    EXPECT_FALSE(doc.HasMember("unknown matcher: squash"));
     EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
 }
 
@@ -283,10 +318,10 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     engine_settings cs;
     cs.rules_file = create_sample_rules_ok();
     cs.obfuscator_key_regex = "password";
-    auto ruleset = engine_ruleset::from_path(cs.rules_file);
+    auto ruleset = param_from_file(cs.rules_file);
 
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(cs, ruleset, submitm)};
+        waf::instance::from_settings(cs, std::move(ruleset), submitm)};
 
     auto ctx = wi->get_listener();
 
@@ -335,8 +370,9 @@ TEST(WafTest, UpdateRuleData)
 
     auto param = json_to_parameter(
         R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-
-    wi = wi->update(param, submitm);
+    subscriber::changeset cs;
+    cs.added["ASM_DATA/blocked_ips"] = std::move(param);
+    wi = wi->update(cs, submitm);
     ASSERT_TRUE(wi);
 
     addresses = wi->get_subscriptions();
@@ -389,13 +425,19 @@ TEST(WafTest, UpdateInvalid)
     }
 
     auto param = json_to_parameter(R"({})");
+    subscriber::changeset cs{.added_asm_dd = {
+                                 {"ASM_DD/empty", std::move(param)},
+                             }};
 
     EXPECT_CALL(submitm,
         submit_metric("waf.updates"sv, 1,
             metrics::telemetry_tags::from_string(
-                std::string{"success:false,event_rules_version:,waf_version:"} +
+                std::string{"success:true,event_rules_version:,waf_version:"} +
                 ddwaf_get_version())));
-    ASSERT_THROW(wi->update(param, submitm), invalid_object);
+
+    // the update with the empty ASM_DD fails, so the default (in this case
+    // waf_rule_with_data) is reloaded
+    wi->update(cs, submitm);
 }
 
 TEST(WafTest, SchemasAreAdded)
@@ -442,10 +484,10 @@ TEST(WafTest, FingerprintAreNotAdded)
 
     engine_settings settings;
     settings.rules_file = create_sample_rules_ok();
-    auto ruleset = engine_ruleset::from_path(settings.rules_file);
+    auto ruleset = param_from_file(settings.rules_file);
 
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(settings, ruleset, submitm)};
+        waf::instance::from_settings(settings, std::move(ruleset), submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -467,10 +509,10 @@ TEST(WafTest, FingerprintAreAdded)
 
     engine_settings settings;
     settings.rules_file = create_sample_rules_ok();
-    auto ruleset = engine_ruleset::from_path(settings.rules_file);
+    auto ruleset = param_from_file(settings.rules_file);
 
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(settings, ruleset, submitm)};
+        waf::instance::from_settings(settings, std::move(ruleset), submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();

@@ -4,34 +4,31 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "asm_dd_aggregator.hpp"
-#include "../../../exception.hpp"
 #include "../../exception.hpp"
 #include <rapidjson/document.h>
 
 void dds::remote_config::asm_dd_aggregator::add(const config &config)
 {
-    rapidjson::Document doc(&ruleset_.GetAllocator());
-    if (!json_helper::parse_json(config.read(), doc)) {
+    rapidjson::Document new_ruleset(&allocator());
+    if (!json_helper::parse_json(config.read(), new_ruleset)) {
         throw error_applying_config("Invalid config contents");
     }
 
-    if (!doc.IsObject()) {
+    if (!new_ruleset.IsObject()) {
         throw error_applying_config("Invalid type for config, expected object");
     }
 
-    ruleset_ = std::move(doc);
+    rapidjson::Value added_value{rapidjson::kObjectType};
+    auto key_json = rapidjson::Value{config.rc_path, allocator()};
+    added_value.AddMember(
+        std::move(key_json), std::move(new_ruleset), allocator());
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    change_set_[ASM_DD_ADDED] = std::move(added_value);
 }
 
-void dds::remote_config::asm_dd_aggregator::remove(const config & /*config*/)
+void dds::remote_config::asm_dd_aggregator::remove(const config &config)
 {
-    if (fallback_rules_file_.empty()) {
-        return;
-    }
-
-    auto ruleset = engine_ruleset::from_path(fallback_rules_file_);
-
-    rapidjson::Document doc(&ruleset_.GetAllocator());
-    doc.CopyFrom(ruleset.get_document(), doc.GetAllocator());
-
-    ruleset_ = std::move(doc);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    change_set_[ASM_DD_REMOVED].SetString(config.rc_path, allocator());
 }
