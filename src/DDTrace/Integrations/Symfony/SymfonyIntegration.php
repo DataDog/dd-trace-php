@@ -248,6 +248,29 @@ class SymfonyIntegration extends Integration
             }
         );
 
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface',
+            'decide',
+            function ($This, $scope, $args, $result) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                // Extract the authentication token
+                $token = $args[0];
+                if (!$token) {
+                    return;
+                }
+
+                // Extract user information
+                $user = $token->getUser();
+                $userIdentifier = method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
+
+                // Track the access check
+                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
+            }
+        );
+
         \DDTrace\trace_method(
             'Symfony\Component\Console\Command\Command',
             'run',

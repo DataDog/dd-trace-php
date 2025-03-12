@@ -29,7 +29,7 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => ID
-    [_dd.appsec.user.collection.mode] => sdk
+    [_dd.appsec.user.collection_mode] => sdk
     [usr.value] => something
     [usr.metadata] => some other metadata
     [usr.email] => noneofyour@business.com

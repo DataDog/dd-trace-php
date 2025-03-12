@@ -21,7 +21,7 @@ track_authenticated_user_event(
     [ "metadata" => "someValue" ]
 );
 track_authenticated_user_event_automated(
-    "automatedID",
+    "automatedID"
 );
 
 echo "root_span_get_meta():\n";
@@ -33,7 +33,7 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => ID
-    [_dd.appsec.user.collection.mode] => sdk
+    [_dd.appsec.user.collection_mode] => sdk
     [usr.metadata] => someValue
     [_dd.appsec.usr.id] => automatedID
 )

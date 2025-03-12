@@ -64,7 +64,7 @@
 #define DD_LOGIN_FAILURE_EVENT DD_APPSEC_EVENTS_PREFIX "users.login.failure"
 #define DD_APPSEC_USR_ID "_dd.appsec.usr.id"
 #define DD_APPSEC_USR_LOGIN "_dd.appsec.usr.login"
-#define DD_USER_COLLECTION_MODE "_dd.appsec.user.collection.mode"
+#define DD_USER_COLLECTION_MODE "_dd.appsec.user.collection_mode"
 #define DD_EVENTS_USER_SIGNUP_AUTO_MODE                                        \
     "_dd.appsec.events.users.signup.auto.mode"
 #define DD_EVENTS_USER_LOGIN_SUCCESS_AUTO_MODE                                 \
@@ -1485,7 +1485,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
     _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_id,
         anon_user_id ? anon_user_id : user_id, !anon_user_id, true);
 
-    // _dd.appsec.user.collection.mode =
+    // _dd.appsec.user.collection_mode =
     // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
     _add_new_zstr_to_meta(meta_ht, _dd_user_collection_mode,
         dd_get_user_collection_mode_zstr(), true, false);
@@ -1527,7 +1527,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);
 
-    // _dd.appsec.user.collection.mode = sdk
+    // _dd.appsec.user.collection_mode = sdk
     _add_new_zstr_to_meta(
         meta_ht, _dd_user_collection_mode, _dd_sdk_zstr, true, true);
 

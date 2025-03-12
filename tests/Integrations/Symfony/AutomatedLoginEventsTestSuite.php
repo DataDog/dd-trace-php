@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Symfony;
 
 use DDTrace\Tests\Common\AppsecTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\PostSpec;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use datadog\appsec\AppsecStatus;
 
 abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
@@ -25,8 +26,21 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
         return $this->connection()->query("SELECT * FROM user where email='".$email."'")->fetchAll();
     }
 
-    public function createUser($email) {
-         $this->connection()->exec('insert into user (roles, email, password) VALUES ("", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
+    public function createUser($email)
+    {
+        $this->connection()->exec('insert into user (roles, email, password) VALUES ("", "'.$email.'", "$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i")');
+    }
+
+    public function login($email, $password)
+    {
+        $this->call(PostSpec::create('request', '/login', [
+            'Content-Type: application/x-www-form-urlencoded'
+        ], "_username=$email&_password=$password"));
+    }
+
+    public function getSignUpPayload($email, $password)
+    {
+        return "registration_form[email]=$email&registration_form[plainPassword]=$password&registration_form[agreeTerms]=1";
     }
 
     public function testUserLoginSuccessEvent()
@@ -34,40 +48,35 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $email = 'test-user@email.com';
         $password = 'test';
         $this->createUser($email);
+        $this->login($email, $password);
 
-         $spec = PostSpec::create('request', '/login', [
-                        'Content-Type: application/x-www-form-urlencoded'
-                    ], "_username=$email&_password=$password");
+        $loginEvents = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event_automated']);
+        $authEvents = AppsecStatus::getInstance()->getEvents(['track_authenticated_user_event_automated']);
 
-         $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
+        $this->assertEquals(1, count($loginEvents));
+        $this->assertEquals(0, count($authEvents));
 
-         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_success_event_automated']);
-
-         $this->assertEquals(1, count($events));
-         $this->assertEquals($email, $events[0]['userLogin']);
-         $this->assertEquals($email, $events[0]['userId']);
-         $this->assertEmpty($events[0]['metadata']);
+        $this->assertEquals($email, $loginEvents[0]['userLogin']);
+        $this->assertEquals($email, $loginEvents[0]['userId']);
+        $this->assertEmpty($loginEvents[0]['metadata']);
     }
 
     public function testUserLoginFailureEvent()
     {
         $email = 'non-existing@email.com';
         $password = 'some password';
-        $spec = PostSpec::create('request', '/login', [
-                        'Content-Type: application/x-www-form-urlencoded'
-                    ], "_username=$email&_password=$password");
 
-         $this->call($spec, [ CURLOPT_FOLLOWLOCATION => false ]);
+        $this->login($email, $password);
 
-         $events = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event_automated']);
-         $this->assertEquals(1, count($events));
-         $this->assertEmpty($events[0]['userLogin']);
-         $this->assertEmpty($events[0]['userId']);
-         $this->assertEmpty($events[0]['metadata']);
-    }
+        $loginEvents = AppsecStatus::getInstance()->getEvents(['track_user_login_failure_event_automated']);
+        $authEvents = AppsecStatus::getInstance()->getEvents(['track_authenticated_user_event_automated']);
 
-    public function getSignUpPayload($email, $password) {
-        return "registration_form[email]=$email&registration_form[plainPassword]=$password&registration_form[agreeTerms]=1";
+        $this->assertEquals(1, count($loginEvents));
+        $this->assertEquals(0, count($authEvents));
+
+        $this->assertEmpty($loginEvents[0]['userLogin']);
+        $this->assertEmpty($loginEvents[0]['userId']);
+        $this->assertEmpty($loginEvents[0]['metadata']);
     }
 
     public function testUserSignUp()
@@ -84,10 +93,42 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
 
         $this->assertEquals(1, count($users));
 
-        $signUpEvent = AppsecStatus::getInstance()->getEvents(['track_user_signup_event_automated']);
+        $signUpEvents = AppsecStatus::getInstance()->getEvents(['track_user_signup_event_automated']);
+        $authEvents = AppsecStatus::getInstance()->getEvents(['track_authenticated_user_event_automated']);
 
-        $this->assertEquals($email, $signUpEvent[0]['userLogin']);
-        $this->assertEquals($email, $signUpEvent[0]['userId']);
-        $this->assertEmpty($signUpEvent[0]['metadata']);
+        $this->assertEquals(1, count($signUpEvents));
+        $this->assertEquals(0, count($authEvents));
+
+        $this->assertEquals($email, $signUpEvents[0]['userLogin']);
+        $this->assertEquals($email, $signUpEvents[0]['userId']);
+        $this->assertEmpty($signUpEvents[0]['metadata']);
+    }
+
+    public function testLoggedInCalls()
+    {
+        $this->enableSession();
+
+        $email = 'test-user@email.com';
+        $password = 'test';
+        $this->createUser($email);
+        $this->login($email, $password);
+
+        AppsecStatus::getInstance()->setDefaults(); //Remove all events
+
+        $this->call(GetSpec::create('Behind Auth', '/behind_auth'));
+
+        $loginEvents = AppsecStatus::getInstance()->getEvents([
+            'track_user_login_success_event_automated',
+            'track_user_login_failure_event_automated',
+            'track_user_signup_event_automated'
+        ]);
+
+        $authEvents = AppsecStatus::getInstance()->getEvents(['track_authenticated_user_event_automated']);
+
+        $this->assertEquals(0, count($loginEvents));
+        $this->assertEquals(1, count($authEvents));
+        $this->assertEquals($email, $authEvents[0]['userId']);
+
+        $this->disableSession();
     }
 }
