@@ -55,16 +55,20 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
     while (baggage_ptr < baggage_end) {
         // Extract key
         char *key_start = baggage_ptr;
-        while (baggage_ptr < baggage_end && *baggage_ptr != '=') {
+        while (baggage_ptr < baggage_end && *baggage_ptr != '=' && *baggage_ptr != ',') {
             ++baggage_ptr;
         }
 
-        if (*baggage_ptr != '=') {
+        if (baggage_ptr >= baggage_end || *baggage_ptr != '=') {
             is_malformed = true;
             break;
         }
 
         size_t key_len = baggage_ptr - key_start;
+        if (key_len == 0) {  // Empty key is invalid
+            is_malformed = true;
+            break;
+        }
         ++baggage_ptr; // Move past '='
 
         // Extract value
@@ -74,27 +78,26 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
         }
 
         size_t value_len = baggage_ptr - value_start;
-        
-        if (key_len == 0 || value_len == 0) {
+        if (value_len == 0) {  // Empty value is invalid
             is_malformed = true;
             break;
         }
 
-        // Allocate strings for decoded key and value
+        // Allocate decoded key/value storage
         zend_string *decoded_key = zend_string_alloc(key_len, 0);
         zend_string *decoded_value = zend_string_alloc(value_len, 0);
 
         char *out_key = ZSTR_VAL(decoded_key);
         char *out_value = ZSTR_VAL(decoded_value);
 
-        // Decode key
+        // Decode key (no validation, just decoding)
         char *in = key_start, *end = key_start + key_len;
         while (in < end) {
             if (*in == '%' && (in + 2 < end) && isxdigit((unsigned char)in[1]) && isxdigit((unsigned char)in[2])) {
                 int high = hex2int(in[1]);
                 int low = hex2int(in[2]);
                 if (high == -1 || low == -1) {
-                    is_malformed = true;
+                    is_malformed = true;  // Only discard if decoding fails
                     break;
                 }
                 *out_key++ = (char)((high << 4) + low);
@@ -104,9 +107,9 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
             }
         }
         ZSTR_LEN(decoded_key) = out_key - ZSTR_VAL(decoded_key);
-        ZSTR_VAL(decoded_key)[ZSTR_LEN(decoded_key)] = '\0'; // ✅ Explicitly null-terminate
+        ZSTR_VAL(decoded_key)[ZSTR_LEN(decoded_key)] = '\0';
 
-        // Decode value
+        // Decode value (same logic, no validation, just decoding)
         in = value_start, end = value_start + value_len;
         while (in < end) {
             if (*in == '%' && (in + 2 < end) && isxdigit((unsigned char)in[1]) && isxdigit((unsigned char)in[2])) {
@@ -123,17 +126,9 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
             }
         }
         ZSTR_LEN(decoded_value) = out_value - ZSTR_VAL(decoded_value);
-        ZSTR_VAL(decoded_value)[ZSTR_LEN(decoded_value)] = '\0'; // ✅ Explicitly null-terminate
+        ZSTR_VAL(decoded_value)[ZSTR_LEN(decoded_value)] = '\0';
 
-        // Validate key (per RFC7230)
-        for (size_t i = 0; i < ZSTR_LEN(decoded_key); i++) {
-            char c = ZSTR_VAL(decoded_key)[i];
-            if (!(isalnum(c) || strchr("!#$%&'*+-.^_`|~", c))) {
-                is_malformed = true;
-                break;
-            }
-        }
-
+        // **Do not validate the key** after decoding, just store it.
         if (is_malformed) {
             zend_string_release(decoded_key);
             zend_string_release(decoded_value);
@@ -146,7 +141,10 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
         zend_symtable_update(baggage, decoded_key, &baggage_value);
         zend_string_release(decoded_key);
 
-        ++baggage_ptr; // Move past ','
+        // Move past ',' if it's there
+        if (baggage_ptr < baggage_end && *baggage_ptr == ',') {
+            ++baggage_ptr;
+        }
     }
 
     if (is_malformed) {

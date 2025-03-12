@@ -9,7 +9,7 @@ DD_TRACE_PROPAGATION_STYLE=baggage
 // Testing Decoding Baggage
 DDTrace\consume_distributed_tracing_headers(function ($header) {
     return [
-            "baggage" => "user.id=Am%C3%A9lie,serverNode=DF%2028,isProduction=false"
+            "baggage" => "user.id=Am%C3%A9lie,serverNode=DF%2028,isProduction=false,%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C"
         ][$header] ?? null;
 });
 var_dump(DDTrace\start_span()->baggage);
@@ -32,31 +32,21 @@ $span->baggage["isProduction"] = "false";
 var_dump(DDTrace\generate_distributed_tracing_headers());
 DDTrace\close_span();
 
-// Testing Key Encoding - Invalid Keys (should not be included)
-$span = DDTrace\start_span();
-$span->baggage["invalid,key"] = "value"; // Invalid due to ","
-$span->baggage["another@key"] = "valid"; // Invalid due to "@"
-$span->baggage["valid_key"] = "encoded%20value"; // Valid key, value should be encoded
-var_dump(DDTrace\generate_distributed_tracing_headers());
-DDTrace\close_span();
-
 ?>
 --EXPECT--
-array(3) {
+array(4) {
   ["user.id"]=>
   string(7) "Amélie"
   ["serverNode"]=>
   string(5) "DF 28"
   ["isProduction"]=>
   string(5) "false"
+  ["",;\()/:<=>?@[]{}"]=>
+  string(4) "",;\"
 }
 array(0) {
 }
 array(1) {
   ["baggage"]=>
   string(56) "userId=Am%C3%A9lie,serverNode=DF%2028,isProduction=false"
-}
-array(1) {
-  ["baggage"]=>
-  string(25) "valid_key=encoded%20value"
 }

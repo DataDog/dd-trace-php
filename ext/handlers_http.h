@@ -102,21 +102,39 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
     return NULL;
 }
 
-static inline zend_string *ddtrace_percent_encode(const char *str, size_t len) {
+static inline zend_string *ddtrace_percent_encode(const char *str, size_t len, bool is_key) {
+    if (!str || len == 0) {
+        return zend_string_init("", 0, 0);  // Return empty string if input is empty
+    }
+
     smart_str encoded = {0};
 
     for (size_t i = 0; i < len; i++) {
-        unsigned char c = str[i];
+        unsigned char c = (unsigned char)str[i];
 
-        // Encode only if required (space, ",", ",", ";", "\", non-printable, or non-ASCII)
-        if (c == ' ' || c == '"' || c == ',' || c == ';' || c == '\\' || c < 0x20 || c > 0x7E) {
-            smart_str_append_printf(&encoded, "%%%02X", c);
+        if (is_key) {
+            // Encode all characters that are NOT in RFC7230 allowed set for keys
+            if (!(isalnum(c) || strchr("!#$%&'*+-.^_`|~", c))) {
+                smart_str_append_printf(&encoded, "%%%02X", c);
+            } else {
+                smart_str_appendc(&encoded, c);
+            }
         } else {
-            smart_str_appendc(&encoded, c);
+            // **Encode all non-ASCII characters and special disallowed characters**
+            if (c < 0x20 || c > 0x7E || c == ' ' || c == '"' || c == ',' || c == ';' || c == '\\') {
+                smart_str_append_printf(&encoded, "%%%02X", c);
+            } else {
+                smart_str_appendc(&encoded, c);
+            }
         }
     }
 
-    smart_str_0(&encoded);
+    smart_str_0(&encoded); // Null-terminate string
+
+    if (!encoded.s) {
+        return zend_string_init("", 0, 0); // Return an empty zend_string if encoding fails
+    }
+
     return encoded.s;
 }
 
@@ -135,33 +153,24 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
             continue; // Skip invalid entries
         }
 
-        // Ensure key contains only valid characters
-        bool valid_key = true;
-        for (size_t i = 0; i < ZSTR_LEN(key); i++) {
-            char c = ZSTR_VAL(key)[i];
-            if (!(isalnum(c) || strchr("!#$%&'*+-.^_`|~", c))) {
-                valid_key = false;
-                break;
-            }
-        }
-        if (!valid_key) {
-            continue; // Skip invalid keys
-        }
+        // **Encode key and value properly**
+        zend_string *encoded_key = ddtrace_percent_encode(ZSTR_VAL(key), ZSTR_LEN(key), true);
+        zend_string *encoded_value = ddtrace_percent_encode(Z_STRVAL_P(value), Z_STRLEN_P(value), false);
 
-        // Check if adding another item exceeds max allowed items
+        // **Check if adding another item exceeds max allowed items**
         if (item_count >= max_items) {
             LOG(WARN, "Baggage item limit of %ld exceeded, dropping excess items.", max_items);
+            zend_string_release(encoded_key);
+            zend_string_release(encoded_value);
             break;
         }
 
-        // Encode value
-        zend_string *encoded_value = ddtrace_percent_encode(Z_STRVAL_P(value), Z_STRLEN_P(value));
-
-        // Compute new size including separator, key, `=`, and value
-        size_t new_size = current_size + (first_entry ? 0 : 1) + ZSTR_LEN(key) + 1 + ZSTR_LEN(encoded_value);
+        // **Compute new size including separator, key, `=`, and value**
+        size_t new_size = current_size + (first_entry ? 0 : 1) + ZSTR_LEN(encoded_key) + 1 + ZSTR_LEN(encoded_value);
         if (new_size > max_bytes) {
-            zend_string_release(encoded_value);
             LOG(WARN, "Baggage header size of %ld bytes exceeded, dropping excess items.", max_bytes);
+            zend_string_release(encoded_key);
+            zend_string_release(encoded_value);
             break;
         }
 
@@ -171,11 +180,12 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
             first_entry = false;
         }
 
-        // Append key=value pair
-        smart_str_appendl(&serialized_baggage, ZSTR_VAL(key), ZSTR_LEN(key));
+        // **Append key=value pair**
+        smart_str_appendl(&serialized_baggage, ZSTR_VAL(encoded_key), ZSTR_LEN(encoded_key));
         smart_str_appendc(&serialized_baggage, '=');
         smart_str_appendl(&serialized_baggage, ZSTR_VAL(encoded_value), ZSTR_LEN(encoded_value));
 
+        zend_string_release(encoded_key);
         zend_string_release(encoded_value);
 
         current_size = new_size;

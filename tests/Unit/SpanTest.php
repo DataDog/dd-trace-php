@@ -385,6 +385,7 @@ final class SpanTest extends BaseTestCase
         $span->addBaggageItem('user_id', '123');
         $span->addBaggageItem('serverNode', 'local');
         $span->addBaggageItem('session', 'abc123');
+        $span->addBaggageItem('",;\()/:<=>?@[]{}', '",;\\');
 
         // Step 2: Simulate an incoming request with baggage in the headers
         $incomingHeaders = [
@@ -396,12 +397,15 @@ final class SpanTest extends BaseTestCase
             return $incomingHeaders[$header] ?? null;
         });
 
+
+
         // Step 4: Start a new span (merging should happen here)
         $newSpan = $this->createSpan(true);
         $expectedMergedBaggage = [
             'user_id' => '999', // Overwritten by request header
             'serverNode' => 'remote', // Overwritten by request header
             'session' => 'abc123', // Preserved from API-set baggage
+            '",;\()/:<=>?@[]{}' => '",;\\', // Preserved from API-set baggage
             'env' => 'production' // New from request header
         ];
         $this->assertEquals($expectedMergedBaggage, $newSpan->getAllBaggageItems());

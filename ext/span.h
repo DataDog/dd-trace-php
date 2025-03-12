@@ -68,6 +68,7 @@ typedef union ddtrace_span_properties {
             zval property_stack;
         };
         zval property_on_close;
+        zval property_baggage;
     };
 } ddtrace_span_properties;
 
@@ -92,8 +93,6 @@ struct ddtrace_span_data {
         ddtrace_span_properties;
         ddtrace_span_properties props;
     };
-
-    zval property_baggage;
 };
 
 static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {

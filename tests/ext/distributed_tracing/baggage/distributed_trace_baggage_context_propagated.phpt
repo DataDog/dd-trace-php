@@ -11,6 +11,7 @@ $span = DDTrace\start_span();
 $span->baggage["userId"] = "Amélie";
 $span->baggage["serverNode"] = "DF 28";
 $span->baggage["isProduction"] = "false";
+$span->baggage["\",;\\()/:<=>?@[]{}"] = "\",;\\";
 
 // Step 1: Inject into Headers
 $headers = DDTrace\generate_distributed_tracing_headers();
@@ -44,15 +45,17 @@ DDTrace\close_span();
 --EXPECT--
 array(1) {
   ["baggage"]=>
-  string(56) "userId=Am%C3%A9lie,serverNode=DF%2028,isProduction=false"
+  string(121) "userId=Am%C3%A9lie,serverNode=DF%2028,isProduction=false,%22%2C%3B%5C%28%29%2F%3A%3C%3D%3E%3F%40%5B%5D%7B%7D=%22%2C%3B%5C"
 }
-array(3) {
+array(4) {
   ["userId"]=>
   string(7) "Amélie"
   ["serverNode"]=>
   string(5) "DF 28"
   ["isProduction"]=>
   string(5) "false"
+  ["",;\()/:<=>?@[]{}"]=>
+  string(4) "",;\"
 }
 array(1) {
   ["baggage"]=>
