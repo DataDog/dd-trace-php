@@ -16,7 +16,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 ddtrace_version_at_least('0.79.0');
 
 track_authenticated_user_event_automated(
-    "automatedID",
+    "automatedID"
 );
 
 echo "root_span_get_meta():\n";
@@ -29,5 +29,5 @@ Array
     [runtime-id] => %s
     [usr.id] => automatedID
     [_dd.appsec.usr.id] => automatedID
-    [_dd.appsec.user.collection.mode] => identification
+    [_dd.appsec.user.collection_mode] => identification
 )

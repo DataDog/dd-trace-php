@@ -35,4 +35,13 @@ class CommonScenariosController extends AbstractController
     {
         throw new \Exception('An exception occurred');
     }
+
+    /**
+     * @Route("/behind_auth", name="behind_auth")
+     */
+    public function behindAuthAction(Request $request)
+    {
+        // replace this example code with whatever you need
+        return new Response('Hi!');
+    }
 }

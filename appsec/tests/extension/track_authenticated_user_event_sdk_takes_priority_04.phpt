@@ -21,10 +21,10 @@ track_authenticated_user_event(
     [ "metadata" => "someValue" ]
 );
 track_authenticated_user_event_automated(
-    "automatedID",
+    "automatedID"
 );
 track_authenticated_user_event_automated(
-    "otherAutomatedID",
+    "otherAutomatedID"
 );
 track_authenticated_user_event(
     "otherID",
@@ -40,7 +40,7 @@ Array
 (
     [runtime-id] => %s
     [usr.id] => otherID
-    [_dd.appsec.user.collection.mode] => sdk
+    [_dd.appsec.user.collection_mode] => sdk
     [usr.metadata] => otherValue
     [_dd.appsec.usr.id] => otherAutomatedID
 )

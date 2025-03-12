@@ -11,6 +11,7 @@
  *
  * @var bool
  */
+require __DIR__.'/../../../Appsec/Mock.php';
 define( 'WP_USE_THEMES', true );
 
 /** Loads the WordPress Environment and Template */
