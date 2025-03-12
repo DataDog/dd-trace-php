@@ -43,15 +43,6 @@ void asm_aggregator::add(const config &config)
 
 void asm_aggregator::remove(const config &config)
 {
-    rapidjson::Document doc(&allocator());
-    if (!json_helper::parse_json(config.read(), doc)) {
-        throw error_applying_config("Invalid config contents");
-    }
-
-    if (!doc.IsObject()) {
-        throw error_applying_config("Invalid type for config, expected object");
-    }
-
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     change_set_[ASM_REMOVED].PushBack(
         rapidjson::Value{config.rc_path, allocator()}, allocator());
