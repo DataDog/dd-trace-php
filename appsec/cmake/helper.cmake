@@ -80,7 +80,7 @@ endif()
 if(DD_APPSEC_TESTING)
        # Testing and examples
        add_subdirectory(tests/helper EXCLUDE_FROM_ALL)
-       #add_subdirectory(tests/bench_helper EXCLUDE_FROM_ALL)
+       add_subdirectory(tests/bench EXCLUDE_FROM_ALL)
        add_subdirectory(tests/fuzzer EXCLUDE_FROM_ALL)
 
        if(DD_APPSEC_ENABLE_COVERAGE)
