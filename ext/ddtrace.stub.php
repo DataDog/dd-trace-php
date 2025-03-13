@@ -237,7 +237,7 @@ namespace DDTrace {
         public function getLink(): SpanLink {}
 
         /**
-         * @return Returns the span id as zero-padded 16 character hexadecimal string.
+         * @return string Returns the span id as zero-padded 16 character hexadecimal string.
          */
         public function hexId(): string {}
     }
@@ -561,9 +561,9 @@ namespace DDTrace {
      * More precisely, a new root span stack will be created and switched on to, and a new span started.
      *
      * @param float $startTime Start time of the span in seconds.
-     * @return SpanData The newly created root span
+     * @return RootSpanData The newly created root span
      */
-    function start_trace_span(float $startTime = 0): SpanData {}
+    function start_trace_span(float $startTime = 0): RootSpanData {}
 
     /**
      * Get the active stack
@@ -813,7 +813,7 @@ namespace DDTrace\UserRequest {
     /**
      * Notifies the user request listeners of the start of a user request.
      *
-     * @param \DDTrace\Span $span the span associated with this user request.
+     * @param \DDTrace\RootSpanData $span the span associated with this user request.
      * @param array $data an array with keys named '_GET', '_POST', '_SERVER', '_FILES', '_COOKIE'
      * @param string|resource|null $body the body of the request (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
