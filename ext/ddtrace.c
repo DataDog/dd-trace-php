@@ -1816,7 +1816,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
-    DDTRACE_G(inferred_span_created) = false;
 
     return SUCCESS;
 }
