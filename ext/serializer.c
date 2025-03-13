@@ -1803,7 +1803,8 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.message"), false);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.type"), false);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.stack"), false);
-        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.ignored"), false);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error"), false);
+        transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("track_error"), false);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.dm"), true);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.tid"), true);
     }
