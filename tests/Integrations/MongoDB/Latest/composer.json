@@ -1,5 +1,5 @@
 {
     "require": {
-        "mongodb/mongodb": "1.20.0"
+        "mongodb/mongodb": "1.21.1"
     }
 }
