@@ -1,0 +1,24 @@
+# Copyright 2024-Present Datadog, Inc. https://www.datadoghq.com/
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "datadog-thin-str"
+version = "1.0.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.71"
+
+[lib]
+path = "src/lib.rs"
+bench = false
+
+[features]
+default = []
+std = []
+
+[dependencies]
+allocator-api2 = "0.2"
+tagged-pointer = { version = "0.2", default-features = false }
+
+[dev-dependencies]
+naughty-strings = "0.2"
