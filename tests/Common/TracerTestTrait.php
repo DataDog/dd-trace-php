@@ -331,7 +331,7 @@ trait TracerTestTrait
         // Clearing existing dumped file
         $this->resetRequestDumper();
 
-        // The we server has to be configured to send traces to the provided requests dumper.
+        // The web server has to be configured to send traces to the provided requests dumper.
         $fn($tracer);
 
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
