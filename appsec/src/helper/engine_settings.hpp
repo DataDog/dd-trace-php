@@ -16,12 +16,12 @@ namespace dds {
 
 struct schema_extraction_settings {
     static constexpr bool default_enabled = false;
-    static constexpr bool default_sampling_enabled = true;
+    static constexpr double default_sampling_period = 30.0;
 
     bool enabled = default_enabled;
-    bool sampling_enabled = default_sampling_enabled;
+    double sampling_period = default_sampling_period;
 
-    MSGPACK_DEFINE_MAP(enabled, sampling_enabled);
+    MSGPACK_DEFINE_MAP(enabled, sampling_period);
 };
 
 /* engine_settings are currently the same for the whole client session.
@@ -61,8 +61,8 @@ struct engine_settings {
                obfuscator_key_regex == oth.obfuscator_key_regex &&
                obfuscator_value_regex == oth.obfuscator_value_regex &&
                schema_extraction.enabled == oth.schema_extraction.enabled &&
-               schema_extraction.sampling_enabled ==
-                   oth.schema_extraction.sampling_enabled;
+               schema_extraction.sampling_period ==
+                   oth.schema_extraction.sampling_period;
     }
 };
 
@@ -78,10 +78,10 @@ template <> struct fmt::formatter<dds::engine_settings> {
             "{{rules_file={}, waf_timeout_us={}, trace_rate_limit={}, "
             "obfuscator_key_regex={}, obfuscator_value_regex={}, "
             "schema_extraction.enabled={}, "
-            "schema_extraction.sampling_enabled={}}}",
+            "schema_extraction.sampling_period={}}}",
             c.rules_file, c.waf_timeout_us, c.trace_rate_limit,
             c.obfuscator_key_regex, c.obfuscator_value_regex,
-            c.schema_extraction.enabled, c.schema_extraction.sampling_enabled);
+            c.schema_extraction.enabled, c.schema_extraction.sampling_period);
     }
 };
 

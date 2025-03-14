@@ -18,7 +18,7 @@ import static org.testcontainers.containers.Container.ExecResult
 @Testcontainers
 @Slf4j
 @DisabledIf('isZts')
-class Apache2FpmTests implements CommonTests {
+class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
     static boolean zts = variant.contains('zts')
 
     @Container
@@ -77,30 +77,4 @@ class Apache2FpmTests implements CommonTests {
         }
     }
 
-    @Test
-    void 'sampling behavior of extract-schema'() {
-        def trace = container.traceFromRequest('/api_security.php') {
-            HttpResponse<InputStream> resp ->
-                assert resp.headers().firstValue('content-type').get() == 'application/json'
-                assert resp.statusCode() == 200
-        }
-        assert trace != null
-        assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
-
-        // the second time we should not see it
-        trace = container.traceFromRequest('/api_security.php') {
-            HttpResponse<InputStream> resp ->
-                assert resp.statusCode() == 200
-        }
-        assert trace != null
-        assert trace.first().meta."_dd.appsec.s.res.body" == null
-
-        // however, if we change the endpoint, we should again see something
-        trace = container.traceFromRequest('/api_security.php?route=/another/route') {
-            HttpResponse<InputStream> resp ->
-                assert resp.statusCode() == 200
-        }
-        assert trace != null
-        assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
-    }
 }

@@ -84,19 +84,14 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "enabled");
     mpack_write_bool(w, get_global_DD_API_SECURITY_ENABLED());
 
-    dd_mpack_write_lstr(w, "sampling_enabled");
-    zend_string *delay = get_global_DD_API_SECURITY_SAMPLE_DELAY();
-    if (delay && ZSTR_LEN(delay) > 0) {
-        if (!zend_string_starts_with_cstr(delay, ZEND_STRL("0"))) {
-            mlog(dd_log_warning, "The only non-empty value supported for "
-                                 "DD_API_SECURITY_SAMPLE_DELAY is 0");
-            mpack_write_bool(w, true);
-        } else {
-            mpack_write_bool(w, false);
-        }
-    } else {
-        mpack_write_bool(w, true);
+    dd_mpack_write_lstr(w, "sampling_period");
+    double delay = get_global_DD_API_SECURITY_SAMPLE_DELAY();
+    if (delay < 0) {
+        mlog_g(dd_log_debug,
+            "Negative value for DD_API_SECURITY_SAMPLE_DELAY; setting to 0");
+        delay = 0;
     }
+    mpack_write(w, delay);
 
     mpack_finish_map(w); // schema_extraction
 

@@ -17,10 +17,12 @@ service::service(std::shared_ptr<engine> engine,
       client_handler_{std::move(client_handler)},
       msubmitter_{std::move(msubmitter)},
       schema_extraction_enabled_{schema_extraction_settings.enabled},
-      schema_sampler_{schema_extraction_settings.enabled &&
-                              schema_extraction_settings.sampling_enabled
-                          ? std::make_optional<sampler>()
-                          : std::nullopt},
+      schema_sampler_{
+          schema_extraction_settings.enabled &&
+                  schema_extraction_settings.sampling_period >= 1.0
+              ? std::make_optional<sampler>(static_cast<std::uint32_t>(
+                    schema_extraction_settings.sampling_period))
+              : std::nullopt},
       rc_path_{std::move(rc_path)}
 {
     // The engine should always be valid

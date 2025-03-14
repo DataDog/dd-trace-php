@@ -192,6 +192,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     private static final Random RAND = new Random()
 
+    HttpClient getHttpClient() {
+        httpClient
+    }
+
     URI buildURI(String path) {
         URI.create("http://${host}:${firstMappedPort}$path")
     }
@@ -206,9 +210,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     Trace traceFromRequest(String path,
                            @ClosureParams(value = FromAbstractTypeMethods,
                                    options = ['java.net.http.HttpResponse'])
-                                   Closure<Void> doWithConn = null) {
+                                   Closure<Void> doWithConn = null,
+                           boolean ignoreOtherRequests = false) {
         HttpRequest req = buildReq(path).GET().build()
-        traceFromRequest(req, HttpResponse.BodyHandlers.ofInputStream(), doWithConn)
+        traceFromRequest(req, HttpResponse.BodyHandlers.ofInputStream(), doWithConn, ignoreOtherRequests)
     }
 
     @CompileStatic(TypeCheckingMode.SKIP)
@@ -216,7 +221,8 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                                HttpResponse.BodyHandler<T> bodyHandler,
                                @ClosureParams(value = FromString,
                                        options = 'java.net.http.HttpResponse<T>')
-                                       Closure<Void> doWithResp = null) {
+                                       Closure<Void> doWithResp = null,
+                               boolean ignoreOtherRequests = false) {
 
         String traceId = req.headers().map().get('x-datadog-trace-id').first()
         if (!traceId) {
@@ -241,25 +247,34 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             ((InputStream)resp.body()).close()
         }
 
-        Trace trace
-        if (savedThrowable) {
-            try {
-                nextCapturedTrace()
-            } finally {
-                throw savedThrowable
+        while (true) {
+            Trace trace
+            if (savedThrowable) {
+                try {
+                    nextCapturedTrace()
+                } finally {
+                    throw savedThrowable
+                }
+            } else {
+                trace = nextCapturedTrace()
             }
-        } else {
-            trace = nextCapturedTrace()
-        }
-        assert trace.size() >= 1
 
-        BigInteger gottenTraceId = trace.traceId
-        BigInteger expectedTraceId = new BigInteger(traceId, 10)
-        if (gottenTraceId != expectedTraceId) {
-            throw new AssertionError("Mismatched trace id gotten after request to ${req.uri()}: " +
-                    "expected ${expectedTraceId}, but got ${gottenTraceId}")
+            assert trace.size() >= 1
+            BigInteger gottenTraceId = trace.traceId
+            BigInteger expectedTraceId = new BigInteger(traceId, 10)
+            if (gottenTraceId == expectedTraceId) {
+                return trace
+            }
+
+            if (!ignoreOtherRequests) {
+                if (gottenTraceId != expectedTraceId) {
+                    throw new AssertionError("Mismatched trace id gotten after request to ${req.uri()}: " +
+                            "expected ${expectedTraceId}, but got ${gottenTraceId}")
+                }
+            } else {
+                log.info "Ignoring trace with id {}", gottenTraceId
+            }
         }
-        trace
     }
 
     private void processOptions(Map options) {
