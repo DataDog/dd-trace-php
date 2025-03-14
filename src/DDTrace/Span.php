@@ -43,6 +43,8 @@ class Span extends DataSpan
     {
         $this->internalSpan = $internalSpan;
         $this->context = $context;
+        $internalSpan->baggage += $context->baggageItems;
+        $context->baggageItems = &$internalSpan->baggage;
     }
 
     /**
@@ -387,7 +389,9 @@ class Span extends DataSpan
      */
     public function addBaggageItem($key, $value)
     {
-        $this->context = $this->context->withBaggageItem($key, $value);
+        if ($key !== '') {
+            $this->internalSpan->baggage[$key] = $value;
+        }
     }
 
     /**
@@ -395,7 +399,7 @@ class Span extends DataSpan
      */
     public function getBaggageItem($key)
     {
-        return $this->context->getBaggageItem($key);
+        return $this->internalSpan->baggage[$key] ?? null;
     }
 
     /**
@@ -403,7 +407,23 @@ class Span extends DataSpan
      */
     public function getAllBaggageItems()
     {
-        return $this->context->baggageItems;
+        return $this->internalSpan->baggage;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function removeBaggageItem($key)
+    {
+        unset($this->internalSpan->baggage[$key]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function removeAllBaggageItems()
+    {
+        $this->internalSpan->baggage = [];
     }
 
     public function __destruct()
