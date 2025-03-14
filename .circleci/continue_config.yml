@@ -5105,7 +5105,11 @@ workflows:
             ./build.sh php
           run: |
             cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+            export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
+            ./run.sh
+            ./run.sh APPSEC_API_SECURITY
+            ./run.sh APPSEC_API_SECURITY_RC
+            ./run.sh APPSEC_API_SECURITY_NO_RESPONSE_BODY
 
       - system_tests:
           requires: [ 'package extension' ]
