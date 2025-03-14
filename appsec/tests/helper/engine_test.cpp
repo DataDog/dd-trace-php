@@ -6,18 +6,24 @@
 
 #include "common.hpp"
 #include "ddwaf.h"
-#include "json_helper.hpp"
 #include "metrics.hpp"
+#include "remote_config/mocks.hpp"
 #include <engine.hpp>
 #include <gmock/gmock-nice-strict.h>
 #include <memory>
 #include <rapidjson/document.h>
+#include <rapidjson/rapidjson.h>
 #include <subscriber/waf.hpp>
 
 const std::string waf_rule =
     R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^string.*"}}]}]})";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
+
+using dds::remote_config::mock::asm_add;
+using dds::remote_config::mock::asm_dd_add;
+using dds::remote_config::mock::asm_dd_remove;
+using dds::remote_config::mock::asm_remove;
 
 namespace dds {
 
@@ -37,20 +43,8 @@ public:
     MOCK_METHOD0(get_name, std::string_view());
     MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
-    MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(
-                             dds::parameter &, metrics::telemetry_submitter &));
-};
-
-class tel_submitter : public metrics::telemetry_submitter {
-public:
-    MOCK_METHOD(void, submit_metric,
-        (std::string_view, double, metrics::telemetry_tags), (override));
-    MOCK_METHOD(
-        void, submit_span_metric, (std::string_view, double), (override));
-    MOCK_METHOD(
-        void, submit_span_meta, (std::string_view, std::string), (override));
-    MOCK_METHOD(void, submit_span_meta_copy_key, (std::string, std::string),
-        (override));
+    MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(const changeset &,
+                             metrics::telemetry_submitter &));
 };
 } // namespace mock
 
@@ -464,9 +458,10 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     e->subscribe(std::move(sub1));
     e->subscribe(std::move(sub2));
 
-    engine_ruleset ruleset(
-        R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-    e->update(ruleset, mock_submitter);
+    std::string_view ruleset{
+        R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})"};
+    auto changeset = create_cs(asm_add{"ASM/blocked_ips", ruleset});
+    e->update(std::move(changeset), mock_submitter);
 
     // Ensure after the update we still have the same number of subscribers
     auto ctx = e->get_context();
@@ -509,9 +504,9 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    engine_ruleset ruleset(R"({})");
+    auto changeset = create_cs(asm_dd_remove{"ASM_DD/builtin"});
     // All subscribers should be called regardless of failures
-    e->update(ruleset, msubmitter);
+    e->update(changeset, msubmitter);
 
     // Ensure after the update we still have the same number of subscribers
     auto ctx = e->get_context();
@@ -550,9 +545,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
 
-        engine_ruleset rule_data(
+        std::string_view rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-        e->update(rule_data, msubmitter);
+        auto cs = create_cs(asm_add{"ASM/blocked_ips", rule_data});
+        e->update(cs, msubmitter);
 
         Mock::VerifyAndClear(&msubmitter);
     }
@@ -579,9 +575,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
 
-        engine_ruleset rule_data(
+        std::string_view rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}]})");
-        e->update(rule_data, msubmitter);
+        auto cs = create_cs(asm_add{"ASM/blocked_ips", rule_data});
+        e->update(cs, msubmitter);
 
         Mock::VerifyAndClearExpectations(&msubmitter);
     }
@@ -615,16 +612,18 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
     }
 
     {
+        // success is true because WAF is capable of generating a handle
         EXPECT_CALL(submitter,
             submit_metric("waf.updates"sv, 1,
                 metrics::telemetry_tags::from_string(
                     std::string{
-                        "success:false,event_rules_version:,waf_version:"} +
+                        "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
 
-        engine_ruleset rule_data(
+        std::string_view rule_data( // invalid
             R"({"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]})");
-        e->update(rule_data, submitter);
+        auto cs = create_cs(asm_add{"ASM/blocked_ips", rule_data});
+        e->update(cs, submitter);
 
         Mock::VerifyAndClearExpectations(&submitter);
     }
@@ -658,9 +657,10 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
     }
 
     {
-        engine_ruleset update(
+        std::string_view update(
             R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/some-url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })");
-        e->update(update, submitter);
+        auto cs = create_cs(asm_dd_add{"ASM_DD/rules", update});
+        e->update(cs, submitter);
     }
 
     {
@@ -695,10 +695,11 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
     }
 
     {
-        engine_ruleset update(
+        std::string_view update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "enabled": "false"}]})");
-        e->update(update, msubmitter);
+        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -713,8 +714,9 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
     }
 
     {
-        engine_ruleset update(R"({"rules_override": []})");
-        e->update(update, msubmitter);
+        std::string_view update(R"({"rules_override": []})");
+        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -749,12 +751,13 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
     }
 
     {
-        engine_ruleset update(
+        std::string_view update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "on_match": ["redirect"]}], "actions": [{"id": "redirect",
              "type": "redirect_request", "parameters": {"status_code": "303",
              "location": "https://localhost"}}]})");
-        e->update(update, msubmitter);
+        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -770,10 +773,11 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
     }
 
     {
-        engine_ruleset update(
+        std::string_view update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "on_match": ["redirect"]}], "actions": []})");
-        e->update(update, msubmitter);
+        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -809,10 +813,11 @@ TEST(EngineTest, WafSubscriptorExclusions)
     }
 
     {
-        engine_ruleset update(
+        std::string_view update(
             R"({"exclusions": [{"id": "1",
              "rules_target":[{"rule_id":"1"}]}]})");
-        e->update(update, msubmitter);
+        auto cs = create_cs(asm_add{"ASM/exclusions", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -827,8 +832,9 @@ TEST(EngineTest, WafSubscriptorExclusions)
     }
 
     {
-        engine_ruleset update(R"({"exclusions": []})");
-        e->update(update, msubmitter);
+        std::string_view update(R"({"exclusions": []})");
+        auto cs = create_cs(asm_add{"ASM/exclusions", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -872,9 +878,13 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
     {
-        engine_ruleset update(
-            R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
-        e->update(update, msubmitter);
+        std::string_view update(
+            R"({"custom_rules":[{"id":"3","name":"custom_rule1","tags":{
+            "type":"custom","category":"custom"},"conditions":[{"operator":
+            "match_regex","parameters":{"inputs":[{"address":"arg3","key_path":
+            []}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
+        auto cs = create_cs(asm_add{"ASM/custom_rules", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -884,7 +894,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg3", parameter::string("custom rule"sv));
 
         auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
+        ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
     }
 
@@ -897,13 +907,15 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg2", parameter::string("string 3"sv));
 
         auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
+        ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
-        engine_ruleset update(R"({"custom_rules": []})");
-        e->update(update, msubmitter);
+        std::string_view update(R"({"custom_rules": []})");
+        auto cs = create_cs(asm_remove{"ASM/custom_rules"},
+            asm_add{"ASM/custom_rules2", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -925,7 +937,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg2", parameter::string("string 3"sv));
 
         auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
+        ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 }

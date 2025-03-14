@@ -7,7 +7,6 @@
 #include "../exception.hpp"
 #include "../product.hpp"
 #include "config_aggregators/asm_aggregator.hpp"
-#include "config_aggregators/asm_data_aggregator.hpp"
 #include "config_aggregators/asm_dd_aggregator.hpp"
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
@@ -18,15 +17,15 @@ namespace dds::remote_config {
 
 engine_listener::engine_listener(std::shared_ptr<engine> engine,
     std::shared_ptr<dds::metrics::telemetry_submitter> msubmitter,
-    const std::string &rules_file)
+    const std::string & /*ules_file*/)
     : engine_{std::move(engine)}, msubmitter_{std::move(msubmitter)}
 {
     aggregators_.emplace(
         known_products::ASM, std::make_unique<asm_aggregator>());
-    aggregators_.emplace(known_products::ASM_DD,
-        std::make_unique<asm_dd_aggregator>(rules_file));
     aggregators_.emplace(
-        known_products::ASM_DATA, std::make_unique<asm_data_aggregator>());
+        known_products::ASM_DD, std::make_unique<asm_dd_aggregator>());
+    aggregators_.emplace(
+        known_products::ASM_DATA, std::make_unique<asm_aggregator>());
 }
 
 void engine_listener::init()
@@ -81,8 +80,7 @@ void engine_listener::commit()
         }
     }
 
-    engine_ruleset ruleset = dds::engine_ruleset(std::move(ruleset_));
-    engine_->update(ruleset, *msubmitter_);
+    engine_->update(ruleset_, *msubmitter_);
 }
 
 } // namespace dds::remote_config

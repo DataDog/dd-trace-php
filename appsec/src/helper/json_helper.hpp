@@ -50,7 +50,7 @@ protected:
 };
 
 std::string parameter_to_json(const dds::parameter_view &pv);
-dds::parameter json_to_parameter(const rapidjson::Document &doc);
+dds::parameter json_to_parameter(const rapidjson::Value &value);
 dds::parameter json_to_parameter(std::string_view json);
 
 namespace json_helper {

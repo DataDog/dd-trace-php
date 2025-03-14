@@ -6,12 +6,9 @@
 
 #pragma once
 
-#include "../common.hpp"
 #include "../tel_subm_mock.hpp"
-#include "base64.h"
 #include "engine.hpp"
 #include "metrics.hpp"
-#include "remote_config/client.hpp"
 #include "remote_config/config.hpp"
 
 namespace dds::remote_config::mock {
@@ -24,12 +21,77 @@ public:
         : dds::engine(trace_rate_limit)
     {}
     MOCK_METHOD(void, update,
-        (engine_ruleset &, metrics::telemetry_submitter &), (override));
+        (const rapidjson::Document &, metrics::telemetry_submitter &),
+        (override));
 
     static auto create() { return std::shared_ptr<engine>(new engine()); }
 };
 
 remote_config::config get_config(
     std::string_view product_name, const std::string &content);
+
+struct asm_add {
+    std::string_view path;
+    std::string_view data;
+};
+struct asm_dd_add {
+    std::string_view path;
+    std::string_view data;
+};
+struct asm_remove {
+    std::string_view path;
+};
+struct asm_dd_remove {
+    std::string_view path;
+};
+
+template <typename... Args> rapidjson::Document create_cs(Args... actions)
+{
+    rapidjson::Document doc;
+    doc.SetObject();
+    auto &allocator = doc.GetAllocator();
+    doc.AddMember(rapidjson::StringRef("asm_added"),
+        rapidjson::Value{rapidjson::kObjectType}, allocator);
+    doc.AddMember(rapidjson::StringRef("asm_removed"),
+        rapidjson::Value(rapidjson::kArrayType), allocator);
+    doc.AddMember(rapidjson::StringRef("asm_dd_added"),
+        rapidjson::Value{rapidjson::kObjectType}, allocator);
+    doc.AddMember(rapidjson::StringRef("asm_dd_removed"),
+        rapidjson::Value(rapidjson::kStringType), allocator);
+
+    (
+        [&](auto &&act) {
+            using act_type = std::decay_t<decltype(act)>;
+            if constexpr (std::is_same_v<act_type, asm_add>) {
+                rapidjson::Document new_doc{rapidjson::kObjectType, &allocator};
+                new_doc.Parse(&act.data[0], act.data.size());
+                doc["asm_added"].AddMember(
+                    rapidjson::Value{&act.path[0],
+                        static_cast<rapidjson::SizeType>(act.path.size()),
+                        allocator},
+                    std::move(new_doc), allocator);
+            } else if constexpr (std::is_same_v<act_type, asm_dd_add>) {
+                rapidjson::Document new_doc{rapidjson::kObjectType, &allocator};
+                new_doc.Parse(&act.data[0], act.data.size());
+                doc["asm_dd_added"].AddMember(
+                    rapidjson::Value{&act.path[0],
+                        static_cast<rapidjson::SizeType>(act.path.size()),
+                        allocator},
+                    std::move(new_doc), allocator);
+            } else if constexpr (std::is_same_v<act_type, asm_remove>) {
+                doc["asm_removed"].PushBack(
+                    rapidjson::Value{&act.path[0],
+                        static_cast<rapidjson::SizeType>(act.path.size()),
+                        allocator},
+                    allocator);
+            } else if constexpr (std::is_same_v<act_type, asm_dd_remove>) {
+                doc["asm_dd_removed"].SetString(
+                    &act.path[0], act.path.size(), allocator);
+            }
+        }(actions),
+        ...);
+
+    return doc;
+}
 
 } // namespace dds::remote_config::mock

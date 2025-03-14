@@ -3,16 +3,13 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include <atomic>
 #include <chrono>
 #include <cstdlib>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
-#include <stdexcept>
 #include <string_view>
 
 #include "../compression.hpp"
@@ -462,16 +459,25 @@ void instance::listener::submit_metrics(
     }
 }
 
-instance::instance(parameter &rule, metrics::telemetry_submitter &msubmit,
+instance::instance(parameter _rule, metrics::telemetry_submitter &msubmit,
     std::uint64_t waf_timeout_us, std::string_view key_regex,
     std::string_view value_regex)
-    : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
+    : default_asm_dd_{std::make_shared<parameter>(std::move(_rule))},
+      waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
 {
     const ddwaf_config config{
         {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
 
     ddwaf_object diagnostics;
-    handle_ = ddwaf_init(rule, &config, &diagnostics);
+    auto *builder = ddwaf_builder_init(&config);
+    auto res =
+        ddwaf_builder_add_or_update_config(builder, BUILTIN_RULES_KEY.data(),
+            BUILTIN_RULES_KEY.length(), &*default_asm_dd_, &diagnostics);
+    if (res) {
+        builder_ = std::shared_ptr<std::remove_pointer_t<ddwaf_builder>>(
+            builder, ddwaf_builder_destroy);
+        handle_.reset(ddwaf_builder_build_instance(builder));
+    }
 
     load_result_report(parameter_view{diagnostics}, msubmit);
     load_result_report_legacy(
@@ -487,39 +493,41 @@ instance::instance(parameter &rule, metrics::telemetry_submitter &msubmit,
     }
 
     uint32_t size;
-    const auto *addrs = ddwaf_known_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_.get(), &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
-instance::instance(ddwaf_handle handle,
+instance::instance(waf_builder_sp builder, waf_handle_up handle,
+    std::shared_ptr<parameter> default_asm_dd,
     metrics::telemetry_submitter &msubmitter, std::chrono::microseconds timeout,
     std::string version)
-    : handle_{handle}, msubmitter_{msubmitter}, waf_timeout_{timeout},
-      ruleset_version_{std::move(version)}
+    : builder_{std::move(builder)}, handle_{std::move(handle)},
+      default_asm_dd_{std::move(default_asm_dd)}, waf_timeout_{timeout},
+      ruleset_version_{std::move(version)}, msubmitter_{msubmitter}
 {
     uint32_t size;
-    const auto *addrs = ddwaf_known_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_.get(), &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
 instance::instance(instance &&other) noexcept
-    : handle_(other.handle_), msubmitter_(other.msubmitter_),
+    : builder_{std::move(other.builder_)}, handle_(std::move(other.handle_)),
+      default_asm_dd_{std::move(other.default_asm_dd_)},
       waf_timeout_(other.waf_timeout_),
       ruleset_version_(std::move(other.ruleset_version_)),
-      addresses_(std::move(other.addresses_))
+      addresses_(std::move(other.addresses_)), msubmitter_(other.msubmitter_)
 {
-    other.handle_ = nullptr;
     other.waf_timeout_ = {};
 }
 
 instance &instance::operator=(instance &&other) noexcept
 {
-    handle_ = other.handle_;
-    other.handle_ = nullptr;
+    builder_ = std::move(other.builder_);
+    handle_ = std::move(other.handle_);
 
     waf_timeout_ = other.waf_timeout_;
     other.waf_timeout_ = {};
@@ -530,34 +538,107 @@ instance &instance::operator=(instance &&other) noexcept
     return *this;
 }
 
-instance::~instance()
-{
-    if (handle_ != nullptr) {
-        ddwaf_destroy(handle_);
-    }
-}
-
 std::unique_ptr<subscriber::listener> instance::get_listener()
 {
     return std::make_unique<listener>(
-        ddwaf_context_init(handle_), waf_timeout_, ruleset_version_);
+        ddwaf_context_init(handle_.get()), waf_timeout_, ruleset_version_);
 }
 
 std::unique_ptr<subscriber> instance::update(
-    parameter &rule, metrics::telemetry_submitter &msubmitter)
+    const changeset &changeset, metrics::telemetry_submitter &msubmitter)
 {
-    ddwaf_object diagnostics;
-    auto *new_handle = ddwaf_update(handle_, rule, &diagnostics);
+    for (auto &&key : changeset.removed) {
+        auto res =
+            ddwaf_builder_remove_config(builder_.get(), key.data(), key.size());
+        if (!res) {
+            SPDLOG_WARN("Failed to remove config key: {}", key);
+        } else {
+            SPDLOG_DEBUG("Removed config key: {}", key);
+        }
+    }
+
+    auto merged_diagnostics = parameter::map();
+
+    if (changeset.removed_asm_dd.has_value()) {
+        auto res = ddwaf_builder_remove_config(builder_.get(),
+            changeset.removed_asm_dd->data(), changeset.removed_asm_dd->size());
+        if (!res) {
+            SPDLOG_WARN(
+                "Failed to remove config key: {}", *changeset.removed_asm_dd);
+        } else {
+            SPDLOG_DEBUG(
+                "Removed ASM_DD config key: {}", *changeset.removed_asm_dd);
+        }
+
+        if (!changeset.added_asm_dd) {
+            parameter diagnostics;
+            SPDLOG_DEBUG("ASM DD removed but no new one added; adding default");
+            res = ddwaf_builder_add_or_update_config(builder_.get(),
+                BUILTIN_RULES_KEY.data(), BUILTIN_RULES_KEY.length(),
+                &*default_asm_dd_, &diagnostics);
+            merged_diagnostics.merge(std::move(diagnostics));
+            if (!res) { // shouldn't happen
+                SPDLOG_ERROR("Failed to add default ASM_DD config");
+            } else {
+                SPDLOG_DEBUG("Added default ASM_DD config");
+            }
+        }
+    }
+
+    if (changeset.added_asm_dd) {
+        if (!changeset.removed_asm_dd) {
+            ddwaf_builder_remove_config(builder_.get(),
+                BUILTIN_RULES_KEY.data(), BUILTIN_RULES_KEY.length());
+        }
+        parameter diagnostics;
+        auto &&[key, ruleset] = *changeset.added_asm_dd;
+        auto res =
+            ddwaf_builder_add_or_update_config(builder_.get(), key.data(),
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+                key.length(), const_cast<parameter *>(&ruleset), &diagnostics);
+        merged_diagnostics.merge(std::move(diagnostics));
+        if (!res) {
+            SPDLOG_WARN(
+                "Failed to add ASM_DD config {}; reloading default rules", key);
+            parameter diagnostics2;
+            res = ddwaf_builder_add_or_update_config(builder_.get(),
+                BUILTIN_RULES_KEY.data(), BUILTIN_RULES_KEY.length(),
+                &*default_asm_dd_, &diagnostics);
+            merged_diagnostics.merge(std::move(diagnostics2));
+            if (!res) { // shouldn't happen
+                SPDLOG_ERROR("Failed to add default ASM_DD config");
+            }
+        } else {
+            SPDLOG_DEBUG("Added ASM_DD config: {}", key);
+        }
+    }
+
+    for (auto &&[key, rules] : changeset.added) {
+        parameter diagnostics;
+        auto res = ddwaf_builder_add_or_update_config(builder_.get(),
+            key.data(), key.size(),
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+            const_cast<ddwaf_object *>(
+                static_cast<const ddwaf_object *>(&rules)),
+            &diagnostics);
+        if (!res) {
+            SPDLOG_WARN("Failed to add config key: {}", key);
+        } else {
+            SPDLOG_DEBUG("Added config key: {}", key);
+        }
+        merged_diagnostics.merge(std::move(diagnostics));
+    }
+    auto new_handle =
+        waf_handle_up{ddwaf_builder_build_instance(builder_.get())};
 
     std::string version;
     {
-        load_result_report(parameter_view{diagnostics}, msubmitter);
+        load_result_report(parameter_view{merged_diagnostics}, msubmitter);
         load_result_report_legacy(
-            parameter_view{diagnostics}, version, msubmitter);
+            parameter_view{merged_diagnostics}, version, msubmitter);
         if (version.empty()) {
             version = ruleset_version_;
         }
-        ddwaf_object_free(&diagnostics);
 
         waf_update_report(msubmitter, new_handle != nullptr, version);
     }
@@ -566,16 +647,16 @@ std::unique_ptr<subscriber> instance::update(
         throw invalid_object();
     }
 
-    return std::unique_ptr<subscriber>(new instance(
-        new_handle, msubmitter_, waf_timeout_, std::move(version)));
+    return std::unique_ptr<subscriber>(
+        new instance(builder_, std::move(new_handle), default_asm_dd_,
+            msubmitter_, waf_timeout_, std::move(version)));
 }
 
 std::unique_ptr<instance> instance::from_settings(
-    const engine_settings &settings, const engine_ruleset &ruleset,
+    const engine_settings &settings, parameter ruleset,
     metrics::telemetry_submitter &msubmitter)
 {
-    dds::parameter param = json_to_parameter(ruleset.get_document());
-    return std::make_unique<instance>(param, msubmitter,
+    return std::make_unique<instance>(std::move(ruleset), msubmitter,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
         settings.obfuscator_value_regex);
 }
@@ -584,10 +665,15 @@ std::unique_ptr<instance> instance::from_string(std::string_view rule,
     metrics::telemetry_submitter &msubmitter, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
-    engine_ruleset const ruleset{rule};
-    dds::parameter param = json_to_parameter(ruleset.get_document());
+    rapidjson::Document doc;
+    rapidjson::ParseResult const result = doc.Parse(rule.data(), rule.size());
+    if ((result == nullptr) || !doc.IsObject()) {
+        throw parsing_error("invalid json rule");
+    }
+    dds::parameter param = json_to_parameter(doc);
+
     return std::make_unique<instance>(
-        param, msubmitter, waf_timeout_us, key_regex, value_regex);
+        std::move(param), msubmitter, waf_timeout_us, key_regex, value_regex);
 }
 
 } // namespace dds::waf

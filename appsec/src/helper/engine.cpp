@@ -3,7 +3,6 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -14,9 +13,61 @@
 #include "json_helper.hpp"
 #include "metrics.hpp"
 #include "parameter_view.hpp"
+#include "remote_config/listeners/config_aggregators/asm_aggregator.hpp"
+#include "remote_config/listeners/config_aggregators/asm_dd_aggregator.hpp"
 #include "std_logging.hpp"
 #include "subscriber/waf.hpp"
 
+namespace {
+using dds::remote_config::asm_aggregator;
+using dds::remote_config::asm_dd_aggregator;
+
+dds::subscriber::changeset build_changeset(const rapidjson::Value &doc)
+{
+    dds::subscriber::changeset changeset;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    if (doc.HasMember(asm_aggregator::ASM_ADDED)) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+        for (const auto &entry : doc[asm_aggregator::ASM_ADDED].GetObject()) {
+            changeset.added.emplace(
+                entry.name.GetString(), dds::json_to_parameter(entry.value));
+        }
+    }
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    if (doc.HasMember(asm_aggregator::ASM_REMOVED)) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+        const auto &removed = doc[asm_aggregator::ASM_REMOVED];
+        for (const auto &entry : removed.GetArray()) {
+            changeset.removed.emplace(entry.GetString());
+        }
+    }
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    if (doc.HasMember(asm_dd_aggregator::ASM_DD_ADDED)) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+        const auto &added_asm_dd = doc[asm_dd_aggregator::ASM_DD_ADDED];
+        if (added_asm_dd.IsObject() && added_asm_dd.MemberCount() >= 1) {
+            // we should have only 1 ASM_DD
+            const auto entry = added_asm_dd.GetObject().begin();
+            changeset.added_asm_dd.emplace(
+                entry->name.GetString(), dds::json_to_parameter(entry->value));
+        }
+    }
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    if (doc.HasMember(asm_dd_aggregator::ASM_DD_REMOVED)) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+        const auto &removed_asm_dd = doc[asm_dd_aggregator::ASM_DD_REMOVED];
+        if (removed_asm_dd.IsString() && removed_asm_dd.GetStringLength() > 0) {
+            changeset.removed_asm_dd.emplace(
+                removed_asm_dd.GetString(), removed_asm_dd.GetStringLength());
+        }
+    }
+
+    return changeset;
+}
+} // namespace
 namespace dds {
 
 void engine::subscribe(std::unique_ptr<subscriber> sub)
@@ -25,16 +76,16 @@ void engine::subscribe(std::unique_ptr<subscriber> sub)
 }
 
 void engine::update(
-    engine_ruleset &ruleset, metrics::telemetry_submitter &submit_metric)
+    const rapidjson::Document &doc, metrics::telemetry_submitter &submit_metric)
 {
     std::vector<std::unique_ptr<subscriber>> new_subscribers;
     auto old_common =
         std::atomic_load_explicit(&common_, std::memory_order_acquire);
     new_subscribers.reserve(old_common->subscribers.size());
-    dds::parameter param = json_to_parameter(ruleset.get_document());
+    dds::subscriber::changeset const changeset = build_changeset(doc);
     for (auto &sub : old_common->subscribers) {
         try {
-            new_subscribers.emplace_back(sub->update(param, submit_metric));
+            new_subscribers.emplace_back(sub->update(changeset, submit_metric));
         } catch (const std::exception &e) {
             SPDLOG_WARN("Failed to update subscriber {}: {}", sub->get_name(),
                 e.what());
@@ -127,15 +178,24 @@ std::unique_ptr<engine> engine::from_settings(
     metrics::telemetry_submitter &msubmitter)
 {
     auto &&rules_path = eng_settings.rules_file_or_default();
-    auto ruleset = engine_ruleset::from_path(rules_path);
+    auto ruleset = read_file(rules_path);
+
+    rapidjson::Document doc;
+    rapidjson::ParseResult const result =
+        doc.Parse(ruleset.data(), ruleset.size());
+    if ((result == nullptr) || !doc.IsObject()) {
+        throw parsing_error("invalid json rule");
+    }
+    dds::parameter ruleset_param = json_to_parameter(doc);
+
     std::unique_ptr<engine> engine_ptr{
         engine::create(eng_settings.trace_rate_limit)};
 
     try {
         SPDLOG_DEBUG("Will load WAF rules from {}", rules_path);
         // may throw std::exception
-        auto waf =
-            waf::instance::from_settings(eng_settings, ruleset, msubmitter);
+        auto waf = waf::instance::from_settings(
+            eng_settings, std::move(ruleset_param), msubmitter);
         engine_ptr->subscribe(std::move(waf));
     } catch (...) {
         DD_STDLOG(DD_STDLOG_WAF_INIT_FAILED, rules_path);

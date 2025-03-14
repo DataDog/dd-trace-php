@@ -5,16 +5,15 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../engine.hpp"
-#include "../engine_ruleset.hpp"
-#include "../exception.hpp"
 #include "../metrics.hpp"
 #include "../parameter.hpp"
+#include "base.hpp"
 #include <chrono>
 #include <ddwaf.h>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 
 namespace dds::waf {
@@ -68,7 +67,7 @@ public:
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
-    instance(dds::parameter &rule, metrics::telemetry_submitter &msubmit,
+    instance(dds::parameter rule, metrics::telemetry_submitter &msubmit,
         std::uint64_t waf_timeout_us,
         std::string_view key_regex = std::string_view(),
         std::string_view value_regex = std::string_view());
@@ -76,7 +75,7 @@ public:
     instance &operator=(const instance &) = delete;
     instance(instance &&) noexcept;
     instance &operator=(instance &&) noexcept;
-    ~instance() override;
+    ~instance() override = default;
 
     std::string_view get_name() override { return "waf"sv; }
 
@@ -87,11 +86,11 @@ public:
 
     std::unique_ptr<subscriber::listener> get_listener() override;
 
-    std::unique_ptr<subscriber> update(
-        parameter &rule, metrics::telemetry_submitter &msubmitter) override;
+    std::unique_ptr<subscriber> update(const changeset &changeset,
+        metrics::telemetry_submitter &msubmitter) override;
 
     static std::unique_ptr<instance> from_settings(
-        const engine_settings &settings, const engine_ruleset &ruleset,
+        const engine_settings &settings, parameter ruleset,
         metrics::telemetry_submitter &msubmitter);
 
     // testing only
@@ -102,10 +101,25 @@ public:
         std::string_view value_regex = std::string_view());
 
 protected:
-    instance(ddwaf_handle handle, metrics::telemetry_submitter &msubmitter,
+    struct ddwaf_handle_deleter {
+        void operator()(ddwaf_handle h) const { ddwaf_destroy(h); }
+    };
+
+    using waf_builder_sp =
+        std::shared_ptr<std::remove_pointer_t<ddwaf_builder>>;
+    using waf_handle_up = std::unique_ptr<std::remove_pointer_t<ddwaf_handle>,
+        ddwaf_handle_deleter>;
+
+    instance(waf_builder_sp builder, waf_handle_up handle,
+        std::shared_ptr<parameter> default_asm_dd,
+        metrics::telemetry_submitter &msubmitter,
         std::chrono::microseconds timeout, std::string version);
 
-    ddwaf_handle handle_{nullptr};
+    static constexpr std::string_view BUILTIN_RULES_KEY = "ASM_DD/builtin";
+
+    waf_builder_sp builder_;
+    waf_handle_up handle_{nullptr};
+    std::shared_ptr<parameter> default_asm_dd_;
     std::chrono::microseconds waf_timeout_;
     std::string ruleset_version_;
     std::unordered_set<std::string> addresses_;
