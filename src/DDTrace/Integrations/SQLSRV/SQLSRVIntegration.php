@@ -167,10 +167,6 @@ class SQLSRVIntegration extends Integration
         $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;
 
-        if ($query) {
-            $span->meta[Tag::DB_STMT] = $query;
-        }
-
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
         }

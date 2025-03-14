@@ -2206,7 +2206,7 @@ namespace DDTrace {
         const MANUAL_DROP = 'manual.drop';
         const PID = 'process_id';
         const RESOURCE_NAME = 'resource.name';
-        const DB_STATEMENT = 'sql.query';
+        const DB_STATEMENT = self::DB_STMT;
         const ERROR = 'error';
         const ERROR_MSG = 'error.message';
         // string representing the error message
@@ -2246,7 +2246,7 @@ namespace DDTrace {
         const DB_TYPE = 'db.type';
         const DB_SYSTEM = 'db.system';
         const DB_ROW_COUNT = 'db.row_count';
-        const DB_STMT = 'db.statement';
+        const DB_STMT = 'sql.query';
         const DB_USER = 'db.user';
         // Kafka
         const KAFKA_CLIENT_ID = 'messaging.kafka.client_id';
