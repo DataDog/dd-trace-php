@@ -70,12 +70,7 @@
         <![CDATA[
 ## Tracer
 ### Fixed
-- Fallback to writing shared memory files to /tmp, if shm_open returns ENOTSUP Datadog/libdatadog#910
-
-## Profiling
-### Fixed
-- I/O upscaling and allocation to the right sample type #3118
-- fix `DD_TAGS` support #3121
+- Avoid using db.statement in favor of sql.query
 ]]></notes>
     <contents>
         <dir name="/">
