@@ -257,7 +257,6 @@ final class WebServer
         if ($this->server) {
             $this->server->stop();
         }
-        sleep(2);
     }
 
     /**
