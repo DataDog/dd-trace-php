@@ -1118,13 +1118,12 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
 static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *service_name) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
-    zval meta_zv, *meta = &span->property_meta, *inferred_span_zv = NULL;
-    bool ignore_error = false;
-
+    zval meta_zv, *meta = &span->property_meta;
+    ddtrace_span_data *inferred_span = NULL;
     if (is_root_span) {
-        ddtrace_root_span_data *rsd = span->root;
-        inferred_span_zv = &rsd->property_inferred_span;
+        inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
     }
+    bool ignore_error = false;
 
     array_init(&meta_zv);
     ZVAL_DEREF(meta);
@@ -1304,7 +1303,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
         }
     }
 
-    if (is_inferred_span || (span->root->trace_id.high && is_root_span && Z_TYPE_P(inferred_span_zv) != IS_OBJECT)) {
+    if (is_inferred_span || (span->root->trace_id.high && is_root_span && !inferred_span)) {
         add_assoc_str(meta, "_dd.p.tid", zend_strpprintf(0, "%" PRIx64, span->root->trace_id.high));
     }
 
