@@ -177,7 +177,6 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
     ZVAL_OBJ(&root->property_inferred_span, &span->std);
 
     span->span_id = ddtrace_generate_span_id();
-    ddtrace_set_global_span_properties(span);
     ZVAL_COPY(&span->property_env, &root->property_env);
     ZVAL_COPY(&span->property_version, &root->property_version);
 
@@ -224,6 +223,8 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
 
     free_inferred_proxy_result(result);
+
+    ddtrace_set_global_span_properties(span);
 
     return INFERRED_SPANDATA(&span->std);
 }
