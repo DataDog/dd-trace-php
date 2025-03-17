@@ -5,7 +5,6 @@ Baggage headers should not be propagated when curl integration is disabled
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
-DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_PROPAGATION_STYLE_INJECT=B3,B3 single header,Datadog,tracecontext,baggage
 DD_TRACE_CURL_ENABLED=false
@@ -48,4 +47,3 @@ echo 'Done.' . PHP_EOL;
 --EXPECT--
 bool(true)
 Done.
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://localhost:8126
