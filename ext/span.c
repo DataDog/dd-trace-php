@@ -221,7 +221,7 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
     }
 
     add_assoc_long(&span->property_meta, "_dd.inferred_span", 1);
-    add_assoc_string(&span->property_meta, "component", proxy_info->component);
+    add_assoc_string(&span->property_meta, "component", (char *)proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
 
     free_inferred_proxy_result(result);
