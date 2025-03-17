@@ -490,7 +490,7 @@ class SQLSRVTest extends IntegrationTestCase
             Tag::DB_USER => self::$user,
             Tag::TARGET_HOST => self::$host,
             Tag::TARGET_PORT => self::$port,
-        ] + ($query ? [Tag::DB_STMT => $query] : []);
+        ];
 
         if ($expectPeerService) {
             $tags['peer.service'] = 'master';
