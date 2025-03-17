@@ -46,6 +46,8 @@ static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
     zend_object *nonnull zobj, zend_long priority,
     enum dd_sampling_mechanism mechanism);
+static zend_long (*nullable _ddtrace_get_priority_sampling_on_span_zobj)(
+    zend_object *nonnull root_span);
 static void (*nullable _ddtrace_add_propagated_tag_on_span_zobj)(
     zend_string *nonnull key, zval *nonnull value);
 
@@ -99,6 +101,14 @@ static void dd_trace_load_symbols(void)
     if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
         mlog(dd_log_error,
             "Failed to load ddtrace_set_priority_sampling_on_span_zobj: %s",
+            dlerror()); // NOLINT(concurrency-mt-unsafe)
+    }
+
+    _ddtrace_get_priority_sampling_on_span_zobj =
+        dlsym(handle, "ddtrace_get_priority_sampling_on_span_zobj");
+    if (_ddtrace_get_priority_sampling_on_span_zobj == NULL) {
+        mlog(dd_log_error,
+            "Failed to load ddtrace_get_priority_sampling_on_span_zobj: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
     }
 
@@ -393,6 +403,16 @@ void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
     }
 
     _ddtrace_set_priority_sampling_on_span_zobj(root_span, priority, mechanism);
+}
+
+zend_long dd_trace_get_priority_sampling_on_span_zobj(
+    zend_object *nonnull root_span)
+{
+    if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
+        return -1;
+    }
+
+    return _ddtrace_get_priority_sampling_on_span_zobj(root_span);
 }
 
 bool dd_trace_user_req_add_listeners(

@@ -1,5 +1,5 @@
 --TEST--
-User requests: request body is parsed (XML)
+User requests: XML request body is not parsed wotj wrong content-type
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=true
