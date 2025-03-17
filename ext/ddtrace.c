@@ -940,6 +940,7 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     // Not handled in arginfo on these old versions
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
+    array_init(&span->property_baggage);
 #endif
     return &span->std;
 }
