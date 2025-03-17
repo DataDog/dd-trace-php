@@ -18,6 +18,8 @@
 #include "user_request.h"
 #include "zend_types.h"
 #include "sidecar.h"
+#include "sandbox/sandbox.h"
+#include "hook/uhook.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -313,14 +315,162 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     return span;
 }
 
+static inline void dd_make_span_creation_observers_ref(zval *observers) {
+    if (!Z_ISREF_P(observers)) {
+        ZVAL_NEW_REF(observers, observers);
+#if PHP_VERSION_ID >= 80000
+        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(XtOffsetOf(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
+        ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(observers), prop);
+#endif
+    }
+}
+
+/* This function, written in PHP, would look like:
+ * foreach ($stack->spanCreationObservers as $key => &$observer) {
+ *     if ($observer instanceof \Closure && $observer($span) === false) {
+ *         $observer = null;
+ *         unset($stack->spanCreationObservers[$key]);
+ *     }
+ * }
+ */
+void ddtrace_observe_opened_span(ddtrace_span_data *span) {
+    ddtrace_span_stack *stack = span->stack;
+    zval *observers = &stack->property_span_creation_observers;
+    if (Z_TYPE_P(observers) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(observers)) == 0) {
+        return;  // fast path
+    }
+    // to be safe, we have to essentially foreach-by-ref
+    dd_make_span_creation_observers_ref(observers);
+    zend_reference *ref = Z_REF_P(observers);
+    observers = Z_REFVAL_P(observers);
+    if (Z_TYPE_P(observers) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(observers))) {
+        GC_ADDREF(ref);
+        uint32_t it = zend_hash_iterator_add(Z_ARR_P(observers), 0);
+        HashTableIterator *iter = EG(ht_iterators) + it;
+        zval *closure_zv, span_zv;
+        ZVAL_OBJ(&span_zv, &span->std);
+        for (;;) {
+            HashPosition pos = zend_hash_iterator_pos_ex(it, observers);
+            if ((closure_zv = zend_hash_get_current_data_ex(iter->ht, &pos))) {
+                bool cleanup = true;
+
+                zend_string *str_key;
+                zend_ulong num_key;
+                int key_type = zend_hash_get_current_key_ex(iter->ht, &str_key, &num_key, &pos);
+                if (key_type == HASH_KEY_IS_STRING) {
+                    str_key = zend_string_copy(str_key);
+                }
+
+                zend_hash_move_forward_ex(iter->ht, &pos);
+                iter->pos = pos;
+
+                zend_reference *closure_ref = NULL;
+                if (Z_TYPE_P(closure_zv) == IS_REFERENCE) {
+                    closure_ref = Z_REF_P(closure_zv);
+                    closure_zv = &closure_ref->val;
+                }
+                if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
+                    if (closure_ref) {
+                        GC_ADDREF(closure_ref);
+                    }
+
+                    zval rv;
+                    zai_sandbox sandbox;
+                    zai_sandbox_open(&sandbox);
+                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
+                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    if (!success || PG(last_error_message)) {
+                        dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
+                    }
+                    zai_sandbox_close(&sandbox);
+                    zval_ptr_dtor(&rv);
+
+                    cleanup = Z_TYPE(rv) == IS_FALSE;
+
+                    if (closure_ref) {
+                        if (cleanup) {
+#if PHP_VERSION_ID >= 70400
+                            bool assignable = true;
+                            if (UNEXPECTED(ZEND_REF_HAS_TYPE_SOURCES(closure_ref))) {
+                                const zend_property_info *prop;
+                                ZEND_REF_FOREACH_TYPE_SOURCES(closure_ref, prop) {
+                                    if (!EXPECTED(ZEND_TYPE_CONTAINS_CODE(prop->type, IS_NULL))) {
+                                        assignable = false;
+                                    }
+                                } ZEND_REF_FOREACH_TYPE_SOURCES_END();
+                            }
+                            if (assignable)
+#endif
+                            {
+                                zval garbage;
+                                ZVAL_COPY_VALUE(&garbage, closure_zv);
+                                ZVAL_NULL(closure_zv);
+                                zval_ptr_dtor(&garbage);
+                            }
+                        }
+                        if (GC_DELREF(closure_ref) == 0) {
+                            zval_ptr_dtor(closure_zv);
+                            efree(closure_ref);
+                        }
+                    }
+
+                    observers = &stack->property_span_creation_observers;
+                    dd_make_span_creation_observers_ref(observers);
+                    observers = Z_REFVAL_P(observers);
+                    if (Z_TYPE_P(observers) != IS_ARRAY) {
+                        if (key_type == HASH_KEY_IS_STRING) {
+                            zend_string_release(str_key);
+                        }
+                        break;
+                    }
+                }
+
+                if (cleanup) {
+#if PHP_VERSION_ID < 80300 // work around https://github.com/php/php-src/issues/11244
+                    bool is_same_ht = Z_ARR_P(observers) == iter->ht;
+                    SEPARATE_ARRAY(observers);
+                    if (is_same_ht && Z_ARR_P(observers) != iter->ht) {
+                        --iter->ht->u.v.nIteratorsCount;
+                        iter->ht = Z_ARR_P(observers);
+                        ++iter->ht->u.v.nIteratorsCount;
+                    }
+#else
+                    SEPARATE_ARRAY(observers);
+#endif
+                    if (key_type == HASH_KEY_IS_STRING) {
+                        zend_hash_del(Z_ARR_P(observers), str_key);
+                    } else {
+                        zend_hash_index_del(Z_ARR_P(observers), num_key);
+                    }
+                }
+                if (key_type == HASH_KEY_IS_STRING) {
+                    zend_string_release(str_key);
+                }
+            } else {
+                break;
+            }
+        }
+
+        zend_hash_iterator_del(it);
+
+        if (GC_DELREF(ref) == 0) {
+            zval_ptr_dtor(&ref->val);
+            efree(ref);
+        }
+    }
+}
+
 // += 2 increment to avoid zval type ever being 0
-ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute_data *execute_data) {
+ddtrace_span_data *ddtrace_alloc_execute_data_span_ex(zend_ulong index, zend_execute_data *execute_data, bool *new_span) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
     ddtrace_span_data *span;
     if (span_zv) {
+        *new_span = false;
         span = Z_PTR_P(span_zv);
         Z_TYPE_INFO_P(span_zv) += 2;
     } else {
+        *new_span = true;
         span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
 
         // SpanData::$name defaults to fully qualified called name
@@ -377,6 +527,15 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execut
     return span;
 }
 
+ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong index, zend_execute_data *execute_data) {
+    bool new_span;
+    ddtrace_span_data *span = ddtrace_alloc_execute_data_span_ex(index, execute_data, &new_span);
+    if (new_span) {
+        ddtrace_observe_opened_span(span);
+    }
+    return span;
+}
+
 void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     zval *span_zv = zend_hash_index_find(&DDTRACE_G(traced_spans), index);
     ddtrace_span_data *span = Z_PTR_P(span_zv);
@@ -424,10 +583,33 @@ static ddtrace_span_stack *dd_alloc_span_stack(void) {
     return span_stack;
 }
 
+static void dd_inherit_span_stack(ddtrace_span_stack *span_stack, ddtrace_span_stack *active_stack) {
+    ZVAL_OBJ_COPY(&span_stack->property_parent, &active_stack->std);
+    // promote all values inside to reference, then copy
+    zval *observers = &active_stack->property_span_creation_observers;
+    if (Z_TYPE_P(observers) != IS_ARRAY || zend_hash_num_elements(Z_ARR_P(observers))) {
+        ZVAL_DEREF(observers);
+        if (Z_TYPE_P(observers) == IS_ARRAY) {
+            zval *value;
+            ZEND_HASH_REVERSE_FOREACH_VAL(Z_ARR_P(observers), value) {
+                if (!Z_ISREF_P(value)) {
+                    SEPARATE_ARRAY(observers);
+                    ZEND_HASH_FOREACH_VAL(Z_ARR_P(observers), value) {
+                        ZVAL_MAKE_REF(value);
+                    } ZEND_HASH_FOREACH_END();
+                    break;
+                }
+            } ZEND_HASH_FOREACH_END();
+            zval_ptr_dtor(&span_stack->property_span_creation_observers);
+            ZVAL_COPY(&span_stack->property_span_creation_observers, observers);
+        }
+    }
+}
+
 ddtrace_span_stack *ddtrace_init_root_span_stack(void) {
     ddtrace_span_stack *span_stack = dd_alloc_span_stack();
     if (DDTRACE_G(active_stack)) {
-        ZVAL_OBJ_COPY(&span_stack->property_parent, &DDTRACE_G(active_stack)->std);
+        dd_inherit_span_stack(span_stack, DDTRACE_G(active_stack));
     } else {
         ZVAL_NULL(&span_stack->property_parent);
         span_stack->parent_stack = NULL;
@@ -442,11 +624,11 @@ ddtrace_span_stack *ddtrace_init_root_span_stack(void) {
 }
 
 ddtrace_span_stack *ddtrace_init_span_stack(void) {
-    ddtrace_span_stack *span_stack = dd_alloc_span_stack();
-    ZVAL_OBJ_COPY(&span_stack->property_parent, &DDTRACE_G(active_stack)->std);
-    ZVAL_COPY(&span_stack->property_active, &DDTRACE_G(active_stack)->property_active);
-    span_stack->root_stack = DDTRACE_G(active_stack)->root_stack;
-    span_stack->root_span = DDTRACE_G(active_stack)->root_span;
+    ddtrace_span_stack *span_stack = dd_alloc_span_stack(), *active_stack = DDTRACE_G(active_stack);
+    dd_inherit_span_stack(span_stack, active_stack);
+    ZVAL_COPY(&span_stack->property_active, &active_stack->property_active);
+    span_stack->root_stack = active_stack->root_stack;
+    span_stack->root_span = active_stack->root_span;
 
     LOG(SPAN_TRACE, "Creating new SpanStack: %d, parent_stack: %d", span_stack->std.handle, span_stack->parent_stack ? span_stack->parent_stack->std.handle : 0);
 
@@ -457,6 +639,7 @@ void ddtrace_push_root_span(void) {
     ddtrace_span_data *span = ddtrace_open_span(DDTRACE_AUTOROOT_SPAN);
     // We opened the span, but are not going to hold a reference to it directly - the stack will manage it.
     GC_DELREF(&span->std);
+    ddtrace_observe_opened_span(span);
 }
 
 DDTRACE_PUBLIC zend_object *ddtrace_get_root_span()
@@ -581,12 +764,20 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
             GC_ADDREF(&stack->std);
 
             if (stack->root_span && (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED)) {
-                stack->next = DDTRACE_G(top_closed_stack);
-                DDTRACE_G(top_closed_stack) = stack;
+                if (!stack->top_closed_stack) {
+                    stack->next = DDTRACE_G(top_closed_stack);
+                    DDTRACE_G(top_closed_stack) = stack;
+                }
             } else {
                 // we'll just attach it so that it'll be flushed together (i.e. chunks are not flushed _before_ the root stack)
-                stack->next = stack->root_stack->top_closed_stack;
-                stack->root_stack->top_closed_stack = stack;
+                ddtrace_span_stack *root_stack = stack->root_stack;
+                // but handle the case where no closed spans exist yet on the primary stack
+                if (!root_stack->closed_ring_flush && !root_stack->top_closed_stack) {
+                    root_stack->next = DDTRACE_G(top_closed_stack);
+                    DDTRACE_G(top_closed_stack) = root_stack;
+                }
+                stack->next = root_stack->top_closed_stack;
+                root_stack->top_closed_stack = stack;
             }
         }
         stack->closed_ring = NULL;
@@ -640,6 +831,35 @@ void ddtrace_close_span(ddtrace_span_data *span) {
             inferred_span->type = DDTRACE_SPAN_CLOSED;
         }
     }
+
+    if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
+            zval on_close_zv, *on_close = &on_close_zv;
+            ZVAL_COPY_VALUE(&on_close_zv, &span->property_on_close);
+            ZVAL_EMPTY_ARRAY(&span->property_on_close);
+
+            ZVAL_DEREF(on_close);
+            if (Z_TYPE_P(on_close) == IS_ARRAY) {
+                zval *closure_zv, span_zv;
+                ZVAL_OBJ(&span_zv, &span->std);
+                ZEND_HASH_REVERSE_FOREACH_VAL(Z_ARR_P(on_close), closure_zv) {
+                    ZVAL_DEREF(closure_zv);
+                    if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
+                        zval rv;
+                        zai_sandbox sandbox;
+                        zai_sandbox_open(&sandbox);
+                        bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+                                                       ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
+                                                       &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                        if (!success || PG(last_error_message)) {
+                            dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
+                        }
+                        zai_sandbox_close(&sandbox);
+                        zval_ptr_dtor(&rv);
+                    }
+                } ZEND_HASH_FOREACH_END();
+            }
+            zval_ptr_dtor(&on_close_zv);
+        }
 
     // Telemetry: increment the spans_created counter
     // Must be done at closing because we need to read the "component" span's meta which is not available at creation
@@ -825,6 +1045,11 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
             rootstack = rootstack->next;
             ddtrace_span_stack *next_stack = stack->top_closed_stack;
             stack->top_closed_stack = NULL;
+            if (!stack->closed_ring_flush) {
+                // stacks might be on the close-queue, but not have stacks on their own, only other attached closed stacks
+                stack = next_stack;
+                next_stack = stack->next;
+            }
             do {
                 // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
                 ddtrace_span_data *span = stack->closed_ring_flush->next, *end = span;

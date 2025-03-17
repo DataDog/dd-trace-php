@@ -85,7 +85,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_priority_sampling, 0
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_sanitized_exception_trace, 0, 1, IS_STRING, 0)
-	ZEND_ARG_OBJ_TYPE_MASK(0, exception, Exception|Throwable, 0, NULL)
+	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, skipFrames, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -717,6 +717,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_declare_typed_property(class_entry, property_stack_name, &property_stack_default_value, ZEND_ACC_PUBLIC|ZEND_ACC_READONLY, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_stack_class_DDTrace_SpanStack, 0, 0));
 	zend_string_release(property_stack_name);
 
+	zval property_onClose_default_value;
+	ZVAL_EMPTY_ARRAY(&property_onClose_default_value);
+	zend_string *property_onClose_name = zend_string_init("onClose", sizeof("onClose") - 1, 1);
+	zend_declare_typed_property(class_entry, property_onClose_name, &property_onClose_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_onClose_name);
+
 	return class_entry;
 }
 
@@ -822,6 +828,12 @@ static zend_class_entry *register_class_DDTrace_SpanStack(void)
 	zend_string *property_active_class_DDTrace_SpanData = zend_string_init("DDTrace\\SpanData", sizeof("DDTrace\\SpanData")-1, 1);
 	zend_declare_typed_property(class_entry, property_active_name, &property_active_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_active_class_DDTrace_SpanData, 0, MAY_BE_NULL));
 	zend_string_release(property_active_name);
+
+	zval property_spanCreationObservers_default_value;
+	ZVAL_EMPTY_ARRAY(&property_spanCreationObservers_default_value);
+	zend_string *property_spanCreationObservers_name = zend_string_init("spanCreationObservers", sizeof("spanCreationObservers") - 1, 1);
+	zend_declare_typed_property(class_entry, property_spanCreationObservers_name, &property_spanCreationObservers_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release(property_spanCreationObservers_name);
 
 	return class_entry;
 }

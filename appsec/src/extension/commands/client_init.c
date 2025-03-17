@@ -13,7 +13,7 @@
 #include "../ddtrace.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../tags.h"
+#include "../php_compat.h"
 #include "../version.h"
 #include "client_init.h"
 
@@ -84,18 +84,23 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "enabled");
     mpack_write_bool(w, get_global_DD_API_SECURITY_ENABLED());
 
-    dd_mpack_write_lstr(w, "sample_rate");
-#define MIN_SE_SAMPLE_RATE 0.0001
-    double se_sample_rate = get_global_DD_API_SECURITY_REQUEST_SAMPLE_RATE();
-    if (se_sample_rate >= MIN_SE_SAMPLE_RATE) {
-        mpack_write(w, se_sample_rate);
+    dd_mpack_write_lstr(w, "sampling_enabled");
+    zend_string *delay = get_global_DD_API_SECURITY_SAMPLE_DELAY();
+    if (delay && ZSTR_LEN(delay) > 0) {
+        if (!zend_string_starts_with_cstr(delay, ZEND_STRL("0"))) {
+            mlog(dd_log_warning, "The only non-empty value supported for "
+                                 "DD_API_SECURITY_SAMPLE_DELAY is 0");
+            mpack_write_bool(w, true);
+        } else {
+            mpack_write_bool(w, false);
+        }
     } else {
-        mpack_write(w, 0.0);
+        mpack_write_bool(w, true);
     }
 
-    mpack_finish_map(w);
+    mpack_finish_map(w); // schema_extraction
 
-    mpack_finish_map(w);
+    mpack_finish_map(w); // engine settings
 
     // Remote config settings
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

@@ -38,11 +38,13 @@ void ddtrace_try_read_agent_rate(void) {
     }
 }
 
-static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span, enum dd_sampling_mechanism mechanism) {
+static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
+    enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_property_array(&root_span->property_meta);
 
     zend_long sampling_priority = zval_get_long(&root_span->property_sampling_priority);
-    if (Z_TYPE(root_span->property_propagated_sampling_priority) != IS_UNDEF && zval_get_long(&root_span->property_propagated_sampling_priority) == sampling_priority) {
+    if (Z_TYPE(root_span->property_propagated_sampling_priority) != IS_UNDEF &&
+    zval_get_long(&root_span->property_propagated_sampling_priority) == sampling_priority) {
         return;
     }
 
@@ -395,4 +397,10 @@ DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root
     assert(root_span->ce == ddtrace_ce_root_span_data);
 
     ddtrace_set_priority_sampling_on_span(ROOTSPANDATA(root_span), priority, mechanism);
+}
+
+DDTRACE_PUBLIC zend_long ddtrace_get_priority_sampling_on_span_zobj(zend_object *root_span) {
+    assert(root_span->ce == ddtrace_ce_root_span_data);
+
+    return zval_get_long(&ROOTSPANDATA(root_span)->property_sampling_priority);
 }

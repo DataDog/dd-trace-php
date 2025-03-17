@@ -415,7 +415,7 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
-        bool appsec_features = false;
+        bool appsec_activation = false;
         bool appsec_config = false;
 
 #ifndef _WIN32
@@ -435,7 +435,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_features, &appsec_config);
+        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
         if (!enable_sidecar) {
             enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
         }
@@ -445,7 +445,7 @@ static void dd_activate_once(void) {
         {
             bool request_startup = PG(during_request_startup);
             PG(during_request_startup) = false;
-            ddtrace_sidecar_setup(appsec_features, appsec_config);
+            ddtrace_sidecar_setup(appsec_activation, appsec_config);
             PG(during_request_startup) = request_startup;
         }
 #ifndef _WIN32
@@ -915,6 +915,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     array_init(&span->property_links);
     array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
+    array_init(&span->property_on_close);
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -952,6 +953,10 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     // Explicitly assign property-mapped NULLs
     stack->active = NULL;
     stack->parent_stack = NULL;
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&stack->property_span_creation_observers);
+#endif
     return &stack->std;
 }
 
@@ -2761,6 +2766,10 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
 
     if (start_time_seconds > 0) {
         span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
+    }
+
+    if (get_DD_TRACE_ENABLED()) {
+        ddtrace_observe_opened_span(span);
     }
 
     RETURN_OBJ(&span->std);

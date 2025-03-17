@@ -69,6 +69,7 @@ typedef union ddtrace_span_properties {
             struct ddtrace_span_stack *stack;
             zval property_stack;
         };
+        zval property_on_close;
     };
 } ddtrace_span_properties;
 
@@ -155,6 +156,7 @@ struct ddtrace_span_stack {
                 zval property_active;
                 ddtrace_span_properties *active;
             };
+            zval property_span_creation_observers;
         };
     };
     struct ddtrace_root_span_data *root_span;
@@ -222,6 +224,8 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
 ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_result *result, ddtrace_root_span_data *root);
+void ddtrace_observe_opened_span(ddtrace_span_data *span);
+
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
@@ -233,6 +237,7 @@ static inline ddtrace_span_properties *ddtrace_active_span_props(void) {
     return span ? &span->props : NULL;
 }
 
+ddtrace_span_data *ddtrace_alloc_execute_data_span_ex(zend_ulong invocation, zend_execute_data *execute_data, bool *new_span);
 ddtrace_span_data *ddtrace_alloc_execute_data_span(zend_ulong invocation, zend_execute_data *execute_data);
 void ddtrace_clear_execute_data_span(zend_ulong invocation, bool keep);
 

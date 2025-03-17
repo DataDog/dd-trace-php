@@ -1501,7 +1501,7 @@ jobs:
           name: Generate HTML coverage
           command: |
             mkdir -p appsec/coverage ; cd appsec
-            gcovr --html-details coverage/coverage.html -f ".*src/.*" -d
+            gcovr --gcov-ignore-parse-errors --html-details coverage/coverage.html -f ".*src/.*" -d
             tar -cvzf appsec-extension-coverage.tar.gz coverage/
       - store_artifacts:
           path: appsec/appsec-coverage.tar.gz
