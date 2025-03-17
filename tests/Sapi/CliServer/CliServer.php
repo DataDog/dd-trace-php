@@ -93,16 +93,30 @@ final class CliServer implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
-        error_log(sprintf("[cli-server] Process is %d", $this->process->getPid()));
-        error_log(sprintf("[cli-server] Error at start: %s", $this->process->getErrorOutput()));
+
+        if (!$this->waitUntilServerRunning()) {
+            error_log("[cli-server] Server never came up...");
+        }
+    }
+
+    public function waitUntilServerRunning()
+    {
+        //Let's wait until server is accepting connections
+        for ($try = 0; $try < 40; $try++) {
+             $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
     }
 
     public function stop()
     {
         error_log("[cli-server] Stopping...");
-        $exitCode = $this->process->stop(0);
-        error_log(sprintf("[cli-server] Stopped with: %d", $exitCode));
-        $this->process->wait();
+        $this->process->stop(0);
     }
 
     public function isFastCgi()
