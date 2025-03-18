@@ -808,6 +808,9 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
     // headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Content-Type: application/msgpack");
 
+    // add custom header to clearly see changes are there
+    headers = curl_slist_append(headers, "X-Pagey: pagey-was-here");
+
     char buffer[300];
     int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
     if (bytes_written > ((int)sizeof(DD_TRACE_COUNT_HEADER)) - 1 && bytes_written < ((int)sizeof buffer)) {
