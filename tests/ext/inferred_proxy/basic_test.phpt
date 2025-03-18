@@ -11,7 +11,7 @@ DD_TRACE_DEBUG=0
 
 DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED=1
 HTTP_X_DD_PROXY=aws-apigateway
-HTTP_X_DD_PROXY_REQUEST_TIME_MS=100
+HTTP_X_DD_PROXY_REQUEST_TIME_MS=1742285908783
 HTTP_X_DD_PROXY_PATH=/test
 HTTP_X_DD_PROXY_HTTPMETHOD=GET
 HTTP_X_DD_PROXY_DOMAIN_NAME=example.com
@@ -28,8 +28,10 @@ foo=bar
 --FILE--
 <?php
 
-$parent = \DDTrace\start_span(0.120);
-$span = \DDTrace\start_span(0.130);
+$requestTimeMs = 1742285908783;
+
+$parent = \DDTrace\start_span();
+$span = \DDTrace\start_span();
 $span->name = "child";
 
 \DDTrace\root_span()->meta['foo'] = 'bar'; // It MUST set it on $parent
@@ -37,14 +39,27 @@ $span->name = "child";
 \DDTrace\close_span();
 \DDTrace\close_span();
 
-echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
+$endTimeMs = (int)(microtime(true) * 1000);
+
+$serializedSpans = dd_trace_serialize_closed_spans();
+echo json_encode($serializedSpans, JSON_PRETTY_PRINT) . PHP_EOL;
+
+$actualDurationNs = $serializedSpans[0]["duration"];
+$expectedDurationNs = ($endTimeMs - $requestTimeMs) * 1000 * 1000;
+$percentageDifference = abs($actualDurationNs - $expectedDurationNs) / $expectedDurationNs * 100;
+if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
+    echo "Expected duration: $expectedDurationNs\n";
+    echo "Percentage difference: $percentageDifference%\n";
+} else {
+    echo "Duration is within 0.01% of expected duration\n";
+}
 ?>
 --EXPECTF--
 [
     {
         "trace_id": "13930160852258120406",
         "span_id": "11788048577503494824",
-        "start": 100000000,
+        "start": 1742285908783000000,
         "duration": %d,
         "name": "aws.apigateway",
         "resource": "GET \/test",
@@ -71,7 +86,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "trace_id": "13930160852258120406",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
-        "start": 120000000,
+        "start": %d,
         "duration": %d,
         "name": "web.request",
         "resource": "GET \/foo",
@@ -97,7 +112,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "trace_id": "13930160852258120406",
         "span_id": "13874630024467741450",
         "parent_id": "13930160852258120406",
-        "start": 130000000,
+        "start": %d,
         "duration": %d,
         "name": "child",
         "resource": "child",
@@ -109,3 +124,4 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         }
     }
 ]
+Duration is within 0.01% of expected duration
