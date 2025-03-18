@@ -533,7 +533,7 @@ class LaravelIntegration extends Integration
                         return;
                      }
                      $response = $hook->returned;
-                     $response->setContent('&nbsp;');
+                     $response->setContent("&nbsp;");
                      $hook->overrideReturnValue($response);
                 }
              }
