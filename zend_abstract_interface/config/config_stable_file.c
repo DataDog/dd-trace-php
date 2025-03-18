@@ -12,25 +12,10 @@ bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf) {
         return false;
     }
 
-    char *value = zend_hash_str_find_ptr(config_values, name.ptr, name.len);
+    zval *value = zend_hash_str_find(config_values, name.ptr, name.len);
     if (value) {
-        strcpy(buf.ptr, value);
+        strcpy(buf.ptr, Z_STRVAL_P(value));
         return true;
-    }
-
-    return false;
-}
-
-static bool zai_config_stable_file_find_entry(zai_str config_name, zai_config_id *id) {
-    for (zai_config_id i = 0; i < zai_config_memoized_entries_count; ++i) {
-        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        for (uint8_t n = 0; n < memoized->names_count; ++n) {
-            zai_str name = ZAI_STR_NEW(memoized->names[n].ptr, memoized->names[n].len);
-            if (strcmp(name.ptr, config_name.ptr) == 0) {
-                *id = i;
-                return true;
-            }
-        }
     }
 
     return false;
@@ -42,27 +27,18 @@ static void zai_config_stable_file_apply_config(int stage) {
     }
 
     zend_string *key;
-    void *value;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(config_values, key, value) {
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(config_values, key, value) {
         zai_config_id config_id;
         zai_str config_name = {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)};
-
-        if (!zai_config_stable_file_find_entry(config_name, &config_id)) {
+        if (!zai_config_get_id_by_name(config_name, &config_id)) {
             continue;
         }
 
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[config_id];
         zend_ini_entry *entry = memoized->ini_entries[0];
-
-        zend_string *value_str = zend_string_init(value, strlen(value), false);
-        zend_alter_ini_entry_ex(entry->name, value_str, PHP_INI_USER, stage, 0);
-        zend_string_release(value_str);
+        zend_alter_ini_entry_ex(entry->name, Z_STR_P(value), PHP_INI_USER, stage, 0);
     } ZEND_HASH_FOREACH_END();
-}
-
-static void config_value_dtor(zval *zv) {
-    void *ptr = Z_PTR_P(zv);
-    pefree(ptr, 1);
 }
 
 void zai_config_stable_file_minit(void) {
@@ -102,18 +78,17 @@ void zai_config_stable_file_minit(void) {
     ddog_Result_VecLibraryConfig config_result = ddog_library_configurator_get(configurator);
     if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG) {
         config_values = pemalloc(sizeof(HashTable), 1);
-        zend_hash_init(config_values, 8, NULL, config_value_dtor, 1);
+        zend_hash_init(config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
 
         ddog_Vec_LibraryConfig configs = config_result.ok;
         for (uintptr_t i = 0; i < configs.len; i++) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
             ddog_CStr env_name = ddog_library_config_name_to_env(cfg->name);
 
-            char *value = pestrndup(cfg->value.ptr, cfg->value.length, 1);
-            if (!value) {
-                continue;
-            }
-            zend_hash_str_add_ptr(config_values, env_name.ptr, env_name.length + 1, value);  // FIXME: +1 -> https://github.com/DataDog/libdatadog/pull/924
+            zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
+            zval zv;
+            ZVAL_STR(&zv, value);
+            zend_hash_str_add(config_values, env_name.ptr, env_name.length + 1, &zv);
         }
         ddog_library_config_drop(configs);
     } else {

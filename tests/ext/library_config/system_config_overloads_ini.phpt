@@ -1,12 +1,13 @@
 --TEST--
-Check that the library config files overloads env vars for system config
+Check that the library config files overloads ini settings for system config
 --SKIPIF--
 <?php
-copy(__DIR__.'/default_config.yaml', '/tmp/test_c_system_config_overloads_env.yaml');
+copy(__DIR__.'/default_config.yaml', '/tmp/test_c_system_config_overloads_ini.yaml');
 ?>
+--INI--
+datadog.dynamic_instrumentation.enabled=true
 --ENV--
-DD_DYNAMIC_INSTRUMENTATION_ENABLED=false
-_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_system_config_overloads_env.yaml
+_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_system_config_overloads_ini.yaml
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 --FILE--
 <?php
