@@ -220,7 +220,8 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
         zend_hash_str_add_new(meta, ZEND_STRL("stage"), &zv);
     }
 
-    add_assoc_long(&span->property_meta, "_dd.inferred_span", 1);
+    ZVAL_LONG(&zv, 1);
+    zend_hash_str_add_new(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.inferred_span"), &zv);
     add_assoc_string(&span->property_meta, "component", (char *)proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
 

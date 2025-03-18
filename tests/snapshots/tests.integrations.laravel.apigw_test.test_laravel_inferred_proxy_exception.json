@@ -9,7 +9,6 @@
     "type": "web",
     "error": 1,
     "meta": {
-      "_dd.inferred_span": "1",
       "_dd.p.dm": "-0",
       "_dd.p.tid": "67cb010b00000000",
       "component": "aws-apigateway",
@@ -24,6 +23,7 @@
       "version": "1.0"
     },
     "metrics": {
+      "_dd.inferred_span": 1,
       "_sampling_priority_v1": 1.0
     }
   },

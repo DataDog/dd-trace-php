@@ -8,7 +8,6 @@
     "parent_id": 6504583466759277028,
     "type": "web",
     "meta": {
-      "_dd.inferred_span": "1",
       "_dd.p.dm": "0",
       "_dd.p.tid": "67cb029a00000000",
       "component": "aws-apigateway",
@@ -22,6 +21,7 @@
       "version": "1.0"
     },
     "metrics": {
+      "_dd.inferred_span": 1,
       "_sampling_priority_v1": 1
     }
   },

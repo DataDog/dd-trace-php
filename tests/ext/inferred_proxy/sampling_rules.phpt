@@ -48,12 +48,12 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.method": "GET",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
-            "_dd.inferred_span": "1",
             "component": "aws-apigateway",
             "http.status_code": "200",
             "_dd.p.tid": "%s"
         },
         "metrics": {
+            "_dd.inferred_span": 1,
             "_sampling_priority_v1": -1,
             "_dd.rule_psr": 0.3
         }
