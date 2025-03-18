@@ -6,6 +6,6 @@ class LaravelIntegrationException extends \Exception
 {
     public function render($request)
     {
-        return '&nbsp;';
+        return "&nbsp;";
     }
 }
