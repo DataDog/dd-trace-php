@@ -179,7 +179,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
 }
 
 bool zai_config_is_initialized(void);
-ZEND_INI_MH(ZaiConfigOnUpdateIni) {
+static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     // ensure validity at any stage
     zai_config_id id;
     zai_str name = ZAI_STR_FROM_ZSTR(entry->name);
