@@ -1293,7 +1293,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                 if (Z_TYPE(parent->property_exception) == IS_OBJECT && Z_OBJ(parent->property_exception) == Z_OBJ(span->property_exception)) {
                     zval *zv;
                     if ((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta), ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
-                        add_assoc_string(el, "track_error", "false");
+                        add_assoc_string(meta, "track_error", "false");
                         break;
                     }
                 } else {
@@ -1803,7 +1803,7 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.type"), false);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.stack"), false);
         transfer_data(Z_ARR_P(el), Z_ARR_P(serialized_inferred_span), ZEND_STRL("error"), false);
-        transfer_data(Z_ARR_P(el), Z_ARR_P(serialized_inferred_span), ZEND_STRL("track_error"), false);
+        transfer_data(serialized_meta, Z_ARR_P(serialized_inferred_span), ZEND_STRL("track_error"), false);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.dm"), true);
         transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.tid"), true);
     }
