@@ -396,7 +396,7 @@ impl TimeCollector {
 
         let mut locations = Vec::with_capacity(message.value.frames.len());
 
-        let values = message.value.sample_values;
+        let values = &message.value.sample_values;
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
         for frame in &message.value.frames {

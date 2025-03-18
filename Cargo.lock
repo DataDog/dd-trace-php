@@ -1297,8 +1297,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "15.1.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
+version = "16.0.3"
+source = "git+https://github.com/DataDog/libdatadog?rev=06620d58275c7f1da779054ab35a605176f05b0b#06620d58275c7f1da779054ab35a605176f05b0b"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1462,7 +1462,7 @@ dependencies = [
  "datadog-alloc",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 15.1.0",
+ "ddcommon 16.0.3",
  "env_logger 0.11.6",
  "indexmap 2.7.1",
  "lazy_static",
@@ -1480,8 +1480,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "15.1.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
+version = "16.0.3"
+source = "git+https://github.com/DataDog/libdatadog?rev=06620d58275c7f1da779054ab35a605176f05b0b#06620d58275c7f1da779054ab35a605176f05b0b"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1489,7 +1489,7 @@ dependencies = [
  "bytes",
  "chrono",
  "datadog-alloc",
- "ddcommon 15.1.0",
+ "ddcommon 16.0.3",
  "derivative",
  "futures",
  "futures-core",
@@ -1505,10 +1505,11 @@ dependencies = [
  "mime",
  "mime_guess",
  "percent-encoding",
- "prost 0.12.6",
+ "prost 0.13.5",
  "rustc-hash",
  "serde",
  "serde_json",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-util",
 ]
@@ -1714,8 +1715,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "15.1.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v15.1.0#58f6c7f6acf8bfa8f7fa0314d9c0978af6cef84f"
+version = "16.0.3"
+source = "git+https://github.com/DataDog/libdatadog?rev=06620d58275c7f1da779054ab35a605176f05b0b#06620d58275c7f1da779054ab35a605176f05b0b"
 dependencies = [
  "anyhow",
  "cc",
@@ -1727,11 +1728,14 @@ dependencies = [
  "hyper 0.14.32",
  "hyper-rustls 0.27.5",
  "hyper-util",
- "lazy_static",
  "libc 0.2.169",
  "log",
+ "memfd",
  "pin-project",
+ "rand 0.8.5",
  "regex",
+ "rmp",
+ "rmp-serde",
  "rustls 0.23.21",
  "rustls-native-certs 0.7.3",
  "serde",
@@ -3992,12 +3996,12 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.6"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
+checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
 dependencies = [
  "bytes",
- "prost-derive 0.12.6",
+ "prost-derive 0.13.5",
 ]
 
 [[package]]
@@ -4037,12 +4041,12 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.12.6"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
+checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.12.1",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.96",
