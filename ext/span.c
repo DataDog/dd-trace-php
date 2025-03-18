@@ -199,6 +199,8 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
     if (result->domain) {
         ZVAL_STR_COPY(&zv, result->domain);
         ddtrace_assign_variable(&span->property_service, &zv);
+    } else {
+        ZVAL_COPY(&span->property_service, &root->property_service); // Fall back to root service name
     }
 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
