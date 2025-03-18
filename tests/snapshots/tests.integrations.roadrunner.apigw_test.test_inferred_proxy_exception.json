@@ -7,6 +7,7 @@
     "span_id": 1,
     "parent_id": 3978455880403641907,
     "type": "web",
+    "error": 1,
     "meta": {
       "_dd.p.dm": "0",
       "_dd.p.tid": "67cb015300000000",
