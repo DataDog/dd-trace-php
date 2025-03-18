@@ -242,6 +242,8 @@ namespace DDTrace {
         public function hexId(): string {}
     }
 
+    class InferredSpanData extends SpanData {}
+
     class RootSpanData extends SpanData {
         /**
          * @var string The origin site of the trace. Propagated through distributed tracing by default.
@@ -293,6 +295,8 @@ namespace DDTrace {
          * @var GitMetadata|null The git metadata of the span
          */
         public GitMetadata|null $gitMetadata = null;
+
+        public InferredSpanData|null $inferredSpan = null;
     }
 
     /**
