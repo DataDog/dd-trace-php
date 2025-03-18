@@ -10,9 +10,6 @@ class RaspEventsTestSuite extends AppsecTestCase
 {
     public function testWhenRequestIsBlockedLaravelPageIsNotDisplayed()
     {
-        $this->call(GetSpec::create('Dummy call', "/"));
-
-
         $eventToBlock = [
             "rasp_rule" => "lfi",
             0 => [
