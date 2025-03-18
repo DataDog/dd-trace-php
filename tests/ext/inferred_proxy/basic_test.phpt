@@ -42,7 +42,7 @@ $span->name = "child";
 $endTimeMs = (int)(microtime(true) * 1000);
 
 $serializedSpans = dd_trace_serialize_closed_spans();
-echo json_encode($serializedSpans, JSON_PRETTY_PRINT) . PHP_EOL;
+echo json_encode($serializedSpans, JSON_PRETTY_PRINT);
 
 $actualDurationNs = $serializedSpans[0]["duration"];
 $expectedDurationNs = ($endTimeMs - $requestTimeMs) * 1000 * 1000;
@@ -123,5 +123,4 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "version": "1.0"
         }
     }
-]
-Duration is within 0.01% of expected duration
+]Duration is within 0.01% of expected duration
