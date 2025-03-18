@@ -46,12 +46,12 @@ void zai_config_stable_file_minit(void) {
 
     char *file = getenv("_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE");
     if (file) {
-        ddog_CStr path = {.ptr = file, .length = strlen(file)+1}; // FIXME: +1 -> https://github.com/DataDog/libdatadog/pull/924
+        ddog_CStr path = {.ptr = file, .length = strlen(file)};
         ddog_library_configurator_with_local_path(configurator, path);
     }
     file = getenv("_DD_TEST_LIBRARY_CONFIG_FLEET_FILE");
     if (file) {
-        ddog_CStr path = {.ptr = file, .length = strlen(file)+1}; // FIXME: +1 -> https://github.com/DataDog/libdatadog/pull/924
+        ddog_CStr path = {.ptr = file, .length = strlen(file)};
         ddog_library_configurator_with_fleet_path(configurator, path);
     }
 
@@ -88,7 +88,7 @@ void zai_config_stable_file_minit(void) {
             zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
             zval zv;
             ZVAL_STR(&zv, value);
-            zend_hash_str_add(config_values, env_name.ptr, env_name.length + 1, &zv);
+            zend_hash_str_add(config_values, env_name.ptr, env_name.length, &zv);
         }
         ddog_library_config_drop(configs);
     } else {
