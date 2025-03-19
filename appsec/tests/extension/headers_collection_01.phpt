@@ -2,8 +2,6 @@
 Only basic headers are collected if no attacks or user events
 --INI--
 extension=ddtrace.so
-datadog.appsec.log_file=/tmp/php_appsec_test.log
-datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7
@@ -41,12 +39,7 @@ HTTP_AKAMAI_USER_RISK=akamaiuserisk
 key=val
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,rshutdown,mlog};
-use const datadog\appsec\testing\log_level\DEBUG;
-include __DIR__ . '/inc/ddtrace_version.php';
-
-ddtrace_version_at_least('0.79.0');
-
+use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([

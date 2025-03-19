@@ -19,7 +19,7 @@ class Tag
     const MANUAL_DROP = 'manual.drop';
     const PID = 'process_id';
     const RESOURCE_NAME = 'resource.name';
-    const DB_STATEMENT = 'sql.query';
+    const DB_STATEMENT = self::DB_STMT;
     const ERROR = 'error';
     const ERROR_MSG = 'error.message'; // string representing the error message
     const ERROR_TYPE = 'error.type'; // string representing the type of the error
@@ -57,7 +57,7 @@ class Tag
     const DB_TYPE = 'db.type';
     const DB_SYSTEM = 'db.system';
     const DB_ROW_COUNT = 'db.row_count';
-    const DB_STMT = 'db.statement';
+    const DB_STMT = 'sql.query';
     const DB_USER = 'db.user';
 
     // Kafka

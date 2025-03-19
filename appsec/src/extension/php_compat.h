@@ -6,6 +6,7 @@
 #pragma once
 
 #include <php.h>
+#include <stdbool.h>
 
 // target the definitions of PHP 7.4
 
@@ -126,6 +127,13 @@ static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc)
 #    define DD_FOREACH_FROM(_ht, indirect, _from, index)                       \
         ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                           \
         index = _p->h;
+
+static zend_always_inline bool zend_string_starts_with_cstr(
+    const zend_string *str, const char *prefix, size_t prefix_length)
+{
+    return ZSTR_LEN(str) >= prefix_length &&
+           !memcmp(ZSTR_VAL(str), prefix, prefix_length);
+}
 #else
 #    define DD_FOREACH_FROM(_ht, indirect, _from, index)                       \
         ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                           \

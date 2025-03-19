@@ -166,8 +166,8 @@ bool client::handle_command(const network::client_init::request &command)
     client_enabled_conf = command.enabled_configuration;
 
     try {
-        service_ =
-            service_manager_->create_service(eng_settings, command.rc_settings);
+        set_service(service_manager_->create_service(
+            eng_settings, command.rc_settings));
 
         // save engine settings so we can recreate the service if rc path
         // changes
@@ -437,8 +437,9 @@ bool client::handle_command(network::request_shutdown::request &command)
     // Free the context at the end of request shutdown
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
-    auto sampler = service_->get_schema_sampler();
-    if (sampler && sampler->picked()) {
+    std::uint64_t const sample_key = command.api_sec_samp_key;
+    if (sample_key != 0 && service_->schema_extraction_enabled() &&
+        (!sample_acc_ || sample_acc_->hit(sample_key))) {
         parameter context_processor = parameter::map();
         context_processor.add("extract-schema", parameter::as_boolean(true));
         command.data.add("waf.context.processor", std::move(context_processor));
@@ -473,7 +474,8 @@ void client::update_remote_config_path(std::string_view path)
         rc_settings.shmem_path = path;
     }
 
-    service_ = service_manager_->create_service(*engine_settings_, rc_settings);
+    set_service(
+        service_manager_->create_service(*engine_settings_, rc_settings));
 }
 
 bool client::run_client_init()

@@ -105,20 +105,9 @@ tracer-base-image:
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
 
-onboarding_tests_installer:
-  parallel:
-    matrix:
-      - ONBOARDING_FILTER_WEBLOG: [test-app-php,test-app-php-container-83]
-        SCENARIO: SIMPLE_INSTALLER_AUTO_INJECTION
-
-onboarding_tests_k8s_injection:
-  rules:
-    - when: never
-  parallel:
-    matrix:
-      - WEBLOG_VARIANT:
-          - dd-lib-php-init-test-83
-          - dd-lib-php-init-test-alpine
+configure_system_tests:
+  variables:
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding"
 
 requirements_json_test:
   rules:

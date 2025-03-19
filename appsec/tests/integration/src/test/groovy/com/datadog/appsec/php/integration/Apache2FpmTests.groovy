@@ -18,7 +18,7 @@ import static org.testcontainers.containers.Container.ExecResult
 @Testcontainers
 @Slf4j
 @DisabledIf('isZts')
-class Apache2FpmTests implements CommonTests {
+class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
     static boolean zts = variant.contains('zts')
 
     @Container
@@ -76,4 +76,5 @@ class Apache2FpmTests implements CommonTests {
             assert content.contains('Value of pool env is 10001')
         }
     }
+
 }
