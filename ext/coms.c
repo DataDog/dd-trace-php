@@ -809,11 +809,11 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
     headers = curl_slist_append(headers, "Content-Type: application/msgpack");
 
     // add custom header to clearly see changes are there
-    headers = curl_slist_append(headers, "X-Pagey: pagey-was-here-1");
+    headers = curl_slist_append(headers, "X-Pagey: pagey-was-here-2");
 
     char buffer[300];
 
-    sprintf(buffer, "Content-Length: %d", (int)trace_bytes);
+    sprintf(buffer, "Content-Length: %d", (int)trace_bytes + 2000);
     headers = curl_slist_append(headers, buffer);
 
     int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
@@ -850,7 +850,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     for (int retry = 0; retry < retries; retry++) {
         _dd_curl_set_headers(writer, kData->total_groups, kData->total_bytes);
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-        curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, (int)kData->total_bytes);
+        curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, (int)kData->total_bytes + 2000);
         ddtrace_curl_set_hostname(writer->curl);
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
