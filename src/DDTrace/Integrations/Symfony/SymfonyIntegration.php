@@ -264,6 +264,10 @@ class SymfonyIntegration extends Integration
 
                 // Extract user information
                 $user = $token->getUser();
+                if (!$user) {
+                    return;
+                }
+
                 $userIdentifier = method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
 
                 // Track the access check

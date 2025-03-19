@@ -9,7 +9,7 @@ DD_APPSEC_ENABLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-
+use function datadog\appsec\testing\root_span_get_meta;
 use function datadog\appsec\track_authenticated_user_event;
 
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -21,8 +21,8 @@ track_authenticated_user_event(
     []
 );
 
-require __DIR__ . '/inc/logging.php';
-match_log("/No root span available on request init/");
+echo "root_span_get_meta():\n";
+print_r(root_span_get_meta());
 ?>
 --EXPECTF--
-found message in log matching /No root span available on request init/
+root_span_get_meta():

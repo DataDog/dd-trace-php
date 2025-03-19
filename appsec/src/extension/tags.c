@@ -977,8 +977,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_signup_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_user_signup_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
@@ -989,13 +990,13 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_login, user_id, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_login, user_id, metadata)");
         return;
     }
 
     if (ZSTR_LEN(user_login) == 0) {
-        mlog(dd_log_warning, "Unexpected empty user login");
+        mlog(dd_log_debug, "Unexpected empty user login");
         return;
     }
 
@@ -1124,8 +1125,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_login_success_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_user_login_success_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
@@ -1136,13 +1138,13 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_login, user_id, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_login, user_id, metadata)");
         return;
     }
 
     if (ZSTR_LEN(user_login) == 0) {
-        mlog(dd_log_warning, "Unexpected empty user login");
+        mlog(dd_log_debug, "Unexpected empty user login");
         return;
     }
 
@@ -1276,8 +1278,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_login_failure_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_user_login_failure_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
@@ -1289,8 +1292,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSb|h", &user_login, &user_id,
             &exists, &metadata) == FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_login, user_id, exists, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_login, user_id, exists, metadata)");
         return;
     }
 
@@ -1437,31 +1440,24 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_login_failure_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_authenticated_user_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
     zend_string *user_id;
     zend_string *anon_user_id = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &user_id) == FAILURE) {
-        mlog(dd_log_warning,
-            "Unexpected parameter combination, expected user_id");
+        mlog(
+            dd_log_debug, "Unexpected parameter combination, expected user_id");
         return;
     }
 
     if (ZSTR_LEN(user_id) == 0) {
-        mlog(dd_log_warning, "Unexpected empty user id");
+        mlog(dd_log_debug, "Unexpected empty user id");
         return;
     }
-
-    zval *nullable meta = _root_span_get_meta();
-    if (!meta) {
-        return;
-    }
-
-    _user_event_triggered = true;
-    zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     user_collection_mode mode = dd_get_user_collection_mode();
     if (mode == user_mode_disabled ||
@@ -1476,6 +1472,19 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
             return;
         }
     }
+
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        if (anon_user_id) {
+            zend_string_release(anon_user_id);
+        }
+        return;
+    }
+
+    _user_event_triggered = true;
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
+
+    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id,
@@ -1497,7 +1506,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_login_failure_event "
+        mlog(dd_log_debug, "Trying to access to track_authenticated_user_event "
                            "function while appsec is disabled");
         return;
     }
@@ -1506,8 +1515,8 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|h", &user_id, &metadata) ==
         FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_id, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_id, metadata)");
         return;
     }
 
@@ -1523,6 +1532,8 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
 
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
+
+    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);

@@ -6,12 +6,14 @@
  * @package WordPress
  */
 
+# Appsec mock. This wont be needed on customer apps since this functions will be exposed by appsec.
+require __DIR__.'/../../../Appsec/Mock.php';
+
 /**
  * Tells WordPress to load the WordPress theme and output it.
  *
  * @var bool
  */
-require __DIR__.'/../../../Appsec/Mock.php';
 define( 'WP_USE_THEMES', true );
 
 /** Loads the WordPress Environment and Template */

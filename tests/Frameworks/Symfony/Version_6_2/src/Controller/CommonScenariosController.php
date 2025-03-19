@@ -15,7 +15,9 @@ class CommonScenariosController extends AbstractController
     public function simpleAction(Request $request)
     {
         // replace this example code with whatever you need
-        return new Response('Hi!');
+        return new Response(
+            'Hi!'
+        );
     }
 
     /**
@@ -34,7 +36,9 @@ class CommonScenariosController extends AbstractController
      */
     public function dynamicWithOptionalsAction($param01, $param02)
     {
-        return new Response('Hi!');
+        return new Response(
+            'Hi!'
+        );
     }
 
     /**

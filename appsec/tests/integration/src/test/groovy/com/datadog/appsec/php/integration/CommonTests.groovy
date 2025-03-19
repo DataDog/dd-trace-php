@@ -141,7 +141,7 @@ trait CommonTests {
 
     @Test
     void 'authenticated user event automated'() {
-        def trace = container.traceFromRequest('/behind_auth.php') { HttpResponse<InputStream> resp ->
+        def trace = container.traceFromRequest('/behind_auth.php?id=userID') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
 
