@@ -7,7 +7,6 @@
 #include "../exception.hpp"
 #include "../product.hpp"
 #include "config_aggregators/asm_aggregator.hpp"
-#include "config_aggregators/asm_dd_aggregator.hpp"
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 #include <spdlog/spdlog.h>
@@ -17,13 +16,13 @@ namespace dds::remote_config {
 
 engine_listener::engine_listener(std::shared_ptr<engine> engine,
     std::shared_ptr<dds::metrics::telemetry_submitter> msubmitter,
-    const std::string & /*ules_file*/)
+    const std::string & /*rules_file*/)
     : engine_{std::move(engine)}, msubmitter_{std::move(msubmitter)}
 {
     aggregators_.emplace(
         known_products::ASM, std::make_unique<asm_aggregator>());
     aggregators_.emplace(
-        known_products::ASM_DD, std::make_unique<asm_dd_aggregator>());
+        known_products::ASM_DD, std::make_unique<asm_aggregator>());
     aggregators_.emplace(
         known_products::ASM_DATA, std::make_unique<asm_aggregator>());
 }
@@ -36,10 +35,11 @@ void engine_listener::init()
 
 void engine_listener::on_update(const config &config)
 {
-    auto it = aggregators_.find(config.get_product());
+    auto product = config.config_key().product();
+    auto it = aggregators_.find(product);
     if (it == aggregators_.end()) {
         throw error_applying_config(
-            "unknown product: " + std::string{config.get_product().name()});
+            "unknown product: " + std::string{product.name()});
     }
 
     auto &aggregator = it->second;
@@ -53,10 +53,11 @@ void engine_listener::on_update(const config &config)
 
 void engine_listener::on_unapply(const config &config)
 {
-    auto it = aggregators_.find(config.get_product());
+    auto product = config.config_key().product();
+    auto it = aggregators_.find(product);
     if (it == aggregators_.end()) {
         throw error_applying_config(
-            "unknown product: " + std::string{config.get_product().name()});
+            "unknown product: " + std::string{product.name()});
     }
 
     auto &aggregator = it->second;

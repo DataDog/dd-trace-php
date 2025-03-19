@@ -34,14 +34,7 @@ struct asm_add {
     std::string_view path;
     std::string_view data;
 };
-struct asm_dd_add {
-    std::string_view path;
-    std::string_view data;
-};
 struct asm_remove {
-    std::string_view path;
-};
-struct asm_dd_remove {
     std::string_view path;
 };
 
@@ -54,10 +47,6 @@ template <typename... Args> rapidjson::Document create_cs(Args... actions)
         rapidjson::Value{rapidjson::kObjectType}, allocator);
     doc.AddMember(rapidjson::StringRef("asm_removed"),
         rapidjson::Value(rapidjson::kArrayType), allocator);
-    doc.AddMember(rapidjson::StringRef("asm_dd_added"),
-        rapidjson::Value{rapidjson::kObjectType}, allocator);
-    doc.AddMember(rapidjson::StringRef("asm_dd_removed"),
-        rapidjson::Value(rapidjson::kStringType), allocator);
 
     (
         [&](auto &&act) {
@@ -70,23 +59,12 @@ template <typename... Args> rapidjson::Document create_cs(Args... actions)
                         static_cast<rapidjson::SizeType>(act.path.size()),
                         allocator},
                     std::move(new_doc), allocator);
-            } else if constexpr (std::is_same_v<act_type, asm_dd_add>) {
-                rapidjson::Document new_doc{rapidjson::kObjectType, &allocator};
-                new_doc.Parse(&act.data[0], act.data.size());
-                doc["asm_dd_added"].AddMember(
-                    rapidjson::Value{&act.path[0],
-                        static_cast<rapidjson::SizeType>(act.path.size()),
-                        allocator},
-                    std::move(new_doc), allocator);
             } else if constexpr (std::is_same_v<act_type, asm_remove>) {
                 doc["asm_removed"].PushBack(
                     rapidjson::Value{&act.path[0],
                         static_cast<rapidjson::SizeType>(act.path.size()),
                         allocator},
                     allocator);
-            } else if constexpr (std::is_same_v<act_type, asm_dd_remove>) {
-                doc["asm_dd_removed"].SetString(
-                    &act.path[0], act.path.size(), allocator);
             }
         }(actions),
         ...);

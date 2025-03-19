@@ -13,18 +13,18 @@
 #include "json_helper.hpp"
 #include "metrics.hpp"
 #include "parameter_view.hpp"
+#include "remote_config/changeset.hpp"
 #include "remote_config/listeners/config_aggregators/asm_aggregator.hpp"
-#include "remote_config/listeners/config_aggregators/asm_dd_aggregator.hpp"
 #include "std_logging.hpp"
 #include "subscriber/waf.hpp"
 
 namespace {
 using dds::remote_config::asm_aggregator;
-using dds::remote_config::asm_dd_aggregator;
+using dds::remote_config::changeset;
 
-dds::subscriber::changeset build_changeset(const rapidjson::Value &doc)
+changeset build_changeset(const rapidjson::Value &doc)
 {
-    dds::subscriber::changeset changeset;
+    changeset changeset;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     if (doc.HasMember(asm_aggregator::ASM_ADDED)) {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
@@ -40,28 +40,6 @@ dds::subscriber::changeset build_changeset(const rapidjson::Value &doc)
         const auto &removed = doc[asm_aggregator::ASM_REMOVED];
         for (const auto &entry : removed.GetArray()) {
             changeset.removed.emplace(entry.GetString());
-        }
-    }
-
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    if (doc.HasMember(asm_dd_aggregator::ASM_DD_ADDED)) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        const auto &added_asm_dd = doc[asm_dd_aggregator::ASM_DD_ADDED];
-        if (added_asm_dd.IsObject() && added_asm_dd.MemberCount() >= 1) {
-            // we should have only 1 ASM_DD
-            const auto entry = added_asm_dd.GetObject().begin();
-            changeset.added_asm_dd.emplace(
-                entry->name.GetString(), dds::json_to_parameter(entry->value));
-        }
-    }
-
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    if (doc.HasMember(asm_dd_aggregator::ASM_DD_REMOVED)) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        const auto &removed_asm_dd = doc[asm_dd_aggregator::ASM_DD_REMOVED];
-        if (removed_asm_dd.IsString() && removed_asm_dd.GetStringLength() > 0) {
-            changeset.removed_asm_dd.emplace(
-                removed_asm_dd.GetString(), removed_asm_dd.GetStringLength());
         }
     }
 
@@ -82,10 +60,12 @@ void engine::update(
     auto old_common =
         std::atomic_load_explicit(&common_, std::memory_order_acquire);
     new_subscribers.reserve(old_common->subscribers.size());
-    dds::subscriber::changeset const changeset = build_changeset(doc);
+    changeset const changeset = build_changeset(doc);
     for (auto &sub : old_common->subscribers) {
         try {
-            new_subscribers.emplace_back(sub->update(changeset, submit_metric));
+            std::unique_ptr<subscriber> new_sub =
+                sub->update(changeset, submit_metric);
+            new_subscribers.emplace_back(std::move(new_sub));
         } catch (const std::exception &e) {
             SPDLOG_WARN("Failed to update subscriber {}: {}", sub->get_name(),
                 e.what());

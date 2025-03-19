@@ -103,7 +103,7 @@ TEST(RemoteConfigEngineListener, RuleUpdate)
     listener.commit();
 
     {
-        auto *v = find(doc, {"asm_dd_added", "<first>", "rules"});
+        auto *v = find(doc, {"asm_added", "<first>", "rules"});
         ASSERT_NE(v, nullptr);
         ASSERT_TRUE(v->IsArray());
         EXPECT_GT(v->Size(), 0);

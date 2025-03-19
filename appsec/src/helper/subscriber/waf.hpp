@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../engine_settings.hpp"
 #include "../metrics.hpp"
 #include "../parameter.hpp"
 #include "base.hpp"
@@ -19,6 +20,15 @@
 namespace dds::waf {
 
 void initialise_logging(spdlog::level::level_enum level);
+
+class waf_builder;
+
+struct ddwaf_handle_deleter {
+    void operator()(ddwaf_handle h) const { ddwaf_destroy(h); }
+};
+
+using waf_handle_up =
+    std::unique_ptr<std::remove_pointer_t<ddwaf_handle>, ddwaf_handle_deleter>;
 
 class instance : public dds::subscriber {
 public:
@@ -86,7 +96,8 @@ public:
 
     std::unique_ptr<subscriber::listener> get_listener() override;
 
-    std::unique_ptr<subscriber> update(const changeset &changeset,
+    std::unique_ptr<subscriber> update(
+        const remote_config::changeset &changeset,
         metrics::telemetry_submitter &msubmitter) override;
 
     static std::unique_ptr<instance> from_settings(
@@ -101,25 +112,14 @@ public:
         std::string_view value_regex = std::string_view());
 
 protected:
-    struct ddwaf_handle_deleter {
-        void operator()(ddwaf_handle h) const { ddwaf_destroy(h); }
-    };
-
-    using waf_builder_sp =
-        std::shared_ptr<std::remove_pointer_t<ddwaf_builder>>;
-    using waf_handle_up = std::unique_ptr<std::remove_pointer_t<ddwaf_handle>,
-        ddwaf_handle_deleter>;
-
-    instance(waf_builder_sp builder, waf_handle_up handle,
-        std::shared_ptr<parameter> default_asm_dd,
+    instance(std::shared_ptr<waf_builder> builder, waf_handle_up handle,
         metrics::telemetry_submitter &msubmitter,
         std::chrono::microseconds timeout, std::string version);
 
     static constexpr std::string_view BUILTIN_RULES_KEY = "ASM_DD/builtin";
 
-    waf_builder_sp builder_;
+    std::shared_ptr<waf_builder> builder_;
     waf_handle_up handle_{nullptr};
-    std::shared_ptr<parameter> default_asm_dd_;
     std::chrono::microseconds waf_timeout_;
     std::string ruleset_version_;
     std::unordered_set<std::string> addresses_;

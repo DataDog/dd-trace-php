@@ -15,14 +15,14 @@
 #include <rapidjson/rapidjson.h>
 #include <subscriber/waf.hpp>
 
+using dds::remote_config::changeset;
+
 const std::string waf_rule =
     R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^string.*"}}]}]})";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
 using dds::remote_config::mock::asm_add;
-using dds::remote_config::mock::asm_dd_add;
-using dds::remote_config::mock::asm_dd_remove;
 using dds::remote_config::mock::asm_remove;
 
 namespace dds {
@@ -460,7 +460,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 
     std::string_view ruleset{
         R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})"};
-    auto changeset = create_cs(asm_add{"ASM/blocked_ips", ruleset});
+    auto changeset = create_cs(asm_add{"employee/ASM/0/blocked_ips", ruleset});
     e->update(std::move(changeset), mock_submitter);
 
     // Ensure after the update we still have the same number of subscribers
@@ -504,7 +504,7 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    auto changeset = create_cs(asm_dd_remove{"ASM_DD/builtin"});
+    auto changeset = create_cs(asm_remove{"employee/ASM_DD/0/builtin"});
     // All subscribers should be called regardless of failures
     e->update(changeset, msubmitter);
 
@@ -547,7 +547,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
         std::string_view rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-        auto cs = create_cs(asm_add{"ASM/blocked_ips", rule_data});
+        auto cs = create_cs(asm_add{"employee/ASM/0/blocked_ips", rule_data});
         e->update(cs, msubmitter);
 
         Mock::VerifyAndClear(&msubmitter);
@@ -577,7 +577,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
         std::string_view rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}]})");
-        auto cs = create_cs(asm_add{"ASM/blocked_ips", rule_data});
+        auto cs = create_cs(asm_add{"employee/ASM/0/blocked_ips", rule_data});
         e->update(cs, msubmitter);
 
         Mock::VerifyAndClearExpectations(&msubmitter);
@@ -622,7 +622,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
 
         std::string_view rule_data( // invalid
             R"({"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]})");
-        auto cs = create_cs(asm_add{"ASM/blocked_ips", rule_data});
+        auto cs = create_cs(asm_add{"employee/ASM/0/blocked_ips", rule_data});
         e->update(cs, submitter);
 
         Mock::VerifyAndClearExpectations(&submitter);
@@ -659,7 +659,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
     {
         std::string_view update(
             R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/some-url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })");
-        auto cs = create_cs(asm_dd_add{"ASM_DD/rules", update});
+        auto cs = create_cs(asm_add{"employee/ASM_DD/0/rules", update});
         e->update(cs, submitter);
     }
 
@@ -698,7 +698,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
         std::string_view update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "enabled": "false"}]})");
-        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
         e->update(cs, msubmitter);
     }
 
@@ -715,7 +715,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 
     {
         std::string_view update(R"({"rules_override": []})");
-        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
         e->update(cs, msubmitter);
     }
 
@@ -756,7 +756,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
              "on_match": ["redirect"]}], "actions": [{"id": "redirect",
              "type": "redirect_request", "parameters": {"status_code": "303",
              "location": "https://localhost"}}]})");
-        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
         e->update(cs, msubmitter);
     }
 
@@ -776,7 +776,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         std::string_view update(
             R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
              "on_match": ["redirect"]}], "actions": []})");
-        auto cs = create_cs(asm_add{"ASM/rules_override", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
         e->update(cs, msubmitter);
     }
 
@@ -816,7 +816,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
         std::string_view update(
             R"({"exclusions": [{"id": "1",
              "rules_target":[{"rule_id":"1"}]}]})");
-        auto cs = create_cs(asm_add{"ASM/exclusions", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/exclusions", update});
         e->update(cs, msubmitter);
     }
 
@@ -833,7 +833,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
     {
         std::string_view update(R"({"exclusions": []})");
-        auto cs = create_cs(asm_add{"ASM/exclusions", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/exclusions", update});
         e->update(cs, msubmitter);
     }
 
@@ -883,7 +883,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
             "type":"custom","category":"custom"},"conditions":[{"operator":
             "match_regex","parameters":{"inputs":[{"address":"arg3","key_path":
             []}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
-        auto cs = create_cs(asm_add{"ASM/custom_rules", update});
+        auto cs = create_cs(asm_add{"employee/ASM/0/custom_rules", update});
         e->update(cs, msubmitter);
     }
 
@@ -913,8 +913,8 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
     {
         std::string_view update(R"({"custom_rules": []})");
-        auto cs = create_cs(asm_remove{"ASM/custom_rules"},
-            asm_add{"ASM/custom_rules2", update});
+        auto cs = create_cs(asm_remove{"employee/ASM/0/custom_rules"},
+            asm_add{"employee/ASM/0/custom_rules2", update});
         e->update(cs, msubmitter);
     }
 

@@ -9,6 +9,7 @@
 #include "engine_settings.hpp"
 #include "json_helper.hpp"
 #include "metrics.hpp"
+#include "remote_config/config.hpp"
 #include "tel_subm_mock.hpp"
 #include <gtest/gtest.h>
 #include <rapidjson/document.h>
@@ -16,6 +17,9 @@
 #include <spdlog/sinks/base_sink.h>
 #include <subscriber/waf.hpp>
 #include <utils.hpp>
+
+using dds::remote_config::changeset;
+using dds::remote_config::parsed_config_key;
 
 const std::string waf_rule =
     R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
@@ -370,8 +374,9 @@ TEST(WafTest, UpdateRuleData)
 
     auto param = json_to_parameter(
         R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-    subscriber::changeset cs;
-    cs.added["ASM_DATA/blocked_ips"] = std::move(param);
+    changeset cs;
+    cs.added[parsed_config_key{"employee/ASM_DATA/0/blocked_ips"}] =
+        std::move(param);
     wi = wi->update(cs, submitm);
     ASSERT_TRUE(wi);
 
@@ -424,11 +429,8 @@ TEST(WafTest, UpdateInvalid)
         ctx->call(pv, e);
     }
 
-    auto param = json_to_parameter(R"({})");
-    subscriber::changeset cs{.added_asm_dd = {
-                                 {"ASM_DD/empty", std::move(param)},
-                             }};
-
+    changeset cs;
+    cs.added.emplace("employee/ASM_DD/0/empty"sv, parameter::map());
     EXPECT_CALL(submitm,
         submit_metric("waf.updates"sv, 1,
             metrics::telemetry_tags::from_string(

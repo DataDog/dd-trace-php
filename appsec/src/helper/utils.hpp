@@ -9,19 +9,14 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <type_traits>
 #include <utility>
 
 namespace dds {
 
-template <typename T, typename... Args>
-inline constexpr std::size_t hash(T &value, Args... args)
+template <typename... Args> inline constexpr std::size_t hash(Args... args)
 {
-    using non_const_t = typename std::remove_cv<T>::type;
-    if constexpr (sizeof...(Args) == 0) {
-        return std::hash<non_const_t>{}(value);
-    } else {
-        return std::hash<non_const_t>{}(value) ^ hash<Args...>(args...);
-    }
+    return (... ^ std::hash<std::remove_cv_t<Args>>{}(args));
 }
 
 template <typename T> struct defer {
