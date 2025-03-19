@@ -5,6 +5,34 @@
 #include "config.h"
 #include "config_stable_file.h"
 
+#ifdef _WIN32
+    #include <windows.h>
+    #define RESOLVE_SYMBOL(name) \
+        _##name = (void *)GetProcAddress(GetModuleHandle(NULL), #name); \
+        if (!_##name) { \
+            _ddog_library_configurator_new = NULL; \
+            return; \
+        }
+#else
+    #include <dlfcn.h>
+    #define RESOLVE_SYMBOL(name) \
+        _##name = (void *)dlsym(RTLD_DEFAULT, #name); \
+        if (!_##name) { \
+            _ddog_library_configurator_new = NULL; \
+            return; \
+        }
+#endif
+
+static struct ddog_Configurator *(*_ddog_library_configurator_new)(bool debug_logs, ddog_CharSlice language);
+static void (*_ddog_library_configurator_with_local_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
+static void (*_ddog_library_configurator_with_fleet_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
+static void (*_ddog_library_configurator_with_process_info)(struct ddog_Configurator *c, struct ddog_ProcessInfo p);
+static struct ddog_Result_VecLibraryConfig (*_ddog_library_configurator_get)(const struct ddog_Configurator *configurator);
+static struct ddog_CStr (*_ddog_library_config_name_to_env)(enum ddog_LibraryConfigName name);
+static void (*_ddog_library_config_drop)(struct ddog_Vec_LibraryConfig);
+static void (*_ddog_Error_drop)(struct ddog_Error *error);
+static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
+
 HashTable *config_values = NULL;
 
 bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf) {
@@ -42,17 +70,31 @@ static void zai_config_stable_file_apply_config(int stage) {
 }
 
 void zai_config_stable_file_minit(void) {
-    ddog_Configurator *configurator = ddog_library_configurator_new(false, DDOG_CHARSLICE_C("php"));
+    // Resolve symbols at runtime, as they are not part of the AppSec extension
+    // but are provided by ddtrace if it is loaded.
+    if (!_ddog_library_configurator_new) {
+        RESOLVE_SYMBOL(ddog_library_configurator_new);
+        RESOLVE_SYMBOL(ddog_library_configurator_with_local_path);
+        RESOLVE_SYMBOL(ddog_library_configurator_with_fleet_path);
+        RESOLVE_SYMBOL(ddog_library_configurator_with_process_info);
+        RESOLVE_SYMBOL(ddog_library_configurator_get);
+        RESOLVE_SYMBOL(ddog_library_config_name_to_env);
+        RESOLVE_SYMBOL(ddog_library_config_drop);
+        RESOLVE_SYMBOL(ddog_Error_drop);
+        RESOLVE_SYMBOL(ddog_library_configurator_drop);
+    }
+
+    ddog_Configurator *configurator = _ddog_library_configurator_new(false, DDOG_CHARSLICE_C("php"));
 
     char *file = getenv("_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE");
     if (file) {
         ddog_CStr path = {.ptr = file, .length = strlen(file)};
-        ddog_library_configurator_with_local_path(configurator, path);
+        _ddog_library_configurator_with_local_path(configurator, path);
     }
     file = getenv("_DD_TEST_LIBRARY_CONFIG_FLEET_FILE");
     if (file) {
         ddog_CStr path = {.ptr = file, .length = strlen(file)};
-        ddog_library_configurator_with_fleet_path(configurator, path);
+        _ddog_library_configurator_with_fleet_path(configurator, path);
     }
 
     // FIXME: without the call to ddog_library_configurator_with_process_info,
@@ -72,10 +114,10 @@ void zai_config_stable_file_minit(void) {
         .envp = DDOG_SLICE_CHARSLICE(envp),
         .language = DDOG_CHARSLICE_C("php")
     };
-    ddog_library_configurator_with_process_info(configurator, process_info);
+    _ddog_library_configurator_with_process_info(configurator, process_info);
     //
 
-    ddog_Result_VecLibraryConfig config_result = ddog_library_configurator_get(configurator);
+    ddog_Result_VecLibraryConfig config_result = _ddog_library_configurator_get(configurator);
     if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG) {
         config_values = pemalloc(sizeof(HashTable), 1);
         zend_hash_init(config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
@@ -83,20 +125,20 @@ void zai_config_stable_file_minit(void) {
         ddog_Vec_LibraryConfig configs = config_result.ok;
         for (uintptr_t i = 0; i < configs.len; i++) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
-            ddog_CStr env_name = ddog_library_config_name_to_env(cfg->name);
+            ddog_CStr env_name = _ddog_library_config_name_to_env(cfg->name);
 
             zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
             zval zv;
             ZVAL_STR(&zv, value);
             zend_hash_str_add(config_values, env_name.ptr, env_name.length, &zv);
         }
-        ddog_library_config_drop(configs);
+        _ddog_library_config_drop(configs);
     } else {
         ddog_Error err = config_result.err;
-        ddog_Error_drop(&err);
+        _ddog_Error_drop(&err);
     }
 
-    ddog_library_configurator_drop(configurator);
+    _ddog_library_configurator_drop(configurator);
 }
 
 void zai_config_stable_file_mshutdown(void) {
