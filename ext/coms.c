@@ -850,6 +850,7 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     for (int retry = 0; retry < retries; retry++) {
         _dd_curl_set_headers(writer, kData->total_groups, kData->total_bytes);
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
+        curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, (int)kData->total_bytes);
         ddtrace_curl_set_hostname(writer->curl);
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
