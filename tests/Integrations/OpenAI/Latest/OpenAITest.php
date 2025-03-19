@@ -9,6 +9,8 @@ use GuzzleHttp\Psr7\Stream;
 class OpenAITest extends IntegrationTestCase
 {
     private $errorLogSize = 0;
+    private $tempDir;
+    private $errorLogPath;
 
     public static function ddSetUpBeforeClass()
     {
@@ -17,7 +19,10 @@ class OpenAITest extends IntegrationTestCase
 
     private function checkErrors()
     {
-        $diff = file_get_contents(__DIR__ . "/openai.log", false, null, $this->errorLogSize);
+        if (!file_exists($this->errorLogPath)) {
+            return "";
+        }
+        $diff = file_get_contents($this->errorLogPath, false, null, $this->errorLogSize);
         $out = "";
         foreach (explode("\n", $diff) as $line) {
             if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)) {
@@ -29,9 +34,13 @@ class OpenAITest extends IntegrationTestCase
 
     protected function ddSetUp()
     {
+        $this->tempDir = sys_get_temp_dir() . '/ddtrace_openai_test_' . uniqid();
+        mkdir($this->tempDir, 0777, true);
+        $this->errorLogPath = $this->tempDir . "/openai.log";
+
         // Note: Remember that DD_DOGSTATSD_URL=http://request-replayer:80 is set in the Makefile call
         ini_set("log_errors", 1);
-        ini_set("error_log", __DIR__ . "/openai.log");
+        ini_set("error_log", $this->errorLogPath);
         self::putEnvAndReloadConfig([
             'DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE=1.0',
             'DD_OPENAI_LOGS_ENABLED=true',
@@ -42,8 +51,9 @@ class OpenAITest extends IntegrationTestCase
             'DD_ENV=test',
             'DD_VERSION=1.0',
         ]);
-        if (file_exists(__DIR__ . "/openai.log")) {
-            $this->errorLogSize = (int)filesize(__DIR__ . "/openai.log");
+
+        if (file_exists($this->errorLogPath)) {
+            $this->errorLogSize = (int)filesize($this->errorLogPath);
         } else {
             $this->errorLogSize = 0;
         }
@@ -64,10 +74,17 @@ class OpenAITest extends IntegrationTestCase
     protected function ddTearDown()
     {
         parent::ddTearDown();
-        //shell_exec("rm -f " . __DIR__ . "/openai.log");
+
         $error = $this->checkErrors();
         if ($error) {
             $this->fail("Got error:\n$error");
+        }
+
+        if (file_exists($this->errorLogPath)) {
+            unlink($this->errorLogPath);
+        }
+        if (is_dir($this->tempDir)) {
+            rmdir($this->tempDir);
         }
     }
 
@@ -85,7 +102,7 @@ class OpenAITest extends IntegrationTestCase
             } catch (\OpenAI\Exceptions\ErrorException $e) {
                 // Ignore exceptions, they're "expected"
             }
-        }, snapshotMetrics: true, logsFile: __DIR__ . "/openai.log");
+        }, snapshotMetrics: true, logsFile: $this->errorLogPath);
     }
 
     private function callStreamed($resource, $openAIFn, $metaHeaders, $responseBodyArray, $openAIParameters = null)
@@ -101,7 +118,7 @@ class OpenAITest extends IntegrationTestCase
             } else {
                 $client->{$resource}()->{$openAIFn}();
             }
-        }, snapshotMetrics: true, logsFile: __DIR__ . "/openai.log");
+        }, snapshotMetrics: true, logsFile: $this->errorLogPath);
     }
 
     public function testCreateCompletion()
@@ -436,15 +453,25 @@ class OpenAITest extends IntegrationTestCase
 
             $expectedContent = file_get_contents(__DIR__ . '/../../../OpenAI/Fixtures/Streams/CompletionCreate.txt');
             $lines = explode("\n", $expectedContent);
-            for ($i = 0; $i < 10; $i++) {
-                $jsonContent = substr($lines[$i], 6); // 6 is the length of 'data: '
-                $encodedLine = json_decode($jsonContent, true);
+            $lineCount = 0;
 
-                $currentItem = $responseIterator->current();
+            foreach ($responseIterator as $currentItem) {
+                if ($lineCount >= 10) {
+                    break;
+                }
+
                 $this->assertInstanceOf(\OpenAI\Responses\Completions\CreateStreamedResponse::class, $currentItem);
-                $this->assertEqualsCanonicalizing($encodedLine, $currentItem->toArray());
-                $responseIterator->next();
+
+                if (isset($lines[$lineCount])) {
+                    $jsonContent = substr($lines[$lineCount], 6); // 6 is the length of 'data: '
+                    $encodedLine = json_decode($jsonContent, true);
+                    $this->assertEqualsCanonicalizing($encodedLine, $currentItem->toArray());
+                }
+
+                $lineCount++;
             }
+
+            $this->assertEquals(10, $lineCount, 'Expected exactly 10 streamed responses');
         });
     }
 

@@ -8,9 +8,9 @@ namespace DDTrace\Tests\Integrations\OpenAI;
 function completion(): array
 {
     return [
-        'id' => 'cmpl-5uS6a68SwurhqAqLBpZtibIITICna',
+        'id' => generateTestId('cmpl'),
         'object' => 'text_completion',
-        'created' => 1664136088,
+        'created' => generateTestTimestamp(),
         'model' => 'davinci',
         'choices' => [
             [
@@ -34,9 +34,9 @@ function completion(): array
 function completionWithLogprobs(): array
 {
     return [
-        'id' => 'cmpl-65p5WsSeV4hDn3r5NjPxYSSbaZUgU',
+        'id' => generateTestId('cmpl'),
         'object' => 'text_completion',
-        'created' => 1666846042,
+        'created' => generateTestTimestamp(),
         'model' => 'code-davinci-002',
         'choices' => [
             0 => [

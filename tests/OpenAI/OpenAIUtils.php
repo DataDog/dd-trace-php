@@ -21,11 +21,16 @@ function mockClient($response)
 {
     $httpClient = Mockery::mock(ClientInterface::class);
     $apiKey = ApiKey::from('sk-88fc337ff7867d234728c5b3d2358977148cb8f35501b09d5d'); // This key is obviously fake
+
+    $headers = Headers::withAuthorization($apiKey)
+        ->withContentType(ContentType::JSON)
+        ->withOrganization('org-1234');
+
     $httpTransporter = new HttpTransporter(
         $httpClient,
         BaseUri::from('api.openai.com/v1'),
-        Headers::withAuthorization($apiKey)->withContentType(ContentType::JSON),
-        QueryParams::create()->withParam('foo', 'bar'),
+        $headers,
+        QueryParams::create(),
         function (RequestInterface $request) use ($httpClient): ResponseInterface {
             return $httpClient->sendRequest($request);
         }
@@ -38,6 +43,16 @@ function mockClient($response)
         ->andReturn($response);
 
     return $client;
+}
+
+function generateTestId(string $prefix): string
+{
+    return $prefix . '-' . substr(md5(uniqid()), 0, 8);
+}
+
+function generateTestTimestamp(): int
+{
+    return time() - rand(0, 3600); // Random timestamp within last hour
 }
 
 function invalidAPIKeyProvided(): array
