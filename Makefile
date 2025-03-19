@@ -767,7 +767,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_kafka \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb_latest \
+	test_integrations_mongodb_1x \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
@@ -835,7 +835,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_laminaslog2 \
 	test_integrations_memcache \
 	test_integrations_memcached \
-	test_integrations_mongodb_latest \
+	test_integrations_mongodb_1x \
 	test_integrations_monolog1 \
 	test_integrations_monolog2 \
 	test_integrations_mysqli \
