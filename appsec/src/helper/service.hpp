@@ -6,22 +6,19 @@
 #pragma once
 
 #include "engine.hpp"
-#include "exception.hpp"
 #include "metrics.hpp"
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
 #include "service_config.hpp"
-#include "std_logging.hpp"
-#include "utils.hpp"
-#include <chrono>
 #include <memory>
 #include <mutex>
 #include <spdlog/spdlog.h>
-#include <unordered_map>
 
 namespace dds {
 
 using namespace std::chrono_literals;
+
+using sampler = timed_set<4096, 8192>;
 
 class service {
 protected:
@@ -138,7 +135,7 @@ public:
 
     static std::shared_ptr<service> from_settings(
         const dds::engine_settings &eng_settings,
-        const remote_config::settings &rc_settings, bool dynamic_enablement);
+        const remote_config::settings &rc_settings);
 
     [[nodiscard]] std::shared_ptr<engine> get_engine() const
     {
@@ -152,7 +149,12 @@ public:
         return service_config_;
     }
 
-    [[nodiscard]] std::shared_ptr<sampler> get_schema_sampler()
+    [[nodiscard]] bool schema_extraction_enabled()
+    {
+        return schema_extraction_enabled_;
+    }
+
+    [[nodiscard]] std::optional<sampler> &get_schema_sampler()
     {
         return schema_sampler_;
     }
@@ -193,7 +195,8 @@ protected:
     std::shared_ptr<engine> engine_{};
     std::shared_ptr<service_config> service_config_{};
     std::unique_ptr<dds::remote_config::client_handler> client_handler_{};
-    std::shared_ptr<sampler> schema_sampler_;
+    bool schema_extraction_enabled_;
+    std::optional<sampler> schema_sampler_;
     std::string rc_path_;
     std::shared_ptr<metrics_impl> msubmitter_;
 };

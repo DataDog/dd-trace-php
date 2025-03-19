@@ -232,7 +232,8 @@ static bool dd_span_probe_begin(zend_ulong invocation, zend_execute_data *execut
 
     dd_probe_mark_active(def);
 
-    dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
+    bool new_span;
+    dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
 
     zval garbage;
     ZVAL_COPY_VALUE(&garbage, &dyn->span->property_resource);
@@ -243,6 +244,10 @@ static bool dd_span_probe_begin(zend_ulong invocation, zend_execute_data *execut
     zval probe_id;
     ZVAL_STR_COPY(&probe_id, def->probe_id);
     zend_hash_str_update(ddtrace_property_array(&dyn->span->property_meta), ZEND_STRL("debugger.probeid"), &probe_id);
+
+    if (new_span) {
+        ddtrace_observe_opened_span(dyn->span);
+    }
 
     return true;
 }

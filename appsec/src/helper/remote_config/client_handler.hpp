@@ -35,8 +35,7 @@ public:
         std::shared_ptr<dds::service_config> service_config,
         const remote_config::settings &rc_settings,
         const std::shared_ptr<engine> &engine_ptr,
-        std::shared_ptr<metrics::telemetry_submitter> msubmitter,
-        bool dynamic_enablement);
+        std::shared_ptr<metrics::telemetry_submitter> msubmitter);
 
     void poll();
 
