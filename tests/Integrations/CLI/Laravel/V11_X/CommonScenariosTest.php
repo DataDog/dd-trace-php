@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI\Laravel\Latest;
+namespace DDTrace\Tests\Integrations\CLI\Laravel\V11_X;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -10,6 +10,6 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V10_X\
 {
     protected function getScriptLocation()
     {
-        return __DIR__ . '/../../../../Frameworks/Laravel/Latest/artisan';
+        return __DIR__ . '/../../../../Frameworks/Laravel/Version_11_x/artisan';
     }
 }

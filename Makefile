@@ -981,6 +981,7 @@ TEST_WEB_82 := \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
+	test_web_laravel_11x \
 	test_web_laravel_latest \
 	test_web_laravel_octane_latest \
 	test_web_lumen_81 \
@@ -1042,6 +1043,7 @@ TEST_WEB_83 := \
 	test_web_laravel_8x \
 	test_web_laravel_9x \
 	test_web_laravel_10x \
+	test_web_laravel_11x \
 	test_web_laravel_latest \
 	test_web_laravel_octane_latest \
 	test_web_lumen_81 \
@@ -1393,6 +1395,8 @@ test_web_laravel_9x: global_test_run_dependencies tests/Frameworks/Laravel/Versi
 	$(call run_tests_debug,--testsuite=laravel-9x-test)
 test_web_laravel_10x: global_test_run_dependencies tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-10x-test)
+test_web_laravel_11x: global_test_run_dependencies tests/Frameworks/Laravel/Version_11_x/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,--testsuite=laravel-11x-test)
 test_web_laravel_latest: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,--testsuite=laravel-latest-test)
 test_web_laravel_octane_latest: global_test_run_dependencies tests/Frameworks/Laravel/Octane/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
