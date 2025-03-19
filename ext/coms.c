@@ -813,7 +813,7 @@ static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trac
 
     char buffer[300];
 
-    sprintf(buffer, "Content-Length: %d", trace_bytes);
+    sprintf(buffer, "Content-Length: %d", (int)trace_bytes);
     headers = curl_slist_append(headers, buffer);
 
     int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
