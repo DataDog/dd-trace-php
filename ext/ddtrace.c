@@ -1236,6 +1236,8 @@ PHP_METHOD(DDTrace_SpanData, getStartTime) {
 PHP_METHOD(DDTrace_SpanData, getLink) {
     ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(ZEND_THIS));
 
+    span->flags |= DDTRACE_SPAN_FLAG_NOT_DROPPABLE;
+
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_link);
     ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(&fci_zv);
@@ -2856,6 +2858,41 @@ PHP_FUNCTION(DDTrace_update_span_duration) {
     dd_set_span_finish_time(span, finish_time_seconds);
 
     RETURN_NULL();
+}
+
+/* {{{ proto string DDTrace\try_drop_span() */
+PHP_FUNCTION(DDTrace_try_drop_span) {
+    zval *spanzv = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "O", &spanzv, ddtrace_ce_span_data) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(spanzv));
+
+    if (span->flags & DDTRACE_SPAN_FLAG_NOT_DROPPABLE) {
+        RETURN_FALSE;
+    }
+
+    if (span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN) {
+        RETURN_TRUE;
+    }
+
+    ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
+    if (span->active_child_spans) {
+        RETURN_FALSE;
+    }
+
+    bool on_active_stack = active_stack == span->stack;
+    if (!on_active_stack) {
+        GC_ADDREF(&active_stack->std);
+    }
+    ddtrace_drop_span(span);
+    if (!on_active_stack) {
+        ddtrace_switch_span_stack(active_stack);
+        GC_DELREF(&active_stack->std);
+    }
+
+    RETURN_TRUE;
 }
 
 /* {{{ proto string DDTrace\active_stack() */

@@ -572,6 +572,22 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
         \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
+
+        /* Silence ExecIntegration spans to stty. These are going to fail intentionally,
+         * and always executed within symfony requests. This is pure noise which we hereby silence.
+         */
+        foreach (['Symfony\Component\Console\Terminal::hasSttyAvailable', 'Symfony\Component\Console\Helper\QuestionHelper::isInteractiveInput'] as $method) {
+            \DDTrace\install_hook($method, function (HookData $hook) {
+                \DDTrace\active_stack()->spanCreationObservers[] = function (SpanData $span) use ($hook) {
+                    if ($hook->data) {
+                        return false;
+                    }
+                    \DDTrace\try_drop_span($span);
+                };
+            }, function (HookData $hook) {
+                $hook->data = true;
+            });
+        }
     }
 
     /**
