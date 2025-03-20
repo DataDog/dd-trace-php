@@ -372,6 +372,9 @@ commands:
               git --no-pager log --no-color -n 1 --format='HEAD is now at %h %s'
             fi
 
+            echo 'Create libdatadog submodule dir if not there'
+            mkdir -p libdatadog
+
             echo 'Updating submodules'
             # we don't need appsec submodules on windows
             <<# parameters.is_windows >>git submodule update --init libdatadog<</ parameters.is_windows >>
