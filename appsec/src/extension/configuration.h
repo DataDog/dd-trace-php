@@ -68,10 +68,9 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED, "true")                                                            \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
-    CONFIG(DOUBLE, DD_API_SECURITY_SAMPLE_DELAY, "30.0", .ini_change = zai_config_system_ini_change)                                  \
-    CONFIG(DOUBLE, DD_API_SECURITY_REQUEST_SAMPLE_RATE, "0.1", .ini_change = zai_config_system_ini_change)                            \
     CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                                                      \
-    CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)
+    CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)                                         \
+    CONFIG(DOUBLE, DD_API_SECURITY_SAMPLE_DELAY, "30.0", .ini_change = zai_config_system_ini_change)                                  \
 // clang-format on
 
 #define CALIAS CONFIG
