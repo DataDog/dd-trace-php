@@ -171,10 +171,13 @@ class MongoDBTest extends IntegrationTestCase
 
     public function testException()
     {
-        $traces = $this->isolateTracer(function () {
+        $traces = $this->isolateTracer(function () use (&$errorType) {
             try {
                 $this->client()->test_db->cars->find(20);
-            } catch (Exception $e) {
+            } catch (\TypeError $e) {
+                $errorType = 'TypeError';
+            } catch (\Exception $e) {
+                $errorType = 'MongoDB\Exception\InvalidArgumentException';
             }
         });
         $tags = [
@@ -195,7 +198,7 @@ class MongoDBTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test_db cars "?"')
                 ->withExactTags($tags)
-                ->setError('MongoDB\Exception\InvalidArgumentException')
+                ->setError($errorType)
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
         ]);
     }
