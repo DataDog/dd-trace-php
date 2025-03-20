@@ -142,6 +142,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING, "true")                                           \
     CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING, "true")                                       \
     CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES, "false")                                              \
+    CONFIG(BOOL, DD_TRACE_SYMFONY_HTTP_ROUTE, "true")                                                          \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER, "true")                                          \
     CONFIG(BOOL, DD_APPSEC_RASP_ENABLED , "false")                                                             \
