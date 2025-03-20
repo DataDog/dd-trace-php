@@ -55,11 +55,6 @@ final class CliServer implements Sapi
         $this->inis = $inis;
     }
 
-    protected function log($message) {
-        $pid = $this->process ? $this->process->getPid(): 'No PID';
-        error_log("[cli-server] (". $pid .") " . $message);
-    }
-
     public function start()
     {
         //Avoid previous tests
@@ -93,19 +88,19 @@ final class CliServer implements Sapi
         $processCmd = "$envs exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
-        $this->log("Starting: '$envs $processCmd'");
+        error_log("[cli-server] Starting: '$envs $processCmd'");
         if (isset($this->inis['error_log'])) {
-            $this->log("Error log: '" . realpath($this->inis['error_log']) . "'");
+            error_log("[cli-server] Error log: '" . realpath($this->inis['error_log']) . "'");
         }
 
         $this->process = new Process($processCmd);
         $this->process->start();
 
         if (!$this->waitUntilServerRunning()) {
-            $this->log("Server never came up...");
+            error_log("[cli-server] Server never came up...");
             return;
         }
-        $this->log("Server is up and responding...");
+        error_log("[cli-server] Server is up and responding...");
     }
 
     public function waitUntilServerIsNotRunning()
@@ -138,10 +133,10 @@ final class CliServer implements Sapi
 
     public function stop()
     {
-        $this->log("Stopping...");
+        error_log("[cli-server] Stopping...");
         $this->process->stop(0);
         $this->waitUntilServerIsNotRunning();
-        $this->log("Stopped");
+        error_log("[cli-server] Stopped");
     }
 
     public function isFastCgi()
