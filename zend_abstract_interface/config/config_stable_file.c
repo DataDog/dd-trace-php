@@ -5,23 +5,12 @@
 #include "config.h"
 #include "config_stable_file.h"
 
-#ifdef _WIN32
-    #include <windows.h>
-    #define RESOLVE_SYMBOL(name) \
-        _##name = (void *)GetProcAddress(GetModuleHandle(NULL), #name); \
-        if (!_##name) { \
-            _ddog_library_configurator_new = NULL; \
-            return; \
-        }
-#else
-    #include <dlfcn.h>
-    #define RESOLVE_SYMBOL(name) \
-        _##name = (void *)dlsym(RTLD_DEFAULT, #name); \
-        if (!_##name) { \
-            _ddog_library_configurator_new = NULL; \
-            return; \
-        }
-#endif
+#define RESOLVE_SYMBOL(name) \
+    _##name = (void *)DL_FETCH_SYMBOL(ddtrace_me->handle, #name); \
+    if (!_##name) { \
+        _ddog_library_configurator_new = NULL; \
+        return; \
+    }
 
 static struct ddog_Configurator *(*_ddog_library_configurator_new)(bool debug_logs, ddog_CharSlice language);
 static void (*_ddog_library_configurator_with_local_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
@@ -73,6 +62,12 @@ void zai_config_stable_file_minit(void) {
     // Resolve symbols at runtime, as they are not part of the AppSec extension
     // but are provided by ddtrace if it is loaded.
     if (!_ddog_library_configurator_new) {
+        zend_module_entry *ddtrace_me = NULL;
+        ddtrace_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
+        if (!ddtrace_me) {
+            return;
+        }
+
         RESOLVE_SYMBOL(ddog_library_configurator_new);
         RESOLVE_SYMBOL(ddog_library_configurator_with_local_path);
         RESOLVE_SYMBOL(ddog_library_configurator_with_fleet_path);
