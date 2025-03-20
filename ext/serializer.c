@@ -1138,6 +1138,14 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                     ignore_error = zend_is_true(orig_val);
                     continue;
                 }
+                if (zend_string_equals_literal_ci(str_key, DD_P_TS_KEY)) {
+                    zval val_as_string;
+                    zend_string *str = zend_string_alloc(2, 0);
+                    snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, Z_LVAL_P(orig_val));
+                    ZVAL_STR(&val_as_string, str);
+                    zend_hash_update(Z_ARRVAL_P(&meta_zv), str_key, &val_as_string);
+                    continue;
+                }
 
                 dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }

@@ -216,14 +216,18 @@ bool ddtrace_propagated_tag_exists(zend_string *tag) {
     return zend_hash_find(propagated, tag);
 }
 
-void ddtrace_add_propagated_tag(zend_string *key, zval *value) {
+void ddtrace_add_propagated_tag(zend_string *key, zval *value, bool convert_to_string) {
     zend_array *propagated = ddtrace_get_propagated();
     zend_array *root_meta = ddtrace_get_root_meta();
 
-    zval tagstr;
-    ddtrace_convert_to_string(&tagstr, value);
-    zend_hash_update(root_meta, key, &tagstr);
+    if (convert_to_string) {
+        zval tagstr;
+        ddtrace_convert_to_string(&tagstr, value);
+        zend_hash_update(root_meta, key, &tagstr);
+    } else {
+        zend_hash_update(root_meta, key, value);
+    }
     zend_hash_add_empty_element(propagated, key);
 }
 
-DDTRACE_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value); }
+DDTRACE_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value, true); }
