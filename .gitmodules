@@ -1,7 +1,7 @@
 [submodule "libdatadog"]
 	path = libdatadog
-	url = https://github.com/natepage/libdatadog
-	branch = pagey/sidecare-on-aws-lambda-poc
+	url = https://github.com/DataDog/libdatadog
+	branch = main
 [submodule "appsec/third_party/cpp-base64"]
 	path = appsec/third_party/cpp-base64
 	url = https://github.com/ReneNyffenegger/cpp-base64
