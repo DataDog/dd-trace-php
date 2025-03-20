@@ -800,22 +800,15 @@ static void _dd_curl_reset_headers(struct _writer_loop_data_t *writer) {
 
 #define DD_TRACE_COUNT_HEADER "X-Datadog-Trace-Count: "
 
-static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trace_count, size_t trace_bytes) {
+static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trace_count) {
     struct curl_slist *headers = NULL;
     for (struct curl_slist *current = dd_agent_curl_headers; current; current = current->next) {
         headers = curl_slist_append(headers, current->data);
     }
-    // headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
+    headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
     headers = curl_slist_append(headers, "Content-Type: application/msgpack");
 
-    // add custom header to clearly see changes are there
-    headers = curl_slist_append(headers, "X-Pagey: pagey-was-here-2");
-
     char buffer[300];
-
-    sprintf(buffer, "Content-Length: %d", (int)trace_bytes + 2000);
-    headers = curl_slist_append(headers, buffer);
-
     int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
     if (bytes_written > ((int)sizeof(DD_TRACE_COUNT_HEADER)) - 1 && bytes_written < ((int)sizeof buffer)) {
         headers = curl_slist_append(headers, buffer);
@@ -848,9 +841,8 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
     CURLcode res = CURLE_UNSUPPORTED_PROTOCOL; // Set a default value to avoid compiler warning
     for (int retry = 0; retry < retries; retry++) {
-        _dd_curl_set_headers(writer, kData->total_groups, kData->total_bytes);
+        _dd_curl_set_headers(writer, kData->total_groups);
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-        curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, (int)kData->total_bytes + 2000);
         ddtrace_curl_set_hostname(writer->curl);
         ddtrace_curl_set_timeout(writer->curl);
         ddtrace_curl_set_connect_timeout(writer->curl);
