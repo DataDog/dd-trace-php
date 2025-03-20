@@ -9,10 +9,12 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static zend_string *_dd_tag_p_appsec_zstr;
 static zend_string *_1_zstr;
+static zend_string *_dd_p_ts_zstr;
 
 void ddtrace_appsec_minit() {
     _1_zstr = zend_string_init_interned(ZEND_STRL("1"), 1 /* permanent */);
     _dd_tag_p_appsec_zstr = zend_string_init_interned(ZEND_STRL(DD_TAG_P_APPSEC), 1 /* permanent */);
+    _dd_p_ts_zstr = zend_string_init_interned(ZEND_STRL(DD_P_TS_KEY), 1 /* permanent */);
 }
 
 DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
@@ -24,9 +26,19 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
 
     zval _1_zval;
     ZVAL_STR(&_1_zval, _1_zstr);
-    ddtrace_add_propagated_tag(_dd_tag_p_appsec_zstr, &_1_zval);
+    ddtrace_add_propagated_tag(_dd_tag_p_appsec_zstr, &_1_zval, true);
 
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+    uint8_t products_bm = 0;
+    zval *trace_source_zval = ddtrace_propagated_tags_get_tag(_dd_p_ts_zstr);
+    if (trace_source_zval) {
+        products_bm = Z_LVAL_P(trace_source_zval);
+    }
+    products_bm |= DD_P_TS_APPSEC;
+    zval ts_value;
+    ZVAL_LONG(&ts_value, products_bm);
+    ddtrace_add_propagated_tag(_dd_p_ts_zstr, &ts_value, false);
+
+    if (!get_DD_APM_TRACING_ENABLED()) {
         ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
     }
 }

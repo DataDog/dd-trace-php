@@ -1131,6 +1131,14 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                     ignore_error = zend_is_true(orig_val);
                     continue;
                 }
+                if (zend_string_equals_literal_ci(str_key, DD_P_TS_KEY)) {
+                    zval val_as_string;
+                    zend_string *str = zend_string_alloc(2, 0);
+                    snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, Z_LVAL_P(orig_val));
+                    ZVAL_STR(&val_as_string, str);
+                    zend_hash_update(Z_ARRVAL_P(&meta_zv), str_key, &val_as_string);
+                    continue;
+                }
 
                 dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }
@@ -1716,7 +1724,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     zval *asm_event = NULL;
-    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
         asm_event = zend_hash_str_find(meta, ZEND_STRL(DD_TAG_P_APPSEC));
     }
     bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
@@ -1736,12 +1744,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !is_standalone_appsec_span) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !is_standalone_appsec_span) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);
         }
-        if(get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        if(!get_global_DD_APM_TRACING_ENABLED()) {
             add_assoc_long(&metrics_zv, "_dd.apm.enabled", 0);
         }
     }
