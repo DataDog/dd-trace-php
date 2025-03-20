@@ -136,4 +136,4 @@ void ddog_live_debugger_drop_sender(struct ddog_SenderHandle *sender);
 
 void ddog_live_debugger_join_sender(struct ddog_SenderHandle *sender);
 
-#endif /* DDOG_LIVE_DEBUGGER_H */
+#endif  /* DDOG_LIVE_DEBUGGER_H */

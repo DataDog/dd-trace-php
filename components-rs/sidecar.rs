@@ -166,7 +166,7 @@ pub extern "C" fn ddtrace_sidecar_reconnect(
 
 
 lazy_static! {
-    pub static ref SHM_LIMITER: Option<ShmLimiterMemory> = ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(|e| {
+    pub static ref SHM_LIMITER: Option<ShmLimiterMemory<()>> = ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(|e| {
         warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
         None
     }, Some);

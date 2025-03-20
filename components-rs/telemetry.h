@@ -285,4 +285,4 @@ void ddog_telemetry_handle_wait_for_shutdown_ms(struct ddog_TelemetryWorkerHandl
  */
 void ddog_telemetry_handle_drop(struct ddog_TelemetryWorkerHandle *handle);
 
-#endif /* DDOG_TELEMETRY_H */
+#endif  /* DDOG_TELEMETRY_H */

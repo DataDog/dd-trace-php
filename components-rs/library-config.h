@@ -55,7 +55,7 @@ struct ddog_CStr ddog_library_config_local_stable_config_path(void);
 void ddog_library_config_drop(struct ddog_Vec_LibraryConfig);
 
 #ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
-#endif /* DDOG_LIBRARY_CONFIG_H */
+#endif  /* DDOG_LIBRARY_CONFIG_H */
