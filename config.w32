@@ -175,6 +175,7 @@ if (PHP_DDTRACE != 'no') {
 	deffile = FSO.CreateTextFile(defpath, true);
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/ddtrace.sym", 1).ReadAll();
+    contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/ddtrace-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");
 	}
