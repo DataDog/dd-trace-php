@@ -767,6 +767,7 @@ impl Profiler {
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -821,6 +822,7 @@ impl Profiler {
 
     /// Collect a stack sample with memory allocations.
     #[cfg(feature = "allocation_profiling")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -860,6 +862,7 @@ impl Profiler {
 
     /// Collect a stack sample with exception.
     #[cfg(feature = "exception_profiling")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
@@ -931,6 +934,7 @@ impl Profiler {
     }];
 
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
@@ -961,6 +965,7 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_compile_file(
         &self,
         now: i64,
@@ -1003,6 +1008,7 @@ impl Profiler {
 
     /// This function will collect a thread start or stop timeline event
     #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
         let mut labels = Profiler::common_labels(1);
 
@@ -1037,6 +1043,7 @@ impl Profiler {
 
     /// This function can be called to collect any fatal errors
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
         let mut labels = Profiler::common_labels(2);
 
@@ -1077,6 +1084,7 @@ impl Profiler {
 
     /// This function can be called to collect an opcache restart
     #[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub(crate) fn collect_opcache_restart(
         &self,
         now: i64,
@@ -1121,6 +1129,7 @@ impl Profiler {
 
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
         let mut labels = Profiler::common_labels(1);
 
@@ -1156,6 +1165,7 @@ impl Profiler {
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_garbage_collection(
         &self,
         now: i64,
