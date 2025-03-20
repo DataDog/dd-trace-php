@@ -88,6 +88,7 @@ Array
     [_dd.p.appsec] => 1
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
+    [_dd.p.ts] => 02
     [_dd.runtime_family] => php
     [appsec.event] => true
     [http.method] => GET
