@@ -15,7 +15,8 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'APPSEC_MOCK_ENABLED' => true
+            'APPSEC_MOCK_ENABLED' => true,
+            'DD_APPSEC_RASP_ENABLED' => true
         ]);
     }
 
