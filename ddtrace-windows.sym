@@ -1,0 +1,4 @@
+ddog_setup_crashtracking
+OutOfProcessExceptionEventCallback
+OutOfProcessExceptionEventSignatureCallback
+OutOfProcessExceptionEventDebuggerLaunchCallback

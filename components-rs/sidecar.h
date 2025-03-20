@@ -93,6 +93,7 @@ void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);
 
 void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
 
+bool ddog_setup_crashtracking(struct ddog_Endpoint* endpoint, struct ddog_crasht_Metadata metadata);
 /**
  * # Safety
  * Caller must ensure the process is safe to fork, at the time when this method is called
