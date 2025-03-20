@@ -48,6 +48,9 @@ static void dd_drop_span_nodestroy(ddtrace_span_data *span, bool silent) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
         LOG(SPAN_TRACE, "Dropping root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
     } else {
+        if (span->parent) {
+            --SPANDATA(span->parent)->active_child_spans;
+        }
         LOG(SPAN_TRACE, "Dropping span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
     }
 }
@@ -207,6 +210,8 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
 
         ddtrace_set_root_span_properties(root);
     } else {
+        ++parent_span->active_child_spans;
+
         // do not copy the parent, it was active span before, just transfer that reference
         ZVAL_OBJ(&span->property_parent, &parent_span->std);
         ddtrace_inherit_span_properties(span, parent_span);
@@ -802,7 +807,10 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     stack->active = span->parent;
     // The top span is always referenced by the span stack
     if (stack->active) {
-        GC_ADDREF(&stack->active->std);
+        ddtrace_span_data *parent = SPANDATA(stack->active);
+        GC_ADDREF(&parent->std);
+        parent->flags |= DDTRACE_SPAN_FLAG_NOT_DROPPABLE;
+        --parent->active_child_spans;
     } else {
         ZVAL_NULL(&stack->property_active);
     }
