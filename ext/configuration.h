@@ -233,6 +233,9 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_OPENAI_SPAN_CHAR_LIMIT, "128")                                                              \
     CONFIG(DOUBLE, DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE, "1.0")                                        \
     CONFIG(DOUBLE, DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE, "0.1")                                         \
+    CONFIG(BOOL, DD_TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")                                                  \
+    CONFIG(BOOL, DD_TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, "true")                                         \
+    CONFIG(BOOL, DD_TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, "true")                                          \
     CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5", .ini_change = zai_config_system_ini_change)    \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)          \
