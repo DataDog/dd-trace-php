@@ -79,6 +79,7 @@ benchmarks-appsec:
       changes:
         paths:
           - appsec/src/**/*
+          - appsec/recommended.json
         compare_to: "master"
       when: on_success
     - when: manual
