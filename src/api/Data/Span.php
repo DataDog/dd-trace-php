@@ -15,6 +15,7 @@ use DDTrace\Contracts\Span as SpanInterface;
  * @property int $duration
  * @property array $tags
  * @property array $metrics
+ * @property array $baggage
  */
 abstract class Span implements SpanInterface
 {

@@ -12,6 +12,7 @@ use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextKeys;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
@@ -231,6 +232,13 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $attributes = $samplingResult->getAttributes();
         foreach ($attributes as $key => $value) {
             $this->attributes[$key] = $value;
+        }
+
+        $parentSpanContextBaggage = $parentContext->get(ContextKeys::baggage());
+        if ($parentSpanContextBaggage) {
+            foreach($parentSpanContextBaggage->getAll() as $baggageKey => $baggageEntry) {
+                $span->baggage[$baggageKey] = $baggageEntry->getValue();
+            }
         }
 
         return Span::startSpan(

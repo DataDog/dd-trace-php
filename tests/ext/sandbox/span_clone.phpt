@@ -25,7 +25,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (22) {
+object(DDTrace\RootSpanData)#%d (23) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -86,6 +86,9 @@ object(DDTrace\RootSpanData)#%d (22) {
   }
   ["onClose"]=>
   array(0) {
+  }
+  ["baggage"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
@@ -100,7 +103,7 @@ object(DDTrace\RootSpanData)#%d (22) {
   ["gitMetadata"]=>
   NULL
 }
-object(DDTrace\RootSpanData)#%d (22) {
+object(DDTrace\RootSpanData)#%d (23) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -154,7 +157,7 @@ object(DDTrace\RootSpanData)#%d (22) {
       }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (22) {
+    object(DDTrace\RootSpanData)#%d (23) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -199,6 +202,9 @@ object(DDTrace\RootSpanData)#%d (22) {
       *RECURSION*
       ["onClose"]=>
       array(0) {
+      }
+      ["baggage"]=>
+      array(0) {
       }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
@@ -218,6 +224,9 @@ object(DDTrace\RootSpanData)#%d (22) {
     }
   }
   ["onClose"]=>
+  array(0) {
+  }
+  ["baggage"]=>
   array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>

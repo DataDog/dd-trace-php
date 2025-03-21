@@ -68,6 +68,7 @@ typedef union ddtrace_span_properties {
             zval property_stack;
         };
         zval property_on_close;
+        zval property_baggage;
     };
 } ddtrace_span_properties;
 
