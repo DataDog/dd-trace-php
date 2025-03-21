@@ -1,0 +1,99 @@
+[[
+  {
+    "name": "console",
+    "service": "console",
+    "resource": "console",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "67dd820c00000000",
+      "runtime-id": "70a85d5f-2b3f-45ee-8fa6-493f858df4d9"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "command_execution",
+       "service": "console",
+       "resource": "stty",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "system",
+       "meta": {
+         "cmd.exec": "[\"stty\",\"-a\"]",
+         "cmd.exit_code": "0",
+         "component": "subprocess"
+       }
+     },
+     {
+       "name": "symfony.httpkernel.kernel.boot",
+       "service": "symfony",
+       "resource": "App\\Kernel",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony"
+       }
+     },
+     {
+       "name": "command_execution",
+       "service": "console",
+       "resource": "sh",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "system",
+       "meta": {
+         "cmd.shell": "stty -g",
+         "component": "subprocess"
+       }
+     },
+     {
+       "name": "symfony.console.command",
+       "service": "symfony",
+       "resource": "symfony.console.command",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "cli",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony"
+       }
+     },
+     {
+       "name": "symfony.console.command.run",
+       "service": "symfony",
+       "resource": "app:stty",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "cli",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony",
+         "symfony.console.command.class": "App\\Command\\SttyCommand"
+       }
+     },
+     {
+       "name": "symfony.console.terminate",
+       "service": "symfony",
+       "resource": "symfony.console.terminate",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "cli",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony"
+       }
+     }]]

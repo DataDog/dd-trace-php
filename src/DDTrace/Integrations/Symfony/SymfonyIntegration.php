@@ -547,6 +547,7 @@ class SymfonyIntegration extends Integration
          */
         foreach (['Symfony\Component\Console\Terminal::hasSttyAvailable', 'Symfony\Component\Console\Helper\QuestionHelper::isInteractiveInput'] as $method) {
             \DDTrace\install_hook($method, function (HookData $hook) {
+                $hook->data = false;
                 \DDTrace\active_stack()->spanCreationObservers[] = function (SpanData $span) use ($hook) {
                     if ($hook->data) {
                         return false;

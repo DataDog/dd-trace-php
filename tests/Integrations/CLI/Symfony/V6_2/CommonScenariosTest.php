@@ -165,4 +165,16 @@ class CommonScenariosTest extends IntegrationTestCase
             []
         );
     }
+
+    public function testSilencedSpansAreDropped()
+    {
+        list($traces) = $this->inCli(static::getConsoleScript(), [
+            'DD_TRACE_CLI_ENABLED' => 'true',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+            'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'true',
+        ], [], 'app:stty');
+
+        $this->snapshotFromTraces($traces);
+    }
 }
