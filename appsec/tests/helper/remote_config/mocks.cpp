@@ -1,6 +1,8 @@
 #include "mocks.hpp"
 #include <atomic>
 #include <fcntl.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <string>
 #include <sys/mman.h>
 
@@ -39,3 +41,20 @@ remote_config::config get_config(
                           "/foobar_" + std::to_string(cur_id) + "/config"};
 }
 } // namespace dds::remote_config::mock
+
+// for debugging
+extern "C" const char *serialize_json(const rapidjson::Value *doc)
+{
+    if (!doc) {
+        return nullptr;
+    }
+
+    static std::string jsonStr;
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
+    doc->Accept(writer);
+
+    jsonStr = buffer.GetString();
+    return jsonStr.c_str();
+}

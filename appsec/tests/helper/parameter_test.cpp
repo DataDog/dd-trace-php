@@ -347,4 +347,124 @@ TEST(ParameterTest, Bool)
     EXPECT_EQ(value, p.boolean);
 }
 
+TEST(ParameterTest, MergeArrays)
+{
+    parameter p1 = parameter::array();
+    p1.add(parameter::string("value1"sv));
+
+    parameter p2 = parameter::array();
+    p2.add(parameter::string("value2"sv));
+
+    bool merge_result = p1.merge(std::move(p2));
+
+    ASSERT_TRUE(merge_result);
+    ASSERT_EQ(p1.size(), 2);
+    EXPECT_STREQ(std::string_view(p1[0]).data(), "value1");
+    EXPECT_STREQ(std::string_view(p1[1]).data(), "value2");
+
+    EXPECT_FALSE(p2.is_valid());
+}
+
+TEST(ParameterTest, MergeMapsWithUniqueKeys)
+{
+    parameter p1 = parameter::map();
+    p1.add("key1", parameter::string("value1"sv));
+
+    parameter p2 = parameter::map();
+    p2.add("key2", parameter::string("value2"sv));
+
+    bool merge_result = p1.merge(std::move(p2));
+
+    ASSERT_TRUE(merge_result);
+    ASSERT_EQ(p1.size(), 2);
+    EXPECT_STREQ(p1[0].key().data(), "key1");
+    EXPECT_STREQ(std::string_view(p1[0]).data(), "value1");
+    EXPECT_STREQ(p1[1].key().data(), "key2");
+    EXPECT_STREQ(std::string_view(p1[1]).data(), "value2");
+
+    EXPECT_FALSE(p2.is_valid());
+}
+
+TEST(ParameterTest, MergeMapsWithOverlappingKeys)
+{
+    parameter p1 = parameter::map();
+    p1.add("key1", parameter::string("value1"sv));
+    parameter nested1 = parameter::map();
+    nested1.add("inner1", parameter::string("innerval1"sv));
+    p1.add("overlap", std::move(nested1));
+
+    parameter p2 = parameter::map();
+    p2.add("key2", parameter::string("value2"sv));
+    parameter nested2 = parameter::map();
+    nested2.add("inner2", parameter::string("innerval2"sv));
+    p2.add("overlap", std::move(nested2));
+
+    bool merge_result = p1.merge(std::move(p2));
+
+    ASSERT_TRUE(merge_result);
+    ASSERT_EQ(p1.size(), 3); // key1, overlap, key2
+
+    bool found_overlap = false;
+    for (size_t i = 0; i < p1.size(); i++) {
+        if (p1[i].key() == "overlap") {
+            found_overlap = true;
+            // the overlapped entry should contain both inner keys
+            ASSERT_EQ(p1[i].type(), parameter_type::map);
+            ASSERT_EQ(p1[i].size(), 2);
+
+            bool found_inner1 = false, found_inner2 = false;
+            for (size_t j = 0; j < p1[i].size(); j++) {
+                if (p1[i][j].key() == "inner1") {
+                    found_inner1 = true;
+                    EXPECT_STREQ(
+                        std::string_view(p1[i][j]).data(), "innerval1");
+                } else if (p1[i][j].key() == "inner2") {
+                    found_inner2 = true;
+                    EXPECT_STREQ(
+                        std::string_view(p1[i][j]).data(), "innerval2");
+                }
+            }
+            EXPECT_TRUE(found_inner1);
+            EXPECT_TRUE(found_inner2);
+            break;
+        }
+    }
+    EXPECT_TRUE(found_overlap);
+
+    EXPECT_FALSE(p2.is_valid());
+}
+
+TEST(ParameterTest, MergeIncompatibleTypes)
+{
+    parameter p1 = parameter::array();
+    p1.add(parameter::string("value"sv));
+
+    parameter p2 = parameter::map();
+    p2.add("key", parameter::string("value"sv));
+
+    bool merge_result = p1.merge(std::move(p2));
+    EXPECT_FALSE(merge_result);
+}
+
+TEST(ParameterTest, MergeWithInvalidParameter)
+{
+    parameter p1 = parameter::array();
+    p1.add(parameter::string("value"sv));
+
+    parameter p2; // invalid
+
+    bool merge_result = p1.merge(std::move(p2));
+    EXPECT_FALSE(merge_result);
+}
+
+TEST(ParameterTest, MergeNonContainerTypes)
+{
+    parameter p1 = parameter::string("string1"sv);
+    parameter p2 = parameter::string("string2"sv);
+
+    bool merge_result = p1.merge(std::move(p2));
+
+    EXPECT_FALSE(merge_result);
+}
+
 } // namespace dds

@@ -6,13 +6,10 @@
 #pragma once
 
 #include "../action.hpp"
-#include "../engine_settings.hpp"
 #include "../metrics.hpp"
-#include "../parameter.hpp"
 #include "../parameter_view.hpp"
+#include "../remote_config/changeset.hpp"
 #include <memory>
-#include <optional>
-#include <vector>
 
 namespace dds {
 
@@ -48,7 +45,8 @@ public:
     virtual std::unordered_set<std::string> get_subscriptions() = 0;
     virtual std::unique_ptr<listener> get_listener() = 0;
     virtual std::unique_ptr<subscriber> update(
-        parameter &rule, metrics::telemetry_submitter &submit_metric) = 0;
+        const remote_config::changeset &changeset,
+        metrics::telemetry_submitter &submit_metric) = 0;
 };
 
 } // namespace dds

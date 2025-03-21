@@ -1,6 +1,8 @@
 #include "config.hpp"
+#include "product.hpp"
 #include <base64.h>
 #include <charconv>
+#include <regex>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>
@@ -14,32 +16,6 @@ extern "C" {
 using namespace std::literals;
 
 namespace dds::remote_config {
-
-[[nodiscard]] product config::get_product() const
-{
-    // A configuration key has the form:
-    // (datadog/<org_id> | employee)/<PRODUCT>/<config_id>/<name>"
-    std::string_view sv{rc_path};
-    if (sv.starts_with("datadog/"sv)) {
-        sv.remove_prefix("datadog/"sv.length());
-        auto org_id_end = sv.find('/');
-        if (org_id_end != std::string_view::npos) {
-            sv.remove_prefix(org_id_end + 1);
-            auto product_end = sv.find('/');
-            if (product_end != std::string_view::npos) {
-                return known_products::for_name(sv.substr(0, product_end));
-            }
-        }
-    } else if (sv.starts_with("employee/"sv)) {
-        sv.remove_prefix("employee/"sv.length());
-        auto product_end = sv.find('/');
-        if (product_end != std::string::npos) {
-            return known_products::for_name(sv.substr(0, product_end));
-        }
-    }
-
-    return known_products::UNKNOWN;
-}
 
 config config::from_line(std::string_view line)
 {
@@ -101,5 +77,42 @@ mapped_memory config::read() const
     }
 
     return mapped_memory{shm_ptr, static_cast<std::size_t>(shm_stat.st_size)};
+}
+
+namespace {
+template <typename SubMatch>
+std::string_view submatch_to_sv(const SubMatch &sub_match)
+{
+    return {&*sub_match.first, static_cast<std::size_t>(sub_match.length())};
+}
+} // namespace
+
+void parsed_config_key::parse_config_key()
+{
+    static std::regex const rgx{
+        "(?:datadog/(\\d+)|employee)/([^/]+)/([^/]+)/([^/]+)"};
+    std::smatch smatch;
+    if (!std::regex_match(key_, smatch, rgx)) {
+        throw std::invalid_argument("Invalid config key: " + key_);
+    }
+
+    if (key_[0] == 'd') {
+        source_ = "datadog";
+        auto [ptr, ec] =
+            std::from_chars(&*smatch[1].first, &*smatch[1].second, org_id_);
+        if (ec != std::errc{} || ptr != &*smatch[1].second) {
+            throw std::invalid_argument("Invalid org_id in config key " + key_ +
+                                        ": " +
+                                        std::string{submatch_to_sv(smatch[1])});
+        }
+    } else {
+        source_ = "employee";
+        org_id_ = 0;
+    }
+
+    std::string_view const product_sv{submatch_to_sv(smatch[2])};
+    product_ = known_products::for_name(product_sv);
+    config_id_ = submatch_to_sv(smatch[3]);
+    name_ = submatch_to_sv(smatch[4]);
 }
 } // namespace dds::remote_config
