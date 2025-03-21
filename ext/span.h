@@ -16,6 +16,7 @@
 
 #define DDTRACE_SPAN_FLAG_OPENTELEMETRY (1 << 0)
 #define DDTRACE_SPAN_FLAG_OPENTRACING (1 << 1)
+#define DDTRACE_SPAN_FLAG_NOT_DROPPABLE (1 << 2)
 
 struct ddtrace_span_stack;
 
@@ -85,6 +86,7 @@ struct ddtrace_span_data {
     uint8_t flags;
     enum ddtrace_span_dataype type : 8;
     bool notify_user_req_end;
+    uint32_t active_child_spans;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
 
