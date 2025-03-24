@@ -48,11 +48,14 @@ if ('7.0' === php_minor_version()) {
     },
     "points": [
         {
-            "name": "library_entrypoint.error",
+            "name": "library_entrypoint.abort",
             "tags": [
-                "error_type:so_not_found",
+                "reason:incompatible_runtime",
                 "product:datadog-profiling"
             ]
+        },
+        {
+            "name": "library_entrypoint.abort.runtime"
         }
     ]
 }

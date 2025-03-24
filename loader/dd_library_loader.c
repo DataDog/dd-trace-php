@@ -15,6 +15,16 @@
 #include "compat_php.h"
 #include "php_dd_library_loader.h"
 
+#define MIN_API_VERSION 320151012
+#define MAX_API_VERSION 420240924
+
+#define PHP_70_VERSION 20151012
+#define PHP_71_VERSION 20160303
+#define PHP_80_VERSION 20200930
+
+#define MIN_PHP_VERSION "7.0"
+#define MAX_PHP_VERSION "8.4"
+
 static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
@@ -101,7 +111,7 @@ static void ddloader_ini_set_configuration(const char *name, size_t name_len, co
 
 static bool ddloader_is_opcache_jit_enabled() {
     // JIT is only PHP 8.0+
-    if (php_api_no < 20200930 || !ddloader_is_ext_loaded("Zend OPcache")) {
+    if (php_api_no < PHP_80_VERSION || !ddloader_is_ext_loaded("Zend OPcache")) {
         return false;
     }
 
@@ -196,8 +206,7 @@ static void appsec_pre_minit_hook(void) {
 }
 
 static void profiling_pre_minit_hook(void) {
-    HashTable *configuration_hash = php_ini_get_configuration_hash();
-    if (configuration_hash) {
+    if (!ddloader_ini_get_configuration(ZEND_STRL("datadog.profiling.enabled"))) {
         ddloader_ini_set_configuration(ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
     }
 }
@@ -205,11 +214,11 @@ static void profiling_pre_minit_hook(void) {
 // Declare the extension we want to load
 static injected_ext injected_ext_config[] = {
     // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
+    DECLARE_INJECTED_EXT("ddtrace", "trace", PHP_70_VERSION, ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    DECLARE_INJECTED_EXT("datadog-profiling", "profiling", NULL, profiling_pre_minit_hook,
+    DECLARE_INJECTED_EXT("datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
-    DECLARE_INJECTED_EXT("ddappsec", "appsec", NULL, appsec_pre_minit_hook,
+    DECLARE_INJECTED_EXT("ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_END})),
 };
 
@@ -543,6 +552,11 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
 }
 
 static int ddloader_load_extension(unsigned int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
+    if (php_api_no < config->ext_min_version) {
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, config, NULL, "'%s' extension is not supported on this PHP version", config->ext_name, php_api_no);
+        return SUCCESS;
+    }
+
     char *ext_path = ddloader_find_ext_path(config->ext_dir, config->ext_name, php_api_no, is_zts, is_debug);
     if (!ext_path) {
         if (is_debug) {
@@ -730,31 +744,18 @@ static int ddloader_api_no_check(int api_no) {
         return SUCCESS;
     }
 
-    switch (api_no) {
-        case 320151012:  // 7.0
-        case 320160303:  // 7.1
-        case 320170718:  // 7.2
-        case 320180731:  // 7.3
-        case 320190902:  // 7.4
-        case 420200930:  // 8.0
-        case 420210902:  // 8.1
-        case 420220829:  // 8.2
-        case 420230831:  // 8.3
-        case 420240924:  // 8.4
-            break;
+    if (api_no < MIN_API_VERSION) {
+        TELEMETRY(REASON_EOL_RUNTIME, NULL, NULL, "Found end-of-life runtime (api no: %d). Supported runtimes: PHP " MIN_PHP_VERSION " to " MAX_PHP_VERSION, api_no);
+        return SUCCESS;
+    }
 
-        default:
-            if (!force_load || api_no < 320151012) {
-                telemetry_reason reason = api_no < 320151012 ? REASON_EOL_RUNTIME : REASON_INCOMPATIBLE_RUNTIME;
-                TELEMETRY(reason, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP 7.0 to 8.4", api_no);
-
-                // If we return FAILURE, this Zend extension would be unload, BUT it would produce an error
-                // similar to "The Zend Engine API version 220100525 which is installed, is newer."
-                return SUCCESS;
-            }
-            LOG(WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
-            injection_forced = true;
-            break;
+    if (api_no > MAX_API_VERSION) {
+        if (!force_load) {
+            TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP " MIN_PHP_VERSION " to " MAX_PHP_VERSION, api_no);
+            return SUCCESS;
+        }
+        injection_forced = true;
+        LOG(WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
     }
 
     // api_no is the Zend extension API number, similar to "420220829"
