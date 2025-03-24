@@ -3999,7 +3999,7 @@ jobs:
       - git_checkout
       - run:
           name: Install cbindgen
-          command: cargo install --version "^0.26" cbindgen
+          command: cargo install --version "^0.28" cbindgen
       - run:
           name: Regenerate cbindgen headers and compare them
           command: |
