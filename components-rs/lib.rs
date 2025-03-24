@@ -11,8 +11,8 @@ use std::borrow::Cow;
 use std::ffi::c_char;
 use std::ptr::null_mut;
 use http::Uri;
-use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use http::uri::Scheme;
+use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use uuid::Uuid;
 
 pub use datadog_crashtracker_ffi::*;

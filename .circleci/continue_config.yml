@@ -1990,6 +1990,7 @@ jobs:
             cd /usr/local/src/php
             mkdir -p /tmp/artifacts/core_dumps
             find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp /home/circleci/datadog/tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             mkdir -p /tmp/artifacts/diffs
             find -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts/diffs \;
           when: on_fail
