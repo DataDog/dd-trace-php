@@ -31,6 +31,9 @@ zend_string *ddtrace_trace_source_get_ts_encoded() {
 
 void ddtrace_trace_source_set_from_string(zend_string *hexadecimal_string)
 {
+    if (ZSTR_LEN(hexadecimal_string) == 0) {
+        return;
+    }
     DDTRACE_G(products_bm) = strtol(ZSTR_VAL(hexadecimal_string), NULL, 16);
 }
 
