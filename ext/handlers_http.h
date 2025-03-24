@@ -1,4 +1,5 @@
 #include "asm_event.h"
+#include "trace_source.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
