@@ -238,8 +238,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false &&
-        ddtrace_propagated_tags_get_tag(DD_TAG_P_APPSEC) == NULL) {
+    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false && !(DDTRACE_G(products_bm) & DD_P_TS_APPSEC)) {
         return;
     }
 
@@ -257,6 +256,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             }
         }
     }
+    //TODO Alex here you have to encode the products_bm
     zend_string *propagated_tags = ddtrace_format_root_propagated_tags();
     if (send_datadog || send_b3 || send_b3single) {
         if (propagated_tags) {

@@ -15,7 +15,7 @@ HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_SAMPLING_PRIORITY=3
-HTTP_X_DATADOG_TAGS=_dd.p.appsec=1
+HTTP_X_DATADOG_TAGS=_dd.p.ts=02
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_samplinga
 --FILE--

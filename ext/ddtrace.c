@@ -1479,7 +1479,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
-    ddtrace_appsec_minit();
 
     return SUCCESS;
 }
@@ -1575,6 +1574,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
     DDTRACE_G(asm_event_emitted) = false;
+    DDTRACE_G(products_bm) = 0;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);

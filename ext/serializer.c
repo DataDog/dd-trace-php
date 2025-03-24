@@ -1576,6 +1576,15 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
+    if (DDTRACE_G(products_bm) & DD_P_TS_APPSEC) {
+        // zend_string *str = zend_string_alloc(2, 0);
+        // snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, DDTRACE_G(products_bm));
+        zval prodcts_bm_coded_zv;
+        // ZVAL_STRVAL(&prodcts_bm_coded_zv, str);
+        ZVAL_STRING(&prodcts_bm_coded_zv, "02");
+        zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &prodcts_bm_coded_zv);
+    }
+
     // Notify profiling for Endpoint Profiling.
     if (profiling_notify_trace_finished && ddtrace_span_is_entrypoint_root(span) && Z_TYPE(prop_resource_as_string) == IS_STRING) {
         zai_str type = ZAI_STRL("custom");
@@ -1729,13 +1738,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (operation_name) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
-
-    zval *asm_event = NULL;
-    if (!get_global_DD_APM_TRACING_ENABLED()) {
-        asm_event = zend_hash_str_find(meta, ZEND_STRL(DD_TAG_P_APPSEC));
-    }
-    bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
-
+   
     _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
     zval metrics_zv;
@@ -1751,7 +1754,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (!get_global_DD_APM_TRACING_ENABLED() && !is_standalone_appsec_span) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !(DDTRACE_G(products_bm) & DD_P_TS_APPSEC)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);

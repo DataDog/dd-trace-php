@@ -17,24 +17,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static bool trace_contains_appsec_event(zval *trace) {
-    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
-    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        return false;
-    }
-
-    return zend_hash_str_exists(Z_ARR_P(meta), DD_TAG_P_APPSEC, strlen(DD_TAG_P_APPSEC));
-}
-
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
 
@@ -61,7 +43,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     }
 
     if (!get_global_DD_APM_TRACING_ENABLED()) {
-        if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
+        if (!DDTRACE_G(asm_event_emitted) && !(DDTRACE_G(products_bm) & DD_P_TS_APPSEC) && !ddtrace_standalone_limiter_allow()) {
             zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
             if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
                 LOG(ERROR, "Root span not found. Dropping trace");
