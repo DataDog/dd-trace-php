@@ -44,6 +44,7 @@
 #include "zend_hrtime.h"
 #include "sidecar.h"
 #include "live_debugger.h"
+#include "trace_source.h"
 #include "exception_serialize.h"
 #include "agent_info.h"
 
@@ -1567,9 +1568,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
-    if (DDTRACE_G(products_bm) & TRACE_SOURCE_ASM) {
-        zend_string *str = zend_string_alloc(2, 0);
-        snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, DDTRACE_G(products_bm));
+    if (ddtrace_trace_source_is_asm_source()) {
+        zend_string *str = ddtrace_trace_source_get_ts_encoded();
         zval prodcts_bm_coded_zv;
         ZVAL_STR(&prodcts_bm_coded_zv, str);
         zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &prodcts_bm_coded_zv);
@@ -1744,7 +1744,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (!get_global_DD_APM_TRACING_ENABLED() && !(DDTRACE_G(products_bm) & TRACE_SOURCE_ASM)) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_asm_source()) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);

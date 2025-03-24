@@ -238,7 +238,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false && !(DDTRACE_G(products_bm) & TRACE_SOURCE_ASM)) {
+    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false && !ddtrace_trace_source_is_asm_source()) {
         return;
     }
 
@@ -256,7 +256,6 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             }
         }
     }
-
     zend_string *propagated_tags = ddtrace_format_root_propagated_tags();
     if (send_datadog || send_b3 || send_b3single) {
         if (propagated_tags) {

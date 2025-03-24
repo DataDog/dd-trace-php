@@ -5,6 +5,7 @@
 #include "../compat_string.h"
 #include "../configuration.h"
 #include "../ddtrace.h"
+#include "../trace_source.h"
 #include "../priority_sampling/priority_sampling.h"
 #include <components/log/log.h>
 
@@ -48,8 +49,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
                 zend_hash_update(root_meta, tag_name, &zv);
                 zend_hash_add_empty_element(propagated_tags, tag_name);
                 if (strncmp(ZSTR_VAL(tag_name), DD_P_TS_KEY, sizeof(DD_P_TS_KEY) - 1) == 0) {
-                    uint8_t products_bm = strtol(Z_STRVAL_P(&zv), NULL, 16);
-                    DDTRACE_G(products_bm) = products_bm;
+                    ddtrace_trace_source_set_from_string(Z_STRVAL_P(&zv));
                 }
             }
             zend_string_release(tag_name);
@@ -217,7 +217,6 @@ void ddtrace_add_propagated_tag(zend_string *key, zval *value) {
     zval tagstr;
     ddtrace_convert_to_string(&tagstr, value);
     zend_hash_update(root_meta, key, &tagstr);
-
     zend_hash_add_empty_element(propagated, key);
 }
 
