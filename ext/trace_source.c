@@ -25,7 +25,7 @@ void ddtrace_trace_source_rinit() {
 
 zend_string *ddtrace_trace_source_get_ts_encoded() {
     zend_string *str = zend_string_alloc(2, 0);
-    snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, DDTRACE_G(products_bm));
+    snprintf(ZSTR_VAL(str), 3, "%02x" PRIx64, DDTRACE_G(products_bm));
     return str;
 }
 
