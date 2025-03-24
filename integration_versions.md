@@ -13,12 +13,12 @@
 | ext-redis                   | 3.1.6                  | 5.3.7                  |
 | ext-sqlsrv                  | 5.3.0                  | 5.12.0                 |
 | ext-swoole                  | 5.1.6                  | 6.0.0                  |
-| google/cloud-spanner        | 1.96.0                 | 1.96.0                 |
+| google/cloud-spanner        | 1.97.0                 | 1.97.0                 |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.9.2                  |
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.16.1                 | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 12.2.0                 |
+| laravel/framework           | 4.2.22                 | 12.3.0                 |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
 | laravel/octane              | 2.8.2                  | 2.8.2                  |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
