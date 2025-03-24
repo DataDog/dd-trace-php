@@ -210,28 +210,15 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
     return taglist.s;
 }
 
-bool ddtrace_propagated_tag_exists(zend_string *tag) {
-    zend_array *propagated = &DDTRACE_G(propagated_root_span_tags);
-    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
-    if (root_span) {
-        propagated = ddtrace_property_array(&root_span->property_propagated_tags);
-    }
-
-    return zend_hash_find(propagated, tag);
-}
-
-void ddtrace_add_propagated_tag(zend_string *key, zval *value, bool convert_to_string) {
+void ddtrace_add_propagated_tag(zend_string *key, zval *value) {
     zend_array *propagated = ddtrace_get_propagated();
     zend_array *root_meta = ddtrace_get_root_meta();
 
-    if (convert_to_string) {
-        zval tagstr;
-        ddtrace_convert_to_string(&tagstr, value);
-        zend_hash_update(root_meta, key, &tagstr);
-    } else {
-        zend_hash_update(root_meta, key, value);
-    }
+    zval tagstr;
+    ddtrace_convert_to_string(&tagstr, value);
+    zend_hash_update(root_meta, key, &tagstr);
+
     zend_hash_add_empty_element(propagated, key);
 }
 
-DDTRACE_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value, true); }
+DDTRACE_PUBLIC void ddtrace_add_propagated_tag_on_span_zobj(zend_string *key, zval *value) { ddtrace_add_propagated_tag(key, value); }

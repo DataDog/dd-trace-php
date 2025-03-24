@@ -12,7 +12,7 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
         return;
     }
     DDTRACE_G(asm_event_emitted) = true;
-    DDTRACE_G(products_bm) |= DD_P_TS_APPSEC;
+    DDTRACE_G(products_bm) |= TRACE_SOURCE_ASM;
     if (!get_DD_APM_TRACING_ENABLED()) {
         ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
     }

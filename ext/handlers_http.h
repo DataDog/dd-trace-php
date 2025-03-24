@@ -238,7 +238,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false && !(DDTRACE_G(products_bm) & DD_P_TS_APPSEC)) {
+    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false && !(DDTRACE_G(products_bm) & TRACE_SOURCE_ASM)) {
         return;
     }
 

@@ -1138,15 +1138,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                     ignore_error = zend_is_true(orig_val);
                     continue;
                 }
-                if (zend_string_equals_literal_ci(str_key, DD_P_TS_KEY)) {
-                    zval val_as_string;
-                    zend_string *str = zend_string_alloc(2, 0);
-                    snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, Z_LVAL_P(orig_val));
-                    ZVAL_STR(&val_as_string, str);
-                    zend_hash_update(Z_ARRVAL_P(&meta_zv), str_key, &val_as_string);
-                    continue;
-                }
-
                 dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }
         }
@@ -1576,12 +1567,11 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
-    if (DDTRACE_G(products_bm) & DD_P_TS_APPSEC) {
-        // zend_string *str = zend_string_alloc(2, 0);
-        // snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, DDTRACE_G(products_bm));
+    if (DDTRACE_G(products_bm) & TRACE_SOURCE_ASM) {
+        zend_string *str = zend_string_alloc(2, 0);
+        snprintf(ZSTR_VAL(str), 3, "%02" PRIx64, DDTRACE_G(products_bm));
         zval prodcts_bm_coded_zv;
-        // ZVAL_STRVAL(&prodcts_bm_coded_zv, str);
-        ZVAL_STRING(&prodcts_bm_coded_zv, "02");
+        ZVAL_STR(&prodcts_bm_coded_zv, str);
         zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &prodcts_bm_coded_zv);
     }
 
@@ -1754,7 +1744,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (!get_global_DD_APM_TRACING_ENABLED() && !(DDTRACE_G(products_bm) & DD_P_TS_APPSEC)) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !(DDTRACE_G(products_bm) & TRACE_SOURCE_ASM)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);

@@ -18,7 +18,6 @@
 #define DDTRACE_SPAN_FLAG_OPENTRACING (1 << 1)
 
 #define DD_P_TS_KEY "_dd.p.ts"
-#define DD_P_TS_APPSEC (1 << 1)
 
 #define TRACE_SOURCE_APM (1 << 0)
 #define TRACE_SOURCE_ASM (1 << 1)
