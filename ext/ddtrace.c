@@ -1479,6 +1479,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
+    ddtrace_asm_event_minit();
 
     return SUCCESS;
 }

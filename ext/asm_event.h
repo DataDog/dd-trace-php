@@ -3,7 +3,7 @@
 
 #include "ddtrace_export.h"
 
-void ddtrace_appsec_minit();
+void ddtrace_asm_event_minit();
 DDTRACE_PUBLIC void ddtrace_emit_asm_event();
 
 #endif  // ASM_EVENT_H

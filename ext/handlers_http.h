@@ -256,7 +256,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             }
         }
     }
-    //TODO Alex here you have to encode the products_bm
+
     zend_string *propagated_tags = ddtrace_format_root_propagated_tags();
     if (send_datadog || send_b3 || send_b3single) {
         if (propagated_tags) {
