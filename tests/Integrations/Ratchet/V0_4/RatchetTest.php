@@ -107,9 +107,13 @@ class RatchetTest extends IntegrationTestCase
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     'websocket.close.code' => '1000',
-                    '_dd.dm.inherited' => '1',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
+                    '_dd.p.dm' => "-0",
+                ])
+                ->withExactMetrics([
+                    '_dd.dm.inherited' => 1,
+                    '_sampling_priority_v1' => 1,
                 ])
                 ->withExistingTagsNames(["_dd.span_links"])
                 ->withChildren([
@@ -126,11 +130,12 @@ class RatchetTest extends IntegrationTestCase
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     'websocket.message.type' => 'text',
-                    '_dd.dm.inherited' => '1',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
+                    '_dd.p.dm' => "-0",
                 ])
                 ->withExactMetrics([
+                    '_dd.dm.inherited' => 1,
                     'websocket.message.length' => 14,
                     'websocket.message.frames' => 1,
                     '_sampling_priority_v1' => 1,
@@ -154,11 +159,12 @@ class RatchetTest extends IntegrationTestCase
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     'websocket.message.type' => 'text',
-                    '_dd.dm.inherited' => '1',
                     '_dd.dm.service' => 'phpunit',
                     '_dd.dm.resource' => '',
+                    '_dd.p.dm' => "-0",
                 ])
                 ->withExactMetrics([
+                    '_dd.dm.inherited' => 1,
                     'websocket.message.length' => 12,
                     'websocket.message.frames' => 1,
                     '_sampling_priority_v1' => 1,
@@ -182,11 +188,12 @@ class RatchetTest extends IntegrationTestCase
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
                     'websocket.message.type' => 'text',
-                    '_dd.dm.inherited' => '1',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
+                    '_dd.p.dm' => "-0",
                 ])
                 ->withExactMetrics([
+                    '_dd.dm.inherited' => 1,
                     'websocket.message.length' => 12,
                     'websocket.message.frames' => 1,
                     '_sampling_priority_v1' => 1,

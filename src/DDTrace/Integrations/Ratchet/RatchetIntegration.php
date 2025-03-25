@@ -268,10 +268,18 @@ class RatchetIntegration extends Integration
                     $span->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
                     if ($rootTrace && \dd_trace_env_config("DD_TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING")) {
                         $span->samplingPriority = $rootSpan->samplingPriority;
-                        $span->meta["_dd.dm.inherited"] = 1;
+                        if (isset($rootSpan->origin)) {
+                            $span->origin = $rootSpan->origin;
+                        }
+                        $span->metrics["_dd.dm.inherited"] = 1;
                         if (!isset($rootSpan->parentId)) {
                             $span->meta["_dd.dm.service"] = $rootSpan->service;
                             $span->meta["_dd.dm.resource"] = $rootSpan->resource;
+                        }
+                        foreach ($rootSpan->propagatedTags as $key => $_) {
+                            if (isset($rootSpan->meta[$key])) {
+                                $span->meta[$key] = $rootSpan->meta[$key];
+                            }
                         }
                     }
 

@@ -38,4 +38,4 @@ dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 
 ?>
 --EXPECT--
-x-datadog-tags: _dd.p.appsec=1,_dd.p.dm=-5
+x-datadog-tags: _dd.p.dm=-5,_dd.p.appsec=1
