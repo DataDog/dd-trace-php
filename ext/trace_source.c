@@ -24,10 +24,6 @@ void ddtrace_trace_source_rinit() {
 }
 
 zend_string *ddtrace_trace_source_get_encoded() {
-    // This should not happen, but just in case.
-    if (DDTRACE_G(trace_source_bm) > 0xFF) {
-        return NULL;
-    }
     zend_string *encoded = zend_string_alloc(2, 0);
     snprintf(ZSTR_VAL(encoded), 3, "%02x" PRIx64, DDTRACE_G(trace_source_bm));
     return encoded;
@@ -35,7 +31,7 @@ zend_string *ddtrace_trace_source_get_encoded() {
 
 bool ddtrace_trace_source_set_from_hexadecimal(zend_string *hexadecimal)
 {
-    if (!hexadecimal || ZSTR_LEN(hexadecimal) != 2) {
+    if (!hexadecimal || ZSTR_LEN(hexadecimal) < 2 || ZSTR_LEN(hexadecimal) > 8) {
         return false;
     }
     char *endptr;

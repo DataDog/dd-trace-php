@@ -47,7 +47,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
                 zval zv;
                 bool add = true;
                 ZVAL_STRINGL(&zv, valuestart, header - valuestart);
-                if (strncmp(ZSTR_VAL(tag_name), DD_P_TS_KEY, sizeof(DD_P_TS_KEY) - 1) == 0) {
+                if (zend_string_equals_literal(tag_name, DD_P_TS_KEY)) {
                     add = ddtrace_trace_source_set_from_hexadecimal(Z_STR_P(&zv));                    
                 }
                 if (add) {

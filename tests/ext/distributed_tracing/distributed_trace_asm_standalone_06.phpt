@@ -1,12 +1,12 @@
 --TEST--
-Invalid _dd.p.ts - More bits than allowed
+Invalid _dd.p.ts - It requires at least 2 bits instead of 1
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_SAMPLING_PRIORITY=3
-HTTP_X_DATADOG_TAGS=_dd.p.ts=FFFFFFFFF
+HTTP_X_DATADOG_TAGS=_dd.p.ts=2
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APM_TRACING_ENABLED=0
 --FILE--
@@ -42,7 +42,7 @@ array(2) {
     ["resource"]=>
     string(5) "outer"
     ["service"]=>
-    string(39) "distributed_trace_asm_standalone_04.php"
+    string(39) "distributed_trace_asm_standalone_06.php"
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
@@ -87,7 +87,7 @@ array(2) {
     ["resource"]=>
     string(5) "inner"
     ["service"]=>
-    string(39) "distributed_trace_asm_standalone_04.php"
+    string(39) "distributed_trace_asm_standalone_06.php"
     ["type"]=>
     string(3) "cli"
     ["meta"]=>

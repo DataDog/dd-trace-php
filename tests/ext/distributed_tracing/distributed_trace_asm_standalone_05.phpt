@@ -1,12 +1,12 @@
 --TEST--
-Invalid _dd.p.ts - It requires 2 bits instead of 1
+When _dd.p.ts has more than 8 bits(and less than 32) only 8 bits are printed
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_SAMPLING_PRIORITY=3
-HTTP_X_DATADOG_TAGS=_dd.p.ts=2
+HTTP_X_DATADOG_TAGS=_dd.p.ts=FFF
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APM_TRACING_ENABLED=0
 --FILE--
@@ -46,7 +46,9 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
+      ["_dd.p.ts"]=>
+      string(2) "ff"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["runtime-id"]=>
@@ -59,7 +61,7 @@ array(2) {
       ["process_id"]=>
       float(%f)
       ["_sampling_priority_v1"]=>
-      float(1)
+      float(3)
       ["_dd.apm.enabled"]=>
       int(0)
       ["php.compilation.total_time_ms"]=>
@@ -91,7 +93,9 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
+      ["_dd.p.ts"]=>
+      string(2) "ff"
       ["_dd.origin"]=>
       string(7) "datadog"
     }
