@@ -235,11 +235,11 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_baggage = zend_hash_str_exists(inject, ZEND_STRL("baggage"));
 
     zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
-    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == true) {
+    if (!get_DD_APM_TRACING_ENABLED() && ddtrace_asm_event_emitted()) {
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (!get_DD_APM_TRACING_ENABLED() && DDTRACE_G(asm_event_emitted) == false && !ddtrace_trace_source_is_asm_source()) {
+    if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_asm_source()) {
         return;
     }
 

@@ -20,41 +20,45 @@ void ddtrace_trace_source_minit() {
 }
 
 void ddtrace_trace_source_rinit() {
-    DDTRACE_G(products_bm) = 0;
+    DDTRACE_G(trace_source_bm) = 0;
 }
 
-zend_string *ddtrace_trace_source_get_ts_encoded() {
-    zend_string *str = zend_string_alloc(2, 0);
-    snprintf(ZSTR_VAL(str), 3, "%02x" PRIx64, DDTRACE_G(products_bm));
-    return str;
+zend_string *ddtrace_trace_source_get_encoded() {
+    // This should not happen, but just in case.
+    if (DDTRACE_G(trace_source_bm) > 0xFF) {
+        return NULL;
+    }
+    zend_string *encoded = zend_string_alloc(2, 0);
+    snprintf(ZSTR_VAL(encoded), 3, "%02x" PRIx64, DDTRACE_G(trace_source_bm));
+    return encoded;
 }
 
-void ddtrace_trace_source_set_from_string(zend_string *hexadecimal_string)
+void ddtrace_trace_source_set_from_hexadecimal(zend_string *hexadecimal)
 {
-    if (ZSTR_LEN(hexadecimal_string) == 0 || ZSTR_LEN(hexadecimal_string) > 2) {
+    if (!hexadecimal || ZSTR_LEN(hexadecimal) > 2) {
         return;
     }
-    DDTRACE_G(products_bm) = strtol(ZSTR_VAL(hexadecimal_string), NULL, 16);
+    DDTRACE_G(trace_source_bm) = strtol(ZSTR_VAL(hexadecimal), NULL, 16);
 }
 
 static void ddtrace_trace_source_add_propagated_tag() {
-    zend_string *str = ddtrace_trace_source_get_ts_encoded();
-    zval prodcts_bm_coded_zv;
-    ZVAL_STR(&prodcts_bm_coded_zv, str);
-    ddtrace_add_propagated_tag(_dd_tag_p_ts, &prodcts_bm_coded_zv);
-    zend_string_release(str);
+    zend_string *encoded = ddtrace_trace_source_get_encoded();
+    zval ts_encoded_zv;
+    ZVAL_STR(&ts_encoded_zv, encoded);
+    ddtrace_add_propagated_tag(_dd_tag_p_ts, &ts_encoded_zv);
+    zend_string_release(encoded);
 }
 
-void ddtrace_trace_source_set_asm() {
-    if (DDTRACE_G(products_bm) & TRACE_SOURCE_ASM) {
+void ddtrace_trace_source_set_asm_source() {
+    if (DDTRACE_G(trace_source_bm) & TRACE_SOURCE_ASM) {
         return;
     }
-    DDTRACE_G(products_bm) |= TRACE_SOURCE_ASM;
+    DDTRACE_G(trace_source_bm) |= TRACE_SOURCE_ASM;
     ddtrace_trace_source_add_propagated_tag();
 }
 
 bool ddtrace_trace_source_is_asm_source() {
-    return DDTRACE_G(products_bm) & TRACE_SOURCE_ASM;
+    return DDTRACE_G(trace_source_bm) & TRACE_SOURCE_ASM;
 }
 
 

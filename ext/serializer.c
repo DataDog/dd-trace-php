@@ -1139,6 +1139,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                     ignore_error = zend_is_true(orig_val);
                     continue;
                 }
+
                 dd_serialize_array_meta_recursively(Z_ARRVAL(meta_zv), str_key, orig_val);
             }
         }
@@ -1569,10 +1570,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
 
     if (ddtrace_trace_source_is_asm_source()) {
-        zend_string *str = ddtrace_trace_source_get_ts_encoded();
-        zval prodcts_bm_coded_zv;
-        ZVAL_STR(&prodcts_bm_coded_zv, str);
-        zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &prodcts_bm_coded_zv);
+        zend_string *encoded = ddtrace_trace_source_get_encoded();
+        if (encoded) {
+            zval trace_source_zv;
+            ZVAL_STR(&trace_source_zv, encoded);
+            zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &trace_source_zv);
+        }
     }
 
     // Notify profiling for Endpoint Profiling.

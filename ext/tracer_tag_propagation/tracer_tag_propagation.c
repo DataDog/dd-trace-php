@@ -49,7 +49,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
                 zend_hash_update(root_meta, tag_name, &zv);
                 zend_hash_add_empty_element(propagated_tags, tag_name);
                 if (strncmp(ZSTR_VAL(tag_name), DD_P_TS_KEY, sizeof(DD_P_TS_KEY) - 1) == 0) {
-                    ddtrace_trace_source_set_from_string(Z_STR_P(&zv));
+                    ddtrace_trace_source_set_from_hexadecimal(Z_STR_P(&zv));
                 }
             }
             zend_string_release(tag_name);

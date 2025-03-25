@@ -1575,7 +1575,6 @@ static void dd_initialize_request(void) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
-    DDTRACE_G(asm_event_emitted) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
@@ -1588,6 +1587,7 @@ static void dd_initialize_request(void) {
 
     ddtrace_sidecar_rinit();
     ddtrace_trace_source_rinit();
+    ddtrace_asm_event_rinit();
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);

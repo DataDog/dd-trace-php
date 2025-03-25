@@ -7,9 +7,9 @@
 
 void ddtrace_trace_source_minit();
 void ddtrace_trace_source_rinit();
-zend_string *ddtrace_trace_source_get_ts_encoded();
-void ddtrace_trace_source_set_from_string(zend_string *hexadecimal_string);
-void ddtrace_trace_source_set_asm();
+zend_string *ddtrace_trace_source_get_encoded();
+void ddtrace_trace_source_set_from_hexadecimal(zend_string *hexadecimal);
+void ddtrace_trace_source_set_asm_source();
 bool ddtrace_trace_source_is_asm_source();
 
 #endif  // DD_TRACE_SOURCE_H
