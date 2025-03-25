@@ -68,8 +68,8 @@ public:
         diagnostics = parameter::map();
         for (const auto &added : cs.added) {
             const remote_config::parsed_config_key &key = added.first;
-            if (key.product() == remote_config::known_products::ASM_DD &&
-                using_default_rules_) {
+            if (using_default_rules_ &&
+                key.product() == remote_config::known_products::ASM_DD) {
                 remove_default_config();
             }
 
@@ -79,9 +79,9 @@ public:
                 &these_diags);
             diagnostics.merge(std::move(these_diags));
             if (res) {
-                SPDLOG_DEBUG("Added config: {}", key.full_key());
+                SPDLOG_DEBUG("Added/updated config: {}", key.full_key());
             } else {
-                SPDLOG_WARN("Failed to add config: {}", key.full_key());
+                SPDLOG_WARN("Failed to add/update config: {}", key.full_key());
             }
         }
 
