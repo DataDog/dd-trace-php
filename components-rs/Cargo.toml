@@ -20,6 +20,7 @@ datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
 datadog-crashtracker-ffi = { path = "../libdatadog/crashtracker-ffi", default-features = false, features = ["collector"] }
+datadog-library-config-ffi = { path = "../libdatadog/library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
@@ -44,7 +45,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 serde_json = "1.0.113"
 regex = "1.10.5"
 regex-automata = "0.4.5"
-http = "0.2.11"
+http = "1.0"
 
 [build-dependencies]
 cbindgen = "0.27"
