@@ -33,12 +33,15 @@ zend_string *ddtrace_trace_source_get_encoded() {
     return encoded;
 }
 
-void ddtrace_trace_source_set_from_hexadecimal(zend_string *hexadecimal)
+bool ddtrace_trace_source_set_from_hexadecimal(zend_string *hexadecimal)
 {
-    if (!hexadecimal || ZSTR_LEN(hexadecimal) > 2) {
-        return;
+    if (!hexadecimal || ZSTR_LEN(hexadecimal) != 2) {
+        return false;
     }
-    DDTRACE_G(trace_source_bm) = strtol(ZSTR_VAL(hexadecimal), NULL, 16);
+    char *endptr;
+    DDTRACE_G(trace_source_bm) = strtol(ZSTR_VAL(hexadecimal), &endptr, 16);
+
+    return *endptr == '\0';
 }
 
 static void ddtrace_trace_source_add_propagated_tag() {
