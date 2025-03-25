@@ -9,9 +9,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #define TRACE_SOURCE_APM (1 << 0)
 #define TRACE_SOURCE_ASM (1 << 1)
-#define TRACE_SOURCE_DSM (1 << 3)
-#define TRACE_SOURCE_DJM (1 << 7)
-#define TRACE_SOURCE_DBM (1 << 9)
+#define TRACE_SOURCE_DSM (1 << 2)
+#define TRACE_SOURCE_DJM (1 << 3)
+#define TRACE_SOURCE_DBM (1 << 4)
 
 static zend_string *_dd_tag_p_ts;
 
