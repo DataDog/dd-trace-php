@@ -864,7 +864,7 @@ DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_receiver_entry_point_unix_socket(ddog_CharSlice socket_path);
 
 #ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
-#endif /* DDOG_CRASHTRACKER_H */
+#endif  /* DDOG_CRASHTRACKER_H */

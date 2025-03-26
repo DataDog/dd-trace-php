@@ -130,7 +130,7 @@ void ddtrace_telemetry_finalize(void) {
                                                     (ddog_CharSlice) {.len = strlen(version), .ptr = version});
     } ZEND_HASH_FOREACH_END();
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         zend_ini_entry *ini = cfg->ini_entries[0];
 #if ZTS
