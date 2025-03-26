@@ -28,6 +28,7 @@
 | openai-php/client           | 0.10.3                 | 0.10.3                 |
 | php-amqplib/php-amqplib     | 2.12.1                 | 3.7.3                  |
 | predis/predis               | 1.1.10                 | 2.3.0                  |
+| ratchet/pawl                | 0.4.1                  | 0.4.1                  |
 | shardj/zf1-future           | 1.21.4                 | 1.21.4                 |
 | slim/slim                   | 3.12.5                 | 4.14.0                 |
 | spiral/roadrunner           | 2.11.4                 | 2.11.4                 |
