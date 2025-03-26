@@ -195,8 +195,7 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
 }
 
 static inline void ddtrace_inject_distributed_headers_config(zend_array *array, bool key_value_pairs, zend_array *inject) {
-    ddtrace_span_properties *properties = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? DDTRACE_G(active_stack)->active : NULL;
-    ddtrace_root_span_data *root = properties ? SPANDATA(properties)->root : NULL;
+    ddtrace_root_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? SPANDATA(DDTRACE_G(active_stack)->active)->root : NULL;
     zend_string *origin = DDTRACE_G(dd_origin);
     zend_array *tracestate_unknown_dd_keys = &DDTRACE_G(tracestate_unknown_dd_keys);
     zend_string *tracestate = DDTRACE_G(tracestate);
@@ -240,7 +239,9 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(ddtrace_property_array(&properties->property_meta))) {
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+    zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : NULL;
+    if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
         return;
     }
 
