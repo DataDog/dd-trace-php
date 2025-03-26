@@ -249,7 +249,7 @@ void json_helper::merge_arrays(rapidjson::Value &destination,
     }
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters,misc-no-recursion)
 void json_helper::merge_objects(rapidjson::Value &destination,
     rapidjson::Value &source, rapidjson::Value::AllocatorType &allocator)
 {
@@ -260,7 +260,18 @@ void json_helper::merge_objects(rapidjson::Value &destination,
         throw invalid_type("source value not an object");
     }
     for (auto it = source.MemberBegin(); it != source.MemberEnd(); ++it) {
-        destination.AddMember(it->name, it->value, allocator);
+        if (destination.HasMember(it->name)) {
+            auto &cur = destination[it->name];
+            if (cur.IsArray() && it->value.IsArray()) {
+                merge_arrays(cur, it->value, allocator);
+            } else if (cur.IsObject() && it->value.IsObject()) {
+                merge_objects(cur, it->value, allocator);
+            } else {
+                destination[it->name] = it->value;
+            }
+        } else {
+            destination.AddMember(it->name, it->value, allocator);
+        }
     }
 }
 

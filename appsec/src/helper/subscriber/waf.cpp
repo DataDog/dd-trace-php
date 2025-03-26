@@ -299,7 +299,7 @@ void load_result_report(
             continue;
         }
 
-        // map has either "error" key or "loaded", "failed", "errors" keys
+        // map has "error", "loaded", "failed", "skipped", "errors", "warnings"
         const parameter_view::map map = static_cast<parameter_view::map>(value);
 
         auto tags_common = [&]() {
