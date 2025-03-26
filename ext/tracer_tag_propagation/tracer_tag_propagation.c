@@ -140,8 +140,6 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
     // we propagate all tags on the current root span which were originally propagated, including the explicitly
     // defined tags here
     zend_hash_str_del(propagated, ZEND_STRL("_dd.p.upstream_services"));
-    zend_hash_str_del(propagated, ZEND_STRL("_dd.p.tid"));
-    zend_hash_str_add_empty_element(propagated, ZEND_STRL("_dd.p.dm"));
 
     smart_str taglist = {0};
 

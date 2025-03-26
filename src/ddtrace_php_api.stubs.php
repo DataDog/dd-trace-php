@@ -2310,6 +2310,7 @@ namespace DDTrace {
         const CLI = 'cli';
         const SQL = 'sql';
         const QUEUE = 'queue';
+        const WEBSOCKET = 'websocket';
         /**
          * @deprecated use QUEUE instead
          */

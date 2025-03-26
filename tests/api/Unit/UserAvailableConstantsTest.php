@@ -25,6 +25,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Type::CLI, 'cli'],
             [Type::SQL, 'sql'],
             [Type::QUEUE, 'queue'],
+            [Type::WEBSOCKET, 'websocket'],
             [Type::MESSAGE_CONSUMER, 'queue'],
             [Type::MESSAGE_PRODUCER, 'queue'],
 

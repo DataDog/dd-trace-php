@@ -35,8 +35,8 @@ struct identity_hash {
 };
 
 template <std::size_t MaxItems, std::size_t Capacity,
-    typename TimeProvider = seconds_provider, std::uint32_t Threshold = 30,
-    typename Hash = identity_hash>
+    typename TimeProvider = seconds_provider,
+    std::uint32_t DefaultThreshold = 30, typename Hash = identity_hash>
 class timed_set {
     // Capacity should be a power of two so that the compiler can optimize the
     // modulo operation to a shift
@@ -100,7 +100,7 @@ class timed_set {
     bool hit(table &table, std::uint64_t number) noexcept
     {
         const std::uint32_t now = time_provider.now() - time_bias;
-        const std::uint32_t report_threshold = now - Threshold;
+        const std::uint32_t report_threshold = now - threshold;
 
     another_slot:
         auto [entry, exists] = table.find_slot(number);
@@ -220,6 +220,8 @@ public:
     };
     friend class table_accessor;
 
+    timed_set(std::uint32_t threshold = DefaultThreshold) : threshold{threshold}
+    {}
     ~timed_set()
     {
         // we must wait for the update thread
@@ -292,6 +294,7 @@ private:
     std::atomic<bool> rebuild_in_progress{false};
     [[no_unique_address]] TimeProvider time_provider;
     // avoid problems with wrap arounds
-    std::uint32_t time_bias{time_provider.now() - Threshold};
+    std::uint32_t threshold;
+    std::uint32_t time_bias{time_provider.now() - threshold};
 };
 } // namespace dds
