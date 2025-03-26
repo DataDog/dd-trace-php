@@ -17,6 +17,10 @@
  */
 typedef uint64_t ddog_QueueId;
 
+#if defined(_WIN32)
+bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
+#endif
+
 /**
  * This creates Rust PlatformHandle<File> from supplied C std FILE object.
  * This method takes the ownership of the underlying filedescriptor.
@@ -93,7 +97,6 @@ void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);
 
 void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
 
-bool ddog_setup_crashtracking(struct ddog_Endpoint* endpoint, struct ddog_crasht_Metadata metadata);
 /**
  * # Safety
  * Caller must ensure the process is safe to fork, at the time when this method is called
