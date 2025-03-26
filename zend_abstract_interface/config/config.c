@@ -41,11 +41,13 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
-        // Configuration from the stable config file takes precedence over environment values
-        if (zai_config_stable_file_get_value(name, buf)) {
+        if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_FLEET)) {
             zai_config_process_env(memoized, buf, &value);
             break;
         } else if (zai_config_get_env_value(name, buf)) {
+            zai_config_process_env(memoized, buf, &value);
+            break;
+        } else if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL)) {
             zai_config_process_env(memoized, buf, &value);
             break;
         }
@@ -231,7 +233,6 @@ void zai_config_first_time_rinit(bool in_request) {
 void zai_config_rinit(void) {
     zai_config_runtime_config_ctor();
     zai_config_ini_rinit();
-    zai_config_stable_file_rinit();
 }
 
 void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }
