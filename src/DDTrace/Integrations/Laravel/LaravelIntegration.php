@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Laravel;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
@@ -520,6 +521,43 @@ class LaravelIntegration extends Integration
                 $rootSpan->service = $integration->getServiceName();
                 $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
+        );
+
+        //Laravel 4
+        \DDTrace\install_hook(
+            'Illuminate\Exception\PlainDisplayer::display',
+             null,
+             function (HookData $hook) use ($integration) {
+                if (strpos($hook->args[0]->getMessage(), 'Datadog blocked the request') !== false) {
+                     if (!$hook->returned instanceof \Symfony\Component\HttpFoundation\Response) {
+                        return;
+                     }
+                     $response = $hook->returned;
+                     $response->setContent("&nbsp;");
+                     $hook->overrideReturnValue($response);
+                }
+             }
+        );
+
+        //Laravel > 4
+         \DDTrace\install_hook(
+            'Illuminate\Foundation\Exceptions\Handler::shouldntReport',
+             null,
+             function (HookData $hook) use ($integration) {
+                if (strpos($hook->args[0]->getMessage(), 'Datadog blocked the request') !== false) {
+                     $hook->overrideReturnValue(true);
+                }
+             }
+        );
+
+         \DDTrace\install_hook(
+            'Illuminate\Foundation\Exceptions\Handler::render',
+             function (HookData $hook) use ($integration) {
+                if (strpos($hook->args[1]->getMessage(), 'Datadog blocked the request') !== false) {
+                    $hook->args[1] = new LaravelIntegrationException();
+                    $hook->overrideArguments($hook->args);
+                }
+             }
         );
 
         return Integration::LOADED;

@@ -34,3 +34,4 @@ Route::group(array('before' => 'auth'), function()
 {
    Route::get('/behind_auth', 'LoginTestController@behind_auth');
 });
+Route::get('rasp', 'RaspTestController@rasp');
