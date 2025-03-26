@@ -601,12 +601,12 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         zend_ulong key_i;
         zval *val;
         ZEND_HASH_FOREACH_KEY_VAL(&result->baggage, key_i, key, val) {
-                if (key) {
-                    zend_hash_update(existing_baggage, key, val);
-                } else {
-                    zend_hash_index_update(existing_baggage, key_i, val);
-                }
-                Z_TRY_ADDREF_P(val);
+            if (key) {
+                zend_hash_update(existing_baggage, key, val);
+            } else {
+                zend_hash_index_update(existing_baggage, key_i, val);
+            }
+            Z_TRY_ADDREF_P(val);
         } ZEND_HASH_FOREACH_END();
         zend_hash_destroy(&result->baggage);
 

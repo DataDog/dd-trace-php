@@ -680,15 +680,14 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent) {
     zval *prop_service = &span->property_service;
     zval_ptr_dtor(prop_service);
-    ZVAL_COPY(prop_service, &parent->property_service);
+    ZVAL_COPY_DEREF(prop_service, &parent->property_service);
     zval *prop_type = &span->property_type;
     zval_ptr_dtor(prop_type);
-    ZVAL_COPY(prop_type, &parent->property_type);
+    ZVAL_COPY_DEREF(prop_type, &parent->property_type);
 
     zval *prop_baggage = &span->property_baggage, *prop_parent_baggage = &parent->property_baggage;
     zval_ptr_dtor(prop_baggage);
-    ZVAL_DEREF(prop_parent_baggage);
-    ZVAL_COPY(prop_baggage, prop_parent_baggage);
+    ZVAL_COPY_DEREF(prop_baggage, prop_parent_baggage);
 
     zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
 
@@ -702,7 +701,7 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     } else {
         version = &parent->property_version;
     }
-    ZVAL_COPY(prop_version, version);
+    ZVAL_COPY_DEREF(prop_version, version);
 
     zval *prop_env = &span->property_env;
     zval_ptr_dtor(prop_env);
@@ -714,7 +713,7 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     } else {
         env = &parent->property_env;
     }
-    ZVAL_COPY(prop_env, env);
+    ZVAL_COPY_DEREF(prop_env, env);
 }
 
 zend_string *ddtrace_default_service_name(void) {
@@ -801,7 +800,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_root_span_data *parent_root = span->stack->parent_stack->root_span;
     if (parent_root) {
         ddtrace_inherit_span_properties(&span->span, &parent_root->span);
-        ZVAL_COPY(&span->property_origin, &parent_root->property_origin);
+        ZVAL_COPY_DEREF(&span->property_origin, &parent_root->property_origin);
     } else {
         zval *prop_type = &span->property_type;
         zval *prop_name = &span->property_name;

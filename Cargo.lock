@@ -1673,6 +1673,7 @@ dependencies = [
 name = "datadog-sidecar-ffi"
 version = "0.0.1"
 dependencies = [
+ "datadog-crashtracker-ffi",
  "datadog-ipc",
  "datadog-live-debugger",
  "datadog-remote-config",
