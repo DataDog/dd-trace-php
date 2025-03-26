@@ -1,99 +1,42 @@
 --TEST--
-Invalid _dd.p.ts - It requires at least 2 bits instead of 1
+Test ts is only added to traces with ASM events
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_SAMPLING_PRIORITY=3
-HTTP_X_DATADOG_TAGS=_dd.p.ts=2
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APM_TRACING_ENABLED=0
 --FILE--
 <?php
 
-$outer = DDTrace\start_span();
-$outer->name = 'outer';
-$inner = DDTrace\start_span();
-$inner->name = 'inner';
-
+$root1 = DDTrace\start_trace_span();
+$root1->name = 'root1';
+DDTrace\Testing\emit_asm_event();
 DDTrace\close_span();
+$root2 = DDTrace\start_trace_span();
+$root2->name = 'root2';
+DDTrace\Testing\emit_asm_event();
+DDTrace\close_span();
+$root3= DDTrace\start_trace_span();
+$root3->name = 'root3';
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+$traces = dd_trace_serialize_closed_spans();
+
+var_dump($traces[0]['name']);
+var_dump(isset($traces[0]['meta']['_dd.p.ts']));
+var_dump($traces[1]['name']);
+var_dump($traces[1]['meta']['_dd.p.ts']);
+var_dump($traces[2]['name']);
+var_dump($traces[2]['meta']['_dd.p.ts']);
 
 ?>
 --EXPECTF--
-array(2) {
-  [0]=>
-  array(11) {
-    ["trace_id"]=>
-    string(2) "42"
-    ["span_id"]=>
-    string(%d) "%d"
-    ["parent_id"]=>
-    string(2) "10"
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(5) "outer"
-    ["resource"]=>
-    string(5) "outer"
-    ["service"]=>
-    string(39) "distributed_trace_asm_standalone_06.php"
-    ["type"]=>
-    string(3) "cli"
-    ["meta"]=>
-    array(3) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["runtime-id"]=>
-      string(36) "%s"
-      ["_dd.origin"]=>
-      string(7) "datadog"
-    }
-    ["metrics"]=>
-    array(6) {
-      ["process_id"]=>
-      float(%f)
-      ["_sampling_priority_v1"]=>
-      float(1)
-      ["_dd.apm.enabled"]=>
-      int(0)
-      ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_usage_bytes"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
-    }
-  }
-  [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(2) "42"
-    ["span_id"]=>
-    string(%d) "%d"
-    ["parent_id"]=>
-    string(%d) "%d"
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(5) "inner"
-    ["resource"]=>
-    string(5) "inner"
-    ["service"]=>
-    string(39) "distributed_trace_asm_standalone_06.php"
-    ["type"]=>
-    string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.origin"]=>
-      string(7) "datadog"
-    }
-  }
-}
+string(5) "root3"
+bool(false)
+string(5) "root2"
+string(2) "02"
+string(5) "root1"
+string(2) "02"

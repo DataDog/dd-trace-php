@@ -25,10 +25,6 @@ zend_string *ddtrace_trace_source_get_encoded(uint32_t source) {
     return encoded;
 }
 
-static uint32_t ddtrace_tracer_source_decode_hexadecimal(zend_string *hexadecimal, char **endptr) {
-    return strtol(ZSTR_VAL(hexadecimal), endptr, 16);
-}
-
 static void ddtrace_trace_source_add_propagated_tag(zend_string *encoded) {
     if (!encoded) {
         return;
@@ -37,17 +33,6 @@ static void ddtrace_trace_source_add_propagated_tag(zend_string *encoded) {
     ZVAL_STR(&ts_encoded_zv, encoded);
     ddtrace_add_propagated_tag(_dd_tag_p_ts, &ts_encoded_zv);
     zend_string_release(encoded);
-}
-
-static zend_array *ddtrace_trace_source_get_meta() {
-    if (!DDTRACE_G(active_stack)) {
-        return NULL;
-    }
-    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
-    if (!root_span) {
-        return NULL;
-    }
-    return ddtrace_property_array(&root_span->property_meta);
 }
 
 static void ddtrace_add_trace_source_to_meta(zend_string *encoded, zend_array *meta)
@@ -61,36 +46,26 @@ static void ddtrace_add_trace_source_to_meta(zend_string *encoded, zend_array *m
     zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &trace_source_zv);
 }
 
-static void ddtrace_add_trace_source(uint32_t source, zend_array *meta)
-{
-    zend_string *encoded = ddtrace_trace_source_get_encoded(source);
+void ddtrace_trace_source_set_asm_source() {
+    if (!DDTRACE_G(active_stack)) {
+        return;
+    }
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    if (!root_span) {
+        return;
+    }
 
+    zend_array *meta = ddtrace_property_array(&root_span->property_meta);;
+    if (!meta) {
+        return;
+    }
+
+    zend_string *encoded = ddtrace_trace_source_get_encoded(TRACE_SOURCE_ASM);
     ddtrace_add_trace_source_to_meta(encoded, meta);
     ddtrace_trace_source_add_propagated_tag(encoded);
 }
 
-void ddtrace_trace_source_set_from_hexadecimal(zend_string *hexadecimal, zend_array *meta)
-{
-    if (!hexadecimal || ZSTR_LEN(hexadecimal) < 2 || ZSTR_LEN(hexadecimal) > 8) {
-        return;
-    }
-    char *endptr = NULL;
-    uint32_t binary = ddtrace_tracer_source_decode_hexadecimal(hexadecimal, &endptr);
-    if (!endptr || *endptr != '\0') {
-        return;
-    }
-    ddtrace_add_trace_source(binary, meta);
-}
-
-void ddtrace_trace_source_set_asm_source() {
-    zend_array *meta = ddtrace_trace_source_get_meta();
-    if (!meta) {
-        return;
-    }
-    ddtrace_add_trace_source(TRACE_SOURCE_ASM, meta);
-}
-
-bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {
+bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {    
     if (!meta) {
         return false;
     }
@@ -100,7 +75,7 @@ bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {
         return false;
     }
 
-    uint32_t source = ddtrace_tracer_source_decode_hexadecimal(Z_STR_P(trace_source_zv), NULL);
+    uint32_t source = strtol(Z_STRVAL_P(trace_source_zv), NULL, 16);
 
     return source & TRACE_SOURCE_ASM;
 }

@@ -46,13 +46,8 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
                 strncmp(ZSTR_VAL(tag_name), "_dd.p.", sizeof("_dd.p.") - 1) == 0) {
                 zval zv;
                 ZVAL_STRINGL(&zv, valuestart, header - valuestart);
-                if (zend_string_equals_literal(tag_name, DD_P_TS_KEY)) {
-                    ddtrace_trace_source_set_from_hexadecimal(Z_STR_P(&zv), root_meta);
-                    zval_ptr_dtor(&zv);
-                } else {
-                    zend_hash_update(root_meta, tag_name, &zv);
-                    zend_hash_add_empty_element(propagated_tags, tag_name);
-                }
+                zend_hash_update(root_meta, tag_name, &zv);
+                zend_hash_add_empty_element(propagated_tags, tag_name);
             }
             zend_string_release(tag_name);
 
