@@ -165,9 +165,9 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, "false")                                   \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_SERVICE, "false")                                                          \
-    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "datadog,tracecontext,B3,B3 single header")      \
-    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_INJECT, "datadog,tracecontext")                           \
-    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "datadog,tracecontext",                                  \
+    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_EXTRACT, "datadog,tracecontext,B3,B3 single header,baggage") \
+    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_INJECT, "datadog,tracecontext,baggage")                   \
+    CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "datadog,tracecontext,baggage",                          \
            .env_config_fallback = ddtrace_conf_otel_propagators)                                               \
     CONFIG(BOOL, DD_TRACE_IGNORE_AGENT_SAMPLING_RATES, "false", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                        \
@@ -243,6 +243,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED, "false")                                           \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
+    CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
+    CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

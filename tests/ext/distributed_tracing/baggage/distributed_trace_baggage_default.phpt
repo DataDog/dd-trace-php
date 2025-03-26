@@ -1,5 +1,5 @@
 --TEST--
-Test consume_distributed_tracing_headers() with function argument
+Test baggage header interaction with default configurations
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--

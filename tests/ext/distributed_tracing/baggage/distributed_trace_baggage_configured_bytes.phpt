@@ -1,7 +1,8 @@
 --TEST--
-Test consume_distributed_tracing_headers() with function argument
+Test baggage header interaction with bytes limits configured
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_BAGGAGE_MAX_BYTES=3
 --FILE--
 <?php
 
@@ -11,7 +12,7 @@ DDTrace\consume_distributed_tracing_headers(function ($header) {
             "x-datadog-parent-id" => 10,
             "x-datadog-origin" => "datadog",
             "x-datadog-sampling-priority" => 3,
-            "baggage" => "user.id=123,session.id=abc"
+            "baggage" => "a=b,user.id=123,session.id=abc"
         ][$header] ?? null;
 });
 var_dump(DDTrace\generate_distributed_tracing_headers());
@@ -34,5 +35,5 @@ array(8) {
   ["tracestate"]=>
   string(24) "dd=o:datadog;s:3;t.dm:-0"
   ["baggage"]=>
-  string(26) "user.id=123,session.id=abc"
+  string(3) "a=b"
 }

@@ -281,6 +281,7 @@ class RatchetIntegration extends Integration
                                 $span->meta[$key] = $rootSpan->meta[$key];
                             }
                         }
+                        $span->baggage = $rootSpan->baggage;
                     }
 
                     if ($isControl) {
