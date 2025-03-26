@@ -155,6 +155,8 @@ void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
 struct ddog_Endpoint *ddtrace_parse_agent_url(ddog_CharSlice url);
 
+ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -167,7 +169,9 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
-void ddog_init_remote_config(bool live_debugging_enabled, bool appsec_activation, bool appsec_config);
+void ddog_init_remote_config(bool live_debugging_enabled,
+                             bool appsec_activation,
+                             bool appsec_config);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint);
 
@@ -273,4 +277,4 @@ void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActi
 void ddog_sidecar_telemetry_add_integration_log_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
-#endif /* DDTRACE_PHP_H */
+#endif  /* DDTRACE_PHP_H */

@@ -1,0 +1,4 @@
+apm_configuration_default:
+  DD_SERVICE: service_default_config
+  DD_ENV: env_from_default_config
+  DD_DYNAMIC_INSTRUMENTATION_ENABLED: true

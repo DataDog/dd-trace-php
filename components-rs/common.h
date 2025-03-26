@@ -361,6 +361,17 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_XSS = 28,
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_SAMPLE_RULES = 29,
   DDOG_REMOTE_CONFIG_CAPABILITIES_CSM_ACTIVATION = 30,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_AUTO_USER_INSTRUM_MODE = 31,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ENDPOINT_FINGERPRINT = 32,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_SESSION_FINGERPRINT = 33,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_NETWORK_FINGERPRINT = 34,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_HEADER_FINGERPRINT = 35,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRUNCATION_RULES = 36,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RASP_CMDI = 37,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION = 38,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_EXCEPTION_REPLAY = 39,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_CODE_ORIGIN = 40,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -1290,6 +1301,116 @@ typedef struct ddog_StringWrapperResult {
   };
 } ddog_StringWrapperResult;
 
+typedef enum ddog_LibraryConfigName {
+  DDOG_LIBRARY_CONFIG_NAME_DD_APM_TRACING_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_RUNTIME_METRICS_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_LOGS_INJECTION,
+  DDOG_LIBRARY_CONFIG_NAME_DD_PROFILING_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_DATA_STREAMS_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_APPSEC_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_IAST_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_DYNAMIC_INSTRUMENTATION_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_DATA_JOBS_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_APPSEC_SCA_ENABLED,
+  DDOG_LIBRARY_CONFIG_NAME_DD_TRACE_DEBUG,
+  DDOG_LIBRARY_CONFIG_NAME_DD_SERVICE,
+  DDOG_LIBRARY_CONFIG_NAME_DD_ENV,
+  DDOG_LIBRARY_CONFIG_NAME_DD_VERSION,
+} ddog_LibraryConfigName;
+
+typedef enum ddog_LibraryConfigSource {
+  DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG = 0,
+  DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG = 1,
+} ddog_LibraryConfigSource;
+
+typedef struct ddog_Configurator ddog_Configurator;
+
+/**
+ * Ffi safe type representing a borrowed null-terminated C array
+ * Equivalent to a std::ffi::CStr
+ */
+typedef struct ddog_CStr {
+  /**
+   * Null terminated char array
+   */
+  char *ptr;
+  /**
+   * Length of the array, not counting the null-terminator
+   */
+  uintptr_t length;
+} ddog_CStr;
+
+typedef struct ddog_Slice_CharSlice {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const ddog_CharSlice *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_CharSlice;
+
+typedef struct ddog_ProcessInfo {
+  struct ddog_Slice_CharSlice args;
+  struct ddog_Slice_CharSlice envp;
+  ddog_CharSlice language;
+} ddog_ProcessInfo;
+
+/**
+ * Ffi safe type representing an owned null-terminated C array
+ * Equivalent to a std::ffi::CString
+ */
+typedef struct ddog_CString {
+  /**
+   * Null terminated char array
+   */
+  char *ptr;
+  /**
+   * Length of the array, not counting the null-terminator
+   */
+  uintptr_t length;
+} ddog_CString;
+
+typedef struct ddog_LibraryConfig {
+  enum ddog_LibraryConfigName name;
+  struct ddog_CString value;
+} ddog_LibraryConfig;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_LibraryConfig {
+  const struct ddog_LibraryConfig *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_LibraryConfig;
+
+/**
+ * A generic result type for when an operation may fail,
+ * or may return <T> in case of success.
+ */
+typedef enum ddog_Result_VecLibraryConfig_Tag {
+  DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG,
+  DDOG_RESULT_VEC_LIBRARY_CONFIG_ERR_VEC_LIBRARY_CONFIG,
+} ddog_Result_VecLibraryConfig_Tag;
+
+typedef struct ddog_Result_VecLibraryConfig {
+  ddog_Result_VecLibraryConfig_Tag tag;
+  union {
+    struct {
+      struct ddog_Vec_LibraryConfig ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_Result_VecLibraryConfig;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -1442,7 +1563,7 @@ struct ddog_Vec_Tag_PushResult ddog_Vec_Tag_push(struct ddog_Vec_Tag *vec,
 DDOG_CHECK_RETURN struct ddog_Vec_Tag_ParseResult ddog_Vec_Tag_parse(ddog_CharSlice string);
 
 #ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
-#endif /* DDOG_COMMON_H */
+#endif  /* DDOG_COMMON_H */

@@ -18,11 +18,13 @@ if(${BUILD_ZAI_TESTING})
   # the true minimum, but have tested 2.4
   find_package(Catch2 2.4 REQUIRED)
 
+  include(components_rs.cmake)
+
   #[[ This file takes a while to build, so we do it once here and every test
       executable can link to it to save time.
   ]]
   add_library(catch2_main catch2_main.cc)
-  target_link_libraries(catch2_main PUBLIC Catch2::Catch2)
+  target_link_libraries(catch2_main PUBLIC Catch2::Catch2 components_rs)
   target_compile_features(catch2_main PUBLIC cxx_std_11)
 
   include(Catch)

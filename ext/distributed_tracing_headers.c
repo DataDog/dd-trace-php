@@ -40,6 +40,7 @@ static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
             zend_hash_str_update(&result->meta_tags, ZEND_STRL("_dd.propagation_error"), &error);
         }
         zend_hash_str_del(&result->meta_tags, ZEND_STRL("_dd.p.tid"));
+        zend_hash_str_del(&result->propagated_tags, ZEND_STRL("_dd.p.tid"));
     }
 }
 
@@ -646,6 +647,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             if (result->priority_sampling > 0) {
                 ZVAL_STRINGL(&zv, "-0", 2);
                 zend_hash_str_update(root_meta, ZEND_STRL("_dd.p.dm"), &zv);
+                zend_hash_str_add_empty_element(span ? ddtrace_property_array(&span->property_propagated_tags) : &DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
             } else {
                 zend_hash_str_del(root_meta, ZEND_STRL("_dd.p.dm"));
             }
