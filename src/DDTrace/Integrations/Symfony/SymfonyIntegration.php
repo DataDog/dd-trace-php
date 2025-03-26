@@ -238,7 +238,9 @@ class SymfonyIntegration extends Integration
                 }
 
                 $metadata = [];
-                $userIdentifier = \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 \datadog\appsec\track_user_login_success_event_automated(
                     $userIdentifier,
@@ -268,7 +270,9 @@ class SymfonyIntegration extends Integration
                     return;
                 }
 
-                $userIdentifier = method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 // Track the access check
                 \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
