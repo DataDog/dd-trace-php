@@ -9,10 +9,7 @@
 
 HashTable zai_config_name_map = {0};
 
-#ifndef _WIN32
-_Static_assert(ZAI_CONFIG_ENTRIES_COUNT_MAX < 256, "zai config entry count is overflowing uint8_t");
-#endif
-uint8_t zai_config_memoized_entries_count = 0;
+uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
 static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
@@ -143,7 +140,7 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
 }
 
 static void zai_config_dtor_memoized_zvals(void) {
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_json_dtor_pzval(&zai_config_memoized_entries[i].decoded_value);
     }
 }
@@ -216,7 +213,7 @@ void zai_config_first_time_rinit(bool in_request) {
     }
 #endif
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         zai_config_find_and_set_value(memoized, i);
         if (in_request) {

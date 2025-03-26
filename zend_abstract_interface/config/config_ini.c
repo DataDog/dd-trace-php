@@ -338,7 +338,7 @@ void zai_config_ini_minit(zai_config_env_to_ini_name env_to_ini, int module_numb
 #endif
 }
 
-static inline bool zai_config_process_runtime_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, bool in_startup, uint8_t config_index, uint8_t name_index) {
+static inline bool zai_config_process_runtime_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, bool in_startup, uint16_t config_index, uint16_t name_index) {
     /*
      * we unconditionally decode the value because we do not store the in-use encoded value
      * so we cannot compare the current environment value to the current configuration value
@@ -388,7 +388,7 @@ void zai_config_ini_rinit(void) {
 #if ZTS
     // Skip during preloading, in that case EG(ini_directives) is the actual source of truth (NTS-like)
     if (env_to_ini_name && !in_startup) {
-        for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+        for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
             zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
             if (!memoized->original_on_modify) {
                 bool applied_update = false;
@@ -425,7 +425,7 @@ void zai_config_ini_rinit(void) {
 
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         if (memoized->ini_change == zai_config_system_ini_change) {
             continue;
