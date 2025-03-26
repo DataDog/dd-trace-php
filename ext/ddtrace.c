@@ -1586,7 +1586,6 @@ static void dd_initialize_request(void) {
     DDTRACE_G(request_initialized) = true;
 
     ddtrace_sidecar_rinit();
-    ddtrace_trace_source_rinit();
     ddtrace_asm_event_rinit();
 
     // Things that should only run on the first RINIT after each minit.

@@ -148,7 +148,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable telemetry_spans_created_per_integration;
     ddog_SidecarActionsBuffer *telemetry_buffer;
 
-    uint32_t trace_source_bm;
     bool asm_event_emitted;
 
 #if PHP_VERSION_ID >= 80000

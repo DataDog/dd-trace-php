@@ -45,16 +45,13 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
             if (ZSTR_LEN(tag_name) >= sizeof("_dd.p.") &&
                 strncmp(ZSTR_VAL(tag_name), "_dd.p.", sizeof("_dd.p.") - 1) == 0) {
                 zval zv;
-                bool add = true;
                 ZVAL_STRINGL(&zv, valuestart, header - valuestart);
                 if (zend_string_equals_literal(tag_name, DD_P_TS_KEY)) {
-                    add = ddtrace_trace_source_set_from_hexadecimal(Z_STR_P(&zv));                    
-                }
-                if (add) {
+                    ddtrace_trace_source_set_from_hexadecimal(Z_STR_P(&zv), root_meta);
+                    zval_ptr_dtor(&zv);
+                } else {
                     zend_hash_update(root_meta, tag_name, &zv);
                     zend_hash_add_empty_element(propagated_tags, tag_name);
-                } else {
-                    zval_ptr_dtor(&zv);
                 }
             }
             zend_string_release(tag_name);

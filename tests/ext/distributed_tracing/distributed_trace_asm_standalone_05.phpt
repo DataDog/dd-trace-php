@@ -93,9 +93,7 @@ array(2) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(2) {
-      ["_dd.p.ts"]=>
-      string(2) "ff"
+    array(1) {
       ["_dd.origin"]=>
       string(7) "datadog"
     }

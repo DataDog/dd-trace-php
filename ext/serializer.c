@@ -1569,14 +1569,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
-    if (ddtrace_trace_source_is_asm_source()) {
-        zend_string *encoded = ddtrace_trace_source_get_encoded();
-        if (encoded) {
-            zval trace_source_zv;
-            ZVAL_STR(&trace_source_zv, encoded);
-            zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &trace_source_zv);
-        }
-    }
 
     // Notify profiling for Endpoint Profiling.
     if (profiling_notify_trace_finished && ddtrace_span_is_entrypoint_root(span) && Z_TYPE(prop_resource_as_string) == IS_STRING) {
@@ -1747,7 +1739,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_asm_source()) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);
