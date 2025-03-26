@@ -8,9 +8,30 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class CommonScenariosTest extends IntegrationTestCase
 {
+    const FIELDS_TO_IGNORE = [
+        'metrics.php.compilation.total_time_ms',
+        'metrics.php.memory.peak_usage_bytes',
+        'metrics.php.memory.peak_real_usage_bytes',
+        'meta.error.stack',
+        'meta._dd.p.tid',
+        'meta.cmd.exit_code',
+    ];
+
     public static function getConsoleScript()
     {
         return __DIR__ . '/../../../../Frameworks/Symfony/Version_5_2/bin/console';
+    }
+
+    public function testSilencedSpansAreDropped()
+    {
+        list($traces) = $this->inCli(static::getConsoleScript(), [
+            'DD_TRACE_CLI_ENABLED' => 'true',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
+            'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
+            'DD_TRACE_EXEC_ENABLED' => 'true',
+        ], [], 'app:stty', false, null, true, true);
+
+        $this->snapshotFromTraces($traces, self::FIELDS_TO_IGNORE);
     }
 
     public function testThrowCommand()
