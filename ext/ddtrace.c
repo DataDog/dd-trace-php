@@ -1501,6 +1501,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
 
     ddtrace_engine_hooks_minit();
+    ddtrace_init_proxy_info_map();
 
     ddtrace_integrations_minit();
     ddtrace_serializer_startup();
@@ -1508,8 +1509,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
     ddtrace_appsec_minit();
-
-    ddtrace_init_proxy_info_map();
 
     return SUCCESS;
 }
@@ -1551,6 +1550,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_log_mshutdown();
 
     ddtrace_engine_hooks_mshutdown();
+    ddtrace_shutdown_proxy_info_map();
 
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();

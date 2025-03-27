@@ -44,3 +44,7 @@ ddtrace_inferred_proxy_result ddtrace_read_inferred_proxy_headers(ddtrace_read_h
 const ddtrace_proxy_info* ddtrace_get_proxy_info(zend_string *system) {
     return zend_hash_find_ptr(&proxy_info_map, system);
 }
+
+void ddtrace_shutdown_proxy_info_map(void) {
+    zend_hash_destroy(&proxy_info_map);
+}
