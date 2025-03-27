@@ -6,12 +6,14 @@ use DDTrace\NoopTracer;
 
 /**
  * A basic class to be extended when testing integrations.
+ * @retryAttempts 3
  */
 abstract class IntegrationTestCase extends BaseTestCase
 {
     use TracerTestTrait;
     use SnapshotTestTrait;
     use SpanAssertionTrait;
+    use \PHPUnitRetry\RetryTrait;
 
     private $errorReportingBefore;
     public static $autoloadPath = null;
