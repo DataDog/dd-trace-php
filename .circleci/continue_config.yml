@@ -1546,8 +1546,15 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             apt update
             # clang-tidy 16 crashes so we use 17 instead
-            apt install -y wget git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
+            apt install -y wget sudo git g++ gcc cmake make curl libcurl4-gnutls-dev clang clang-tidy-17 clang-format-17 git php-dev php-cgi
       - run: git config --global --add safe.directory /home/circleci/datadog/appsec/third_party/libddwaf
+      - run:
+          name: Install rust
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh
+            chmod +x /tmp/rustup.sh
+            /tmp/rustup.sh -y --default-toolchain 1.78
+            sudo ln -s $HOME/.cargo/bin/* /usr/bin/
       - run:
           name: CMake
           command: |
@@ -1983,6 +1990,7 @@ jobs:
             cd /usr/local/src/php
             mkdir -p /tmp/artifacts/core_dumps
             find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps && chmod -R o+rx /tmp/artifacts/core_dumps
+            ! [ "$(ls -A /tmp/artifacts/core_dumps)" ] || cp /home/circleci/datadog/tmp/build_extension/modules/ddtrace.so /tmp/artifacts/
             mkdir -p /tmp/artifacts/diffs
             find -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts/diffs \;
           when: on_fail
@@ -2663,8 +2671,8 @@ jobs:
           command: |
             make build_pecl_package
             mkdir -p ./pecl && cp datadog_trace-*.tgz ./pecl
-      #- store_artifacts:
-      #    path: pecl
+      - store_artifacts:
+         path: pecl
       - persist_to_workspace:
           root: .
           paths: [pecl]
@@ -3999,7 +4007,7 @@ jobs:
       - git_checkout
       - run:
           name: Install cbindgen
-          command: cargo install --version "^0.26" cbindgen
+          command: cargo install --version "^0.28" cbindgen
       - run:
           name: Regenerate cbindgen headers and compare them
           command: |
@@ -5105,7 +5113,11 @@ workflows:
             ./build.sh php
           run: |
             cd system-tests
-            DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY ./run.sh
+            export DD_API_KEY=$SYSTEM_TESTS_DD_API_KEY
+            ./run.sh
+            ./run.sh APPSEC_API_SECURITY
+            ./run.sh APPSEC_API_SECURITY_RC
+            ./run.sh APPSEC_API_SECURITY_NO_RESPONSE_BODY
 
       - system_tests:
           requires: [ 'package extension' ]

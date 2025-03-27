@@ -52,6 +52,7 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
         zval dm;
         ZVAL_STR(&dm, zend_strpprintf(0, "-%d", mechanism));
         zend_hash_str_update(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1, &dm);
+        zend_hash_str_add_empty_element(ddtrace_property_array(&root_span->property_propagated_tags), ZEND_STRL("_dd.p.dm"));
     } else {
         zend_hash_str_del(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1);
     }

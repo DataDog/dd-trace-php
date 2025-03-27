@@ -219,6 +219,7 @@ if test "$PHP_DDTRACE" != "no"; then
     zend_abstract_interface/config/config.c \
     zend_abstract_interface/config/config_decode.c \
     zend_abstract_interface/config/config_ini.c \
+    zend_abstract_interface/config/config_stable_file.c \
     zend_abstract_interface/config/config_runtime.c \
     zend_abstract_interface/env/env.c \
     zend_abstract_interface/exceptions/exceptions.c \

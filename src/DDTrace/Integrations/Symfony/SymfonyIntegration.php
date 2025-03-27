@@ -238,13 +238,44 @@ class SymfonyIntegration extends Integration
                 }
 
                 $metadata = [];
-                $userIdentifier = \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 \datadog\appsec\track_user_login_success_event_automated(
                     $userIdentifier,
                     $userIdentifier,
                     $metadata
                 );
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface',
+            'decide',
+            function ($This, $scope, $args, $result) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                // Extract the authentication token
+                $token = $args[0];
+                if (!$token) {
+                    return;
+                }
+
+                // Extract user information
+                $user = $token->getUser();
+                if (!$user) {
+                    return;
+                }
+
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
+
+                // Track the access check
+                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
             }
         );
 

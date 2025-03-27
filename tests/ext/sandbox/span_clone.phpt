@@ -86,6 +86,9 @@ object(DDTrace\RootSpanData)#%d (23) {
   }
   ["onClose"]=>
   array(0) {
+  }
+  ["baggage"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
@@ -201,6 +204,9 @@ object(DDTrace\RootSpanData)#%d (23) {
       *RECURSION*
       ["onClose"]=>
       array(0) {
+      }
+      ["baggage"]=>
+      array(0) {
       }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
@@ -222,6 +228,9 @@ object(DDTrace\RootSpanData)#%d (23) {
     }
   }
   ["onClose"]=>
+  array(0) {
+  }
+  ["baggage"]=>
   array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>

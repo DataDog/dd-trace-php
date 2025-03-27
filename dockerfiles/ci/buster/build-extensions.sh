@@ -34,6 +34,8 @@ elif [[ $PHP_VERSION_ID -le 71 ]]; then
   MONGODB_VERSION=-1.11.1
 elif [[ $PHP_VERSION_ID -le 73 ]]; then
   MONGODB_VERSION=-1.16.2
+elif [[ $PHP_VERSION_ID -le 80 ]]; then
+  MONGODB_VERSION=-1.20.1
 fi
 
 AMQP_VERSION=

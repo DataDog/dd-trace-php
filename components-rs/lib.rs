@@ -11,8 +11,8 @@ use std::borrow::Cow;
 use std::ffi::c_char;
 use std::ptr::null_mut;
 use http::Uri;
-use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use http::uri::Scheme;
+use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use uuid::Uuid;
 
 pub use datadog_crashtracker_ffi::*;
@@ -21,6 +21,7 @@ use ddcommon::{parse_uri, Endpoint};
 use ddcommon_ffi::slice::AsBytes;
 pub use ddcommon_ffi::*;
 pub use ddtelemetry_ffi::*;
+pub use datadog_library_config_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -82,4 +83,14 @@ pub unsafe extern "C" fn ddtrace_parse_agent_url(url: CharSlice) -> std::option:
             }
             Box::new(Endpoint::from_url(url))
         })
+}
+
+// Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
+// It works well without in the "normal" build
+#[no_mangle]
+pub extern "C" fn ddog_library_configurator_new_dummy(
+    debug_logs: bool,
+    language: CharSlice,
+) -> Box<Configurator> {
+    datadog_library_config_ffi::ddog_library_configurator_new(debug_logs, language)
 }

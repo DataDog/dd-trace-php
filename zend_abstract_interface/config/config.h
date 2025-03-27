@@ -16,8 +16,9 @@ typedef struct zai_config_memoized_entry_s zai_config_memoized_entry;
 typedef uint16_t zai_config_id;
 
 #include "config_ini.h"
+#include "config_stable_file.h"
 
-#define ZAI_CONFIG_ENTRIES_COUNT_MAX 255
+#define ZAI_CONFIG_ENTRIES_COUNT_MAX 300
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
 #define ZAI_CONFIG_NAME_BUFSIZ 60
 
@@ -89,7 +90,7 @@ void zai_config_rshutdown(void);
 // Directly replace the config value for the current request. Copies the passed argument.
 void zai_config_replace_runtime_config(zai_config_id id, zval *value);
 
-extern uint8_t zai_config_memoized_entries_count;
+extern uint16_t zai_config_memoized_entries_count;
 extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
 // assertions + error_zal
