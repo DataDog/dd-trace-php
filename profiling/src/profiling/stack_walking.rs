@@ -1,5 +1,6 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
 use std::borrow::Cow;
+use std::collections::TryReserveError;
 use std::str::Utf8Error;
 
 #[cfg(php_frameless)]
@@ -20,6 +21,14 @@ pub struct ZendFrame {
     pub function: Cow<'static, str>,
     pub file: Option<String>,
     pub line: u32, // use 0 for no line info
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum CollectStackSampleError {
+    #[error("failed to collect stack sample: `0`")]
+    Utf8Error(#[from] Utf8Error),
+    #[error("failed to collect stack sample: `{0}`")]
+    TryReserveError(#[from] TryReserveError),
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -84,6 +93,7 @@ mod detail {
     use super::*;
     use crate::string_set::StringSet;
     use crate::thin_str::ThinStr;
+    use crate::vec_ext::VecExt;
     use log::{debug, trace};
     use std::cell::RefCell;
     use std::ptr::NonNull;
@@ -199,7 +209,7 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, Utf8Error> {
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -230,11 +240,11 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
-                                samples.push(ZendFrame {
+                                samples.try_push(ZendFrame {
                                     function: extract_function_name(func).map(Cow::Owned).unwrap(),
                                     file: None,
                                     line: 0,
-                                });
+                                })?;
                             }
                             _ => {}
                         }
@@ -242,18 +252,18 @@ mod detail {
 
                     let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
                     if let Some(frame) = maybe_frame {
-                        samples.push(frame);
+                        samples.try_push(frame)?;
 
                         /* -1 to reserve room for the [truncated] message. In case the
                          * backend and/or frontend have the same limit, without the -1
                          * then ironically the [truncated] message would be truncated.
                          */
                         if samples.len() == max_depth - 1 {
-                            samples.push(ZendFrame {
+                            samples.try_push(ZendFrame {
                                 function: COW_TRUNCATED,
                                 file: None,
                                 line: 0,
-                            });
+                            })?;
                             break;
                         }
                     }
@@ -374,7 +384,7 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, Utf8Error> {
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -385,18 +395,18 @@ mod detail {
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
-                samples.push(frame);
+                samples.try_push(frame)?;
 
                 /* -1 to reserve room for the [truncated] message. In case the
                  * backend and/or frontend have the same limit, without the -1
                  * then ironically the [truncated] message would be truncated.
                  */
                 if samples.len() == max_depth - 1 {
-                    samples.push(ZendFrame {
+                    samples.try_push(ZendFrame {
                         function: COW_TRUNCATED,
                         file: None,
                         line: 0,
-                    });
+                    })?;
                     break;
                 }
             }

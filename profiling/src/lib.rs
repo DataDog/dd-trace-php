@@ -23,6 +23,7 @@ mod exception;
 
 #[cfg(feature = "timeline")]
 mod timeline;
+mod vec_ext;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
