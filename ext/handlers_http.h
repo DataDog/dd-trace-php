@@ -240,7 +240,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     }
 
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
-    zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : NULL;
+    zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : &DDTRACE_G(root_span_tags_preset);
     if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
         return;
     }
