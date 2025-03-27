@@ -22,9 +22,10 @@ SCRIPT_NAME=/foo.php
 REQUEST_URI=/foo
 
 DD_TRACE_DEBUG_PRNG_SEED=42
+--INI--
+pcre.jit=0
 --GET--
 foo=bar
-
 --FILE--
 <?php
 
