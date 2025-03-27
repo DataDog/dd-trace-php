@@ -25,8 +25,8 @@ include __DIR__ . '/../includes/request_replayer.inc';
 $rr = new RequestReplayer();
 
 function getSecondsLeftOnCurrentMinute() {
-    $nowInSeconds = hrtime(true) / 1000000000;
-    return 60 - ($nowInSeconds % 60);
+    $nowInSeconds = explode(' ', microtime())[1];
+    return 60 - intval($nowInSeconds % 60);
 }
 
 if (getSecondsLeftOnCurrentMinute() < 5) {
