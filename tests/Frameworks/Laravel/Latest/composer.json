@@ -9,7 +9,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "11.43.2",
+        "laravel/framework": "12.3.0",
         "laravel/tinker": "^2.9"
     },
     "require-dev": {
@@ -36,7 +36,9 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php -r \"(new PDO('mysql:host=mysql_integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravelX');\"",
+            "@php artisan package:discover --ansi",
+            "@php artisan migrate:fresh --force"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

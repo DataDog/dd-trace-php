@@ -7,7 +7,6 @@ use DDTrace\SpanData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Common;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
@@ -433,6 +432,54 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_failure_event_automated($integration->getLoginFromArgs($args[0]), null, false, []);
+            }
+        );
+
+        // Used by Laravel < 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Guard',
+            'user',
+            null,
+            function ($This, $scope, $args, $user) use ($integration) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                $authClass = 'Illuminate\Auth\UserInterface';
+                if (
+                    !isset($user) ||
+                    !$user ||
+                    !($user instanceof $authClass) ||
+                    !\method_exists($user, 'getAuthIdentifier')
+                ) {
+                    return;
+                }
+
+                \datadog\appsec\track_authenticated_user_event_automated($user->getAuthIdentifier());
+            }
+        );
+
+        // Used by Laravel >= 5.0
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Authenticated',
+            '__construct',
+            null,
+            function ($This, $scope, $args) use ($integration) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                if (
+                    !isset($args[1]) ||
+                    !$args[1] ||
+                    !($args[1] instanceof $authClass) ||
+                    !\method_exists($args[1], 'getAuthIdentifier')
+                ) {
+                    return;
+                }
+
+                \datadog\appsec\track_authenticated_user_event_automated($args[1]->getAuthIdentifier());
             }
         );
 

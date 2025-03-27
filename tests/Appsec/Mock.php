@@ -205,14 +205,48 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
     }
 }
 
+if (!function_exists('datadog\appsec\track_authenticated_user_event_automated')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     */
+    function track_authenticated_user_event_automated($userId)
+    {
+        if (!appsecMockEnabled()) {
+            return;
+        }
+        $event = [
+            'userId' => $userId,
+        ];
+        AppsecStatus::getInstance()->addEvent($event, 'track_authenticated_user_event_automated');
+    }
+}
+
+if (!function_exists('datadog\appsec\track_authenticated_user_event')) {
+    /**
+     * This function is exposed by appsec but here we are mocking it for tests
+     */
+    function track_authenticated_user_event($userId, $metadata)
+    {
+        if (!appsecMockEnabled()) {
+            return;
+        }
+        $event = [
+            'userId' => $userId,
+            'metadata' => $metadata,
+        ];
+        AppsecStatus::getInstance()->addEvent($event, 'track_authenticated_user_event');
+    }
+}
+
 if (!function_exists('datadog\appsec\push_addresses')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      * @param array $params
      */
-    function push_addresses($addresses, $rasp = "") {
-        if(!appsecMockEnabled()) {
-           return;
+    function push_addresses($addresses, $rasp = "")
+    {
+        if (!appsecMockEnabled()) {
+            return;
         }
         AppsecStatus::getInstance()->addEvent(['rasp_rule' => $rasp, $addresses], 'push_addresses');
     }

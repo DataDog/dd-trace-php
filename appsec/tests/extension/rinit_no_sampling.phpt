@@ -23,6 +23,6 @@ bool(true)
 array(2) {
   ["enabled"]=>
   bool(true)
-  ["sampling_enabled"]=>
-  bool(false)
+  ["sampling_period"]=>
+  float(0)
 }
