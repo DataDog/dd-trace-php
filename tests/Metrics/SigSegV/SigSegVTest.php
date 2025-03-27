@@ -32,6 +32,9 @@ class SigSegVTest extends WebFrameworkTestCase
         $this->checkWebserverErrors = false;
     }
 
+    /**
+     * @retryAttempts 0
+     */
     public function testGet()
     {
         $log = __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/' . WebServer::ERROR_LOG_NAME;
