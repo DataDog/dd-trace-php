@@ -573,7 +573,7 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
 }
 
 ddtrace_span_data *ddtrace_init_dummy_span(void) {
-    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN, ddtrace_ce_span_data);
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN, ddtrace_ce_root_span_data);
     span->std.handlers->get_constructor(&span->std);
     span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
     return span;
