@@ -195,13 +195,6 @@ static void appsec_pre_minit_hook(void) {
         }
         ddloader_ini_set_configuration(ZEND_STRL("datadog.appsec.helper_path"), helper_path, strlen(helper_path));
         free(helper_path);
-
-        char *rules_path;
-        if (asprintf(&rules_path, "%s/appsec/etc/recommended.json", package_path) == -1) {
-            return;
-        }
-        ddloader_ini_set_configuration(ZEND_STRL("datadog.appsec.rules"), rules_path, strlen(rules_path));
-        free(rules_path);
     }
 }
 
