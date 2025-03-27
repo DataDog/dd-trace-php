@@ -24,6 +24,16 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
+function getSecondsLeftOnCurrentMinute() {
+    $nowInSeconds = hrtime(true) / 1000000000;
+    return 60 - ($nowInSeconds % 60);
+}
+
+if (getSecondsLeftOnCurrentMinute() < 5) {
+    //Lets make sure all calls are within the same minute
+    sleep(6);
+}
+
 $get_sampling = function() use ($rr) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
     $spans = $root["chunks"][0]["spans"] ?? $root[0];
