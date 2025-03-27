@@ -200,10 +200,12 @@ trait SnapshotTestTrait
         string $token,
         array $fieldsToIgnore = ['openai.request.duration']
     ) {
-        $receivedMetrics = $this->retrieveDumpedMetrics(function($metrics) {
-            return $metrics["name"] == "tracer-snapshot-end";
+        $receivedMetrics = $this->retrieveDumpedMetrics(function($metrics) use ($token) {
+            return $metrics["name"] == "tracer-snapshot-end." . $token;
         });
-        array_pop($receivedMetrics);
+        $receivedMetrics = array_filter($receivedMetrics, function ($metric) use ($token) {
+            return $metric["name"] !== "tracer-snapshot-end." . $token;
+        });
 
         $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
         $expectedMetricsFile = $basePath . '/tests/snapshots/metrics/' . $token . '.txt';
@@ -344,8 +346,8 @@ trait SnapshotTestTrait
         $fn($tracer);
 
         if ($snapshotMetrics) {
-            usleep(50000); // Add a slight delay to avoid a race condition where the "tracer-snapshot-end" metric is handled before a test metric.
-            \DDTrace\dogstatsd_count("tracer-snapshot-end", 1);
+            usleep(500000); // Add a slight delay to avoid a race condition where the "tracer-snapshot-end" metric is handled before a test metric.
+            \DDTrace\dogstatsd_count("tracer-snapshot-end." . $token, 1);
         }
 
         $traces = $this->flushAndGetTraces($tracer);
