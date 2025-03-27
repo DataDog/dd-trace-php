@@ -32,4 +32,5 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     $tracer->flush();
 // TODO: comment this to make PCNTLTest::testCliLongRunningMultipleForksManualFlush fail in NON-sidecar configuration
     dd_trace_synchronous_flush();
+    usleep(100000);
 }
