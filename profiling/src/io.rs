@@ -291,7 +291,7 @@ unsafe extern "C" fn observed_recv(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    if len >= 0 {
+    if len > 0 {
         SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -317,7 +317,7 @@ unsafe extern "C" fn observed_recvmsg(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    if len >= 0 {
+    if len > 0 {
         SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64);
@@ -352,7 +352,7 @@ unsafe extern "C" fn observed_recvfrom(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    if len >= 0 {
+    if len > 0 {
         SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -514,7 +514,7 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-        if len >= 0 {
+        if len > 0 {
             SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
@@ -525,7 +525,7 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-        if len >= 0 {
+        if len > 0 {
             FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
@@ -549,7 +549,7 @@ unsafe extern "C" fn observed_readv(fd: c_int, iov: *const libc::iovec, iovcnt: 
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-        if len >= 0 {
+        if len > 0 {
             SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
@@ -560,7 +560,7 @@ unsafe extern "C" fn observed_readv(fd: c_int, iov: *const libc::iovec, iovcnt: 
             let mut io = cell.borrow_mut();
             io.track(duration.as_nanos() as u64)
         });
-        if len >= 0 {
+        if len > 0 {
             FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
