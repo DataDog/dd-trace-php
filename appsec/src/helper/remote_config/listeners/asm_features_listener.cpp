@@ -6,7 +6,6 @@
 #include "asm_features_listener.hpp"
 #include "../../json_helper.hpp"
 #include "../../utils.hpp"
-#include "../exception.hpp"
 #include "config_aggregators/asm_features_aggregator.hpp"
 #include <rapidjson/document.h>
 

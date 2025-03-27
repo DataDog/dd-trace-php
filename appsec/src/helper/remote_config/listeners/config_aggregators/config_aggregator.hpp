@@ -5,13 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../../../config.hpp"
-#include "../../../engine.hpp"
-#include "../../../parameter.hpp"
-#include "../listener.hpp"
-#include <optional>
+#include "../../config.hpp"
 #include <rapidjson/document.h>
-#include <utility>
 
 namespace dds::remote_config {
 

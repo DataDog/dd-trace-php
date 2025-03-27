@@ -122,9 +122,7 @@ class TelemetryTests {
 
         assert wafReq2 != null
         assert 'rule_triggered:true' in wafReq2.tags
-        assert wafReq2.points[0][1] == 1.0
-
-        // no error for data, it seems
+        assert wafReq2.points[0][1] >= 1.0
     }
 
     @Test
@@ -163,7 +161,9 @@ class TelemetryTests {
                                                transformers: ['values_only'],
                                                on_match: ['block_custom']
 
-                                       ]],
+                                       ], // generates just a warning; not reported
+                                       [:] // generates an actual error
+                        ],
                         exclusions: [[ id: 'bad_exclusion' ]],
                         rules_override: [[ foo: 'bar' ], [ bar: 'foo' ]],
                 ],
@@ -202,7 +202,7 @@ class TelemetryTests {
                         it.name == 'waf.config_errors'
                     }
 
-            allSeries.size() >= 3
+            allSeries.size() >= 4
         }
 
        assert requestSup.get() != null
@@ -230,13 +230,15 @@ class TelemetryTests {
         def rules = series.find {
             it.namespace == 'appsec' && 'config_key:rules' in it.tags
         }
+        def data = series.find {
+            it.namespace == 'appsec' && 'config_key:rules_data' in it.tags
+        }
 
         assert rulesOverride.points[0][1] == 2.0d
         assert exclusions.points[0][1] == 1.0d
         assert customRules.points[0][1] == 1.0d
         assert rules.points[0][1] == 1.0d
-
-        // TODO: no error for ASM_DATA. Bad data never reaches ddwaf_update
+        assert data.points[0][1] == 1.0d
     }
 
     @Test

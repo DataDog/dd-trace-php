@@ -9,6 +9,7 @@
 #include "engine_settings.hpp"
 #include "json_helper.hpp"
 #include "metrics.hpp"
+#include "remote_config/config.hpp"
 #include "tel_subm_mock.hpp"
 #include <gtest/gtest.h>
 #include <rapidjson/document.h>
@@ -17,10 +18,26 @@
 #include <subscriber/waf.hpp>
 #include <utils.hpp>
 
+using dds::remote_config::changeset;
+using dds::remote_config::parsed_config_key;
+
 const std::string waf_rule =
     R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
+
+namespace {
+dds::parameter param_from_file(std::string_view sv)
+{
+    rapidjson::Document doc;
+    std::string file_content{dds::read_file(sv)};
+    rapidjson::ParseResult const result = doc.Parse(file_content);
+    if ((result == nullptr) || !doc.IsObject()) {
+        throw dds::parsing_error("invalid json rule");
+    }
+    return dds::json_to_parameter(doc);
+}
+} // namespace
 
 namespace dds {
 
@@ -44,7 +61,7 @@ TEST(WafTest, InitWithInvalidRules)
 {
     engine_settings cs;
     cs.rules_file = create_sample_rules_invalid();
-    auto ruleset = engine_ruleset::from_path(cs.rules_file);
+    auto ruleset = param_from_file(cs.rules_file);
     mock::tel_submitter submitm{};
 
     EXPECT_CALL(submitm, submit_span_meta(metrics::waf_version,
@@ -58,14 +75,35 @@ TEST(WafTest, InitWithInvalidRules)
 
     EXPECT_CALL(submitm, submit_metric("waf.init"sv, 1, _));
     EXPECT_CALL(
-        submitm, submit_metric("waf.config_errors", 4.,
+        submitm, submit_metric("waf.config_errors", 3.,
                      metrics::telemetry_tags::from_string(
                          std::string{"waf_version:"} + ddwaf_get_version() +
                          ",event_rules_version:1.2.3,"
                          "config_key:rules,scope:item")));
 
+    // diagnostics
+    // rules:
+    //   loaded:
+    //     - "5"
+    //   failed:
+    //     - "1"
+    //     - "2"
+    //     - "3"
+    //     - "4"
+    //   skipped: []
+    //   errors:
+    //     missing key 'type':
+    //       - "1"
+    //       - "3"
+    //     missing key 'inputs':
+    //       - "4"
+    //   warnings:
+    //     unknown operator: 'squash':
+    //       - "2"
+    // ruleset_version: "1.2.3"
+
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(cs, ruleset, submitm)};
+        waf::instance::from_settings(cs, std::move(ruleset), submitm)};
 
     Mock::VerifyAndClearExpectations(&submitm);
 
@@ -74,7 +112,8 @@ TEST(WafTest, InitWithInvalidRules)
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
-    EXPECT_TRUE(doc.HasMember("unknown matcher: squash"));
+    // warning is not included in _dd.appsec.event_rules.errors
+    EXPECT_FALSE(doc.HasMember("unknown matcher: squash"));
     EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
 }
 
@@ -283,10 +322,10 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     engine_settings cs;
     cs.rules_file = create_sample_rules_ok();
     cs.obfuscator_key_regex = "password";
-    auto ruleset = engine_ruleset::from_path(cs.rules_file);
+    auto ruleset = param_from_file(cs.rules_file);
 
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(cs, ruleset, submitm)};
+        waf::instance::from_settings(cs, std::move(ruleset), submitm)};
 
     auto ctx = wi->get_listener();
 
@@ -335,8 +374,10 @@ TEST(WafTest, UpdateRuleData)
 
     auto param = json_to_parameter(
         R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-
-    wi = wi->update(param, submitm);
+    changeset cs;
+    cs.added[parsed_config_key{"employee/ASM_DATA/0/blocked_ips"}] =
+        std::move(param);
+    wi = wi->update(cs, submitm);
     ASSERT_TRUE(wi);
 
     addresses = wi->get_subscriptions();
@@ -388,14 +429,17 @@ TEST(WafTest, UpdateInvalid)
         ctx->call(pv, e);
     }
 
-    auto param = json_to_parameter(R"({})");
-
+    changeset cs;
+    cs.added.emplace("employee/ASM_DD/0/empty"sv, parameter::map());
     EXPECT_CALL(submitm,
         submit_metric("waf.updates"sv, 1,
             metrics::telemetry_tags::from_string(
-                std::string{"success:false,event_rules_version:,waf_version:"} +
+                std::string{"success:true,event_rules_version:,waf_version:"} +
                 ddwaf_get_version())));
-    ASSERT_THROW(wi->update(param, submitm), invalid_object);
+
+    // the update with the empty ASM_DD fails, so the default (in this case
+    // waf_rule_with_data) is reloaded
+    wi->update(cs, submitm);
 }
 
 TEST(WafTest, SchemasAreAdded)
@@ -442,10 +486,10 @@ TEST(WafTest, FingerprintAreNotAdded)
 
     engine_settings settings;
     settings.rules_file = create_sample_rules_ok();
-    auto ruleset = engine_ruleset::from_path(settings.rules_file);
+    auto ruleset = param_from_file(settings.rules_file);
 
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(settings, ruleset, submitm)};
+        waf::instance::from_settings(settings, std::move(ruleset), submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
@@ -467,10 +511,10 @@ TEST(WafTest, FingerprintAreAdded)
 
     engine_settings settings;
     settings.rules_file = create_sample_rules_ok();
-    auto ruleset = engine_ruleset::from_path(settings.rules_file);
+    auto ruleset = param_from_file(settings.rules_file);
 
     std::shared_ptr<subscriber> wi{
-        waf::instance::from_settings(settings, ruleset, submitm)};
+        waf::instance::from_settings(settings, std::move(ruleset), submitm)};
     auto ctx = wi->get_listener();
 
     auto p = parameter::map();
