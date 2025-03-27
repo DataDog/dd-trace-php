@@ -1,0 +1,29 @@
+{
+    "name": "datadog/dd-trace-tests",
+    "description": "PHP APM Client test suites",
+    "autoload-dev": {
+        "psr-4": {
+            "DDTrace\\Tests\\": "./"
+        },
+        "files": [
+            "Appsec/Mock.php",
+            "OpenAI/autoload.php"
+        ]
+    },
+    "require-dev": {
+        "assertwell/phpunit-global-state": "^0.2.2",
+        "mockery/mockery": "*",
+        "phpunit/phpcov": "*",
+        "phpunit/phpunit": "<10",
+        "phpspec/prophecy": "*",
+        "symfony/process": "<5",
+        "ext-sockets": "*"
+    },
+    "config": {
+        "allow-plugins": {
+            "g1a/composer-test-scenarios": true,
+            "php-http/discovery": true,
+            "cakephp/plugin-installer": true
+        }
+    }
+}

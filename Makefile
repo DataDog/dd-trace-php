@@ -1190,6 +1190,7 @@ clean_test:
 	find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
 
 composer_tests_update:
+	$(if $(shell test $(PHP_MAJOR_MINOR) -eq 70 && echo 1),cp $(TESTS_ROOT)/composer-7.0.json $(TESTS_ROOT)/composer.json)
 	$(call run_composer_with_lock,$(TESTS_ROOT))
 
 global_test_run_dependencies: install_all $(TESTS_ROOT)/./composer.lock-php$(PHP_MAJOR_MINOR)
