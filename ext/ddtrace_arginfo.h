@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2948bdff7804f9136a8bd0b900036236dd613c98 */
+ * Stub hash: f7e8f6a8052abd0404a3e01fa6b52d27024e6f1b */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -61,7 +61,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_update_span_duration, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\SpanData, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\RootSpanData, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
