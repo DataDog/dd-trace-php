@@ -45,6 +45,17 @@ use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+#[cfg(feature = "io_profiling")]
+use crate::io::{
+    SOCKET_READ_TIME_PROFILING_INTERVAL,
+    SOCKET_WRITE_TIME_PROFILING_INTERVAL,
+    FILE_READ_TIME_PROFILING_INTERVAL,
+    FILE_WRITE_TIME_PROFILING_INTERVAL,
+    SOCKET_READ_SIZE_PROFILING_INTERVAL,
+    SOCKET_WRITE_SIZE_PROFILING_INTERVAL,
+    FILE_READ_SIZE_PROFILING_INTERVAL,
+    FILE_WRITE_SIZE_PROFILING_INTERVAL
+};
 #[cfg(any(
     feature = "allocation_profiling",
     feature = "exception_profiling",
@@ -81,13 +92,21 @@ pub struct SampleValues {
     timeline: i64,
     exception: i64,
     socket_read_time: i64,
+    socket_read_time_samples: i64,
     socket_write_time: i64,
+    socket_write_time_samples: i64,
     file_read_time: i64,
+    file_read_time_samples: i64,
     file_write_time: i64,
+    file_write_time_samples: i64,
     socket_read_size: i64,
+    socket_read_size_samples: i64,
     socket_write_size: i64,
+    socket_write_size_samples: i64,
     file_read_size: i64,
+    file_read_size_samples: i64,
     file_write_size: i64,
+    file_write_size_samples: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -292,6 +311,40 @@ impl TimeCollector {
         #[cfg(feature = "allocation_profiling")]
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
+        // check if we have the IO sample types
+        #[cfg(feature = "io_profiling")]
+        let socket_read_time_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-time");
+        #[cfg(feature = "io_profiling")]
+        let socket_read_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-time-samples");
+        #[cfg(feature = "io_profiling")]
+        let socket_write_time_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-time");
+        #[cfg(feature = "io_profiling")]
+        let socket_write_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-time-samples");
+        #[cfg(feature = "io_profiling")]
+        let file_read_time_offset = sample_types.iter().position(|&x| x.r#type == "file-read-time");
+        #[cfg(feature = "io_profiling")]
+        let file_read_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-read-time-samples");
+        #[cfg(feature = "io_profiling")]
+        let file_write_time_offset = sample_types.iter().position(|&x| x.r#type == "file-write-time");
+        #[cfg(feature = "io_profiling")]
+        let file_write_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-write-time-samples");
+        #[cfg(feature = "io_profiling")]
+        let socket_read_size_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-size");
+        #[cfg(feature = "io_profiling")]
+        let socket_read_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-size-samples");
+        #[cfg(feature = "io_profiling")]
+        let socket_write_size_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-size");
+        #[cfg(feature = "io_profiling")]
+        let socket_write_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-size-samples");
+        #[cfg(feature = "io_profiling")]
+        let file_read_size_offset = sample_types.iter().position(|&x| x.r#type == "file-read-size");
+        #[cfg(feature = "io_profiling")]
+        let file_read_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-read-size-samples");
+        #[cfg(feature = "io_profiling")]
+        let file_write_size_offset = sample_types.iter().position(|&x| x.r#type == "file-write-size");
+        #[cfg(feature = "io_profiling")]
+        let file_write_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-write-size-samples");
+
         // check if we have the `exception-samples` sample types
         #[cfg(feature = "exception_profiling")]
         let exception_samples_offset = sample_types
@@ -325,6 +378,150 @@ impl TimeCollector {
                 Ok(_id) => {}
                 Err(err) => {
                     warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(socket_read_time_offset), Some(socket_read_time_samples_offset)) =
+            (socket_read_time_offset, socket_read_time_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: socket_read_time_offset,
+                count_value_offset: socket_read_time_samples_offset,
+                sampling_distance: SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [socket_read_time_offset, socket_read_time_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for socket read time samples, socket read time samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(socket_write_time_offset), Some(socket_write_time_samples_offset)) =
+            (socket_write_time_offset, socket_write_time_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: socket_write_time_offset,
+                count_value_offset: socket_write_time_samples_offset,
+                sampling_distance: SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [socket_write_time_offset, socket_write_time_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for socket write time samples, socket write time samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(file_read_time_offset), Some(file_read_time_samples_offset)) =
+            (file_read_time_offset, file_read_time_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: file_read_time_offset,
+                count_value_offset: file_read_time_samples_offset,
+                sampling_distance: FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [file_read_time_offset, file_read_time_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for file read time samples, file read time samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(file_write_time_offset), Some(file_write_time_samples_offset)) =
+            (file_write_time_offset, file_write_time_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: file_write_time_offset,
+                count_value_offset: file_write_time_samples_offset,
+                sampling_distance: FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [file_write_time_offset, file_write_time_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for file write time samples, file write time samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(socket_read_size_offset), Some(socket_read_size_samples_offset)) =
+            (socket_read_size_offset, socket_read_size_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: socket_read_size_offset,
+                count_value_offset: socket_read_size_samples_offset,
+                sampling_distance: SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [socket_read_size_offset, socket_read_size_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for socket read size samples, socket read size samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(socket_write_size_offset), Some(socket_write_size_samples_offset)) =
+            (socket_write_size_offset, socket_write_size_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: socket_write_size_offset,
+                count_value_offset: socket_write_size_samples_offset,
+                sampling_distance: SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [socket_write_size_offset, socket_write_size_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for socket write size samples, socket write size samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(file_read_size_offset), Some(file_read_size_samples_offset)) =
+            (file_read_size_offset, file_read_size_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: file_read_size_offset,
+                count_value_offset: file_read_size_samples_offset,
+                sampling_distance: FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [file_read_size_offset, file_read_size_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for file read size samples, file read size samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        #[cfg(feature = "io_profiling")]
+        if let (Some(file_write_size_offset), Some(file_write_size_samples_offset)) =
+            (file_write_size_offset, file_write_size_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: file_write_size_offset,
+                count_value_offset: file_write_size_samples_offset,
+                sampling_distance: FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+            };
+            let values_offset = [file_write_size_offset, file_write_size_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for file write size samples, file write size samples reported will be wrong: {err}")
                 }
             }
         }
@@ -1213,6 +1410,7 @@ impl Profiler {
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_time = socket_io_read_time;
+            vals.socket_read_time_samples = 1;
         })
     }
 
@@ -1220,6 +1418,7 @@ impl Profiler {
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_time = socket_io_write_time;
+            vals.socket_write_time_samples = 1;
         })
     }
 
@@ -1227,6 +1426,7 @@ impl Profiler {
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_time = file_io_read_time;
+            vals.file_read_time_samples = 1;
         })
     }
 
@@ -1234,6 +1434,7 @@ impl Profiler {
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_time = file_io_write_time;
+            vals.file_write_time_samples = 1;
         })
     }
 
@@ -1241,6 +1442,7 @@ impl Profiler {
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_size = socket_io_read_size;
+            vals.socket_read_size_samples = 1;
         })
     }
 
@@ -1248,6 +1450,7 @@ impl Profiler {
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_size = socket_io_write_size;
+            vals.socket_write_size_samples = 1;
         })
     }
 
@@ -1255,6 +1458,7 @@ impl Profiler {
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_size = file_io_read_size;
+            vals.file_read_size_samples = 1;
         })
     }
 
@@ -1262,6 +1466,7 @@ impl Profiler {
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_size = file_io_write_size;
+            vals.file_write_size_samples = 1;
         })
     }
 

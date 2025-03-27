@@ -253,7 +253,7 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
             });
         } else if (*fds).revents & 4 == 4 {
             // requested events contains writing
-            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
@@ -265,7 +265,7 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
             });
         } else if (*fds).events & 4 == 4 {
             // socket became writeable
-            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
@@ -291,7 +291,7 @@ unsafe extern "C" fn observed_recv(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    if len > 0 {
+    if len >= 0 {
         SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64)
@@ -317,10 +317,45 @@ unsafe extern "C" fn observed_recvmsg(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    if len > 0 {
+    if len >= 0 {
         SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
             let mut io = cell.borrow_mut();
             io.track(len as u64);
+        });
+    }
+
+    len
+}
+
+static mut ORIG_RECVFROM: unsafe extern "C" fn(
+    c_int,
+    *mut c_void,
+    usize,
+    c_int,
+    *mut libc::sockaddr,
+    *mut libc::socklen_t,
+) -> isize = libc::recvfrom;
+
+unsafe extern "C" fn observed_recvfrom(
+    socket: c_int,
+    buf: *mut c_void,
+    length: usize,
+    flags: c_int,
+    address: *mut libc::sockaddr,
+    address_len: *mut libc::socklen_t,
+) -> isize {
+    let start = Instant::now();
+    let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
+    let duration = start.elapsed();
+
+    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(duration.as_nanos() as u64)
+    });
+    if len >= 0 {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
         });
     }
 
@@ -414,17 +449,23 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     let len = ORIG_WRITE(fd, buf, count);
     let duration = start.elapsed();
 
-    FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
-    if len > 0 {
-        if fd_is_socket(fd) {
+    if fd_is_socket(fd) {
+        SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len > 0 {
             SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
             });
-        } else {
+        }
+    } else {
+        FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len > 0 {
             FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
@@ -454,12 +495,10 @@ unsafe extern "C" fn observed_fread(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    if len > 0 {
-        FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
-    }
+    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+        let mut io = cell.borrow_mut();
+        io.track(len as u64)
+    });
 
     len
 }
@@ -470,17 +509,58 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     let len = ORIG_READ(fd, buf, count);
     let duration = start.elapsed();
 
-    FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
-    if len > 0 {
-        if fd_is_socket(fd) {
+    if fd_is_socket(fd) {
+        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len >= 0 {
             SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
             });
-        } else {
+        }
+    } else {
+        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len >= 0 {
+            FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
+    }
+
+    len
+}
+
+static mut ORIG_READV: unsafe extern "C" fn(c_int, *const libc::iovec, c_int) -> isize =
+    libc::readv;
+
+unsafe extern "C" fn observed_readv(fd: c_int, iov: *const libc::iovec, iovcnt: c_int) -> isize {
+    let start = Instant::now();
+    let len = ORIG_READV(fd, iov, iovcnt);
+    let duration = start.elapsed();
+
+    if fd_is_socket(fd) {
+        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len >= 0 {
+            SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
+    } else {
+        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len >= 0 {
             FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(len as u64)
@@ -539,19 +619,10 @@ pub static FILE_READ_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static FILE_WRITE_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
-pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 10);
-pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 10);
-pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 10);
-pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 10);
-
-pub static SOCKET_READ_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static SOCKET_WRITE_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static FILE_READ_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static FILE_WRITE_TIME_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static SOCKET_READ_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static SOCKET_WRITE_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static FILE_READ_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
-pub static FILE_WRITE_SIZE_SAMPLE_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024*100);
+pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024*100);
+pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024*100);
+pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024*100);
 
 pub trait IOCollector {
     fn collect(&self, profiler: &Profiler, value: u64);
@@ -560,7 +631,6 @@ pub trait IOCollector {
 pub struct SocketReadTimeCollector;
 impl IOCollector for SocketReadTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        SOCKET_READ_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_read_time(
@@ -574,7 +644,6 @@ impl IOCollector for SocketReadTimeCollector {
 pub struct SocketWriteTimeCollector;
 impl IOCollector for SocketWriteTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        SOCKET_WRITE_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_write_time(
@@ -588,7 +657,6 @@ impl IOCollector for SocketWriteTimeCollector {
 pub struct FileReadTimeCollector;
 impl IOCollector for FileReadTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        FILE_READ_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_read_time(
@@ -602,7 +670,6 @@ impl IOCollector for FileReadTimeCollector {
 pub struct FileWriteTimeCollector;
 impl IOCollector for FileWriteTimeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        FILE_WRITE_TIME_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_write_time(
@@ -616,7 +683,6 @@ impl IOCollector for FileWriteTimeCollector {
 pub struct SocketReadSizeCollector;
 impl IOCollector for SocketReadSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        SOCKET_READ_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_read_size(
@@ -630,7 +696,6 @@ impl IOCollector for SocketReadSizeCollector {
 pub struct SocketWriteSizeCollector;
 impl IOCollector for SocketWriteSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        SOCKET_WRITE_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_socket_write_size(
@@ -644,7 +709,6 @@ impl IOCollector for SocketWriteSizeCollector {
 pub struct FileReadSizeCollector;
 impl IOCollector for FileReadSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        FILE_READ_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_read_size(
@@ -658,7 +722,6 @@ impl IOCollector for FileReadSizeCollector {
 pub struct FileWriteSizeCollector;
 impl IOCollector for FileWriteSizeCollector {
     fn collect(&self, profiler: &Profiler, value: u64) {
-        FILE_WRITE_SIZE_SAMPLE_COUNT.fetch_add(1, Ordering::SeqCst);
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
             profiler.collect_file_write_size(
@@ -789,6 +852,11 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_RECVMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
+                    symbol_name: "recvfrom",
+                    new_func: observed_recvfrom as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_RECVFROM) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
                     symbol_name: "send",
                     new_func: observed_send as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
@@ -807,6 +875,11 @@ pub fn io_prof_first_rinit() {
                     symbol_name: "read",
                     new_func: observed_read as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_READ) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "readv",
+                    new_func: observed_readv as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_READV) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "fwrite",
