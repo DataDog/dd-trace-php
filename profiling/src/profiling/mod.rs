@@ -45,17 +45,15 @@ use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-#[cfg(feature = "io_profiling")]
+
+#[cfg(all(target_os = "linux", feature = "io_profiling"))]
 use crate::io::{
-    SOCKET_READ_TIME_PROFILING_INTERVAL,
-    SOCKET_WRITE_TIME_PROFILING_INTERVAL,
-    FILE_READ_TIME_PROFILING_INTERVAL,
-    FILE_WRITE_TIME_PROFILING_INTERVAL,
-    SOCKET_READ_SIZE_PROFILING_INTERVAL,
-    SOCKET_WRITE_SIZE_PROFILING_INTERVAL,
-    FILE_READ_SIZE_PROFILING_INTERVAL,
-    FILE_WRITE_SIZE_PROFILING_INTERVAL
+    FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
+    FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
+    SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
+    SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
+
 #[cfg(any(
     feature = "allocation_profiling",
     feature = "exception_profiling",
@@ -312,38 +310,70 @@ impl TimeCollector {
         let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
 
         // check if we have the IO sample types
-        #[cfg(feature = "io_profiling")]
-        let socket_read_time_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-time");
-        #[cfg(feature = "io_profiling")]
-        let socket_read_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-time-samples");
-        #[cfg(feature = "io_profiling")]
-        let socket_write_time_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-time");
-        #[cfg(feature = "io_profiling")]
-        let socket_write_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-time-samples");
-        #[cfg(feature = "io_profiling")]
-        let file_read_time_offset = sample_types.iter().position(|&x| x.r#type == "file-read-time");
-        #[cfg(feature = "io_profiling")]
-        let file_read_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-read-time-samples");
-        #[cfg(feature = "io_profiling")]
-        let file_write_time_offset = sample_types.iter().position(|&x| x.r#type == "file-write-time");
-        #[cfg(feature = "io_profiling")]
-        let file_write_time_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-write-time-samples");
-        #[cfg(feature = "io_profiling")]
-        let socket_read_size_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-size");
-        #[cfg(feature = "io_profiling")]
-        let socket_read_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-read-size-samples");
-        #[cfg(feature = "io_profiling")]
-        let socket_write_size_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-size");
-        #[cfg(feature = "io_profiling")]
-        let socket_write_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "socket-write-size-samples");
-        #[cfg(feature = "io_profiling")]
-        let file_read_size_offset = sample_types.iter().position(|&x| x.r#type == "file-read-size");
-        #[cfg(feature = "io_profiling")]
-        let file_read_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-read-size-samples");
-        #[cfg(feature = "io_profiling")]
-        let file_write_size_offset = sample_types.iter().position(|&x| x.r#type == "file-write-size");
-        #[cfg(feature = "io_profiling")]
-        let file_write_size_samples_offset = sample_types.iter().position(|&x| x.r#type == "file-write-size-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_read_time_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-read-time");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_read_time_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-read-time-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_write_time_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-write-time");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_write_time_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-write-time-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_read_time_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-read-time");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_read_time_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-read-time-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_write_time_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-write-time");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_write_time_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-write-time-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_read_size_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-read-size");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_read_size_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-read-size-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_write_size_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-write-size");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let socket_write_size_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "socket-write-size-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_read_size_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-read-size");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_read_size_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-read-size-samples");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_write_size_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-write-size");
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let file_write_size_samples_offset = sample_types
+            .iter()
+            .position(|&x| x.r#type == "file-write-size-samples");
 
         // check if we have the `exception-samples` sample types
         #[cfg(feature = "exception_profiling")]
@@ -382,7 +412,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(socket_read_time_offset), Some(socket_read_time_samples_offset)) =
             (socket_read_time_offset, socket_read_time_samples_offset)
         {
@@ -400,7 +430,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(socket_write_time_offset), Some(socket_write_time_samples_offset)) =
             (socket_write_time_offset, socket_write_time_samples_offset)
         {
@@ -418,7 +448,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(file_read_time_offset), Some(file_read_time_samples_offset)) =
             (file_read_time_offset, file_read_time_samples_offset)
         {
@@ -436,7 +466,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(file_write_time_offset), Some(file_write_time_samples_offset)) =
             (file_write_time_offset, file_write_time_samples_offset)
         {
@@ -454,7 +484,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(socket_read_size_offset), Some(socket_read_size_samples_offset)) =
             (socket_read_size_offset, socket_read_size_samples_offset)
         {
@@ -472,7 +502,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(socket_write_size_offset), Some(socket_write_size_samples_offset)) =
             (socket_write_size_offset, socket_write_size_samples_offset)
         {
@@ -490,7 +520,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(file_read_size_offset), Some(file_read_size_samples_offset)) =
             (file_read_size_offset, file_read_size_samples_offset)
         {
@@ -508,7 +538,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(feature = "io_profiling")]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         if let (Some(file_write_size_offset), Some(file_write_size_samples_offset)) =
             (file_write_size_offset, file_write_size_samples_offset)
         {
@@ -1651,13 +1681,21 @@ mod tests {
             timeline: 60,
             exception: 70,
             socket_read_time: 80,
+            socket_read_time_samples: 81,
             socket_write_time: 90,
+            socket_write_time_samples: 91,
             file_read_time: 100,
+            file_read_time_samples: 101,
             file_write_time: 110,
+            file_write_time_samples: 111,
             socket_read_size: 120,
+            socket_read_size_samples: 121,
             socket_write_size: 130,
+            socket_write_size_samples: 131,
             file_read_size: 140,
+            file_read_size_samples: 141,
             file_write_size: 150,
+            file_write_size_samples: 151,
         }
     }
 
