@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Symfony;
 use DDTrace\HookData;
 use DDTrace\Integrations\Drupal\DrupalIntegration;
 use DDTrace\Integrations\Integration;
+use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -541,7 +542,34 @@ class SymfonyIntegration extends Integration
             $eventDispatcherTracer
         );
 
+        \DDTrace\hook_method(
+            'Symfony\Component\HttpKernel\EventListener\ExceptionListener',
+            'onKernelException',
+            null,
+            function ($This, $scope, $args) {
+                $rootSpan = \DDTrace\root_span();
+                if ($rootSpan === null) {
+                    Logger::get()->debug("No root span found");
+                    return;
+                }
 
+                $event = $args[0];
+                if (!($event instanceof \Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent)) {
+                    Logger::get()->debug("Got event of class: " . \get_class($event));
+                    return;
+                }
+
+                $response = $event->getResponse();
+                if ($response !== null) {
+                    Logger::get()->debug("Ignoring exception event with response");
+                    $rootSpan->meta['error.ignored'] = 1;
+                    $rootSpan->exception = $event->getException();
+                    //Logger::get()->debug(print_r($rootSpan, true));
+                } else {
+                    Logger::get()->debug("No response found");
+                }
+            }
+        );
 
         // Handling exceptions
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
