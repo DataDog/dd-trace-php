@@ -1,4 +1,5 @@
 #include "asm_event.h"
+#include "trace_source.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
@@ -235,12 +236,13 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_baggage = zend_hash_str_exists(inject, ZEND_STRL("baggage"));
 
     zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == true) {
+    if (!get_DD_APM_TRACING_ENABLED() && ddtrace_asm_event_emitted()) {
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == false &&
-        ddtrace_propagated_tags_get_tag(DD_TAG_P_APPSEC) == NULL) {
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+    zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : &DDTRACE_G(root_span_tags_preset);
+    if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
         return;
     }
 

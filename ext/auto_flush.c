@@ -11,29 +11,12 @@
 #include "serializer.h"
 #include "span.h"
 #include "sidecar.h"
+#include "trace_source.h"
 #include "ddshared.h"
 #include "standalone_limiter.h"
 #include <main/SAPI.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
-
-static bool trace_contains_appsec_event(zval *trace) {
-    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
-    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        return false;
-    }
-
-    return zend_hash_str_exists(Z_ARR_P(meta), DD_TAG_P_APPSEC, strlen(DD_TAG_P_APPSEC));
-}
 
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
@@ -60,8 +43,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         return SUCCESS;
     }
 
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
-        if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
+        if (!ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_trace_asm_sourced(&trace) && !ddtrace_standalone_limiter_allow()) {
             zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
             if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
                 LOG(ERROR, "Root span not found. Dropping trace");
@@ -111,7 +94,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                                 .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
                                 .client_computed_top_level = false,
-                                .client_computed_stats = get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED(),
+                                .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED(),
                         };
                         size_t size_hint = written;
                         zend_long n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS();
