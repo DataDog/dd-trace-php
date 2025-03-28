@@ -144,18 +144,19 @@ static inline zend_string *ddtrace_percent_encode(zend_string *string, bool is_k
 static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
     smart_str serialized_baggage = {0};
     zend_string *key;
+    zend_long numkey;
     zval *value;
     uint64_t max_bytes = get_DD_TRACE_BAGGAGE_MAX_BYTES();
     uint64_t max_items = get_DD_TRACE_BAGGAGE_MAX_ITEMS();
     size_t size = 0;
     size_t item_count = 0;
 
-    ZEND_HASH_FOREACH_STR_KEY_VAL(baggage, key, value) {
-        if (!key || ZSTR_LEN(key) == 0 || Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) == 0) {
+    ZEND_HASH_FOREACH_KEY_VAL(baggage, numkey, key, value) {
+        if ((key && ZSTR_LEN(key) == 0) || Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) == 0) {
             continue; // Skip invalid entries
         }
 
-        zend_string *encoded_key = ddtrace_percent_encode(key, true);
+        zend_string *encoded_key = key ? ddtrace_percent_encode(key, true) : zend_long_to_str(numkey);
         zend_string *encoded_value = ddtrace_percent_encode(Z_STR_P(value), false);
 
         if (item_count++ >= max_items) {
