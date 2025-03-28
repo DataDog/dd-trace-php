@@ -5,6 +5,7 @@
 #include "../compat_string.h"
 #include "../configuration.h"
 #include "../ddtrace.h"
+#include "../trace_source.h"
 #include "../priority_sampling/priority_sampling.h"
 #include <components/log/log.h>
 
