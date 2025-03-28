@@ -17,7 +17,7 @@ pub trait VecExt<T>: sealed::Sealed {
 impl<T> VecExt<T> for Vec<T> {
     /// Use [Vec::try_reserve] to reserve space for the additional item, and
     /// then write the item in the new slot. This is similar to [Vec::push]
-    /// except it will fail on if the collection cannot grow.
+    /// except it will fail if the collection cannot grow rather than panic.
     fn try_push(&mut self, value: T) -> Result<(), TryReserveError> {
         let len = self.len();
         self.try_reserve(1)?;
