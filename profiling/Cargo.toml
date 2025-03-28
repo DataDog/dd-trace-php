@@ -35,7 +35,15 @@ rand = { version = "0.8.5" }
 rand_distr = { version = "0.4.3" }
 rustc-hash = "1.1.0"
 thiserror = "2"
+tracing = { version = "0.1", optional = true }
 uuid = { version = "1.0", features = ["v4"] }
+
+[dependencies.tracing-subscriber]
+version = "0.3"
+optional = true
+default-features = false
+# Build without tracing-log to avoid hijacking existing log events, for now.
+features = ["env-filter", "fmt", "smallvec", "std"]
 
 [dev-dependencies]
 criterion = { version = "0.5.1" }
@@ -50,15 +58,17 @@ name = "stack_walking"
 harness = false
 
 [features]
-default = ["allocation_profiling", "timeline", "exception_profiling", "io_profiling"]
+default = ["allocation_profiling", "exception_profiling", "io_profiling", "timeline"]
 allocation_profiling = []
-timeline = []
 exception_profiling = []
+timeline = []
 stack_walking_tests = []
 test = []
 io_profiling = []
 
-# only for testing:
+# Not for prod:
+tracing = ["dep:tracing"]
+tracing-subscriber = ["tracing", "dep:tracing-subscriber"]
 trigger_time_sample = []
 
 [build-dependencies]
