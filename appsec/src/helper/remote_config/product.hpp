@@ -12,15 +12,25 @@
 namespace dds::remote_config {
 
 class product {
-public:
     explicit constexpr product(std::string_view name) : name_{name} {}
 
-    [[nodiscard]] const std::string_view &name() const { return name_; }
+public:
+    constexpr product(const product &) = default;
+    constexpr product(product &&) = default;
+    constexpr product &operator=(const product &) = default;
+    constexpr product &operator=(product &&) = default;
+    constexpr ~product() = default;
 
-    bool operator==(const product &other) const { return name_ == other.name_; }
+    [[nodiscard]] constexpr std::string_view name() const { return name_; }
+
+    constexpr bool operator==(const product &other) const
+    {
+        return name_ == other.name_;
+    }
 
 private:
     std::string_view name_;
+    friend struct known_products;
 };
 
 struct known_products {

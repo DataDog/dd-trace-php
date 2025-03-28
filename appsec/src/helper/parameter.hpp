@@ -6,12 +6,8 @@
 
 #pragma once
 
-#include <limits>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 
 #include "parameter_base.hpp"
 
@@ -51,6 +47,7 @@ public:
 
     bool add(parameter &&entry) noexcept;
     bool add(std::string_view name, parameter &&entry) noexcept;
+    bool merge(parameter other);
 
     // The reference should be considered invalid after adding an element
     parameter &operator[](size_t index) const;
