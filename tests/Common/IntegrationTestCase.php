@@ -13,36 +13,13 @@ abstract class IntegrationTestCase extends BaseTestCase
     use TracerTestTrait;
     use SnapshotTestTrait;
     use SpanAssertionTrait;
+    use \PHPUnitRetry\RetryTrait;
 
     private $errorReportingBefore;
     public static $autoloadPath = null;
 
     public static $database = "test";
     private static $createdDatabases = ["test" => true];
-
-    public function __construct($name = null, array $data = [], $dataName = '')
-    {
-        parent::__construct($name, $data, $dataName);
-        if (version_compare(PHP_VERSION, '7.1.0', '>=')) {
-            $this->useRetryTrait();
-        }
-    }
-
-    private function useRetryTrait()
-    {
-        if (trait_exists('\PHPUnitRetry\RetryTrait')) {
-            $this->useTrait('\PHPUnitRetry\RetryTrait');
-        }
-    }
-
-    private function useTrait($traitName)
-    {
-        $reflection = new \ReflectionClass($this);
-        $traits = $reflection->getTraits();
-        if (!isset($traits[$traitName])) {
-            eval("use $traitName;");
-        }
-    }
 
     public static function ddSetUpBeforeClass()
     {

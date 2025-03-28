@@ -18,7 +18,7 @@
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
         "ext-sockets": "*",
-        "bshaffer/phpunit-retry-annotations": "^0.3.0"
+        "profenom/phpunit-retry-annotations": "^0.1"
     },
     "config": {
         "allow-plugins": {
