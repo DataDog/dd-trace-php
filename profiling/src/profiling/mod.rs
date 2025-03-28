@@ -301,85 +301,56 @@ impl TimeCollector {
             })
             .collect();
 
+        let get_offset = |sample_type| sample_types.iter().position(|&x| x.r#type == sample_type);
+
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let alloc_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "alloc-samples");
-        #[cfg(feature = "allocation_profiling")]
-        let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
+        let (alloc_samples_offset, alloc_size_offset) = (
+            get_offset("alloc-samples"),
+            get_offset("alloc-size"),
+        );
 
         // check if we have the IO sample types
         #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_read_time_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-read-time");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_read_time_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-read-time-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_write_time_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-write-time");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_write_time_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-write-time-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_read_time_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-read-time");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_read_time_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-read-time-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_write_time_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-write-time");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_write_time_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-write-time-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_read_size_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-read-size");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_read_size_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-read-size-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_write_size_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-write-size");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let socket_write_size_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "socket-write-size-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_read_size_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-read-size");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_read_size_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-read-size-samples");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_write_size_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-write-size");
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let file_write_size_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "file-write-size-samples");
+        let (
+            socket_read_time_offset,
+            socket_read_time_samples_offset,
+            socket_write_time_offset,
+            socket_write_time_samples_offset,
+            file_read_time_offset,
+            file_read_time_samples_offset,
+            file_write_time_offset,
+            file_write_time_samples_offset,
+            socket_read_size_offset,
+            socket_read_size_samples_offset,
+            socket_write_size_offset,
+            socket_write_size_samples_offset,
+            file_read_size_offset,
+            file_read_size_samples_offset,
+            file_write_size_offset,
+            file_write_size_samples_offset,
+        ) = (
+            get_offset("socket-read-time"),
+            get_offset("socket-read-time-samples"),
+            get_offset("socket-write-time"),
+            get_offset("socket-write-time-samples"),
+            get_offset("file-read-time"),
+            get_offset("file-read-time-samples"),
+            get_offset("file-write-time"),
+            get_offset("file-write-time-samples"),
+            get_offset("socket-read-size"),
+            get_offset("socket-read-size-samples"),
+            get_offset("socket-write-size"),
+            get_offset("socket-write-size-samples"),
+            get_offset("file-read-size"),
+            get_offset("file-read-size-samples"),
+            get_offset("file-write-size"),
+            get_offset("file-write-size-samples"),
+        );
 
         // check if we have the `exception-samples` sample types
         #[cfg(feature = "exception_profiling")]
-        let exception_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "exception-samples");
+        let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = InternalProfile::new(
