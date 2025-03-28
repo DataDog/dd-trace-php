@@ -383,150 +383,93 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(socket_read_time_offset), Some(socket_read_time_samples_offset)) =
-            (socket_read_time_offset, socket_read_time_samples_offset)
+       #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: socket_read_time_offset,
-                count_value_offset: socket_read_time_samples_offset,
-                sampling_distance: SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [socket_read_time_offset, socket_read_time_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for socket read time samples, socket read time samples reported will be wrong: {err}")
+            let add_io_upscaling_rule = |profile: &mut InternalProfile,
+                                         sum_value_offset: Option<usize>,
+                                         count_value_offset: Option<usize>,
+                                         sampling_distance: u64,
+                                         metric_name: &str| {
+                if let (Some(sum_value_offset), Some(count_value_offset)) = (sum_value_offset, count_value_offset) {
+                    let upscaling_info = UpscalingInfo::Poisson {
+                        sum_value_offset,
+                        count_value_offset,
+                        sampling_distance,
+                    };
+                    let values_offset = [sum_value_offset, count_value_offset];
+                    match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                        Ok(_id) => {}
+                        Err(err) => {
+                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+                        }
+                    }
                 }
-            }
-        }
-
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(socket_write_time_offset), Some(socket_write_time_samples_offset)) =
-            (socket_write_time_offset, socket_write_time_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: socket_write_time_offset,
-                count_value_offset: socket_write_time_samples_offset,
-                sampling_distance: SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
             };
-            let values_offset = [socket_write_time_offset, socket_write_time_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for socket write time samples, socket write time samples reported will be wrong: {err}")
-                }
-            }
-        }
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(file_read_time_offset), Some(file_read_time_samples_offset)) =
-            (file_read_time_offset, file_read_time_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: file_read_time_offset,
-                count_value_offset: file_read_time_samples_offset,
-                sampling_distance: FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [file_read_time_offset, file_read_time_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for file read time samples, file read time samples reported will be wrong: {err}")
-                }
-            }
-        }
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_read_time_offset,
+                socket_read_time_samples_offset,
+                SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket read time samples",
+            );
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(file_write_time_offset), Some(file_write_time_samples_offset)) =
-            (file_write_time_offset, file_write_time_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: file_write_time_offset,
-                count_value_offset: file_write_time_samples_offset,
-                sampling_distance: FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [file_write_time_offset, file_write_time_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for file write time samples, file write time samples reported will be wrong: {err}")
-                }
-            }
-        }
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_write_time_offset,
+                socket_write_time_samples_offset,
+                SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket write time samples",
+            );
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(socket_read_size_offset), Some(socket_read_size_samples_offset)) =
-            (socket_read_size_offset, socket_read_size_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: socket_read_size_offset,
-                count_value_offset: socket_read_size_samples_offset,
-                sampling_distance: SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [socket_read_size_offset, socket_read_size_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for socket read size samples, socket read size samples reported will be wrong: {err}")
-                }
-            }
-        }
+            add_io_upscaling_rule(
+                &mut profile,
+                file_read_time_offset,
+                file_read_time_samples_offset,
+                FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file read time samples",
+            );
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(socket_write_size_offset), Some(socket_write_size_samples_offset)) =
-            (socket_write_size_offset, socket_write_size_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: socket_write_size_offset,
-                count_value_offset: socket_write_size_samples_offset,
-                sampling_distance: SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [socket_write_size_offset, socket_write_size_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for socket write size samples, socket write size samples reported will be wrong: {err}")
-                }
-            }
-        }
+            add_io_upscaling_rule(
+                &mut profile,
+                file_write_time_offset,
+                file_write_time_samples_offset,
+                FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file write time samples",
+            );
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(file_read_size_offset), Some(file_read_size_samples_offset)) =
-            (file_read_size_offset, file_read_size_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: file_read_size_offset,
-                count_value_offset: file_read_size_samples_offset,
-                sampling_distance: FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [file_read_size_offset, file_read_size_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for file read size samples, file read size samples reported will be wrong: {err}")
-                }
-            }
-        }
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_read_size_offset,
+                socket_read_size_samples_offset,
+                SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket read size samples",
+            );
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        if let (Some(file_write_size_offset), Some(file_write_size_samples_offset)) =
-            (file_write_size_offset, file_write_size_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: file_write_size_offset,
-                count_value_offset: file_write_size_samples_offset,
-                sampling_distance: FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [file_write_size_offset, file_write_size_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for file write size samples, file write size samples reported will be wrong: {err}")
-                }
-            }
-        }
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_write_size_offset,
+                socket_write_size_samples_offset,
+                SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket write size samples",
+            );
 
+            add_io_upscaling_rule(
+                &mut profile,
+                file_read_size_offset,
+                file_read_size_samples_offset,
+                FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file read size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_write_size_offset,
+                file_write_size_samples_offset,
+                FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file write size samples",
+            );
+        }
         #[cfg(feature = "exception_profiling")]
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
