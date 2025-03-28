@@ -13,7 +13,7 @@ abstract class IntegrationTestCase extends BaseTestCase
     use TracerTestTrait;
     use SnapshotTestTrait;
     use SpanAssertionTrait;
-    use \PHPUnitRetry\RetryTrait;
+    use RetryTrait;
 
     private $errorReportingBefore;
     public static $autoloadPath = null;
