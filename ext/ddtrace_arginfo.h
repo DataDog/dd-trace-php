@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d903751b8aaecac2235c17bf8904563e4a8f1d63 */
+ * Stub hash: f7e8f6a8052abd0404a3e01fa6b52d27024e6f1b */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -61,7 +61,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_update_span_duration, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, finishTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\SpanData, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_start_trace_span, 0, 0, DDTrace\\RootSpanData, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, startTime, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -740,6 +740,16 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	return class_entry;
 }
 
+static zend_class_entry *register_class_DDTrace_InferredSpanData(zend_class_entry *class_entry_DDTrace_SpanData)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "InferredSpanData", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_DDTrace_SpanData, 0);
+
+	return class_entry;
+}
+
 static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *class_entry_DDTrace_SpanData)
 {
 	zend_class_entry ce, *class_entry;
@@ -801,6 +811,13 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 	zend_string *property_gitMetadata_class_DDTrace_GitMetadata = zend_string_init("DDTrace\\GitMetadata", sizeof("DDTrace\\GitMetadata")-1, 1);
 	zend_declare_typed_property(class_entry, property_gitMetadata_name, &property_gitMetadata_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_gitMetadata_class_DDTrace_GitMetadata, 0, MAY_BE_NULL));
 	zend_string_release(property_gitMetadata_name);
+
+	zval property_inferredSpan_default_value;
+	ZVAL_NULL(&property_inferredSpan_default_value);
+	zend_string *property_inferredSpan_name = zend_string_init("inferredSpan", sizeof("inferredSpan") - 1, 1);
+	zend_string *property_inferredSpan_class_DDTrace_InferredSpanData = zend_string_init("DDTrace\\InferredSpanData", sizeof("DDTrace\\InferredSpanData")-1, 1);
+	zend_declare_typed_property(class_entry, property_inferredSpan_name, &property_inferredSpan_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_inferredSpan_class_DDTrace_InferredSpanData, 0, MAY_BE_NULL));
+	zend_string_release(property_inferredSpan_name);
 
 	return class_entry;
 }

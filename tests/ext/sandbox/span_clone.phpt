@@ -25,7 +25,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (23) {
+object(DDTrace\RootSpanData)#%d (24) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -102,8 +102,10 @@ object(DDTrace\RootSpanData)#%d (23) {
   string(32) "%s"
   ["gitMetadata"]=>
   NULL
+  ["inferredSpan"]=>
+  NULL
 }
-object(DDTrace\RootSpanData)#%d (23) {
+object(DDTrace\RootSpanData)#%d (24) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -157,7 +159,7 @@ object(DDTrace\RootSpanData)#%d (23) {
       }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (23) {
+    object(DDTrace\RootSpanData)#%d (24) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -218,6 +220,8 @@ object(DDTrace\RootSpanData)#%d (23) {
       string(32) "%s"
       ["gitMetadata"]=>
       NULL
+      ["inferredSpan"]=>
+      NULL
     }
     ["spanCreationObservers"]=>
     array(0) {
@@ -240,6 +244,8 @@ object(DDTrace\RootSpanData)#%d (23) {
   ["traceId"]=>
   string(32) "%s"
   ["gitMetadata"]=>
+  NULL
+  ["inferredSpan"]=>
   NULL
 }
 array(1) {
