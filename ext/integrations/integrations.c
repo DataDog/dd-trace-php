@@ -99,7 +99,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 if (!ce) {
                     LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                        INTEGRATION_ERROR_TELEMETRY(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
                     }
                     success = true;
                     break;
@@ -108,7 +108,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 if (!instanceof_function(ce, ddtrace_ce_integration)) {
                     LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                        INTEGRATION_ERROR_TELEMETRY(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     }
                     success = true;
                     break;
@@ -144,7 +144,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                         default:
                             LOG(WARN, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
                             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                                ddtrace_integration_error_telemetryf("Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                                INTEGRATION_ERROR_TELEMETRY(ERROR, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
                             }
                             break;
                     }
@@ -161,14 +161,14 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     log("%s thrown in ddtrace's integration autoloader for %s: %s",
                         type, ZSTR_VAL(aux->classname), msg);
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("%s thrown in ddtrace's integration autoloader for %s: %s",
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's integration autoloader for %s: %s",
                             type, ZSTR_VAL(aux->classname), msg);
                     }
                 } else if (PG(last_error_message)) {
                     log("Error raised in ddtrace's integration autoloader for %s: %s in %s on line %d",
                         ZSTR_VAL(aux->classname), LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
                             ZSTR_VAL(aux->classname), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
                     }
                 }

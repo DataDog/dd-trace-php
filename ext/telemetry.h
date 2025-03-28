@@ -8,6 +8,9 @@
 #include "ddtrace_export.h"
 #include "span.h"
 
+void ddtrace_integration_error_telemetryf(ddog_Log source, const char *format, ...);
+#define INTEGRATION_ERROR_TELEMETRY(source, format, ...) { ddtrace_integration_error_telemetryf(DDOG_LOG_##source, format, ##__VA_ARGS__); }
+
 typedef struct _trace_api_metrics {
     int requests;
     int responses_1xx;
@@ -21,7 +24,6 @@ typedef struct _trace_api_metrics {
 } trace_api_metrics;
 
 ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void);
-void ddtrace_integration_error_telemetryf(const char *format, ...);
 const char *ddtrace_telemetry_redact_file(const char *file);
 void ddtrace_telemetry_first_init(void);
 void ddtrace_telemetry_rinit(void);
