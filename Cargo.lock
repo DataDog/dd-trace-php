@@ -730,7 +730,7 @@ dependencies = [
 [[package]]
 name = "build_common"
 version = "16.0.3"
-source = "git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28#78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28"
+source = "git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7#3892e3952d857280462940f62a99af6d36552fb7"
 dependencies = [
  "cbindgen",
  "serde",
@@ -1447,7 +1447,7 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28#78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28"
+source = "git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7#3892e3952d857280462940f62a99af6d36552fb7"
 dependencies = [
  "anyhow",
  "serde",
@@ -1470,12 +1470,12 @@ dependencies = [
 [[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28#78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28"
+source = "git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7#3892e3952d857280462940f62a99af6d36552fb7"
 dependencies = [
  "anyhow",
  "build_common 16.0.3",
  "constcat",
- "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28)",
+ "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7)",
  "ddcommon 16.0.3",
  "ddcommon-ffi 16.0.3",
 ]
@@ -1531,7 +1531,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28)",
+ "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7)",
  "datadog-php-profiling",
  "datadog-profiling",
  "ddcommon 15.1.0",
@@ -1827,19 +1827,21 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "16.0.3"
-source = "git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28#78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28"
+source = "git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7#3892e3952d857280462940f62a99af6d36552fb7"
 dependencies = [
  "anyhow",
  "cc",
+ "const_format",
  "futures",
  "futures-core",
  "futures-util",
  "hex",
- "http 0.2.12",
- "hyper 0.14.32",
+ "http 1.2.0",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.6.0",
  "hyper-rustls 0.27.5",
  "hyper-util",
- "lazy_static",
  "libc 0.2.169",
  "log",
  "memfd",
@@ -1849,11 +1851,12 @@ dependencies = [
  "rmp",
  "rmp-serde",
  "rustls 0.23.21",
- "rustls-native-certs 0.7.3",
+ "rustls-native-certs 0.8.1",
  "serde",
  "static_assertions",
  "tokio",
  "tokio-rustls 0.26.1",
+ "tower-service",
  "windows-sys 0.52.0",
 ]
 
@@ -1874,14 +1877,14 @@ dependencies = [
 [[package]]
 name = "ddcommon-ffi"
 version = "16.0.3"
-source = "git+https://github.com/DataDog/libdatadog?rev=78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28#78f2dfbfadd4f589bc7aafb8c0334b7bd3f35e28"
+source = "git+https://github.com/DataDog/libdatadog?rev=3892e3952d857280462940f62a99af6d36552fb7#3892e3952d857280462940f62a99af6d36552fb7"
 dependencies = [
  "anyhow",
  "build_common 16.0.3",
  "chrono",
  "crossbeam-queue",
  "ddcommon 16.0.3",
- "hyper 0.14.32",
+ "hyper 1.6.0",
  "serde",
 ]
 
