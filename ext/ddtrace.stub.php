@@ -240,6 +240,12 @@ namespace DDTrace {
          * @return string Returns the span id as zero-padded 16 character hexadecimal string.
          */
         public function hexId(): string {}
+
+        /**
+         * @var array In OpenTelemetry, Baggage is contextual information that resides next to context.
+         * Baggage is a key-value store, which means it lets you propagate any data you like alongside context regardless of trace ids existence.
+         */
+        public array $baggage = [];
     }
 
     class RootSpanData extends SpanData {

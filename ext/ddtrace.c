@@ -38,6 +38,7 @@
 #include <components/log/log.h>
 
 #include "asm_event.h"
+#include "trace_source.h"
 #include "auto_flush.h"
 #include "compatibility.h"
 #ifndef _WIN32
@@ -881,6 +882,8 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
+    zend_hash_destroy(&result.baggage);
+
     if (result.origin) {
         zend_string_release(result.origin);
     }
@@ -922,7 +925,13 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
 
 static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_data *span = ecalloc(1, sizeof(*span));
-    return dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+    dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&span->property_baggage);
+#endif
+
+    return &span->std;
 }
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
@@ -932,6 +941,7 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     // Not handled in arginfo on these old versions
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
+    array_init(&span->property_baggage);
 #endif
     return &span->std;
 }
@@ -1470,7 +1480,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
-    ddtrace_appsec_minit();
+    ddtrace_trace_source_minit();
 
     return SUCCESS;
 }
@@ -1565,10 +1575,10 @@ static void dd_initialize_request(void) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
-    DDTRACE_G(asm_event_emitted) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
     // Check for the env first, before the first RC
     ddtrace_check_agent_info_env();
@@ -1577,6 +1587,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(request_initialized) = true;
 
     ddtrace_sidecar_rinit();
+    ddtrace_asm_event_rinit();
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
@@ -1659,6 +1670,7 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
+    zend_hash_destroy(&DDTRACE_G(baggage));
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {

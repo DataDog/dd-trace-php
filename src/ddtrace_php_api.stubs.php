@@ -734,6 +734,7 @@ namespace DDTrace\Data {
      * @property int $duration
      * @property array $tags
      * @property array $metrics
+     * @property array $baggage
      */
     abstract class Span implements \DDTrace\Contracts\Span
     {
@@ -937,6 +938,18 @@ namespace DDTrace {
          * {@inheritdoc}
          */
         public function getAllBaggageItems()
+        {
+        }
+        /**
+         * {@inheritdoc}
+         */
+        public function removeBaggageItem($key)
+        {
+        }
+        /**
+         * {@inheritdoc}
+         */
+        public function removeAllBaggageItems()
         {
         }
         public function __destruct()

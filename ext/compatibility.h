@@ -265,6 +265,11 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
             (z) = Z_INDIRECT_P(z); \
         } \
     } while (0)
+#define ZVAL_COPY_DEREF(z, v) do { \
+        zval *_z3 = (v); \
+        ZVAL_DEREF(_z3); \
+        ZVAL_COPY(z, _z3); \
+    } while (0)
 
 #endif
 

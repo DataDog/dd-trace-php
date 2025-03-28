@@ -330,6 +330,101 @@ final class SpanTest extends BaseTestCase
         $this->assertSame([1710563033, 2041643438], $randInts);
     }
 
+    public function testBaggageApi()
+    {
+        $span = $this->createSpan();
+
+        // Test setting and getting a baggage
+        $span->addBaggageItem('user_id', 123);
+        $this->assertEquals(123, $span->getBaggageItem('user_id'));
+
+        // Test setting multiple entries and retrieving all baggage
+        $span->addBaggageItem('session_id', 'abc123');
+        $expectedBaggage = [
+            'user_id' => 123,
+            'session_id' => 'abc123'
+        ];
+        $this->assertEquals($expectedBaggage, $span->getAllBaggageItems());
+
+        // Test removing a single baggage
+        $span->removeBaggageItem('user_id');
+        $this->assertNull($span->getBaggageItem('user_id'));
+        $this->assertEquals(['session_id' => 'abc123'], $span->getAllBaggageItems());
+
+        // Test removing all baggage entries
+        $span->removeAllBaggageItems();
+        $this->assertEmpty($span->getAllBaggageItems());
+
+        // Test overwriting an existing key
+        $span->addBaggageItem('user_id', 123);
+        $span->addBaggageItem('user_id', 456);
+        $this->assertEquals(456, $span->getBaggageItem('user_id'));
+
+        // Test setting empty keys (should be ignored)
+        $span->addBaggageItem('', 'some_value');
+        $this->assertEquals(['user_id' => 456], $span->getAllBaggageItems());
+
+        // Test setting empty values (should still be stored)
+        $span->addBaggageItem('empty_value', '');
+        $this->assertEquals('', $span->getBaggageItem('empty_value'));
+  
+        // Test removing a non-existent key (should not cause errors)
+        $span->removeBaggageItem('non_existent_key');
+        $this->assertEquals(['user_id' => 456, 'empty_value' => ''], $span->getAllBaggageItems());
+
+        // Test clearing an already empty baggage
+        $span->removeAllBaggageItems();
+        $span->removeAllBaggageItems();
+        $this->assertEmpty($span->getAllBaggageItems());
+    }
+
+    public function testApiBaggageMergingWithHeaders()
+    {
+        // Step 1: Set baggage using API before a request
+        $span = new Span(\DDTrace\start_trace_span(), SpanContext::createAsRoot());
+        $span->addBaggageItem('user_id', '123');
+        $span->addBaggageItem('serverNode', 'local');
+        $span->addBaggageItem('session', 'abc123');
+        $span->addBaggageItem('",;\()/:<=>?@[]{}', '",;\\');
+
+        // Step 2: Simulate an incoming request with baggage in the headers
+        $incomingHeaders = [
+            'baggage' => 'user_id=999,serverNode=remote,env=production'
+        ];
+
+        // Step 3: Consume the request headers (Simulate extraction)
+        \DDTrace\consume_distributed_tracing_headers(function ($header) use ($incomingHeaders) {
+            return $incomingHeaders[$header] ?? null;
+        });
+
+
+
+        // Step 4: Start a new span (merging should happen here)
+        $newSpan = $this->createSpan(true);
+        $expectedMergedBaggage = [
+            'user_id' => '999', // Overwritten by request header
+            'serverNode' => 'remote', // Overwritten by request header
+            'session' => 'abc123', // Preserved from API-set baggage
+            '",;\()/:<=>?@[]{}' => '",;\\', // Preserved from API-set baggage
+            'env' => 'production' // New from request header
+        ];
+        $this->assertEquals($expectedMergedBaggage, $newSpan->getAllBaggageItems());
+    }
+
+    public function testActiveTraceBaggagePropagation()
+    {
+        // Step 1: Start Trace and add some baggage
+        $span_1 = new Span(\DDTrace\start_trace_span(), SpanContext::createAsRoot());
+        $span_1->addBaggageItem('user_id', '123');
+        $span_1->addBaggageItem('serverNode', 'local');
+        $span_1->addBaggageItem('session', 'abc123');
+
+        // Step 2: Start second trace and confirm baggage is inherited
+        $span_2 = new Span(\DDTrace\start_trace_span(), SpanContext::createAsRoot());
+
+        $this->assertEquals($span_1->getAllBaggageItems(), $span_2->getAllBaggageItems());
+    }
+
     private function createSpan($realSpan = false)
     {
         $context = SpanContext::createAsRoot();

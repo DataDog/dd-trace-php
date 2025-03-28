@@ -17,45 +17,28 @@ static void (*_ddog_library_configurator_with_local_path)(struct ddog_Configurat
 static void (*_ddog_library_configurator_with_fleet_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
 static void (*_ddog_library_configurator_with_process_info)(struct ddog_Configurator *c, struct ddog_ProcessInfo p);
 static struct ddog_Result_VecLibraryConfig (*_ddog_library_configurator_get)(const struct ddog_Configurator *configurator);
+static struct ddog_CStr (*_ddog_library_config_source_to_string)(enum ddog_LibraryConfigSource name);
 static struct ddog_CStr (*_ddog_library_config_name_to_env)(enum ddog_LibraryConfigName name);
 static void (*_ddog_library_config_drop)(struct ddog_Vec_LibraryConfig);
 static void (*_ddog_Error_drop)(struct ddog_Error *error);
 static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
 
-HashTable *config_values = NULL;
+HashTable *local_config_values = NULL;
+HashTable *fleet_config_values = NULL;
 
-bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf) {
-    if (!config_values) {
+bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf, zai_config_stable_file_source source) {
+    HashTable *store = (source == ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL) ? local_config_values : fleet_config_values;
+    if (!store) {
         return false;
     }
 
-    zval *value = zend_hash_str_find(config_values, name.ptr, name.len);
+    zval *value = zend_hash_str_find(store, name.ptr, name.len);
     if (value) {
         strcpy(buf.ptr, Z_STRVAL_P(value));
         return true;
     }
 
     return false;
-}
-
-static void zai_config_stable_file_apply_config(int stage) {
-    if (!config_values) {
-        return;
-    }
-
-    zend_string *key;
-    zval *value;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(config_values, key, value) {
-        zai_config_id config_id;
-        zai_str config_name = {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)};
-        if (!zai_config_get_id_by_name(config_name, &config_id)) {
-            continue;
-        }
-
-        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[config_id];
-        zend_ini_entry *entry = memoized->ini_entries[0];
-        zend_alter_ini_entry_ex(entry->name, Z_STR_P(value), PHP_INI_USER, stage, 0);
-    } ZEND_HASH_FOREACH_END();
 }
 
 void zai_config_stable_file_minit(void) {
@@ -74,6 +57,7 @@ void zai_config_stable_file_minit(void) {
         RESOLVE_SYMBOL(ddog_library_configurator_with_process_info);
         RESOLVE_SYMBOL(ddog_library_configurator_get);
         RESOLVE_SYMBOL(ddog_library_config_name_to_env);
+        RESOLVE_SYMBOL(ddog_library_config_source_to_string);
         RESOLVE_SYMBOL(ddog_library_config_drop);
         RESOLVE_SYMBOL(ddog_Error_drop);
         RESOLVE_SYMBOL(ddog_library_configurator_drop);
@@ -114,18 +98,27 @@ void zai_config_stable_file_minit(void) {
 
     ddog_Result_VecLibraryConfig config_result = _ddog_library_configurator_get(configurator);
     if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG) {
-        config_values = pemalloc(sizeof(HashTable), 1);
-        zend_hash_init(config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
+        local_config_values = pemalloc(sizeof(HashTable), 1);
+        zend_hash_init(local_config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
+        fleet_config_values = pemalloc(sizeof(HashTable), 1);
+        zend_hash_init(fleet_config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
 
         ddog_Vec_LibraryConfig configs = config_result.ok;
         for (uintptr_t i = 0; i < configs.len; i++) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
             ddog_CStr env_name = _ddog_library_config_name_to_env(cfg->name);
+            ddog_CStr source = _ddog_library_config_source_to_string(cfg->source);
 
             zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
             zval zv;
             ZVAL_STR(&zv, value);
-            zend_hash_str_add(config_values, env_name.ptr, env_name.length, &zv);
+
+            HashTable *store = local_config_values;
+            if (strcmp(source.ptr, "fleet_stable_config") == 0) {
+                store = fleet_config_values;
+            }
+
+            zend_hash_str_add(store, env_name.ptr, env_name.length, &zv);
         }
         _ddog_library_config_drop(configs);
     } else {
@@ -137,13 +130,14 @@ void zai_config_stable_file_minit(void) {
 }
 
 void zai_config_stable_file_mshutdown(void) {
-    if (config_values) {
-        zend_hash_destroy(config_values);
-        pefree(config_values, 1);
-        config_values = NULL;
+    if (local_config_values) {
+        zend_hash_destroy(local_config_values);
+        pefree(local_config_values, 1);
+        local_config_values = NULL;
     }
-}
-
-void zai_config_stable_file_rinit(void) {
-    zai_config_stable_file_apply_config(PHP_INI_STAGE_RUNTIME);
+    if (fleet_config_values) {
+        zend_hash_destroy(fleet_config_values);
+        pefree(fleet_config_values, 1);
+        fleet_config_values = NULL;
+    }
 }

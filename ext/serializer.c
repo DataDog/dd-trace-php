@@ -44,6 +44,7 @@
 #include "zend_hrtime.h"
 #include "sidecar.h"
 #include "live_debugger.h"
+#include "trace_source.h"
 #include "exception_serialize.h"
 #include "agent_info.h"
 
@@ -680,10 +681,14 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
 void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data *parent) {
     zval *prop_service = &span->property_service;
     zval_ptr_dtor(prop_service);
-    ZVAL_COPY(prop_service, &parent->property_service);
+    ZVAL_COPY_DEREF(prop_service, &parent->property_service);
     zval *prop_type = &span->property_type;
     zval_ptr_dtor(prop_type);
-    ZVAL_COPY(prop_type, &parent->property_type);
+    ZVAL_COPY_DEREF(prop_type, &parent->property_type);
+
+    zval *prop_baggage = &span->property_baggage, *prop_parent_baggage = &parent->property_baggage;
+    zval_ptr_dtor(prop_baggage);
+    ZVAL_COPY_DEREF(prop_baggage, prop_parent_baggage);
 
     zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
 
@@ -697,7 +702,7 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     } else {
         version = &parent->property_version;
     }
-    ZVAL_COPY(prop_version, version);
+    ZVAL_COPY_DEREF(prop_version, version);
 
     zval *prop_env = &span->property_env;
     zval_ptr_dtor(prop_env);
@@ -709,7 +714,7 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     } else {
         env = &parent->property_env;
     }
-    ZVAL_COPY(prop_env, env);
+    ZVAL_COPY_DEREF(prop_env, env);
 }
 
 zend_string *ddtrace_default_service_name(void) {
@@ -796,7 +801,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     ddtrace_root_span_data *parent_root = span->stack->parent_stack->root_span;
     if (parent_root) {
         ddtrace_inherit_span_properties(&span->span, &parent_root->span);
-        ZVAL_COPY(&span->property_origin, &parent_root->property_origin);
+        ZVAL_COPY_DEREF(&span->property_origin, &parent_root->property_origin);
     } else {
         zval *prop_type = &span->property_type;
         zval *prop_name = &span->property_name;
@@ -840,6 +845,9 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         zend_hash_copy(Z_ARR(span->property_propagated_tags), &DDTRACE_G(propagated_root_span_tags), zval_add_ref);
         SEPARATE_ARRAY(&span->property_tracestate_tags);
         zend_hash_copy(Z_ARR(span->property_tracestate_tags), &DDTRACE_G(tracestate_unknown_dd_keys), zval_add_ref);
+        SEPARATE_ARRAY(&span->property_baggage);
+        zend_hash_copy(Z_ARR(span->property_baggage), &DDTRACE_G(baggage), zval_add_ref);
+
         if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
             ZVAL_LONG(&span->property_propagated_sampling_priority, DDTRACE_G(propagated_priority_sampling));
         }
@@ -1561,6 +1569,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
+
     // Notify profiling for Endpoint Profiling.
     if (profiling_notify_trace_finished && ddtrace_span_is_entrypoint_root(span) && Z_TYPE(prop_resource_as_string) == IS_STRING) {
         zai_str type = ZAI_STRL("custom");
@@ -1714,13 +1723,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (operation_name) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
-
-    zval *asm_event = NULL;
-    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
-        asm_event = zend_hash_str_find(meta, ZEND_STRL(DD_TAG_P_APPSEC));
-    }
-    bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
-
+   
     _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
     zval metrics_zv;
@@ -1736,12 +1739,12 @@ void ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (is_root_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !is_standalone_appsec_span) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);
         }
-        if(get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        if(!get_global_DD_APM_TRACING_ENABLED()) {
             add_assoc_long(&metrics_zv, "_dd.apm.enabled", 0);
         }
     }
