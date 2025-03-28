@@ -536,41 +536,6 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     len
 }
 
-static mut ORIG_READV: unsafe extern "C" fn(c_int, *const libc::iovec, c_int) -> isize =
-    libc::readv;
-
-unsafe extern "C" fn observed_readv(fd: c_int, iov: *const libc::iovec, iovcnt: c_int) -> isize {
-    let start = Instant::now();
-    let len = ORIG_READV(fd, iov, iovcnt);
-    let duration = start.elapsed();
-
-    if fd_is_socket(fd) {
-        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        if len > 0 {
-            SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(len as u64)
-            });
-        }
-    } else {
-        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
-        if len > 0 {
-            FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(len as u64)
-            });
-        }
-    }
-
-    len
-}
-
 static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
 /// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
 unsafe extern "C" fn observed_close(fd: i32) -> i32 {
@@ -875,11 +840,6 @@ pub fn io_prof_first_rinit() {
                     symbol_name: "read",
                     new_func: observed_read as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_READ) as *mut _ as *mut *mut (),
-                },
-                GotSymbolOverwrite {
-                    symbol_name: "readv",
-                    new_func: observed_readv as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_READV) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "fwrite",
