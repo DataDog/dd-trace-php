@@ -397,11 +397,8 @@ impl TimeCollector {
                         sampling_distance,
                     };
                     let values_offset = [sum_value_offset, count_value_offset];
-                    match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                        Ok(_id) => {}
-                        Err(err) => {
-                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
-                        }
+                    if let Err(err) = profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                       warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
                     }
                 }
             };
