@@ -2,7 +2,7 @@
 
 require_once __DIR__.'/assert.php';
 
-set_exception_handler(function (\Throwable $ex) {
+set_exception_handler(function ($ex) {
     $trace = $ex->getTrace();
     $file = $trace[0]['file'] ?: '';
     $line = $trace[0]['line'] ?: '';
@@ -90,6 +90,10 @@ function use_valgrind() {
     return (bool) (isset($_SERVER['TEST_USE_VALGRIND']) ? $_SERVER['TEST_USE_VALGRIND'] : false);
 }
 
+function php_minor_version() {
+    return PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;
+}
+
 function skip_if_php5() {
     if (PHP_MAJOR_VERSION <= 5) {
         echo "Skip: test is not compatible with PHP 5\n";
@@ -107,6 +111,13 @@ function skip_if_not_php5() {
 function skip_if_not_php8() {
     if (PHP_MAJOR_VERSION < 8) {
         echo "Skip: test requires PHP 8\n";
+        exit(0);
+    }
+}
+
+function skip_if_not_at_least_php71() {
+    if (PHP_MAJOR_VERSION < 7 || (PHP_MAJOR_VERSION === 7 && PHP_MINOR_VERSION === 0)) {
+        echo "Skip: test requires PHP 7.1+\n";
         exit(0);
     }
 }
