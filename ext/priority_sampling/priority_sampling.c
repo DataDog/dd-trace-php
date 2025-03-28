@@ -38,11 +38,13 @@ void ddtrace_try_read_agent_rate(void) {
     }
 }
 
-static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span, enum dd_sampling_mechanism mechanism) {
+static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
+    enum dd_sampling_mechanism mechanism) {
     zend_array *meta = ddtrace_property_array(&root_span->property_meta);
 
     zend_long sampling_priority = zval_get_long(&root_span->property_sampling_priority);
-    if (Z_TYPE(root_span->property_propagated_sampling_priority) != IS_UNDEF && zval_get_long(&root_span->property_propagated_sampling_priority) == sampling_priority) {
+    if (Z_TYPE(root_span->property_propagated_sampling_priority) != IS_UNDEF &&
+    zval_get_long(&root_span->property_propagated_sampling_priority) == sampling_priority) {
         return;
     }
 
@@ -50,6 +52,7 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span, enum
         zval dm;
         ZVAL_STR(&dm, zend_strpprintf(0, "-%d", mechanism));
         zend_hash_str_update(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1, &dm);
+        zend_hash_str_add_empty_element(ddtrace_property_array(&root_span->property_propagated_tags), ZEND_STRL("_dd.p.dm"));
     } else {
         zend_hash_str_del(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1);
     }
@@ -124,7 +127,7 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
     }
 
     zval *rule;
-    if (!get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {  // APPSEC_STANDALONE enabled, override sampling rules to be empty
+    if (get_global_DD_APM_TRACING_ENABLED()) {
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (++index >= skip_at) {
                 break;
@@ -387,4 +390,10 @@ DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root
     assert(root_span->ce == ddtrace_ce_root_span_data);
 
     ddtrace_set_priority_sampling_on_span(ROOTSPANDATA(root_span), priority, mechanism);
+}
+
+DDTRACE_PUBLIC zend_long ddtrace_get_priority_sampling_on_span_zobj(zend_object *root_span) {
+    assert(root_span->ce == ddtrace_ce_root_span_data);
+
+    return zval_get_long(&ROOTSPANDATA(root_span)->property_sampling_priority);
 }

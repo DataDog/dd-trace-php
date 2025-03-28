@@ -3,19 +3,20 @@ use crate::bindings::{
     DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
 };
 use crate::profiling::Profiler;
-use crate::zend;
-use crate::REQUEST_LOCALS;
-use libc::{c_char, c_int, c_void, dl_phdr_info};
+use crate::{zend, REQUEST_LOCALS};
+use ahash::{HashMap, HashMapExt};
+use libc::{c_char, c_int, c_void, dl_phdr_info, fstat, stat, S_IFMT, S_IFSOCK};
 use log::{error, trace};
 use rand::rngs::ThreadRng;
+use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
 use std::ffi::CStr;
+use std::mem::MaybeUninit;
+use std::os::unix::io::RawFd;
 use std::ptr;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
-
-use rand_distr::{Distribution, Poisson};
 
 fn elf64_r_type(info: Elf64_Xword) -> u32 {
     (info & 0xffffffff) as u32
@@ -35,7 +36,10 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
 /// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
 /// dynamic linker prior to us messing with the global offset table. If the dynamic library would
 /// not be a valid ELF64, the dynamic linker would have not loaded it.
-unsafe fn override_got_entry(info: *mut dl_phdr_info, overwrites: *mut Vec<GotSymbolOverwrite>) -> bool {
+unsafe fn override_got_entry(
+    info: *mut dl_phdr_info,
+    overwrites: *mut Vec<GotSymbolOverwrite>,
+) -> bool {
     let phdr = (*info).dlpi_phdr;
 
     // Locate the dynamic programm header (`PT_DYNAMIC`)
@@ -249,7 +253,7 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
             });
         } else if (*fds).revents & 4 == 4 {
             // requested events contains writing
-            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
@@ -261,7 +265,7 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
             });
         } else if (*fds).events & 4 == 4 {
             // socket became writeable
-            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
                 let mut io = cell.borrow_mut();
                 io.track(duration.as_nanos() as u64)
             });
@@ -287,10 +291,12 @@ unsafe extern "C" fn observed_recv(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -311,10 +317,47 @@ unsafe extern "C" fn observed_recvmsg(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+    if len > 0 {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64);
+        });
+    }
+
+    len
+}
+
+static mut ORIG_RECVFROM: unsafe extern "C" fn(
+    c_int,
+    *mut c_void,
+    usize,
+    c_int,
+    *mut libc::sockaddr,
+    *mut libc::socklen_t,
+) -> isize = libc::recvfrom;
+
+unsafe extern "C" fn observed_recvfrom(
+    socket: c_int,
+    buf: *mut c_void,
+    length: usize,
+    flags: c_int,
+    address: *mut libc::sockaddr,
+    address_len: *mut libc::socklen_t,
+) -> isize {
+    let start = Instant::now();
+    let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
+    let duration = start.elapsed();
+
+    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
         let mut io = cell.borrow_mut();
-        io.track(len as u64);
+        io.track(duration.as_nanos() as u64)
     });
+    if len > 0 {
+        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -335,10 +378,12 @@ unsafe extern "C" fn observed_send(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -358,10 +403,12 @@ unsafe extern "C" fn observed_sendmsg(
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -373,23 +420,25 @@ static mut ORIG_FWRITE: unsafe extern "C" fn(
     *mut libc::FILE,
 ) -> usize = libc::fwrite;
 unsafe extern "C" fn observed_fwrite(
-    buf: *const c_void,
+    ptr: *const c_void,
     size: usize,
-    n: usize,
+    nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FWRITE(buf, size, n, stream);
+    let len = ORIG_FWRITE(ptr, size, nobj, stream);
     let duration = start.elapsed();
 
     FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
         let mut io = cell.borrow_mut();
         io.track(duration.as_nanos() as u64)
     });
-    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if len > 0 {
+        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(len as u64)
+        });
+    }
 
     len
 }
@@ -400,14 +449,29 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     let len = ORIG_WRITE(fd, buf, count);
     let duration = start.elapsed();
 
-    FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
-    FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if fd_is_socket(fd) {
+        SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len > 0 {
+            SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
+    } else {
+        FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len > 0 {
+            FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
+    }
 
     len
 }
@@ -418,13 +482,13 @@ static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc
 // `read()` in PHP and that is when compiling a PHP file, triggered by it being the start file or a
 // userland call to `include()`/`require()` functions.
 unsafe extern "C" fn observed_fread(
-    buf: *mut c_void,
+    ptr: *mut c_void,
     size: usize,
-    n: usize,
-    fp: *mut libc::FILE,
+    nobj: usize,
+    stream: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FREAD(buf, size, n, fp);
+    let len = ORIG_FREAD(ptr, size, nobj, stream);
     let duration = start.elapsed();
 
     FILE_READ_TIME_PROFILING_STATS.with(|cell| {
@@ -445,16 +509,68 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     let len = ORIG_READ(fd, buf, count);
     let duration = start.elapsed();
 
-    FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
-    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    if fd_is_socket(fd) {
+        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len > 0 {
+            SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
+    } else {
+        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
+            let mut io = cell.borrow_mut();
+            io.track(duration.as_nanos() as u64)
+        });
+        if len > 0 {
+            FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
+                let mut io = cell.borrow_mut();
+                io.track(len as u64)
+            });
+        }
+    }
 
     len
+}
+
+static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
+/// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
+unsafe extern "C" fn observed_close(fd: i32) -> i32 {
+    let ret = ORIG_CLOSE(fd);
+    let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut cache = cache.lock().unwrap();
+    cache.remove(&fd);
+    ret
+}
+
+/// "Is socket"-cache for `read()`/`write()` calls
+static FD_CACHE: OnceLock<Mutex<HashMap<RawFd, bool>>> = OnceLock::new();
+
+/// Returns `true` if the given `fd` is a socket. It could also be a regular file, directory, pipe,
+/// character or block device, in which case we declare this as file I/O and not socket I/O.
+fn fd_is_socket(fd: RawFd) -> bool {
+    let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(&is_socket) = cache.lock().unwrap().get(&fd) {
+        return is_socket;
+    }
+
+    let mut statbuf = MaybeUninit::<stat>::uninit();
+    let is_socket = unsafe {
+        if fstat(fd, statbuf.as_mut_ptr()) == -1 {
+            false // Assume it's not a socket if fstat fails
+        } else {
+            let statbuf = statbuf.assume_init();
+            (statbuf.st_mode & S_IFMT) == S_IFSOCK
+        }
+    };
+
+    let mut cache = cache.lock().unwrap();
+    cache.insert(fd, is_socket);
+
+    is_socket
 }
 
 /// Take a sample every 1 second of read I/O
@@ -468,10 +584,10 @@ pub static FILE_READ_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
 pub static FILE_WRITE_TIME_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(std::time::Duration::from_millis(10).as_nanos() as u64);
-pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
-pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
-pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
-pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 1024);
+pub static SOCKET_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 100);
+pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 100);
+pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 100);
+pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 100);
 
 pub trait IOCollector {
     fn collect(&self, profiler: &Profiler, value: u64);
@@ -609,7 +725,7 @@ impl<C: IOCollector> IOProfilingStats<C> {
     fn track(&mut self, value: u64) {
         let zend_thread = REQUEST_LOCALS.with(|cell| {
             let locals = cell.borrow();
-            locals.vm_interrupt_addr.is_null()
+            !locals.vm_interrupt_addr.is_null()
         });
         if !zend_thread {
             // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
@@ -701,6 +817,11 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_RECVMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
+                    symbol_name: "recvfrom",
+                    new_func: observed_recvfrom as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_RECVFROM) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
                     symbol_name: "send",
                     new_func: observed_send as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
@@ -729,6 +850,11 @@ pub fn io_prof_first_rinit() {
                     symbol_name: "fread",
                     new_func: observed_fread as *mut (),
                     orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
+                },
+                GotSymbolOverwrite {
+                    symbol_name: "close",
+                    new_func: observed_close as *mut (),
+                    orig_func: ptr::addr_of_mut!(ORIG_CLOSE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "poll",

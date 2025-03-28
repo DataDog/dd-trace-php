@@ -17,6 +17,7 @@ static ddtrace_distributed_tracing_result dd_init_empty_result(void) {
     zend_hash_init(&result.tracestate_unknown_dd_keys, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.propagated_tags, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.meta_tags, 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&result.baggage, 8, unused, ZVAL_PTR_DTOR, 0);
     return result;
 }
 
@@ -39,6 +40,116 @@ static void dd_check_tid(ddtrace_distributed_tracing_result *result) {
             zend_hash_str_update(&result->meta_tags, ZEND_STRL("_dd.propagation_error"), &error);
         }
         zend_hash_str_del(&result->meta_tags, ZEND_STRL("_dd.p.tid"));
+        zend_hash_str_del(&result->propagated_tags, ZEND_STRL("_dd.p.tid"));
+    }
+}
+
+static inline int hex2int(char c) {
+    return (c >= '0' && c <= '9') ? c - '0' :
+           (c >= 'a' && c <= 'f') ? c - 'a' + 10 :
+           (c >= 'A' && c <= 'F') ? c - 'A' + 10 : -1;
+}
+
+static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, HashTable *baggage) {
+    bool is_malformed = false;
+
+    while (baggage_ptr < baggage_end) {
+        // Extract key
+        char *key_start = baggage_ptr;
+        while (baggage_ptr < baggage_end && *baggage_ptr != '=' && *baggage_ptr != ',') {
+            ++baggage_ptr;
+        }
+
+        if (baggage_ptr >= baggage_end || *baggage_ptr != '=') {
+            is_malformed = true;
+            break;
+        }
+
+        size_t key_len = baggage_ptr - key_start;
+        if (key_len == 0) {  // Empty key is invalid
+            is_malformed = true;
+            break;
+        }
+        ++baggage_ptr; // Move past '='
+
+        // Extract value
+        char *value_start = baggage_ptr;
+        while (baggage_ptr < baggage_end && *baggage_ptr != ',') {
+            ++baggage_ptr;
+        }
+
+        size_t value_len = baggage_ptr - value_start;
+        if (value_len == 0) {  // Empty value is invalid
+            is_malformed = true;
+            break;
+        }
+
+        // Allocate decoded key/value storage
+        zend_string *decoded_key = zend_string_alloc(key_len, 0);
+        zend_string *decoded_value = zend_string_alloc(value_len, 0);
+
+        char *out_key = ZSTR_VAL(decoded_key);
+        char *out_value = ZSTR_VAL(decoded_value);
+
+        // Decode key (no validation, just decoding)
+        char *in = key_start, *end = key_start + key_len;
+        while (in < end) {
+            if (*in == '%' && (in + 2 < end) && isxdigit((unsigned char)in[1]) && isxdigit((unsigned char)in[2])) {
+                int high = hex2int(in[1]);
+                int low = hex2int(in[2]);
+                if (high == -1 || low == -1) {
+                    is_malformed = true;  // Only discard if decoding fails
+                    break;
+                }
+                *out_key++ = (char)((high << 4) + low);
+                in += 3;
+            } else {
+                *out_key++ = *in++;
+            }
+        }
+        ZSTR_LEN(decoded_key) = out_key - ZSTR_VAL(decoded_key);
+        ZSTR_VAL(decoded_key)[ZSTR_LEN(decoded_key)] = '\0';
+
+        // Decode value (same logic, no validation, just decoding)
+        in = value_start, end = value_start + value_len;
+        while (in < end) {
+            if (*in == '%' && (in + 2 < end) && isxdigit((unsigned char)in[1]) && isxdigit((unsigned char)in[2])) {
+                int high = hex2int(in[1]);
+                int low = hex2int(in[2]);
+                if (high == -1 || low == -1) {
+                    is_malformed = true;
+                    break;
+                }
+                *out_value++ = (char)((high << 4) + low);
+                in += 3;
+            } else {
+                *out_value++ = *in++;
+            }
+        }
+        ZSTR_LEN(decoded_value) = out_value - ZSTR_VAL(decoded_value);
+        ZSTR_VAL(decoded_value)[ZSTR_LEN(decoded_value)] = '\0';
+
+        // **Do not validate the key** after decoding, just store it.
+        if (is_malformed) {
+            zend_string_release(decoded_key);
+            zend_string_release(decoded_value);
+            break;
+        }
+
+        // Store key-value in baggage
+        zval baggage_value;
+        ZVAL_STR(&baggage_value, decoded_value);
+        zend_symtable_update(baggage, decoded_key, &baggage_value);
+        zend_string_release(decoded_key);
+
+        // Move past ',' if it's there
+        if (baggage_ptr < baggage_end && *baggage_ptr == ',') {
+            ++baggage_ptr;
+        }
+    }
+
+    if (is_malformed) {
+        zend_hash_clean(baggage);
     }
 }
 
@@ -348,6 +459,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
 
     zend_string *extraction_style;
     ddtrace_distributed_tracing_result (*func)(ddtrace_read_header *read_header, void *data) = NULL;
+
     ZEND_HASH_FOREACH_STR_KEY(extract, extraction_style) {
         bool has_trace = result.trace_id.low || result.trace_id.high;
 
@@ -365,6 +477,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
 
         if (!has_trace) {
             zend_string *existing_origin = result.origin;
+
             if (result.meta_tags.arData) {
                 zend_hash_destroy(&result.meta_tags);
             }
@@ -390,6 +503,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             }
         } else {
             ddtrace_distributed_tracing_result new_result = func(read_header, data);
+
             if (result.trace_id.low == new_result.trace_id.low && result.trace_id.high == new_result.trace_id.high) {
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
@@ -421,11 +535,29 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             if (new_result.origin) {
                 zend_string_release(new_result.origin);
             }
+
             zend_hash_destroy(&new_result.meta_tags);
             zend_hash_destroy(&new_result.propagated_tags);
             zend_hash_destroy(&new_result.tracestate_unknown_dd_keys);
         }
     } ZEND_HASH_FOREACH_END();
+
+    if (zend_hash_str_exists(extract, ZEND_STRL("baggage"))) {
+        zend_string *baggage_header;
+        if (read_header((zai_str)ZAI_STRL("BAGGAGE"), "baggage", &baggage_header, data)) {
+            char *baggage_ptr = ZSTR_VAL(baggage_header);
+            char *baggage_end = baggage_ptr + ZSTR_LEN(baggage_header);
+
+            if (!func) {
+                result = dd_init_empty_result();
+            }
+
+            ddtrace_deserialize_baggage(baggage_ptr, baggage_end, &result.baggage);
+            zend_string_release(baggage_header);
+
+            return result;
+        }
+    }
 
     if (!func) {
         return dd_init_empty_result();
@@ -464,6 +596,20 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         *Z_ARR(zv) = result->tracestate_unknown_dd_keys;
         ddtrace_assign_variable(&span->property_tracestate_tags, &zv);
 
+        zend_array *existing_baggage = ddtrace_property_array(&span->property_baggage);
+        zend_string *key;
+        zend_ulong key_i;
+        zval *val;
+        ZEND_HASH_FOREACH_KEY_VAL(&result->baggage, key_i, key, val) {
+            if (key) {
+                zend_hash_update(existing_baggage, key, val);
+            } else {
+                zend_hash_index_update(existing_baggage, key_i, val);
+            }
+            Z_TRY_ADDREF_P(val);
+        } ZEND_HASH_FOREACH_END();
+        zend_hash_destroy(&result->baggage);
+
         if (result->trace_id.low || result->trace_id.high) {
             span->trace_id = result->trace_id;
             span->parent_id = result->parent_id;
@@ -482,8 +628,10 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (DDTRACE_G(tracestate)) {
             zend_string_release(DDTRACE_G(tracestate));
         }
-        DDTRACE_G(tracestate) = result->tracestate;
-
+        DDTRACE_G(tracestate) = result->tracestate;  
+        zend_hash_destroy(&DDTRACE_G(baggage));
+        DDTRACE_G(baggage) = result->baggage;
+        
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
@@ -499,6 +647,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             if (result->priority_sampling > 0) {
                 ZVAL_STRINGL(&zv, "-0", 2);
                 zend_hash_str_update(root_meta, ZEND_STRL("_dd.p.dm"), &zv);
+                zend_hash_str_add_empty_element(span ? ddtrace_property_array(&span->property_propagated_tags) : &DDTRACE_G(propagated_root_span_tags), ZEND_STRL("_dd.p.dm"));
             } else {
                 zend_hash_str_del(root_meta, ZEND_STRL("_dd.p.dm"));
             }

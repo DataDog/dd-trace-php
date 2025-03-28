@@ -13,9 +13,14 @@ use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
-#[cfg(any(feature = "exception_profiling", feature = "allocation_profiling"))]
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
+
+#[cfg(any(
+    feature = "exception_profiling",
+    feature = "allocation_profiling",
+    feature = "io_profiling"
+))]
+use std::sync::atomic::Ordering;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,

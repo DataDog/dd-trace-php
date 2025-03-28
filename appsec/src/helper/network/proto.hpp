@@ -270,6 +270,7 @@ struct request_shutdown {
         static constexpr request_id id = request_id::request_shutdown;
 
         dds::parameter data;
+        std::uint64_t api_sec_samp_key{0};
 
         request() = default;
         request(const request &) = delete;
@@ -278,7 +279,7 @@ struct request_shutdown {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data)
+        MSGPACK_DEFINE(data, api_sec_samp_key)
     };
 
     struct response : base_response_generic<response> {

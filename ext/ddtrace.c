@@ -38,6 +38,7 @@
 #include <components/log/log.h>
 
 #include "asm_event.h"
+#include "trace_source.h"
 #include "auto_flush.h"
 #include "compatibility.h"
 #ifndef _WIN32
@@ -414,7 +415,7 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
-        bool appsec_features = false;
+        bool appsec_activation = false;
         bool appsec_config = false;
 
 #ifndef _WIN32
@@ -434,7 +435,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_features, &appsec_config);
+        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
         if (!enable_sidecar) {
             enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
         }
@@ -444,7 +445,7 @@ static void dd_activate_once(void) {
         {
             bool request_startup = PG(during_request_startup);
             PG(during_request_startup) = false;
-            ddtrace_sidecar_setup(appsec_features, appsec_config);
+            ddtrace_sidecar_setup(appsec_activation, appsec_config);
             PG(during_request_startup) = request_startup;
         }
 #ifndef _WIN32
@@ -881,6 +882,8 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
+    zend_hash_destroy(&result.baggage);
+
     if (result.origin) {
         zend_string_release(result.origin);
     }
@@ -912,6 +915,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     array_init(&span->property_links);
     array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
+    array_init(&span->property_on_close);
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -921,7 +925,13 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
 
 static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_data *span = ecalloc(1, sizeof(*span));
-    return dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+    dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&span->property_baggage);
+#endif
+
+    return &span->std;
 }
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
@@ -931,6 +941,7 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     // Not handled in arginfo on these old versions
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
+    array_init(&span->property_baggage);
 #endif
     return &span->std;
 }
@@ -944,6 +955,10 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     // Explicitly assign property-mapped NULLs
     stack->active = NULL;
     stack->parent_stack = NULL;
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&stack->property_span_creation_observers);
+#endif
     return &stack->std;
 }
 
@@ -1304,11 +1319,17 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80500
 zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 void ddtrace_init_known_strings(void) {
+#if PHP_VERSION_ID < 80500
+#undef ZEND_STR_PARENT
+    ddtrace_known_strings[ZEND_STR_PARENT] = zend_string_init_interned(ZEND_STRL("parent"), 1);
+#endif
+#if PHP_VERSION_ID < 70300
 #undef ZEND_STR_NAME
     ddtrace_known_strings[ZEND_STR_NAME] = zend_string_init_interned(ZEND_STRL("name"), 1);
+#endif
 #if PHP_VERSION_ID < 70200
 #undef ZEND_STR_RESOURCE
     ddtrace_known_strings[ZEND_STR_RESOURCE] = zend_string_init_interned(ZEND_STRL("resource"), 1);
@@ -1354,7 +1375,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 
-#if PHP_VERSION_ID < 70300
+#if PHP_VERSION_ID < 80500
     ddtrace_init_known_strings();
 #endif
 
@@ -1459,7 +1480,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
-    ddtrace_appsec_minit();
+    ddtrace_trace_source_minit();
 
     return SUCCESS;
 }
@@ -1554,10 +1575,10 @@ static void dd_initialize_request(void) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
-    DDTRACE_G(asm_event_emitted) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
     // Check for the env first, before the first RC
     ddtrace_check_agent_info_env();
@@ -1566,6 +1587,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(request_initialized) = true;
 
     ddtrace_sidecar_rinit();
+    ddtrace_asm_event_rinit();
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
@@ -1648,6 +1670,7 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
+    zend_hash_destroy(&DDTRACE_G(baggage));
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
@@ -2724,6 +2747,10 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
 
     if (start_time_seconds > 0) {
         span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
+    }
+
+    if (get_DD_TRACE_ENABLED()) {
+        ddtrace_observe_opened_span(span);
     }
 
     RETURN_OBJ(&span->std);

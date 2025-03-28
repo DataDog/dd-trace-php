@@ -104,6 +104,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array tracestate_unknown_dd_keys;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
+    HashTable baggage;
 #ifndef _WIN32
     dogstatsd_client dogstatsd_client;
 #endif

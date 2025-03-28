@@ -138,6 +138,7 @@ static void dd_multi_inject_headers(zend_object *mh) {
             if (DDTRACE_G(curl_multi_injecting_spans) && Z_TYPE(DDTRACE_G(curl_multi_injecting_spans)->val) == IS_ARRAY) {
                 ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
                 dd_inject_distributed_tracing_headers(ch);
+                ddtrace_observe_opened_span(span);
                 ddtrace_close_span(span);
                 span->duration = 1;
 

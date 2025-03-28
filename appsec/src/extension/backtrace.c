@@ -213,7 +213,10 @@ static PHP_FUNCTION(datadog_appsec_testing_generate_backtrace)
 
 bool dd_report_exploit_backtrace(zend_string *nullable id)
 {
+    mlog(dd_log_trace, "Generating backtrace");
     if (!get_global_DD_APPSEC_STACK_TRACE_ENABLED()) {
+        mlog(dd_log_trace, "Backtrace generation is disabled with "
+                           "DD_APPSEC_STACK_TRACE_ENABLED");
         return false;
     }
 
@@ -224,23 +227,22 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
 
     zend_object *span = dd_trace_get_active_root_span();
     if (!span) {
-        if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_warning, "Failed to retrieve root span");
-        }
+        mlog(dd_log_warning, "Failed to retrieve root span");
         return false;
     }
 
     zval *meta_struct = dd_trace_span_get_meta_struct(span);
     if (!meta_struct) {
-        if (!get_global_DD_APPSEC_TESTING()) {
-            mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
-        }
+        mlog(dd_log_warning, "Failed to retrieve root span meta_struct");
         return false;
     }
 
     if (Z_TYPE_P(meta_struct) == IS_NULL) {
         array_init(meta_struct);
     } else if (Z_TYPE_P(meta_struct) != IS_ARRAY) {
+        mlog(dd_log_trace,
+            "Field 'meta_struct' is of type '%d', expected 'array'",
+            Z_TYPE_P(meta_struct));
         return false;
     }
 
@@ -253,20 +255,26 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
         exploit = zend_hash_add_new(
             Z_ARR_P(dd_stack), _exploit_key, &EG(uninitialized_zval));
         array_init(exploit);
+        mlog(dd_log_trace, "Backtrace stack created");
     } else if (Z_TYPE_P(dd_stack) != IS_ARRAY) {
+        mlog(dd_log_warning, "Field 'stack' is of type '%d', expected 'array'",
+            Z_TYPE_P(dd_stack));
         return false;
     } else {
         exploit = zend_hash_find(Z_ARR_P(dd_stack), _exploit_key);
     }
 
     if (Z_TYPE_P(exploit) != IS_ARRAY) {
+        mlog(dd_log_warning,
+            "Field 'exploit' is of type '%d', expected 'array'",
+            Z_TYPE_P(exploit));
         return false;
     }
 
     unsigned int limit = get_global_DD_APPSEC_MAX_STACK_TRACES();
     if (limit != 0 && zend_array_count(Z_ARR_P(exploit)) == limit) {
         mlog(dd_log_debug,
-            "Stacktrace not generated due to limit "
+            "Backtrace not generated due to limit "
             "DD_APPSEC_MAX_STACK_TRACES(%u) has been reached",
             limit);
         return false;
@@ -277,9 +285,13 @@ bool dd_report_exploit_backtrace(zend_string *nullable id)
 
     if (zend_hash_next_index_insert_new(Z_ARRVAL_P(exploit), &backtrace) ==
         NULL) {
+        if (!get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning, "Error adding Backtrace");
+        }
         return false;
     }
 
+    mlog(dd_log_trace, "Backtrace generated");
     return true;
 }
 

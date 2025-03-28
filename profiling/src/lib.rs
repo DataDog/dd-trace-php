@@ -380,6 +380,7 @@ pub struct RequestLocals {
     pub env: Option<String>,
     pub service: Option<String>,
     pub version: Option<String>,
+    pub tags: Vec<Tag>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
@@ -408,6 +409,7 @@ impl Default for RequestLocals {
             env: None,
             service: None,
             version: None,
+            tags: vec![],
             system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
             interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
@@ -488,6 +490,15 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 }
             });
             locals.version = config::version();
+
+            let (tags, maybe_err) = config::tags();
+            if let Some(err) = maybe_err {
+                // DD_TAGS can change on each request, so this warns on every
+                // request. Maybe we should cache the error string and only
+                // emit warnings for new ones?
+                warn!("{err}");
+            }
+            locals.tags = tags;
         }
         locals.system_settings = system_settings;
     });
@@ -581,6 +592,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                     "zend-nts-ndebug"
                 };
                 add_tag(&mut tags, "runtime_engine", runtime_engine);
+                tags.extend_from_slice(&locals.tags);
                 cell.replace(Arc::new(tags));
             });
 

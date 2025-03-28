@@ -75,6 +75,33 @@ std::string create_sample_rules_ok()
       ]
     },
     {
+        "id": "blk-001-003",
+        "name": "Only stack trace",
+        "tags": {
+        "type": "block_ip",
+        "category": "security_response"
+        },
+        "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "list": [
+              "192.168.1.3"
+            ]
+          },
+          "operator": "ip_match"
+        }
+        ],
+        "transformers": [],
+        "on_match": [
+            "stack_trace"
+        ]
+    },
+    {
       "id": "crs-913-110",
       "name": "Found request header associated with Acunetix security scanner",
       "tags": {

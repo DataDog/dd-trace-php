@@ -13,7 +13,7 @@
 #include "../ddtrace.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../tags.h"
+#include "../php_compat.h"
 #include "../version.h"
 #include "client_init.h"
 
@@ -84,18 +84,18 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "enabled");
     mpack_write_bool(w, get_global_DD_API_SECURITY_ENABLED());
 
-    dd_mpack_write_lstr(w, "sample_rate");
-#define MIN_SE_SAMPLE_RATE 0.0001
-    double se_sample_rate = get_global_DD_API_SECURITY_REQUEST_SAMPLE_RATE();
-    if (se_sample_rate >= MIN_SE_SAMPLE_RATE) {
-        mpack_write(w, se_sample_rate);
-    } else {
-        mpack_write(w, 0.0);
+    dd_mpack_write_lstr(w, "sampling_period");
+    double delay = get_global_DD_API_SECURITY_SAMPLE_DELAY();
+    if (delay < 0) {
+        mlog_g(dd_log_debug,
+            "Negative value for DD_API_SECURITY_SAMPLE_DELAY; setting to 0");
+        delay = 0;
     }
+    mpack_write(w, delay);
 
-    mpack_finish_map(w);
+    mpack_finish_map(w); // schema_extraction
 
-    mpack_finish_map(w);
+    mpack_finish_map(w); // engine settings
 
     // Remote config settings
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

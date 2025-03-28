@@ -12,6 +12,13 @@
 #include <stdint.h>
 #include "common.h"
 
+#if defined(_WIN32) && defined(_CRASHTRACKING_COLLECTOR)
+#include <werapi.h>
+#include <windows.h>
+#endif
+
+
+
 typedef enum  ddog_crasht_CrashInfoBuilder_NewResult_Tag {
   DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_OK,
   DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_ERR,
@@ -329,6 +336,53 @@ DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_remove_trace_id(uint64_t id_high,
                                                    uint64_t id_low,
                                                    uintptr_t idx);
+
+#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
+/**
+ * Initialize the crash-tracking infrastructure.
+ *
+ * # Preconditions
+ *   None.
+ * # Safety
+ *   Crash-tracking functions are not reentrant.
+ *   No other crash-handler functions should be called concurrently.
+ * # Atomicity
+ *   This function is not atomic. A crash during its execution may lead to
+ *   unexpected crash-handling behaviour.
+ */
+DDOG_CHECK_RETURN
+bool ddog_crasht_init_windows(ddog_CharSlice module,
+                              const struct ddog_Endpoint *endpoint,
+                              struct ddog_crasht_Metadata metadata);
+#endif
+
+#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
+HRESULT OutOfProcessExceptionEventSignatureCallback(const void *_context,
+                                                    const WER_RUNTIME_EXCEPTION_INFORMATION *_exception_information,
+                                                    int32_t _index,
+                                                    uint16_t *_name,
+                                                    uint32_t *_name_size,
+                                                    uint16_t *_value,
+                                                    uint32_t *_value_size);
+#endif
+
+#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
+HRESULT OutOfProcessExceptionEventDebuggerLaunchCallback(const void *_context,
+                                                         const WER_RUNTIME_EXCEPTION_INFORMATION *_exception_information,
+                                                         BOOL *_is_custom_debugger,
+                                                         uint16_t *_debugger_launch,
+                                                         uint32_t *_debugger_launch_size,
+                                                         BOOL *_is_debugger_auto_launch);
+#endif
+
+#if (defined(_CRASHTRACKING_COLLECTOR) && defined(_WIN32))
+HRESULT OutOfProcessExceptionEventCallback(const void *context,
+                                           const WER_RUNTIME_EXCEPTION_INFORMATION *exception_information,
+                                           BOOL *_ownership_claimed,
+                                           uint16_t *_event_name,
+                                           uint32_t *_size,
+                                           uint32_t *_signature_count);
+#endif
 
 /**
  * # Safety
@@ -810,7 +864,7 @@ DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_receiver_entry_point_unix_socket(ddog_CharSlice socket_path);
 
 #ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
-#endif /* DDOG_CRASHTRACKER_H */
+#endif  /* DDOG_CRASHTRACKER_H */

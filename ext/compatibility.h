@@ -190,53 +190,6 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
 #endif
 
 #if PHP_VERSION_ID < 70300
-enum {
-#if PHP_VERSION_ID < 70300
-    ZEND_STR_NAME,
-#if PHP_VERSION_ID >= 70100
-#define ZEND_STR_NAME (-1 - ZEND_STR_NAME)
-#endif
-#endif
-#if PHP_VERSION_ID < 70200
-    ZEND_STR_RESOURCE,
-#if PHP_VERSION_ID >= 70100
-#define ZEND_STR_RESOURCE (-1 - ZEND_STR_RESOURCE)
-#endif
-#endif
-#if PHP_VERSION_ID < 70100
-    ZEND_STR_TRACE,
-    ZEND_STR_LINE,
-    ZEND_STR_FILE,
-    ZEND_STR_MESSAGE,
-    ZEND_STR_CODE,
-    ZEND_STR_TYPE,
-    ZEND_STR_FUNCTION,
-    ZEND_STR_OBJECT,
-    ZEND_STR_CLASS,
-    ZEND_STR_OBJECT_OPERATOR,
-    ZEND_STR_PAAMAYIM_NEKUDOTAYIM,
-    ZEND_STR_ARGS,
-    ZEND_STR_UNKNOWN,
-    ZEND_STR_EVAL,
-    ZEND_STR_INCLUDE,
-    ZEND_STR_REQUIRE,
-    ZEND_STR_INCLUDE_ONCE,
-    ZEND_STR_REQUIRE_ONCE,
-    ZEND_STR_PREVIOUS,
-#endif
-    ZEND_STR__LAST
-};
-extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
-
-#undef ZSTR_KNOWN
-#if PHP_VERSION_ID >= 70200
-#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : zend_known_strings[idx])
-#elif PHP_VERSION_ID >= 70100
-#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : CG(known_strings)[idx])
-#else
-#define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
-#endif
-
 #define GC_ADDREF(x) (++GC_REFCOUNT(x))
 #define GC_DELREF(x) (--GC_REFCOUNT(x))
 #define GC_SET_REFCOUNT(x, rc) (GC_REFCOUNT(x) = rc)
@@ -311,6 +264,11 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
         if (Z_TYPE_P(z) == IS_INDIRECT) { \
             (z) = Z_INDIRECT_P(z); \
         } \
+    } while (0)
+#define ZVAL_COPY_DEREF(z, v) do { \
+        zval *_z3 = (v); \
+        ZVAL_DEREF(_z3); \
+        ZVAL_COPY(z, _z3); \
     } while (0)
 
 #endif
@@ -479,6 +437,8 @@ static zend_always_inline int zend_compare(zval *op1, zval *op2) {
 #define Z_OBJPROP_P(zv) Z_OBJPROP(*(zval *)(zv))
 #undef Z_OBJDEBUG_P
 #define Z_OBJDEBUG_P(zv, is_temp) Z_OBJDEBUG(*(zval *)(zv), is_temp)
+
+#define ZEND_TYPE_CONTAINS_CODE(type, code) ((code) == IS_NULL ? ZEND_TYPE_ALLOW_NULL(type) : ZEND_TYPE_CODE(type) == (code))
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -660,6 +620,62 @@ static inline zend_class_entry *zend_register_internal_class_with_flags(zend_cla
     register_class->ce_flags |= ce_flags;
     return register_class;
 }
+#endif
+
+#if PHP_VERSION_ID < 80500
+enum {
+#if PHP_VERSION_ID < 80500
+    ZEND_STR_PARENT,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_PARENT (-1 - ZEND_STR_PARENT)
+#endif
+#endif
+#if PHP_VERSION_ID < 70300
+    ZEND_STR_NAME,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_NAME (-1 - ZEND_STR_NAME)
+#endif
+#endif
+#if PHP_VERSION_ID < 70200
+    ZEND_STR_RESOURCE,
+#if PHP_VERSION_ID >= 70100
+#define ZEND_STR_RESOURCE (-1 - ZEND_STR_RESOURCE)
+#endif
+#endif
+#if PHP_VERSION_ID < 70100
+    ZEND_STR_TRACE,
+    ZEND_STR_LINE,
+    ZEND_STR_FILE,
+    ZEND_STR_MESSAGE,
+    ZEND_STR_CODE,
+    ZEND_STR_TYPE,
+    ZEND_STR_FUNCTION,
+    ZEND_STR_OBJECT,
+    ZEND_STR_CLASS,
+    ZEND_STR_OBJECT_OPERATOR,
+    ZEND_STR_PAAMAYIM_NEKUDOTAYIM,
+    ZEND_STR_ARGS,
+    ZEND_STR_UNKNOWN,
+    ZEND_STR_EVAL,
+    ZEND_STR_INCLUDE,
+    ZEND_STR_REQUIRE,
+    ZEND_STR_INCLUDE_ONCE,
+    ZEND_STR_REQUIRE_ONCE,
+    ZEND_STR_PREVIOUS,
+#endif
+    ZEND_STR__LAST
+};
+extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
+
+#undef ZSTR_KNOWN
+#if PHP_VERSION_ID >= 70200
+#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : zend_known_strings[idx])
+#elif PHP_VERSION_ID >= 70100
+#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : CG(known_strings)[idx])
+#else
+#define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
+#endif
+
 #endif
 
 #endif  // DD_COMPATIBILITY_H

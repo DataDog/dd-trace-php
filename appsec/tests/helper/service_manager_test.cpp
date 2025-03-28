@@ -30,14 +30,14 @@ TEST(ServiceManagerTest, LoadRulesOK)
     dds::engine_settings engine_settings;
     engine_settings.rules_file = fn;
     engine_settings.waf_timeout_us = 42;
-    auto service = manager.create_service(engine_settings, {}, {});
+    auto service = manager.create_service(engine_settings, {});
     auto *service_rp = service.get();
     auto metrics = service->drain_legacy_metrics();
     EXPECT_EQ(manager.get_cache().size(), 1);
-    EXPECT_EQ(metrics[metrics::event_rules_loaded], 4);
+    EXPECT_EQ(metrics[metrics::event_rules_loaded], 5);
 
     // loading again should take from the cache
-    auto service2 = manager.create_service(engine_settings, {}, {});
+    auto service2 = manager.create_service(engine_settings, {});
     EXPECT_EQ(manager.get_cache().size(), 1);
     EXPECT_EQ(service, service2);
 
@@ -54,13 +54,13 @@ TEST(ServiceManagerTest, LoadRulesOK)
     ASSERT_FALSE(weak_ptr.expired());
 
     // loading another service should cleanup the cache
-    auto service3 = manager.create_service(engine_settings, {true}, {});
+    auto service3 = manager.create_service(engine_settings, {true});
     ASSERT_NE(service3.get(), service_rp);
     ASSERT_TRUE(weak_ptr.expired());
     EXPECT_EQ(manager.get_cache().size(), 1);
 
     // another service identifier should result in another service
-    auto service4 = manager.create_service(engine_settings, {}, {});
+    auto service4 = manager.create_service(engine_settings, {});
     EXPECT_EQ(manager.get_cache().size(), 2);
 }
 
@@ -75,7 +75,7 @@ TEST(ServiceManagerTest, LoadRulesFileNotFound)
             dds::engine_settings engine_settings;
             engine_settings.rules_file = "/file/that/does/not/exist";
             engine_settings.waf_timeout_us = 42;
-            manager.create_service(engine_settings, {}, {});
+            manager.create_service(engine_settings, {});
         },
         std::runtime_error);
 }
@@ -91,7 +91,7 @@ TEST(ServiceManagerTest, BadRulesFile)
             dds::engine_settings engine_settings;
             engine_settings.rules_file = "/dev/null";
             engine_settings.waf_timeout_us = 42;
-            manager.create_service(engine_settings, {}, {});
+            manager.create_service(engine_settings, {});
         },
         dds::parsing_error);
 }
@@ -106,8 +106,8 @@ TEST(ServiceManagerTest, UniqueServices)
     dds::engine_settings engine_settings;
     engine_settings.rules_file = fn;
 
-    auto service1 = manager.create_service(engine_settings, {}, {});
-    auto service2 = manager.create_service(engine_settings, {}, {});
+    auto service1 = manager.create_service(engine_settings, {});
+    auto service2 = manager.create_service(engine_settings, {});
 
     EXPECT_EQ(service1.get(), service2.get());
 }

@@ -56,12 +56,15 @@ void dd_trace_emit_asm_event(void);
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
-void dd_trace_span_add_propagated_tags(zend_string *nonnull key, zval *nonnull value);
+void dd_trace_span_add_propagated_tags(
+    zend_string *nonnull key, zval *nonnull value);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 
 // Set sampling priority on root span
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
     zend_long priority, enum dd_sampling_mechanism mechanism);
+zend_long dd_trace_get_priority_sampling_on_span_zobj(
+    zend_object *nonnull root_span);
 
 typedef struct _ddtrace_user_req_listeners ddtrace_user_req_listeners;
 struct _ddtrace_user_req_listeners {

@@ -140,6 +140,19 @@ trait CommonTests {
     }
 
     @Test
+    void 'authenticated user event automated'() {
+        def trace = container.traceFromRequest('/behind_auth.php?id=userID') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."usr.id" == 'userID'
+        assert span.meta."_dd.appsec.usr.id" == 'userID'
+        assert span.meta."_dd.appsec.user.collection_mode" == 'identification'
+    }
+
+    @Test
     void 'custom event'() {
         def trace = container.traceFromRequest('/custom_event.php') { resp ->
             assert resp.statusCode() == 200
@@ -255,6 +268,39 @@ trait CommonTests {
 
         Span span = trace.first()
         assert_blocked_span(span)
+
+        InputStream stream = new ByteArrayInputStream( span.meta_struct."_dd.stack".decodeBase64() )
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(stream)
+        List<Object> stacks = []
+        stacks << MsgpackHelper.unpackSingle(unpacker)
+        Object exploit = stacks.first().exploit.first()
+
+        assert exploit.language == "php"
+        assert exploit.id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        assert exploit.frames[0].file == "generate_stack.php"
+        assert exploit.frames[0].function == "one"
+        assert exploit.frames[0].id == 0
+        assert exploit.frames[0].line == 8
+        assert exploit.frames[1].file == "generate_stack.php"
+        assert exploit.frames[1].function == "two"
+        assert exploit.frames[1].id == 1
+        assert exploit.frames[1].line == 12
+        assert exploit.frames[2].file == "generate_stack.php"
+        assert exploit.frames[2].function == "three"
+        assert exploit.frames[2].id == 2
+        assert exploit.frames[2].line == 15
+    }
+
+    @Test
+    void 'test stack generation without blocking'() {
+        HttpRequest req = container.buildReq('/generate_stack.php?id=stack_user_no_block').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+
+        Span span = trace.first()
+
+        assert span.meta."appsec.event" == 'true'
 
         InputStream stream = new ByteArrayInputStream( span.meta_struct."_dd.stack".decodeBase64() )
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(stream)

@@ -419,6 +419,10 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
+#if PHP_VERSION_ID >= 80400
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "connect",
+                                         "DDTrace\\Integrations\\PDO\\PDOIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
                                          "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
@@ -431,6 +435,11 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PSR18, "Psr\\Http\\Client\\ClientInterface", "sendRequest",
                                          "DDTrace\\Integrations\\Psr18\\Psr18Integration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Client\\Connector", "__construct",
+                                         "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Http\\HttpServerInterface", "onOpen",
+                                         "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ROADRUNNER, "Spiral\\RoadRunner\\Http\\HttpWorker", "waitRequest",
                                          "DDTrace\\Integrations\\Roadrunner\\RoadrunnerIntegration");

@@ -19,9 +19,10 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v15.0.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v15.0.0" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v15.0.0" }
+datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
+datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "3892e3952d857280462940f62a99af6d36552fb7" } # Must be kept in sync with other extensions using the zend_abstract_interface/config library
 env_logger = { version = "0.11", default-features = false }
 indexmap = { version = "2.2" }
 lazy_static = { version = "1.4" }

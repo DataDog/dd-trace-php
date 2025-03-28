@@ -166,8 +166,8 @@ bool client::handle_command(const network::client_init::request &command)
     client_enabled_conf = command.enabled_configuration;
 
     try {
-        service_ = service_manager_->create_service(eng_settings,
-            command.rc_settings, !client_enabled_conf.has_value());
+        set_service(service_manager_->create_service(
+            eng_settings, command.rc_settings));
 
         // save engine settings so we can recreate the service if rc path
         // changes
@@ -236,28 +236,42 @@ std::shared_ptr<typename T::response> client::publish(
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto res = context_->publish(std::move(command.data), rasp_rule);
         if (res) {
+            bool event_action = false;
+            bool stack_trace = false;
             for (auto &act : res->actions) {
                 dds::network::action_struct new_action;
                 switch (act.type) {
                 case dds::action_type::block:
                     new_action.verdict = network::verdict::block;
                     new_action.parameters = std::move(act.parameters);
+                    event_action = true;
                     break;
                 case dds::action_type::redirect:
                     new_action.verdict = network::verdict::redirect;
                     new_action.parameters = std::move(act.parameters);
+                    event_action = true;
                     break;
                 case dds::action_type::stack_trace:
+                    stack_trace = true;
                     new_action.verdict = network::verdict::stack_trace;
                     new_action.parameters = std::move(act.parameters);
                     break;
                 case dds::action_type::record:
                 default:
+                    event_action = true;
                     new_action.verdict = network::verdict::record;
                     new_action.parameters = {};
                     break;
                 }
                 response->actions.push_back(new_action);
+            }
+            if (!event_action && stack_trace) {
+                // Stacktrace needs to send a record as well so Appsec event is
+                // generated
+                dds::network::action_struct extra_record_action;
+                extra_record_action.verdict = network::verdict::record;
+                extra_record_action.parameters = {};
+                response->actions.push_back(extra_record_action);
             }
             response->triggers = std::move(res->events);
             response->force_keep = res->force_keep;
@@ -423,8 +437,9 @@ bool client::handle_command(network::request_shutdown::request &command)
     // Free the context at the end of request shutdown
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
-    auto sampler = service_->get_schema_sampler();
-    if (sampler && sampler->picked()) {
+    std::uint64_t const sample_key = command.api_sec_samp_key;
+    if (sample_key != 0 && service_->schema_extraction_enabled() &&
+        (!sample_acc_ || sample_acc_->hit(sample_key))) {
         parameter context_processor = parameter::map();
         context_processor.add("extract-schema", parameter::as_boolean(true));
         command.data.add("waf.context.processor", std::move(context_processor));
@@ -459,8 +474,8 @@ void client::update_remote_config_path(std::string_view path)
         rc_settings.shmem_path = path;
     }
 
-    service_ =
-        service_manager_->create_service(*engine_settings_, rc_settings, true);
+    set_service(
+        service_manager_->create_service(*engine_settings_, rc_settings));
 }
 
 bool client::run_client_init()
