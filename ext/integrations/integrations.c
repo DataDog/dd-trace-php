@@ -108,7 +108,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 if (!instanceof_function(ce, ddtrace_ce_integration)) {
                     LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        INTEGRATION_ERROR_TELEMETRY(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     }
                     success = true;
                     break;
