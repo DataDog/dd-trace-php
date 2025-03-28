@@ -4,32 +4,30 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "asm_aggregator.hpp"
+#include "../../../json_helper.hpp"
 #include "../../exception.hpp"
-#include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 #include <spdlog/spdlog.h>
 
 namespace dds::remote_config {
 
-namespace {
-constexpr std::array<std::string_view, 4> expected_keys{
-    "exclusions", "actions", "rules_override", "custom_rules"};
-} // namespace
-
 void asm_aggregator::init(rapidjson::Document::AllocatorType *allocator)
 {
-    ruleset_ = rapidjson::Document(rapidjson::kObjectType, allocator);
-    for (const auto &key : expected_keys) {
-        rapidjson::Value empty_array(rapidjson::kArrayType);
-        ruleset_.AddMember(
-            StringRef(key), empty_array, ruleset_.GetAllocator());
-    }
+    change_set_ = rapidjson::Document(rapidjson::kObjectType, allocator);
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    change_set_.AddMember(rapidjson::Value{ASM_ADDED, *allocator},
+        rapidjson::Value{rapidjson::kObjectType}, *allocator);
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    change_set_.AddMember(rapidjson::Value{ASM_REMOVED, *allocator},
+        rapidjson::Value{rapidjson::kArrayType}, *allocator);
 }
 
 void asm_aggregator::add(const config &config)
 {
-    rapidjson::Document doc(&ruleset_.GetAllocator());
+    rapidjson::Document doc(&allocator());
     if (!json_helper::parse_json(config.read(), doc)) {
         throw error_applying_config("Invalid config contents");
     }
@@ -38,29 +36,20 @@ void asm_aggregator::add(const config &config)
         throw error_applying_config("Invalid type for config, expected object");
     }
 
-    std::vector<std::string_view> available_keys;
-    available_keys.reserve(doc.MemberCount());
-
-    // Validate contents and extract available keys
-    for (const auto &key : expected_keys) {
-        auto it = doc.FindMember(StringRef(key));
-        if (it != doc.MemberEnd()) {
-            auto &value = it->value;
-            if (!value.IsArray()) {
-                throw error_applying_config(
-                    "Invalid type for " + std::string(key));
-            }
-            available_keys.emplace_back(key);
-        }
-    }
-
-    for (const auto &key : available_keys) {
-        // All keys should be available so no need for extra checks
-        auto dest = ruleset_.FindMember(StringRef(key));
-        auto source = doc.FindMember(StringRef(key));
-        json_helper::merge_arrays(
-            dest->value, source->value, ruleset_.GetAllocator());
-    }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    change_set_[ASM_ADDED].AddMember(
+        rapidjson::Value{config.rc_path, allocator()}, doc, allocator());
 }
 
+void asm_aggregator::remove(const config &config)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    change_set_[ASM_REMOVED].PushBack(
+        rapidjson::Value{config.rc_path, allocator()}, allocator());
+}
+
+void asm_aggregator::aggregate(rapidjson::Document &doc)
+{
+    json_helper::merge_objects(doc, change_set_, allocator());
+}
 } // namespace dds::remote_config

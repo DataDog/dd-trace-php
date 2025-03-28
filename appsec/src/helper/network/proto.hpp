@@ -270,7 +270,7 @@ struct request_shutdown {
         static constexpr request_id id = request_id::request_shutdown;
 
         dds::parameter data;
-        std::uint64_t api_sec_samp_key;
+        std::uint64_t api_sec_samp_key{0};
 
         request() = default;
         request(const request &) = delete;

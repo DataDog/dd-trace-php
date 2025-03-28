@@ -44,6 +44,7 @@
 #include "zend_hrtime.h"
 #include "sidecar.h"
 #include "live_debugger.h"
+#include "trace_source.h"
 #include "exception_serialize.h"
 #include "agent_info.h"
 
@@ -1599,6 +1600,7 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
     }
 
+
     // Notify profiling for Endpoint Profiling.
     if (profiling_notify_trace_finished && ddtrace_span_is_entrypoint_root(span) && Z_TYPE(prop_resource_as_string) == IS_STRING) {
         zai_str type = ZAI_STRL("custom");
@@ -1752,13 +1754,7 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if (operation_name) {
         zend_hash_str_del(meta, ZEND_STRL("operation.name"));
     }
-
-    zval *asm_event = NULL;
-    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
-        asm_event = zend_hash_str_find(meta, ZEND_STRL(DD_TAG_P_APPSEC));
-    }
-    bool is_standalone_appsec_span = asm_event ? Z_TYPE_P(asm_event) == IS_STRING && strncmp(Z_STRVAL_P(asm_event), "1", sizeof("1") - 1) == 0 : 0;
-
+   
     _serialize_meta(el, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
 
     zval metrics_zv;
@@ -1774,12 +1770,12 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     if ((is_root_span && !inferred_span) || is_inferred_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && !is_standalone_appsec_span) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             add_assoc_double(&metrics_zv, "_sampling_priority_v1", sampling_priority);
         }
-        if(get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+        if(!get_global_DD_APM_TRACING_ENABLED()) {
             add_assoc_long(&metrics_zv, "_dd.apm.enabled", 0);
         }
     }

@@ -92,7 +92,6 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/env/env.h",
     "../zend_abstract_interface/exceptions/exceptions.h",
     "../zend_abstract_interface/json/json.h",
-
     "../components-rs/common.h",
     "../components-rs/library-config.h",
 ];

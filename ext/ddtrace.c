@@ -38,6 +38,7 @@
 #include <components/log/log.h>
 
 #include "asm_event.h"
+#include "trace_source.h"
 #include "auto_flush.h"
 #include "compatibility.h"
 #ifndef _WIN32
@@ -1508,7 +1509,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
-    ddtrace_appsec_minit();
+    ddtrace_trace_source_minit();
 
     return SUCCESS;
 }
@@ -1604,11 +1605,11 @@ static void dd_initialize_request(void) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
-    DDTRACE_G(asm_event_emitted) = false;
     DDTRACE_G(inferred_span_created) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
     // Check for the env first, before the first RC
     ddtrace_check_agent_info_env();
@@ -1617,6 +1618,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(request_initialized) = true;
 
     ddtrace_sidecar_rinit();
+    ddtrace_asm_event_rinit();
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);

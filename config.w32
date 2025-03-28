@@ -54,6 +54,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " span.c";
 	DDTRACE_EXT_SOURCES += " startup_logging.c";
 	DDTRACE_EXT_SOURCES += " telemetry.c";
+	DDTRACE_EXT_SOURCES += " trace_source.c";
 	DDTRACE_EXT_SOURCES += " threads.c";
 	DDTRACE_EXT_SOURCES += " user_request.c";
 	if (version >= 800 && version < 802) {

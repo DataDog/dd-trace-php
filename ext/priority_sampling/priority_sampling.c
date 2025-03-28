@@ -135,7 +135,7 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
     }
 
     zval *rule;
-    if (!get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {  // APPSEC_STANDALONE enabled, override sampling rules to be empty
+    if (get_global_DD_APM_TRACING_ENABLED()) {
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (++index >= skip_at) {
                 break;

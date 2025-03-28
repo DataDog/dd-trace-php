@@ -216,13 +216,6 @@ static void _register_testing_objects(void);
 
 bool dd_config_minit(int module_number)
 {
-    // We have to disable remote config by default on lambda due to issues with
-    // the sidecar there. We'll eventually fix it though.
-    if (getenv("AWS_LAMBDA_FUNCTION_NAME")) { // NOLINT
-        config_entries[DDAPPSEC_CONFIG_DD_REMOTE_CONFIG_ENABLED]
-            .default_encoded_value = (zai_str)ZAI_STR_FROM_CSTR("false");
-    }
-
     if (!zai_config_minit(config_entries,
             (sizeof config_entries / sizeof *config_entries),
             dd_ini_env_to_ini_name, module_number)) {
