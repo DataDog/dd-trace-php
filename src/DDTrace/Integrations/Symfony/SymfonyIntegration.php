@@ -542,35 +542,6 @@ class SymfonyIntegration extends Integration
             $eventDispatcherTracer
         );
 
-        \DDTrace\hook_method(
-            'Symfony\Component\HttpKernel\EventListener\ExceptionListener',
-            'onKernelException',
-            null,
-            function ($This, $scope, $args) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    Logger::get()->debug("No root span found");
-                    return;
-                }
-
-                $event = $args[0];
-                if (!($event instanceof \Symfony\Component\HttpKernel\Event\GetResponseForExceptionEvent)) {
-                    Logger::get()->debug("Got event of class: " . \get_class($event));
-                    return;
-                }
-
-                $response = $event->getResponse();
-                if ($response !== null) {
-                    Logger::get()->debug("Ignoring exception event with response");
-                    $rootSpan->meta['error.ignored'] = 1;
-                    $rootSpan->exception = $event->getException();
-                    //Logger::get()->debug(print_r($rootSpan, true));
-                } else {
-                    Logger::get()->debug("No response found");
-                }
-            }
-        );
-
         // Handling exceptions
         $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
@@ -578,6 +549,12 @@ class SymfonyIntegration extends Integration
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
             if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
                 \DDTrace\root_span()->exception = $args[0];
+            }
+
+            if (isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500) {
+                // It means that the exception event associated with the exception had a response, which certainly
+                // means that the exception was handled.
+                \DDTrace\root_span()->meta['error.ignored'] = 1;
             }
         };
         // Symfony 4.3-
