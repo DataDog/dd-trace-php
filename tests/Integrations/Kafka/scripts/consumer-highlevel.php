@@ -11,13 +11,16 @@ $conf->set('group.id', 'consumer-highlevel');
 $conf->set('enable.partition.eof', 'true');
 $conf->set('auto.offset.reset', 'earliest');
 
-// Track partitions that have been fully consumed
-$partitionsEof = [];
-
 $consumer = new KafkaConsumer($conf);
 $consumer->subscribe(['test-highlevel']);
 
 echo "Consumer started, waiting for messages...\n";
+
+$messageCount = 0;
+$expectedMessages = 2; // We expect 2 messages based on the test snapshots
+$partitionsEof = [];
+$startTime = microtime(true);
+$timeout = 10; // 10 seconds timeout
 
 do {
     $message = $consumer->consume(5000);
@@ -31,7 +34,7 @@ do {
 
             // Commit the message offset after processing it
             $consumer->commit($message);
-
+            $messageCount++;
             break;
 
         case RD_KAFKA_RESP_ERR__PARTITION_EOF:
@@ -49,6 +52,18 @@ do {
             // Handle other errors
             echo sprintf("Error: %s\n", $message->errstr());
             exit(1);
+    }
+
+    // Exit if we've processed all expected messages
+    if ($messageCount >= $expectedMessages) {
+        echo "Processed all expected messages. Exiting...\n";
+        break;
+    }
+
+    // Check timeout
+    if (microtime(true) - $startTime > $timeout) {
+        echo "Timeout reached after {$timeout} seconds. Exiting...\n";
+        break;
     }
 
     // Get the current assignment of partitions

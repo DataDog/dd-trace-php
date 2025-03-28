@@ -264,7 +264,7 @@ final class Context implements ContextInterface
 
         if ($key === self::$baggageContextKey) {
             if ( $this->span instanceof SDK\Span){
-                $currentDdSpan = $self->span?->getDDSpan();
+                $currentDdSpan = $self->span ? $self->span->getDDSpan() : null;
                 if ($currentDdSpan !== null) {
                     $currentDdSpan->baggage = [];
                     foreach($value->getAll() as $baggageKey => $baggageEntry) {
@@ -274,7 +274,7 @@ final class Context implements ContextInterface
                 }
             }
         }
-        
+
         if ($value !== null) {
             $self->context[$id] = $value;
             $self->contextKeys[$id] ??= $key;
@@ -297,7 +297,7 @@ final class Context implements ContextInterface
 
         if ($key === self::$baggageContextKey) {
             if ( $this->span instanceof SDK\Span){
-                $currentDdSpan = $this->span?->getDDSpan();
+                $currentDdSpan = $this->span ? $this->span->getDDSpan() : null;
                 if($currentDdSpan) {
                     $baggageBuilder = new BaggageBuilder();
                     foreach($currentDdSpan->baggage as $baggageKey => $baggageValue) {
