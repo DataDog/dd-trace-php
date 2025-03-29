@@ -4,6 +4,7 @@ use std::str::Utf8Error;
 
 #[cfg(php_frameless)]
 use crate::bindings::zend_flf_functions;
+
 #[cfg(php_frameless)]
 use crate::bindings::{
     ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
@@ -199,6 +200,9 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Vec<ZendFrame>, Utf8Error> {
+        #[cfg(feature = "tracing")]
+        let _span = tracing::trace_span!("collect_stack_sample").entered();
+
         CACHED_STRINGS.with(|cell| {
             let string_set: &mut StringSet = &mut cell.borrow_mut();
             let max_depth = 512;
@@ -371,6 +375,9 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Vec<ZendFrame>, Utf8Error> {
+        #[cfg(feature = "tracing")]
+        let _span = tracing::trace_span!("collect_stack_sample").entered();
+
         let max_depth = 512;
         let mut samples = Vec::with_capacity(max_depth >> 3);
         let mut execute_data_ptr = top_execute_data;
