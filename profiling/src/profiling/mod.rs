@@ -305,10 +305,8 @@ impl TimeCollector {
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let (alloc_samples_offset, alloc_size_offset) = (
-            get_offset("alloc-samples"),
-            get_offset("alloc-size"),
-        );
+        let (alloc_samples_offset, alloc_size_offset) =
+            (get_offset("alloc-samples"), get_offset("alloc-size"));
 
         // check if we have the IO sample types
         #[cfg(all(target_os = "linux", feature = "io_profiling"))]
@@ -383,25 +381,30 @@ impl TimeCollector {
             }
         }
 
-       #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
         {
-            let add_io_upscaling_rule = |profile: &mut InternalProfile,
-                                         sum_value_offset: Option<usize>,
-                                         count_value_offset: Option<usize>,
-                                         sampling_distance: u64,
-                                         metric_name: &str| {
-                if let (Some(sum_value_offset), Some(count_value_offset)) = (sum_value_offset, count_value_offset) {
-                    let upscaling_info = UpscalingInfo::Poisson {
-                        sum_value_offset,
-                        count_value_offset,
-                        sampling_distance,
-                    };
-                    let values_offset = [sum_value_offset, count_value_offset];
-                    if let Err(err) = profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                       warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+            let add_io_upscaling_rule =
+                |profile: &mut InternalProfile,
+                 sum_value_offset: Option<usize>,
+                 count_value_offset: Option<usize>,
+                 sampling_distance: u64,
+                 metric_name: &str| {
+                    if let (Some(sum_value_offset), Some(count_value_offset)) =
+                        (sum_value_offset, count_value_offset)
+                    {
+                        let upscaling_info = UpscalingInfo::Poisson {
+                            sum_value_offset,
+                            count_value_offset,
+                            sampling_distance,
+                        };
+                        let values_offset = [sum_value_offset, count_value_offset];
+                        if let Err(err) =
+                            profile.add_upscaling_rule(&values_offset, "", "", upscaling_info)
+                        {
+                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+                        }
                     }
-                }
-            };
+                };
 
             add_io_upscaling_rule(
                 &mut profile,
