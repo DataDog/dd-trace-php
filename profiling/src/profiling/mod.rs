@@ -1084,7 +1084,7 @@ impl Profiler {
         match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: COW_EVAL,
-                file: Some(filename),
+                file: Some(Cow::Owned(filename)),
                 line,
             }],
             SampleValues {
@@ -1202,7 +1202,7 @@ impl Profiler {
         match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[fatal]".into(),
-                file: Some(file),
+                file: Some(Cow::Owned(file)),
                 line,
             }],
             SampleValues {
@@ -1249,7 +1249,7 @@ impl Profiler {
         match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[opcache restart]".into(),
-                file: Some(file),
+                file: Some(Cow::Owned(file)),
                 line,
             }],
             SampleValues {
@@ -1508,7 +1508,7 @@ impl Profiler {
             if let Some(functionname) = extract_function_name(func) {
                 labels.push(Label {
                     key: "fiber",
-                    value: LabelValue::Str(functionname.into()),
+                    value: LabelValue::Str(functionname),
                 });
             }
         }

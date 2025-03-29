@@ -1,5 +1,7 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
+use crate::vec_ext::VecExt;
 use std::borrow::Cow;
+use std::collections::TryReserveError;
 use std::str::Utf8Error;
 
 #[cfg(php_frameless)]
@@ -13,13 +15,27 @@ use crate::bindings::{
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 
+/// The profiler is not meant to handle such large strings--if a file or
+/// function name exceeds this size, it will fail in some manner, or be
+/// replaced by a shorter string, etc.
+const STR_LEN_LIMIT: usize = u16::MAX as usize;
+const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[large string]");
+
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
     pub function: Cow<'static, str>,
-    pub file: Option<String>,
+    pub file: Option<Cow<'static, str>>,
     pub line: u32, // use 0 for no line info
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum CollectStackSampleError {
+    #[error("failed to collect stack sample: `0`")]
+    Utf8Error(#[from] Utf8Error),
+    #[error("failed to collect stack sample: `{0}`")]
+    TryReserveError(#[from] TryReserveError),
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -31,7 +47,7 @@ pub struct ZendFrame {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-pub fn extract_function_name(func: &zend_function) -> Option<String> {
+pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -60,15 +76,31 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
 
     buffer.extend_from_slice(method_name);
 
-    Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
+    // Rather than fail, we use a short string to represent a long string.
+    if buffer.len() <= STR_LEN_LIMIT {
+        // When replacing the string to make it valid utf-8, it may get a bit
+        // longer, but this usually doesn't happen. This limit is a soft-limit
+        // at the moment anyway, so this is okay.
+        let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
+        Some(Cow::Owned(string))
+    } else {
+        Some(COW_LARGE_STRING)
+    }
 }
 
-unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
+unsafe fn extract_file_and_line(
+    execute_data: &zend_execute_data,
+) -> (Option<Cow<'static, str>>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+            let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
+            let file = if bytes.len() <= STR_LEN_LIMIT {
+                Cow::Owned(std::string::String::from_utf8_lossy(bytes).to_string())
+            } else {
+                COW_LARGE_STRING
+            };
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -199,7 +231,7 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, Utf8Error> {
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -230,11 +262,11 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
-                                samples.push(ZendFrame {
-                                    function: extract_function_name(func).map(Cow::Owned).unwrap(),
+                                samples.try_push(ZendFrame {
+                                    function: extract_function_name(func).unwrap(),
                                     file: None,
                                     line: 0,
-                                });
+                                })?;
                             }
                             _ => {}
                         }
@@ -242,18 +274,18 @@ mod detail {
 
                     let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
                     if let Some(frame) = maybe_frame {
-                        samples.push(frame);
+                        samples.try_push(frame)?;
 
                         /* -1 to reserve room for the [truncated] message. In case the
                          * backend and/or frontend have the same limit, without the -1
                          * then ironically the [truncated] message would be truncated.
                          */
                         if samples.len() == max_depth - 1 {
-                            samples.push(ZendFrame {
+                            samples.try_push(ZendFrame {
                                 function: COW_TRUNCATED,
                                 file: None,
                                 line: 0,
-                            });
+                            })?;
                             break;
                         }
                     }
@@ -294,7 +326,7 @@ mod detail {
                     }
                 });
 
-                (function, file, line)
+                (function, file.map(Cow::Owned), line)
             }
 
             None => {
@@ -302,7 +334,7 @@ mod detail {
                     let mut stats = cell.borrow_mut();
                     stats.not_applicable += 1;
                 });
-                let function = extract_function_name(func).map(Cow::Owned);
+                let function = extract_function_name(func);
                 let (file, line) = extract_file_and_line(execute_data);
                 (function, file, line)
             }
@@ -323,7 +355,8 @@ mod detail {
         func: &zend_function,
         string_cache: &mut StringCache,
     ) -> Option<Cow<'static, str>> {
-        let fname = string_cache.get_or_insert(0, || extract_function_name(func))?;
+        let fname =
+            string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))?;
         Some(Cow::Owned(fname))
     }
 
@@ -374,7 +407,7 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, Utf8Error> {
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -385,18 +418,18 @@ mod detail {
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
-                samples.push(frame);
+                samples.try_push(frame)?;
 
                 /* -1 to reserve room for the [truncated] message. In case the
                  * backend and/or frontend have the same limit, without the -1
                  * then ironically the [truncated] message would be truncated.
                  */
                 if samples.len() == max_depth - 1 {
-                    samples.push(ZendFrame {
+                    samples.try_push(ZendFrame {
                         function: COW_TRUNCATED,
                         file: None,
                         line: 0,
-                    });
+                    })?;
                     break;
                 }
             }
@@ -414,7 +447,7 @@ mod detail {
             // Only create a new frame if there's file or function info.
             if file.is_some() || function.is_some() {
                 // If there's no function name, use a fake name.
-                let function = function.map(Cow::Owned).unwrap_or(COW_PHP_OPEN_TAG);
+                let function = function.unwrap_or(COW_PHP_OPEN_TAG);
                 return Some(ZendFrame {
                     function,
                     file,
