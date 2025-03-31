@@ -95,8 +95,6 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
 }
 
 static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
-    UNUSED(persistent);
-    
     if (value.len == 0) {
         array_init(decoded_value);
         return true;
@@ -148,7 +146,7 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         // Only add if key is non-empty (value can be empty)
         if (key_len > 0) {
             zval val;
-            ZVAL_STR(&val, zend_string_init(val_start, val_len, 0));
+            ZVAL_STR(&val, zend_string_init(val_start, val_len, persistent));
             zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
         }
 
