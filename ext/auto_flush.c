@@ -44,7 +44,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     }
 
     if (!get_global_DD_APM_TRACING_ENABLED()) {
-        if (!ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_trace_asm_sourced(&trace) && !ddtrace_standalone_limiter_allow()) {
+        bool allow = ddtrace_standalone_limiter_allow();
+        if (!ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_trace_asm_sourced(&trace) && !allow) {
             zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
             if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
                 LOG(ERROR, "Root span not found. Dropping trace");
@@ -63,8 +64,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 return SUCCESS;
             }
             ZVAL_LONG(sampling_priority, PRIORITY_SAMPLING_AUTO_REJECT);
-        } else {
-            ddtrace_standalone_limiter_hit();
         }
     }
 
