@@ -104,55 +104,56 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 
     array_init(decoded_value);
     
-    // Determine separator - prefer comma if present, otherwise use space
-    const char *sep = strchr(value.ptr, ',') ? "," : " ";
-    
-    char *str = strdup(value.ptr);
-    char *tag = strtok(str, sep);
-    
-    while (tag != NULL) {
-        // Strip whitespace from the entire tag first
-        while (*tag == ' ') tag++;
-        char *tag_end = tag + strlen(tag) - 1;
-        while (tag_end > tag && *tag_end == ' ') tag_end--;
-        *(tag_end + 1) = '\0';
+    char *str = value.ptr;
+    char *end = str + value.len;
+    char *current = str;
 
-        // Skip empty tags
-        if (strlen(tag) == 0) {
-            tag = strtok(NULL, sep);
+    // Determine separator - prefer comma if present, otherwise use space
+    const char *sep = memchr(str, ',', value.len) ? "," : " ";
+    size_t sep_len = strlen(sep);
+
+    while (current < end) {
+        // Skip leading whitespace
+        while (current < end && *current == ' ') current++;
+        if (current >= end) break;
+
+        // Find next separator
+        size_t tag_len = strcspn(current, sep);
+        if (tag_len == 0) {
+            current += sep_len;
             continue;
         }
 
-        // Find first colon
-        char *colon = strchr(tag, ':');
-        char *key = tag;
-        char *val = "";
-        
-        if (colon) {
-            *colon = '\0';
-            val = colon + 1;
+        char *tag_end = current + tag_len;
+        char *colon = memchr(current, ':', tag_len);
+        if (!colon) {
+            current = tag_end + sep_len;
+            continue;
         }
 
-        // Strip whitespace from key and value
-        while (*key == ' ') key++;
-        while (*val == ' ') val++;
-        
-        char *key_end = key + strlen(key) - 1;
-        char *val_end = val + strlen(val) - 1;
-        while (key_end > key && *key_end == ' ') key_end--;
-        while (val_end > val && *val_end == ' ') val_end--;
-        *(key_end + 1) = '\0';
-        *(val_end + 1) = '\0';
+        // Strip whitespace from key
+        char *key_start = current;
+        while (key_start < colon && *key_start == ' ') key_start++;
+        char *key_end = colon - 1;
+        while (key_end > key_start && *key_end == ' ') key_end--;
+        size_t key_len = key_end - key_start + 1;
 
-        // Only add if key is not empty
-        if (strlen(key) > 0) {
-            add_assoc_string(decoded_value, key, val);
+        // Strip whitespace from value
+        char *val_start = colon + 1;
+        while (val_start < tag_end && *val_start == ' ') val_start++;
+        char *val_end = tag_end - 1;
+        while (val_end > val_start && *val_end == ' ') val_end--;
+        size_t val_len = val_end - val_start + 1;
+
+        // Only add if key is non-empty (value can be empty)
+        if (key_len > 0) {
+            zend_string *val = zend_string_init(val_start, val_len, 0);
+            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
         }
 
-        tag = strtok(NULL, sep);
+        current = tag_end + sep_len;
     }
 
-    free(str);
     return true;
 }
 
