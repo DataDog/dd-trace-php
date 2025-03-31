@@ -22,7 +22,7 @@ ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
     return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 }
 
-void ddtrace_integration_error_telemetryf(const char *format, ...) {
+void ddtrace_integration_error_telemetryf(ddog_Log source, const char *format, ...) {
     va_list va, va2;
     va_start(va, format);
     char buf[0x100];
@@ -33,10 +33,10 @@ void ddtrace_integration_error_telemetryf(const char *format, ...) {
     if (len > (int)sizeof(buf)) {
         char *msg = malloc(len + 1);
         len = vsnprintf(msg, len + 1, format, va);
-        ddog_sidecar_telemetry_add_integration_log_buffer(buffer, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
+        ddog_sidecar_telemetry_add_integration_log_buffer(source, buffer, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
         free(msg);
     } else {
-        ddog_sidecar_telemetry_add_integration_log_buffer(buffer, (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
+        ddog_sidecar_telemetry_add_integration_log_buffer(source, buffer, (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
     }
     va_end(va);
 }

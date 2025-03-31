@@ -61,7 +61,7 @@ bool ddtrace_limiter_active() {
 }
 
 bool ddtrace_limiter_allow() {
-    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
         return true;
     }
     ZEND_ASSERT(dd_limiter);

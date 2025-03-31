@@ -29,11 +29,11 @@ typedef enum {
     REASON_COMPLETE,
 } telemetry_reason;
 
-#define TELEMETRY(reason, error, format, ...) ddloader_telemetryf(reason, error, format, ##__VA_ARGS__);
+#define TELEMETRY(reason, config, error, format, ...) ddloader_telemetryf(reason, config, error, format, ##__VA_ARGS__);
 
-#define DECLARE_INJECTED_EXT(name, dir, _pre_load_hook, _pre_minit_hook, deps)                      \
+#define DECLARE_INJECTED_EXT(name, dir, min_version, _pre_load_hook, _pre_minit_hook, deps)                      \
     {                                                                                               \
-        .ext_name = name, .ext_dir = dir, .tmp_name = name "_injected", .tmp_deps = deps,           \
+        .ext_name = name, .ext_dir = dir, .ext_min_version = min_version, .tmp_name = name "_injected", .tmp_deps = deps,           \
         .pre_load_hook = _pre_load_hook, .pre_minit_hook = _pre_minit_hook,                         \
         .orig_module_startup_func = NULL, .orig_module_deps = NULL, .orig_module_functions = NULL,  \
         .module_number = -1, .version = NULL                                                        \
@@ -42,6 +42,7 @@ typedef enum {
 typedef struct _injected_ext {
     const char *ext_name;
     const char *ext_dir;
+    unsigned int ext_min_version;
 
     const char *tmp_name;
     const zend_module_dep *tmp_deps;

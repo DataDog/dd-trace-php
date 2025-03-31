@@ -3527,10 +3527,12 @@ jobs:
             mkdir -p modules
             cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
             ./bin/test.sh
-            if [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
-              true
-              <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
-            fi
+
+            # FIXME: Now that we strip the symbols, our suppression file is useless
+            #if [[ "<< parameters.php_major_minor >>" == "8.3" ]]; then
+            #  true
+            #  <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
+            #fi
             ./bin/check_glibc_version.sh
 
   "test_loader_alpine":

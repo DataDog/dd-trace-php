@@ -152,6 +152,88 @@ uint64_t ddtrace_nanoseconds_realtime(void) {
     return ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
 }
 
+static void free_inferred_proxy_result(ddtrace_inferred_proxy_result *result) {
+    if (result->system) zend_string_release(result->system);
+    if (result->start_time_ms) zend_string_release(result->start_time_ms);
+    if (result->http_method) zend_string_release(result->http_method);
+    if (result->path) zend_string_release(result->path);
+    if (result->domain) zend_string_release(result->domain);
+    if (result->stage) zend_string_release(result->stage);
+}
+
+
+ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_result *result, ddtrace_root_span_data *root) {
+    if (!result->system || !result->start_time_ms) {
+        free_inferred_proxy_result(result);
+        return NULL;
+    }
+
+    const ddtrace_proxy_info *proxy_info = ddtrace_get_proxy_info(result->system);
+    if (!proxy_info) {
+        zend_string_release(result->system);
+        zend_string_release(result->start_time_ms);
+        return NULL;
+    }
+
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_INFERRED_SPAN, ddtrace_ce_inferred_span_data);
+    ZVAL_OBJ(&root->property_inferred_span, &span->std);
+
+    span->span_id = ddtrace_generate_span_id();
+    ZVAL_COPY(&span->property_env, &root->property_env);
+    ZVAL_COPY(&span->property_version, &root->property_version);
+
+
+    zval_ptr_dtor(&span->property_name);
+    ZVAL_STR(&span->property_name, zend_string_init(proxy_info->span_name, strlen(proxy_info->span_name), 0));
+
+    zval_ptr_dtor(&span->property_resource);
+    if (result->http_method && result->path) {
+        ZVAL_STR(&span->property_resource, strpprintf(0, "%s %s", ZSTR_VAL(result->http_method), ZSTR_VAL(result->path)));
+    }
+
+    span->start = ZEND_ATOL(ZSTR_VAL(result->start_time_ms)) * 1000000;
+    span->duration_start = zend_hrtime() - (ddtrace_nanoseconds_realtime() - span->start);
+
+    zval zv;
+
+    if (result->domain) {
+        ZVAL_STR_COPY(&zv, result->domain);
+        ddtrace_assign_variable(&span->property_service, &zv);
+    } else {
+        ZVAL_COPY(&span->property_service, &root->property_service); // Fall back to root service name
+    }
+
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+
+    zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
+
+    if (result->http_method) {
+        ZVAL_STR_COPY(&zv, result->http_method);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
+    }
+
+    if (result->domain && result->path) {
+        ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result->domain), ZSTR_VAL(result->path)));
+        zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
+    }
+
+    if (result->stage) {
+        ZVAL_STR_COPY(&zv, result->stage);
+        zend_hash_str_add_new(meta, ZEND_STRL("stage"), &zv);
+    }
+
+    ZVAL_LONG(&zv, 1);
+    zend_hash_str_add_new(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.inferred_span"), &zv);
+    add_assoc_string(&span->property_meta, "component", (char *)proxy_info->component);
+    ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
+
+    free_inferred_proxy_result(result);
+
+    ddtrace_set_global_span_properties(span);
+
+    return INFERRED_SPANDATA(&span->std);
+}
+
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     ddtrace_span_stack *stack = DDTRACE_G(active_stack);
     // The primary stack is ancestor to all stacks, which signifies that any root spans created on top of it will inherit the distributed tracing context
@@ -225,6 +307,12 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         }
     } else {
         LOG(SPAN_TRACE, "Starting new span: trace_id=%s, span_id=%" PRIu64 ", parent_id=%" PRIu64 ", SpanStack=%d", Z_STRVAL(span->root->property_trace_id), span->span_id, SPANDATA(span->parent)->span_id, span->stack->std.handle);
+    }
+
+    if (get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED() && !DDTRACE_G(inferred_span_created)) {
+        ddtrace_inferred_proxy_result result = ddtrace_read_inferred_proxy_headers(ddtrace_read_zai_header, NULL);
+        ddtrace_inferred_span_data *inferred_span = ddtrace_open_inferred_span(&result, ROOTSPANDATA(&span->std));
+        DDTRACE_G(inferred_span_created) = inferred_span != NULL;
     }
 
     return span;
@@ -485,7 +573,7 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
 }
 
 ddtrace_span_data *ddtrace_init_dummy_span(void) {
-    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN, ddtrace_ce_span_data);
+    ddtrace_span_data *span = ddtrace_init_span(DDTRACE_USER_SPAN, ddtrace_ce_root_span_data);
     span->std.handlers->get_constructor(&span->std);
     span->duration = DDTRACE_SILENTLY_DROPPED_SPAN;
     return span;
@@ -739,34 +827,42 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         ddtrace_switch_span_stack(span->stack);
     }
 
-    if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
-        zval on_close_zv, *on_close = &on_close_zv;
-        ZVAL_COPY_VALUE(&on_close_zv, &span->property_on_close);
-        ZVAL_EMPTY_ARRAY(&span->property_on_close);
-
-        ZVAL_DEREF(on_close);
-        if (Z_TYPE_P(on_close) == IS_ARRAY) {
-            zval *closure_zv, span_zv;
-            ZVAL_OBJ(&span_zv, &span->std);
-            ZEND_HASH_REVERSE_FOREACH_VAL(Z_ARR_P(on_close), closure_zv) {
-                ZVAL_DEREF(closure_zv);
-                if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
-                    zval rv;
-                    zai_sandbox sandbox;
-                    zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
-                    if (!success || PG(last_error_message)) {
-                        dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
-                    }
-                    zai_sandbox_close(&sandbox);
-                    zval_ptr_dtor(&rv);
-                }
-            } ZEND_HASH_FOREACH_END();
+    if (span->std.ce == ddtrace_ce_root_span_data) {
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
+        if (inferred_span) {
+            dd_trace_stop_span_time(inferred_span);
+            inferred_span->type = DDTRACE_SPAN_CLOSED;
         }
-        zval_ptr_dtor(&on_close_zv);
     }
+
+    if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
+            zval on_close_zv, *on_close = &on_close_zv;
+            ZVAL_COPY_VALUE(&on_close_zv, &span->property_on_close);
+            ZVAL_EMPTY_ARRAY(&span->property_on_close);
+
+            ZVAL_DEREF(on_close);
+            if (Z_TYPE_P(on_close) == IS_ARRAY) {
+                zval *closure_zv, span_zv;
+                ZVAL_OBJ(&span_zv, &span->std);
+                ZEND_HASH_REVERSE_FOREACH_VAL(Z_ARR_P(on_close), closure_zv) {
+                    ZVAL_DEREF(closure_zv);
+                    if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
+                        zval rv;
+                        zai_sandbox sandbox;
+                        zai_sandbox_open(&sandbox);
+                        bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+                                                       ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
+                                                       &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                        if (!success || PG(last_error_message)) {
+                            dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
+                        }
+                        zai_sandbox_close(&sandbox);
+                        zval_ptr_dtor(&rv);
+                    }
+                } ZEND_HASH_FOREACH_END();
+            }
+            zval_ptr_dtor(&on_close_zv);
+        }
 
     // Telemetry: increment the spans_created counter
     // Must be done at closing because we need to read the "component" span's meta which is not available at creation

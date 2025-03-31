@@ -581,6 +581,11 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         ddtrace_assign_variable(&span->property_propagated_tags, &zv);
 
         zend_hash_copy(root_meta, &result->meta_tags, NULL);
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(span);
+        if (inferred_span) {
+            zend_array *inferred_meta = ddtrace_property_array(&inferred_span->property_meta);
+            zend_hash_copy(inferred_meta, &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
+        }
 
         if (result->origin) {
             ZVAL_STR(&zv, result->origin);
@@ -669,5 +674,17 @@ bool ddtrace_read_zai_header(zai_str zai_header, const char *lowercase_header, z
         return false;
     }
     *header_value = zend_string_copy(*header_value);
+    return true;
+}
+
+bool ddtrace_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
+    UNUSED(zai_header);
+    zend_array *array = (zend_array *) data;
+    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
+    if (!value) {
+        return false;
+    }
+
+    *header_value = zval_get_string(value);
     return true;
 }

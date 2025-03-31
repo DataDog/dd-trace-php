@@ -45,6 +45,15 @@ use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+
+#[cfg(all(target_os = "linux", feature = "io_profiling"))]
+use crate::io::{
+    FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
+    FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
+    SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
+    SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
+};
+
 #[cfg(any(
     feature = "allocation_profiling",
     feature = "exception_profiling",
@@ -81,13 +90,21 @@ pub struct SampleValues {
     timeline: i64,
     exception: i64,
     socket_read_time: i64,
+    socket_read_time_samples: i64,
     socket_write_time: i64,
+    socket_write_time_samples: i64,
     file_read_time: i64,
+    file_read_time_samples: i64,
     file_write_time: i64,
+    file_write_time_samples: i64,
     socket_read_size: i64,
+    socket_read_size_samples: i64,
     socket_write_size: i64,
+    socket_write_size_samples: i64,
     file_read_size: i64,
+    file_read_size_samples: i64,
     file_write_size: i64,
+    file_write_size_samples: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -284,19 +301,54 @@ impl TimeCollector {
             })
             .collect();
 
+        let get_offset = |sample_type| sample_types.iter().position(|&x| x.r#type == sample_type);
+
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let alloc_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "alloc-samples");
-        #[cfg(feature = "allocation_profiling")]
-        let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
+        let (alloc_samples_offset, alloc_size_offset) =
+            (get_offset("alloc-samples"), get_offset("alloc-size"));
+
+        // check if we have the IO sample types
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let (
+            socket_read_time_offset,
+            socket_read_time_samples_offset,
+            socket_write_time_offset,
+            socket_write_time_samples_offset,
+            file_read_time_offset,
+            file_read_time_samples_offset,
+            file_write_time_offset,
+            file_write_time_samples_offset,
+            socket_read_size_offset,
+            socket_read_size_samples_offset,
+            socket_write_size_offset,
+            socket_write_size_samples_offset,
+            file_read_size_offset,
+            file_read_size_samples_offset,
+            file_write_size_offset,
+            file_write_size_samples_offset,
+        ) = (
+            get_offset("socket-read-time"),
+            get_offset("socket-read-time-samples"),
+            get_offset("socket-write-time"),
+            get_offset("socket-write-time-samples"),
+            get_offset("file-read-time"),
+            get_offset("file-read-time-samples"),
+            get_offset("file-write-time"),
+            get_offset("file-write-time-samples"),
+            get_offset("socket-read-size"),
+            get_offset("socket-read-size-samples"),
+            get_offset("socket-write-size"),
+            get_offset("socket-write-size-samples"),
+            get_offset("file-read-size"),
+            get_offset("file-read-size-samples"),
+            get_offset("file-write-size"),
+            get_offset("file-write-size-samples"),
+        );
 
         // check if we have the `exception-samples` sample types
         #[cfg(feature = "exception_profiling")]
-        let exception_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "exception-samples");
+        let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = InternalProfile::new(
@@ -329,6 +381,95 @@ impl TimeCollector {
             }
         }
 
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        {
+            let add_io_upscaling_rule =
+                |profile: &mut InternalProfile,
+                 sum_value_offset: Option<usize>,
+                 count_value_offset: Option<usize>,
+                 sampling_distance: u64,
+                 metric_name: &str| {
+                    if let (Some(sum_value_offset), Some(count_value_offset)) =
+                        (sum_value_offset, count_value_offset)
+                    {
+                        let upscaling_info = UpscalingInfo::Poisson {
+                            sum_value_offset,
+                            count_value_offset,
+                            sampling_distance,
+                        };
+                        let values_offset = [sum_value_offset, count_value_offset];
+                        if let Err(err) =
+                            profile.add_upscaling_rule(&values_offset, "", "", upscaling_info)
+                        {
+                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+                        }
+                    }
+                };
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_read_time_offset,
+                socket_read_time_samples_offset,
+                SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket read time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_write_time_offset,
+                socket_write_time_samples_offset,
+                SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket write time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_read_time_offset,
+                file_read_time_samples_offset,
+                FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file read time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_write_time_offset,
+                file_write_time_samples_offset,
+                FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file write time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_read_size_offset,
+                socket_read_size_samples_offset,
+                SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket read size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_write_size_offset,
+                socket_write_size_samples_offset,
+                SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket write size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_read_size_offset,
+                file_read_size_samples_offset,
+                FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file read size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_write_size_offset,
+                file_write_size_samples_offset,
+                FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file write size samples",
+            );
+        }
         #[cfg(feature = "exception_profiling")]
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
@@ -767,6 +908,7 @@ impl Profiler {
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -821,6 +963,7 @@ impl Profiler {
 
     /// Collect a stack sample with memory allocations.
     #[cfg(feature = "allocation_profiling")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -860,6 +1003,7 @@ impl Profiler {
 
     /// Collect a stack sample with exception.
     #[cfg(feature = "exception_profiling")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
@@ -931,6 +1075,7 @@ impl Profiler {
     }];
 
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
@@ -939,7 +1084,7 @@ impl Profiler {
         match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: COW_EVAL,
-                file: Some(filename),
+                file: Some(Cow::Owned(filename)),
                 line,
             }],
             SampleValues {
@@ -961,6 +1106,7 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_compile_file(
         &self,
         now: i64,
@@ -1003,6 +1149,7 @@ impl Profiler {
 
     /// This function will collect a thread start or stop timeline event
     #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
         let mut labels = Profiler::common_labels(1);
 
@@ -1037,6 +1184,7 @@ impl Profiler {
 
     /// This function can be called to collect any fatal errors
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
         let mut labels = Profiler::common_labels(2);
 
@@ -1054,7 +1202,7 @@ impl Profiler {
         match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[fatal]".into(),
-                file: Some(file),
+                file: Some(Cow::Owned(file)),
                 line,
             }],
             SampleValues {
@@ -1077,6 +1225,7 @@ impl Profiler {
 
     /// This function can be called to collect an opcache restart
     #[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub(crate) fn collect_opcache_restart(
         &self,
         now: i64,
@@ -1100,7 +1249,7 @@ impl Profiler {
         match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[opcache restart]".into(),
-                file: Some(file),
+                file: Some(Cow::Owned(file)),
                 line,
             }],
             SampleValues {
@@ -1121,6 +1270,7 @@ impl Profiler {
 
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
         let mut labels = Profiler::common_labels(1);
 
@@ -1156,6 +1306,7 @@ impl Profiler {
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_garbage_collection(
         &self,
         now: i64,
@@ -1213,6 +1364,7 @@ impl Profiler {
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_time = socket_io_read_time;
+            vals.socket_read_time_samples = 1;
         })
     }
 
@@ -1220,6 +1372,7 @@ impl Profiler {
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_time = socket_io_write_time;
+            vals.socket_write_time_samples = 1;
         })
     }
 
@@ -1227,6 +1380,7 @@ impl Profiler {
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_time = file_io_read_time;
+            vals.file_read_time_samples = 1;
         })
     }
 
@@ -1234,6 +1388,7 @@ impl Profiler {
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_time = file_io_write_time;
+            vals.file_write_time_samples = 1;
         })
     }
 
@@ -1241,6 +1396,7 @@ impl Profiler {
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_size = socket_io_read_size;
+            vals.socket_read_size_samples = 1;
         })
     }
 
@@ -1248,6 +1404,7 @@ impl Profiler {
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_size = socket_io_write_size;
+            vals.socket_write_size_samples = 1;
         })
     }
 
@@ -1255,6 +1412,7 @@ impl Profiler {
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_size = file_io_read_size;
+            vals.file_read_size_samples = 1;
         })
     }
 
@@ -1262,6 +1420,7 @@ impl Profiler {
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_size = file_io_write_size;
+            vals.file_write_size_samples = 1;
         })
     }
 
@@ -1349,7 +1508,7 @@ impl Profiler {
             if let Some(functionname) = extract_function_name(func) {
                 labels.push(Label {
                     key: "fiber",
-                    value: LabelValue::Str(functionname.into()),
+                    value: LabelValue::Str(functionname),
                 });
             }
         }
@@ -1446,13 +1605,21 @@ mod tests {
             timeline: 60,
             exception: 70,
             socket_read_time: 80,
+            socket_read_time_samples: 81,
             socket_write_time: 90,
+            socket_write_time_samples: 91,
             file_read_time: 100,
+            file_read_time_samples: 101,
             file_write_time: 110,
+            file_write_time_samples: 111,
             socket_read_size: 120,
+            socket_read_size_samples: 121,
             socket_write_size: 130,
+            socket_write_size_samples: 131,
             file_read_size: 140,
+            file_read_size_samples: 141,
             file_write_size: 150,
+            file_write_size_samples: 151,
         }
     }
 
