@@ -60,6 +60,14 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
 
 static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
     zval *service = &span->property_service;
+    zval *resource = &span->property_resource;
+    if (span->std.ce == ddtrace_ce_root_span_data) {
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
+        if (inferred_span) {
+            service = &inferred_span->property_service;
+            resource = &inferred_span->property_resource;
+        }
+    }
 
     zval *rule_pattern;
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("service")))) {
@@ -79,7 +87,7 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
         }
     }
     if ((rule_pattern = zend_hash_str_find(rule, ZEND_STRL("resource")))) {
-        if (!dd_rule_matches(rule_pattern, &span->property_resource, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
+        if (!dd_rule_matches(rule_pattern, resource, get_DD_TRACE_SAMPLING_RULES_FORMAT())) {
             return false;
         }
     }
@@ -127,7 +135,7 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
     }
 
     zval *rule;
-    if (!get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {  // APPSEC_STANDALONE enabled, override sampling rules to be empty
+    if (get_global_DD_APM_TRACING_ENABLED()) {
         ZEND_HASH_FOREACH_VAL(get_DD_TRACE_SAMPLING_RULES(), rule) {
             if (++index >= skip_at) {
                 break;
