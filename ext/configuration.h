@@ -114,7 +114,8 @@ enum ddtrace_sampling_rules_format {
            .env_config_fallback = ddtrace_conf_otel_service_name)                                              \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
     CONFIG(MAP, DD_TAGS, "",                                                                                   \
-           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags)                                  \
+           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags,                                  \
+           .parser = dd_parse_tags)                                                                             \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_APPEND_TRACE_IDS_TO_LOGS, "false")                                                   \

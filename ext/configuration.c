@@ -94,6 +94,68 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    
+    if (value.len == 0) {
+        array_init(decoded_value);
+        return true;
+    }
+
+    array_init(decoded_value);
+    
+    // Determine separator - prefer comma if present, otherwise use space
+    const char *sep = strchr(value.ptr, ',') ? "," : " ";
+    
+    char *str = strdup(value.ptr);
+    char *tag = strtok(str, sep);
+    
+    while (tag != NULL) {
+        // Strip whitespace from the entire tag first
+        while (*tag == ' ') tag++;
+        char *tag_end = tag + strlen(tag) - 1;
+        while (tag_end > tag && *tag_end == ' ') tag_end--;
+        *(tag_end + 1) = '\0';
+
+        // Skip empty tags
+        if (strlen(tag) == 0) {
+            tag = strtok(NULL, sep);
+            continue;
+        }
+
+        // Find first colon
+        char *colon = strchr(tag, ':');
+        char *key = tag;
+        char *val = "";
+        
+        if (colon) {
+            *colon = '\0';
+            val = colon + 1;
+        }
+
+        // Strip whitespace from key and value
+        while (*key == ' ') key++;
+        while (*val == ' ') val++;
+        
+        char *key_end = key + strlen(key) - 1;
+        char *val_end = val + strlen(val) - 1;
+        while (key_end > key && *key_end == ' ') key_end--;
+        while (val_end > val && *val_end == ' ') val_end--;
+        *(key_end + 1) = '\0';
+        *(val_end + 1) = '\0';
+
+        // Only add if key is not empty
+        if (strlen(key) > 0) {
+            add_assoc_string(decoded_value, key, val);
+        }
+
+        tag = strtok(NULL, sep);
+    }
+
+    free(str);
+    return true;
+}
+
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
     static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
         UNUSED(old_value, new_value); \
