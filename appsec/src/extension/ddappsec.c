@@ -232,6 +232,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     runtime_config_first_init = false;
 
     dd_tags_shutdown();
+    dd_request_abort_shutdown();
     dd_user_tracking_shutdown();
     dd_trace_shutdown();
     dd_helper_shutdown();
@@ -270,8 +271,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
-
-    dd_entity_body_rinit();
 
     dd_req_lifecycle_rinit(false);
 
@@ -366,8 +365,7 @@ static void _check_enabled()
     }
 
     if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
-        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text) ||
-        (strcmp(sapi_module.name, "frankenphp") == 0)) {
+        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;
         DDAPPSEC_G(to_be_configured) = false;

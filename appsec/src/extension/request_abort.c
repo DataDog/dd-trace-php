@@ -25,6 +25,10 @@
 #define HTML_CONTENT_TYPE "text/html"
 #define JSON_CONTENT_TYPE "application/json"
 
+#if PHP_VERSION_ID >= 80200
+#    define FRANKENPHP_SUPPORT 1
+#endif
+
 static const char static_error_html[] =
     "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta "
     "name=\"viewport\" "
@@ -75,12 +79,25 @@ static THREAD_LOCAL_ON_ZTS int _redirection_response_code =
     DEFAULT_REDIRECTION_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
 
+#ifdef FRANKENPHP_SUPPORT
+static typeof(zend_compile_file) _orig_zend_compile_file;
+static THREAD_LOCAL_ON_ZTS bool _zend_compile_next_noop;
+static THREAD_LOCAL_ON_ZTS char *_saved_prepend_file;
+static THREAD_LOCAL_ON_ZTS char *_saved_append_file;
+#endif
+
 static bool _abort_prelude(void);
 void _request_abort_static_page(int response_code, int type);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...);
 static zend_string *nonnull _get_json_blocking_template(void);
 static zend_string *nonnull _get_html_blocking_template(void);
+
+#ifdef FRANKENPHP_SUPPORT
+static zend_op_array *_req_init_block_zend_compile_file(
+    zend_file_handle *file_handle, int type);
+static void _prepare_req_init_block(void);
+#endif
 
 static zend_string *nullable _read_file_contents(const char *nonnull path)
 {
@@ -467,6 +484,14 @@ static void _emit_error(const char *format, ...)
             SG(request_info).request_method = NULL;
             return;
         }
+#ifdef FRANKENPHP_SUPPORT
+        if (strcmp(sapi_module.name, "frankenphp") == 0) {
+            php_verror(NULL, "", E_WARNING, format, args);
+            va_end(args);
+            _prepare_req_init_block();
+            return;
+        }
+#endif
 
         _run_rshutdowns();
     } else {
@@ -601,11 +626,29 @@ void dd_request_abort_startup()
     _content_type_json_zstr =
         zend_string_init_interned(ZEND_STRL(JSON_CONTENT_TYPE), 1);
 
+#ifdef FRANKENPHP_SUPPORT
+    if (strcmp(sapi_module.name, "frankenphp") == 0) {
+        // prepare a noop zend_compile_file for req init blocking in frankenphp
+        _orig_zend_compile_file = zend_compile_file;
+        zend_compile_file = _req_init_block_zend_compile_file;
+    }
+#endif
+
     if (!get_global_DD_APPSEC_TESTING()) {
         return;
     }
 
     dd_phpobj_reg_funcs(functions);
+}
+
+void dd_request_abort_shutdown()
+{
+#ifdef FRANKENPHP_SUPPORT
+    if (_orig_zend_compile_file) {
+        zend_compile_file = _orig_zend_compile_file;
+        _orig_zend_compile_file = NULL;
+    }
+#endif
 }
 
 static zend_string *nonnull _get_json_blocking_template()
@@ -652,3 +695,47 @@ static zend_string *nonnull _get_html_blocking_template()
 
     return _body_error_html_def;
 }
+
+#ifdef FRANKENPHP_SUPPORT
+static void _prepare_req_init_block()
+{
+    _zend_compile_next_noop = true;
+    _saved_prepend_file = PG(auto_prepend_file);
+    PG(auto_prepend_file) = NULL;
+    _saved_append_file = PG(auto_append_file);
+    PG(auto_append_file) = NULL;
+}
+
+static zend_op_array *_req_init_block_zend_compile_file(
+    zend_file_handle *file_handle, int type)
+{
+    if (!_zend_compile_next_noop) {
+        mlog_g(dd_log_trace,
+            "Passing through %.*s to original zend_compile_file (bool not set)",
+            (int)ZSTR_LEN(file_handle->filename),
+            ZSTR_VAL(file_handle->filename));
+        return _orig_zend_compile_file(file_handle, type);
+    }
+
+    _zend_compile_next_noop = false;
+    PG(auto_prepend_file) = _saved_prepend_file;
+    _saved_prepend_file = NULL;
+    PG(auto_append_file) = _saved_append_file;
+    _saved_append_file = NULL;
+
+    if (!file_handle->primary_script) {
+        mlog_g(dd_log_warning,
+            "Passing through %.*s to original zend_compile_file (not the "
+            "expected primary script)",
+            (int)ZSTR_LEN(file_handle->filename),
+            ZSTR_VAL(file_handle->filename));
+        return _orig_zend_compile_file(file_handle, type);
+    }
+
+    mlog_g(dd_log_info, "zend_compile_file noop for %.*s",
+        (int)ZSTR_LEN(file_handle->filename), ZSTR_VAL(file_handle->filename));
+
+    return zend_compile_string(
+        zend_empty_string, "<empty>", ZEND_COMPILE_POSITION_AFTER_OPEN_TAG);
+}
+#endif

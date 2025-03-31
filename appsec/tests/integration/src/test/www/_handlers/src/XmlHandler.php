@@ -3,15 +3,12 @@
 namespace App;
 
 use Nyholm\Psr7\Response;
-use Spiral\RoadRunner\Http\Request;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 class XmlHandler
 {
-    /**
-     * @param Request $req
-     * @return Response
-     */
-    public function handle($req): Response
+    public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $c = <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
@@ -24,6 +21,7 @@ XML;
         return new Response(
             200,
             ['Content-Type' => 'application/xml'],
-            $c);
+            $c
+        );
     }
 }

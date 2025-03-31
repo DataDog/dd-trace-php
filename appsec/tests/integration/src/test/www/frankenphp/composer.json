@@ -1,0 +1,17 @@
+{
+    "require": {
+        "nyholm/psr7": "^1.0",
+        "nyholm/psr7-server": "^1.0",
+        "psr/http-server-handler": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "scripts": {
+        "get-frankenphp": [
+            "bash -c \"if [[ ! -f frankenphp ]]; then curl -Lf \\\"https://github.com/dunglas/frankenphp/releases/download/v1.4.4/frankenphp-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)\\\" -o frankenphp && chmod +x frankenphp; fi\""
+        ]
+    }
+}

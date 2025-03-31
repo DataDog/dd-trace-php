@@ -1,0 +1,26 @@
+{
+    auto_https off
+    admin off
+    debug
+    frankenphp {
+        num_threads 2
+        max_threads 2
+        worker {
+            file /var/www/public/index.php
+            num 1
+            watch /var/www/public/index.php
+            watch /var/www/src/*.php
+        }
+    }
+}
+
+:80 {
+    root * /var/www/public
+    php_server
+	try_files {path} /var/www/public/index.php
+
+    log {
+        output file /tmp/logs/frankenphp.log
+        format json
+    }
+}

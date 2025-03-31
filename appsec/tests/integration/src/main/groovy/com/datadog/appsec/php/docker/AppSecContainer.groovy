@@ -26,6 +26,8 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.FrameConsumerResultCallback
 import org.testcontainers.containers.output.OutputFrame
 import org.testcontainers.containers.output.Slf4jLogConsumer
+import org.testcontainers.containers.wait.strategy.WaitStrategy
+import org.testcontainers.containers.wait.strategy.WaitStrategyTarget
 
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -44,6 +46,8 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     private String imageName
     private Slf4jLogConsumer logConsumer
     private File logsDir
+    private String wwwDir
+    private String wwwSrcDir
     public final HttpClient httpClient = HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.NEVER)
                     .connectTimeout(Duration.ofSeconds(5))
@@ -78,7 +82,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_ENV', 'integration'
         withEnv 'DD_TRACE_LOG_LEVEL', 'info,startup=off'
         withEnv 'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS', '0'
-        withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
+        withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '50' // in ms
         withEnv 'DD_TRACE_SIDECAR_TRACE_SENDER', '0'
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
@@ -292,10 +296,16 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         privilegedMode = true
 
-        String wwwDir ="src/test/www/${options.get('www', 'base')}"
+        this.wwwDir ="src/test/www/${options.get('www', 'base')}"
+        if (options['www_src']) {
+            this.wwwSrcDir = "src/test/www/${options['www_src']}"
+        }
 
         withFileSystemBind('../../..', '/project', BindMode.READ_ONLY)
         withFileSystemBind(wwwDir, '/test-resources', BindMode.READ_ONLY)
+        if (this.wwwSrcDir) {
+            withFileSystemBind(wwwSrcDir, '/test-resources-src', BindMode.READ_ONLY)
+        }
         withFileSystemBind('src/test/waf/recommended.json',
                 '/etc/recommended.json', BindMode.READ_ONLY)
         withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
@@ -318,13 +328,14 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         if (phpVersion in ['7.0', '7.1']) {
             composerFile = new File('build/composer-2.2.x.phar')
         } else {
-            composerFile = new File('build/composer-2.6.6.phar')
+            composerFile = new File('build/composer-2.8.6.phar')
         }
         withFileSystemBind(composerFile.absolutePath, '/usr/local/bin/composer', BindMode.READ_ONLY)
 
         this.logsDir = new File("build/test-logs/$workVolume-$phpVersion-$phpVariant")
 
-        if (new File(wwwDir, 'run.sh').exists()) {
+        if (new File(this.wwwDir, 'run.sh').exists()) {
+            noHttpWait()
             withCreateContainerCmdModifier { it.withEntrypoint('/bin/bash') }
             withCommand '-e', '-c', 'while [[ ! -f /var/www/run.sh ]]; do sleep 0.3; done; /var/www/run.sh'
         }
@@ -357,8 +368,13 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             throw new RuntimeException('failed creating directories: ' + res.stderr)
         }
 
+        String lowerdir = '/test-resources'
+        if (this.wwwSrcDir) {
+            lowerdir += ':/test-resources-src'
+        }
+
         res = execInContainer('mount', '-t', 'overlay', '-o',
-                'lowerdir=/test-resources,upperdir=/overlay/www_upperdir,workdir=/overlay/www_workdir',
+                "lowerdir=$lowerdir,upperdir=/overlay/www_upperdir,workdir=/overlay/www_workdir",
                 'overlay', '/var/www')
         if (res.exitCode != 0) {
             throw new RuntimeException('failed mounting overlay: ' + res.stderr)
@@ -372,6 +388,26 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             fi
         ''')
     }
+
+    private SELF noHttpWait() {
+        // starting the http server. Instead, there is a run.sh file.
+        // Because run.sh can only be run after the container is deemed
+        // ready, we need to not wait for http.
+        // This means http liveliness should be checked in beforeAll()
+        setWaitStrategy(new WaitStrategy() {
+            @Override
+            void waitUntilReady(WaitStrategyTarget waitStrategyTarget) {
+                // we're good. Allow run.sh to run
+            }
+
+            @Override
+            WaitStrategy withStartupTimeout(Duration startupTimeout) {
+                this
+            }
+        })
+        (SELF) this
+    }
+
 
     private void execInContainerWithOutput(String... cmd) {
         ExecCreateCmdResponse exec = dockerClient.execCreateCmd(containerId)

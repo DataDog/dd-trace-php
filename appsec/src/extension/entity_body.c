@@ -180,6 +180,9 @@ static zval _convert_json(char *nonnull entity, size_t entity_len)
         &zv, entity, entity_len, PHP_JSON_OBJECT_AS_ARRAY, MAX_DEPTH);
     if (Z_TYPE(zv) == IS_NULL) {
         mlog(dd_log_info, "Failed to parse JSON response body");
+        if (dd_log_level() >= dd_log_trace && entity_len < INT_MAX) {
+            mlog(dd_log_trace, "Contents were: %.*s", (int)entity_len, entity);
+        }
         zval_ptr_dtor(&zv);
     }
     return zv;

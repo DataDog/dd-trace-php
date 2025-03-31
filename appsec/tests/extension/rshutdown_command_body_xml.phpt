@@ -16,6 +16,9 @@ $helper = Helper::createInitedRun([
     response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
 
+rinit();
+$helper->get_commands(); // ignore
+
 header('content-type: application/xml');
 http_response_code(403);
 $xml = <<<XML
@@ -25,8 +28,6 @@ test<br/>baz
 </foo>
 XML;
 echo "$xml\n";
-var_dump(rinit());
-$helper->get_commands(); // ignore
 
 var_dump(rshutdown());
 $c = $helper->get_commands();
@@ -38,7 +39,6 @@ print_r($c[0][1][0]['server.response.body']);
 <foo attr="bar">
 test<br/>baz
 </foo>
-bool(true)
 bool(true)
 Array
 (

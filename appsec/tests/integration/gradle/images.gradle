@@ -161,8 +161,23 @@ tasks.register('buildAllNginxFpm') {
         dependsOn "buildNginxFpm-${spec[0]}-${spec[1]}"
     }
 }
+
+tasks.register('buildFrankenPHP-8.4-release-zts', Exec) {
+    String tag = "frankenphp-8.4-release-zts"
+    String image = "$repo:$tag"
+    description = "Build the image for FrankenPHP 8.4 zts"
+    inputs.dir 'src/docker/frankenphp'
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+    commandLine 'docker', 'build', '-t', "$repo:$tag", 'src/docker/frankenphp',
+            '-f', 'src/docker/frankenphp/Dockerfile'
+}
+
 task buildAll {
-    dependsOn 'buildAllPhp', 'buildAllApache2Mod', 'buildAllApache2Fpm', 'buildAllNginxFpm'
+    dependsOn 'buildAllPhp',
+            'buildAllApache2Mod',
+            'buildAllApache2Fpm',
+            'buildAllNginxFpm',
+            'buildFrankenPHP-8.4-zts'
 }
 
 def buildPushTask = { String tag, requirement ->

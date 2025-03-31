@@ -6,7 +6,6 @@ use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Normalizer;
 use function DDTrace\UserRequest\notify_commit;
 use function DDTrace\UserRequest\notify_start;
 use function DDTrace\UserRequest\set_blocking_function;
