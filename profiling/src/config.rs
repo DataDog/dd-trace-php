@@ -4,18 +4,21 @@ use crate::bindings::zai_config_type::*;
 use crate::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_get_memoized_config,
     zai_config_entry, zai_config_get_value, zai_config_minit, zai_config_name,
-    zai_config_system_ini_change, zend_long, zval, StringError, ZaiStr, IS_LONG,
-    ZAI_CONFIG_ENTRIES_COUNT_MAX,
+    zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string, zend_write, zval,
+    StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_ENTRIES_COUNT_MAX,
+    ZEND_INI_DISPLAY_ORIG,
 };
+use crate::zend::zai_str_from_zstr;
 use core::fmt::{Display, Formatter};
 use core::mem::{swap, transmute, MaybeUninit};
 use core::ptr;
 use core::str::FromStr;
 pub use datadog_profiling::exporter::Uri;
 use ddcommon::tag::{parse_tags, Tag};
-use libc::c_char;
+use libc::{c_char, c_int};
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
+use std::ffi::CString;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
@@ -752,6 +755,70 @@ unsafe extern "C" fn parse_level_filter(
     }
 }
 
+/// This function is used to parse the profiling enabled config value.
+/// It behaves similarlry to the "zai_config_decode_bool" but also accepts "auto" as true.
+unsafe extern "C" fn parse_profiling_enabled(
+    value: ZaiStr,
+    decoded_value: *mut zval,
+    _persistent: bool,
+) -> bool {
+    if value.is_empty() || decoded_value.is_null() {
+        return false;
+    }
+
+    let decoded_value = &mut *decoded_value;
+    match value.into_utf8() {
+        Ok(value) => {
+            if value == "1" || value == "on" || value == "yes" || value == "true" || value == "auto"
+            {
+                decoded_value.u1.type_info = IS_TRUE as u32;
+            } else {
+                decoded_value.u1.type_info = IS_FALSE as u32;
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Display the profiling enabled config value
+unsafe extern "C" fn display_profiling_enabled(ini_entry: *mut zend_ini_entry, type_: c_int) {
+    let tmp_value: *mut zend_string =
+        if type_ as u32 == ZEND_INI_DISPLAY_ORIG && (*ini_entry).modified != 0 {
+            if !(*ini_entry).orig_value.is_null() {
+                (*ini_entry).orig_value
+            } else {
+                ptr::null_mut()
+            }
+        } else if !(*ini_entry).value.is_null() {
+            (*ini_entry).value
+        } else {
+            ptr::null_mut()
+        };
+
+    let mut value: bool = false;
+    if !tmp_value.is_null() {
+        let str_val = zai_str_from_zstr(tmp_value.as_mut()).into_string();
+        value = if str_val.eq_ignore_ascii_case("true")
+            || str_val.eq_ignore_ascii_case("yes")
+            || str_val.eq_ignore_ascii_case("on")
+            || str_val.eq_ignore_ascii_case("auto")
+        {
+            true
+        } else {
+            let str_val = zai_str_from_zstr(tmp_value.as_mut()).into_string();
+            str_val.parse::<i32>().unwrap_or(0) != 0
+        }
+    }
+
+    unsafe {
+        if let Some(write_fn) = zend_write {
+            let msg = CString::new(if value { "On" } else { "Off" }).unwrap();
+            write_fn(msg.as_ptr(), msg.to_bytes().len());
+        }
+    }
+}
+
 unsafe extern "C" fn parse_utf8_string(
     value: ZaiStr,
     decoded_value: *mut zval,
@@ -810,12 +877,13 @@ pub(crate) fn minit(module_number: libc::c_int) {
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingEnabled),
                     name: ProfilingEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    type_: ZAI_CONFIG_TYPE_CUSTOM,
                     default_encoded_value: ZaiStr::literal(b"1\0"),
                     aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
+                    parser: Some(parse_profiling_enabled),
+                    displayer: Some(display_profiling_enabled),
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -827,6 +895,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -838,6 +907,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -849,6 +919,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: CPU_TIME_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -860,6 +931,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: ALLOCATION_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -871,6 +943,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: TIMELINE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -882,6 +955,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: EXCEPTION_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -893,6 +967,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -904,6 +979,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: EXCEPTION_SAMPLING_DISTANCE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_exception_sampling_distance_filter),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -915,6 +991,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -926,6 +1003,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_level_filter),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -937,6 +1015,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 // At the moment, wall-time cannot be fully disabled. This only
@@ -951,6 +1030,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -962,6 +1042,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -973,6 +1054,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -984,6 +1066,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -999,6 +1082,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: None,
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -1010,6 +1094,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -1021,6 +1106,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
                 zai_config_entry {
@@ -1032,6 +1118,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: None,
                     parser: Some(parse_utf8_string),
+                    displayer: None,
                     env_config_fallback: None,
                 },
             ]

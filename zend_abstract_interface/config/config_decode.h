@@ -20,6 +20,7 @@ typedef enum {
 } zai_config_type;
 
 typedef bool (*zai_custom_parse)(zai_str value, zval *decoded_value, bool persistent);
+typedef void (*zai_custom_display)(zend_ini_entry *ini_entry, int type);
 
 bool zai_config_decode_value(zai_str value, zai_config_type type, zai_custom_parse custom_parser, zval *decoded_value, bool persistent);
 
