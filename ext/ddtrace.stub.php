@@ -72,13 +72,13 @@ namespace DDTrace {
     class SpanLink implements \JsonSerializable {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
-         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLink() method instead.
          */
         public string $traceId;
 
         /**
          * @var string $spanId A 16-character, lower-case hexadecimal encoded string of the linked span ID. This field
-         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLink() method instead.
          */
         public string $spanId;
 
@@ -574,6 +574,18 @@ namespace DDTrace {
      * @return RootSpanData The newly created root span
      */
     function start_trace_span(float $startTime = 0): RootSpanData {}
+
+
+    /**
+     * Attempts to drop a span without breaking the trace.
+     * No metrics will be collected for that span, if successfully dropped.
+     * This means, the span is not dropped if any of the following were true before calling this function:
+     *  - the span has a non-dropped child span
+     *  - generate_distributed_tracing_headers() was called while this span was active
+     *  - a span link to this span was generated
+     * @return bool Whether the span was successfully dropped.
+     */
+    function try_drop_span(SpanData $span): bool {}
 
     /**
      * Get the active stack
