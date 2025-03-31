@@ -70,7 +70,12 @@ void ddtrace_dogstatsd_client_rinit(void) {
             host = url;
             port = NULL;
         } else {
-            host = ZSTR_VAL(get_DD_AGENT_HOST());
+            zend_string *dogstatsd_host = get_DD_DOGSTATSD_HOST();
+            if (ZSTR_LEN(dogstatsd_host) > 0) {
+                host = ZSTR_VAL(dogstatsd_host);
+            } else {
+                host = ZSTR_VAL(get_DD_AGENT_HOST());
+            }
             port = ZSTR_VAL(get_DD_DOGSTATSD_PORT());
 
             if (!*host) {

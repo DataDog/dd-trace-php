@@ -102,6 +102,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(STRING, DD_AGENT_HOST, "", .ini_change = zai_config_system_ini_change)                              \
     CONFIG(STRING, DD_DOGSTATSD_URL, "")                                                                       \
+    CONFIG(STRING, DD_DOGSTATSD_HOST, "")                                                                      \
     CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change)                                 \
     CONFIG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                               \
     CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                  \
