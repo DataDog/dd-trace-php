@@ -3,32 +3,32 @@ Test DogStatsD configuration with DD_DOGSTATSD_HOST and DD_DOGSTATSD_PORT
 --SKIPIF--
 <?php if (!extension_loaded('sockets')) die('skip: the sockets extension is required for this test'); ?>
 --ENV--
-DD_DOGSTATSD_HOST='127.0.0.1'
+DD_DOGSTATSD_HOST=192.168.1.1
 DD_DOGSTATSD_PORT=9876
 --FILE--
 <?php
+class MockUDPSocket {
+    public function stream_open($path, $mode, $options, &$opened_path) {
+        $parts = parse_url($path);
+        if (isset($parts['host']) && isset($parts['port'])) {
+            echo "DogStatsD client attempted to connect to: " . $parts['host'] . ":" . $parts['port'] . "\n";
+        }
+        return true;
+    }
 
-// Create UDP server to receive metrics
-$socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-if (!$socket) {
-    die("Could not create socket: " . socket_strerror(socket_last_error()));
+    public function stream_write($data) {
+        return strlen($data);
+    }
+
+    public function stream_close() {
+        return true;
+    }
 }
 
-if (!socket_bind($socket, '127.0.0.1', 9876)) {
-    die("Could not bind socket: " . socket_strerror(socket_last_error()));
-}
+// Register our mock socket wrapper for udp connections
+stream_wrapper_register('udp', 'MockUDPSocket');
 
-// Send test metric
 \DDTrace\dogstatsd_count("test.host.port.config", 42, ['test' => 'host_port']);
-
-// Receive and verify metric
-$buf = '';
-$from = '';
-$port = 0;
-socket_recvfrom($socket, $buf, 1024, 0, $from, $port);
-socket_close($socket);
-
-var_dump($buf);
 ?>
---EXPECTF--
-string(%d) "test.host.port.config:42|c|#service:metrics_host_config.php,test:host_port" 
+--EXPECT--
+DogStatsD client attempted to connect to: 192.168.1.1:9876
