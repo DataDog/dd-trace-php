@@ -46,7 +46,7 @@ extern bool runtime_config_first_init;
     SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                                                     \
     CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/libddappsec-helper.so"))                                                       \
     SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \
-    SYSCFG(BOOL, DD_APPSEC_RASP_ENABLED , "false")                                                                                    \
+    SYSCFG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                                                     \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32")                                                                                \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACES, "2")                                                                                      \
     CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)                                    \
@@ -68,7 +68,7 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED, "true")                                                            \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML, "")                                                                          \
     CONFIG(STRING, DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON, "")                                                                          \
-    CONFIG(BOOL, DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED, "false")                                                                  \
+    CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                                                      \
     CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)                                         \
     CONFIG(DOUBLE, DD_API_SECURITY_SAMPLE_DELAY, "30.0", .ini_change = zai_config_system_ini_change)                                  \
 // clang-format on

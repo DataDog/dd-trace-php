@@ -3,14 +3,13 @@ Sample rate is not changed to 0 after first call during a minute when STANDALONE
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
-DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=0
-DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED=1
+DD_APM_TRACING_ENABLED=0
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_samplingb
 --FILE--
@@ -46,10 +45,6 @@ echo "This call also has the same sample rate: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 First call it is used as heartbeat: 1
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 This call has the same sample rate: 2
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
 This call also has the same sample rate: 2
-[ddtrace] [info] No finished traces to be sent to the agent

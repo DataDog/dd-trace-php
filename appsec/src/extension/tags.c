@@ -416,9 +416,8 @@ void dd_tags_add_tags(
     if (_force_keep) {
         dd_trace_set_priority_sampling_on_span_zobj(span,
             PRIORITY_SAMPLING_USER_KEEP,
-            get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()
-                ? DD_MECHANISM_ASM
-                : DD_MECHANISM_MANUAL);
+            get_DD_APM_TRACING_ENABLED() ? DD_MECHANISM_MANUAL
+                                         : DD_MECHANISM_ASM);
         mlog(dd_log_debug, "Updated sampling priority to user_keep");
     }
 
