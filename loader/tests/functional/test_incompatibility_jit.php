@@ -64,6 +64,7 @@ opcache_enabled: YES
 jit.enabled: YES
 jit.on: YES
 jit.buffer_size: 33554416
+[ddtrace] [warning] Notifying profiler of finished local root span.
 [ddtrace] [span] Encoding span
 EOT
 ],
