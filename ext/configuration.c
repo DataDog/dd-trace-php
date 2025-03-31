@@ -147,7 +147,8 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 
         // Only add if key is non-empty (value can be empty)
         if (key_len > 0) {
-            zend_string *val = zend_string_init(val_start, val_len, 0);
+            zval val;
+            ZVAL_STR(&val, zend_string_init(val_start, val_len, 0));
             zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
         }
 
