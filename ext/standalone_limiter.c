@@ -43,7 +43,7 @@ void ddtrace_standalone_limiter_create() {
 static bool tick() {
     ZEND_ASSERT(dd_limiter);
 
-    uint64_t timeval = zend_hrtime() / 60000000000;
+    uint64_t timeval = zend_hrtime() / 30000000000;
     uint64_t old_time = atomic_exchange(&dd_limiter->window.last_hit, timeval);
 
     return timeval != old_time;
