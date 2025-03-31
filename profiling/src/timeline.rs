@@ -133,13 +133,6 @@ create_sleeping_fn!(
     State::Sleeping
 );
 
-// Idle functions: these are functions which are like RSHUTDOWN -> RINIT
-create_sleeping_fn!(
-    ddog_php_prof_frankenphp_handle_request,
-    FRANKENPHP_HANDLE_REQUEST_HANDLER,
-    State::Idle
-);
-
 // Functions that are blocking on I/O
 create_sleeping_fn!(
     ddog_php_prof_stream_select,
@@ -313,11 +306,6 @@ pub unsafe fn timeline_startup() {
             cstr!("time_sleep_until"),
             ptr::addr_of_mut!(TIME_SLEEP_UNTIL_HANDLER),
             Some(ddog_php_prof_time_sleep_until),
-        ),
-        zend::datadog_php_zif_handler::new(
-            cstr!("frankenphp_handle_request"),
-            ptr::addr_of_mut!(FRANKENPHP_HANDLE_REQUEST_HANDLER),
-            Some(ddog_php_prof_frankenphp_handle_request),
         ),
         zend::datadog_php_zif_handler::new(
             cstr!("stream_select"),
