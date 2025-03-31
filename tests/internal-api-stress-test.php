@@ -121,7 +121,7 @@ $minFunctionArgs = [];
 function call_function(ReflectionFunction $function)
 {
     global $minFunctionArgs;
-    print "Executing: {$function->name}\n";
+    print date('Y-m-d H:i:s') . " Executing: {$function->name}\n";
 
     $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : ($minFunctionArgs[$function->name] ?? 0);
     $invocations = $i == 0 ? [[]] : [];
