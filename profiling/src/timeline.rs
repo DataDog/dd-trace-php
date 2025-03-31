@@ -1,9 +1,10 @@
-use crate::profiling::Profiler;
+use crate::profiling::{extract_function_name, Profiler};
+use crate::sapi::Sapi;
 use crate::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
 };
-use crate::REQUEST_LOCALS;
+use crate::{REQUEST_LOCALS, SAPI};
 use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
@@ -23,6 +24,9 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
+
+static mut PREV_FRANKEN_PHP_SAPI_ACTIVATE: Option<unsafe extern "C" fn() -> i32> = None;
+static mut PREV_FRANKEN_PHP_SAPI_DEACTIVATE: Option<unsafe extern "C" fn() -> i32> = None;
 
 /// The engine's original (or neighbouring extensions) `zend_accel_schedule_restart_hook()`
 /// function
@@ -58,6 +62,78 @@ impl State {
             State::ThreadStop => "thread stop",
         }
     }
+}
+
+unsafe fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool {
+    let Some(execute_data) = execute_data.as_ref() else {
+        return false;
+    };
+    let Some(func) = execute_data.func.as_ref() else {
+        return false;
+    };
+    let func = extract_function_name(func);
+    let Some(func) = func else {
+        return false;
+    };
+    if func == "frankenphp|frankenphp_handle_request" {
+        return true;
+    }
+    false
+}
+
+unsafe extern "C" fn frankenphp_sapi_module_activate() -> i32 {
+    if is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data()) {
+        IDLE_SINCE.with(|cell| {
+            // try to borrow and bail out if not successful
+            let Ok(idle_since) = cell.try_borrow() else {
+                return;
+            };
+
+            REQUEST_LOCALS.with(|cell| {
+                let is_timeline_enabled = cell
+                    .try_borrow()
+                    .map(|locals| locals.system_settings().profiling_timeline_enabled)
+                    .unwrap_or(false);
+
+                if !is_timeline_enabled {
+                    return;
+                }
+
+                if let Some(profiler) = Profiler::get() {
+                    profiler.collect_idle(
+                        // Safety: checked for `is_err()` above
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_nanos() as i64,
+                        idle_since.elapsed().as_nanos() as i64,
+                        "idle",
+                    );
+                }
+            });
+        });
+    }
+    if let Some(activate) = PREV_FRANKEN_PHP_SAPI_ACTIVATE {
+        return activate();
+    }
+
+    0
+}
+unsafe extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
+    if is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data()) {
+        IDLE_SINCE.with(|cell| {
+            // try to borrow and bail out if not successful
+            let Ok(mut idle_since) = cell.try_borrow_mut() else {
+                return;
+            };
+            *idle_since = Instant::now();
+        })
+    }
+
+    if let Some(deactivate) = PREV_FRANKEN_PHP_SAPI_DEACTIVATE {
+        return deactivate();
+    }
+    0
 }
 
 fn sleeping_fn(
@@ -280,6 +356,13 @@ pub fn timeline_minit() {
         // register our function in the `zend_compile_string` pointer
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
+
+        if *SAPI == Sapi::FrankenPHP {
+            PREV_FRANKEN_PHP_SAPI_ACTIVATE = zend::sapi_module.activate;
+            PREV_FRANKEN_PHP_SAPI_DEACTIVATE = zend::sapi_module.deactivate;
+            zend::sapi_module.activate = Some(frankenphp_sapi_module_activate);
+            zend::sapi_module.deactivate = Some(frankenphp_sapi_module_deactivate);
+        }
     }
 }
 
