@@ -1295,6 +1295,8 @@ test_integrations_filesystem: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Filesystem)
 test_integrations_curl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Curl)
+test_integrations_discordphp: global_test_run_dependencies tests/Integrations/DiscordPHP/V10/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/DiscordPHP/V10)
 test_integrations_elasticsearch1: global_test_run_dependencies tests/Integrations/Elasticsearch/V1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V1)
 test_integrations_elasticsearch7: global_test_run_dependencies tests/Integrations/Elasticsearch/V7/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1361,6 +1363,8 @@ test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Road
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
 test_integrations_ratchet: global_test_run_dependencies tests/Integrations/Ratchet/V0_4/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Ratchet/V0_4)
+test_integrations_reactpromise: global_test_run_dependencies tests/Integrations/ReactPromise/V1/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/ReactPromise/V1)
 test_integrations_googlespanner_latest: global_test_run_dependencies tests/Integrations/GoogleSpanner/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(eval TEST_EXTRA_ENV=ZEND_DONT_UNLOAD_MODULES=1)
 	$(eval TEST_EXTRA_INI=-d extension=grpc.so)

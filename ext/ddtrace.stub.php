@@ -222,6 +222,12 @@ namespace DDTrace {
         public array $onClose = [];
 
         /**
+         * @var array In OpenTelemetry, Baggage is contextual information that resides next to context.
+         * Baggage is a key-value store, which means it lets you propagate any data you like alongside context regardless of trace ids existence.
+         */
+        public array $baggage = [];
+
+        /**
          * @return int Get the current span duration, in nanoseconds
          */
         public function getDuration(): int {}
@@ -242,10 +248,9 @@ namespace DDTrace {
         public function hexId(): string {}
 
         /**
-         * @var array In OpenTelemetry, Baggage is contextual information that resides next to context.
-         * Baggage is a key-value store, which means it lets you propagate any data you like alongside context regardless of trace ids existence.
+         * @return RootSpanData the root span which would be reached by iterating parent until it's null
          */
-        public array $baggage = [];
+        public function root(): RootSpanData {}
     }
 
     class InferredSpanData extends SpanData {}

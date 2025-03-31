@@ -52,6 +52,9 @@ namespace DDTrace\Tests {
 }
 
 namespace {
+
+    use DDTrace\HookData;
+
     $phpunitVersionParts = class_exists('\PHPUnit\Runner\Version')
         ? explode('.', \PHPUnit\Runner\Version::id())
         : explode('.', PHPUnit_Runner_Version::id());
@@ -120,4 +123,12 @@ namespace {
     } else {
         \DDTrace\hook_method('PHPUnit\Runner\TestSuiteLoader', 'load', $hook);
     }
+
+    \DDTrace\install_hook('SebastianBergmann\FileIterator\Facade::getFilesAsArray', null, function (HookData $hook) {
+        $files = $hook->returned;
+        $files = array_filter($files, function ($file) {
+            return !strpos($file, 'vendor');
+        });
+        $hook->overrideReturnValue($files);
+    });
 }

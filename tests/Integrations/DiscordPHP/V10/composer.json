@@ -1,0 +1,5 @@
+{
+    "require": {
+        "team-reflex/discord-php": "^10"
+    }
+}

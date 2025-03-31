@@ -1255,6 +1255,14 @@ PHP_METHOD(DDTrace_SpanData, hexId) {
     RETURN_STR(ddtrace_span_id_as_hex_string(span->span_id));
 }
 
+PHP_METHOD(DDTrace_SpanData, root) {
+    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(ZEND_THIS));
+    if (span->root) {
+        RETURN_OBJ_COPY(&span->root->std);
+    }
+    object_init_ex(return_value, ddtrace_ce_root_span_data);
+}
+
 static void dd_register_span_data_ce(void) {
     ddtrace_ce_span_data = register_class_DDTrace_SpanData();
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;

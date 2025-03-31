@@ -17,6 +17,7 @@
     INTEGRATION(CODEIGNITER, "codeigniter")                                                                              \
     INTEGRATION(EXEC, "exec")                                                                                            \
     INTEGRATION(CURL, "curl")                                                                                            \
+    INTEGRATION(DISCORDPHP, "discordphp")                                                                                \
     INTEGRATION(DRUPAL, "drupal")                                                                                        \
     INTEGRATION(ELASTICSEARCH, "elasticsearch")                                                                          \
     INTEGRATION(ELOQUENT, "eloquent")                                                                                    \
@@ -43,7 +44,8 @@
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \
-    INTEGRATION(RATCHET, "ratchet")                                                                                       \
+    INTEGRATION(RATCHET, "ratchet")                                                                                      \
+    INTEGRATION(REACTPROMISE, "reactpromise")                                                                            \
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \
