@@ -10,12 +10,14 @@
 #include "ddtrace.h"
 #include "ddtrace_export.h"
 #include "priority_sampling/priority_sampling.h"
+#include "inferred_proxy_headers.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
 #define DDTRACE_SPAN_FLAG_OPENTELEMETRY (1 << 0)
 #define DDTRACE_SPAN_FLAG_OPENTRACING (1 << 1)
+#define DDTRACE_SPAN_FLAG_NOT_DROPPABLE (1 << 2)
 
 struct ddtrace_span_stack;
 
@@ -23,6 +25,7 @@ enum ddtrace_span_dataype {
     DDTRACE_INTERNAL_SPAN,
     DDTRACE_USER_SPAN,
     DDTRACE_AUTOROOT_SPAN,
+    DDTRACE_INFERRED_SPAN,
     DDTRACE_SPAN_CLOSED,
 };
 
@@ -86,6 +89,7 @@ struct ddtrace_span_data {
     uint8_t flags;
     enum ddtrace_span_dataype type : 8;
     bool notify_user_req_end;
+    uint32_t active_child_spans;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
 
@@ -101,6 +105,17 @@ static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
 
 static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
     return OBJ_SPANDATA(&obj->std);
+}
+
+struct ddtrace_inferred_span_data {
+    union {
+        ddtrace_span_data;
+        ddtrace_span_data span;
+    };
+};
+
+static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
+    return (ddtrace_inferred_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_inferred_span_data, std));
 }
 
 struct ddtrace_root_span_data {
@@ -124,6 +139,7 @@ struct ddtrace_root_span_data {
     zval property_parent_id;
     zval property_trace_id;
     zval property_git_metadata;
+    zval property_inferred_span;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
@@ -210,7 +226,9 @@ void ddtrace_free_span_stacks(bool silent);
 void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack);
 
 ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type);
+ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_result *result, ddtrace_root_span_data *root);
 void ddtrace_observe_opened_span(ddtrace_span_data *span);
+
 ddtrace_span_data *ddtrace_init_dummy_span(void);
 ddtrace_span_stack *ddtrace_init_span_stack(void);
 ddtrace_span_stack *ddtrace_init_root_span_stack(void);
@@ -256,6 +274,14 @@ static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
 static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
     // The parent stack of a true top-level stack does never have a parent stack itself
     return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
+}
+
+static inline ddtrace_span_data *ddtrace_get_inferred_span(ddtrace_root_span_data *root) {
+    zval *inferred_span_zv = &root->property_inferred_span;
+    if (Z_TYPE_P(inferred_span_zv) == IS_OBJECT && Z_OBJCE_P(inferred_span_zv) == ddtrace_ce_inferred_span_data) {
+        return OBJ_SPANDATA(Z_OBJ_P(inferred_span_zv));
+    }
+    return NULL;
 }
 
 #endif  // DD_SPAN_H

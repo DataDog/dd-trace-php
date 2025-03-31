@@ -1378,6 +1378,7 @@ typedef struct ddog_CString {
 typedef struct ddog_LibraryConfig {
   enum ddog_LibraryConfigName name;
   struct ddog_CString value;
+  enum ddog_LibraryConfigSource source;
 } ddog_LibraryConfig;
 
 /**

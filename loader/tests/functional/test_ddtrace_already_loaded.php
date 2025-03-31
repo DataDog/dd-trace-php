@@ -27,7 +27,7 @@ assertContains($output, 'with dd_library_loader v');
 // Let time to the fork to write the telemetry log
 usleep(5000);
 
-$format = <<<EOS
+$metrics = [<<<EOS
 {
     "metadata": {
         "runtime_name": "php",
@@ -41,10 +41,40 @@ $format = <<<EOS
         {
             "name": "library_entrypoint.abort",
             "tags": [
-                "reason:already_loaded"
+                "reason:already_loaded",
+                "product:ddtrace"
             ]
         }
     ]
 }
+EOS
+];
+
+if ('7.0' === php_minor_version()) {
+    $metrics[] = <<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
+        "runtime_version": "%d.%d.%d%S",
+        "language_name": "php",
+        "language_version": "%d.%d.%d%S",
+        "tracer_version": "%s",
+        "pid": %d
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.abort",
+            "tags": [
+                "reason:incompatible_runtime",
+                "product:datadog-profiling"
+            ]
+        },
+        {
+            "name": "library_entrypoint.abort.runtime"
+        }
+    ]
+}
 EOS;
-assertTelemetry($telemetryLogPath, $format);
+}
+
+assertTelemetry($telemetryLogPath, $metrics);

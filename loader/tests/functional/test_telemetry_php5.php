@@ -27,7 +27,8 @@ $format = <<<EOS
         {
             "name": "library_entrypoint.abort",
             "tags": [
-                "reason:eol_runtime"
+                "reason:eol_runtime",
+                "product:NA"
             ]
         },
         {
