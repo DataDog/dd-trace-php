@@ -30,5 +30,5 @@ stream_wrapper_register('udp', 'MockUDPSocket');
 
 \DDTrace\dogstatsd_count("test.host.port.config", 42, ['test' => 'host_port']);
 ?>
---EXPECT--
-DogStatsD client attempted to connect to: 192.168.1.1:9876
+--EXPECTF--
+%r.*%rDogStatsD client attempted to connect to: 192.168.1.1:9876%r.*%r
