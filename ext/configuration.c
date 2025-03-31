@@ -102,9 +102,9 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 
     array_init(decoded_value);
     
-    char *str = value.ptr;
-    char *end = str + value.len;
-    char *current = str;
+    const char *str = value.ptr;
+    const char *end = str + value.len;
+    const char *current = str;
 
     // Determine separator - prefer comma if present, otherwise use space
     const char *sep = memchr(str, ',', value.len) ? "," : " ";
@@ -122,24 +122,24 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
             continue;
         }
 
-        char *tag_end = current + tag_len;
-        char *colon = memchr(current, ':', tag_len);
+        const char *tag_end = current + tag_len;
+        const char *colon = memchr(current, ':', tag_len);
         if (!colon) {
             current = tag_end + sep_len;
             continue;
         }
 
         // Strip whitespace from key
-        char *key_start = current;
+        const char *key_start = current;
         while (key_start < colon && *key_start == ' ') key_start++;
-        char *key_end = colon - 1;
+        const char *key_end = colon - 1;
         while (key_end > key_start && *key_end == ' ') key_end--;
         size_t key_len = key_end - key_start + 1;
 
         // Strip whitespace from value
-        char *val_start = colon + 1;
+        const char *val_start = colon + 1;
         while (val_start < tag_end && *val_start == ' ') val_start++;
-        char *val_end = tag_end - 1;
+        const char *val_end = tag_end - 1;
         while (val_end > val_start && *val_end == ' ') val_end--;
         size_t val_len = val_end - val_start + 1;
 
