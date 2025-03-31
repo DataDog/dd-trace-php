@@ -181,7 +181,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                          \
-    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "false")                                            \
+    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "true")                                            \
     CONFIG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_CONNECT_TIMEOUT_VAL),                 \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
