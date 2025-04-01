@@ -346,9 +346,14 @@ pub fn timeline_minit() {
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
 
-        // To detect idle phases in FrankenPHP in worker mode, we need to hook the
-        // `sapi_module.activate` / `sapi_module.deactivate`, as FrankenPHP worker request shutdown
-        // / startup will call these functions.
+        // To detect idle phases in FrankenPHP's worker mode, we hook the `sapi_module.activate` /
+        // `sapi_module.deactivate` function pointers, as FrankenPHP's worker call those via the
+        // `sapi_activate()` / `sapi_deactivate()` function calls from
+        // `frankenphp_worker_request_startup` / `frankenphp_worker_request_shutdown`. There is no
+        // special handling for the first idle phase needed, as FrankenPHP will initiate a dummy
+        // request upon startup of a FrankenPHP worker and run to the first
+        // `frankenphp_handle_request()` PHP function from which onward we'll collect the first idle
+        // phase.
         if *SAPI == Sapi::FrankenPHP {
             PREV_FRANKEN_PHP_SAPI_ACTIVATE = zend::sapi_module.activate;
             PREV_FRANKEN_PHP_SAPI_DEACTIVATE = zend::sapi_module.deactivate;
