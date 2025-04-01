@@ -9,9 +9,13 @@ use crate::{PROFILER_NAME, REQUEST_LOCALS};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
-use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst};
+
+#[cfg(php_zts)]
+use std::cell::UnsafeCell;
+#[cfg(not(php_zts))]
+use std::ptr::addr_of_mut;
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
@@ -48,6 +52,7 @@ struct ZendMMState {
     free: unsafe fn(*mut c_void),
 }
 
+#[cfg(php_zts)]
 thread_local! {
     /// Using an `UnsafeCell` here should be okay. There might not be any
     /// synchronisation issues, as it is used in as thread local and only
@@ -65,13 +70,34 @@ thread_local! {
         })
     };
 }
+#[cfg(not(php_zts))]
+static mut ZEND_MM_STATE: ZendMMState = {
+    ZendMMState {
+        heap: None,
+        prev_custom_mm_alloc: None,
+        prev_custom_mm_realloc: None,
+        prev_custom_mm_free: None,
+        prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
+        alloc: alloc_prof_orig_alloc,
+        realloc: alloc_prof_orig_realloc,
+        free: alloc_prof_orig_free,
+    }
+};
 
+#[cfg(php_zts)]
 macro_rules! tls_zend_mm_state {
     ($x:ident) => {
         ZEND_MM_STATE.with(|cell| {
             let zend_mm_state = cell.get();
             (*zend_mm_state).$x
         })
+    };
+}
+
+#[cfg(not(php_zts))]
+macro_rules! tls_zend_mm_state {
+    ($x:ident) => {
+        ZEND_MM_STATE.$x
     };
 }
 
@@ -104,9 +130,7 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
 }
 
 pub fn alloc_prof_rinit() {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-
+    let zend_mm_state_init = |zend_mm_state: *mut ZendMMState| {
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
         let heap = unsafe { zend::zend_mm_get_heap() };
 
@@ -155,7 +179,18 @@ pub fn alloc_prof_rinit() {
                 Some(alloc_prof_realloc),
             );
         }
+    };
+
+    #[cfg(php_zts)]
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        zend_mm_state_init(zend_mm_state);
     });
+
+    #[cfg(not(php_zts))]
+    unsafe {
+        zend_mm_state_init(addr_of_mut!(ZEND_MM_STATE));
+    }
 
     // `is_zend_mm()` should be false now, as we installed our custom handlers
     if is_zend_mm() {
@@ -175,15 +210,14 @@ pub fn alloc_prof_rshutdown() {
         return;
     }
 
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let zend_mm_state_shutdown = |zend_mm_state: *mut ZendMMState| {
         let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
         let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
         let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
 
         // SAFETY: UnsafeCell::get() ensures non-null, and the object should
         // be valid for reads during rshutdown.
-        let Some(heap) =  (unsafe { (*zend_mm_state).heap }) else {
+        let Some(heap) = (unsafe { (*zend_mm_state).heap }) else {
             // The heap can be None if a fork happens outside the request.
             return;
         };
@@ -228,7 +262,18 @@ pub fn alloc_prof_rshutdown() {
             trace!("Memory allocation profiling shutdown gracefully.");
         }
         unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(None) };
+    };
+
+    #[cfg(php_zts)]
+    ZEND_MM_STATE.with(|cell| {
+        let zend_mm_state = cell.get();
+        zend_mm_state_shutdown(zend_mm_state);
     });
+
+    #[cfg(not(php_zts))]
+    unsafe {
+        zend_mm_state_shutdown(addr_of_mut!(ZEND_MM_STATE));
+    }
 }
 
 pub fn alloc_prof_startup() {
