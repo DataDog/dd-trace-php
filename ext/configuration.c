@@ -94,11 +94,51 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
-static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
-    ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
-    zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
+// Helper function to strip whitespace from both ends of a string
+static void dd_strip_whitespace(const char **str, size_t *len) {
+    if (!str || !*str || !len) {
+        return;
+    }
 
-    if (value.len == 0) {
+    // Skip leading whitespace
+    while (*len > 0 && **str == ' ') {
+        (*str)++;
+        (*len)--;
+    }
+
+    // Skip trailing whitespace
+    while (*len > 0 && (*str)[*len - 1] == ' ') {
+        (*len)--;
+    }
+}
+
+/**
+ * Parse a string of tags into an associative array.
+ * Format: "key1:value1,key2:value2" or "key1:value1 key2:value2"
+ * 
+ * Rules:
+ * 1. Separator is determined by first occurrence:
+ *    - If comma found, use comma as separator for all tags
+ *    - Otherwise, use space as separator for all tags
+ * 2. Each tag is split on first colon only
+ * 3. Tags without colons use whole string as key with empty value
+ * 4. Empty tags are skipped
+ * 5. Tags with empty keys are skipped
+ * 6. Whitespace is stripped from all keys and values
+ * 
+ * Examples:
+ * - "key1:value1 key2:value2" -> ["key1" => "value1", "key2" => "value2"]
+ * - "key1:value1,key2:value2" -> ["key1" => "value1", "key2" => "value2"]
+ * - "key1:value1, key2" -> ["key1" => "value1", "key2" => ""]
+ * - "key1:value1:value2" -> ["key1" => "value1:value2"]
+ * - "key1" -> ["key1" => ""]
+ * - "key1: key2: :" -> ["key1" => "", key2" => ""]
+ * 
+ */
+bool dd_parse_tags(zval *decoded_value, zai_str value, bool persistent) {
+    // Handle empty input
+    if (!value.ptr || value.len == 0) {
+        array_init(decoded_value);
         return true;
     }
 
@@ -107,50 +147,62 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     const char *current = str;
 
     // Determine separator - prefer comma if present, otherwise use space
+    // This separator will be used for all tags in the string
     const char *sep = memchr(str, ',', value.len) ? "," : " ";
-    size_t sep_len = strlen(sep);
 
     while (current < end) {
-        // Skip leading whitespace
+        // Skip leading whitespace before each tag
         while (current < end && *current == ' ') current++;
         if (current >= end) break;
 
-        // Find next separator
+        // Find next separator (comma or space)
+        // This gives us the length of the current tag
         size_t tag_len = strcspn(current, sep);
-        if (tag_len == 0) {
-            current += sep_len;
-            continue;
-        }
-
         const char *tag_end = current + tag_len;
-        const char *colon = memchr(current, ':', tag_len);
-        if (!colon) {
-            current = tag_end + sep_len;
+
+        // Skip empty segments (e.g., consecutive separators)
+        if (tag_len == 0) {
+            current += 1;
             continue;
         }
 
-        // Strip whitespace from key
+        // Strip whitespace from tag
+        dd_strip_whitespace(&current, &tag_len);
+
+        // Skip if tag is empty after stripping
+        if (tag_len == 0) {
+            current = tag_end + 1;
+            continue;
+        }
+
+        // Find first colon in tag
+        // This ensures we only split on the first colon
+        // If no colon found, use whole tag as key with empty value
+        const char *colon = memchr(current, ':', tag_len);
         const char *key_start = current;
-        while (key_start < colon && *key_start == ' ') key_start++;
-        const char *key_end = colon - 1;
-        while (key_end > key_start && *key_end == ' ') key_end--;
-        size_t key_len = key_end - key_start + 1;
+        const char *val_start = ""; // Default empty value
+        size_t key_len = tag_len;
+        size_t val_len = 0;
+        if (colon) {
+            // Tag has a colon - split into key and value
+            key_len = colon - key_start; // Adjust key length to exclude the colon
+            val_start = colon + 1;       // Value starts after the colon 
+            val_len = tag_end - val_start;
+        }
 
-        // Strip whitespace from value
-        const char *val_start = colon + 1;
-        while (val_start < tag_end && *val_start == ' ') val_start++;
-        const char *val_end = tag_end - 1;
-        while (val_end > val_start && *val_end == ' ') val_end--;
-        size_t val_len = val_end - val_start + 1;
+        // Strip whitespace from key and value
+        dd_strip_whitespace(&key_start, &key_len);
+        dd_strip_whitespace(&val_start, &val_len);
 
-        // Only add if key is non-empty (value can be empty)
+        // Only insert if key is non-empty, value can be empty
         if (key_len > 0) {
             zval val;
             ZVAL_STR(&val, zend_string_init(val_start, val_len, persistent));
             zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
         }
 
-        current = tag_end + sep_len;
+        // Move to the next segment
+        current = tag_end + 1;
     }
 
     return true;
