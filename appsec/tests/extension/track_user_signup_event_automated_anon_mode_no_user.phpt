@@ -33,4 +33,5 @@ Array
     [_dd.appsec.usr.login] => anon_428821350e9691491f616b754cd8315f
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null
+    [_dd.p.ts] => 02
 )

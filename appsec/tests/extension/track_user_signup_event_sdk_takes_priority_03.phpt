@@ -33,6 +33,7 @@ Array
     [_dd.appsec.usr.login] => OtherLogin
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null
+    [_dd.p.ts] => 02
     [_dd.appsec.events.users.signup.sdk] => true
     [appsec.events.users.signup.value] => something-from-sdk-2
 )
