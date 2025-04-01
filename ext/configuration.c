@@ -94,6 +94,68 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
+    ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
+    zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
+
+    if (value.len == 0) {
+        return true;
+    }
+
+    const char *str = value.ptr;
+    const char *end = str + value.len;
+    const char *current = str;
+
+    // Determine separator - prefer comma if present, otherwise use space
+    const char *sep = memchr(str, ',', value.len) ? "," : " ";
+    size_t sep_len = strlen(sep);
+
+    while (current < end) {
+        // Skip leading whitespace
+        while (current < end && *current == ' ') current++;
+        if (current >= end) break;
+
+        // Find next separator
+        size_t tag_len = strcspn(current, sep);
+        if (tag_len == 0) {
+            current += sep_len;
+            continue;
+        }
+
+        const char *tag_end = current + tag_len;
+        const char *colon = memchr(current, ':', tag_len);
+        if (!colon) {
+            current = tag_end + sep_len;
+            continue;
+        }
+
+        // Strip whitespace from key
+        const char *key_start = current;
+        while (key_start < colon && *key_start == ' ') key_start++;
+        const char *key_end = colon - 1;
+        while (key_end > key_start && *key_end == ' ') key_end--;
+        size_t key_len = key_end - key_start + 1;
+
+        // Strip whitespace from value
+        const char *val_start = colon + 1;
+        while (val_start < tag_end && *val_start == ' ') val_start++;
+        const char *val_end = tag_end - 1;
+        while (val_end > val_start && *val_end == ' ') val_end--;
+        size_t val_len = val_end - val_start + 1;
+
+        // Only add if key is non-empty (value can be empty)
+        if (key_len > 0) {
+            zval val;
+            ZVAL_STR(&val, zend_string_init(val_start, val_len, persistent));
+            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
+        }
+
+        current = tag_end + sep_len;
+    }
+
+    return true;
+}
+
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
     static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
         UNUSED(old_value, new_value); \
