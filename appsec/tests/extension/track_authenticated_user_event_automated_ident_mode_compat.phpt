@@ -30,4 +30,5 @@ Array
     [usr.id] => automatedID
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.user.collection_mode] => identification
+    [_dd.p.ts] => 02
 )

@@ -42,5 +42,6 @@ Array
     [usr.id] => otherID
     [_dd.appsec.usr.id] => otherAutomatedID
     [_dd.appsec.user.collection_mode] => sdk
+    [_dd.p.ts] => 02
     [usr.metadata] => otherValue
 )
