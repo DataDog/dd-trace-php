@@ -1,8 +1,9 @@
 --TEST--
-Rasp addresses are not sent to the helper if RASP disabled. Rasp disabled by default
+Rasp addresses are not sent to the helper if RASP disabled.
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
+datadog.appsec.rasp_enabled=0
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown,root_span_get_metrics};
