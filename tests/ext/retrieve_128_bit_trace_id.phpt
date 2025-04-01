@@ -56,7 +56,7 @@ var_dump(\DDTrace\logs_correlation_trace_id());
 
 ?>
 --EXPECTF--
-string(20) "13930160852258120406"
+string(32) "%sc151df7d6ee5e2d6"
 string(32) "%sc151df7d6ee5e2d6"
 string(32) "%sa3978fb9b92502a8"
 string(32) "192f3581c8461c79abf2684ee31ce27d"

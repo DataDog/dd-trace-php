@@ -32,7 +32,7 @@ bool sets_are_indentical_for_subbed_products(
 {
     auto set_is_subset_of = [&products](auto &set1, auto &set2) {
         for (auto &&elem_set_1 : set1) { // NOLINT(readability-use-anyofallof)
-            if (!products.contains(elem_set_1.get_product())) {
+            if (!products.contains(elem_set_1.config_key().product())) {
                 continue;
             }
             if (!set2.contains(elem_set_1)) {
@@ -156,13 +156,13 @@ bool client::process_response(std::set<config> new_configs)
         }
     }
 
-    // unapply should happen first, because asm_dd aggregator ignores the key...
+    // unapply should happen first
     for (const auto &cfg : last_configs_) {
         if (new_configs.contains(cfg)) {
             continue;
         }
 
-        const product p = cfg.get_product();
+        const product p = cfg.config_key().product();
         auto it = listeners_per_product_.find(p);
         if (it == listeners_per_product_.end()) {
             continue;
@@ -179,7 +179,7 @@ bool client::process_response(std::set<config> new_configs)
     }
 
     for (const auto &cfg : new_configs) {
-        const product p = cfg.get_product();
+        const product p = cfg.config_key().product();
         if (p == known_products::UNKNOWN) {
             SPDLOG_INFO("Ignoring config with key {}; unsupported product",
                 cfg.rc_path);

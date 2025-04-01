@@ -1,5 +1,5 @@
 --TEST--
-Asm events are added as meta tags and also as propagated tags
+Asm events are added under _dd.p.ts
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
@@ -33,8 +33,8 @@ var_dump(rinit());
 $helper->get_commands(); //ignore
 
 $context = DDTrace\current_context();
-echo "_dd.p.appsec on distributed propagated tags? ";
-echo isset($context['distributed_tracing_propagated_tags']['_dd.p.appsec']) && $context['distributed_tracing_propagated_tags']['_dd.p.appsec'] == 1 ? "Yes": "No";
+echo "ASM is enabled on _dd.p.ts propagated tags? ";
+echo isset($context['distributed_tracing_propagated_tags']['_dd.p.ts']) && $context['distributed_tracing_propagated_tags']['_dd.p.ts'] === "02" ? "Yes": "No";
 echo PHP_EOL;
 
 echo "rshutdown\n";
@@ -49,7 +49,7 @@ $commands = $helper->get_commands();
 $tags = $commands[0]['payload'][0][0]['meta'];
 
 echo "_dd.p.appsec? ";
-echo isset($tags['_dd.p.appsec']) && $tags['_dd.p.appsec'] === "1" ? "Yes": "No";
+echo isset($tags['_dd.p.ts']) && $tags['_dd.p.ts'] === "02" ? "Yes": "No";
 echo PHP_EOL;
 
 $helper->finished_with_commands();
@@ -58,7 +58,7 @@ $helper->finished_with_commands();
 --EXPECTF--
 rinit
 bool(true)
-_dd.p.appsec on distributed propagated tags? Yes
+ASM is enabled on _dd.p.ts propagated tags? Yes
 rshutdown
 bool(true)
 ddtrace_rshutdown

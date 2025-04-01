@@ -1,5 +1,6 @@
 #include "../tsrmls_cache.h"
 #include "config_ini.h"
+#include "config_stable_file.h"
 #include <json/json.h>
 
 #include <SAPI.h>
@@ -435,9 +436,15 @@ void zai_config_ini_rinit(void) {
         if (!env_to_ini_name || !memoized->original_on_modify) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
-                zai_env_result result = zai_getenv_ex(name, buf, false);
 
-                if (result == ZAI_ENV_SUCCESS && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_FLEET)
+                    && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    goto next_entry;
+                } else if (zai_getenv_ex(name, buf, false) == ZAI_ENV_SUCCESS
+                    && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    goto next_entry;
+                } else if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL)
+                    && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
                 }
             }

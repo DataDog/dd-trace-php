@@ -6,9 +6,9 @@ HTTP_X_DATADOG_TRACE_ID=42
 HTTP_X_DATADOG_PARENT_ID=10
 HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_SAMPLING_PRIORITY=3
-HTTP_X_DATADOG_TAGS=_dd.p.appsec=1
+HTTP_X_DATADOG_TAGS=_dd.p.ts=02
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED=1
+DD_APM_TRACING_ENABLED=0
 --FILE--
 <?php
 
@@ -47,8 +47,8 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(4) {
-      ["_dd.p.appsec"]=>
-      string(1) "1"
+      ["_dd.p.ts"]=>
+      string(2) "02"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["runtime-id"]=>

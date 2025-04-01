@@ -695,7 +695,7 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
     dd_append_header(&list, "Datadog-Meta-Lang-Version", ZSTR_VAL(ddtrace_php_version));
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
-    if (get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
         dd_append_header(&list, "Datadog-Client-Computed-Stats", "true");
     }
 

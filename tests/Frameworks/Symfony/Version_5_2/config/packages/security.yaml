@@ -15,8 +15,7 @@ security:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
         main:
-            anonymous: true
-            lazy: true
+            anonymous: lazy
             provider: app_user_provider
             form_login:
                 login_path: login

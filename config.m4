@@ -188,6 +188,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_kafka.c \
     ext/handlers_pcntl.c \
     ext/handlers_signal.c \
+    ext/inferred_proxy_headers.c \
     ext/integrations/exec_integration.c \
     ext/integrations/integrations.c \
     ext/ip_extraction.c \
@@ -208,6 +209,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/startup_logging.c \
     ext/telemetry.c \
     ext/threads.c \
+    ext/trace_source.c \
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
     ext/user_request.c \
     ext/hook/uhook.c \
@@ -378,6 +380,9 @@ EOT
 
 /\$(builddir)/components-rs/mock_php.c: $all_object_files
 	($ddtrace_mockgen_invocation \$(builddir)/components-rs/mock_php.c $php_binary $all_object_files_absolute)
+
+# avoid cargo running simultaneously for libddtrace_php and php_sidecar_mockgen
+/\$(builddir)/components-rs/mock_php.c: | \$(filter-out \$(builddir)/components-rs/mock_php.lo,\$(shared_objects_ddtrace))
 EOT
 
     PHP_ADD_SOURCES_X("/$ext_dir", "\$(builddir)/components-rs/mock_php.c", $ac_extra, shared_objects_ddtrace, yes)

@@ -3,16 +3,13 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include <atomic>
 #include <chrono>
 #include <cstdlib>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
-#include <stdexcept>
 #include <string_view>
 
 #include "../compression.hpp"
@@ -23,11 +20,127 @@
 #include "waf.hpp"
 #include <base64.h>
 #include <ddwaf.h>
+#include <sys/syslog.h>
+#include <type_traits>
 
 namespace dds::waf {
 
-namespace {
+class waf_builder {
+    static constexpr auto BUNDLED_KEY = "datadog/0/ASM_DD/0/bundled"sv;
 
+    waf_builder(ddwaf_builder builder, parameter default_rules)
+        : builder_{builder}, default_rules_{std::move(default_rules)}
+    {}
+
+public:
+    static std::optional<waf_builder> create(const ddwaf_config &cfg,
+        parameter default_rules, parameter &diagnostics)
+    {
+        auto *builder = ddwaf_builder_init(&cfg);
+        if (builder == nullptr) {
+            return std::nullopt;
+        }
+
+        bool const res =
+            ddwaf_builder_add_or_update_config(builder, BUNDLED_KEY.data(),
+                BUNDLED_KEY.size(), &default_rules, &diagnostics);
+
+        if (res) {
+            return {{builder, std::move(default_rules)}};
+        }
+
+        ddwaf_builder_destroy(builder);
+        return std::nullopt;
+    }
+
+    void update(const dds::remote_config::changeset &cs, parameter &diagnostics)
+    {
+        for (const auto &removed : cs.removed) {
+            bool const res = ddwaf_builder_remove_config(builder_.get(),
+                removed.full_key().data(), removed.full_key().size());
+            if (res) {
+                SPDLOG_DEBUG("Removed config: {}", removed.full_key());
+            } else {
+                SPDLOG_WARN("Failed to remove config: {}", removed.full_key());
+            }
+        }
+
+        diagnostics = parameter::map();
+        for (const auto &added : cs.added) {
+            const remote_config::parsed_config_key &key = added.first;
+            if (using_default_rules_ &&
+                key.product() == remote_config::known_products::ASM_DD) {
+                remove_default_config();
+            }
+
+            parameter these_diags{};
+            bool const res = ddwaf_builder_add_or_update_config(builder_.get(),
+                key.full_key().data(), key.full_key().size(), &added.second,
+                &these_diags);
+            diagnostics.merge(std::move(these_diags));
+            if (res) {
+                SPDLOG_DEBUG("Added/updated config: {}", key.full_key());
+            } else {
+                SPDLOG_WARN("Failed to add/update config: {}", key.full_key());
+            }
+        }
+
+        auto count_asm_dd = ddwaf_builder_get_config_paths(
+            builder_.get(), nullptr, "/ASM_DD/", sizeof("/ASM_DD/") - 1);
+        if (count_asm_dd == 0) {
+            parameter these_diags{};
+            add_default_config(these_diags);
+            diagnostics.merge(std::move(these_diags));
+        }
+    }
+
+    waf_handle_up new_handle()
+    {
+        return waf_handle_up{ddwaf_builder_build_instance(builder_.get())};
+    }
+
+private:
+    bool remove_default_config()
+    {
+
+        // set even on failure because failure likely means
+        // the bundled rules are not loaded
+        using_default_rules_ = false;
+        bool const res = ddwaf_builder_remove_config(
+            builder_.get(), BUNDLED_KEY.data(), BUNDLED_KEY.size());
+        if (res) {
+            SPDLOG_DEBUG("Removed default config");
+        } else {
+            SPDLOG_WARN("Failed removing default config");
+        }
+        return res;
+    }
+
+    bool add_default_config(parameter &diagnostics)
+    {
+        bool const res = ddwaf_builder_add_or_update_config(builder_.get(),
+            BUNDLED_KEY.data(), BUNDLED_KEY.size(), &default_rules_,
+            &diagnostics);
+        if (res) {
+            using_default_rules_ = true;
+            SPDLOG_DEBUG("Added default config");
+        } else {
+            SPDLOG_WARN("Failed adding default config");
+        }
+        return res;
+    }
+
+    struct ddwaf_builder_deleter {
+        void operator()(ddwaf_builder h) const { ddwaf_builder_destroy(h); }
+    };
+    std::unique_ptr<std::remove_pointer_t<ddwaf_builder>, ddwaf_builder_deleter>
+        builder_;
+
+    parameter default_rules_;
+    bool using_default_rules_ = true;
+};
+
+namespace {
 action_type parse_action_type_string(const std::string &action)
 {
     if (action == "block_request") {
@@ -186,7 +299,7 @@ void load_result_report(
             continue;
         }
 
-        // map has either "error" key or "loaded", "failed", "errors" keys
+        // map has "error", "loaded", "failed", "skipped", "errors", "warnings"
         const parameter_view::map map = static_cast<parameter_view::map>(value);
 
         auto tags_common = [&]() {
@@ -462,7 +575,7 @@ void instance::listener::submit_metrics(
     }
 }
 
-instance::instance(parameter &rule, metrics::telemetry_submitter &msubmit,
+instance::instance(parameter rules, metrics::telemetry_submitter &msubmit,
     std::uint64_t waf_timeout_us, std::string_view key_regex,
     std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
@@ -470,8 +583,14 @@ instance::instance(parameter &rule, metrics::telemetry_submitter &msubmit,
     const ddwaf_config config{
         {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
 
-    ddwaf_object diagnostics;
-    handle_ = ddwaf_init(rule, &config, &diagnostics);
+    parameter diagnostics{};
+    auto maybe_builder =
+        waf_builder::create(config, std::move(rules), diagnostics);
+
+    if (maybe_builder) {
+        builder_ = std::make_shared<waf_builder>(std::move(*maybe_builder));
+        handle_ = builder_->new_handle();
+    }
 
     load_result_report(parameter_view{diagnostics}, msubmit);
     load_result_report_legacy(
@@ -480,46 +599,44 @@ instance::instance(parameter &rule, metrics::telemetry_submitter &msubmit,
         ruleset_version_.empty() ? std::nullopt
                                  : std::make_optional(ruleset_version_));
 
-    ddwaf_object_free(&diagnostics);
-
     if (handle_ == nullptr) {
         throw invalid_object();
     }
 
     uint32_t size;
-    const auto *addrs = ddwaf_known_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_.get(), &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
-instance::instance(ddwaf_handle handle,
+instance::instance(std::shared_ptr<waf_builder> builder, waf_handle_up handle,
     metrics::telemetry_submitter &msubmitter, std::chrono::microseconds timeout,
     std::string version)
-    : handle_{handle}, msubmitter_{msubmitter}, waf_timeout_{timeout},
-      ruleset_version_{std::move(version)}
+    : builder_{std::move(builder)}, handle_{std::move(handle)},
+      waf_timeout_{timeout}, ruleset_version_{std::move(version)},
+      msubmitter_{msubmitter}
 {
     uint32_t size;
-    const auto *addrs = ddwaf_known_addresses(handle_, &size);
+    const auto *addrs = ddwaf_known_addresses(handle_.get(), &size);
 
     addresses_.clear();
     for (uint32_t i = 0; i < size; i++) { addresses_.emplace(addrs[i]); }
 }
 
 instance::instance(instance &&other) noexcept
-    : handle_(other.handle_), msubmitter_(other.msubmitter_),
+    : builder_{std::move(other.builder_)}, handle_(std::move(other.handle_)),
       waf_timeout_(other.waf_timeout_),
       ruleset_version_(std::move(other.ruleset_version_)),
-      addresses_(std::move(other.addresses_))
+      addresses_(std::move(other.addresses_)), msubmitter_(other.msubmitter_)
 {
-    other.handle_ = nullptr;
     other.waf_timeout_ = {};
 }
 
 instance &instance::operator=(instance &&other) noexcept
 {
-    handle_ = other.handle_;
-    other.handle_ = nullptr;
+    builder_ = std::move(other.builder_);
+    handle_ = std::move(other.handle_);
 
     waf_timeout_ = other.waf_timeout_;
     other.waf_timeout_ = {};
@@ -530,24 +647,20 @@ instance &instance::operator=(instance &&other) noexcept
     return *this;
 }
 
-instance::~instance()
-{
-    if (handle_ != nullptr) {
-        ddwaf_destroy(handle_);
-    }
-}
-
 std::unique_ptr<subscriber::listener> instance::get_listener()
 {
     return std::make_unique<listener>(
-        ddwaf_context_init(handle_), waf_timeout_, ruleset_version_);
+        ddwaf_context_init(handle_.get()), waf_timeout_, ruleset_version_);
 }
 
 std::unique_ptr<subscriber> instance::update(
-    parameter &rule, metrics::telemetry_submitter &msubmitter)
+    const remote_config::changeset &changeset,
+    metrics::telemetry_submitter &msubmitter)
 {
-    ddwaf_object diagnostics;
-    auto *new_handle = ddwaf_update(handle_, rule, &diagnostics);
+    parameter diagnostics;
+    builder_->update(changeset, diagnostics);
+
+    waf_handle_up new_handle = builder_->new_handle();
 
     std::string version;
     {
@@ -557,7 +670,6 @@ std::unique_ptr<subscriber> instance::update(
         if (version.empty()) {
             version = ruleset_version_;
         }
-        ddwaf_object_free(&diagnostics);
 
         waf_update_report(msubmitter, new_handle != nullptr, version);
     }
@@ -566,16 +678,15 @@ std::unique_ptr<subscriber> instance::update(
         throw invalid_object();
     }
 
-    return std::unique_ptr<subscriber>(new instance(
-        new_handle, msubmitter_, waf_timeout_, std::move(version)));
+    return std::unique_ptr<subscriber>(new instance(builder_,
+        std::move(new_handle), msubmitter_, waf_timeout_, std::move(version)));
 }
 
 std::unique_ptr<instance> instance::from_settings(
-    const engine_settings &settings, const engine_ruleset &ruleset,
+    const engine_settings &settings, parameter ruleset,
     metrics::telemetry_submitter &msubmitter)
 {
-    dds::parameter param = json_to_parameter(ruleset.get_document());
-    return std::make_unique<instance>(param, msubmitter,
+    return std::make_unique<instance>(std::move(ruleset), msubmitter,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
         settings.obfuscator_value_regex);
 }
@@ -584,10 +695,15 @@ std::unique_ptr<instance> instance::from_string(std::string_view rule,
     metrics::telemetry_submitter &msubmitter, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
-    engine_ruleset const ruleset{rule};
-    dds::parameter param = json_to_parameter(ruleset.get_document());
+    rapidjson::Document doc;
+    rapidjson::ParseResult const result = doc.Parse(rule.data(), rule.size());
+    if ((result == nullptr) || !doc.IsObject()) {
+        throw parsing_error("invalid json rule");
+    }
+    dds::parameter param = json_to_parameter(doc);
+
     return std::make_unique<instance>(
-        param, msubmitter, waf_timeout_us, key_regex, value_regex);
+        std::move(param), msubmitter, waf_timeout_us, key_regex, value_regex);
 }
 
 } // namespace dds::waf

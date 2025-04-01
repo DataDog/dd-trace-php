@@ -1,10 +1,12 @@
 #include "asm_event.h"
+#include "trace_source.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
 #include <Zend/zend_smart_str.h>
+#include <components/log/log.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -101,12 +103,107 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
     return NULL;
 }
 
+static inline zend_string *ddtrace_percent_encode(zend_string *string, bool is_key) {
+    smart_str encoded = {0};
+
+    char *str = ZSTR_VAL(string);
+    size_t len = ZSTR_LEN(string);
+    for (size_t i = 0; i < len; i++) {
+        char c = str[i];
+
+        bool encode;
+        if (is_key) {
+            // Encode all characters that are NOT in RFC7230 allowed set for keys
+            encode = !(isalnum(c) || strchr("!#$%&'*+-.^_`|~", c));
+        } else {
+            // Encode all non-ASCII characters and special disallowed characters
+            encode = c < 0x20 || c > 0x7E || c == ' ' || c == '"' || c == ',' || c == ';' || c == '\\';
+        }
+
+        if (!encoded.s) {
+            if (!encode) {
+                continue;
+            }
+            smart_str_appendl(&encoded, str, i);
+        }
+
+        if (encode) {
+            smart_str_append_printf(&encoded, "%%%02X", (unsigned char)c);
+        } else {
+            smart_str_appendc(&encoded, c);
+        }
+    }
+
+    if (!encoded.s) {
+        return zend_string_copy(string);
+    }
+
+    smart_str_0(&encoded); // Null-terminate string
+    return encoded.s;
+}
+
+static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
+    smart_str serialized_baggage = {0};
+    zend_string *key;
+    zend_long numkey;
+    zval *value;
+    uint64_t max_bytes = get_DD_TRACE_BAGGAGE_MAX_BYTES();
+    uint64_t max_items = get_DD_TRACE_BAGGAGE_MAX_ITEMS();
+    size_t size = 0;
+    size_t item_count = 0;
+
+    ZEND_HASH_FOREACH_KEY_VAL(baggage, numkey, key, value) {
+        if ((key && ZSTR_LEN(key) == 0) || Z_TYPE_P(value) != IS_STRING || Z_STRLEN_P(value) == 0) {
+            continue; // Skip invalid entries
+        }
+
+        zend_string *encoded_key = key ? ddtrace_percent_encode(key, true) : zend_long_to_str(numkey);
+        zend_string *encoded_value = ddtrace_percent_encode(Z_STR_P(value), false);
+
+        if (item_count++ >= max_items) {
+            LOG(WARN, "Baggage item limit of %ld exceeded, dropping excess items.", max_items);
+            zend_string_release(encoded_key);
+            zend_string_release(encoded_value);
+            break;
+        }
+
+        size += (serialized_baggage.s ? 1 : 0) + ZSTR_LEN(encoded_key) + 1 + ZSTR_LEN(encoded_value);
+        if (size > max_bytes) {
+            LOG(WARN, "Baggage header size of %ld bytes exceeded, dropping excess items.", max_bytes);
+            zend_string_release(encoded_key);
+            zend_string_release(encoded_value);
+            break;
+        }
+
+        if (serialized_baggage.s) {
+            smart_str_appendc(&serialized_baggage, ',');
+        }
+
+        // Append key=value pair
+        smart_str_appendl(&serialized_baggage, ZSTR_VAL(encoded_key), ZSTR_LEN(encoded_key));
+        smart_str_appendc(&serialized_baggage, '=');
+        smart_str_appendl(&serialized_baggage, ZSTR_VAL(encoded_value), ZSTR_LEN(encoded_value));
+
+        zend_string_release(encoded_key);
+        zend_string_release(encoded_value);
+    } ZEND_HASH_FOREACH_END();
+
+    if (serialized_baggage.s) {
+        smart_str_0(&serialized_baggage); // Null-terminate
+    }
+
+    return serialized_baggage.s;
+}
+
 static inline void ddtrace_inject_distributed_headers_config(zend_array *array, bool key_value_pairs, zend_array *inject) {
     ddtrace_root_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? SPANDATA(DDTRACE_G(active_stack)->active)->root : NULL;
     zend_string *origin = DDTRACE_G(dd_origin);
     zend_array *tracestate_unknown_dd_keys = &DDTRACE_G(tracestate_unknown_dd_keys);
     zend_string *tracestate = DDTRACE_G(tracestate);
+    zend_array *baggage = &DDTRACE_G(baggage);
     if (root) {
+        SPANDATA(DDTRACE_G(active_stack)->active)->flags |= DDTRACE_SPAN_FLAG_NOT_DROPPABLE;
+
         if (Z_TYPE(root->property_origin) == IS_STRING && Z_STRLEN(root->property_origin)) {
             origin = Z_STR(root->property_origin);
         } else {
@@ -118,6 +215,10 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             tracestate = NULL;
         }
         tracestate_unknown_dd_keys = ddtrace_property_array(&root->property_tracestate_tags);
+    }
+
+    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
+        baggage = ddtrace_property_array(&SPANDATA(DDTRACE_G(active_stack)->active)->property_baggage);
     }
 
     zval headers;
@@ -134,14 +235,16 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     bool send_tracestate = zend_hash_str_exists(inject, ZEND_STRL("tracecontext"));
     bool send_b3 = zend_hash_str_exists(inject, ZEND_STRL("b3")) || zend_hash_str_exists(inject, ZEND_STRL("b3multi"));
     bool send_b3single = zend_hash_str_exists(inject, ZEND_STRL("b3 single header"));
+    bool send_baggage = zend_hash_str_exists(inject, ZEND_STRL("baggage"));
 
     zend_long sampling_priority = ddtrace_fetch_priority_sampling_from_root();
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == true) {
+    if (!get_DD_APM_TRACING_ENABLED() && ddtrace_asm_event_emitted()) {
         sampling_priority = PRIORITY_SAMPLING_USER_KEEP;
     }
 
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED() && DDTRACE_G(asm_event_emitted) == false &&
-        ddtrace_propagated_tags_get_tag(DD_TAG_P_APPSEC) == NULL) {
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+    zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : &DDTRACE_G(root_span_tags_preset);
+    if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
         return;
     }
 
@@ -239,6 +342,15 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         }
     }
 
+    if (send_baggage) {
+        zend_string *full_baggage = ddtrace_serialize_baggage(baggage);
+
+        if (full_baggage) {
+            ADD_HEADER("baggage", "%.*s", (int)ZSTR_LEN(full_baggage), ZSTR_VAL(full_baggage));
+            zend_string_release(full_baggage);
+        }
+    }
+    
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }

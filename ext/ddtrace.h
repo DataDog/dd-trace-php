@@ -19,6 +19,7 @@
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+extern zend_class_entry *ddtrace_ce_inferred_span_data;
 extern zend_class_entry *ddtrace_ce_root_span_data;
 extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
@@ -30,6 +31,7 @@ extern zend_class_entry *ddtrace_ce_git_metadata;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
+typedef struct ddtrace_inferred_span_data ddtrace_inferred_span_data;
 typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
@@ -104,6 +106,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array tracestate_unknown_dd_keys;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
+    HashTable baggage;
 #ifndef _WIN32
     dogstatsd_client dogstatsd_client;
 #endif
@@ -160,6 +163,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     HashTable git_metadata;
     zend_object *git_object;
+
+    bool inferred_span_created;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

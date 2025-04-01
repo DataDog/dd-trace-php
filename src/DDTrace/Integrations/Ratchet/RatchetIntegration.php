@@ -281,6 +281,7 @@ class RatchetIntegration extends Integration
                                 $span->meta[$key] = $rootSpan->meta[$key];
                             }
                         }
+                        $span->baggage = $rootSpan->baggage;
                     }
 
                     if ($isControl) {
@@ -433,9 +434,10 @@ class RatchetIntegration extends Integration
         $pointer->spanId = "0000000000000000";
         $pointer->traceId = "00000000000000000000000000000000";
         $pointer->attributes = [
+            "link.name" => "span-pointer-" . ($incoming ? "up" : "down"),
             "dd.kind" => "span-pointer",
             "ptr.kind" => "websocket",
-            "ptr.dir" => $incoming ? "d" : "u",
+            "ptr.dir" => $incoming ? "u" : "d",
             "ptr.hash" => ($isServer ? "S" : "C") . $link->traceId . $link->spanId . bin2hex(pack("N", $frameNum)),
         ];
         $span->links[] = $pointer;

@@ -161,7 +161,7 @@ class WordPressIntegration extends Integration
 
                 if ($retval !== false) {
                     \datadog\appsec\track_authenticated_user_event_automated(
-                        $retval,
+                        $retval
                     );
                 }
             }
