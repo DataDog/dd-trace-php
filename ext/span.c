@@ -970,7 +970,11 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
     zend_object **end = objects->object_buckets + 1;
     zend_object **obj_ptr = objects->object_buckets + objects->top;
 
-    do {
+    // If ddtrace_close_all_open_spans is called in rinit, then it's possible
+    // that there are no objects in the object store at all. This can happen
+    // if the user sets DD_TRACE_ENABLED=false in a webserver configuration,
+    // which will then close all open spans.
+    while (obj_ptr != end) {
         obj_ptr--;
         zend_object *obj = *obj_ptr;
         if (IS_OBJ_VALID(obj) && obj->ce == ddtrace_ce_span_stack) {
@@ -992,7 +996,7 @@ void ddtrace_close_all_open_spans(bool force_close_root_span) {
 
             OBJ_RELEASE(&stack->std);
         }
-    } while (obj_ptr != end);
+    }
 }
 
 void ddtrace_mark_all_span_stacks_flushable(void) {
