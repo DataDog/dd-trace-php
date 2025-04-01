@@ -35,6 +35,5 @@ Array
     [usr.id] => ID
     [_dd.appsec.user.collection_mode] => sdk
     [usr.metadata] => someValue
-    [_dd.p.ts] => 02
     [_dd.appsec.usr.id] => automatedID
 )

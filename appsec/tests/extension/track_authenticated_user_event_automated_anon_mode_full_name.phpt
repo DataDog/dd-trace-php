@@ -30,5 +30,4 @@ Array
     [usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
     [_dd.appsec.usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
     [_dd.appsec.user.collection_mode] => anonymization
-    [_dd.p.ts] => 02
 )

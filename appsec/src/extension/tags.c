@@ -1503,9 +1503,6 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
     // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
     _add_new_zstr_to_meta(meta_ht, _dd_user_collection_mode,
         dd_get_user_collection_mode_zstr(), true, false);
-
-    dd_tags_set_sampling_priority();
-    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
@@ -1550,9 +1547,6 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
 
     // usr.<key> = <value>
     _add_custom_event_metadata(meta_ht, _dd_tag_user, metadata, true);
-
-    dd_tags_set_sampling_priority();
-    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_custom_event)
