@@ -40,9 +40,8 @@ bool init_crash_tracking(void) {
     bool result = ddog_setup_crashtracking(agent_endpoint, metadata);
 
     if (result) {
-        LOG(INFO, "Crashtracking is initialized");
-    }
-    else {
+        LOG(TRACE, "Crashtracking is initialized");
+    } else {
         LOG(WARN, "An error occured while initializing crashtracking");
     }
 
