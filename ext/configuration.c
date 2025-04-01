@@ -95,13 +95,13 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
 }
 
 static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
+    ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
+    zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
+
     if (value.len == 0) {
-        array_init(decoded_value);
         return true;
     }
 
-    array_init(decoded_value);
-    
     const char *str = value.ptr;
     const char *end = str + value.len;
     const char *current = str;
