@@ -68,45 +68,60 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
+## All products
+### Added
+- Add support for file based configuration (library-config) #3068
+
 ## Tracer
 ### Added
-- OTel Integration tracking #3084
-- Send integration error logs through telemetry #3006
+- Add DDTrace\try_drop_span() API #3136
+- Add support for PDO::connect #3125
+- Add span creation and close handlers #3123
+- API Gateway Tracing #3116
+- Add a Ratchet integration #3115
+- Baggage Header Propagation Support #3102
+- Crashtracking for windows #3099
+
+### Changed
+- Enable 128 bit trace_id logging by default #3163
+- Allow whitespace as separator in DD_TAGS #3162
+- Implement Disable APM Tracing #3080
 
 ### Fixed
-- Fix fork handling of sidecar #3077
-- Work around preloaded enums being broken on early PHP 8.4 versions with observers #3093
-- Missing Predis Service Override #3098
-- Lazily init cadence client Datadog/libdatadog#890
-  - This will work around unnecessarily many sidecar threads being created.
-- Fix possible race confition when adding, then removing remote config services Datadog/libdatadog#882
-  - This aims to solve watchdog timeouts of the sidecar (a cause of broken pipes).
-- Handle a zero-sized file for mmap()ing Datadog/libdatadog#838
+- support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
 
 ### Internal
-- Generate Markdown Table of Supported Versions #3062
-- Ensuring latest version of composer package are tested #3041
-- Fix UserAvailableConstantsTest::testAllTypesAreTested #3042
+- Show actual file and line for occurrence of exceptions as well #3172
+- Support ZSTR_PARENT known_string #3106
 
 ## Profiling
 ### Added
-- I/O profiling preview #3083
-- support new ZendMM api #2969
+- Add profiling and appsec to SSI #3063
 
-### Changed
-- switch to pthread_atfork() for fork barrier handling #3058
+### Fixed
+- FrankenPHP idle phase #3169
+- Add active span null check #3164
+- Avoid some OOM panics and avoid long strings #3151
+- Fix upscaling of I/O profiles #3146
+
+### Internal
+- Add 'tracing' features to capture time spent walking the stack #3094
 
 ## Application Security Management
 ### Added
-- Add rasp telemetry #3061
-- Implement SSRF #3014
+- Implement API Security Sampling RFC #3117
+- Add authenticated user tracking #3114
+- Add profiling and appsec to SSI #3063
 
 ### Changed
-- Update user login and signup events collection #2976
+- Upgrade libddwaf #3126
+- Enable RASP by default #3082
 
 ### Fixed
-- Fix build of appsec helper with llvm's linker #3069
-- Amend login failure event being reported #3092
+- Emit asm event on user events #3170
+
+### Internal
+- Add more logging around stack generation #3096
 ]]></notes>
     <contents>
         <dir name="/">
