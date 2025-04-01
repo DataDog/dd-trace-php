@@ -64,24 +64,20 @@ impl State {
     }
 }
 
-unsafe fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool {
-    let Some(execute_data) = execute_data.as_ref() else {
+fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool {
+    let Some(execute_data) = (unsafe { execute_data.as_ref() }) else {
         return false;
     };
-    let Some(func) = execute_data.func.as_ref() else {
+    let Some(func) = (unsafe { execute_data.func.as_ref() }) else {
         return false;
     };
-    let func = extract_function_name(func);
-    let Some(func) = func else {
+    let Some(func) = extract_function_name(func) else {
         return false;
     };
-    if func == "frankenphp|frankenphp_handle_request" {
-        return true;
-    }
-    false
+    func == "frankenphp|frankenphp_handle_request"
 }
 
-unsafe extern "C" fn frankenphp_sapi_module_activate() -> i32 {
+extern "C" fn frankenphp_sapi_module_activate() -> i32 {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.system_settings().profiling_timeline_enabled)
@@ -89,18 +85,23 @@ unsafe extern "C" fn frankenphp_sapi_module_activate() -> i32 {
     });
 
     if timeline_enabled
-        && is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data())
+        && is_in_frankenphp_handle_request(unsafe {
+            zend::ddog_php_prof_get_current_execute_data()
+        })
     {
         timeline_idle_stop();
     }
 
-    if let Some(activate) = PREV_FRANKEN_PHP_SAPI_ACTIVATE {
-        return activate();
+    unsafe {
+        if let Some(activate) = PREV_FRANKEN_PHP_SAPI_ACTIVATE {
+            return activate();
+        }
     }
 
     0
 }
-unsafe extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
+
+extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
     let timeline_enabled = REQUEST_LOCALS.with(|cell| {
         cell.try_borrow()
             .map(|locals| locals.system_settings().profiling_timeline_enabled)
@@ -108,13 +109,17 @@ unsafe extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
     });
 
     if timeline_enabled
-        && is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data())
+        && is_in_frankenphp_handle_request(unsafe {
+            zend::ddog_php_prof_get_current_execute_data()
+        })
     {
         timeline_idle_start();
     }
 
-    if let Some(deactivate) = PREV_FRANKEN_PHP_SAPI_DEACTIVATE {
-        return deactivate();
+    unsafe {
+        if let Some(deactivate) = PREV_FRANKEN_PHP_SAPI_DEACTIVATE {
+            return deactivate();
+        }
     }
 
     0
