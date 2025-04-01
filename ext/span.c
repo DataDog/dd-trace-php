@@ -20,6 +20,8 @@
 #include "sidecar.h"
 #include "sandbox/sandbox.h"
 #include "hook/uhook.h"
+#include "trace_source.h"
+#include "standalone_limiter.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -771,10 +773,23 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
             // As long as there's something to flush, we must hold a reference (to avoid cycle collection)
             GC_ADDREF(&stack->std);
 
-            if (stack->root_span && (stack->root_span->stack == stack || stack->root_span->type == DDTRACE_SPAN_CLOSED)) {
+            ddtrace_root_span_data *root_span = stack->root_span;
+            if (root_span && (root_span->stack == stack || root_span->type == DDTRACE_SPAN_CLOSED)) {
                 if (!stack->top_closed_stack) {
                     stack->next = DDTRACE_G(top_closed_stack);
                     DDTRACE_G(top_closed_stack) = stack;
+                }
+
+                // Root span is closed. Now it's the time to take an ASM sampling decision.
+                // This might get updated later with SpanStacks, but at that point it will be orphan spans. That's intentional.
+                if (!get_global_DD_APM_TRACING_ENABLED()) {
+                    // Increment limiter, then force sampling priority if not an asm event
+                    if (!ddtrace_standalone_limiter_allow() && !root_span->asm_event_emitted && !ddtrace_trace_source_is_meta_asm_sourced(ddtrace_property_array(&stack->root_span->property_meta))) {
+                        zval priority;
+                        ZVAL_LONG(&priority, PRIORITY_SAMPLING_AUTO_REJECT);
+                        ddtrace_assign_variable(&root_span->property_sampling_priority, &priority);
+                        root_span->explicit_sampling_priority = true;
+                    }
                 }
             } else {
                 // we'll just attach it so that it'll be flushed together (i.e. chunks are not flushed _before_ the root stack)
@@ -1065,6 +1080,9 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 stack = next_stack;
                 next_stack = stack->next;
             }
+            zval spans;
+            array_init(&spans);
+
             do {
                 // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
                 ddtrace_span_data *span = stack->closed_ring_flush->next, *end = span;
@@ -1072,7 +1090,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    ddtrace_serialize_span_to_array(tmp, serialized);
+                    ddtrace_serialize_span_to_array(tmp, &spans);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
@@ -1089,6 +1107,8 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                     next_stack = stack->next;
                 }
             } while (stack);
+
+            zend_hash_next_index_insert_new(Z_ARR_P(serialized), &spans);
         } while (rootstack);
     }
 

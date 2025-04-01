@@ -123,6 +123,7 @@ struct ddtrace_root_span_data {
     uint64_t parent_id;
     ddtrace_rule_result sampling_rule;
     bool explicit_sampling_priority;
+    bool asm_event_emitted;
     enum ddtrace_trace_limited trace_is_limited;
 
     union {

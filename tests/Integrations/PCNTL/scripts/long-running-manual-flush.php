@@ -23,6 +23,9 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     } else if ($forkPid === 0) {
         // Child
         call_httpbin('ip');
+// TODO: comment this to make PCNTLTest::testCliLongRunningMultipleForksManualFlush fail in NON-sidecar configuration
+        \DDTrace\flush();
+        dd_trace_synchronous_flush();
     } else {
         error_log('Error');
         exit(-1);
@@ -30,6 +33,4 @@ for ($iteration = 0; $iteration < ITERATIONS; $iteration++) {
     call_httpbin('user-agent');
     $scope->close();
     $tracer->flush();
-// TODO: comment this to make PCNTLTest::testCliLongRunningMultipleForksManualFlush fail in NON-sidecar configuration
-    dd_trace_synchronous_flush();
 }
