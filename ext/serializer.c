@@ -1608,7 +1608,7 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
             type = (zai_str) ZAI_STR_FROM_ZSTR(Z_STR(prop_type_as_string));
         }
         zai_str resource = (zai_str)ZAI_STR_FROM_ZSTR(Z_STR(prop_resource_as_string));
-        LOG(WARN, "Notifying profiler of finished local root span.");
+        LOG(DEBUG, "Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 

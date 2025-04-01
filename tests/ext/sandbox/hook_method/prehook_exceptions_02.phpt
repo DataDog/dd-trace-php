@@ -33,7 +33,7 @@ try {
 ?>
 --EXPECTF--
 Greeter::greet hooked.
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:%d for Greeter::greet(): !
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:%d for Greeter::greet(): ! in %s on line %d
 Hello, Datadog.
 Done.
 [ddtrace] [info] Flushing trace of size 1 to send-queue for %s
