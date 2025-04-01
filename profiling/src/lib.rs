@@ -941,9 +941,7 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     // SAFETY: being called before [config::shutdown].
     #[cfg(feature = "timeline")]
-    unsafe {
-        timeline::timeline_mshutdown()
-    };
+    timeline::timeline_mshutdown();
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
