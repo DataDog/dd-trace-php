@@ -82,37 +82,18 @@ unsafe fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) 
 }
 
 unsafe extern "C" fn frankenphp_sapi_module_activate() -> i32 {
-    if is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data()) {
-        IDLE_SINCE.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(idle_since) = cell.try_borrow() else {
-                return;
-            };
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
 
-            REQUEST_LOCALS.with(|cell| {
-                let is_timeline_enabled = cell
-                    .try_borrow()
-                    .map(|locals| locals.system_settings().profiling_timeline_enabled)
-                    .unwrap_or(false);
-
-                if !is_timeline_enabled {
-                    return;
-                }
-
-                if let Some(profiler) = Profiler::get() {
-                    profiler.collect_idle(
-                        // Safety: checked for `is_err()` above
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos() as i64,
-                        idle_since.elapsed().as_nanos() as i64,
-                        "idle",
-                    );
-                }
-            });
-        });
+    if timeline_enabled
+        && is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data())
+    {
+        timeline_idle_stop();
     }
+
     if let Some(activate) = PREV_FRANKEN_PHP_SAPI_ACTIVATE {
         return activate();
     }
@@ -120,19 +101,22 @@ unsafe extern "C" fn frankenphp_sapi_module_activate() -> i32 {
     0
 }
 unsafe extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
-    if is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data()) {
-        IDLE_SINCE.with(|cell| {
-            // try to borrow and bail out if not successful
-            let Ok(mut idle_since) = cell.try_borrow_mut() else {
-                return;
-            };
-            *idle_since = Instant::now();
-        })
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if timeline_enabled
+        && is_in_frankenphp_handle_request(zend::ddog_php_prof_get_current_execute_data())
+    {
+        timeline_idle_start();
     }
 
     if let Some(deactivate) = PREV_FRANKEN_PHP_SAPI_DEACTIVATE {
         return deactivate();
     }
+
     0
 }
 
@@ -454,11 +438,7 @@ pub unsafe fn timeline_startup() {
     }
 }
 
-/// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
-/// period for this PHP thread.
-/// # SAFETY
-/// Must be called only in rinit and after [crate::config::first_rinit].
-pub unsafe fn timeline_rinit() {
+fn timeline_idle_stop() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(idle_since) = cell.try_borrow() else {
@@ -487,6 +467,34 @@ pub unsafe fn timeline_rinit() {
             }
         });
     });
+}
+
+fn timeline_idle_start() {
+    IDLE_SINCE.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(mut idle_since) = cell.try_borrow_mut() else {
+            return;
+        };
+        *idle_since = Instant::now();
+    })
+}
+
+/// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
+/// period for this PHP thread.
+/// # SAFETY
+/// Must be called only in rinit and after [crate::config::first_rinit].
+pub unsafe fn timeline_rinit() {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if !timeline_enabled {
+        return;
+    }
+
+    timeline_idle_stop();
 
     #[cfg(php_zts)]
     IS_NEW_THREAD.with(|cell| {
@@ -531,13 +539,7 @@ pub fn timeline_prshutdown() {
         return;
     }
 
-    IDLE_SINCE.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(mut idle_since) = cell.try_borrow_mut() else {
-            return;
-        };
-        *idle_since = Instant::now();
-    })
+    timeline_idle_start();
 }
 
 /// This function is run during the MSHUTDOWN phase and reports any `IDLE_SINCE` duration as an idle
@@ -546,35 +548,7 @@ pub fn timeline_prshutdown() {
 /// # Saftey
 /// Must be called in shutdown before [crate::config::shutdown].
 pub(crate) unsafe fn timeline_mshutdown() {
-    IDLE_SINCE.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(idle_since) = cell.try_borrow() else {
-            return;
-        };
-
-        REQUEST_LOCALS.with(|cell| {
-            let is_timeline_enabled = cell
-                .try_borrow()
-                .map(|locals| locals.system_settings().profiling_timeline_enabled)
-                .unwrap_or(false);
-
-            if !is_timeline_enabled {
-                return;
-            }
-
-            if let Some(profiler) = Profiler::get() {
-                profiler.collect_idle(
-                    // Safety: checked for `is_err()` above
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_nanos() as i64,
-                    idle_since.elapsed().as_nanos() as i64,
-                    "idle",
-                );
-            }
-        });
-    });
+    timeline_idle_stop();
     #[cfg(php_zts)]
     timeline_gshutdown();
 }
