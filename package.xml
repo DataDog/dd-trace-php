@@ -116,7 +116,6 @@
 
 ### Changed
 - Upgrade libddwaf #3126
-- Enable RASP by default #3082
 
 ### Fixed
 - Emit asm event on user events #3170
