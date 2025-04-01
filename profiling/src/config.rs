@@ -762,14 +762,18 @@ unsafe extern "C" fn parse_profiling_enabled(
     decoded_value: *mut zval,
     _persistent: bool,
 ) -> bool {
-    if value.is_empty() || decoded_value.is_null() {
+    if decoded_value.is_null() {
         return false;
     }
 
     let decoded_value = &mut *decoded_value;
     match value.into_utf8() {
         Ok(value) => {
-            if value == "1" || value == "on" || value == "yes" || value == "true" || value == "auto"
+            if value.eq_ignore_ascii_case("1")
+                || value.eq_ignore_ascii_case("on")
+                || value.eq_ignore_ascii_case("yes")
+                || value.eq_ignore_ascii_case("true")
+                || value.eq_ignore_ascii_case("auto")
             {
                 decoded_value.u1.type_info = IS_TRUE as u32;
             } else {
@@ -799,9 +803,10 @@ unsafe extern "C" fn display_profiling_enabled(ini_entry: *mut zend_ini_entry, t
     let mut value: bool = false;
     if !tmp_value.is_null() {
         let str_val = zai_str_from_zstr(tmp_value.as_mut()).into_string();
-        value = if str_val.eq_ignore_ascii_case("true")
-            || str_val.eq_ignore_ascii_case("yes")
+        value = if str_val.eq_ignore_ascii_case("1")
             || str_val.eq_ignore_ascii_case("on")
+            || str_val.eq_ignore_ascii_case("yes")
+            || str_val.eq_ignore_ascii_case("true")
             || str_val.eq_ignore_ascii_case("auto")
         {
             true
