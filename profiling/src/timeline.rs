@@ -346,6 +346,9 @@ pub fn timeline_minit() {
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
 
+        // To detect idle phases in FrankenPHP in worker mode, we need to hook the
+        // `sapi_module.activate` / `sapi_module.deactivate`, as FrankenPHP worker request shutdown
+        // / startup will call these functions.
         if *SAPI == Sapi::FrankenPHP {
             PREV_FRANKEN_PHP_SAPI_ACTIVATE = zend::sapi_module.activate;
             PREV_FRANKEN_PHP_SAPI_DEACTIVATE = zend::sapi_module.deactivate;
@@ -552,8 +555,20 @@ pub fn timeline_prshutdown() {
 /// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
 /// # Saftey
 /// Must be called in shutdown before [crate::config::shutdown].
-pub(crate) unsafe fn timeline_mshutdown() {
+pub(crate) fn timeline_mshutdown() {
     timeline_idle_stop();
+
+    // Unhook `sapi_module.activate` / `sapi_module.deactivate` in case SAPI is FrankenPHP. This
+    // hook was installed in `timeline_minit`
+    if *SAPI == Sapi::FrankenPHP {
+        unsafe {
+            zend::sapi_module.activate = PREV_FRANKEN_PHP_SAPI_ACTIVATE;
+            zend::sapi_module.deactivate = PREV_FRANKEN_PHP_SAPI_DEACTIVATE;
+            PREV_FRANKEN_PHP_SAPI_ACTIVATE = None;
+            PREV_FRANKEN_PHP_SAPI_DEACTIVATE = None;
+        }
+    }
+
     #[cfg(php_zts)]
     timeline_gshutdown();
 }
