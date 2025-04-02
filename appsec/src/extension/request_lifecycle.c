@@ -404,7 +404,7 @@ static void _reset_globals()
         _superglob_equiv = NULL;
     }
 
-    if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
+    if (_client_ip) {
         zend_string_release(_client_ip);
         _client_ip = NULL;
     }
@@ -455,14 +455,8 @@ zend_string *nullable dd_req_lifecycle_get_client_ip()
         } else {
             _client_ip = _extract_ip_from_autoglobal();
         }
-        if (!_client_ip) {
-            _client_ip = CLIENT_IP_LOOKUP_FAILED;
-        }
     }
 
-    if (_client_ip == CLIENT_IP_LOOKUP_FAILED) {
-        return NULL;
-    }
     return _client_ip;
 }
 
