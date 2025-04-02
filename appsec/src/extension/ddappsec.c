@@ -146,6 +146,9 @@ static int ddappsec_startup(zend_extension *extension)
     UNUSED(extension);
 
     zend_hash_sort_ex(&module_registry, ddappsec_sort_modules, NULL, 0);
+
+    dd_request_abort_zend_ext_startup();
+
     return SUCCESS;
 }
 

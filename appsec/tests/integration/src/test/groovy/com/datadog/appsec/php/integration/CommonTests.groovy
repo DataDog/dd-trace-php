@@ -462,6 +462,7 @@ trait CommonTests {
                 .header('X-Forwarded-For', '80.80.80.81').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> conn ->
             assert conn.statusCode() == 303
+            assert conn.body().size() == 0
         }
 
         Span span = trace.first()
