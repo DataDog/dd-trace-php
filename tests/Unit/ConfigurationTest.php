@@ -269,16 +269,16 @@ EOD;
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
-    public function testGlobalTagsNoDelimiter()
-    {
-        $this->putEnvAndReloadConfig(['DD_TAGS=only_key_no_value']);
-        $this->assertEquals(["only_key_no_value" => ""], \dd_trace_env_config("DD_TAGS"));
-    }
-
     public function testGlobalTagsDelimterPrecedence()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=env:test     bKey :bVal dKey: dVal cKey:']);
         $this->assertEquals(["env" => "test", "bKey"  => "", "dKey"  => "", "dVal"  => "", "cKey"  => ""], \dd_trace_env_config("DD_TAGS"));
+    }
+
+    public function testGlobalTagsNoDelimiter()
+    {
+        $this->putEnvAndReloadConfig(['DD_TAGS=only_key_no_value']);
+        $this->assertEquals(["only_key_no_value" => ""], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testHttpHeadersDefaultsToEmpty()

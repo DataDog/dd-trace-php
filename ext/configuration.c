@@ -151,13 +151,16 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         }
         // Only add if key is non-empty (value can be empty)
         if (key_len > 0) {
+            // Create a zval for the value
             zval val;
             zend_string *val_str = zend_string_init(val_start, val_len, persistent);
             ZVAL_STR(&val, val_str);
+            // Create a zval for the key, this ensures that the key is null-terminated
+            zval key;
             zend_string *key_str = zend_string_init(key_start, key_len, persistent);
-            zend_hash_str_update_ind(Z_ARRVAL_P(decoded_value), ZSTR_VAL(key_str), ZSTR_LEN(key_str), &val);
-            zend_string_release(key_str);
-        }
+            ZVAL_STR(&key, key_str); 
+            zend_hash_update(Z_ARRVAL_P(decoded_value), Z_STR(key), &val);
+        } 
         // Move to the start of the next tag
         current = tag_end + sep_len;
     }
