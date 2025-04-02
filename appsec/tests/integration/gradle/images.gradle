@@ -213,6 +213,7 @@ def allPushTasks = [
         *testMatrix.collect { spec ->
             buildPushTask("nginx-fpm-php-${spec[0]}-${spec[1]}", "buildNginxFpm-${spec[0]}-${spec[1]}")
         },
+        buildPushTask("frankenphp-8.4-release-zts", 'buildFrankenPHP-8.4-release-zts'),
 ]
 tasks.register('pushAll') {
     dependsOn allPushTasks
@@ -237,7 +238,8 @@ def allMultiArchTasks = [
         },
         *testMatrix.collect { spec ->
             buildMultiArchTask("nginx-fpm-php-${spec[0]}-${spec[1]}")
-        }
+        },
+        buildMultiArchTask("frankenphp-8.4-release-zts")
 ]
 tasks.register('pushMultiArch') {
     dependsOn allMultiArchTasks
