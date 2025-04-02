@@ -855,6 +855,11 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             ddtrace_set_priority_sampling_on_span(span, DDTRACE_G(default_priority_sampling), DD_MECHANISM_MANUAL);
         }
 
+        if (DDTRACE_G(asm_event_emitted)) {
+            span->asm_event_emitted = DDTRACE_G(asm_event_emitted);
+            DDTRACE_G(asm_event_emitted) = false; // we attach this to the first root span after the asm event was detected (if there was none while emitted)
+        }
+
         ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
         if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
             zval sample_rate;

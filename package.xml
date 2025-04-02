@@ -88,7 +88,8 @@
 - Implement Disable APM Tracing #3080
 
 ### Fixed
-- support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
+- Support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
+- Handle flushing of multiple traces at once #3176
 
 ### Internal
 - Show actual file and line for occurrence of exceptions as well #3172
@@ -115,7 +116,6 @@
 
 ### Changed
 - Upgrade libddwaf #3126
-- Enable RASP by default #3082
 
 ### Fixed
 - Emit asm event on user events #3170

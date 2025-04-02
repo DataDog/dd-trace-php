@@ -43,6 +43,7 @@ struct zai_config_entry_s {
     // Accept or reject ini changes, potentially apply to the currently running system
     zai_config_apply_ini_change ini_change;
     zai_custom_parse parser;
+    zai_custom_display displayer;
     zai_env_config_fallback env_config_fallback;
 };
 
@@ -64,6 +65,7 @@ struct zai_config_memoized_entry_s {
     int16_t name_index;
     zai_config_apply_ini_change ini_change;
     zai_custom_parse parser;
+    zai_custom_display displayer;
     zai_env_config_fallback env_config_fallback;
     ZEND_INI_MH((*original_on_modify)); // when some other extension has registered that INI
 };
