@@ -360,6 +360,16 @@ extern "C" {
     /// Returns the PHP_VERSION of the engine at run-time, not the version the
     /// extension was built against at compile-time.
     pub fn ddog_php_prof_php_version() -> *const c_char;
+
+    pub fn _zend_mm_alloc(heap: *mut zend_mm_heap, size: size_t) -> *mut c_void;
+    pub fn _zend_mm_free(heap: *mut zend_mm_heap, ptr: *mut c_void);
+    pub fn _zend_mm_realloc(heap: *mut zend_mm_heap, ptr: *mut c_void, size: size_t) -> *mut c_void;
+    pub fn zend_mm_gc(heap: *mut zend_mm_heap) -> usize;
+    pub fn zend_mm_get_heap() -> *mut zend_mm_heap;
+    #[cfg(php8)]
+    pub fn zend_mm_shutdown(heap: *mut zend_mm_heap, full_shutdown: bool, silent: bool);
+    #[cfg(php7)]
+    pub fn zend_mm_shutdown(heap: *mut zend_mm_heap, full_shutdown: c_int, silent: c_int);
 }
 
 #[cfg(php_post_startup_cb)]
