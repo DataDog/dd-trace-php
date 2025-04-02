@@ -141,11 +141,9 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         while (key_end > key_start && key_end[-1] == ' ') key_end--;
         // Only add if key is non-empty
         if (key_start != key_end) {
-            // Strip whitespace from value (if it is not empty)
-            if (val_start != val_end) {
-                while (val_start < tag_end && *val_start == ' ') val_start++;
-                while (val_end > val_start && val_end[-1] == ' ') val_end--;
-            }
+            // Strip whitespace from value
+            while (val_start < val_end && *val_start == ' ') val_start++;
+            while (val_end > val_start && val_end[-1] == ' ') val_end--;
 
             zval val;
             ZVAL_STR(&val, zend_string_init(val_start, val_end - val_start, persistent));
