@@ -153,7 +153,7 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         if (key_len > 0) {
             zval val;
             ZVAL_STR(&val, zend_string_init(val_start, val_len, persistent));
-            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
+            zend_hash_str_update_ind(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
         }
         // Move to the start of the next tag
         current = tag_end + sep_len;

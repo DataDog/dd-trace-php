@@ -113,7 +113,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_SERVICE, "", .ini_change = ddtrace_alter_dd_service,                                     \
            .env_config_fallback = ddtrace_conf_otel_service_name)                                              \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
-    CONFIG(MAP, DD_TAGS, "",                                                                                   \
+    CONFIG(CUSTOM(MAP), DD_TAGS, "",                                                                                   \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags,                                  \
            .parser = dd_parse_tags)                                                                             \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
