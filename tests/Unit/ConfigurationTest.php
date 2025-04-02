@@ -251,16 +251,34 @@ EOD;
         $this->assertFalse(\dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED"));
     }
 
-    public function testGlobalTags()
+    public function testGlobalTagsCommaSeparated()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
-    public function testGlobalTagsWrongValueJustResultsInNoTags()
+    public function testGlobalTagsWhitespaceSeparated()
     {
-        $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);
-        $this->assertEquals([], \dd_trace_env_config("DD_TAGS"));
+        $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1 key2:value2']);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
+    }
+
+    public function testGlobalTagsWhitespaceAndCommaSeparated()
+    {
+        $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1, key2:value2']);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
+    }
+
+    public function testGlobalTagsNoDelimiter()
+    {
+        $this->putEnvAndReloadConfig(['DD_TAGS=only_key_no_value']);
+        $this->assertEquals(["only_key_no_value" => ""], \dd_trace_env_config("DD_TAGS"));
+    }
+
+    public function testGlobalTagsDelimterPrecedence()
+    {
+        $this->putqEnvAndReloadConfig(['DD_TAGS=env:test     bKey :bVal dKey: dVal cKey:']);
+        $this->assertEquals(["env" => "test", "bKey"  => "", "dKey"  => "", "dVal"  => "", "cKey"  => ""], \dd_trace_env_config("DD_TAGS"));
     }
 
     public function testHttpHeadersDefaultsToEmpty()
