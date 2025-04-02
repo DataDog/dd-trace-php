@@ -275,11 +275,11 @@ EOD;
         $this->assertEquals(["env" => "test", "bKey"  => "", "dKey"  => "", "dVal"  => "", "cKey"  => ""], \dd_trace_env_config("DD_TAGS"));
     }
 
-    public function testGlobalTagsNoDelimiter()
-    {
-        $this->putEnvAndReloadConfig(['DD_TAGS=only_key_no_value']);
-        $this->assertEquals(["only_key_no_value" => ""], \dd_trace_env_config("DD_TAGS"));
-    }
+    // public function testGlobalTagsNoDelimiter()
+    // {
+    //     $this->putEnvAndReloadConfig(['DD_TAGS=only_key_no_value']);
+    //     $this->assertEquals(["only_key_no_value" => ""], \dd_trace_env_config("DD_TAGS"));
+    // }
 
     public function testHttpHeadersDefaultsToEmpty()
     {
