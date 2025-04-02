@@ -626,17 +626,3 @@ const zend_function_entry* ddog_php_prof_functions = functions;
 zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
     return &zai_config_memoized_entries[config_id].decoded_value;
 }
-
-#if defined(__aarch64__) && defined(CFG_TEST)
-// dummy symbol for tests, so that they can be run without being linked into PHP
-__attribute__((weak)) void* _zend_mm_alloc(zend_mm_heap*, size_t);
-__attribute__((weak)) void  _zend_mm_free(zend_mm_heap*, void*);
-__attribute__((weak)) void* _zend_mm_realloc(zend_mm_heap*, void *p, size_t);
-__attribute__((weak)) size_t zend_mm_gc(zend_mm_heap *);
-__attribute__((weak)) zend_mm_heap *zend_mm_get_heap(void);
-#if PHP_VERSION_ID >= 80000
-__attribute__((weak)) void zend_mm_shutdown(zend_mm_heap *, bool, bool);
-#else
-__attribute__((weak)) void zend_mm_shutdown(zend_mm_heap *, int, int);
-#endif
-#endif
