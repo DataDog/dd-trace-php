@@ -277,7 +277,7 @@ EOD;
 
     public function testGlobalTagsDelimterPrecedence()
     {
-        $this->putqEnvAndReloadConfig(['DD_TAGS=env:test     bKey :bVal dKey: dVal cKey:']);
+        $this->putEnvAndReloadConfig(['DD_TAGS=env:test     bKey :bVal dKey: dVal cKey:']);
         $this->assertEquals(["env" => "test", "bKey"  => "", "dKey"  => "", "dVal"  => "", "cKey"  => ""], \dd_trace_env_config("DD_TAGS"));
     }
 
