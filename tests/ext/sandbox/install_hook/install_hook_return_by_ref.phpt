@@ -41,7 +41,7 @@ var_dump(A::$var);
 --EXPECTF--
 int(2)
 int(2)
-[ddtrace] [warning] TypeError thrown in ddtrace's closure defined at %s:%d for ref(): Cannot assign string to reference held by property A::$var of type ?int
+[ddtrace] [warning] TypeError thrown in ddtrace's closure defined at %s:%d for ref(): Cannot assign string to reference held by property A::$var of type ?int in %s on line %d
 int(3)
 int(3)
 NULL

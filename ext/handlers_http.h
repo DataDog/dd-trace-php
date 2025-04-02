@@ -202,6 +202,8 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     zend_string *tracestate = DDTRACE_G(tracestate);
     zend_array *baggage = &DDTRACE_G(baggage);
     if (root) {
+        SPANDATA(DDTRACE_G(active_stack)->active)->flags |= DDTRACE_SPAN_FLAG_NOT_DROPPABLE;
+
         if (Z_TYPE(root->property_origin) == IS_STRING && Z_STRLEN(root->property_origin)) {
             origin = Z_STR(root->property_origin);
         } else {

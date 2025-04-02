@@ -39,6 +39,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " handlers_internal.c";
 	DDTRACE_EXT_SOURCES += " handlers_kafka.c";
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
+	DDTRACE_EXT_SOURCES += " inferred_proxy_headers.c";
 	DDTRACE_EXT_SOURCES += " ip_extraction.c";
 	DDTRACE_EXT_SOURCES += " standalone_limiter.c";
 	DDTRACE_EXT_SOURCES += " live_debugger.c";
@@ -56,6 +57,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " trace_source.c";
 	DDTRACE_EXT_SOURCES += " threads.c";
 	DDTRACE_EXT_SOURCES += " user_request.c";
+	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	if (version >= 800 && version < 802) {
 		DDTRACE_EXT_SOURCES += " weakrefs.c";
 	}
@@ -175,6 +177,7 @@ if (PHP_DDTRACE != 'no') {
 	deffile = FSO.CreateTextFile(defpath, true);
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/ddtrace.sym", 1).ReadAll();
+    contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/ddtrace-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");
 	}

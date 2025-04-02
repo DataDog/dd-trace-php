@@ -114,7 +114,8 @@ enum ddtrace_sampling_rules_format {
            .env_config_fallback = ddtrace_conf_otel_service_name)                                              \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
     CONFIG(MAP, DD_TAGS, "",                                                                                   \
-           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags)                                  \
+           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags,                                  \
+           .parser = dd_parse_tags)                                                                             \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_APPEND_TRACE_IDS_TO_LOGS, "false")                                                   \
@@ -181,7 +182,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                          \
-    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "false")                                            \
+    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "true")                                            \
     CONFIG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_CONNECT_TIMEOUT_VAL),                 \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
@@ -245,6 +246,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
+    CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                             \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

@@ -43,6 +43,7 @@ Array
     [appsec.events.users.login.failure.email] => noneofyour@business.com
     [appsec.events.users.login.failure.usr.exists] => false
     [server.business_logic.users.login.failure] => null
+    [_dd.p.ts] => 02
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

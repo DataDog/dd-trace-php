@@ -568,12 +568,27 @@ final class SpanChecker
     /**
      * @param array[] $traces
      * @return array
+     * @throws \InvalidArgumentException if $traces is not an array
      */
     public function flattenTraces($traces)
     {
+        if (!is_array($traces)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Argument $traces must be of type array, %s given',
+                is_object($traces) ? get_class($traces) : gettype($traces)
+            ));
+        }
+
         $result = [];
 
-        foreach ($traces as $trace) {
+        foreach ($traces as $index => $trace) {
+            if (!is_array($trace)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Each trace must be an array, %s given at index %d',
+                    is_object($trace) ? get_class($trace) : gettype($trace),
+                    $index
+                ));
+            }
             array_walk($trace, function (array $span) use (&$result) {
                 $result[] = $span;
             });
