@@ -627,7 +627,7 @@ zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
     return &zai_config_memoized_entries[config_id].decoded_value;
 }
 
-#if CFG_TEST
+#if defined(__aarch64__) && defined(CFG_TEST)
 // dummy symbol for tests, so that they can be run without being linked into PHP
 __attribute__((weak)) zend_write_func_t zend_write;
 #endif
