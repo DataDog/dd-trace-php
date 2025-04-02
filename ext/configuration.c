@@ -111,51 +111,45 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 
     while (current < end) {
         // Skip leading whitespace
-        while (current < end && *current == ' ') current++;
-        if (current >= end) break;
+        while (current < end && (*current == ' ' || *current == sep)) current++;
+        if (current == end) {
+            // Abort if only separators are remaining
+            break;
+        }
+
         // Find next separator, this will be the end of the tag
         const char *tag_end = memchr(current, sep, end - current);
         if (!tag_end) {
             tag_end = end;
         }
-        size_t tag_len = tag_end - current;
-        if (tag_len == 0) {
-            // If the first character is a separator, move to the next character
-            ++current;
-            continue;
-        }
         // Prepare key and value
         // Initialize key to be the entire tag and value to be empty
         const char *key_start = current;
         const char *key_end = tag_end;
-        const char *val_start = "";
-        size_t key_len = tag_len;
-        size_t val_len = 0;
+        const char *val_start = tag_end;
+        const char *val_end = tag_end;
         // If the tag has a colon, use the index of the colon to split the tag into key and value
-        const char *colon = memchr(current, ':', tag_len);
+        const char *colon = memchr(current, ':', tag_end - current);
         if (colon) {
             // Tag has a colon, use the index of the colon to  split into key and value
-            key_end = colon - 1;
+            key_end = colon;
             val_start = colon + 1;
-            key_len = key_end - key_start + 1;
-            val_len = tag_end - val_start;
         }
+
         // Strip whitespace from key
         while (key_start < key_end && *key_start == ' ') key_start++;
-        while (key_end > key_start && *key_end == ' ') key_end--;
-        key_len = key_end - key_start + 1;
-        // Strip whitespace from value (if it is not empty)
-        if (val_len > 0) {
-            while (val_start < tag_end && *val_start == ' ') val_start++;
-            const char *val_end = tag_end - 1;
-            while (val_end > val_start && *val_end == ' ') val_end--;
-            val_len = val_end - val_start + 1;
-        }
-        // Only add if key is non-empty (value can be empty)
-        if (key_len > 0) {
+        while (key_end > key_start && key_end[-1] == ' ') key_end--;
+        // Only add if key is non-empty
+        if (key_start != key_end) {
+            // Strip whitespace from value (if it is not empty)
+            if (val_start != val_end) {
+                while (val_start < tag_end && *val_start == ' ') val_start++;
+                while (val_end > val_start && val_end[-1] == ' ') val_end--;
+            }
+
             zval val;
-            ZVAL_STR(&val, zend_string_init(val_start, val_len, persistent));
-            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
+            ZVAL_STR(&val, zend_string_init(val_start, val_end - val_start, persistent));
+            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_end - key_start, &val);
         }
         // Move to the start of the next tag
         current = tag_end + 1;
