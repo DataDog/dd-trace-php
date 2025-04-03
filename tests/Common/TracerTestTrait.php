@@ -295,7 +295,11 @@ trait TracerTestTrait
         exec($commandToExecute . ' 2>&1', $output, $exitCode);
         \DDTrace\remove_hook($createHook);
         \DDTrace\remove_hook($finishHook);
-        $ret = $withOutput ? implode("\n", $output) : null;
+        $output = implode("\n", $output);
+        if (preg_match('(\[error\]|\[warning\]|\[deprecated\])', $output)) {
+            throw new \Exception("Got unexpected ddtrace warnings or errors in output:\n\n$output");
+        }
+        $ret = $withOutput ? $output : null;
         if (!$skipSyncFlush && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
             \dd_trace_synchronous_flush();
         }

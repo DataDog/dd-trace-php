@@ -856,33 +856,37 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     }
 
     if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
-            zval on_close_zv, *on_close = &on_close_zv;
-            ZVAL_COPY_VALUE(&on_close_zv, &span->property_on_close);
-            ZVAL_EMPTY_ARRAY(&span->property_on_close);
+        zval on_close_zv, *on_close = &on_close_zv;
+        ZVAL_COPY_VALUE(&on_close_zv, &span->property_on_close);
+        ZVAL_EMPTY_ARRAY(&span->property_on_close);
 
-            ZVAL_DEREF(on_close);
-            if (Z_TYPE_P(on_close) == IS_ARRAY) {
-                zval *closure_zv, span_zv;
-                ZVAL_OBJ(&span_zv, &span->std);
-                ZEND_HASH_REVERSE_FOREACH_VAL(Z_ARR_P(on_close), closure_zv) {
-                    ZVAL_DEREF(closure_zv);
-                    if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
-                        zval rv;
-                        zai_sandbox sandbox;
-                        zai_sandbox_open(&sandbox);
-                        bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                       ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                       &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
-                        if (!success || PG(last_error_message)) {
-                            dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
-                        }
-                        zai_sandbox_close(&sandbox);
-                        zval_ptr_dtor(&rv);
+        ZVAL_DEREF(on_close);
+        if (Z_TYPE_P(on_close) == IS_ARRAY) {
+            zval *closure_zv, span_zv;
+            ZVAL_OBJ(&span_zv, &span->std);
+            ZEND_HASH_REVERSE_FOREACH_VAL(Z_ARR_P(on_close), closure_zv) {
+                ZVAL_DEREF(closure_zv);
+                if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
+                    zval rv;
+                    zai_sandbox sandbox;
+                    zai_sandbox_open(&sandbox);
+                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
+                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
+                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    if (!success || PG(last_error_message)) {
+                        dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }
-                } ZEND_HASH_FOREACH_END();
-            }
-            zval_ptr_dtor(&on_close_zv);
+                    zai_sandbox_close(&sandbox);
+                    zval_ptr_dtor(&rv);
+                }
+            } ZEND_HASH_FOREACH_END();
         }
+        zval_ptr_dtor(&on_close_zv);
+
+        if (span->duration == DDTRACE_SILENTLY_DROPPED_SPAN || span->duration == DDTRACE_DROPPED_SPAN) {
+            return; // It was dropped in onClose handler
+        }
+    }
 
     // Telemetry: increment the spans_created counter
     // Must be done at closing because we need to read the "component" span's meta which is not available at creation
