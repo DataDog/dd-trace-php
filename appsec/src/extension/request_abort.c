@@ -225,7 +225,7 @@ void dd_set_redirect_code_and_location(int code, zend_string *nullable location)
     _redirection_location = location;
 }
 
-void dd_request_abort_redirect()
+void dd_request_abort_redirect(void)
 {
     if (_redirection_location == NULL || ZSTR_LEN(_redirection_location) == 0) {
         _request_abort_static_page(
@@ -272,7 +272,7 @@ void dd_request_abort_redirect()
     }
 }
 
-zend_array *nonnull dd_request_abort_redirect_spec()
+zend_array *nonnull dd_request_abort_redirect_spec(void)
 {
     zend_array *arr = zend_new_array(2);
 
@@ -345,7 +345,7 @@ void _request_abort_static_page(int response_code, int type)
     }
 }
 
-void dd_request_abort_static_page()
+void dd_request_abort_static_page(void)
 {
     _request_abort_static_page(_response_code, _response_type);
 }
@@ -403,7 +403,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
 }
 
 static void _force_destroy_output_handlers(void);
-static bool _abort_prelude()
+static bool _abort_prelude(void)
 {
     if (OG(running)) {
         /* we were told to block from inside an output handler. In this case,
@@ -439,7 +439,7 @@ static bool _abort_prelude()
     return true;
 }
 
-static void _force_destroy_output_handlers()
+static void _force_destroy_output_handlers(void)
 {
     OG(active) = NULL;
     OG(running) = NULL;
@@ -533,7 +533,7 @@ static void _emit_error(const char *format, ...)
 
 /* work around bugs in extensions that expect their request_shutdown to be
  * called once their request_init has been called */
-static void _run_rshutdowns()
+static void _run_rshutdowns(void)
 {
     HashPosition pos;
     zend_module_entry *module;
@@ -561,7 +561,7 @@ static void _run_rshutdowns()
     }
 }
 
-static void _suppress_error_reporting()
+static void _suppress_error_reporting(void)
 {
     /* do this through zend_alter_init_entry_ex rather than changing
      * EG(error_reporting) directly so the value is restored
@@ -596,7 +596,7 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-void dd_request_abort_startup()
+void dd_request_abort_startup(void)
 {
     {
         char buf[PATH_MAX];
@@ -635,7 +635,7 @@ void dd_request_abort_startup()
     dd_phpobj_reg_funcs(functions);
 }
 
-void dd_request_abort_zend_ext_startup()
+void dd_request_abort_zend_ext_startup(void)
 {
 #if FRANKENPHP_SUPPORT
     if (strcmp(sapi_module.name, "frankenphp") == 0) {
@@ -646,7 +646,7 @@ void dd_request_abort_zend_ext_startup()
 }
 
 #ifdef FRANKENPHP_SUPPORT
-static zend_result _request_abort_post_startup_cb()
+static zend_result _request_abort_post_startup_cb(void)
 {
     if (_orig_zend_post_startup_cb) {
         zend_result res = _orig_zend_post_startup_cb();
@@ -662,7 +662,7 @@ static zend_result _request_abort_post_startup_cb()
 }
 #endif
 
-void dd_request_abort_shutdown()
+void dd_request_abort_shutdown(void)
 {
 #ifdef FRANKENPHP_SUPPORT
     if (_orig_zend_compile_file) {
@@ -672,7 +672,7 @@ void dd_request_abort_shutdown()
 #endif
 }
 
-static zend_string *nonnull _get_json_blocking_template()
+static zend_string *nonnull _get_json_blocking_template(void)
 {
     zend_string *json_template_file =
         get_DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON();
@@ -696,7 +696,7 @@ static zend_string *nonnull _get_json_blocking_template()
     return _body_error_json_def;
 }
 
-static zend_string *nonnull _get_html_blocking_template()
+static zend_string *nonnull _get_html_blocking_template(void)
 {
     zend_string *html_template_file =
         get_DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML();
@@ -718,7 +718,7 @@ static zend_string *nonnull _get_html_blocking_template()
 }
 
 #ifdef FRANKENPHP_SUPPORT
-static void _prepare_req_init_block()
+static void _prepare_req_init_block(void)
 {
     _zend_compile_next_noop = true;
     _saved_prepend_file = PG(auto_prepend_file);

@@ -21,7 +21,7 @@ public:
 
     void init() override;
     void on_update(const config &config) override;
-    void on_unapply(const config &config) override {}
+    void on_unapply(const config &) override {}
     void commit() override;
 
     [[nodiscard]] std::unordered_set<product> get_supported_products() override

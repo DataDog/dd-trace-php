@@ -9,20 +9,15 @@
 #include "listeners/asm_features_listener.hpp"
 #include "listeners/engine_listener.hpp"
 #include "listeners/listener.hpp"
-#include <atomic>
-#include <chrono>
 #include <mutex>
 
 namespace dds::remote_config {
 
-static constexpr std::chrono::milliseconds default_max_interval = 5min;
-
 client_handler::client_handler(std::unique_ptr<client> &&rc_client,
     std::shared_ptr<service_config> service_config,
     std::shared_ptr<metrics::telemetry_submitter> msubmitter)
-    : rc_client_{std::move(rc_client)},
-      service_config_{std::move(service_config)},
-      msubmitter_{std::move(msubmitter)}
+    : service_config_{std::move(service_config)},
+      rc_client_{std::move(rc_client)}, msubmitter_{std::move(msubmitter)}
 {}
 
 std::unique_ptr<client_handler> client_handler::from_settings(
