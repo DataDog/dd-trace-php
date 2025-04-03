@@ -337,6 +337,7 @@ class LaravelIntegration extends Integration
                     $rootSpan->exception = $args[0];
                     $rootSpan->meta['error.ignored'] = 0;
                 } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
+                    $rootSpan->exception = $args[0];
                     $rootSpan->meta['error.ignored'] = 1;
                 }
             }

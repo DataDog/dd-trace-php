@@ -330,6 +330,7 @@ class SymfonyIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
+                    Logger::get()->debug("[renderException] Setting exception to root span" . get_class($args[0]) . " " . $args[0]->getMessage());
                     $rootSpan->exception = $args[0];
                 }
             }
@@ -341,6 +342,7 @@ class SymfonyIntegration extends Integration
             function ($This, $scope, $args) use ($integration) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
+                    Logger::get()->debug("[renderThrowable] Setting exception to root span" . get_class($args[0]) . " " . $args[0]->getMessage());
                     $rootSpan->exception = $args[0];
                 }
             }
@@ -547,15 +549,14 @@ class SymfonyIntegration extends Integration
             $span->name = $span->resource = 'symfony.kernel.handleException';
             $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
             $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-            if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
-                \DDTrace\root_span()->exception = $args[0];
-            }
+            \DDTrace\root_span()->exception = $args[0];
+
 
             if (isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500) {
                 // It means that the exception event associated with the exception had a response, which certainly
                 // means that the exception was handled.
-                \DDTrace\root_span()->meta['track_error'] = false;
-                \DDTrace\root_span()->exception = $args[0]->getPrevious();
+                Logger::get()->debug("Setting exception to root span, but ignoring it");
+                \DDTrace\root_span()->meta['error.ignored'] = 1;
             }
         };
         // Symfony 4.3-
