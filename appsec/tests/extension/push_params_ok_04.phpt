@@ -3,7 +3,6 @@ Some addresses are rasp requests when rasp enabled
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
-datadog.appsec.rasp_enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown, root_span_get_metrics};

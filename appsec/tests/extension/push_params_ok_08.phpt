@@ -3,7 +3,6 @@ LFI Rule can be sent
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
-datadog.appsec.rasp_enabled=1
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown};
