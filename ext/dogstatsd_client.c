@@ -35,9 +35,10 @@ void ddtrace_dogstatsd_client_rinit(void) {
     dogstatsd_client client = dogstatsd_client_default_ctor();
 
     while (health_metrics_enabled) {
-        struct addrinfo *addrs;
+        struct addrinfo *addrs = NULL;
         char *url = ddtrace_dogstatsd_url();
-        char *host, *port;
+        char *host = NULL;
+        char *port = NULL;
         if (url) {
             if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
                 addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
@@ -52,12 +53,11 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 }
 
                 host = estrndup(url + 6, colon - url - 6);
-
                 port = colon + 1;
                 int err;
                 if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
                     LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
-                                        (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                     efree(host);
                     efree(url);
                     break;
@@ -75,12 +75,12 @@ void ddtrace_dogstatsd_client_rinit(void) {
             break;
         }
 
-        host = url;
-        port = NULL;
         client = dogstatsd_client_ctor(addrs, DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE, METRICS_CONST_TAGS);
         if (dogstatsd_client_is_default_client(client)) {
-            LOG(WARN, "Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "",
-                               port ? port : "");
+            LOG(WARN, "Dogstatsd client failed opening socket to %s", url);
+            if (addrs) {
+                freeaddrinfo(addrs);
+            }
             efree(url);
             break;
         }
@@ -96,6 +96,9 @@ void ddtrace_dogstatsd_client_rinit(void) {
             })
         }
 
+        if (addrs) {
+            freeaddrinfo(addrs);
+        }
         efree(url);
         break;
     }
