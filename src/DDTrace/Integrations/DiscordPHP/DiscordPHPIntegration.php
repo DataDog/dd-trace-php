@@ -25,12 +25,14 @@ class DiscordPHPIntegration extends Integration
 {
     const NAME = 'discordphp';
 
+    public static $dropOrphans = true;
+
     public static function getPartsParsers()
     {
         return [
             \Discord\Parts\Channel\Message::class => function($span, $data) {
                 $span->meta["discord.message.id"] = $data->id;
-                if (isset($data->author)) {
+                if ($data->author) {
                     $span->meta["discord.author.id"] = $data->author->id;
                     if ($data->author->bot || $data->author->system) {
                         $span->meta["discord.author.type"] = $data->author->bot ? "bot" : "system";
@@ -44,10 +46,10 @@ class DiscordPHPIntegration extends Integration
                 if ($data->type !== \Discord\Parts\Channel\Message::TYPE_DEFAULT) {
                     $span->meta["discord.message.type"] = self::mapMessageType($data->type);
                 }
-                if (isset($data->referenced_message)) {
+                if ($data->referenced_message) {
                     $span->meta["discord.message.referenced_message_id"] = $data->referenced_message->id;
                 }
-                if (isset($data->interaction)) {
+                if ($data->interaction) {
                     $span->meta["discord.message.interaction.id"] = $data->interaction->id;
                     $span->meta["discord.message.interaction.type"] = self::mapInteractionType($data->interaction->type);
                     $span->meta["discord.message.interaction.name"] = $data->interaction->name;
@@ -56,10 +58,10 @@ class DiscordPHPIntegration extends Integration
                 if ($data->ephemeral) {
                     $span->meta["discord.message.ephemeral"] = "true";
                 }
-                if (isset($data->nonce)) {
+                if ($data->nonce) {
                     $span->meta["discord.message.nonce"] = $data->nonce;
                 }
-                if (isset($data->application_id)) {
+                if ($data->application_id) {
                     $span->meta["discord.message.application_id"] = $data->application_id;
                 }
                 if ($data->flags) {
@@ -80,10 +82,10 @@ class DiscordPHPIntegration extends Integration
                 $span->meta["discord.channel.id"] = $data->id;
                 $span->meta["discord.guild.id"] = $data->guild_id;
                 $span->meta["discord.channel.type"] = self::mapChannelType($data->type);
-                if (isset($data->recipient_id)) {
+                if ($data->recipient_id) {
                     $span->meta["discord.channel.recipient_id"] = $data->recipient_id;
                 }
-                if (isset($data->parent_id)) {
+                if ($data->parent_id) {
                     $span->meta["discord.channel.parent_id"] = $data->parent_id;
                 }
                 if ($data->is_private) {
@@ -109,13 +111,13 @@ class DiscordPHPIntegration extends Integration
                 $span->meta["discord.guild.id"] = $data->guild_id;
                 $span->meta["discord.user.id"] = $data->user_id;
                 $span->meta["discord.auto_moderation.rule.id"] = $data->rule_id;
-                if (isset($data->channel_id)) {
+                if ($data->channel_id) {
                     $span->meta["discord.channel.id"] = $data->channel_id;
                 }
                 $span->meta["discord.auto_moderation.type"] = self::mapRuleTriggerType($data->rule_trigger_type);
-                if (isset($data->message_id)) {
+                if ($data->message_id) {
                     $span->meta["discord.message.id"] = $data->message_id;
-                } elseif (isset($data->alert_system_message_id)) {
+                } elseif ($data->alert_system_message_id) {
                     $span->meta["discord.message.id"] = $data->alert_system_message_id;
                 }
                 switch ($data->action) {
@@ -170,10 +172,10 @@ class DiscordPHPIntegration extends Integration
                 $span->meta["discord.integration.name"] = $data->name;
                 $span->meta["discord.integration.type"] = $data->type;
                 $span->meta["discord.integration.enabled"] = $data->enabled ? "true" : "false";
-                if (isset($data->role_id)) {
+                if ($data->role_id) {
                     $span->meta["discord.integration.role.id"] = $data->role_id;
                 }
-                if (isset($data->revoked)) {
+                if ($data->revoked) {
                     $span->meta["discord.integration.revoked"] = $data->revoked ? "true" : "false";
                 }
             },
@@ -182,7 +184,7 @@ class DiscordPHPIntegration extends Integration
                 $span->meta["discord.channel.id"] = $data->channel_id;
                 $span->meta["discord.interaction.id"] = $data->id;
                 $span->meta["discord.interaction.type"] = self::mapInteractionType($data->type);
-                if (isset($data->data)) {
+                if ($data->data) {
                     $span->meta["discord.interaction.name"] = $data->data->name;
                     if (isset($data->data->custom_id)) {
                         $span->meta["discord.interaction.custom_id"] = $data->data->custom_id;
@@ -211,7 +213,7 @@ class DiscordPHPIntegration extends Integration
             \Discord\Parts\Channel\Invite::class => function($span, $data) {
                 $span->meta["discord.guild.id"] = $data->guild_id;
                 $span->meta["discord.channel.id"] = $data->channel_id;
-                if (isset($data->inviter)) {
+                if ($data->inviter) {
                     $span->meta["discord.invite.inviter"] = $data->inviter->id;
                 }
             },
@@ -225,7 +227,7 @@ class DiscordPHPIntegration extends Integration
                 $span->meta["discord.channel.id"] = $data->channel_id;
                 $span->meta["discord.stage_instance.id"] = $data->id;
                 $span->meta["discord.stage_instance.topic"] = $data->topic;
-                if (isset($data->guild_scheduled_event_id)) {
+                if ($data->guild_scheduled_event_id) {
                     $span->meta["discord.stage_instance.guild_scheduled_event_id"] = $data->guild_scheduled_event_id;
                 }
             },
@@ -249,10 +251,10 @@ class DiscordPHPIntegration extends Integration
                 $span->meta["discord.voice.token"] = $data->token;
             },
             \Discord\Parts\WebSockets\VoiceStateUpdate::class => function($span, $data) {
-                if (isset($data->guild_id)) {
+                if ($data->guild_id) {
                     $span->meta["discord.guild.id"] = $data->guild_id;
                 }
-                if (isset($data->channel_id)) {
+                if ($data->channel_id) {
                     $span->meta["discord.channel.id"] = $data->channel_id;
                 }
                 $span->meta["discord.user.id"] = $data->user_id;
@@ -1170,9 +1172,8 @@ class DiscordPHPIntegration extends Integration
 
     public function init(): int
     {
-        $integration = $this;
-
         ini_set("datadog.trace.websocket_messages_enabled", "1");
+        ini_set("datadog.trace.websocket_messages_inherit_sampling", "0");
 
         \DDTrace\install_hook(
             'Discord\Discord::handleDispatch',
@@ -1181,17 +1182,42 @@ class DiscordPHPIntegration extends Integration
                 $data = $hook->args[0];
                 $span->resource = $data->t;
                 $span->name = "discord.receive";
+                $span->meta[Tag::COMPONENT] = DiscordPHPIntegration::NAME;
+
+                if (DiscordPHPIntegration::$dropOrphans && $span instanceof \DDTrace\RootSpanData) {
+                    $hook->data = false;
+                    $spanCreated = &$hook->data;
+                    $span->stack->spanCreationObservers[] = function (SpanData $span) use (&$spanCreated) {
+                        if ($spanCreated) {
+                            return false;
+                        }
+                        $span->onClose[] = function () use (&$spanCreated) {
+                            $spanCreated = true;
+                        };
+                    };
+                }
+            }, function (HookData $hook) {
+                $span = \DDTrace\active_span();
+                Integration::handleInternalSpanServiceName($span, DiscordPHPIntegration::NAME);
+                if (DiscordPHPIntegration::$dropOrphans && $span instanceof \DDTrace\RootSpanData && !$hook->data && !$span->exception) {
+                    \DDTrace\set_priority_sampling(\DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                }
             }
         );
 
         $partsParsers = self::getPartsParsers();
-        \DDTrace\install_hook('Discord\Discord::on', function (HookData $hook) use ($partsParsers) {
+        \DDTrace\install_hook('Discord\Discord::on', function (HookData $hook) use ($partsParsers, &$skipListenerAdd) {
+            if ($skipListenerAdd) {
+                return;
+            }
+
             $event = $hook->args[0];
             $listener = $hook->args[1];
             \DDTrace\install_hook($listener, function (HookData $hook) use ($partsParsers, $event) {
                 $span = $hook->span();
                 $span->resource = $event;
                 $span->name = "discord.handle";
+                $span->meta[Tag::COMPONENT] = DiscordPHPIntegration::NAME;
 
                 foreach (array_reverse($hook->args) as $data) {
                     if (\is_object($data) && $parser = $partsParsers[get_class($data)] ?? null) {
@@ -1201,6 +1227,16 @@ class DiscordPHPIntegration extends Integration
             }, null, \DDTrace\HOOK_INSTANCE);
         });
 
+        \DDTrace\install_hook('Discord\Discord::handleReady', function () use (&$skipListenerAdd) {
+            $skipListenerAdd = true;
+        }, function () use (&$skipListenerAdd) {
+            $skipListenerAdd = false;
+        });
+
+        \DDTrace\install_hook('Discord\Discord::ready', function () use (&$skipListenerAdd) {
+            $skipListenerAdd = false;
+        });
+
         $endpointHandlers = self::getEndpointHandlers();
         ReactPromiseIntegration::tracePromiseFunction('Discord\Http\Http::queueRequest', function (HookData $hook, SpanData $span) use ($endpointHandlers, &$lastMultipart, &$lastMultipartString, &$savedPart) {
             list($method, $endpoint, $content) = $hook->args;
@@ -1208,6 +1244,8 @@ class DiscordPHPIntegration extends Integration
             list($endpoint, $args, $query) = (function() { return [$this->endpoint, $this->args, $this->query]; })->call($endpoint);
             $span->resource = "$method /$endpoint";
             $span->name = "discord.http.request";
+            Integration::handleInternalSpanServiceName($span, DiscordPHPIntegration::NAME);
+            $span->meta[Tag::COMPONENT] = DiscordPHPIntegration::NAME;
             $map = [
                 "answer_id" => "discord.poll.answer_id",
                 "application_id" => "discord.application.id",
@@ -1260,8 +1298,10 @@ class DiscordPHPIntegration extends Integration
                 $endpointHandlers[$endpoint]($span, $content);
             }
             $hook->data = $endpoint;
-        }, function () {
-
+        }, function (HookData $hook, SpanData $span, $data) use ($partsParsers) {
+            if (\is_object($data) && ($parser = $partsParsers[get_class($data)] ?? null)) {
+                $parser($span, $data);
+            }
         });
 
         \DDTrace\install_hook('Discord\Helpers\Multipart::__toString', null, function (HookData $hook) use (&$lastMultipart, &$lastMultipartString) {
