@@ -4,6 +4,7 @@
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_smart_str.h>
 #include <Zend/zend_types.h>
+#include <Zend/zend_string.h>
 #include <inttypes.h>
 #include <php.h>
 #include <stdbool.h>
@@ -445,7 +446,17 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
     zval *global_val;
+    zval *prop_service = &span->property_service;
+    zval *prop_env = &span->property_env;
+    zval *prop_version = &span->property_version;
+
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
+        if ((Z_TYPE_P(prop_service) == IS_STRING && zend_string_equals_literal(global_key, "service")) ||
+            (Z_TYPE_P(prop_env) == IS_STRING && zend_string_equals_literal(global_key, "env")) ||
+            (Z_TYPE_P(prop_version) == IS_STRING && zend_string_equals_literal(global_key, "version"))) {
+            continue;
+        }
+
         if (zend_hash_add(meta, global_key, global_val)) {
             Z_TRY_ADDREF_P(global_val);
         }
