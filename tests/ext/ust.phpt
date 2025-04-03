@@ -47,6 +47,8 @@ array(2) {
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
+      ["env"]=>
+      string(8) "env_test"
       ["_dd.p.tid"]=>
       string(16) "%s"
     }
@@ -90,10 +92,10 @@ array(2) {
       string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
-      ["version"]=>
-      string(5) "5.2.0"
       ["env"]=>
       string(8) "env_test"
+      ["version"]=>
+      string(5) "5.2.0"
       ["_dd.p.tid"]=>
       string(16) "%s"
     }
