@@ -70,7 +70,7 @@
         <![CDATA[
 ## Application Security Management
 ### Fixed
-- Bug collecting client IPs(#3183)
+- Bug collecting client IPs #3183
 ]]></notes>
     <contents>
         <dir name="/">
