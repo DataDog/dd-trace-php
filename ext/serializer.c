@@ -1240,56 +1240,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array,exception_type);
     }
 
-    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
-                      ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
-    if (error) {
-        add_assoc_long(el, "error", 1);
-        LOG(DEBUG, "Span %s has error meta", Z_STRVAL_P(&span->property_name));
-
-        if (!ignore_error) {
-            if (Z_TYPE(span->property_exception) == IS_OBJECT) {
-                LOG(DEBUG, "Span %s has exception", Z_STRVAL_P(&span->property_name));
-                ddtrace_span_data * parent = span;
-                while (parent->parent) {
-                    parent = SPANDATA(parent->parent);
-                    LOG(DEBUG, "Parent span %s", Z_STRVAL_P(&parent->property_name));
-                    if (Z_TYPE(parent->property_exception) == IS_OBJECT &&
-                        Z_OBJ(parent->property_exception) == Z_OBJ(span->property_exception)) {
-                        LOG(DEBUG, "Parent span has the same exception class");
-                        zval * zv;
-                        if (((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta),
-                                                      ZEND_STRL("error.ignored"))) && zval_is_true(zv))
-                            || ((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta),
-                                                         ZEND_STRL("track_error"))) && zval_is_true(zv))
-                                ) {
-                            LOG(DEBUG, "Parent span has the same exception class and is ignored");
-                            add_assoc_string(meta, "track_error", "false");
-                            break;
-                        }
-                    } else {
-                        LOG(DEBUG, "Parent span does not have the same exception class");
-                        // Log the class names
-                        zend_class_entry * span_ce = Z_OBJCE_P(&span->property_exception);
-                        if (Z_TYPE(parent->property_exception) == IS_OBJECT) {
-                            zend_class_entry * parent_ce = Z_OBJCE_P(&parent->property_exception);
-                            if (parent_ce) {
-                                LOG(DEBUG, "Parent exception class: %s", ZSTR_VAL(parent_ce->name));
-                            } else {
-                                LOG(DEBUG, "Parent exception class: NULL");
-                            }
-                        } else {
-                            LOG(DEBUG, "Parent exception class: NULL");
-                        }
-                        LOG(DEBUG, "Span exception class: %s", ZSTR_VAL(span_ce->name));
-                        continue;
-                    }
-                }
-            }
-        }
-    } else {
-        LOG(DEBUG, "Span %s has no exception", Z_STRVAL_P(&span->property_name));
-    }
-
     zend_array *span_links = ddtrace_property_array(&span->property_links);
     if (zend_hash_num_elements(span_links) > 0) {
         // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
@@ -1375,6 +1325,56 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
         struct iter *headers = dd_iterate_sapi_headers();
         dd_set_entrypoint_root_span_props_end(Z_ARR_P(meta), status, headers, ignore_error);
         efree(headers);
+    }
+
+    zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
+                      ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
+    if (error) {
+        add_assoc_long(el, "error", 1);
+        LOG(DEBUG, "Span %s has error meta", Z_STRVAL_P(&span->property_name));
+
+        if (!ignore_error) {
+            if (Z_TYPE(span->property_exception) == IS_OBJECT) {
+                LOG(DEBUG, "Span %s has exception", Z_STRVAL_P(&span->property_name));
+                ddtrace_span_data * parent = span;
+                while (parent->parent) {
+                    parent = SPANDATA(parent->parent);
+                    LOG(DEBUG, "Parent span %s", Z_STRVAL_P(&parent->property_name));
+                    if (Z_TYPE(parent->property_exception) == IS_OBJECT &&
+                        Z_OBJ(parent->property_exception) == Z_OBJ(span->property_exception)) {
+                        LOG(DEBUG, "Parent span has the same exception class");
+                        zval * zv;
+                        if (((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta),
+                                                      ZEND_STRL("error.ignored"))) && zval_is_true(zv))
+                            || ((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta),
+                                                         ZEND_STRL("track_error"))) && zval_is_true(zv))
+                                ) {
+                            LOG(DEBUG, "Parent span has the same exception class and is ignored");
+                            add_assoc_string(meta, "track_error", "false");
+                            break;
+                        }
+                    } else {
+                        LOG(DEBUG, "Parent span does not have the same exception class");
+                        // Log the class names
+                        zend_class_entry * span_ce = Z_OBJCE_P(&span->property_exception);
+                        if (Z_TYPE(parent->property_exception) == IS_OBJECT) {
+                            zend_class_entry * parent_ce = Z_OBJCE_P(&parent->property_exception);
+                            if (parent_ce) {
+                                LOG(DEBUG, "Parent exception class: %s", ZSTR_VAL(parent_ce->name));
+                            } else {
+                                LOG(DEBUG, "Parent exception class: NULL");
+                            }
+                        } else {
+                            LOG(DEBUG, "Parent exception class: NULL");
+                        }
+                        LOG(DEBUG, "Span exception class: %s", ZSTR_VAL(span_ce->name));
+                        continue;
+                    }
+                }
+            }
+        }
+    } else {
+        LOG(DEBUG, "Span %s has no exception", Z_STRVAL_P(&span->property_name));
     }
 
     zval *origin = &span->root->property_origin;
