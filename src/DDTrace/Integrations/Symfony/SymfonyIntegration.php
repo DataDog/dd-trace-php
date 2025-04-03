@@ -583,7 +583,9 @@ class SymfonyIntegration extends Integration
                     if ($hook->data) {
                         return false;
                     }
-                    \DDTrace\try_drop_span($span);
+                    $span->onClose[] = function (SpanData $span) {
+                        \DDTrace\try_drop_span($span);
+                    };
                 };
             }, function (HookData $hook) {
                 $hook->data = true;
