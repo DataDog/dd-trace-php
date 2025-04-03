@@ -554,7 +554,8 @@ class SymfonyIntegration extends Integration
             if (isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500) {
                 // It means that the exception event associated with the exception had a response, which certainly
                 // means that the exception was handled.
-                \DDTrace\root_span()->meta['error.ignored'] = 1;
+                \DDTrace\root_span()->meta['track_error'] = false;
+                \DDTrace\root_span()->exception = $args[0]->getPrevious();
             }
         };
         // Symfony 4.3-
