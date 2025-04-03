@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\CustomException;
+
 class CommonSpecsController extends Controller
 {
     public function simple()
@@ -16,6 +18,6 @@ class CommonSpecsController extends Controller
 
     public function error()
     {
-        throw new \Exception('Controller error');
+        throw new CustomException('Controller error');
     }
 }
