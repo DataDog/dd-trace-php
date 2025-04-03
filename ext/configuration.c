@@ -107,50 +107,50 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     const char *current = str;
 
     // Determine separator - prefer comma if present, otherwise use space
-    const char *sep = memchr(str, ',', value.len) ? "," : " ";
-    size_t sep_len = strlen(sep);
+    char sep = memchr(str, ',', value.len) ? ',': ' ';
 
     while (current < end) {
         // Skip leading whitespace
-        while (current < end && *current == ' ') current++;
-        if (current >= end) break;
-
-        // Find next separator
-        size_t tag_len = strcspn(current, sep);
-        if (tag_len == 0) {
-            current += sep_len;
-            continue;
+        while (current < end && (*current == ' ' || *current == sep)) current++;
+        if (current == end) {
+            // Abort if only separators are remaining
+            break;
         }
 
-        const char *tag_end = current + tag_len;
-        const char *colon = memchr(current, ':', tag_len);
-        if (!colon) {
-            current = tag_end + sep_len;
-            continue;
+        // Find next separator, this will be the end of the tag
+        const char *tag_end = memchr(current, sep, end - current);
+        if (!tag_end) {
+            tag_end = end;
+        }
+        // Prepare key and value
+        // Initialize key to be the entire tag and value to be empty
+        const char *key_start = current;
+        const char *key_end = tag_end;
+        const char *val_start = tag_end;
+        const char *val_end = tag_end;
+        // If the tag has a colon, use the index of the colon to split the tag into key and value
+        const char *colon = memchr(current, ':', tag_end - current);
+        if (colon) {
+            // Tag has a colon, use the index of the colon to  split into key and value
+            key_end = colon;
+            val_start = colon + 1;
         }
 
         // Strip whitespace from key
-        const char *key_start = current;
-        while (key_start < colon && *key_start == ' ') key_start++;
-        const char *key_end = colon - 1;
-        while (key_end > key_start && *key_end == ' ') key_end--;
-        size_t key_len = key_end - key_start + 1;
+        while (key_start < key_end && *key_start == ' ') key_start++;
+        while (key_end > key_start && key_end[-1] == ' ') key_end--;
+        // Only add if key is non-empty
+        if (key_start != key_end) {
+            // Strip whitespace from value
+            while (val_start < val_end && *val_start == ' ') val_start++;
+            while (val_end > val_start && val_end[-1] == ' ') val_end--;
 
-        // Strip whitespace from value
-        const char *val_start = colon + 1;
-        while (val_start < tag_end && *val_start == ' ') val_start++;
-        const char *val_end = tag_end - 1;
-        while (val_end > val_start && *val_end == ' ') val_end--;
-        size_t val_len = val_end - val_start + 1;
-
-        // Only add if key is non-empty (value can be empty)
-        if (key_len > 0) {
             zval val;
-            ZVAL_STR(&val, zend_string_init(val_start, val_len, persistent));
-            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_len, &val);
+            ZVAL_STR(&val, zend_string_init(val_start, val_end - val_start, persistent));
+            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_end - key_start, &val);
         }
-
-        current = tag_end + sep_len;
+        // Move to the start of the next tag
+        current = tag_end + 1;
     }
 
     return true;
