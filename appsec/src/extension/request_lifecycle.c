@@ -406,8 +406,8 @@ static void _reset_globals()
 
     if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
         zend_string_release(_client_ip);
-        _client_ip = NULL;
     }
+    _client_ip = NULL;
 
     if (Z_TYPE(_blocking_function) != IS_UNDEF) {
         zval_ptr_dtor(&_blocking_function);
