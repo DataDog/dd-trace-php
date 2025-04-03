@@ -10,11 +10,11 @@ DD_ENV=global_env
 
 // Start first span
 $span1 = DDTrace\start_span();
-$span1->name = "test1";
+$span1->name = "span1";
 
 // Start second span
 $span2 = DDTrace\start_span();
-$span2->name = "test2";
+$span2->name = "span2";
 
 // Close spans
 DDTrace\close_span();
@@ -44,23 +44,23 @@ array(2) {
   ["span1"]=>
   array(4) {
     ["name"]=>
-    string(5) "test1"
+    string(5) "span1"
     ["service"]=>
-    string(13) "global_service"
+    string(14) "global_service"
     ["version"]=>
-    string(13) "global_version"
+    string(14) "global_version"
     ["env"]=>
-    string(9) "global_env"
+    string(10) "global_env"
   }
   ["span2"]=>
   array(4) {
     ["name"]=>
-    string(5) "test2"
+    string(5) "span2"
     ["service"]=>
-    string(13) "global_service"
+    string(14) "global_service"
     ["version"]=>
-    string(13) "global_version"
+    string(14) "global_version"
     ["env"]=>
-    string(9) "global_env"
+    string(10) "global_env"
   }
 } 
