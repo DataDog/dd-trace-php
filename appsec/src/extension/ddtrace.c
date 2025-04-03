@@ -75,8 +75,8 @@ static void dd_trace_load_symbols(void)
 
 #define ASSIGN_DLSYM(var, export)                                              \
     do {                                                                       \
-        var = (typeof(var))(uintptr_t)dlsym(handle, export "");                \
-        if (var == NULL && !testing) {                                         \
+        (var) = (typeof(var))(uintptr_t)dlsym(handle, export "");              \
+        if ((var) == NULL && !testing) {                                       \
             /* NOLINTNEXTLINE(concurrency-mt-unsafe) */                        \
             mlog(dd_log_error, "Failed to load %s: %s", export, dlerror());    \
         }                                                                      \

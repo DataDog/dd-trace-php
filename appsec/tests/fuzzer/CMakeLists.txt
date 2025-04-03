@@ -21,7 +21,21 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
     target_compile_definitions(ddappsec_helper_fuzzer PUBLIC ZLIB_CONST=1)
     target_link_directories(ddappsec_helper_fuzzer PRIVATE ${LLVM_RUNTIME_DIR})
     target_link_libraries(ddappsec_helper_fuzzer
-        PRIVATE libddwaf_objects pthread spdlog cpp-base64 msgpack_c RapidJSON::rapidjson Boost::system libclang_rt.fuzzer_no_main-${ARCHITECTURE}.a zlibstatic)
+        PRIVATE libddwaf_objects pthread spdlog cpp-base64 msgpack_c RapidJSON::rapidjson Boost::system zlibstatic)
+
+    set(FUZZER_LIB_NAME "libclang_rt.fuzzer_no_main-${ARCHITECTURE}.a")
+    find_library(FUZZER_LIB ${FUZZER_LIB_NAME} PATHS ${LLVM_RUNTIME_DIR})
+
+    if(NOT FUZZER_LIB)
+        set(FUZZER_LIB_NAME_FALLBACK "libclang_rt.fuzzer_no_main.a")
+        find_library(FUZZER_LIB ${FUZZER_LIB_NAME_FALLBACK} PATHS ${LLVM_RUNTIME_DIR})
+    endif()
+
+    if(NOT FUZZER_LIB)
+        message(FATAL_ERROR "Could not find fuzzer library (tried ${FUZZER_LIB_NAME} and ${FUZZER_LIB_NAME_FALLBACK}); extra path ${LLVM_RUNTIME_DIR}")
+    endif()
+
+    target_link_libraries(ddappsec_helper_fuzzer PRIVATE ${FUZZER_LIB})
 
     add_executable(corpus_generator corpus_generator.cpp)
     target_link_libraries(corpus_generator PRIVATE helper_objects libddwaf_objects pthread spdlog)

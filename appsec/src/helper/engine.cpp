@@ -124,7 +124,7 @@ std::optional<engine::result> engine::context::publish(
         return std::nullopt;
     }
 
-    bool force_keep = limiter_.allow();
+    const bool force_keep = limiter_.allow();
     dds::engine::result res{{}, std::move(event_.data), force_keep};
     // Currently the only action the extension can perform is block
     if (event_.actions.empty()) {
