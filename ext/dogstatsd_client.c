@@ -39,36 +39,31 @@ void ddtrace_dogstatsd_client_rinit(void) {
         char *url = ZSTR_VAL(ddtrace_dogstatsd_url());
         char *host = NULL;
         char *port = NULL;
-        if (url) {
-            if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
-                addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
-            } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
-                char *colon = strchr(url + 6, ':');
-                if (!colon) {
-                    LOG(WARN,
-                        "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
-                        url);
-                    break;
-                }
-
-                host = estrndup(url + 6, colon - url - 6);
-                port = colon + 1;
-                int err;
-                if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-                    LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
-                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
-                    efree(host);
-                    break;
-                }
-                efree(host);
-            } else {
+        if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
+            addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
+        } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
+            char *colon = strchr(url + 6, ':');
+            if (!colon) {
                 LOG(WARN,
-                    "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
+                    "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
                     url);
                 break;
             }
+
+            host = estrndup(url + 6, colon - url - 6);
+            port = colon + 1;
+            int err;
+            if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
+                LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
+                                    (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                efree(host);
+                break;
+            }
+            efree(host);
         } else {
-            LOG(WARN, "Dogstatsd client failed to get URL");
+            LOG(WARN,
+                "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
+                url);
             break;
         }
 
