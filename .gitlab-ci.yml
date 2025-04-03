@@ -1,5 +1,6 @@
 stages:
   - build
+  - test
   - shared-pipeline # OCI packaging
   - deploy
   - benchmarks
@@ -24,6 +25,8 @@ include:
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
   - local: .gitlab/compile.yml
+  - local: .gitlab/services.yml
+  - local: .gitlab/test.yml
 
 build:
   extends: .ci_authenticated_job
