@@ -68,7 +68,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## Appsec
+## Application Security Management
 ### Fixed
 - Bug collecting client IPs(#3183)
 ]]></notes>
