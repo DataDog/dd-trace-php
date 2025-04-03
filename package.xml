@@ -68,9 +68,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## Tracer
+## Appsec
 ### Fixed
-- Defer dropping the exec span to close time (#3181)
+- Bug collecting client IPs(#3183)
 ]]></notes>
     <contents>
         <dir name="/">
