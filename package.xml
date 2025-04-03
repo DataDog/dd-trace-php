@@ -68,60 +68,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## All products
-### Added
-- Add support for file based configuration (library-config) #3068
-
 ## Tracer
-### Added
-- Add DDTrace\try_drop_span() API #3136
-- Add support for PDO::connect #3125
-- Add span creation and close handlers #3123
-- API Gateway Tracing #3116
-- Add a Ratchet integration #3115
-- Baggage Header Propagation Support #3102
-- Crashtracking for windows #3099
-
-### Changed
-- Enable 128 bit trace_id logging by default #3163
-- Allow whitespace as separator in DD_TAGS #3162
-- Implement Disable APM Tracing #3080
-
 ### Fixed
-- Support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
-- Handle flushing of multiple traces at once #3176
-
-### Internal
-- Show actual file and line for occurrence of exceptions as well #3172
-- Support ZSTR_PARENT known_string #3106
-
-## Profiling
-### Added
-- Add profiling and appsec to SSI #3063
-
-### Fixed
-- FrankenPHP idle phase #3169
-- Add active span null check #3164
-- Avoid some OOM panics and avoid long strings #3151
-- Fix upscaling of I/O profiles #3146
-
-### Internal
-- Add 'tracing' features to capture time spent walking the stack #3094
-
-## Application Security Management
-### Added
-- Implement API Security Sampling RFC #3117
-- Add authenticated user tracking #3114
-- Add profiling and appsec to SSI #3063
-
-### Changed
-- Upgrade libddwaf #3126
-
-### Fixed
-- Emit asm event on user events #3170
-
-### Internal
-- Add more logging around stack generation #3096
+- Defer dropping the exec span to close time (#3181)
 ]]></notes>
     <contents>
         <dir name="/">
