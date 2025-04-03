@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\Symfony\Latest;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
@@ -40,6 +41,18 @@ class CommonScenariosTest extends WebFrameworkTestCase
         });
 
         $this->assertFlameGraph($traces, $spanExpectations);
+    }
+
+    public function testScenarioGetToMissingRoute()
+    {
+        $this->tracesFromWebRequestSnapshot(function () {
+            $this->call(
+                GetSpec::create(
+                    'A simple GET request returning a string',
+                    '/does_not_exist?key=value&pwd=should_redact'
+                )
+            );
+        });
     }
 
     public function provideSpecs()
