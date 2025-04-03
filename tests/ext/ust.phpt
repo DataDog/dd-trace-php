@@ -3,6 +3,7 @@ Foo
 --ENV--
 DD_SERVICE=version_test
 DD_VERSION=5.2.0
+DD_ENV=env_test
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
@@ -91,6 +92,8 @@ array(2) {
       string(2) "-0"
       ["version"]=>
       string(5) "5.2.0"
+      ["env"]=>
+      string(8) "env_test"
       ["_dd.p.tid"]=>
       string(16) "%s"
     }
