@@ -234,7 +234,10 @@ class RatchetIntegration extends Integration
                     /** @var RootSpanData $span */
                     $span = $hook->span($rootTrace ? new SpanStack : null);
                     $span->type = Type::WEBSOCKET;
-                    $span->service = $handshake->service;
+                    $hook->data = $handshake->service;
+                    if ($handshake->parent) {
+                        $span->service = $handshake->parent->service;
+                    }
                     $resourceParts = explode(" ", $handshake->resource, 2);
                     $span->resource = "websocket " . end($resourceParts);
                     $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CONSUMER;
@@ -280,13 +283,18 @@ class RatchetIntegration extends Integration
             };
 
             \DDTrace\install_hook($onMessage, $hookFn(false), function (HookData $hook) {
-                $span = $hook->span();
-                $message = $hook->args[0];
-                $span->metrics["websocket.message.length"] = $message->getPayloadLength();
-                $span->metrics["websocket.message.frames"] = $message->count();
+                if (isset($hook->data)) {
+                    $span = $hook->span();
+                    $span->service = $hook->data;
+                    $message = $hook->args[0];
+                    $span->metrics["websocket.message.length"] = $message->getPayloadLength();
+                    $span->metrics["websocket.message.frames"] = $message->count();
+                }
             }, \DDTrace\HOOK_INSTANCE);
 
-            \DDTrace\install_hook($onControl, $hookFn(true), null, \DDTrace\HOOK_INSTANCE);
+            \DDTrace\install_hook($onControl, $hookFn(true), function (HookData $hook) {
+                $hook->span()->service = $hook->data;
+            }, \DDTrace\HOOK_INSTANCE);
         });
 
         \DDTrace\install_hook(WsConnection::class . "::send", function (HookData $hook) {
