@@ -36,7 +36,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
 
     while (health_metrics_enabled) {
         struct addrinfo *addrs = NULL;
-        char *url = ddtrace_dogstatsd_url();
+        char *url = ZSTR_VAL(ddtrace_dogstatsd_url());
         char *host = NULL;
         char *port = NULL;
         if (url) {
@@ -48,7 +48,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
                     LOG(WARN,
                         "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
                         url);
-                    efree(url);
                     break;
                 }
 
@@ -59,7 +58,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
                     LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
                                        (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                     efree(host);
-                    efree(url);
                     break;
                 }
                 efree(host);
@@ -67,7 +65,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 LOG(WARN,
                     "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
                     url);
-                efree(url);
                 break;
             }
         } else {
@@ -81,7 +78,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
             if (addrs) {
                 freeaddrinfo(addrs);
             }
-            efree(url);
             break;
         }
 
@@ -99,7 +95,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
         if (addrs) {
             freeaddrinfo(addrs);
         }
-        efree(url);
         break;
     }
     _set_dogstatsd_client_globals(client);
