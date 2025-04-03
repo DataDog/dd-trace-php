@@ -1,0 +1,64 @@
+"compile extension: debug":
+  stage: build
+  tags: [ "arch:${ARCH}" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR:
+          - "7.0"
+          - "7.1"
+          - "7.2"
+          - "7.3"
+          - "7.4"
+          - "8.0"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+        ARCH:
+          - "amd64"
+          - "arm64"
+  variables:
+    host_os: linux-gnu
+    SHARED: "1"
+    WITH_ASAN: "0"
+    CARGO_HOME: "/rust/cargo/"
+    SWITCH_PHP_VERSION: "debug"
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: .gitlab/compile_extension.sh
+  after_script: |
+    export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
+    mkdir -p "${out_dir}"
+    mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
+  cache:
+    - key:
+        prefix: $CI_JOB_NAME
+        files:
+          - Cargo.lock
+          - Cargo.toml
+      paths:
+        - /rust/cargo/
+  artifacts:
+    paths:
+      - "VERSION"
+      - "modules/"
+
+"compile extension: debug-zts-asan":
+  extends: "compile extension: debug"
+  variables:
+    WITH_ASAN: "1"
+    SWITCH_PHP_VERSION: "debug-zts-asan"
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR:
+          - "7.4"
+          - "8.0"
+          - "8.1"
+          - "8.2"
+          - "8.3"
+          - "8.4"
+        ARCH:
+          - "amd64"
+          - "arm64"
