@@ -299,7 +299,10 @@ static void zai_config_add_ini_entry(zai_config_memoized_entry *memoized, zai_st
     entry->value_length = memoized->default_encoded_value.len;
     entry->on_modify = ZaiConfigOnUpdateIni;
     entry->modifiable = memoized->ini_change == zai_config_system_ini_change ? PHP_INI_SYSTEM : PHP_INI_ALL;
-    if (memoized->type == ZAI_CONFIG_TYPE_BOOL) {
+
+    if (memoized->displayer) {
+        entry->displayer = memoized->displayer;
+    } else if (memoized->type == ZAI_CONFIG_TYPE_BOOL) {
         entry->displayer = php_ini_boolean_displayer_cb;
     }
 

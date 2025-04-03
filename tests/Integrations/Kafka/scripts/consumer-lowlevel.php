@@ -42,16 +42,36 @@ $offset = $argv[1] ?? RD_KAFKA_OFFSET_BEGINNING;
 $topic->consumeQueueStart(0, (int) $offset, $queue);
 //$topic->consumeQueueStart(1, RD_KAFKA_OFFSET_BEGINNING, $queue);
 //$topic->consumeQueueStart(2, RD_KAFKA_OFFSET_BEGINNING, $queue);
+
+$messageCount = 0;
+$expectedMessages = 3; // We expect 3 messages based on the test snapshots
+$startTime = microtime(true);
+$timeout = 10; // 10 seconds timeout
+
 do {
     $message = $queue->consume(5000);
     if ($message === null) {
         break;
     }
     echo sprintf('consume msg: %s, timestamp: %s, topic: %s', $message->payload, $message->timestamp, $message->topic_name) . PHP_EOL;
+    $messageCount++;
+
     // triggers log output
     $events = $consumer->poll(1);
     echo sprintf('polling triggered %d events', $events) . PHP_EOL;
+
+    if ($messageCount >= $expectedMessages) {
+        echo "Processed all expected messages. Exiting...\n";
+        break;
+    }
+
+    // Check timeout
+    if (microtime(true) - $startTime > $timeout) {
+        echo "Timeout reached after {$timeout} seconds. Exiting...\n";
+        break;
+    }
 } while (true);
+
 $topic->consumeStop(0);
 //$topic->consumeStop(1);
 //$topic->consumeStop(2);

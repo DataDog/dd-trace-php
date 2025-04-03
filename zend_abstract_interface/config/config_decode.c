@@ -128,7 +128,7 @@ static bool zai_config_decode_map(zai_str value, zval *decoded_value, bool persi
                     if (*data == ':') {
                         has_colon = true;
                         data++;
-                        
+
                         while (*data == ' ' || *data == '\t' || *data == '\n') data++;
 
                         if (*data == ',' || !*data) {

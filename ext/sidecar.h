@@ -57,5 +57,6 @@ static inline bool ddtrace_ffi_try(const char *msg, ddog_MaybeError maybe_error)
 }
 
 bool ddtrace_exception_debugging_is_active(void);
+ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags);
 
 #endif // DD_SIDECAR_H

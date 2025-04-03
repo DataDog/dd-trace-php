@@ -32,6 +32,7 @@ Array
     [appsec.events.users.login.failure.value] => something-from-sdk
     [appsec.events.users.login.failure.usr.exists] => true
     [server.business_logic.users.login.failure] => null
+    [_dd.p.ts] => 02
     [_dd.appsec.usr.id] => automatedID
     [_dd.appsec.events.users.login.failure.auto.mode] => identification
     [_dd.appsec.usr.login] => login

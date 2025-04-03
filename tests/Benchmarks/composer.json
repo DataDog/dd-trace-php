@@ -10,5 +10,8 @@
         "psr-4": {
             "Benchmarks\\": "./"
         }
+    },
+    "autoload": {
+        "files": [ "ignore_annotations.php" ]
     }
 }

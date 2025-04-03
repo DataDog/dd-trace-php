@@ -102,6 +102,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     memoized->type = entry->type;
     memoized->default_encoded_value = entry->default_encoded_value;
     memoized->parser = entry->parser;
+    memoized->displayer = entry->displayer;
 
     ZVAL_UNDEF(&memoized->decoded_value);
     if (!zai_config_decode_value(entry->default_encoded_value, memoized->type, memoized->parser, &memoized->decoded_value, /* persistent */ true)) {

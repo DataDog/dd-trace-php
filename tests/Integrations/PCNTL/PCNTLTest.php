@@ -269,20 +269,26 @@ final class PCNTLTest extends IntegrationTestCase
             [],
             '',
             false,
-            $this->untilNumberOfTraces(6)
+            $this->untilNumberOfTraces(9)
         );
-        $this->assertCount(6, $requests);
+        // Individual root spans must be their own traces! No merging allowed.
+        $this->assertCount(9, $requests);
 
-        usort($requests, function ($a, $b) { return count($a) <=> count($b); });
+        usort($requests, function ($a, $b) { return $a[0]["resource"] <=> $b[0]["resource"]; });
 
         for ($i = 0; $i < 3; ++$i) {
             $this->assertFlameGraph([$requests[$i]], [
                 SpanAssertion::exists('curl_exec', '/httpbin_integration/ip'),
-                SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
             ]);
         }
 
         for ($i = 3; $i < 6; ++$i) {
+            $this->assertFlameGraph([$requests[$i]], [
+                SpanAssertion::exists('curl_exec', '/httpbin_integration/user-agent'),
+            ]);
+        }
+
+        for ($i = 6; $i < 9; ++$i) {
             $this->assertFlameGraph([$requests[$i]], [
                 SpanAssertion::exists('manual_tracing')->withChildren([
                     SpanAssertion::exists('curl_exec', '/httpbin_integration/get'),

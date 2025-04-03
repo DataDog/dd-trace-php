@@ -36,4 +36,5 @@ Array
     [appsec.events.users.login.failure.email] => noneofyour@business.com
     [appsec.events.users.login.failure.usr.exists] => true
     [server.business_logic.users.login.failure] => null
+    [_dd.p.ts] => 02
 )

@@ -34,4 +34,5 @@ Array
     [_dd.appsec.usr.login] => login
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null
+    [_dd.p.ts] => 02
 )

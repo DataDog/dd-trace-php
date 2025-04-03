@@ -12,8 +12,12 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
     if (!DDTRACE_G(active_stack)) {
         return;
     }
-    DDTRACE_G(asm_event_emitted) = true;
-    ddtrace_trace_source_set_asm_source();
+    if (DDTRACE_G(active_stack)->root_span) {
+        DDTRACE_G(active_stack)->root_span->asm_event_emitted = true;
+        ddtrace_trace_source_set_asm_source();
+    } else {
+        DDTRACE_G(asm_event_emitted) = true;
+    }
     if (!get_DD_APM_TRACING_ENABLED()) {
         ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
     }
@@ -28,7 +32,7 @@ PHP_FUNCTION(DDTrace_Testing_emit_asm_event) {
 }
 
 bool ddtrace_asm_event_emitted() {
-    return DDTRACE_G(asm_event_emitted);
+    return DDTRACE_G(asm_event_emitted) || (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack)->root_span->asm_event_emitted);
 }
 
 void ddtrace_asm_event_rinit() {

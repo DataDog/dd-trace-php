@@ -79,24 +79,3 @@ bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {
 
     return source & TRACE_SOURCE_ASM;
 }
-
-bool ddtrace_trace_source_is_trace_asm_sourced(zval *trace) {
-    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
-    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
-
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        return false;
-    }
-
-    return ddtrace_trace_source_is_meta_asm_sourced(Z_ARR_P(meta));
-}
-
-

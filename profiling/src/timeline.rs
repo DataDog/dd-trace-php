@@ -1,9 +1,10 @@
-use crate::profiling::Profiler;
+use crate::profiling::{extract_function_name, Profiler};
+use crate::sapi::Sapi;
 use crate::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
 };
-use crate::REQUEST_LOCALS;
+use crate::{REQUEST_LOCALS, SAPI};
 use ddcommon::cstr;
 use libc::c_char;
 use log::{error, trace};
@@ -23,6 +24,9 @@ static mut PREV_ZEND_COMPILE_STRING: Option<zend::VmZendCompileString> = None;
 
 /// The engine's original (or neighbouring extensions) `zend_compile_file()` function
 static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
+
+static mut PREV_FRANKEN_PHP_SAPI_ACTIVATE: Option<unsafe extern "C" fn() -> i32> = None;
+static mut PREV_FRANKEN_PHP_SAPI_DEACTIVATE: Option<unsafe extern "C" fn() -> i32> = None;
 
 /// The engine's original (or neighbouring extensions) `zend_accel_schedule_restart_hook()`
 /// function
@@ -58,6 +62,67 @@ impl State {
             State::ThreadStop => "thread stop",
         }
     }
+}
+
+fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool {
+    let Some(execute_data) = (unsafe { execute_data.as_ref() }) else {
+        return false;
+    };
+    let Some(func) = (unsafe { execute_data.func.as_ref() }) else {
+        return false;
+    };
+    let Some(func) = extract_function_name(func) else {
+        return false;
+    };
+    func == "frankenphp|frankenphp_handle_request"
+}
+
+extern "C" fn frankenphp_sapi_module_activate() -> i32 {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if timeline_enabled
+        && is_in_frankenphp_handle_request(unsafe {
+            zend::ddog_php_prof_get_current_execute_data()
+        })
+    {
+        timeline_idle_stop();
+    }
+
+    unsafe {
+        if let Some(activate) = PREV_FRANKEN_PHP_SAPI_ACTIVATE {
+            return activate();
+        }
+    }
+
+    0
+}
+
+extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if timeline_enabled
+        && is_in_frankenphp_handle_request(unsafe {
+            zend::ddog_php_prof_get_current_execute_data()
+        })
+    {
+        timeline_idle_start();
+    }
+
+    unsafe {
+        if let Some(deactivate) = PREV_FRANKEN_PHP_SAPI_DEACTIVATE {
+            return deactivate();
+        }
+    }
+
+    0
 }
 
 fn sleeping_fn(
@@ -131,13 +196,6 @@ create_sleeping_fn!(
     ddog_php_prof_time_sleep_until,
     TIME_SLEEP_UNTIL_HANDLER,
     State::Sleeping
-);
-
-// Idle functions: these are functions which are like RSHUTDOWN -> RINIT
-create_sleeping_fn!(
-    ddog_php_prof_frankenphp_handle_request,
-    FRANKENPHP_HANDLE_REQUEST_HANDLER,
-    State::Idle
 );
 
 // Functions that are blocking on I/O
@@ -287,6 +345,21 @@ pub fn timeline_minit() {
         // register our function in the `zend_compile_string` pointer
         PREV_ZEND_COMPILE_STRING = zend::zend_compile_string;
         zend::zend_compile_string = Some(ddog_php_prof_compile_string);
+
+        // To detect idle phases in FrankenPHP's worker mode, we hook the `sapi_module.activate` /
+        // `sapi_module.deactivate` function pointers, as FrankenPHP's worker call those via the
+        // `sapi_activate()` / `sapi_deactivate()` function calls from
+        // `frankenphp_worker_request_startup` / `frankenphp_worker_request_shutdown`. There is no
+        // special handling for the first idle phase needed, as FrankenPHP will initiate a dummy
+        // request upon startup of a FrankenPHP worker and run to the first
+        // `frankenphp_handle_request()` PHP function from which onward we'll collect the first idle
+        // phase.
+        if *SAPI == Sapi::FrankenPHP {
+            PREV_FRANKEN_PHP_SAPI_ACTIVATE = zend::sapi_module.activate;
+            PREV_FRANKEN_PHP_SAPI_DEACTIVATE = zend::sapi_module.deactivate;
+            zend::sapi_module.activate = Some(frankenphp_sapi_module_activate);
+            zend::sapi_module.deactivate = Some(frankenphp_sapi_module_deactivate);
+        }
     }
 }
 
@@ -313,11 +386,6 @@ pub unsafe fn timeline_startup() {
             cstr!("time_sleep_until"),
             ptr::addr_of_mut!(TIME_SLEEP_UNTIL_HANDLER),
             Some(ddog_php_prof_time_sleep_until),
-        ),
-        zend::datadog_php_zif_handler::new(
-            cstr!("frankenphp_handle_request"),
-            ptr::addr_of_mut!(FRANKENPHP_HANDLE_REQUEST_HANDLER),
-            Some(ddog_php_prof_frankenphp_handle_request),
         ),
         zend::datadog_php_zif_handler::new(
             cstr!("stream_select"),
@@ -383,11 +451,7 @@ pub unsafe fn timeline_startup() {
     }
 }
 
-/// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
-/// period for this PHP thread.
-/// # SAFETY
-/// Must be called only in rinit and after [crate::config::first_rinit].
-pub unsafe fn timeline_rinit() {
+fn timeline_idle_stop() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(idle_since) = cell.try_borrow() else {
@@ -416,6 +480,34 @@ pub unsafe fn timeline_rinit() {
             }
         });
     });
+}
+
+fn timeline_idle_start() {
+    IDLE_SINCE.with(|cell| {
+        // try to borrow and bail out if not successful
+        let Ok(mut idle_since) = cell.try_borrow_mut() else {
+            return;
+        };
+        *idle_since = Instant::now();
+    })
+}
+
+/// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
+/// period for this PHP thread.
+/// # SAFETY
+/// Must be called only in rinit and after [crate::config::first_rinit].
+pub unsafe fn timeline_rinit() {
+    let timeline_enabled = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_timeline_enabled)
+            .unwrap_or(false)
+    });
+
+    if !timeline_enabled {
+        return;
+    }
+
+    timeline_idle_stop();
 
     #[cfg(php_zts)]
     IS_NEW_THREAD.with(|cell| {
@@ -460,13 +552,7 @@ pub fn timeline_prshutdown() {
         return;
     }
 
-    IDLE_SINCE.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(mut idle_since) = cell.try_borrow_mut() else {
-            return;
-        };
-        *idle_since = Instant::now();
-    })
+    timeline_idle_start();
 }
 
 /// This function is run during the MSHUTDOWN phase and reports any `IDLE_SINCE` duration as an idle
@@ -474,36 +560,20 @@ pub fn timeline_prshutdown() {
 /// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
 /// # Saftey
 /// Must be called in shutdown before [crate::config::shutdown].
-pub(crate) unsafe fn timeline_mshutdown() {
-    IDLE_SINCE.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(idle_since) = cell.try_borrow() else {
-            return;
-        };
+pub(crate) fn timeline_mshutdown() {
+    timeline_idle_stop();
 
-        REQUEST_LOCALS.with(|cell| {
-            let is_timeline_enabled = cell
-                .try_borrow()
-                .map(|locals| locals.system_settings().profiling_timeline_enabled)
-                .unwrap_or(false);
+    // Unhook `sapi_module.activate` / `sapi_module.deactivate` in case SAPI is FrankenPHP. This
+    // hook was installed in `timeline_minit`
+    if *SAPI == Sapi::FrankenPHP {
+        unsafe {
+            zend::sapi_module.activate = PREV_FRANKEN_PHP_SAPI_ACTIVATE;
+            zend::sapi_module.deactivate = PREV_FRANKEN_PHP_SAPI_DEACTIVATE;
+            PREV_FRANKEN_PHP_SAPI_ACTIVATE = None;
+            PREV_FRANKEN_PHP_SAPI_DEACTIVATE = None;
+        }
+    }
 
-            if !is_timeline_enabled {
-                return;
-            }
-
-            if let Some(profiler) = Profiler::get() {
-                profiler.collect_idle(
-                    // Safety: checked for `is_err()` above
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_nanos() as i64,
-                    idle_since.elapsed().as_nanos() as i64,
-                    "idle",
-                );
-            }
-        });
-    });
     #[cfg(php_zts)]
     timeline_gshutdown();
 }

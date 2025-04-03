@@ -6,7 +6,7 @@
 #include "config_stable_file.h"
 
 #define RESOLVE_SYMBOL(name) \
-    _##name = (void *)DL_FETCH_SYMBOL(ddtrace_me->handle, #name); \
+    _##name = (void *)DL_FETCH_SYMBOL(ext->handle, #name); \
     if (!_##name) { \
         _ddog_library_configurator_new = NULL; \
         return; \
@@ -45,10 +45,13 @@ void zai_config_stable_file_minit(void) {
     // Resolve symbols at runtime, as they are not part of the AppSec extension
     // but are provided by ddtrace if it is loaded.
     if (!_ddog_library_configurator_new) {
-        zend_module_entry *ddtrace_me = NULL;
-        ddtrace_me = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
-        if (!ddtrace_me) {
-            return;
+        zend_module_entry *ext = NULL;
+        ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
+        if (!ext) {
+            ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("datadog-profiling"));
+            if (!ext) {
+                return;
+            }
         }
 
         RESOLVE_SYMBOL(ddog_library_configurator_new);

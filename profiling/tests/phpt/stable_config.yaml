@@ -1,0 +1,4 @@
+apm_configuration_default:
+  DD_SERVICE: service_from_local_config
+  DD_ENV: env_from_local_config
+  DD_PROFILING_ENABLED: 0

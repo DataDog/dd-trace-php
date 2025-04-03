@@ -71,6 +71,8 @@
 #include "sidecar.h"
 #ifndef _WIN32
 #include "signals.h"
+#else
+#include "crashtracking_windows.h"
 #endif
 #include "span.h"
 #include "startup_logging.h"
@@ -1594,6 +1596,10 @@ static void dd_rinit_once(void) {
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_init_and_start_writer();
     }
+#else
+    if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED()) {
+        init_crash_tracking();
+    }
 #endif
 
     dd_rinit_once_done = true;
@@ -2114,8 +2120,25 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    array_init(return_value);
-    ddtrace_serialize_closed_spans_with_cycle(return_value);
+    zval traces;
+    array_init(&traces);
+    ddtrace_serialize_closed_spans_with_cycle(&traces);
+
+    if (zend_hash_num_elements(Z_ARR(traces)) == 1) {
+        ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces)));
+    } else {
+        array_init(return_value);
+        zval *spans;
+        ZEND_HASH_FOREACH_VAL(Z_ARR(traces), spans) {
+            zval *span;
+            ZEND_HASH_FOREACH_VAL(Z_ARR_P(spans), span) {
+                Z_ADDREF_P(span);
+                zend_hash_next_index_insert_new(Z_ARR_P(return_value), span);
+            } ZEND_HASH_FOREACH_END();
+        } ZEND_HASH_FOREACH_END();
+    }
+
+    zval_ptr_dtor(&traces);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
