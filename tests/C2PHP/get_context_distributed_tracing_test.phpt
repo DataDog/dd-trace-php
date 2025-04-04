@@ -18,7 +18,7 @@ $context->parentId = '789';
 
 $ch = curl_init();
 curl_setopt_array($ch, [
-    CURLOPT_URL => 'http://httpbin_integration/headers',
+    CURLOPT_URL => 'http://httpbin-integration/headers',
     CURLOPT_RETURNTRANSFER => true,
 ]);
 $response = json_decode(curl_exec($ch), 1);

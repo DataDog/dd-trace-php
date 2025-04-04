@@ -1,5 +1,6 @@
-#/usr/bin/env bash
-set -e -o pipefail
+#!/usr/bin/env bash
+set -eo pipefail
+
 sudo apt update
 sudo apt install -y jq
 set +e  # Disable exiting from testagent response failure
@@ -29,5 +30,4 @@ else
   echo "APM Test Agent Check Traces Summary Results:"
   cat summary_response.txt | jq '.'
   exit 1
-fi
-
+fi  

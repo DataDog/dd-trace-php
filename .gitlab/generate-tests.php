@@ -12,6 +12,13 @@ $all_minor_major_targets = [
     "8.4",
 ];
 
+$non_asan_minor_major_targets = [
+    "7.0",
+    "7.1",
+    "7.2",
+    "7.3",
+];
+
 $asan_minor_major_targets = [
   "7.4",
   "8.0",
@@ -28,9 +35,19 @@ stages:
   - compile
   - test
 
+include:
+  - local: ".gitlab/services.yml"
+
 .all_targets: &all_minor_major_targets
 <?php
 foreach ($all_minor_major_targets as $version) {
+    echo "  - \"{$version}\"\r\n";
+}
+?>
+
+.non_asan_targets: &non_asan_minor_major_targets
+<?php
+foreach ($non_asan_minor_major_targets as $version) {
     echo "  - \"{$version}\"\r\n";
 }
 ?>
@@ -48,6 +65,11 @@ foreach ($arch_targets as $arch_target) {
     echo "- \"{$arch_target}\"\r\n";
 }
 ?>
+
+.agent_httpbin_service: &agent_httpbin_service
+  - !reference [.services, test-agent]
+  - !reference [.services, request-replayer]
+  - !reference [.services, httpbin-integration]
 
 "compile extension: debug":
   stage: compile
@@ -107,7 +129,10 @@ foreach ($arch_targets as $arch_target) {
     DD_TRACE_ASSUME_COMPILED: "1"
     DDAGENT_HOSTNAME: "127.0.0.1"
     CI_DEBUG_SERVICES: "true"
+    MAX_TEST_PARALLELISM: 8
+    TEST_FILES_DIR: "."
   before_script:
+    # DD env vars auto-added to GitLab runners for infra purposes
     - unset DD_SERVICE
     - unset DD_ENV
     - unset DD_TAGS
@@ -119,11 +144,125 @@ foreach ($arch_targets as $arch_target) {
     - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
   after_script:
-    - mv /usr/local/src/php/tests/output/*.log tests/ || true
-    - mv /tmp/artifacts/ tests/ || true
+    - (cd ${TEST_FILES_DIR}; find . -name "*.diff" -exec cp '{}' 'tests/{}' \;) || true
+    - mv /tmp/artifacts tests/ || true
     - .gitlab/check_test_agent.sh
-    # TODO: Add script
-    # - .gitlab/check_for_core_dumps.sh
+    - .gitlab/check_for_core_dumps.sh ${TEST_FILES_DIR}
+  artifacts:
+    reports:
+      junit: "tests/artifacts/tests/php-tests.xml"
+    paths:
+      - "tests/output/"
+      - "tests/artifacts/"
+    when: "always"
+
+
+
+
+.all_arch_asan_test:
+  extends: .base_test
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      artifacts: true
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *asan_minor_major_targets
+        ARCH: *arch_targets
+  variables:
+    SWITCH_PHP_VERSION: debug-zts-asan
+
+.asan_test:
+  extends: .base_test
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      artifacts: true
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *asan_minor_major_targets
+        ARCH: "amd64"
+  variables:
+    SWITCH_PHP_VERSION: debug-zts-asan
+
+<?php
+foreach ($all_minor_major_targets as $major_minor) {
+    foreach ($arch_targets as $arch) {
+?>
+"ASAN test_c: [<?= $major_minor ?>, <?= $arch ?>]":
+  extends: .all_arch_asan_test
+  services: *agent_httpbin_service
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "<?= $arch ?>"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 8
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "<?= $arch ?>"
+  script:
+    - make test_c
+
+"ASAN Internal api randomized tests: [<?= $major_minor ?>, <?= $arch ?>]":
+  extends: .all_arch_asan_test
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "<?= $arch ?>"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "<?= $arch ?>"
+  script:
+    - make test_internal_api_randomized
+
+<?php
+    }
+}
+?>
+
+<?php
+foreach ($all_minor_major_targets as $major_minor) {
+?>
+"ASAN init hook tests: [<?= $major_minor ?>, amd64]":
+  extends: .asan_test
+  services:
+    - !reference [.services, httpbin-integration]
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_with_init_hook
+
+"ASAN Opcache tests: [<?= $major_minor ?>, amd64]":
+  extends: .asan_test
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_opcache
+<?php
+}
+?>
+
 
 .debug_test:
   extends: .base_test
@@ -140,13 +279,99 @@ foreach ($all_minor_major_targets as $major_minor) {
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
-            ARCH: amd64
+            ARCH: "amd64"
       artifacts: true
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
-    ARCH: amd64
+    ARCH: "amd64"
   script:
     - make test_unit
+
+"API unit tests: [<?= $major_minor ?>, amd64]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_api_unit
+
+"Disabled test_c run: [<?= $major_minor ?>, amd64]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    KUBERNETES_CPU_REQUEST: 8
+  script:
+    - make test_c_disabled
+
+"Internal api randomized tests: [<?= $major_minor ?>, amd64]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_internal_api_randomized
+
+"Opcache tests: [<?= $major_minor ?>, amd64]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_opcache
+
+"PHP Language Tests: [<?= $major_minor ?>, amd64]":
+  extends: .debug_test
+  services:
+    - !reference [.services, test-agent]
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    DD_TRACE_STARTUP_LOGS: "0"
+    DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
+    DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
+    DD_TRACE_GIT_METADATA_ENABLED: "0"
+    REPORT_EXIT_STATUS: "1"
+    TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
+    SKIP_ONLINE_TEST: "1"
+  script:
+    - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
+    - .gitlab/run_php_language_tests.sh
 <?php
 }
 ?>
