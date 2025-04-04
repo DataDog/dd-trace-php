@@ -21,7 +21,7 @@ $asan_minor_major_targets = [
   "8.4",
 ];
 
-$arch_targets = ["amd64", "arch64"];
+$arch_targets = ["amd64", "arm64"];
 ?>
 
 stages:
