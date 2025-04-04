@@ -167,7 +167,7 @@ foreach ($arch_targets as $arch_target) {
     SWITCH_PHP_VERSION: debug-zts-asan
 
 <?php
-foreach ($all_minor_major_targets as $major_minor) {
+foreach ($asan_minor_major_targets as $major_minor) {
     foreach ($arch_targets as $arch) {
 ?>
 "ASAN test_c: [<?= $major_minor ?>, <?= $arch ?>]":
@@ -209,7 +209,7 @@ foreach ($all_minor_major_targets as $major_minor) {
 ?>
 
 <?php
-foreach ($all_minor_major_targets as $major_minor) {
+foreach ($asan_minor_major_targets as $major_minor) {
 ?>
 "ASAN init hook tests: [<?= $major_minor ?>, amd64]":
   extends: .asan_test
