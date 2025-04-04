@@ -1,6 +1,6 @@
 <?php
 
-use App\Exceptions\CustomException;
+use App\Exceptions\IgnoredException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->dontReport([
-            CustomException::class,
+            IgnoredException::class,
         ]);
     })->create();
