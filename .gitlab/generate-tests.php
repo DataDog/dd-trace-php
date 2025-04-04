@@ -118,7 +118,8 @@ foreach ($arch_targets as $arch_target) {
     - mv /usr/local/src/php/tests/output/*.log tests/ || true
     - mv /tmp/artifacts/ tests/ || true
     - .gitlab/check_test_agent.sh
-    - .gitlab/check_for_core_dumps.sh
+    # TODO: Add script
+    # - .gitlab/check_for_core_dumps.sh
 
 .debug_test:
   extends: .base_test
@@ -128,7 +129,7 @@ foreach ($arch_targets as $arch_target) {
 <?php
 foreach ($all_minor_major_targets as $major_minor) {
 ?>
-"Unit tests: [<?= $major_minor ?>, amd64]":
+"Unit tests: [<?= $major_minor ?>,amd64]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
