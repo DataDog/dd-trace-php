@@ -28,6 +28,9 @@ stages:
   - compile
   - test
 
+include:
+  - ".gitlab/services.yml"
+
 .all_targets: &all_minor_major_targets
 <?php
 foreach ($all_minor_major_targets as $version) {
@@ -108,6 +111,10 @@ foreach ($arch_targets as $arch_target) {
     DDAGENT_HOSTNAME: "127.0.0.1"
     CI_DEBUG_SERVICES: "true"
   before_script:
+    - unset DD_SERVICE
+    - unset DD_ENV
+    - unset DD_TAGS
+    - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
     - switch-php "${SWITCH_PHP_VERSION}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
@@ -138,9 +145,12 @@ foreach ($all_minor_major_targets as $major_minor) {
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: amd64
       artifacts: true
+  services:
+    - !reference [.services, request-replayer]
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: amd64
+    WAIT_FOR: "request-replayer:80"
   script:
     - make test_unit
 <?php
