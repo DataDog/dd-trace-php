@@ -28,12 +28,6 @@ stages:
   - compile
   - test
 
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 12
-  # Only clone libdatadog submodule by default
-  GIT_SUBMODULE_PATHS: libdatadog
-
 .all_targets: &all_minor_major_targets
 <?php
 foreach ($all_minor_major_targets as $version) {
@@ -132,9 +126,9 @@ foreach ($arch_targets as $arch_target) {
     SWITCH_PHP_VERSION: debug
 
 <?php
-foreach ($all_minor_major_targets as $major_minor) {
+foreach ($all_minor_major_targets as $i => $major_minor) {
 ?>
-"Unit tests/<?= $major_minor ?>":
+"Unit tests <?= $i + 1?>/<?= count($all_minor_major_targets) ?>":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"

@@ -143,4 +143,3 @@ tests-trigger:
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_STRATEGY: none
