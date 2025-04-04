@@ -442,7 +442,6 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
 
 void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
-
     zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
     zval *global_val;
@@ -450,10 +449,9 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zval *prop_version = &span->property_version;
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
-        if ((zend_string_equals_literal(global_key, "service") && 
-            // The service key in DD_TAGS is always ignored, DD_SERVICE must be used instead
-            (zend_string_equals_literal(global_key, "env") && Z_TYPE_P(prop_env) == IS_STRING) ||
+        if ((zend_string_equals_literal(global_key, "env") && Z_TYPE_P(prop_env) == IS_STRING) ||
             (zend_string_equals_literal(global_key, "version") && Z_TYPE_P(prop_version) == IS_STRING)) {
+            // The service key in DD_TAGS is always ignored, DD_SERVICE must be used instead
             continue;
         }
 
