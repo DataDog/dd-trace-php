@@ -156,30 +156,13 @@ foreach ($arch_targets as $arch_target) {
       - "tests/artifacts/"
     when: "always"
 
-
-
-
 .all_arch_asan_test:
   extends: .base_test
-  needs:
-    - job: "compile extension: debug-zts-asan"
-      artifacts: true
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: *asan_minor_major_targets
-        ARCH: *arch_targets
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
 
 .asan_test:
   extends: .base_test
-  needs:
-    - job: "compile extension: debug-zts-asan"
-      artifacts: true
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: *asan_minor_major_targets
-        ARCH: "amd64"
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
 
