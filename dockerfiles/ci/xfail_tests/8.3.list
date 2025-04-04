@@ -189,3 +189,8 @@ sapi/phpdbg/tests/exceptions_003.phpt
 sapi/phpdbg/tests/stepping_001.phpt
 tests/lang/bug45392.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt

@@ -8,7 +8,6 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 12
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
   LATEST_LIBRARY_x86_64_LINUX_GNU:
@@ -22,6 +21,7 @@ variables:
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+  - local: .gitlab/services.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
   - local: .gitlab/compile.yml

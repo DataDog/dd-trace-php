@@ -44,6 +44,7 @@
     DDAGENT_HOSTNAME: "127.0.0.1"
     CI_DEBUG_SERVICES: "true"
     MAX_TEST_PARALLELISM: 8
+    TEST_FILES_DIR: "."
   before_script:
     - switch-php "${SWITCH_PHP_VERSION}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
@@ -52,10 +53,17 @@
     - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
   after_script:
-    - mv /usr/local/src/php/tests/output/*.log tests/ || true
-    - mv /tmp/artifacts/ tests/ || true
+    - (cd ${TEST_FILES_DIR}; find . -name "*.diff" -exec cp '{}' 'tests/{}' \;) || true
+    - mv /tmp/artifacts tests/ || true
     - .gitlab/check_test_agent.sh
-    - .gitlab/check_for_core_dumps.sh
+    - .gitlab/check_for_core_dumps.sh ${TEST_FILES_DIR}
+  artifacts:
+    reports:
+      junit: "tests/artifacts/tests/php-tests.xml"
+    paths:
+      - "tests/output/"
+      - "tests/artifacts/"
+    when: "always"
 
 .all_arch_asan_test:
   extends: .base_test
@@ -145,3 +153,19 @@ Opcache tests:
   extends: .debug_test
   script:
     - make test_opcache
+
+PHP Language Tests:
+  extends: .debug_test
+  services:
+    - !reference [.services, test-agent]
+  variables:
+    DD_TRACE_STARTUP_LOGS: "0"
+    DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
+    DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
+    DD_TRACE_GIT_METADATA_ENABLED: "0"
+    REPORT_EXIT_STATUS: "1"
+    TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
+    SKIP_ONLINE_TEST: "1"
+  script:
+    - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
+    - .gitlab/run_php_language_tests.sh
