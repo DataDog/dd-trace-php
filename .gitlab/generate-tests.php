@@ -129,7 +129,7 @@ foreach ($arch_targets as $arch_target) {
 <?php
 foreach ($all_minor_major_targets as $major_minor) {
 ?>
-"Unit tests: [<?= $major_minor ?>,amd64]":
+"Unit tests: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
