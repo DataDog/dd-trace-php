@@ -450,9 +450,9 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
         if ((zend_string_equals_literal(global_key, "env") && Z_TYPE_P(prop_env) == IS_STRING) ||
-            (zend_string_equals_literal(global_key, "version") && Z_TYPE_P(prop_version) == IS_STRING)) {
-            // The service key in DD_TAGS is always ignored, DD_SERVICE must be used instead
-            continue;
+            (zend_string_equals_literal(global_key, "version") && Z_TYPE_P(prop_version) == IS_STRING) ||
+            zend_string_equals_literal(global_key, "service")) {
+                continue;
         }
 
         if (zend_hash_add(meta, global_key, global_val)) {

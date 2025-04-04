@@ -1,6 +1,8 @@
 --TEST--
 Test that service tags in DD_TAGS are ignored but version and env tags are set
 --ENV--
+DD_VERSION=
+DD_ENV=
 DD_TAGS=service:ddtags_service,env:ddtags_env,version:ddtags_version
 --FILE--
 <?php
@@ -43,21 +45,21 @@ array(2) {
     ["name"]=>
     string(5) "span1"
     ["service"]=>
-    string(%d) "%r(?!ddtags_service)%r"
+    string(%d) "%r(?!ddtags_service$).+%r"
     ["version"]=>
-    string(15) "ddtags_version"
+    string(14) "ddtags_version"
     ["env"]=>
-    string(11) "ddtags_env"
+    string(10) "ddtags_env"
   }
   ["span2"]=>
   array(4) {
     ["name"]=>
     string(5) "span2"
     ["service"]=>
-    string(%d) "%r(?!ddtags_service)%r"
+    string(%d) "%r(?!ddtags_service$).+%r"
     ["version"]=>
-    string(15) "ddtags_version"
+    string(14) "ddtags_version"
     ["env"]=>
-    string(11) "ddtags_env"
+    string(10) "ddtags_env"
   }
 }
