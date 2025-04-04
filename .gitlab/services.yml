@@ -21,5 +21,5 @@
       DD_REQUEST_DUMPER_FILE: dump.json
 
   httpbin-integration:
-    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
+    name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
     alias: httpbin-integration

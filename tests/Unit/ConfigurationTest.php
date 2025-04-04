@@ -223,8 +223,8 @@ EOD;
 
     public function testEnvNotSet()
     {
-        $this->putEnvAndReloadConfig(['DD_ENV']);
-        $this->assertEquals(\dd_trace_env_config("DD_ENV"), getenv('DD_ENV'));
+        ini_set("datadog.env", "");
+        $this->assertEmpty(\dd_trace_env_config("DD_ENV"));
     }
 
     public function testVersion()

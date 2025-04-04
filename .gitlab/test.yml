@@ -43,6 +43,7 @@
     DD_TRACE_ASSUME_COMPILED: "1"
     DDAGENT_HOSTNAME: "127.0.0.1"
     CI_DEBUG_SERVICES: "true"
+    MAX_TEST_PARALLELISM: 8
   before_script:
     - switch-php "${SWITCH_PHP_VERSION}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
@@ -85,6 +86,7 @@ ASAN test_c:
   services: *agent_httpbin_service
   variables:
     WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 8
   script:
     - make test_c
 
@@ -129,6 +131,8 @@ API unit tests:
 
 Disabled test_c run:
   extends: .debug_test
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
   script:
     - make test_c_disabled
 

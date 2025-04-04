@@ -1,10 +1,9 @@
 <?php
 
-namespace DDTrace\Tests\Unit\Util;
+namespace DDTrace\Tests\Integration;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\Tests\Common\TracerTestTrait;
 
 final class OrphansTest extends IntegrationTestCase
 {
