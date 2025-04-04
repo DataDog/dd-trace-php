@@ -1231,7 +1231,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
     zval *exception_zv = &span->property_exception;
     bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
     if (has_exception && !ignore_error) {
-        LOG(DEBUG, "Span %s has exception", Z_STRVAL_P(&span->property_name));
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
