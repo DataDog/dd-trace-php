@@ -101,6 +101,7 @@ trait SnapshotTestTrait
                 $response = curl_exec($ch);
                 $traces = json_decode($response, true);
                 if ($traces && count($traces) === $numExpectedTraces) {
+                    echo json_encode($traces, JSON_PRETTY_PRINT) . PHP_EOL;
                     return;
                 }
                 usleep(100000); // 100ms

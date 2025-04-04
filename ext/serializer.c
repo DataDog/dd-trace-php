@@ -1373,8 +1373,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
                 }
             }
         }
-    } else {
-        LOG(DEBUG, "Span %s has no exception", Z_STRVAL_P(&span->property_name));
     }
 
     zval *origin = &span->root->property_origin;
