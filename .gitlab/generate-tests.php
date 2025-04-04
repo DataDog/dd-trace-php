@@ -28,9 +28,6 @@ stages:
   - compile
   - test
 
-include:
-  - ".gitlab/services.yml"
-
 .all_targets: &all_minor_major_targets
 <?php
 foreach ($all_minor_major_targets as $version) {
@@ -145,12 +142,9 @@ foreach ($all_minor_major_targets as $major_minor) {
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: amd64
       artifacts: true
-  services:
-    - !reference [.services, request-replayer]
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: amd64
-    WAIT_FOR: "request-replayer:80"
   script:
     - make test_unit
 <?php
