@@ -36,13 +36,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
 
     while (health_metrics_enabled) {
         struct addrinfo *addrs = NULL;
-        zend_string *url_str = ddtrace_dogstatsd_url();
-        if (!url_str) {
-            return;
-        }
-        char *url = ZSTR_VAL(url_str);
-        char *host = NULL;
-        char *port = NULL;
+        const char *url = ddtrace_dogstatsd_url();
         if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
             addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
         } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
@@ -54,16 +48,18 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 break;
             }
 
-            host = estrndup(url + 6, colon - url - 6);
-            port = colon + 1;
+            char *host = estrndup(url + 6, colon - url - 6);
+            char *port = colon + 1;
             int err;
             if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
                 LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
                                     (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                 efree(host);
+                free(port);
                 break;
             }
             efree(host);
+            free(port);
         } else {
             LOG(WARN,
                 "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
