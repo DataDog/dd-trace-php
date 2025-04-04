@@ -1253,7 +1253,6 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
-
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, meta, dd_add_meta_array,exception_type);
     }
 
