@@ -23,7 +23,7 @@ x-aliases:
         #- elasticsearch2_integration
         - rabbitmq_integration
         - elasticsearch7_integration
-        - httpbin_integration
+        - httpbin-integration
         - redis_integration
         - sqlsrv_integration
         - mongodb_integration
@@ -34,7 +34,7 @@ x-aliases:
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
-        - HTTPBIN_HOSTNAME=httpbin_integration
+        - HTTPBIN_HOSTNAME=httpbin-integration
         - RUSTC_BOOTSTRAP=1
         - COMPOSER_MEMORY_LIMIT=-1
         - PHP_IDE_CONFIG=serverName=docker
@@ -54,10 +54,10 @@ x-aliases:
         - .composer:C:\Users\ContainerAdministrator\.composer
       depends_on:
         - windows-request-replayer
-        - windows-httpbin_integration
+        - windows-httpbin-integration
       environment:
         - DDAGENT_HOSTNAME=ddagent_integration
-        - HTTPBIN_HOSTNAME=httpbin_integration
+        - HTTPBIN_HOSTNAME=httpbin-integration
         - COMPOSER_MEMORY_LIMIT=-1
         - PHP_IDE_CONFIG=serverName=docker
         - DD_TRACE_DOCKER_DEBUG
@@ -214,7 +214,7 @@ services:
   memcached_integration:
     image: "memcached:1.5-alpine"
 
-  httpbin_integration:
+  httpbin-integration:
     image: kong/httpbin:0.2.2
     ports:
       - "8765:80"
@@ -306,14 +306,14 @@ services:
         aliases:
           - request-replayer
 
-  windows-httpbin_integration:
+  windows-httpbin-integration:
     image: datadog/dd-trace-ci:httpbin-windows
     ports:
       - "8765:80"
     networks:
       default:
         aliases:
-          - httpbin_integration
+          - httpbin-integration
 
 volumes:
   agent-socket:

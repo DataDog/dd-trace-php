@@ -390,7 +390,7 @@ final class TracerTest extends BaseTestCase
             },
             __DIR__ . '/TracerTest_files/index.php',
             [
-                'DD_SERVICE_MAPPING' => 'host-httpbin_integration:changed_service',
+                'DD_SERVICE_MAPPING' => 'host-httpbin-integration:changed_service',
                 'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
                 'DD_TRACE_NO_AUTOLOADER' => true,
                 'DD_TRACE_GENERATE_ROOT_SPAN' => true,

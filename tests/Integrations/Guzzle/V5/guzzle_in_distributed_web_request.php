@@ -9,7 +9,7 @@ use GuzzleHttp\Ring\Client\CurlMultiHandler;
 $curl = new CurlMultiHandler();
 $client = new Client(['handler' => $curl]);
 
-$future1 = $client->get('http://httpbin_integration/headers', [
+$future1 = $client->get('http://httpbin-integration/headers', [
     'future' => true,
     'headers' => [
         'honored' => 'preserved_value',
@@ -19,7 +19,7 @@ $future1->then(function ($response) use (&$headers1) {
     $headers1 = $response->json();
 });
 
-$future2 = $client->get('http://httpbin_integration/headers', [
+$future2 = $client->get('http://httpbin-integration/headers', [
     'future' => true,
     'headers' => [
         'honored' => 'preserved_value',

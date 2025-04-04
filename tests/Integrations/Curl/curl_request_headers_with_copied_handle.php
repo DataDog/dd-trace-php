@@ -1,6 +1,6 @@
 <?php
 
-$ch1 = curl_init('http://httpbin_integration/headers');
+$ch1 = curl_init('http://httpbin-integration/headers');
 \curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 \curl_setopt($ch1, CURLOPT_HTTPHEADER, [
     'honored: preserved_value',

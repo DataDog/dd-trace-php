@@ -20,6 +20,6 @@
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
 
-  httpbin_integration:
+  httpbin-integration:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
-    alias: httpbin_integration
+    alias: httpbin-integration

@@ -12,7 +12,7 @@ if ('/override-resource' === $uriPath) {
 }
 
 if ('/curl-host' === $uriPath) {
-    $ch = curl_init("http://httpbin_integration/status/200");
+    $ch = curl_init("http://httpbin-integration/status/200");
     curl_exec($ch);
     error_log('/curl-host completed');
 }

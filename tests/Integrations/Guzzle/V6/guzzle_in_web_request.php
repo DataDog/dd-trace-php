@@ -7,5 +7,5 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 
 $client = new Client();
-$request = new Request('get', 'http://httpbin_integration/status/200');
+$request = new Request('get', 'http://httpbin-integration/status/200');
 $client->send($request);

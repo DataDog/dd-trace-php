@@ -41,7 +41,7 @@ aliases:
 
   - &IMAGE_DOCKER_HTTPBIN
     image: kong/httpbin:0.2.2
-    name: httpbin_integration
+    name: httpbin-integration
 
   - &IMAGE_DOCKER_KAFKA
     image: confluentinc/cp-kafka:7.7.1
@@ -255,18 +255,18 @@ aliases:
           exit 1
         fi
 
-  # Fix intermittent error: "Could not resolve host: httpbin_integration"
+  # Fix intermittent error: "Could not resolve host: httpbin-integration"
   - &STEP_RESOLVE_HTTPBIN_HOSTNAME_TO_IP
     run:
       name: Resolving HTTPBIN_HOSTNAME to IP address
       command: |
         export HTTPBIN_HOSTNAME=$( \
-          curl --verbose "http://httpbin_integration:80/headers" 2>&1 | \
+          curl --verbose "http://httpbin-integration:80/headers" 2>&1 | \
           grep '* Connected to' | \
           awk -F' ' '{print $5}' | \
           sed 's/[()]//g' \
         );
-        echo "Resolved httpbin_integration: HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME}";
+        echo "Resolved httpbin-integration: HTTPBIN_HOSTNAME=${HTTPBIN_HOSTNAME}";
         echo "export HTTPBIN_HOSTNAME='${HTTPBIN_HOSTNAME}'" >> $BASH_ENV
         # Avoid intermittent DNS hangs: See https://github.com/curl/curl/issues/593#issuecomment-170146252
         echo "options single-request" | sudo tee -a /etc/resolv.conf
@@ -555,7 +555,7 @@ commands:
                 -v $(pwd)/tests/snapshots:/snapshots \
                 --name test-agent ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
               retry_docker run --detach --rm --net net \
-                --name httpbin_integration kong/httpbin:0.2.2
+                --name httpbin-integration kong/httpbin:0.2.2
               retry_docker run --detach --rm --net net \
                 -e DD_REQUEST_DUMPER_FILE=dump.json \
                 --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0
@@ -616,7 +616,7 @@ commands:
             - docker_logs:
                 docker_image: test-agent
             - docker_logs:
-                docker_image: httpbin_integration
+                docker_image: httpbin-integration
             - docker_logs:
                 docker_image: request-replayer
       - when:
@@ -1204,7 +1204,7 @@ jobs:
           command: |
             mkdir dumps
             docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
-            docker run --network net -d --name httpbin_integration datadog/dd-trace-ci:httpbin-windows
+            docker run --network net -d --name httpbin-integration datadog/dd-trace-ci:httpbin-windows
             docker run --network net -d --name request-replayer datadog/dd-trace-ci:php-request-replayer-2.0-windows
             docker run -v ${pwd}:C:\Users\ContainerAdministrator\app --network net -d --name php << parameters.docker_image >> ping -t localhost
       - run:

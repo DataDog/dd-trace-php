@@ -6,7 +6,7 @@ const CACHE_COUNT = 100;
 
 for ($curlIndex = 0; $curlIndex < CURL_COUNT; $curlIndex++) {
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'httpbin_integration/get?client=curl');
+    curl_setopt($ch, CURLOPT_URL, 'httpbin-integration/get?client=curl');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
     curl_close($ch);

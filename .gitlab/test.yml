@@ -31,7 +31,7 @@
 .agent_httpbin_service: &agent_httpbin_service
   - !reference [.services, test-agent]
   - !reference [.services, request-replayer]
-  - !reference [.services, httpbin_integration]
+  - !reference [.services, httpbin-integration]
 
 .base_test:
   stage: test
@@ -96,7 +96,7 @@ ASAN Internal api randomized tests:
 ASAN init hook tests:
   extends: .asan_test
   services:
-    - !reference [.services, httpbin_integration]
+    - !reference [.services, httpbin-integration]
   script:
     - make test_with_init_hook
 
