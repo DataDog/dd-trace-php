@@ -36,7 +36,11 @@ void ddtrace_dogstatsd_client_rinit(void) {
 
     while (health_metrics_enabled) {
         struct addrinfo *addrs = NULL;
-        char *url = ZSTR_VAL(ddtrace_dogstatsd_url());
+        zend_string *url_str = ddtrace_dogstatsd_url();
+        if (!url_str) {
+            return;
+        }
+        char *url = ZSTR_VAL(url_str);
         char *host = NULL;
         char *port = NULL;
         if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {

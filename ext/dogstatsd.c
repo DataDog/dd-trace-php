@@ -14,7 +14,7 @@ char *ddtrace_dogstatsd_url(void) {
     }
 
     zend_string *hostname = get_DD_DOGSTATSD_HOST();
-    if (!hostname || ZSTR_LEN(hostname) == 0) {
+    if (ZSTR_LEN(hostname) == 0) {
         hostname = get_global_DD_AGENT_HOST();
     }
 
