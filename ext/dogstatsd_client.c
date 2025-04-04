@@ -55,11 +55,9 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
                                     (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                 efree(host);
-                free(port);
                 break;
             }
             efree(host);
-            free(port);
         } else {
             LOG(WARN,
                 "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
