@@ -12,7 +12,7 @@
 #include <config/config.h>
 
 bool dd_config_minit(int module_number);
-void dd_config_first_rinit();
+void dd_config_first_rinit(void);
 
 extern bool runtime_config_first_init;
 

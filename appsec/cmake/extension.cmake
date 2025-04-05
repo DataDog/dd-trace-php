@@ -23,6 +23,15 @@ set_target_properties(extension PROPERTIES
     PREFIX "")
 target_compile_definitions(extension PRIVATE TESTING=1 ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -D_GNU_SOURCE)
 
+# link against zai, but make their includes system includes to avoid warnings
+get_target_property(ZAI_INCLUDE_DIRS zai INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(extension PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+target_include_directories(extension SYSTEM PRIVATE ${ZAI_INCLUDE_DIRS})
+if(ZAI_INCLUDE_DIRS)
+  target_include_directories(extension SYSTEM PRIVATE ${ZAI_INCLUDE_DIRS})
+endif()
+target_link_libraries(extension PRIVATE zai)
+
 target_link_libraries(extension PRIVATE mpack PhpConfig zai)
 target_include_directories(extension PRIVATE ..)
 
@@ -32,7 +41,12 @@ if(COMPILER_HAS_NO_GNU_UNIQUE)
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
 endif()
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti -fno-exceptions>)
-target_compile_options(extension PRIVATE -Wall -Wextra -Werror)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+  target_compile_options(extension PRIVATE -Wall)
+else()
+  target_compile_options(extension PRIVATE -Wall -Wextra -pedantic -Werror -Wno-nullability-extension
+    -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-auto-type -Wno-language-extension-token)
+endif()
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
 

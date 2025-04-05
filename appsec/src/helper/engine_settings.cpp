@@ -51,45 +51,82 @@ std::filesystem::path get_helper_path()
 
 namespace dds {
 
-const std::string &engine_settings::default_rules_file()
-{
-    struct def_rules_file {
-        def_rules_file()
-        {
-            std::filesystem::path base_path;
+namespace {
+struct def_rules_file {
+    std::atomic<std::string *> stored_file{};
 
-            try {
-                base_path = get_helper_path().parent_path();
-            } catch (const std::exception &e) {
-                file = "<error resolving helper library path: " +
-                       std::string(e.what()) + ">";
+    def_rules_file() = default;
+    def_rules_file(const def_rules_file &) = delete;
+    def_rules_file(def_rules_file &&) = delete;
+    def_rules_file &operator=(const def_rules_file &) = delete;
+    def_rules_file &operator=(def_rules_file &&) = delete;
 
-                // try relative to the executable instead
-                try {
-                    auto psp = std::filesystem::path{"/proc/self/exe"};
-                    if (std::filesystem::is_symlink(psp)) {
-                        psp = std::filesystem::read_symlink(psp);
-                    }
-                    base_path = psp.parent_path();
-                } catch (const std::exception &e) {
-                    file =
-                        "<error resolving both library and executable path: " +
-                        std::string(e.what()) + ">";
-                    return;
-                }
-            }
-
-            file = base_path / "../etc/recommended.json";
-            if (!std::filesystem::exists(file)) {
-                // This fallback file is set by a custom/old installer on
-                // appsec repository
-                file = base_path / "../etc/dd-appsec/recommended.json";
+    const std::string &get()
+    {
+        auto *cur_val = stored_file.load();
+        if (cur_val == nullptr) {
+            auto *new_val = initialize().release();
+            if (!stored_file.compare_exchange_strong(cur_val, new_val)) {
+                delete new_val; // NOLINT
+                // cur_val is now the currently stored value
+            } else {
+                cur_val = new_val;
             }
         }
-        std::string file;
-    };
+        return *cur_val;
+    }
 
-    static def_rules_file const drf; // NOLINT
-    return drf.file;
-}
+    static std::unique_ptr<std::string> initialize()
+    {
+        std::filesystem::path base_path;
+        std::unique_ptr<std::string> file;
+
+        try {
+            base_path = get_helper_path().parent_path();
+        } catch (const std::exception &e) {
+            file = std::make_unique<std::string>(
+                "<error resolving helper library path: " +
+                std::string(e.what()) + ">");
+
+            // try relative to the executable instead
+            try {
+                auto psp = std::filesystem::path{"/proc/self/exe"};
+                if (std::filesystem::is_symlink(psp)) {
+                    psp = std::filesystem::read_symlink(psp);
+                }
+                base_path = psp.parent_path();
+            } catch (const std::exception &e) {
+                file = std::make_unique<std::string>(
+                    "<error resolving both library and executable path: " +
+                    std::string(e.what()) + ">");
+                return file;
+            }
+        }
+
+        file = std::make_unique<std::string>(
+            base_path / "../etc/recommended.json");
+        if (!std::filesystem::exists(*file)) {
+            // This fallback file is set by a custom/old installer on
+            // appsec repository
+            file = std::make_unique<std::string>(
+                base_path / "../etc/dd-appsec/recommended.json");
+        }
+
+        return file;
+    }
+
+    ~def_rules_file()
+    {
+        auto *val = stored_file.load();
+        delete val; // NOLINT
+        stored_file.store(nullptr);
+    }
+};
+
+// can't be a local static inside default_rules_file() because those
+// register their atexit() handlers lazily, which is too late for us.
+def_rules_file drf{}; // NOLINT
+} // namespace
+
+const std::string &engine_settings::default_rules_file() { return drf.get(); }
 } // namespace dds

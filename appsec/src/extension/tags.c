@@ -159,7 +159,7 @@ static bool _set_appsec_enabled(zval *metrics_zv);
 static void _register_functions(void);
 static void _register_test_functions(void);
 
-void dd_tags_startup()
+void dd_tags_startup(void)
 {
     _dd_sdk_zstr = zend_string_init_interned(LSTRARG(DD_SDK), 1);
     _dd_tag_data_zstr =
@@ -277,7 +277,7 @@ void dd_tags_startup()
     }
 }
 
-static void _init_relevant_headers()
+static void _init_relevant_headers(void)
 {
     zend_hash_init(&_relevant_headers, 32, NULL, NULL, 1);
     zend_hash_init(&_relevant_basic_headers, 32, NULL, NULL, 1);
@@ -330,7 +330,7 @@ static void _init_relevant_headers()
         &_relevant_headers, get_global_DD_APPSEC_EXTRA_HEADERS(), NULL);
 }
 
-void dd_tags_shutdown()
+void dd_tags_shutdown(void)
 {
     zend_hash_destroy(&_relevant_headers);
     _relevant_headers = (HashTable){0};
@@ -339,7 +339,7 @@ void dd_tags_shutdown()
     _relevant_basic_headers = (HashTable){0};
 }
 
-void dd_tags_rinit()
+void dd_tags_rinit(void)
 {
     bool init_list = false;
     _user_event_triggered = false;
@@ -384,7 +384,7 @@ void dd_tags_add_rasp_duration_ext(
     zend_hash_add(Z_ARRVAL_P(metrics_zv), _dd_rasp_duration_ext, &zv);
 }
 
-void dd_tags_rshutdown()
+void dd_tags_rshutdown(void)
 {
     zend_llist_clean(&_appsec_json_frags);
 
@@ -467,16 +467,16 @@ void dd_tags_add_tags(
     }
 }
 
-void dd_tags_add_blocked() { _blocked = true; }
+void dd_tags_add_blocked(void) { _blocked = true; }
 
-void dd_tags_set_sampling_priority() { _force_keep = true; }
+void dd_tags_set_sampling_priority(void) { _force_keep = true; }
 
 static void _zend_string_release_indirect(void *s)
 {
     zend_string_release(*(zend_string **)s);
 }
 
-static zend_string *_concat_json_fragments()
+static zend_string *_concat_json_fragments(void)
 {
 #define DD_DATA_TAG_BEFORE "{\"triggers\":["
 #define DD_DATA_TAG_AFTER "]}"
@@ -957,7 +957,7 @@ bool match_regex(zend_string *pattern, zend_string *subject)
     return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
 }
 
-static zval *nullable _root_span_get_meta()
+static zval *nullable _root_span_get_meta(void)
 {
     zend_object *nullable span = dd_req_lifecycle_get_cur_span();
     if (!span) {
@@ -1724,5 +1724,8 @@ static const zend_function_entry test_functions[] = {
 };
 // clang-format on
 
-static void _register_functions() { dd_phpobj_reg_funcs(functions); }
-static void _register_test_functions() { dd_phpobj_reg_funcs(test_functions); }
+static void _register_functions(void) { dd_phpobj_reg_funcs(functions); }
+static void _register_test_functions(void)
+{
+    dd_phpobj_reg_funcs(test_functions);
+}

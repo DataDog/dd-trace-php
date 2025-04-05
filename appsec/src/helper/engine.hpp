@@ -106,7 +106,7 @@ public:
 
 protected:
     explicit engine(uint32_t trace_rate_limit)
-        : limiter_(trace_rate_limit), common_(new shared_state{{}})
+        : common_(new shared_state{{}}), limiter_(trace_rate_limit)
     {}
 
     // in practice: the current ddwaf_handle, swapped in update

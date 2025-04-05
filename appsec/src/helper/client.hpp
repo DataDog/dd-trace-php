@@ -23,14 +23,14 @@ public:
     // Below this limit the encoding+compression might result on a longer string
     client(std::shared_ptr<service_manager> service_manager,
         std::unique_ptr<network::base_broker> &&broker)
-        : service_manager_(std::move(service_manager)),
-          broker_(std::move(broker))
+        : broker_(std::move(broker)),
+          service_manager_(std::move(service_manager))
     {}
 
     client(std::shared_ptr<service_manager> service_manager,
         std::unique_ptr<network::base_socket> &&socket)
-        : service_manager_(std::move(service_manager)),
-          broker_(std::make_unique<network::broker>(std::move(socket)))
+        : broker_(std::make_unique<network::broker>(std::move(socket))),
+          service_manager_(std::move(service_manager))
     {}
 
     ~client() = default;

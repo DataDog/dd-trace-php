@@ -245,13 +245,13 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-static void _rinit_once()
+static void _rinit_once(void)
 {
     dd_config_first_rinit();
     _check_enabled();
 }
 
-void dd_appsec_rinit_once()
+void dd_appsec_rinit_once(void)
 {
     static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
     pthread_once(&_rinit_once_control, _rinit_once);
@@ -361,7 +361,7 @@ static PHP_MINFO_FUNCTION(ddappsec)
 __thread void *unspecnull TSRMLS_CACHE = NULL;
 #endif
 
-static void _check_enabled()
+static void _check_enabled(void)
 {
     if (DDAPPSEC_G(enabled) != APPSEC_UNSET_STATE) {
         return;
@@ -568,7 +568,7 @@ static const zend_function_entry testing_functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     dd_phpobj_reg_funcs(functions);
 

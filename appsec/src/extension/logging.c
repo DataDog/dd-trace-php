@@ -82,7 +82,7 @@ static void _dd_log_errf(const char *format, ...)
     va_end(args);
 }
 
-void dd_log_startup()
+void dd_log_startup(void)
 {
 #ifdef ZTS
     _mutex = tsrm_mutex_alloc();
@@ -101,18 +101,20 @@ int _strerror_r_fallback(int errnum, char *buf, size_t buflen)
     buf[buflen - 1] = '\0';
     return 0;
 }
-static void _find_strerror_r()
+static void _find_strerror_r(void)
 {
-    _libc_strerror_r = dlsym(NULL, "__xpg_strerror_r");
+    _libc_strerror_r =
+        (typeof(_libc_strerror_r))(uintptr_t)dlsym(NULL, "__xpg_strerror_r");
     if (!_libc_strerror_r) {
-        _libc_strerror_r = dlsym(NULL, "strerror_r");
+        _libc_strerror_r =
+            (typeof(_libc_strerror_r))(uintptr_t)dlsym(NULL, "strerror_r");
         if (!_libc_strerror_r) {
             _libc_strerror_r = _strerror_r_fallback;
         }
     }
 }
 
-static void _ensure_init()
+static void _ensure_init(void)
 {
 #ifdef ZTS
     /* assert: mlog is not called before dd_log_startup */
@@ -140,7 +142,7 @@ static void _ensure_init()
     }
 }
 
-static dd_result _do_dd_log_init() // guarded by mutex
+static dd_result _do_dd_log_init(void) // guarded by mutex
 {
     const char *path = ""; // compiler can't tell it's always used initialized
     zend_string *log_file = get_global_DD_APPSEC_LOG_FILE();
@@ -453,7 +455,7 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
     va_end(args);
 }
 
-void dd_log_shutdown()
+void dd_log_shutdown(void)
 {
     mlog(dd_log_debug, "Shutting down the file logging");
 
@@ -572,7 +574,7 @@ static const zend_function_entry functions[] = {
     PHP_FE_END
 };
 // clang-format on
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

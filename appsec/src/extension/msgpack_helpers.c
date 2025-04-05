@@ -383,7 +383,7 @@ static const zend_function_entry testing_functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;
@@ -392,4 +392,4 @@ static void _register_testing_objects()
     dd_phpobj_reg_funcs(testing_functions);
 }
 
-void dd_msgpack_helpers_startup() { _register_testing_objects(); }
+void dd_msgpack_helpers_startup(void) { _register_testing_objects(); }

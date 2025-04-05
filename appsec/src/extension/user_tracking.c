@@ -74,7 +74,7 @@ void dd_user_tracking_startup(void)
 
 #if PHP_VERSION_ID < 80000
     _hash_fetch_ops =
-        (hash_fetch_ops_t)dlsym(RTLD_DEFAULT, "php_hash_fetch_ops");
+        (hash_fetch_ops_t)(uintptr_t)dlsym(RTLD_DEFAULT, "php_hash_fetch_ops");
     if (!_hash_fetch_ops) {
         mlog(dd_log_warning, "Failed to load php_hash_fetch_ops: %s",
             dlerror()); // NOLINT(concurrency-mt-unsafe)
@@ -286,12 +286,12 @@ zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info)
     return anon_user_id;
 }
 
-user_collection_mode dd_get_user_collection_mode()
+user_collection_mode dd_get_user_collection_mode(void)
 {
     return _user_mode_rc != user_mode_undefined ? _user_mode_rc : _user_mode;
 }
 
-zend_string *nonnull dd_get_user_collection_mode_zstr()
+zend_string *nonnull dd_get_user_collection_mode_zstr(void)
 {
     user_collection_mode mode = dd_get_user_collection_mode();
 
@@ -325,7 +325,7 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_test_objects()
+static void _register_test_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

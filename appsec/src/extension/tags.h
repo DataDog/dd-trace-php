@@ -20,7 +20,7 @@ void dd_tags_rshutdown(void);
 void dd_tags_add_tags(zend_object *nonnull span, zend_array *nullable superglob_equiv);
 void dd_tags_add_blocked(void);
 
-void dd_tags_set_sampling_priority();
+void dd_tags_set_sampling_priority(void);
 
 // Copies (or increases refcount) of zstr
 void dd_tags_set_event_user_id(zend_string *nonnull zstr);

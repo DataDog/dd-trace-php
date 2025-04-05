@@ -29,7 +29,7 @@ struct settings {
                   << ", shmem_path=" << c.shmem_path << "}";
     }
 
-    MSGPACK_DEFINE_MAP(enabled, shmem_path);
+    MSGPACK_DEFINE_MAP(enabled, shmem_path)
 };
 
 } // namespace dds::remote_config

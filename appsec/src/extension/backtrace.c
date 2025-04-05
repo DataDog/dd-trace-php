@@ -327,7 +327,7 @@ static const zend_function_entry testing_functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;
@@ -336,7 +336,7 @@ static void _register_testing_objects()
     dd_phpobj_reg_funcs(testing_functions);
 }
 
-void dd_backtrace_startup()
+void dd_backtrace_startup(void)
 {
     _frames_key = zend_string_init_interned(LSTRARG("frames"), 1);
     _language_key = zend_string_init_interned(LSTRARG("language"), 1);

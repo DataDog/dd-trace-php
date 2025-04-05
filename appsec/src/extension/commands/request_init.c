@@ -133,7 +133,7 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
     return dd_success;
 }
 
-static void _init_autoglobals()
+static void _init_autoglobals(void)
 {
     // force the autoglobal callback called even if global jit is enabled
     zend_is_auto_global_str(ZEND_STRL("_SERVER"));

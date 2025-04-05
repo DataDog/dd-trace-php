@@ -66,13 +66,13 @@ void dd_helper_startup(void)
 
 void dd_helper_shutdown(void) {}
 
-void dd_helper_gshutdown()
+void dd_helper_gshutdown(void)
 {
     pefree(_mgr.socket_path, 1);
     pefree(_mgr.lock_path, 1);
 }
 
-void dd_helper_rshutdown() { _mgr.connected_this_req = false; }
+void dd_helper_rshutdown(void) { _mgr.connected_this_req = false; }
 
 dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull init_func, void *unspecnull ctx)
@@ -167,7 +167,7 @@ static inline ddog_CharSlice to_char_slice(zend_string *zs)
     return (ddog_CharSlice){.len = ZSTR_LEN(zs), .ptr = ZSTR_VAL(zs)};
 }
 
-static void _read_settings()
+static void _read_settings(void)
 {
     if (_mgr.socket_path) {
         return;
@@ -213,7 +213,7 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     return true;
 }
 
-void dd_helper_close_conn()
+void dd_helper_close_conn(void)
 {
     if (!dd_conn_connected(&_mgr.conn)) {
         mlog(dd_log_debug, "Not connected; nothing to do");
@@ -235,7 +235,7 @@ void dd_helper_close_conn()
 }
 
 // returns true if an attempt to connectt should not be made yet
-static bool _wait_for_next_retry()
+static bool _wait_for_next_retry(void)
 {
     if (!_mgr.next_retry.tv_sec) {
         return false;
@@ -257,7 +257,7 @@ static bool _wait_for_next_retry()
     return false;
 }
 
-static void _inc_failed_counter()
+static void _inc_failed_counter(void)
 {
     if (_mgr.failed_count != UINT16_MAX) {
         _mgr.failed_count++;
@@ -280,7 +280,7 @@ static void _inc_failed_counter()
     _mgr.next_retry.tv_sec += (time_t)wait;
 }
 
-static void _reset_retry_state()
+static void _reset_retry_state(void)
 {
     _mgr.failed_count = 0;
     _mgr.next_retry = (struct timespec){0};
@@ -349,7 +349,7 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

@@ -29,7 +29,7 @@ extern const int _dd_size_source_prefix;
 extern __thread char _dd_strerror_buf[STRERROR_R_BUF_SIZE];
 #endif
 
-static inline dd_log_level_t dd_log_level()
+static inline dd_log_level_t dd_log_level(void)
 {
     return runtime_config_first_init ? get_DD_APPSEC_LOG_LEVEL()
                                      : get_global_DD_APPSEC_LOG_LEVEL();
@@ -47,15 +47,15 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
     ATTR_FORMAT(2, 6);
 #define mlog(level, format, ...)                                               \
     _mlog_relay((level), (format),                                             \
-        (const char *)__FILE__ + _dd_size_source_prefix, __FUNCTION__,         \
-        __LINE__, ##__VA_ARGS__)
+        (const char *)__FILE__ + _dd_size_source_prefix, __func__, __LINE__,   \
+        ##__VA_ARGS__)
 
 #define mlog_err(level, format, ...)                                           \
     do {                                                                       \
         int _orig_errno = errno;                                               \
         const char *_err_str = _strerror(errno);                               \
         _mlog_relay(level, format ": %s",                                      \
-            (const char *)__FILE__ + _dd_size_source_prefix, __FUNCTION__,     \
+            (const char *)__FILE__ + _dd_size_source_prefix, __func__,         \
             __LINE__, ##__VA_ARGS__, _err_str);                                \
         errno = _orig_errno;                                                   \
     } while (0)

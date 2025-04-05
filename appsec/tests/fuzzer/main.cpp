@@ -6,7 +6,6 @@
 
 #include "mutators.hpp"
 #include "network.hpp"
-#include "network/acceptor.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <runner.hpp>
@@ -173,17 +172,26 @@ int main(int argc, char **argv)
 
     auto acceptor_ptr = std::make_unique<dds::fuzzer::acceptor>();
     acceptor = acceptor_ptr.get();
-    std::atomic<bool> interrupted{};
-    dds::runner runner{config, std::move(acceptor_ptr), interrupted};
+    static std::atomic<bool> interrupted{};
+    dds::runner runner{std::move(acceptor_ptr), interrupted};
+    static std::thread *runner_thread =
+        new std::thread{[&runner] { runner.run(); }};
 
-    std::thread runner_thread([&runner] { runner.run(); });
+    static auto cleanup = []() {
+        SPDLOG_INFO("atexit() hook, interrupting runner");
+        interrupted.store(true, std::memory_order_release);
+        acceptor->exit();
+
+        SPDLOG_INFO("Waiting for runner thread to finish");
+        runner_thread->join();
+        SPDLOG_INFO("Runner thread finished");
+        delete runner_thread;
+    };
+    std::atexit(cleanup);
 
     int result = LLVMFuzzerRunDriver(&argc, &argv, LLVMFuzzerTestOneInput);
 
-    interrupted.store(true, std::memory_order_release);
-    acceptor->exit();
-
-    runner_thread.join();
+    // generally not reached
 
     return result;
 }
