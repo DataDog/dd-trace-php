@@ -8,11 +8,13 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
+import static java.time.Duration.ofSeconds
 
 @Testcontainers
 @Slf4j
@@ -42,13 +44,8 @@ class FrankenphpWorkerTests implements WorkerStrategyTests {
 
     @BeforeAll
     static void beforeAll() {
-        // wait until roadrunner is running
-        long deadline = System.currentTimeMillis() + 300_000
-        while (CONTAINER.execInContainer('pgrep', 'frankenphp').exitCode != 0) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new RuntimeException('Frankenphp did not start on time (see output of run.sh)')
-            }
-            Thread.sleep(500)
-        }
+        Wait.forLogMessage('.*serving initial configuration.*', 1)
+                .withStartupTimeout(ofSeconds(30))
+                .waitUntilReady(CONTAINER)
     }
 }
