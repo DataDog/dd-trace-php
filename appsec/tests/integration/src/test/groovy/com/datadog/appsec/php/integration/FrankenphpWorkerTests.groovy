@@ -3,21 +3,28 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
-import static com.datadog.appsec.php.integration.TestParams.phpVersionAtLeast
+import static java.time.Duration.ofSeconds
 
 @Testcontainers
-@EnabledIf('isExpectedVersion')
-class RoadRunnerTests implements WorkerStrategyTests {
-    static boolean expectedVersion = phpVersionAtLeast('7.4') && !variant.contains('zts')
-    boolean canBlockOnResponse = true
-    String component = 'roadrunner'
+@Slf4j
+@EnabledIf('isZts84')
+@TestMethodOrder(MethodOrderer.OrderAnnotation)
+class FrankenphpWorkerTests implements WorkerStrategyTests {
+
+    static boolean zts84 = variant.contains('zts') && phpVersion.contains('8.4')
+    boolean canBlockOnResponse = false
+    String component = 'frankenphp'
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
@@ -28,22 +35,17 @@ class RoadRunnerTests implements WorkerStrategyTests {
     public static final AppSecContainer CONTAINER =
             new AppSecContainer(
                     workVolume: this.name,
-                    baseTag: 'php',
+                    baseTag: 'frankenphp',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: 'roadrunner',
+                    www: 'frankenphp',
                     www_src: '_handlers',
             ).withEnv 'DD_REMOTE_CONFIG_ENABLED', 'false'
 
     @BeforeAll
     static void beforeAll() {
-        // wait until roadrunner is running
-        long deadline = System.currentTimeMillis() + 300_000
-        while (CONTAINER.execInContainer('grep', 'http server was started', '/tmp/logs/rr.log').exitCode != 0) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new RuntimeException('Roadrunner did not start on time (see output of run.sh)')
-            }
-            Thread.sleep(500)
-        }
+        Wait.forLogMessage('.*serving initial configuration.*', 1)
+                .withStartupTimeout(ofSeconds(30))
+                .waitUntilReady(CONTAINER)
     }
 }

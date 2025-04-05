@@ -112,8 +112,8 @@ task downloadComposerOld(type: Download) {
 }
 
 task downloadComposer(type: Download) {
-    src 'https://getcomposer.org/download/2.6.6/composer.phar'
-    dest 'build/composer-2.6.6.phar'
+    src 'https://getcomposer.org/download/2.8.6/composer.phar'
+    dest 'build/composer-2.8.6.phar'
     overwrite false
     doLast {
         exec {

@@ -59,7 +59,11 @@ bool dd_req_is_user_req() { return _enabled_user_req; }
 
 void dd_req_lifecycle_startup()
 {
-    _enabled_user_req = strcmp(sapi_module.name, "cli") == 0 &&
+    // we assume that frankenphp is running in worker mode because
+    // there is no easy way to detect it at this point.
+    // If it's not the case, DD_APPSEC_CLI_START_ON_RINIT should be set
+    _enabled_user_req = (strcmp(sapi_module.name, "cli") == 0 ||
+                            strcmp(sapi_module.name, "frankenphp") == 0) &&
                         !get_global_DD_APPSEC_CLI_START_ON_RINIT();
 
     if (_enabled_user_req) {
@@ -167,6 +171,9 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */, bool user_req)
 {
+    // do this even on user req because frankenphp uses normal php output
+    dd_entity_body_rinit();
+
     dd_tags_rinit();
 
     zend_string *nullable rbe = NULL;
@@ -527,11 +534,23 @@ static zend_array *nullable _response_commit(
     mlog(dd_log_debug, "Committing user request for span %p", span);
 
     zend_string *rbe = _get_entity_as_string(rbe_zv);
+    bool free_rbe = true;
+    if (!rbe) {
+        // frankenphp writes the response body through the usual means
+        zend_string *rbe_sapi_buf = dd_response_body_buffered();
+        if (rbe_sapi_buf->val[0]) {
+            mlog_g(dd_log_debug,
+                "Using buffered response body of size %zu in notify_commit()",
+                ZSTR_LEN(rbe_sapi_buf));
+            rbe = rbe_sapi_buf;
+            free_rbe = false;
+        }
+    }
 
     zend_array *res = _do_request_finish_user_req(
         false, _superglob_equiv, status, resp_headers, rbe);
 
-    if (rbe) {
+    if (rbe && free_rbe) {
         zend_string_release(rbe);
     }
 

@@ -19,8 +19,8 @@ $helper = Helper::createInitedRun([
 
 header('content-type: application/json');
 http_response_code(403);
-echo '{"a": [1,2,"3"]}FOOBAR', "\n";
 var_dump(rinit());
+echo '{"a": [1,2,"3"]}FOOBAR', "\n";
 $helper->get_commands(); // ignore
 
 var_dump(rshutdown());
@@ -29,8 +29,8 @@ print_r($c[0][1][0]['server.response.body']);
 
 ?>
 --EXPECT--
-{"a": [1,2,"3"]}FOOBAR
 bool(true)
+{"a": [1,2,"3"]}FOOBAR
 bool(true)
 Array
 (

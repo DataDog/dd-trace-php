@@ -16,7 +16,7 @@ touch "${LOGS_PHP[@]}"
 enable_extensions.sh
 echo datadog.trace.cli_enabled=true >> /etc/php/php.ini
 
-./rr serve 2>&1 >> /tmp/logs/rr.log &
+./rr serve >> /tmp/logs/rr.log 2>&1 &
 
 tail -n +1 -F "${LOGS_PHP[@]}"
 
