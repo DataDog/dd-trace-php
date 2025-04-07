@@ -206,6 +206,7 @@ ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/soap/tests/bug71610.phpt
 ext/sockets/tests/socket_connect_params.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_create_pair.phpt

@@ -313,7 +313,10 @@ ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/bug75245.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/soap/tests/bug71610.phpt
 ext/soap/tests/bug77088.phpt
+ext/sockets/tests/mcast_ipv6_recv.phpt
+ext/sockets/tests/mcast_ipv6_send.phpt
 ext/sockets/tests/socket_addrinfo_bind.phpt
 ext/sockets/tests/socket_addrinfo_connect.phpt
 ext/sockets/tests/socket_create_pair.phpt

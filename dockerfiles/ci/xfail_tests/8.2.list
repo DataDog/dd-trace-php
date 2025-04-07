@@ -119,6 +119,8 @@ ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
 ext/soap/tests/bug77088.phpt
+ext/sockets/tests/mcast_ipv6_recv.phpt
+ext/sockets/tests/mcast_ipv6_send.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
 ext/spl/tests/bug48493.phpt
