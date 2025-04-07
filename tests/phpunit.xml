@@ -134,7 +134,6 @@
         </testsuite>
         <testsuite name="unit">
             <directory>./Unit/</directory>
-            <exclude>Unit/Util/OrphansTest.php</exclude>
         </testsuite>
     </testsuites>
 
