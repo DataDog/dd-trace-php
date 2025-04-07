@@ -34,6 +34,7 @@ const ASSERT_NO_MEMLEAKS = ' | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ 
 
 function after_script($execute_dir = ".", $has_test_agent = false) {
 ?>
+
   artifacts:
     reports:
       junit: "artifacts/tests/php-tests.xml"
@@ -51,7 +52,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
 function sidecar_logs() {
 ?>
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
-     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
 <?php
 }
 ?>
