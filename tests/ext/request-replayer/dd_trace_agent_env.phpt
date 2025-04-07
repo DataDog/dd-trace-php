@@ -3,7 +3,7 @@ Assert that the default environment can be read from agent info
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
-if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to sidecar data");
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
 if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
