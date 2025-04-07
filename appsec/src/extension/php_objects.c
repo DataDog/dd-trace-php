@@ -40,4 +40,4 @@ void dd_phpobj_reg_long_const(
     zend_register_long_constant(name, name_len, value, flags, _module_number);
 }
 
-void dd_phpobj_shutdown() { zend_llist_destroy(&_function_entry_arrays); }
+void dd_phpobj_shutdown(void) { zend_llist_destroy(&_function_entry_arrays); }

@@ -236,7 +236,7 @@ bool dd_config_minit(int module_number)
     return true;
 }
 
-void dd_config_first_rinit()
+void dd_config_first_rinit(void)
 {
     zai_config_first_time_rinit(true);
     zai_config_rinit();
@@ -293,7 +293,7 @@ static const zend_function_entry testing_functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

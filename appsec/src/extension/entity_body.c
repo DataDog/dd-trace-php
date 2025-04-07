@@ -45,7 +45,7 @@ static zval _convert_xml(const char *nonnull entity, size_t entity_len,
 
 static typeof(zend_write) orig_zend_write;
 
-void dd_entity_body_startup()
+void dd_entity_body_startup(void)
 {
     orig_zend_write = zend_write;
     zend_write = _dd_save_output_zend_write;
@@ -56,7 +56,8 @@ void dd_entity_body_startup()
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
         mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
     } else {
-        _json_decode_ex = (json_decode_ex_t)dlsym(handle, "php_json_decode_ex");
+        _json_decode_ex =
+            (json_decode_ex_t)(uintptr_t)dlsym(handle, "php_json_decode_ex");
         if (!_json_decode_ex) {
             mlog(dd_log_warning, "Failed to load php_json_decode_ex: %s",
                 dlerror()); // NOLINT(concurrency-mt-unsafe)
@@ -72,7 +73,7 @@ void dd_entity_body_startup()
     }
 }
 
-void dd_entity_body_gshutdown()
+void dd_entity_body_gshutdown(void)
 {
     if (_buffer) {
         zend_string_release(_buffer);
@@ -91,7 +92,7 @@ static typeof(zend_write(NULL, 0)) _dd_save_output_zend_write(
     return orig_zend_write(str, str_length);
 }
 
-void dd_entity_body_rinit()
+void dd_entity_body_rinit(void)
 {
     zend_long conf_size = get_DD_APPSEC_MAX_BODY_BUFF_SIZE();
     size_t desired_bufsize;
@@ -112,7 +113,7 @@ void dd_entity_body_rinit()
     _buffer->len = 0;
 }
 
-zend_string *nonnull dd_response_body_buffered()
+zend_string *nonnull dd_response_body_buffered(void)
 {
     // the json decoder is buggy and expects NUL despite being sent the length
     _buffer->val[_buffer->len] = '\0';
@@ -180,6 +181,9 @@ static zval _convert_json(char *nonnull entity, size_t entity_len)
         &zv, entity, entity_len, PHP_JSON_OBJECT_AS_ARRAY, MAX_DEPTH);
     if (Z_TYPE(zv) == IS_NULL) {
         mlog(dd_log_info, "Failed to parse JSON response body");
+        if (dd_log_level() >= dd_log_trace && entity_len < INT_MAX) {
+            mlog(dd_log_trace, "Contents were: %.*s", (int)entity_len, entity);
+        }
         zval_ptr_dtor(&zv);
     }
     return zv;

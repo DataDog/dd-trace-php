@@ -21,7 +21,7 @@ struct schema_extraction_settings {
     bool enabled = default_enabled;
     double sampling_period = default_sampling_period;
 
-    MSGPACK_DEFINE_MAP(enabled, sampling_period);
+    MSGPACK_DEFINE_MAP(enabled, sampling_period)
 };
 
 /* engine_settings are currently the same for the whole client session.
@@ -51,7 +51,7 @@ struct engine_settings {
     }
 
     MSGPACK_DEFINE_MAP(rules_file, waf_timeout_us, trace_rate_limit,
-        obfuscator_key_regex, obfuscator_value_regex, schema_extraction);
+        obfuscator_key_regex, obfuscator_value_regex, schema_extraction)
 
     bool operator==(const engine_settings &oth) const noexcept
     {

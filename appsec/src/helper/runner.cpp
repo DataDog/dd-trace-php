@@ -85,13 +85,12 @@ void handle_sigusr1()
 } // namespace
 
 runner::runner(const config::config &cfg, std::atomic<bool> &interrupted)
-    : runner{cfg, acceptor_from_config(cfg), interrupted}
+    : runner{acceptor_from_config(cfg), interrupted}
 {}
 
-runner::runner(const config::config &cfg,
-    std::unique_ptr<network::base_acceptor> &&acceptor,
+runner::runner(std::unique_ptr<network::base_acceptor> &&acceptor,
     std::atomic<bool> &interrupted)
-    : cfg_(cfg), service_manager_{std::make_shared<service_manager>()},
+    : service_manager_{std::make_shared<service_manager>()},
       acceptor_(std::move(acceptor)), interrupted_{interrupted}
 {
     try {

@@ -3,17 +3,15 @@
 namespace App;
 
 use Nyholm\Psr7\Response;
-use Spiral\RoadRunner\Http\Request;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 class JsonHandler
 {
-    /**
-     * @param Request $req
-     * @return Response
-     */
-    public function handle(Request $req): Response
+    public function handle(ServerRequestInterface $req): ResponseInterface
     {
-        if (isset($req->query['block'])) {
+        $qp = $req->getQueryParams();
+        if (isset($qp['block'])) {
             $poison = 'block_this';
         } else {
             $poison = 'poison';

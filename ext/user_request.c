@@ -2,7 +2,6 @@
 #include <main/SAPI.h>
 #include "configuration.h"
 #include "ddtrace.h"
-#include "ext/priority_sampling/priority_sampling.h"
 #include "span.h"
 
 #define NS "DDTrace\\UserRequest\\"
@@ -14,7 +13,7 @@ static struct {
 
 DDTRACE_PUBLIC bool ddtrace_user_req_add_listeners(ddtrace_user_req_listeners *listeners)
 {
-    if (strcmp(sapi_module.name, "cli") != 0) {
+    if (strcmp(sapi_module.name, "cli") != 0 && strcmp(sapi_module.name, "frankenphp") != 0) {
         return false;
     }
 

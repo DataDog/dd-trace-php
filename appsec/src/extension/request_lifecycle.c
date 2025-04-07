@@ -55,11 +55,15 @@ static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
-bool dd_req_is_user_req() { return _enabled_user_req; }
+bool dd_req_is_user_req(void) { return _enabled_user_req; }
 
-void dd_req_lifecycle_startup()
+void dd_req_lifecycle_startup(void)
 {
-    _enabled_user_req = strcmp(sapi_module.name, "cli") == 0 &&
+    // we assume that frankenphp is running in worker mode because
+    // there is no easy way to detect it at this point.
+    // If it's not the case, DD_APPSEC_CLI_START_ON_RINIT should be set
+    _enabled_user_req = (strcmp(sapi_module.name, "cli") == 0 ||
+                            strcmp(sapi_module.name, "frankenphp") == 0) &&
                         !get_global_DD_APPSEC_CLI_START_ON_RINIT();
 
     if (_enabled_user_req) {
@@ -117,7 +121,7 @@ void dd_req_lifecycle_rinit(bool force)
     _do_request_begin_php();
 }
 
-static void _do_request_begin_php()
+static void _do_request_begin_php(void)
 {
     zend_string *nonnull req_body =
         dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
@@ -167,6 +171,9 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */, bool user_req)
 {
+    // do this even on user req because frankenphp uses normal php output
+    dd_entity_body_rinit();
+
     dd_tags_rinit();
 
     zend_string *nullable rbe = NULL;
@@ -391,7 +398,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     return NULL;
 }
 
-static void _reset_globals()
+static void _reset_globals(void)
 {
     _set_cur_span(NULL);
 
@@ -418,7 +425,7 @@ static void _reset_globals()
     dd_tags_rshutdown();
 }
 
-static zend_string *nullable _extract_ip_from_autoglobal()
+static zend_string *nullable _extract_ip_from_autoglobal(void)
 {
     zval *_server =
         dd_php_get_autoglobal(TRACK_VARS_SERVER, LSTRARG("_SERVER"));
@@ -442,9 +449,12 @@ static void _set_cur_span(zend_object *nullable span)
     }
 }
 
-zend_object *nullable dd_req_lifecycle_get_cur_span() { return _cur_req_span; }
+zend_object *nullable dd_req_lifecycle_get_cur_span(void)
+{
+    return _cur_req_span;
+}
 
-zend_string *nullable dd_req_lifecycle_get_client_ip()
+zend_string *nullable dd_req_lifecycle_get_client_ip(void)
 {
     if (!_client_ip) {
         if (_superglob_equiv) {
@@ -487,7 +497,7 @@ static zend_array *nullable _start_user_req(
         assert(spec == NULL);
     }
 
-    mlog(dd_log_debug, "Starting user request for span %p", span);
+    mlog(dd_log_debug, "Starting user request for span %p", (void *)span);
 
     _set_cur_span(span);
     GC_TRY_ADDREF(super_global_equiv);
@@ -524,14 +534,26 @@ static zend_array *nullable _response_commit(
         return NULL;
     }
 
-    mlog(dd_log_debug, "Committing user request for span %p", span);
+    mlog(dd_log_debug, "Committing user request for span %p", (void *)span);
 
     zend_string *rbe = _get_entity_as_string(rbe_zv);
+    bool free_rbe = true;
+    if (!rbe) {
+        // frankenphp writes the response body through the usual means
+        zend_string *rbe_sapi_buf = dd_response_body_buffered();
+        if (rbe_sapi_buf->val[0]) {
+            mlog_g(dd_log_debug,
+                "Using buffered response body of size %zu in notify_commit()",
+                ZSTR_LEN(rbe_sapi_buf));
+            rbe = rbe_sapi_buf;
+            free_rbe = false;
+        }
+    }
 
     zend_array *res = _do_request_finish_user_req(
         false, _superglob_equiv, status, resp_headers, rbe);
 
-    if (rbe) {
+    if (rbe && free_rbe) {
         zend_string_release(rbe);
     }
 
@@ -703,7 +725,7 @@ static void _finish_user_req(
         _reset_globals();
     }
 
-    mlog(dd_log_debug, "Finishing user request for span %p", span);
+    mlog(dd_log_debug, "Finishing user request for span %p", (void *)span);
 
     zend_array *arr =
         _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
@@ -772,7 +794,8 @@ void dd_req_call_blocking_function(dd_result res)
         return;
     }
 
-    mlog(dd_log_debug, "Calling blocking function for span %p", _cur_req_span);
+    mlog(dd_log_debug, "Calling blocking function for span %p",
+        (void *)_cur_req_span);
 
     const zend_array *nonnull sv = _get_server_equiv(_superglob_equiv);
     zend_array *spec = NULL;
@@ -945,7 +968,7 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

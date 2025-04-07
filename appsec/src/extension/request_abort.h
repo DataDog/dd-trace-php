@@ -23,6 +23,8 @@ void dd_set_redirect_code_and_location(
     int code, zend_string *nullable location);
 
 void dd_request_abort_startup(void);
+void dd_request_abort_zend_ext_startup(void);
+void dd_request_abort_shutdown(void);
 // noreturn unless called from rinit on fpm
 void dd_request_abort_static_page(void);
 zend_array *nonnull dd_request_abort_static_page_spec(

@@ -2,6 +2,7 @@
 
 #include <dogstatsd_client/client.h>
 
+#include "dogstatsd.h"
 #include "configuration.h"
 #include "ddtrace.h"
 #include <components/log/log.h>
@@ -34,72 +35,42 @@ void ddtrace_dogstatsd_client_rinit(void) {
     dogstatsd_client client = dogstatsd_client_default_ctor();
 
     while (health_metrics_enabled) {
-        struct addrinfo *addrs;
-        char *url = ZSTR_VAL(get_DD_DOGSTATSD_URL());
-        char *host, *port;
-        if (*url) {
-            if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
-                addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
-            } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
-                char *colon = strchr(url + 6, ':');
-                if (!colon) {
-                    LOG(WARN,
-                        "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
-                        url);
-                    break;
-                }
-
-                host = estrndup(url + 6, colon - url - 6);
-
-                port = colon + 1;
-                int err;
-                if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-                    LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
-                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
-                    efree(host);
-                    break;
-                }
-                efree(host);
-            } else {
+        struct addrinfo *addrs = NULL;
+        const char *url = ddtrace_dogstatsd_url();
+        if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
+            addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
+        } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
+            char *colon = strchr(url + 6, ':');
+            if (!colon) {
                 LOG(WARN,
-                    "Dogstatsd client encountered an invalid DD_DOGSTATSD_URL: %s, expecting url starting with unix:// or udp://",
+                    "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
                     url);
                 break;
             }
 
-            host = url;
-            port = NULL;
+            char *host = estrndup(url + 6, colon - url - 6);
+            char *port = colon + 1;
+            int err;
+            if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
+                LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
+                                    (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+                efree(host);
+                break;
+            }
+            efree(host);
         } else {
-            host = ZSTR_VAL(get_DD_AGENT_HOST());
-            port = ZSTR_VAL(get_DD_DOGSTATSD_PORT());
-
-            if (!*host) {
-                if (access(DEFAULT_UDS_PATH, F_OK) == SUCCESS) {
-                    addrs = dd_alloc_unix_addr(DEFAULT_UDS_PATH, sizeof(DEFAULT_UDS_PATH));
-                    host = "unix://" DEFAULT_UDS_PATH;
-                    port = NULL;
-                } else {
-                    host = "localhost";
-                }
-            }
-
-            if (strlen(host) > 7 && strncmp("unix://", host, 7) == 0) {
-                addrs = dd_alloc_unix_addr(host + 7, strlen(host) - 7);
-                port = NULL;
-            } else if (port) {
-                int err;
-                if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
-                    LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
-                                       (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
-                    break;
-                }
-            }
+            LOG(WARN,
+                "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
+                url);
+            break;
         }
 
         client = dogstatsd_client_ctor(addrs, DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE, METRICS_CONST_TAGS);
         if (dogstatsd_client_is_default_client(client)) {
-            LOG(WARN, "Dogstatsd client failed opening socket to %s%s%s", host, port ? ":" : "",
-                               port ? port : "");
+            LOG(WARN, "Dogstatsd client failed opening socket to %s", url);
+            if (addrs) {
+                freeaddrinfo(addrs);
+            }
             break;
         }
 
@@ -114,6 +85,9 @@ void ddtrace_dogstatsd_client_rinit(void) {
             })
         }
 
+        if (addrs) {
+            freeaddrinfo(addrs);
+        }
         break;
     }
     _set_dogstatsd_client_globals(client);

@@ -462,6 +462,7 @@ trait CommonTests {
                 .header('X-Forwarded-For', '80.80.80.81').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> conn ->
             assert conn.statusCode() == 303
+            assert conn.body().size() == 0
         }
 
         Span span = trace.first()
@@ -591,8 +592,8 @@ trait CommonTests {
 
     static Stream<Arguments> getTestSsrfData() {
             return Arrays.stream(new Arguments[]{
-                    Arguments.of("file_get_contents", 12),
-                    Arguments.of("fopen", 9),
+                    Arguments.of("file_get_contents", 19),
+                    Arguments.of("fopen", 16),
             });
      }
 
@@ -626,14 +627,14 @@ trait CommonTests {
             assert exploit.frames[1].file == "ssrf.php"
             assert exploit.frames[1].function == "one"
             assert exploit.frames[1].id == 2
-            assert exploit.frames[1].line == 18
+            assert exploit.frames[1].line == 29
             assert exploit.frames[2].file == "ssrf.php"
             assert exploit.frames[2].function == "two"
             assert exploit.frames[2].id == 3
-            assert exploit.frames[2].line == 22
+            assert exploit.frames[2].line == 34
             assert exploit.frames[3].file == "ssrf.php"
             assert exploit.frames[3].function == "three"
             assert exploit.frames[3].id == 4
-            assert exploit.frames[3].line == 25
+            assert exploit.frames[3].line == 37
     }
 }

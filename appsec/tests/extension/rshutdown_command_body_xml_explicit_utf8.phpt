@@ -18,6 +18,7 @@ $helper = Helper::createInitedRun([
 
 header('content-type: application/xml;charset=Utf-8');
 http_response_code(403);
+var_dump(rinit());
 $xml = <<<XML
 <?xml version="1.0" standalone="yes"?>
 <foo attr="bar">
@@ -25,7 +26,6 @@ test<br/>baz
 </foo>
 XML;
 echo "$xml\n";
-var_dump(rinit());
 $helper->get_commands(); // ignore
 
 var_dump(rshutdown());
@@ -34,11 +34,11 @@ print_r($c[0][1][0]);
 
 ?>
 --EXPECT--
+bool(true)
 <?xml version="1.0" standalone="yes"?>
 <foo attr="bar">
 test<br/>baz
 </foo>
-bool(true)
 bool(true)
 Array
 (

@@ -56,3 +56,41 @@ if [[ -n $XDEBUG ]]; then
     echo xdebug.remote_log = /tmp/logs/xdebug.log
   } >> /etc/php/php.ini
 fi
+
+if [[ -n $OPCACHE ]]; then
+  echo "Enabling opcache" >&2
+  touch /tmp/logs/opcache.log
+  mkdir -p /tmp/opcache
+  chown www-data:www-data /tmp/logs/opcache.log /tmp/opcache
+  {
+    echo zend_extension=opcache.so
+    echo opcache.enable=1
+    echo opcache.enable_cli=1
+
+    echo opcache.memory_consumption=128
+    echo opcache.interned_strings_buffer=8
+    echo opcache.max_accelerated_files=10000
+    echo opcache.max_wasted_percentage=5
+
+    echo opcache.revalidate_freq=2
+    echo opcache.validate_timestamps=1
+    echo opcache.optimization_level=0x7FFFBFFF
+
+    echo opcache.save_comments=1
+    echo opcache.load_comments=1
+    echo opcache.fast_shutdown=1
+
+    echo opcache.max_file_size=0
+    echo opcache.consistency_checks=0
+    echo opcache.force_restart_timeout=180
+    echo opcache.error_log=/tmp/logs/opcache.log
+    echo opcache.log_verbosity_level=1
+
+    echo opcache.file_cache=/tmp/opcache
+    echo opcache.file_cache_only=0
+    echo opcache.file_cache_consistency_checks=1
+
+    echo opcache.jit_buffer_size=100M
+    echo opcache.jit=1255
+  } >> /etc/php/php.ini
+fi
