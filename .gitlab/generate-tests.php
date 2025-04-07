@@ -35,6 +35,9 @@ stages:
   - compile
   - test
 
+variables:
+  CI_DEBUG_SERVICES: "true"
+
 include:
   - local: ".gitlab/services.yml"
 
@@ -126,7 +129,6 @@ foreach ($arch_targets as $arch_target) {
     COMPOSER_MEMORY_LIMIT: "-1"
     DD_TRACE_ASSUME_COMPILED: "1"
     DDAGENT_HOSTNAME: "127.0.0.1"
-    CI_DEBUG_SERVICES: "true"
     MAX_TEST_PARALLELISM: 8
     TEST_FILES_DIR: "."
     DATADOG_HAVE_DEV_ENV: 1
