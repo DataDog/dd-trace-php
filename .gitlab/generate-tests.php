@@ -29,6 +29,31 @@ $asan_minor_major_targets = [
 ];
 
 $arch_targets = ["amd64", "arm64"];
+
+const ASSERT_NO_MEMLEAKS = ' | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
+
+function after_script($execute_dir = ".", $has_test_agent = false) {
+?>
+  artifacts:
+    reports:
+      junit: "artifacts/tests/php-tests.xml"
+    paths:
+      - "artifacts/"
+    when: "always"
+  after_script:
+<?php if ($has_test_agent): ?>
+    - .gitlab/check_test_agent.sh
+<?php endif; ?>
+    - .gitlab/check_for_core_dumps.sh "<?= $execute_dir ?>"
+<?php
+}
+
+function sidecar_logs() {
+?>
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+<?php
+}
 ?>
 
 stages:
@@ -145,35 +170,19 @@ foreach ($arch_targets as $arch_target) {
     - mkdir -p "tmp/build_extension/modules/"
     - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
-  after_script:
-    - (cd ${TEST_FILES_DIR}; find . -name "*.diff" -exec cp '{}' 'tests/{}' \;) || true
-    - mv /tmp/artifacts tests/ || true
-    - .gitlab/check_test_agent.sh
-    - .gitlab/check_for_core_dumps.sh ${TEST_FILES_DIR}
-  artifacts:
-    reports:
-      junit: "tests/artifacts/tests/php-tests.xml"
-    paths:
-      - "tests/output/"
-      - "tests/artifacts/"
-    when: "always"
-
-.all_arch_asan_test:
-  extends: .base_test
-  variables:
-    SWITCH_PHP_VERSION: debug-zts-asan
 
 .asan_test:
   extends: .base_test
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
+<?php sidecar_logs(); ?>
 
 <?php
-foreach ($asan_minor_major_targets as $major_minor) {
-    foreach ($arch_targets as $arch) {
+foreach ($asan_minor_major_targets as $major_minor):
+    foreach ($arch_targets as $arch):
 ?>
 "ASAN test_c: [<?= $major_minor ?>, <?= $arch ?>]":
-  extends: .all_arch_asan_test
+  extends: .asan_test
   services: *agent_httpbin_service
   needs:
     - job: "compile extension: debug-zts-asan"
@@ -189,9 +198,10 @@ foreach ($asan_minor_major_targets as $major_minor) {
     ARCH: "<?= $arch ?>"
   script:
     - make test_c
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "ASAN Internal api randomized tests: [<?= $major_minor ?>, <?= $arch ?>]":
-  extends: .all_arch_asan_test
+  extends: .asan_test
   needs:
     - job: "compile extension: debug-zts-asan"
       parallel:
@@ -204,10 +214,12 @@ foreach ($asan_minor_major_targets as $major_minor) {
     ARCH: "<?= $arch ?>"
   script:
     - make test_internal_api_randomized
+  after_script:
+    - .gitlab/check_for_core_dumps.sh
 
 <?php
-    }
-}
+    endforeach;
+endforeach;
 ?>
 
 <?php
@@ -229,6 +241,7 @@ foreach ($asan_minor_major_targets as $major_minor) {
     ARCH: "amd64"
   script:
     - make test_with_init_hook
+<?php after_script(); ?>
 
 "ASAN Opcache tests: [<?= $major_minor ?>, amd64]":
   extends: .asan_test
@@ -244,6 +257,7 @@ foreach ($asan_minor_major_targets as $major_minor) {
     ARCH: "amd64"
   script:
     - make test_opcache
+<?php after_script(); ?>
 <?php
 }
 ?>
@@ -270,7 +284,8 @@ foreach ($all_minor_major_targets as $major_minor) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
   script:
-    - make test_unit
+    - make test_unit <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
 
 "API unit tests: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
@@ -285,7 +300,8 @@ foreach ($all_minor_major_targets as $major_minor) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
   script:
-    - make test_api_unit
+    - make test_api_unit <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
 
 "Disabled test_c run: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
@@ -301,7 +317,8 @@ foreach ($all_minor_major_targets as $major_minor) {
     ARCH: "amd64"
     KUBERNETES_CPU_REQUEST: 8
   script:
-    - make test_c_disabled
+    - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
 
 "Internal api randomized tests: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
@@ -317,6 +334,7 @@ foreach ($all_minor_major_targets as $major_minor) {
     ARCH: "amd64"
   script:
     - make test_internal_api_randomized
+<?php after_script(); ?>
 
 "Opcache tests: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
@@ -332,6 +350,7 @@ foreach ($all_minor_major_targets as $major_minor) {
     ARCH: "amd64"
   script:
     - make test_opcache
+<?php after_script("tmp/build_extension"); ?>
 
 "PHP Language Tests: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
@@ -357,6 +376,8 @@ foreach ($all_minor_major_targets as $major_minor) {
   script:
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
     - .gitlab/run_php_language_tests.sh
+<?php after_script("/usr/local/src/php"); ?>
+
 <?php
 }
 ?>
