@@ -88,10 +88,7 @@ foreach ($arch_targets as $arch_target) {
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-  script: |
-    ls -l .
-    ls -l .gitlab/
-    .gitlab/compile_extension.sh
+  script: .gitlab/compile_extension.sh
   after_script: |
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
     mkdir -p "${out_dir}"
