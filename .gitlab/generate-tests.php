@@ -227,7 +227,6 @@ foreach ($asan_minor_major_targets as $major_minor) {
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
-    WAIT_FOR: "httpbin-integration:80"
   script:
     - make test_with_init_hook
 

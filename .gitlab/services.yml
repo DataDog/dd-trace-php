@@ -24,4 +24,4 @@
   httpbin-integration:
     name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
     alias: httpbin-integration
-    command: ["pipenv", "run", "gunicorn", "-b", "0.0.0.0:80", "httpbin:app", "-k", "gevent"]
+    command: ["pipenv", "run", "gunicorn", "-b", "127.0.0.1:80", "httpbin:app", "-k", "gevent"]
