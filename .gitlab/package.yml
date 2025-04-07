@@ -5,7 +5,6 @@ stages:
   stage: prepare
   image: registry.ddbuild.io/images/mirror/composer:2
   tags: [ "arch:amd64" ]
-  needs: []
   script:
     - ./.gitlab/append-build-id.sh
     # Upgrading composer
