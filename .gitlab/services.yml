@@ -17,9 +17,11 @@
   request-replayer:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
     alias: request-replayer
+    command: "php -S 127.0.0.1:80 index.php"
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
 
   httpbin-integration:
     name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
     alias: httpbin-integration
+    command: "pipenv run gunicorn -b 127.0.0.1:80 httpbin:app -k gevent"
