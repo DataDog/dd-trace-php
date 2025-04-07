@@ -1,5 +1,44 @@
 stages:
   - prepare
+  - profiler
+
+variables:
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+
+  PHP_VERSIONS:
+    - version: "7.1"
+      abi_no: "20160303"
+    - version: "7.2"
+      abi_no: "20170718"
+    - version: "7.3"
+      abi_no: "20180731"
+    - version: "7.4"
+      abi_no: "20190902"
+    - version: "8.0"
+      abi_no: "20200930"
+    - version: "8.1"
+      abi_no: "20210902"
+    - version: "8.2"
+      abi_no: "20220829"
+    - version: "8.3"
+      abi_no: "20230831"
+    - version: "8.4"
+      abi_no: "20240924"
+
+  PLATFORMS:
+    - triplet: "x86_64-alpine-linux-musl"
+      image_template: "datadog/dd-trace-ci:php-compile-extension-alpine-{version}"
+      arch: "amd64"
+    - triplet: "aarch64-alpine-linux-musl"
+      image_template: "datadog/dd-trace-ci:php-compile-extension-alpine-{version}"
+      arch: "arm64"
+    - triplet: "x86_64-unknown-linux-gnu"
+      image_template: "datadog/dd-trace-ci:php-{version}_centos-7"
+      arch: "amd64"
+    - triplet: "aarch64-unknown-linux-gnu"
+      image_template: "datadog/dd-trace-ci:php-{version}_centos-7"
+      arch: "arm64"
+
 
 "Prepare Code":
   stage: prepare
@@ -21,3 +60,69 @@ stages:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+
+
+"Cache Cargo Deps":
+  stage: prepare
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  parallel:
+    matrix:
+      - TRIPLET: x86_64-alpine-linux-musl
+        IMAGE: datadog/dd-trace-ci:php-compile-extension-alpine-8.1
+        ARCH: amd64
+      - TRIPLET: aarch64-alpine-linux-musl
+        IMAGE: datadog/dd-trace-ci:php-compile-extension-alpine-8.1
+        ARCH: arm64
+      - TRIPLET: x86_64-unknown-linux-gnu
+        IMAGE: datadog/dd-trace-ci:centos-7
+        ARCH: amd64
+      - TRIPLET: aarch64-unknown-linux-gnu
+        IMAGE: datadog/dd-trace-ci:centos-7
+        ARCH: arm64
+  script: |
+    if [ -e "${CARGO_HOME}/.package-cache" ] ; then
+        echo "WARNING: .package-cache was part of the cache and shouldn't be!"
+        rm -vf "${CARGO_HOME}/.package-cache"
+    fi
+
+    mkdir -p "${CARGO_HOME}"
+    cargo fetch -v --target "${TRIPLET}"
+    chmod -R 777 "${CARGO_HOME}"
+
+    # ensure the .package-cache isn't there
+    rm -vf "${CARGO_HOME}/.package-cache"
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+
+"cargo build --release":
+  stage: profiler
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  parallel:
+    matrix:
+      - PHP_VERSION: $PHP_VERSIONS
+        PLATFORM: $PLATFORMS
+        IMAGE: $PLATFORM.image_template.format(version=PHP_VERSION.version)
+        TRIPLET: $PLATFORM.triplet
+        ARCH: $PLATFORM.arch
+        ABI_NO: $PHP_VERSION.abi_no
+  script:
+    - .gitlab/append-build-id.sh
+    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
+    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+  artifacts:
+    paths:
+      - "datadog-profiling"
