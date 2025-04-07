@@ -14,10 +14,7 @@
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
-#include "request_lifecycle.h"
 #include "string_helpers.h"
-#include "zend_object_handlers.h"
-#include "zend_types.h"
 
 void (*nullable ddtrace_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -76,95 +73,39 @@ static void dd_trace_load_symbols(void)
         return;
     }
 
-    _ddtrace_close_all_spans_and_flush =
-        dlsym(handle, "ddtrace_close_all_spans_and_flush");
-    if (_ddtrace_close_all_spans_and_flush == NULL && !testing) {
-        mlog(dd_log_error,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            "Failed to load ddtrace_close_all_spans_and_flush: %s", dlerror());
-    }
+#define ASSIGN_DLSYM(var, export)                                              \
+    do {                                                                       \
+        (var) = (typeof(var))(uintptr_t)dlsym(handle, export "");              \
+        if ((var) == NULL && !testing) {                                       \
+            /* NOLINTNEXTLINE(concurrency-mt-unsafe) */                        \
+            mlog(dd_log_error, "Failed to load %s: %s", export, dlerror());    \
+        }                                                                      \
+    } while (0)
 
-    _ddtrace_get_root_span = dlsym(handle, "ddtrace_get_root_span");
-    if (_ddtrace_get_root_span == NULL && !testing) {
-        mlog(dd_log_error, "Failed to load ddtrace_get_root_span: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_runtime_id = dlsym(handle, "ddtrace_runtime_id");
-    if (_ddtrace_runtime_id == NULL) {
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        mlog(dd_log_debug, "Failed to load ddtrace_runtime_id: %s", dlerror());
-    }
-
-    _ddtrace_set_priority_sampling_on_span_zobj =
-        dlsym(handle, "ddtrace_set_priority_sampling_on_span_zobj");
-    if (_ddtrace_set_priority_sampling_on_span_zobj == NULL) {
-        mlog(dd_log_error,
-            "Failed to load ddtrace_set_priority_sampling_on_span_zobj: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_get_priority_sampling_on_span_zobj =
-        dlsym(handle, "ddtrace_get_priority_sampling_on_span_zobj");
-    if (_ddtrace_get_priority_sampling_on_span_zobj == NULL) {
-        mlog(dd_log_error,
-            "Failed to load ddtrace_get_priority_sampling_on_span_zobj: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_add_propagated_tag_on_span_zobj =
-        dlsym(handle, "ddtrace_add_propagated_tag_on_span_zobj");
-    if (_ddtrace_add_propagated_tag_on_span_zobj == NULL) {
-        mlog(dd_log_error,
-            "Failed to load ddtrace_add_propagated_tag_on_span_zobj: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_user_req_add_listeners =
-        dlsym(handle, "ddtrace_user_req_add_listeners");
-    if (_ddtrace_user_req_add_listeners == NULL) {
-        mlog(dd_log_error, "Failed to load ddtrace_user_req_add_listeners: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_ip_extraction_find = dlsym(handle, "ddtrace_ip_extraction_find");
-    if (_ddtrace_ip_extraction_find == NULL && !testing) {
-        mlog(dd_log_error, "Failed to load ddtrace_ip_extraction_find: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_remote_config_get_path =
-        dlsym(handle, "ddtrace_remote_config_get_path");
-    if (_ddtrace_remote_config_get_path == NULL && !testing) {
-        mlog(dd_log_error,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            "Failed to load ddtrace_remote_config_get_path: %s", dlerror());
-    }
-
-    ddtrace_metric_register_buffer =
-        dlsym(handle, "ddtrace_metric_register_buffer");
-    if (ddtrace_metric_register_buffer == NULL && !testing) {
-        mlog(dd_log_error, "Failed to load ddtrace_metric_register_buffer: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    ddtrace_metric_add_point = dlsym(handle, "ddtrace_metric_add_point");
-    if (ddtrace_metric_add_point == NULL && !testing) {
-        mlog(dd_log_error, "Failed to load ddtrace_metric_add_point: %s",
-            dlerror()); // NOLINT(concurrency-mt-unsafe)
-    }
-
-    _ddtrace_emit_asm_event = dlsym(handle, "ddtrace_emit_asm_event");
-    if (_ddtrace_emit_asm_event == NULL) {
-        mlog(dd_log_error,
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            "Failed to load ddtrace_emit_asm_event: %s", dlerror());
-    }
+    ASSIGN_DLSYM(_ddtrace_close_all_spans_and_flush,
+        "ddtrace_close_all_spans_and_flush");
+    ASSIGN_DLSYM(_ddtrace_get_root_span, "ddtrace_get_root_span");
+    ASSIGN_DLSYM(_ddtrace_runtime_id, "ddtrace_runtime_id");
+    ASSIGN_DLSYM(_ddtrace_set_priority_sampling_on_span_zobj,
+        "ddtrace_set_priority_sampling_on_span_zobj");
+    ASSIGN_DLSYM(_ddtrace_get_priority_sampling_on_span_zobj,
+        "ddtrace_get_priority_sampling_on_span_zobj");
+    ASSIGN_DLSYM(_ddtrace_add_propagated_tag_on_span_zobj,
+        "ddtrace_add_propagated_tag_on_span_zobj");
+    ASSIGN_DLSYM(
+        _ddtrace_user_req_add_listeners, "ddtrace_user_req_add_listeners");
+    ASSIGN_DLSYM(_ddtrace_ip_extraction_find, "ddtrace_ip_extraction_find");
+    ASSIGN_DLSYM(
+        _ddtrace_remote_config_get_path, "ddtrace_remote_config_get_path");
+    ASSIGN_DLSYM(
+        ddtrace_metric_register_buffer, "ddtrace_metric_register_buffer");
+    ASSIGN_DLSYM(ddtrace_metric_add_point, "ddtrace_metric_add_point");
+    ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
 
     dlclose(handle);
 }
 
-void dd_trace_startup()
+void dd_trace_startup(void)
 {
     _ddtrace_root_span_fname = zend_string_init_interned(
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
@@ -198,7 +139,7 @@ void dd_trace_startup()
     }
 }
 
-static void _setup_testing_telemetry_functions()
+static void _setup_testing_telemetry_functions(void)
 {
     if (ddtrace_metric_register_buffer == NULL) {
         ddtrace_metric_register_buffer = _test_ddtrace_metric_register_buffer;
@@ -208,7 +149,7 @@ static void _setup_testing_telemetry_functions()
     }
 }
 
-static zend_module_entry *_find_ddtrace_module()
+static zend_module_entry *_find_ddtrace_module(void)
 {
     zend_string *ddtrace_name =
         zend_string_init("ddtrace", LSTRLEN("ddtrace"), 0 /* persistent */);
@@ -217,7 +158,7 @@ static zend_module_entry *_find_ddtrace_module()
     return mod;
 }
 
-void dd_trace_shutdown()
+void dd_trace_shutdown(void)
 {
     zend_module_entry *mod = _find_ddtrace_module();
     if (mod && _orig_ddtrace_shutdown) {
@@ -238,10 +179,13 @@ static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS)
     return _orig_ddtrace_shutdown(SHUTDOWN_FUNC_ARGS_PASSTHRU);
 }
 
-const char *nullable dd_trace_version() { return _mod_version; }
+const char *nullable dd_trace_version(void) { return _mod_version; }
 
-bool dd_trace_loaded() { return _ddtrace_loaded; }
-bool dd_trace_enabled() { return _ddtrace_loaded && get_DD_TRACE_ENABLED(); }
+bool dd_trace_loaded(void) { return _ddtrace_loaded; }
+bool dd_trace_enabled(void)
+{
+    return _ddtrace_loaded && get_DD_TRACE_ENABLED();
+}
 
 bool dd_trace_span_add_tag(
     zend_object *nonnull span, zend_string *nonnull tag, zval *nonnull value)
@@ -309,7 +253,7 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull span,
     return true;
 }
 
-void dd_trace_close_all_spans_and_flush()
+void dd_trace_close_all_spans_and_flush(void)
 {
     if (UNEXPECTED(_ddtrace_close_all_spans_and_flush == NULL)) {
         mlog_g(dd_log_debug,
@@ -425,7 +369,7 @@ bool dd_trace_user_req_add_listeners(
     return _ddtrace_user_req_add_listeners(listeners);
 }
 
-zend_object *nullable dd_trace_get_active_root_span()
+zend_object *nullable dd_trace_get_active_root_span(void)
 {
     if (UNEXPECTED(_ddtrace_get_root_span == NULL)) {
         return NULL;
@@ -442,7 +386,7 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
     return _ddtrace_ip_extraction_find(server);
 }
 
-const char *nullable dd_trace_remote_config_get_path()
+const char *nullable dd_trace_remote_config_get_path(void)
 {
     if (!_ddtrace_remote_config_get_path) {
         return NULL;
@@ -609,7 +553,7 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects() { dd_phpobj_reg_funcs(functions); }
+static void _register_testing_objects(void) { dd_phpobj_reg_funcs(functions); }
 
 static void _test_ddtrace_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns)

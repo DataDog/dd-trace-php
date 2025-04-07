@@ -177,7 +177,7 @@ void format_waf_result(ddwaf_result &res, event &event)
 
         const parameter_view events{res.events};
         for (const auto &event_pv : events) {
-            event.data.emplace_back(std::move(parameter_to_json(event_pv)));
+            event.data.emplace_back(parameter_to_json(event_pv));
         }
 
     } catch (const std::exception &e) {
@@ -483,7 +483,7 @@ void instance::listener::call(
     for (const auto &derivative : derivatives) {
         if (derivative.key().starts_with("_dd.appsec.s.")) {
             derivatives_.emplace(
-                derivative.key(), std::move(parameter_to_json(derivative)));
+                derivative.key(), parameter_to_json(derivative));
         } else {
             derivatives_.emplace(derivative.key(), derivative);
         }

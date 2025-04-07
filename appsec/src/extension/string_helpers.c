@@ -90,7 +90,7 @@ void dd_string_normalize_header(char *nonnull s, size_t len)
         *p = (char)header_lc_dash[(unsigned char)*p];
     }
 }
-inline void dd_string_normalize_header2(
+void dd_string_normalize_header2(
     const char *nonnull in, char *nonnull out, size_t len)
 {
     // in and out can overlap
