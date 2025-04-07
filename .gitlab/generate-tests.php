@@ -129,6 +129,8 @@ foreach ($arch_targets as $arch_target) {
     CI_DEBUG_SERVICES: "true"
     MAX_TEST_PARALLELISM: 8
     TEST_FILES_DIR: "."
+    DATADOG_HAVE_DEV_ENV: 1
+    HTTPBIN_HOSTNAME: httpbin-integration
   before_script:
     # DD env vars auto-added to GitLab runners for infra purposes
     - unset DD_SERVICE
