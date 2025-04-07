@@ -142,3 +142,12 @@ tests-trigger:
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+package-trigger:
+  stage: build
+  needs: []
+  trigger:
+    include: .gitlab/package.yml
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
