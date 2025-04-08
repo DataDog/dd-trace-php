@@ -53,6 +53,7 @@ ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
 ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-double.phpt
+ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-date.phpt
 ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-time.phpt
 ext/mysqli/tests/protocol_stmt_row_fetch_data.phpt
 ext/openssl/tests/bug46127.phpt

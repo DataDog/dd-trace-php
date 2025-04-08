@@ -1,0 +1,29 @@
+From 0160b28d4ec5d2d6009590c99928625e0ae5ddff Mon Sep 17 00:00:00 2001
+From: Bob Weinand <bobwei9@hotmail.com>
+Date: Mon, 7 Apr 2025 12:16:21 +0200
+Subject: [PATCH] Fix memory leak in zend_wrong_callback_error
+
+---
+ Zend/zend_API.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Zend/zend_API.c b/Zend/zend_API.c
+index b75dcc27004..339402866ce 100644
+--- a/Zend/zend_API.c
++++ b/Zend/zend_API.c
+@@ -329,10 +329,10 @@ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_wrong_parameter_class_or_string_or_nu
+ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_wrong_callback_error(uint32_t num, char *error) /* {{{ */
+ {
+ 	if (EG(exception)) {
+-		return;
++		zend_argument_type_error(num, "must be a valid callback, %s", error);
+ 	}
+ 
+-	zend_argument_type_error(num, "must be a valid callback, %s", error);
++
+ 	efree(error);
+ }
+ /* }}} */
+-- 
+2.41.0
+
