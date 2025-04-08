@@ -213,7 +213,7 @@ if ($suffix == "-alpine") {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
     # Unset from default to pull all submodules
-    GIT_SUBMODULE_PATHS: null
+    GIT_SUBMODULE_PATHS: ""
   script: .gitlab/build-appsec-helper.sh
   artifacts:
     paths:
