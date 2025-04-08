@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+shopt -s expand_aliases
 source "${BASH_ENV}"
 echo "Available aliases:"
 alias
