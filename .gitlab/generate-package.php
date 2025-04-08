@@ -167,6 +167,8 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
+    # Fix for $BASH_ENV not having a newline at the end of the file
+    - echo "" >> "$BASH_ENV"
 <?php
 if ($suffix == "-alpine") {
 ?>
@@ -174,7 +176,6 @@ if ($suffix == "-alpine") {
 <?php
 } else {
 ?>
-    - set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
     - |
       if [ ! -d "/opt/cmake/3.24.4" ]
       then
