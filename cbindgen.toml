@@ -30,6 +30,7 @@ include = [
     "ddtelemetry",
     "ddtelemetry-ffi",
     "ddcommon-ffi",
+    "data-pipeline-ffi",
     "datadog-crashtracker-ffi",
     "datadog-sidecar",
     "datadog-ipc",
