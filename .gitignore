@@ -67,4 +67,5 @@ packages.json
 package-lock.json
 yarn.lock
 cookies.txt
-.gitlab/tests-gen.yml
+.gitlab/*-gen.yml
+.gitlab-ci-local/

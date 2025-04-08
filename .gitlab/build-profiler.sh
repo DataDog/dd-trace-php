@@ -1,19 +1,7 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-cat "$BASH_ENV"
-source "${CI_PROJECT_DIR:-.}/.gitlab/switch-php.sh"
-
-# Debug: Check available functions
-echo "Available functions:"
-compgen -A function
-
-# Debug: Check if switch-php exists
-if command -v switch-php &> /dev/null; then
-    echo "switch-php is available"
-else
-    echo "WARNING: switch-php is NOT available"
-fi
+source "${BASH_ENV}"
 
 if [ -d '/opt/rh/devtoolset-7' ] ; then
     set +eo pipefail
@@ -29,14 +17,15 @@ thread_safety="${2:-nts}"
 
 # Switch PHP based on thread safety mode
 if [ "$thread_safety" = "zts" ]; then
-    switch-php "${PHP_VERSION}-zts"
+    switch_php "${PHP_VERSION}-zts"
     output_file="${prefix}/datadog-profiling-zts.so"
 else
-    switch-php "${PHP_VERSION}"
+    switch_php "${PHP_VERSION}"
     output_file="${prefix}/datadog-profiling.so"
 fi
 
 cd profiling
+CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
 echo "${CARGO_TARGET_DIR}"
 if [ "$thread_safety" = "zts" ]; then
     touch build.rs  # Ensure build.rs executes after switch-php for ZTS

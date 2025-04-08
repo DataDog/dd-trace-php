@@ -143,11 +143,24 @@ tests-trigger:
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
-packaging:
+
+package-generate:
   stage: build
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
   needs: []
+  script: php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  artifacts:
+    paths:
+      - .gitlab/package-gen.yml
+
+package-trigger:
+  stage: build
+  needs: [ "package-generate" ]
   trigger:
-    include: .gitlab/package.yml
+    include: .gitlab/package-gen.yml
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
