@@ -15,22 +15,22 @@ $php_versions_to_abi = [
 $build_platforms = [
     [
         "triplet" => "x86_64-alpine-linux-musl",
-        "image_template" => "datadog/dd-trace-ci:php-compile-extension-alpine-%s",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "amd64",
     ],
     [
       "triplet" => "aarch64-alpine-linux-musl",
-        "image_template" => "datadog/dd-trace-ci:php-compile-extension-alpine-%s",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "arm64",
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "datadog/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
         "arch" => "amd64",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "datadog/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
         "arch" => "arm64",
     ]
 ];
@@ -72,16 +72,16 @@ variables:
   parallel:
     matrix:
       - TRIPLET: x86_64-alpine-linux-musl
-        IMAGE: datadog/dd-trace-ci:php-compile-extension-alpine-8.1
+        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-8.1
         ARCH: amd64
       - TRIPLET: aarch64-alpine-linux-musl
-        IMAGE: datadog/dd-trace-ci:php-compile-extension-alpine-8.1
+        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-8.1
         ARCH: arm64
       - TRIPLET: x86_64-unknown-linux-gnu
-        IMAGE: datadog/dd-trace-ci:centos-7
+        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:centos-7
         ARCH: amd64
       - TRIPLET: aarch64-unknown-linux-gnu
-        IMAGE: datadog/dd-trace-ci:centos-7
+        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:centos-7
         ARCH: arm64
   script: |
     if [ -e "${CARGO_HOME}/.package-cache" ] ; then
