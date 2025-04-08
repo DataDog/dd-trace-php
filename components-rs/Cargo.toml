@@ -12,6 +12,7 @@ ddcommon = { path = "../libdatadog/ddcommon", features = ["cgroup_testing"] }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
+data-pipeline-ffi = { path = "../libdatadog/data-pipeline-ffi" }
 datadog-dynamic-configuration = { path = "../libdatadog/dynamic-configuration" }
 datadog-live-debugger = { path = "../libdatadog/live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi", default-features = false }
