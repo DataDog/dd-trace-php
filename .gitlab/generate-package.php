@@ -118,6 +118,7 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
+    CARGO_BUILD_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
