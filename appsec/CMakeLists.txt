@@ -37,6 +37,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 cmake_policy(SET CMP0083 NEW) # make PIE executables when PIC property is set
+if(POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW) # consider RAPIDJSON_ROOT, not just RapidJSON_ROOT
+endif()
+if(POLICY CMP0153)
+    cmake_policy(SET CMP0153 OLD) # allow exec_program
+endif()
 
 option(DD_APPSEC_BUILD_HELPER "Whether to builder the helper" ON)
 option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
@@ -48,12 +54,24 @@ add_subdirectory(third_party EXCLUDE_FROM_ALL)
 
 include("cmake/patchelf.cmake")
 
-if (DD_APPSEC_BUILD_EXTENSION)
+if(DD_APPSEC_BUILD_EXTENSION OR DD_APPSEC_DDTRACE_ALT)
+    find_package(PhpConfig REQUIRED)
+    message(STATUS "PHP version: ${PhpConfig_VERSION}")
+    message(STATUS "PHP include directories: ${PhpConfig_INCLUDE_DIRS}")
+    message(STATUS "PHP libraries: ${PhpConfig_LIBRARIES}")
+    include("cmake/ext_asan.cmake")
+endif()
+
+if(DD_APPSEC_BUILD_EXTENSION)
     include("cmake/extension.cmake")
 endif()
 
-if (DD_APPSEC_BUILD_HELPER)
+if(DD_APPSEC_BUILD_HELPER)
     include ("cmake/helper.cmake")
+endif()
+
+if(DD_APPSEC_DDTRACE_ALT)
+    include(cmake/ddtrace.cmake)
 endif()
 
 include(cmake/clang-tidy.cmake)
