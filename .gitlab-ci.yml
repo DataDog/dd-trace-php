@@ -160,7 +160,9 @@ package-trigger:
   stage: build
   needs: [ "package-generate" ]
   trigger:
-    include: .gitlab/package-gen.yml
+    include:
+      - artifact: .gitlab/package-gen.yml
+        job: "package-generate"
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
