@@ -4,14 +4,6 @@ set -e -o pipefail
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
 shopt -s expand_aliases
-
-if [ -d '/opt/rh/devtoolset-7' ] ; then
-    set +eo pipefail
-    source scl_source enable devtoolset-7
-    set -eo pipefail
-fi
-set -u
-
 echo 'export PHP_API=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
 source "${BASH_ENV}"
 

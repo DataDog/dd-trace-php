@@ -162,6 +162,7 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
+    MAKE_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
@@ -173,6 +174,7 @@ if ($suffix == "-alpine") {
 <?php
 } else {
 ?>
+    - set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail
     - |
       if [ ! -d "/opt/cmake/3.24.4" ]
       then
@@ -180,11 +182,13 @@ if ($suffix == "-alpine") {
         mkdir -p /opt/cmake/3.24.4
         cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
         echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
+        cd "${CI_PROJECT_DIR}"
       fi
 <?php
 }
 ?>
     - .gitlab/build-appsec.sh <?= $suffix ?>
+
   artifacts:
     paths:
       - "appsec_*"

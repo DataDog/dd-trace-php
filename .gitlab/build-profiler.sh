@@ -10,6 +10,7 @@ if [ -d '/opt/rh/devtoolset-7' ] ; then
     set -eo pipefail
 fi
 set -u
+
 prefix="$1"
 mkdir -vp "${prefix}"
 
