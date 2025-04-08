@@ -1,4 +1,11 @@
 <?php
+// In GitLab CI we use k8s and have to bind to `127.0.0.1`
+$service_bind_address = "0.0.0.0";
+
+if (getenv('GITLAB_CI') === 'true') {
+   $service_bind_address = "127.0.0.1";
+}
+
 $all_minor_major_targets = [
     "7.0",
     "7.1",
@@ -56,16 +63,12 @@ function sidecar_logs() {
 <?php
 }
 ?>
-
 stages:
   - compile
   - test
 
 variables:
   CI_DEBUG_SERVICES: "true"
-
-include:
-  - local: ".gitlab/services.yml"
 
 .all_targets: &all_minor_major_targets
 <?php
@@ -94,6 +97,34 @@ foreach ($arch_targets as $arch_target) {
     echo "- \"{$arch_target}\"\r\n";
 }
 ?>
+
+.services:
+  test-agent:
+    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.21.0
+    alias: test-agent
+    variables:
+      LOG_LEVEL: DEBUG
+      TRACE_LANGUAGE: php
+      DD_TRACE_AGENT_URL: http://request-replayer:80
+      PORT: 9126
+      SNAPSHOT_DIR: /snapshots
+      SNAPSHOT_CI: 1
+      DD_SUPPRESS_TRACE_PARSE_ERRORS: true
+      ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
+      DD_POOL_TRACE_CHECK_FAILURES: true
+      DD_DISABLE_ERROR_RESPONSES: true
+
+  request-replayer:
+    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
+    alias: request-replayer
+    command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
+    variables:
+      DD_REQUEST_DUMPER_FILE: dump.json
+
+  httpbin-integration:
+    name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
+    alias: httpbin-integration
+    command: ["pipenv", "run", "gunicorn", "-b", "<?= $service_bind_address ?>:80", "httpbin:app", "-k", "gevent"]
 
 .agent_httpbin_service: &agent_httpbin_service
   - !reference [.services, test-agent]

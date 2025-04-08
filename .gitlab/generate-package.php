@@ -40,6 +40,7 @@ $build_platforms = [
 stages:
   - prepare
   - profiler
+  - appsec
 
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
@@ -109,7 +110,8 @@ foreach ($build_platforms as $platform) {
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
   needs:
-    - "prepare code"
+    - job: "prepare code"
+      artifacts: true
     - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
@@ -123,7 +125,6 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/append-build-id.sh
     - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
     - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
   cache:
@@ -137,6 +138,56 @@ foreach ($build_platforms as $platform) {
   artifacts:
     paths:
       - "datadog-profiling"
+
+<?php
+    }
+}
+?>
+
+
+<?php
+foreach ($build_platforms as $platform) {
+    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+        $image = sprintf($platform['image_template'], $major_minor);
+        $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+?>
+"compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: appsec
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  variables:
+    PLATFORM: "<?= $platform['triplet'] ?>"
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+<?php
+if ($suffix == "-alpine") {
+?>
+    - apk add cmake gcc g++ git python3 autoconf coreutils
+<?php
+} else {
+?>
+    - |
+      if [ ! -d "/opt/cmake/3.24.4" ]
+      then
+        cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
+        mkdir -p /opt/cmake/3.24.4
+        cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
+        echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
+      fi
+<?php
+}
+?>
+    - .gitlab/build-appsec.sh <?= $suffix ?>
+  artifacts:
+    paths:
+      - "appsec_*"
 
 <?php
     }

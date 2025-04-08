@@ -120,21 +120,24 @@ requirements_json_test:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
 
-tests-generate:
-  stage: tests
+
+generate-templates:
+  stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
   tags: [ "arch:amd64" ]
   needs: []
-  script: php ./.gitlab/generate-tests.php | tee .gitlab/tests-gen.yml
+  script:
+    - php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
+    - php ./.gitlab/generate-tests.php | tee .gitlab/tests-gen.yml
   variables:
     GIT_SUBMODULE_STRATEGY: none
   artifacts:
     paths:
-      - .gitlab/tests-gen.yml
+      - .gitlab/*-gen.yml
 
 tests-trigger:
   stage: tests
-  needs: [ "tests-generate" ]
+  needs: [ "generate-templates" ]
   trigger:
     include:
       - artifact: .gitlab/tests-gen.yml
@@ -143,22 +146,9 @@ tests-trigger:
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
-
-package-generate:
-  stage: build
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
-  tags: [ "arch:amd64" ]
-  needs: []
-  script: php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-  artifacts:
-    paths:
-      - .gitlab/package-gen.yml
-
 package-trigger:
   stage: build
-  needs: [ "package-generate" ]
+  needs: [ "generate-templates" ]
   trigger:
     include:
       - artifact: .gitlab/package-gen.yml
