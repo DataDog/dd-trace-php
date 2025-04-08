@@ -198,3 +198,21 @@ if ($suffix == "-alpine") {
     }
 }
 ?>
+
+"compile appsec helper":
+  stage: appsec
+  image: "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain"
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arch64" ]
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: .gitlab/build-appsec-helper.sh
+  artifacts:
+    paths:
+      - "appsec_*"
