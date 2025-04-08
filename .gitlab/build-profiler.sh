@@ -3,8 +3,6 @@ set -e -o pipefail
 
 shopt -s expand_aliases
 source "${BASH_ENV}"
-echo "Available aliases:"
-alias
 
 if [ -d '/opt/rh/devtoolset-7' ] ; then
     set +eo pipefail
