@@ -44,7 +44,7 @@ stages:
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
-"Prepare Code":
+"prepare code":
   stage: prepare
   image: registry.ddbuild.io/images/mirror/composer:2
   tags: [ "arch:amd64" ]
@@ -65,24 +65,18 @@ variables:
       - VERSION
       - ./src/bridge/_generated*.php
 
-"Cache Cargo Deps":
+<?php
+foreach ($build_platforms as $platform) {
+    $image = sprintf($platform['image_template'], "8.1");
+?>
+"cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: prepare
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
-  parallel:
-    matrix:
-      - TRIPLET: x86_64-alpine-linux-musl
-        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-8.1
-        ARCH: amd64
-      - TRIPLET: aarch64-alpine-linux-musl
-        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-8.1
-        ARCH: arm64
-      - TRIPLET: x86_64-unknown-linux-gnu
-        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:centos-7
-        ARCH: amd64
-      - TRIPLET: aarch64-unknown-linux-gnu
-        IMAGE: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:centos-7
-        ARCH: arm64
+  variables:
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    IMAGE: "<?= $image ?>"
+    ARCH: "<?= $platform['arch'] ?>"
   script: |
     if [ -e "${CARGO_HOME}/.package-cache" ] ; then
         echo "WARNING: .package-cache was part of the cache and shouldn't be!"
@@ -104,6 +98,8 @@ variables:
         - "${CARGO_HOME}"
 
 <?php
+}
+
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
         $image = sprintf($platform['image_template'], $major_minor);
@@ -112,6 +108,10 @@ foreach ($build_platforms as $platform) {
   stage: profiler
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
+  needs:
+    - "prepare code"
+    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
   variables:
     PLATFORM: "<?= $platform['triplet'] ?>"
     IMAGE: "<?= $image ?>"
@@ -133,6 +133,7 @@ foreach ($build_platforms as $platform) {
   artifacts:
     paths:
       - "datadog-profiling"
+
 <?php
     }
 }
