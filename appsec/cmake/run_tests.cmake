@@ -1,5 +1,4 @@
 if(DD_APPSEC_DDTRACE_ALT)
-    include(cmake/ddtrace.cmake)
     set(DD_APPSEC_TRACER_EXT_FILE $<TARGET_FILE:ddtrace>)
 else()
     get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so" REALPATH)
