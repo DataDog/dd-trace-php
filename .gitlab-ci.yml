@@ -141,7 +141,7 @@ tests-trigger:
   trigger:
     include:
       - artifact: .gitlab/tests-gen.yml
-        job: "tests-generate"
+        job: "generate-templates"
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
@@ -152,7 +152,7 @@ package-trigger:
   trigger:
     include:
       - artifact: .gitlab/package-gen.yml
-        job: "package-generate"
+        job: "generate-templates"
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
