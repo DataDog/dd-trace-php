@@ -206,7 +206,7 @@ if ($suffix == "-alpine") {
   needs: [ "prepare code" ]
   parallel:
     matrix:
-      - ARCH: ["amd64", "arch64" ]
+      - ARCH: ["amd64", "arm64" ]
   variables:
     MAKE_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
