@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e -o pipefail
 
 source "${BASH_ENV}"
+echo "Available aliases:"
+alias
 
 if [ -d '/opt/rh/devtoolset-7' ] ; then
     set +eo pipefail
@@ -17,10 +19,10 @@ thread_safety="${2:-nts}"
 
 # Switch PHP based on thread safety mode
 if [ "$thread_safety" = "zts" ]; then
-    switch_php "${PHP_VERSION}-zts"
+    switch-php "${PHP_VERSION}-zts"
     output_file="${prefix}/datadog-profiling-zts.so"
 else
-    switch_php "${PHP_VERSION}"
+    switch-php "${PHP_VERSION}"
     output_file="${prefix}/datadog-profiling.so"
 fi
 
