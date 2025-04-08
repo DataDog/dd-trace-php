@@ -118,6 +118,9 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
     - .gitlab/append-build-id.sh
     - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
