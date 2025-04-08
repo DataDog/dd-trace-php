@@ -201,7 +201,7 @@ if ($suffix == "-alpine") {
 
 "compile appsec helper":
   stage: appsec
-  image: "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain"
+  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
   tags: [ "arch:$ARCH" ]
   needs: [ "prepare code" ]
   parallel:
