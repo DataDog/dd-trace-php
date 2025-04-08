@@ -1323,6 +1323,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-pipeline-ffi"
+version = "0.0.1"
+dependencies = [
+ "build_common 0.0.1",
+ "data-pipeline",
+ "datadog-trace-utils",
+ "ddcommon-ffi 0.0.1",
+ "httpmock",
+ "rmp-serde",
+ "tinybytes",
+]
+
+[[package]]
 name = "datadog-alloc"
 version = "17.0.0"
 source = "git+https://github.com/DataDog/libdatadog?tag=v17.0.0#1faf409785c0f4e3079579c9faf4215de6eea7b6"
@@ -1951,6 +1964,7 @@ dependencies = [
  "anyhow",
  "cbindgen",
  "const-str",
+ "data-pipeline-ffi",
  "datadog-crashtracker-ffi",
  "datadog-dynamic-configuration",
  "datadog-ipc",
