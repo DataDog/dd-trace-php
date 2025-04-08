@@ -212,8 +212,7 @@ if ($suffix == "-alpine") {
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-    # Unset from default to pull all submodules
-    GIT_SUBMODULE_PATHS: ""
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
   script: .gitlab/build-appsec-helper.sh
   artifacts:
     paths:
