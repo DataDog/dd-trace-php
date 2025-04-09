@@ -5,6 +5,7 @@
 #include <Zend/zend_smart_str.h>
 #include <Zend/zend_types.h>
 #include <Zend/zend_string.h>
+#include <curl/curl.h>
 #include <inttypes.h>
 #include <php.h>
 #include <stdbool.h>
@@ -553,6 +554,26 @@ static zend_string *dd_get_user_agent(zend_array *_server) {
     return ZSTR_EMPTY_ALLOC();
 }
 
+static zend_string *dd_get_referrer_host(zend_array *_server) {
+    if (_server) {
+        zval *referer = zend_hash_str_find(_server, ZEND_STRL("HTTP_REFERER"));
+        if (referer && Z_TYPE_P(referer) == IS_STRING) {
+            CURLU *url = curl_url();
+            if (curl_url_set(url, CURLUPART_URL, Z_STRVAL_P(referer), 0) == CURLUE_OK) {
+                char *host = NULL;
+                if (curl_url_get(url, CURLUPART_HOST, &host, 0) == CURLUE_OK) {
+                    zend_string *host_str = zend_string_init(host, strlen(host), 0);
+                    curl_free(host);
+                    curl_url_cleanup(url);
+                    return host_str;
+                }
+                curl_url_cleanup(url);
+            }
+        }
+    }
+    return ZSTR_EMPTY_ALLOC();
+}
+
 static bool dd_set_mapped_peer_service(zval *meta, zend_string *peer_service) {
     zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
     if (zend_hash_num_elements(peer_service_mapping) == 0 || !meta || !peer_service) {
@@ -654,6 +675,14 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         zval http_useragent;
         ZVAL_STR_COPY(&http_useragent, user_agent);
         zend_hash_str_add_new(meta, ZEND_STRL("http.useragent"), &http_useragent);
+    }
+
+    zend_string *referrer_host = dd_get_referrer_host(data->server);
+    if (referrer_host && ZSTR_LEN(referrer_host) > 0) {
+        zval http_referrer_host;
+        ZVAL_STR_COPY(&http_referrer_host, referrer_host);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.referrer_hostname"), &http_referrer_host);
+        zend_string_release(referrer_host);
     }
 
     if (data->server) {
