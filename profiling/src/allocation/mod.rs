@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::sync::atomic::AtomicU64;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
-mod allocation_ge84;
+pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
 
