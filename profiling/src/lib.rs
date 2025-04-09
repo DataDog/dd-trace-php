@@ -795,7 +795,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
                             b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.\0"
                         } else {
-                            b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/9999 for more information.\0"
+                            b"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/3199 for more information.\0"
                         }
                     } else if system_settings.profiling_enabled {
                         no
