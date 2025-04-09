@@ -1,6 +1,7 @@
 <?php
 
 $php_versions_to_abi = [
+    "7.0" => "20151012",
     "7.1" => "20160303",
     "7.2" => "20170718",
     "7.3" => "20180731",
@@ -41,6 +42,7 @@ stages:
   - prepare
   - profiler
   - appsec
+  - tracing
 
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
@@ -115,11 +117,11 @@ foreach ($build_platforms as $platform) {
     - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
-    PLATFORM: "<?= $platform['triplet'] ?>"
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
     CARGO_BUILD_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
@@ -157,11 +159,11 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:$ARCH" ]
   needs: [ "prepare code" ]
   variables:
-    PLATFORM: "<?= $platform['triplet'] ?>"
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
     MAKE_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
@@ -216,3 +218,52 @@ if ($suffix == "-alpine") {
   artifacts:
     paths:
       - "appsec_*"
+
+"pecl build":
+  stage: tracing
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
+  tags: [ "arch:amd64" ]
+  needs: [ "prepare code" ]
+  script:
+    - make build_pecl_package
+    - mkdir -p ./pecl && cp datadog_trace-*.tgz ./pecl
+  artifacts:
+    paths:
+      - pecl
+
+<?php
+foreach ($build_platforms as $platform) {
+    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+        $image = sprintf($platform['image_template'], $major_minor);
+        $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+        $catch_warnings = ($major_minor == "7.3" && $suffix != "-alpine") ? "0" : "1";
+?>
+"compile extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    # Fix for $BASH_ENV not having a newline at the end of the file
+    - echo "" >> "$BASH_ENV"
+    - ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "standalone_*"
+      - "ddtrace_*.ldflags"
+
+<?php
+    }
+}
+?>
