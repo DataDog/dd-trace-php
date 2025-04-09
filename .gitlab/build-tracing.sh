@@ -36,7 +36,7 @@ if [ "${PHP_VERSION}" = "7.0" ]; then
   cp -v tmp/build_extension/ddtrace.ldflags "ddtrace_$(uname -m)${suffix}.ldflags"
 fi
 
-if [ "${suffix}" != "alpine" ]; then
+if [ "${suffix}" != "-alpine" ]; then
   # Build debug extension
   switch-php "${PHP_VERSION}-debug"
   make clean && make -j "${MAKE_JOBS}" static

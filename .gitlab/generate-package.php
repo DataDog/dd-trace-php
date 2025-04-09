@@ -18,21 +18,25 @@ $build_platforms = [
         "triplet" => "x86_64-alpine-linux-musl",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "amd64",
+        "host_os" => "linux-musl",
     ],
     [
       "triplet" => "aarch64-alpine-linux-musl",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "arm64",
+        "host_os" => "linux-musl",
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
         "arch" => "amd64",
+        "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
         "arch" => "arm64",
+        "host_os" => "linux-gnu",
     ]
 ];
 ?>
@@ -105,6 +109,9 @@ foreach ($build_platforms as $platform) {
 
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+        if ($major_minor == "7.0") {
+            continue;
+        }
         $image = sprintf($platform['image_template'], $major_minor);
 ?>
 "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
@@ -238,7 +245,7 @@ foreach ($build_platforms as $platform) {
         $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
         $catch_warnings = ($major_minor == "7.3" && $suffix != "-alpine") ? "0" : "1";
 ?>
-"compile extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: tracing
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
@@ -265,5 +272,86 @@ foreach ($build_platforms as $platform) {
 
 <?php
     }
+}
+?>
+
+<?php
+foreach ($build_platforms as $platform) {
+    $image = sprintf($platform['image_template'], "8.1");
+    $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+?>
+"compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    HOST_OS: "<?= $platform['host_os'] ?>"
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    - echo "" >> "$BASH_ENV"
+    - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+      policy: pull  # `cache cargo deps` is used to update/push the cache
+  artifacts:
+    paths:
+      - "libddtrace_php_*.*"
+<?php
+}
+?>
+
+
+<?php
+foreach ($build_platforms as $platform) {
+    $image = sprintf($platform['image_template'], "8.1");
+    $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
+?>
+"link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+?>
+    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+}
+?>
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    # Fix for $BASH_ENV not having a newline at the end of the file
+    - echo "" >> "$BASH_ENV"
+    - ./.gitlab/link-tracing-extension.sh "<?= $suffix ?>"
+  artifacts:
+    paths:
+      - "extensions_*"
+<?php
 }
 ?>
