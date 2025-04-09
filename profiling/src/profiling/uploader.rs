@@ -7,7 +7,6 @@ use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use datadog_profiling::exporter::File;
 use ddcommon::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
@@ -97,21 +96,12 @@ impl Uploader {
 
         let serialized =
             profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
-        let endpoint_counts = Some(&serialized.endpoints_stats);
-        let start = serialized.start.into();
-        let end = serialized.end.into();
-        let files = &[File {
-            name: "profile.pprof",
-            bytes: serialized.buffer.as_slice(),
-        }];
         exporter.set_timeout(10000); // 10 seconds in milliseconds
         let request = exporter.build(
-            start,
-            end,
+            serialized,
             &[],
-            files,
+            &[],
             None,
-            endpoint_counts,
             Self::create_internal_metadata(),
             self.create_profiler_info(),
         )?;
