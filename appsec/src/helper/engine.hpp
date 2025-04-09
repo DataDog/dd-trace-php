@@ -6,8 +6,6 @@
 #pragma once
 
 #include "action.hpp"
-#include "config.hpp"
-#include "engine_ruleset.hpp"
 #include "engine_settings.hpp"
 #include "metrics.hpp"
 #include "parameter.hpp"
@@ -103,12 +101,12 @@ public:
 
     // Should not be called concurrently but safely publishes changes to common_
     // the rc client has a lock that ensures this
-    virtual void update(
-        engine_ruleset &ruleset, metrics::telemetry_submitter &submit_metric);
+    virtual void update(const rapidjson::Document &doc,
+        metrics::telemetry_submitter &submit_metric);
 
 protected:
     explicit engine(uint32_t trace_rate_limit)
-        : limiter_(trace_rate_limit), common_(new shared_state{{}})
+        : common_(new shared_state{{}}), limiter_(trace_rate_limit)
     {}
 
     // in practice: the current ddwaf_handle, swapped in update

@@ -60,17 +60,17 @@ for ($i = 0; $i < 100; ++$i) {
 --EXPECTF--
 foo
 [ddtrace] [warning] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 foo
 [ddtrace] [warning] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 array(2) {
   [0]=>
   array(6) {
     ["message"]=>
     string(165) "Error raised in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:12 for foo(): Testnotice in <redacted>%cintegration_runtime_error.php on line 13"
     ["level"]=>
-    string(4) "WARN"
+    string(5) "ERROR"
     ["count"]=>
     int(2)
     ["stack_trace"]=>
@@ -83,9 +83,9 @@ array(2) {
   [1]=>
   array(6) {
     ["message"]=>
-    string(107) "Exception thrown in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:7 for foo(): test"
+    string(161) "Exception thrown in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:7 for foo(): test in <redacted>%cintegration_runtime_error.php on line %d"
     ["level"]=>
-    string(4) "WARN"
+    string(5) "ERROR"
     ["count"]=>
     int(2)
     ["stack_trace"]=>

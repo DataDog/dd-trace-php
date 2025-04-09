@@ -22,6 +22,7 @@ crossbeam-channel = { version = "0.5", default-features = false, features = ["st
 datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
 datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
 ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v15.1.0" }
+datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "3892e3952d857280462940f62a99af6d36552fb7" } # Must be kept in sync with other extensions using the zend_abstract_interface/config library
 env_logger = { version = "0.11", default-features = false }
 indexmap = { version = "2.2" }
 lazy_static = { version = "1.4" }
@@ -34,7 +35,15 @@ rand = { version = "0.8.5" }
 rand_distr = { version = "0.4.3" }
 rustc-hash = "1.1.0"
 thiserror = "2"
+tracing = { version = "0.1", optional = true }
 uuid = { version = "1.0", features = ["v4"] }
+
+[dependencies.tracing-subscriber]
+version = "0.3"
+optional = true
+default-features = false
+# Build without tracing-log to avoid hijacking existing log events, for now.
+features = ["env-filter", "fmt", "smallvec", "std"]
 
 [dev-dependencies]
 criterion = { version = "0.5.1" }
@@ -49,15 +58,17 @@ name = "stack_walking"
 harness = false
 
 [features]
-default = ["allocation_profiling", "timeline", "exception_profiling", "io_profiling"]
+default = ["allocation_profiling", "exception_profiling", "io_profiling", "timeline"]
 allocation_profiling = []
-timeline = []
 exception_profiling = []
+timeline = []
 stack_walking_tests = []
 test = []
 io_profiling = []
 
-# only for testing:
+# Not for prod:
+tracing = ["dep:tracing"]
+tracing-subscriber = ["tracing", "dep:tracing-subscriber"]
 trigger_time_sample = []
 
 [build-dependencies]

@@ -6,6 +6,7 @@
 #include "parameter.hpp"
 #include "ddwaf.h"
 #include "exception.hpp"
+#include <algorithm>
 
 namespace dds {
 
@@ -128,6 +129,45 @@ bool parameter::add(std::string_view name, parameter &&entry) noexcept
     }
     ddwaf_object_invalid(entry);
     return true;
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+bool parameter::merge(parameter other)
+{
+    if (other.type() != type()) {
+        return false;
+    }
+
+    if (type() == parameter_type::array) {
+        for (size_t i = 0; i < other.size(); ++i) {
+            ddwaf_object_array_add(this, other[i]);
+            ddwaf_object_invalid(&other[i]);
+        }
+        return true;
+    }
+    if (type() == parameter_type::map) {
+        for (size_t i = 0; i < other.size(); ++i) {
+            auto &oentry = other[i];
+            const std::string_view &key = oentry.key();
+
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+            auto *start = static_cast<parameter *>(ddwaf_object::array);
+            auto *end = start + this->nbEntries;
+            auto *orig_entry = std::find_if(
+                start, end, [&key](const auto &v) { return v.key() == key; });
+
+            if (orig_entry == end) { // not found
+                ddwaf_object_map_addl_nc(
+                    this, key.data(), key.length(), &oentry);
+                ddwaf_object_invalid(&oentry); // also nulls out key
+            } else {
+                // a merge is required
+                orig_entry->merge(std::move(oentry));
+            }
+        }
+        return true;
+    }
+    return false;
 }
 
 parameter &parameter::operator[](size_t index) const

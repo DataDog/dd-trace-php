@@ -95,16 +95,21 @@ namespace {
         if (strpos($path, "vendor")) {
             return; // No nested vendor
         }
-        while (strlen($path) > strlen(__DIR__)) {
-            if (file_exists("$path/$vendorDir/autoload.php")) {
-                putenv("COMPOSER_ROOT_VERSION=1.0.0"); // silence composer
-                \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath = "$path/$vendorDir/autoload.php";
-                require_once \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath;
-                return;
-            } elseif (file_exists("$path/composer.json")) {
-                \DDTrace\Testing\trigger_error("Found $path/composer.json, but seems not installed", E_USER_ERROR);
+        try {
+            $oldErrorLevel = error_reporting(E_ALL & ~E_DEPRECATED);
+            while (strlen($path) > strlen(__DIR__)) {
+                if (file_exists("$path/$vendorDir/autoload.php")) {
+                    putenv("COMPOSER_ROOT_VERSION=1.0.0"); // silence composer
+                    \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath = "$path/$vendorDir/autoload.php";
+                    require_once \DDTrace\Tests\Common\IntegrationTestCase::$autoloadPath;
+                    return;
+                } elseif (file_exists("$path/composer.json")) {
+                    \DDTrace\Testing\trigger_error("Found $path/composer.json, but seems not installed", E_USER_ERROR);
+                }
+                $path = dirname($path);
             }
-            $path = dirname($path);
+        } finally {
+            error_reporting($oldErrorLevel);
         }
     };
     if (class_exists('PHPUnit\Runner\StandardTestSuiteLoader')) {

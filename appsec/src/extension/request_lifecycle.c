@@ -10,7 +10,6 @@
 #include "ddtrace.h"
 #include "entity_body.h"
 #include "helper_process.h"
-#include "ip_extraction.h"
 #include "logging.h"
 #include "php_compat.h"
 #include "php_helpers.h"
@@ -39,6 +38,7 @@ static void _set_cur_span(zend_object *nullable span);
 static void _reset_globals(void);
 const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code);
 static void _register_testing_objects(void);
 
 static bool _enabled_user_req;
@@ -55,11 +55,15 @@ static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
-bool dd_req_is_user_req() { return _enabled_user_req; }
+bool dd_req_is_user_req(void) { return _enabled_user_req; }
 
-void dd_req_lifecycle_startup()
+void dd_req_lifecycle_startup(void)
 {
-    _enabled_user_req = strcmp(sapi_module.name, "cli") == 0 &&
+    // we assume that frankenphp is running in worker mode because
+    // there is no easy way to detect it at this point.
+    // If it's not the case, DD_APPSEC_CLI_START_ON_RINIT should be set
+    _enabled_user_req = (strcmp(sapi_module.name, "cli") == 0 ||
+                            strcmp(sapi_module.name, "frankenphp") == 0) &&
                         !get_global_DD_APPSEC_CLI_START_ON_RINIT();
 
     if (_enabled_user_req) {
@@ -117,7 +121,7 @@ void dd_req_lifecycle_rinit(bool force)
     _do_request_begin_php();
 }
 
-static void _do_request_begin_php()
+static void _do_request_begin_php(void)
 {
     zend_string *nonnull req_body =
         dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
@@ -167,6 +171,9 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */, bool user_req)
 {
+    // do this even on user req because frankenphp uses normal php output
+    dd_entity_body_rinit();
+
     dd_tags_rinit();
 
     zend_string *nullable rbe = NULL;
@@ -298,13 +305,15 @@ static void _do_request_finish_php(bool ignore_verdict)
     dd_conn *conn = dd_helper_mgr_cur_conn();
 
     if (conn && DDAPPSEC_G(active)) {
+        const int status_code = SG(sapi_headers).http_response_code;
         struct req_shutdown_info ctx = {
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
-            .status_code = SG(sapi_headers).http_response_code,
+            .status_code = status_code,
             .resp_headers_fmt = RESP_HEADERS_LLIST,
             .resp_headers_llist = &SG(sapi_headers).headers,
             .entity = dd_response_body_buffered(),
+            .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
         };
 
         int res = dd_request_shutdown(conn, &ctx);
@@ -355,6 +364,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             .resp_headers_fmt = RESP_HEADERS_MAP_STRING_LIST,
             .resp_headers_arr = resp_headers ? resp_headers : &zend_empty_array,
             .entity = entity,
+            .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
         };
 
         int res = dd_request_shutdown(conn, &ctx);
@@ -388,7 +398,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     return NULL;
 }
 
-static void _reset_globals()
+static void _reset_globals(void)
 {
     _set_cur_span(NULL);
 
@@ -403,8 +413,8 @@ static void _reset_globals()
 
     if (_client_ip && _client_ip != CLIENT_IP_LOOKUP_FAILED) {
         zend_string_release(_client_ip);
-        _client_ip = NULL;
     }
+    _client_ip = NULL;
 
     if (Z_TYPE(_blocking_function) != IS_UNDEF) {
         zval_ptr_dtor(&_blocking_function);
@@ -415,7 +425,7 @@ static void _reset_globals()
     dd_tags_rshutdown();
 }
 
-static zend_string *nullable _extract_ip_from_autoglobal()
+static zend_string *nullable _extract_ip_from_autoglobal(void)
 {
     zval *_server =
         dd_php_get_autoglobal(TRACK_VARS_SERVER, LSTRARG("_SERVER"));
@@ -439,9 +449,12 @@ static void _set_cur_span(zend_object *nullable span)
     }
 }
 
-zend_object *nullable dd_req_lifecycle_get_cur_span() { return _cur_req_span; }
+zend_object *nullable dd_req_lifecycle_get_cur_span(void)
+{
+    return _cur_req_span;
+}
 
-zend_string *nullable dd_req_lifecycle_get_client_ip()
+zend_string *nullable dd_req_lifecycle_get_client_ip(void)
 {
     if (!_client_ip) {
         if (_superglob_equiv) {
@@ -484,7 +497,7 @@ static zend_array *nullable _start_user_req(
         assert(spec == NULL);
     }
 
-    mlog(dd_log_debug, "Starting user request for span %p", span);
+    mlog(dd_log_debug, "Starting user request for span %p", (void *)span);
 
     _set_cur_span(span);
     GC_TRY_ADDREF(super_global_equiv);
@@ -521,14 +534,26 @@ static zend_array *nullable _response_commit(
         return NULL;
     }
 
-    mlog(dd_log_debug, "Committing user request for span %p", span);
+    mlog(dd_log_debug, "Committing user request for span %p", (void *)span);
 
     zend_string *rbe = _get_entity_as_string(rbe_zv);
+    bool free_rbe = true;
+    if (!rbe) {
+        // frankenphp writes the response body through the usual means
+        zend_string *rbe_sapi_buf = dd_response_body_buffered();
+        if (rbe_sapi_buf->val[0]) {
+            mlog_g(dd_log_debug,
+                "Using buffered response body of size %zu in notify_commit()",
+                ZSTR_LEN(rbe_sapi_buf));
+            rbe = rbe_sapi_buf;
+            free_rbe = false;
+        }
+    }
 
     zend_array *res = _do_request_finish_user_req(
         false, _superglob_equiv, status, resp_headers, rbe);
 
-    if (rbe) {
+    if (rbe && free_rbe) {
         zend_string_release(rbe);
     }
 
@@ -700,7 +725,7 @@ static void _finish_user_req(
         _reset_globals();
     }
 
-    mlog(dd_log_debug, "Finishing user request for span %p", span);
+    mlog(dd_log_debug, "Finishing user request for span %p", (void *)span);
 
     zend_array *arr =
         _do_request_finish_user_req(true, _superglob_equiv, 0, NULL, NULL);
@@ -769,7 +794,8 @@ void dd_req_call_blocking_function(dd_result res)
         return;
     }
 
-    mlog(dd_log_debug, "Calling blocking function for span %p", _cur_req_span);
+    mlog(dd_log_debug, "Calling blocking function for span %p",
+        (void *)_cur_req_span);
 
     const zend_array *nonnull sv = _get_server_equiv(_superglob_equiv);
     zend_array *spec = NULL;
@@ -821,6 +847,78 @@ ddtrace_user_req_listeners dd_user_req_listeners = {
     .finish_user_req = _finish_user_req,
 };
 
+#define FNV_PRIME 1099511628211ULL
+#define FNV_OFFSET_BASIS 14695981039346656037ULL
+static inline uint64_t _hash_string(
+    uint64_t hash, const char *nonnull str, size_t len)
+{
+    for (size_t i = 0; i < len; i++) {
+        hash ^= (uint64_t)str[i];
+        hash *= FNV_PRIME;
+    }
+    return hash;
+}
+static inline uint64_t _hash_zend_string(
+    uint64_t hash, zend_string *nonnull str)
+{
+    return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
+}
+
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
+{
+    if (!get_DD_API_SECURITY_ENABLED()) {
+        return 0;
+    }
+
+    if (!root_span) {
+        return 0;
+    }
+
+    zval *nullable meta = dd_trace_span_get_meta(root_span);
+    if (!meta) {
+        return 0;
+    }
+
+    // check sampling priority: must be >=1. o/wise return 0
+    zend_long sampling_priority =
+        dd_trace_get_priority_sampling_on_span_zobj(root_span);
+    if (sampling_priority < 1) {
+        mlog_g(dd_log_debug, "Sampling priority is %ld; not sampling",
+            sampling_priority);
+        return 0;
+    }
+
+    zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
+    if (!route || Z_TYPE_P(route) != IS_STRING) {
+        mlog_g(dd_log_debug, "No http.route tag; not sampling");
+        return 0;
+    }
+
+    zval *method =
+        zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
+    if (!method || Z_TYPE_P(method) != IS_STRING) {
+        mlog_g(dd_log_debug, "No http.method tag; not sampling");
+        return 0;
+    }
+
+    // use fnv-1a hash with: <http.route tag> NULL <http.method tag> NULL
+    // status_code
+
+    uint64_t hash = FNV_OFFSET_BASIS;
+    hash = _hash_zend_string(hash, Z_STR_P(route));
+    hash *= FNV_PRIME; // hash NUL byte
+    hash = _hash_zend_string(hash, Z_STR_P(method));
+    hash *= FNV_PRIME; // hash NUL byte
+
+    // hash status_code
+    char status_str[sizeof("-2147483649")];
+    int status_len =
+        snprintf(status_str, sizeof(status_str), "%d", status_code);
+    hash = _hash_string(hash, status_str, status_len);
+
+    return hash;
+}
+
 PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -870,7 +968,7 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

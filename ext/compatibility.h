@@ -265,6 +265,11 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
             (z) = Z_INDIRECT_P(z); \
         } \
     } while (0)
+#define ZVAL_COPY_DEREF(z, v) do { \
+        zval *_z3 = (v); \
+        ZVAL_DEREF(_z3); \
+        ZVAL_COPY(z, _z3); \
+    } while (0)
 
 #endif
 
@@ -432,6 +437,8 @@ static zend_always_inline int zend_compare(zval *op1, zval *op2) {
 #define Z_OBJPROP_P(zv) Z_OBJPROP(*(zval *)(zv))
 #undef Z_OBJDEBUG_P
 #define Z_OBJDEBUG_P(zv, is_temp) Z_OBJDEBUG(*(zval *)(zv), is_temp)
+
+#define ZEND_TYPE_CONTAINS_CODE(type, code) ((code) == IS_NULL ? ZEND_TYPE_ALLOW_NULL(type) : ZEND_TYPE_CODE(type) == (code))
 #endif
 
 #if PHP_VERSION_ID < 80100

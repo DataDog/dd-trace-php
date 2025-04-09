@@ -22,6 +22,11 @@ set_target_properties(helper_objects PROPERTIES
     POSITION_INDEPENDENT_CODE 1)
 target_include_directories(helper_objects INTERFACE ${HELPER_INCLUDE_DIR})
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+  target_compile_options(helper_objects PRIVATE -Wall)
+else()
+  target_compile_options(helper_objects PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
 target_compile_options(helper_objects PRIVATE -ftls-model=global-dynamic)
 target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog cpp-base64 msgpack_c RapidJSON::rapidjson Boost::system zlibstatic)
 
@@ -80,7 +85,7 @@ endif()
 if(DD_APPSEC_TESTING)
        # Testing and examples
        add_subdirectory(tests/helper EXCLUDE_FROM_ALL)
-       #add_subdirectory(tests/bench_helper EXCLUDE_FROM_ALL)
+       add_subdirectory(tests/bench EXCLUDE_FROM_ALL)
        add_subdirectory(tests/fuzzer EXCLUDE_FROM_ALL)
 
        if(DD_APPSEC_ENABLE_COVERAGE)

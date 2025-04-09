@@ -11,83 +11,37 @@
 #include "serializer.h"
 #include "span.h"
 #include "sidecar.h"
+#include "trace_source.h"
 #include "ddshared.h"
 #include "standalone_limiter.h"
 #include <main/SAPI.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static bool trace_contains_appsec_event(zval *trace) {
-    if (!trace || Z_TYPE_P(trace) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *root_span = zend_hash_index_find(Z_ARR_P(trace), 0);
-    if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
-        return false;
-    }
-
-    zval *meta = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("meta"));
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        return false;
-    }
-
-    return zend_hash_str_exists(Z_ARR_P(meta), DD_TAG_P_APPSEC, strlen(DD_TAG_P_APPSEC));
-}
-
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
     bool success = true;
 
-    zval trace, traces;
-    array_init(&trace);
+    zval traces;
+    array_init(&traces);
     if (collect_cycles) {
-        ddtrace_serialize_closed_spans_with_cycle(&trace);
+        ddtrace_serialize_closed_spans_with_cycle(&traces);
     } else {
-        ddtrace_serialize_closed_spans(&trace);
+        ddtrace_serialize_closed_spans(&traces);
     }
 
     // Prevent traces from requests not executing any PHP code:
     // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
     // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
     if (!force_on_startup && PG(during_request_startup)) {
-        zend_array_destroy(Z_ARR(trace));
+        zend_array_destroy(Z_ARR(traces));
         return SUCCESS;
     }
 
-    if (zend_hash_num_elements(Z_ARR(trace)) == 0) {
-        zend_array_destroy(Z_ARR(trace));
+    if (zend_hash_num_elements(Z_ARR(traces)) == 0) {
+        zend_array_destroy(Z_ARR(traces));
         LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
     }
-
-    if (get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()) {
-        if (!DDTRACE_G(asm_event_emitted) && !trace_contains_appsec_event(&trace) && !ddtrace_standalone_limiter_allow()) {
-            zval *root_span = zend_hash_index_find(Z_ARR(trace), 0);
-            if (!root_span || Z_TYPE_P(root_span) != IS_ARRAY) {
-                LOG(ERROR, "Root span not found. Dropping trace");
-                return SUCCESS;
-            }
-
-            zval *metrics = zend_hash_str_find(Z_ARR_P(root_span), ZEND_STRL("metrics"));
-            if (!metrics || Z_TYPE_P(metrics) != IS_ARRAY) {
-                LOG(ERROR, "Metrics not found. Dropping trace");
-                return SUCCESS;
-            }
-
-            zval *sampling_priority = zend_hash_str_find(Z_ARR_P(metrics), ZEND_STRL("_sampling_priority_v1"));
-            if (!sampling_priority || (Z_TYPE_P(sampling_priority) != IS_DOUBLE && Z_TYPE_P(sampling_priority) != IS_LONG)) {
-                LOG(ERROR, "Invalid sampling priority. Dropping trace");
-                return SUCCESS;
-            }
-            ZVAL_LONG(sampling_priority, PRIORITY_SAMPLING_AUTO_REJECT);
-        } else {
-            ddtrace_standalone_limiter_hit();
-        }
-    }
-
-    // background sender only wants a singular trace
-    array_init(&traces);
-    zend_hash_index_add(Z_ARR(traces), 0, &trace);
 
     size_t limit = get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE();
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
@@ -111,7 +65,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                                 .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                                 .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
                                 .client_computed_top_level = false,
-                                .client_computed_stats = get_global_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED(),
+                                .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED(),
                         };
                         size_t size_hint = written;
                         zend_long n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS();
@@ -142,8 +96,12 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
                             LOGEV(INFO, {
                                 char *url = ddtrace_agent_url();
-                                log("Flushing trace of size %d to send-queue for %s",
-                                    zend_hash_num_elements(Z_ARR(trace)), url);
+                                zval *trace;
+                                int num_spans = 0;
+                                ZEND_HASH_FOREACH_VAL(Z_ARR(traces), trace) {
+                                    num_spans += zend_hash_num_elements(Z_ARR_P(trace));
+                                } ZEND_HASH_FOREACH_END();
+                                log("Flushing trace of size %d to send-queue for %s", num_spans, url);
                                 free(url);
                             });
                         } while (0);
@@ -153,36 +111,57 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 }
             }
         } else {
-            LOG(INFO, "Skipping flushing trace of size %d as connection to sidecar failed",
-                               zend_hash_num_elements(Z_ARR(trace)));
+            LOGEV(INFO, {
+                zval *trace;
+                int num_spans = 0;
+                ZEND_HASH_FOREACH_VAL(Z_ARR(traces), trace) {
+                    num_spans += zend_hash_num_elements(Z_ARR_P(trace));
+                } ZEND_HASH_FOREACH_END();
+                log("Skipping flushing trace of size %d as connection to sidecar failed", num_spans);
+            });
         }
     } else {
 #ifndef _WIN32
-        char *payload;
-        size_t size;
-        if (ddtrace_serialize_simple_array_into_c_string(&traces, &payload, &size)) {
-            if (size > limit) {
-                LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
-                success = false;
-            } else {
-                success = ddtrace_send_traces_via_thread(1, payload, size);
-                if (success) {
-                    LOGEV(INFO, {
-                        char *url = ddtrace_agent_url();
-                        log("Flushing trace of size %d to send-queue for %s",
-                                        zend_hash_num_elements(Z_ARR(trace)), url);
-                        free(url);
-                    });
-                }
-                dd_prepare_for_new_trace();
-            }
+        success = true;
+        zval sender_trace_container, *trace;
+        // background sender only wants a singular trace
+        array_init(&sender_trace_container);
+        zval *spans = zend_hash_index_add(Z_ARR(sender_trace_container), 0, &traces);
 
-            free(payload);
-        } else
+        // send in 1-trace chunks to make background sender happy
+        ZEND_HASH_FOREACH_VAL(Z_ARR(traces), trace) {
+            ZVAL_COPY_VALUE(spans, trace);
+
+            char *payload;
+            size_t size;
+            if (ddtrace_serialize_simple_array_into_c_string(&sender_trace_container, &payload, &size)) {
+                if (size > limit) {
+                    LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", size, limit);
+                    success = false;
+                } else {
+                    success = ddtrace_send_traces_via_thread(1, payload, size);
+                    if (success) {
+                        LOGEV(INFO, {
+                            char *url = ddtrace_agent_url();
+                            log("Flushing trace of size %d to send-queue for %s",
+                                zend_hash_num_elements(Z_ARR_P(trace)), url);
+                            free(url);
+                        });
+                    }
+                    dd_prepare_for_new_trace();
+                }
+
+                free(payload);
+            } else {
+                success = false;
+            }
+        } ZEND_HASH_FOREACH_END();
+
+        ZVAL_UNDEF(spans);
+        zval_ptr_dtor(&sender_trace_container);
+#else
+        success = false;
 #endif
-        {
-            success = false;
-        }
     }
 
     zval_ptr_dtor(&traces);

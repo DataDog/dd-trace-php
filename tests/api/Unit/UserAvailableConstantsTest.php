@@ -25,6 +25,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Type::CLI, 'cli'],
             [Type::SQL, 'sql'],
             [Type::QUEUE, 'queue'],
+            [Type::WEBSOCKET, 'websocket'],
             [Type::MESSAGE_CONSUMER, 'queue'],
             [Type::MESSAGE_PRODUCER, 'queue'],
 
@@ -136,7 +137,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::DB_TYPE, 'db.type'],
             [Tag::DB_SYSTEM, 'db.system'],
             [Tag::DB_ROW_COUNT, 'db.row_count'],
-            [Tag::DB_STMT, 'db.statement'],
+            [Tag::DB_STMT, 'sql.query'],
             [Tag::DB_USER, 'db.user'],
             [Tag::KAFKA_CLIENT_ID, 'messaging.kafka.client_id'],
             [Tag::KAFKA_GROUP_ID, 'messaging.kafka.group_id'],

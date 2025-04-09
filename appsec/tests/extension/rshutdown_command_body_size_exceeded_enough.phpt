@@ -19,49 +19,26 @@ $helper = Helper::createInitedRun([
 
 header('content-type: application/json');
 http_response_code(403);
-echo '{"a": [1,2,"3"]}FOOBAR', "\n";
 var_dump(rinit());
+echo '{"a": [1,2,"3"]}FOOBAR', "\n";
 $helper->get_commands(); // ignore
 
 var_dump(rshutdown());
 $c = $helper->get_commands();
-print_r($c[0]);
+print_r($c[0][1][0]['server.response.body']);
 
 ?>
 --EXPECT--
-{"a": [1,2,"3"]}FOOBAR
 bool(true)
+{"a": [1,2,"3"]}FOOBAR
 bool(true)
 Array
 (
-    [0] => request_shutdown
-    [1] => Array
+    [a] => Array
         (
-            [0] => Array
-                (
-                    [server.response.status] => 403
-                    [server.response.headers.no_cookies] => Array
-                        (
-                            [content-type] => Array
-                                (
-                                    [0] => application/json
-                                )
-
-                        )
-
-                    [server.response.body] => Array
-                        (
-                            [a] => Array
-                                (
-                                    [0] => 1
-                                    [1] => 2
-                                    [2] => 3
-                                )
-
-                        )
-
-                )
-
+            [0] => 1
+            [1] => 2
+            [2] => 3
         )
 
 )

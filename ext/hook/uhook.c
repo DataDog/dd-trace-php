@@ -18,6 +18,7 @@
 #include <hook/hook.h>
 
 #include "uhook.h"
+#include "compat_string.h"
 #include <jit_utils/jit_blacklist.h>
 #include <exceptions/exceptions.h>
 
@@ -145,7 +146,7 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
         char *scope = "";
         char *colon = "";
         char *name = "(unknown function)";
-        if (execute_data->func && execute_data->func->common.function_name) {
+        if (execute_data && execute_data->func && execute_data->func->common.function_name) {
             zend_function *fbc = execute_data->func;
             name = ZSTR_VAL(fbc->common.function_name);
             if (fbc->common.scope) {
@@ -166,19 +167,25 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
 
         zend_object *ex = EG(exception);
         if (ex) {
+            bool regular_exception = instanceof_function(ex->ce, zend_ce_throwable);
             const char *type = ZSTR_VAL(ex->ce->name);
-            const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
-            log("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s",
-                             type, deffile, defline, scope, colon, name, msg);
+            const char *msg = regular_exception ? ZSTR_VAL(zai_exception_message(ex)): "<exit>";
+            zend_long exline = regular_exception ? zval_get_long(zai_exception_read_property(ex, ZSTR_KNOWN(ZEND_STR_LINE))) : 0;
+            zend_string *exfile = regular_exception ? ddtrace_convert_to_str(zai_exception_read_property(ex, ZSTR_KNOWN(ZEND_STR_FILE))) : NULL;
+            log("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
+                             type, deffile, defline, scope, colon, name, msg, regular_exception ? ZSTR_VAL(exfile) : "Unknown", exline);
             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                ddtrace_integration_error_telemetryf("%s thrown in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s",
-                             type, ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, msg);
+                INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
+                             type, ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, msg, regular_exception ? ddtrace_telemetry_redact_file(ZSTR_VAL(exfile)) : "Unknown", exline);
+            }
+            if (exfile) {
+                zend_string_release(exfile);
             }
         } else if (PG(last_error_message)) {
             log("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
                              deffile, defline, scope, colon, name, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                ddtrace_integration_error_telemetryf("Error raised in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
+                INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
                              ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
             }
         }

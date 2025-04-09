@@ -11,13 +11,14 @@ DDTrace\consume_distributed_tracing_headers(function ($header) {
             "x-datadog-parent-id" => 10,
             "x-datadog-origin" => "datadog",
             "x-datadog-sampling-priority" => 3,
+            "baggage" => "user.id=123,session.id=abc"
         ][$header] ?? null;
 });
 var_dump(DDTrace\generate_distributed_tracing_headers());
 
 ?>
 --EXPECT--
-array(7) {
+array(8) {
   ["x-datadog-sampling-priority"]=>
   string(1) "3"
   ["x-datadog-tags"]=>
@@ -32,4 +33,6 @@ array(7) {
   string(55) "00-0000000000000000000000000000002a-000000000000000a-01"
   ["tracestate"]=>
   string(24) "dd=o:datadog;s:3;t.dm:-0"
+  ["baggage"]=>
+  string(26) "user.id=123,session.id=abc"
 }

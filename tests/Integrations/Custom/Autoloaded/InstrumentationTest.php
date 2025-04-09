@@ -53,6 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
+        usleep(500000);
         $response = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
 
         $this->assertGreaterThanOrEqual(3, $response);
@@ -91,7 +92,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertEquals(["integration_name:datadog"], $allMetrics["spans_created"]["tags"]);
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
-
+        usleep(500000);
         $found_telemetry = false;
         $found_app_integrations_change = false;
         $response = $this->retrieveDumpedData(function ($request) use (&$found_telemetry, &$found_app_integrations_change) {

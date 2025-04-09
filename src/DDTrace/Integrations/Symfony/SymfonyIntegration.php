@@ -242,13 +242,44 @@ class SymfonyIntegration extends Integration
                 }
 
                 $metadata = [];
-                $userIdentifier = \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '';
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 \datadog\appsec\track_user_login_success_event_automated(
                     $userIdentifier,
                     $userIdentifier,
                     $metadata
                 );
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface',
+            'decide',
+            function ($This, $scope, $args, $result) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                // Extract the authentication token
+                $token = $args[0];
+                if (!$token) {
+                    return;
+                }
+
+                // Extract user information
+                $user = $token->getUser();
+                if (!$user) {
+                    return;
+                }
+
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
+
+                // Track the access check
+                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
             }
         );
 
@@ -606,6 +637,25 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
         \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
+
+        /* Silence ExecIntegration spans to stty. These are going to fail intentionally,
+         * and always executed within symfony requests. This is pure noise which we hereby silence.
+         */
+        foreach (['Symfony\Component\Console\Terminal::hasSttyAvailable', 'Symfony\Component\Console\Helper\QuestionHelper::isInteractiveInput'] as $method) {
+            \DDTrace\install_hook($method, function (HookData $hook) {
+                $hook->data = false;
+                \DDTrace\active_stack()->spanCreationObservers[] = function (SpanData $span) use ($hook) {
+                    if ($hook->data) {
+                        return false;
+                    }
+                    $span->onClose[] = function (SpanData $span) {
+                        \DDTrace\try_drop_span($span);
+                    };
+                };
+            }, function (HookData $hook) {
+                $hook->data = true;
+            });
+        }
     }
 
     /**

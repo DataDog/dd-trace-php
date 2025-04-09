@@ -14,6 +14,8 @@ const char *nonnull dd_result_to_string(dd_result result)
         return "dd_network";
     case dd_should_block:
         return "dd_should_block";
+    case dd_should_redirect:
+        return "dd_should_redirect";
     case dd_should_record:
         return "dd_should_record";
     case dd_error:

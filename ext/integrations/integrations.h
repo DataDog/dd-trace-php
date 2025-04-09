@@ -43,6 +43,7 @@
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \
+    INTEGRATION(RATCHET, "ratchet")                                                                                       \
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \

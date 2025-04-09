@@ -42,6 +42,7 @@ Array
     [appsec.events.users.signup.email] => noneofyour@business.com
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null
+    [_dd.p.ts] => 02
     [_dd.runtime_family] => php
     [_dd.p.dm] => -4
 )

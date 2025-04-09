@@ -5,7 +5,6 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "service.hpp"
-#include "metrics.hpp"
 
 namespace dds {
 
@@ -16,20 +15,19 @@ service::service(std::shared_ptr<engine> engine,
     const schema_extraction_settings &schema_extraction_settings)
     : engine_{std::move(engine)}, service_config_{std::move(service_config)},
       client_handler_{std::move(client_handler)},
-      msubmitter_{std::move(msubmitter)}, rc_path_{std::move(rc_path)}
+      schema_extraction_enabled_{schema_extraction_settings.enabled},
+      schema_sampler_{
+          schema_extraction_settings.enabled &&
+                  schema_extraction_settings.sampling_period >= 1.0
+              ? std::make_optional<sampler>(static_cast<std::uint32_t>(
+                    schema_extraction_settings.sampling_period))
+              : std::nullopt},
+      rc_path_{std::move(rc_path)}, msubmitter_{std::move(msubmitter)}
 {
     // The engine should always be valid
     if (!engine_) {
         throw std::runtime_error("invalid engine");
     }
-
-    double sample_rate = schema_extraction_settings.sample_rate;
-
-    if (!schema_extraction_settings.enabled) {
-        sample_rate = 0;
-    }
-
-    schema_sampler_ = std::make_shared<sampler>(sample_rate);
 
     if (client_handler_) {
         client_handler_->poll();

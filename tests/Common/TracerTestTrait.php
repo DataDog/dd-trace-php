@@ -227,10 +227,10 @@ trait TracerTestTrait
     /**
      * This method executes a single script with the provided configuration.
      */
-    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null, $throw = true)
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $until = null, $throw = true, $checkTty = false)
     {
         $this->resetRequestDumper();
-        $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput);
+        $output = $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments, $withOutput, false, false, $checkTty);
         usleep(100000); // Add a slight delay to give the request-replayer time to handle and store all requests.
         $out = [$this->parseTracesFromDumpedData($until, $throw)];
         if ($withOutput) {
@@ -239,7 +239,7 @@ trait TracerTestTrait
         return $out;
     }
 
-    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $skipSyncFlush = false, $withExitCode = false)
+    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '', $withOutput = false, $skipSyncFlush = false, $withExitCode = false, $checkTty = false)
     {
         $envs = (string) new EnvSerializer(array_merge(
             [
@@ -277,7 +277,11 @@ trait TracerTestTrait
         } elseif (\is_array($arguments)) {
             $arguments = implode(' ', array_map('escapeshellarg', $arguments));
         }
-        $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
+        if ($checkTty && !posix_isatty(STDOUT)) {
+            $commandToExecute = "script -q -c \"$envs " . PHP_BINARY . " $inis $script $arguments\" /dev/null";
+        } else {
+            $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
+        }
         $output = [];
         $exitCode = 0;
         $createHook = \DDTrace\install_hook('DDTrace\Integrations\Exec\ExecIntegration::createSpan', function (HookData $hook) {
@@ -291,7 +295,11 @@ trait TracerTestTrait
         exec($commandToExecute . ' 2>&1', $output, $exitCode);
         \DDTrace\remove_hook($createHook);
         \DDTrace\remove_hook($finishHook);
-        $ret = $withOutput ? implode("\n", $output) : null;
+        $output = implode("\n", $output);
+        if (preg_match('(\[error\]|\[warning\]|\[deprecated\])', $output)) {
+            throw new \Exception("Got unexpected ddtrace warnings or errors in output:\n\n$output");
+        }
+        $ret = $withOutput ? $output : null;
         if (!$skipSyncFlush && \dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
             \dd_trace_synchronous_flush();
         }

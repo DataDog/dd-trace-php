@@ -94,6 +94,68 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
+    ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
+    zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
+
+    if (value.len == 0) {
+        return true;
+    }
+
+    const char *str = value.ptr;
+    const char *end = str + value.len;
+    const char *current = str;
+
+    // Determine separator - prefer comma if present, otherwise use space
+    char sep = memchr(str, ',', value.len) ? ',': ' ';
+
+    while (current < end) {
+        // Skip leading whitespace
+        while (current < end && (*current == ' ' || *current == sep)) current++;
+        if (current == end) {
+            // Abort if only separators are remaining
+            break;
+        }
+
+        // Find next separator, this will be the end of the tag
+        const char *tag_end = memchr(current, sep, end - current);
+        if (!tag_end) {
+            tag_end = end;
+        }
+        // Prepare key and value
+        // Initialize key to be the entire tag and value to be empty
+        const char *key_start = current;
+        const char *key_end = tag_end;
+        const char *val_start = tag_end;
+        const char *val_end = tag_end;
+        // If the tag has a colon, use the index of the colon to split the tag into key and value
+        const char *colon = memchr(current, ':', tag_end - current);
+        if (colon) {
+            // Tag has a colon, use the index of the colon to  split into key and value
+            key_end = colon;
+            val_start = colon + 1;
+        }
+
+        // Strip whitespace from key
+        while (key_start < key_end && *key_start == ' ') key_start++;
+        while (key_end > key_start && key_end[-1] == ' ') key_end--;
+        // Only add if key is non-empty
+        if (key_start != key_end) {
+            // Strip whitespace from value
+            while (val_start < val_end && *val_start == ' ') val_start++;
+            while (val_end > val_start && val_end[-1] == ' ') val_end--;
+
+            zval val;
+            ZVAL_STR(&val, zend_string_init(val_start, val_end - val_start, persistent));
+            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_end - key_start, &val);
+        }
+        // Move to the start of the next tag
+        current = tag_end + 1;
+    }
+
+    return true;
+}
+
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
     static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
         UNUSED(old_value, new_value); \
@@ -181,11 +243,9 @@ bool ddtrace_config_minit(int module_number) {
     }
 
 #ifndef _WIN32
-    // Sidecar is currently broken - no traces sent. Investigation pending, background sender just works though.
+    // Background sender does not send a Content-Length header, but sidecar does. Force-enable it thus, as the background sender does not work at all.
     if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
-        config_entries[DDTRACE_CONFIG_DD_REMOTE_CONFIG_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
-        config_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
-        config_entries[DDTRACE_CONFIG_DD_INSTRUMENTATION_TELEMETRY_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("false");
+        config_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
     }
 #endif
 

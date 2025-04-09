@@ -146,6 +146,9 @@ static int ddappsec_startup(zend_extension *extension)
     UNUSED(extension);
 
     zend_hash_sort_ex(&module_registry, ddappsec_sort_modules, NULL, 0);
+
+    dd_request_abort_zend_ext_startup();
+
     return SUCCESS;
 }
 
@@ -232,6 +235,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     runtime_config_first_init = false;
 
     dd_tags_shutdown();
+    dd_request_abort_shutdown();
     dd_user_tracking_shutdown();
     dd_trace_shutdown();
     dd_helper_shutdown();
@@ -241,13 +245,13 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-static void _rinit_once()
+static void _rinit_once(void)
 {
     dd_config_first_rinit();
     _check_enabled();
 }
 
-void dd_appsec_rinit_once()
+void dd_appsec_rinit_once(void)
 {
     static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
     pthread_once(&_rinit_once_control, _rinit_once);
@@ -270,8 +274,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
-
-    dd_entity_body_rinit();
 
     dd_req_lifecycle_rinit(false);
 
@@ -359,15 +361,14 @@ static PHP_MINFO_FUNCTION(ddappsec)
 __thread void *unspecnull TSRMLS_CACHE = NULL;
 #endif
 
-static void _check_enabled()
+static void _check_enabled(void)
 {
     if (DDAPPSEC_G(enabled) != APPSEC_UNSET_STATE) {
         return;
     }
 
     if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
-        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text) ||
-        (strcmp(sapi_module.name, "frankenphp") == 0)) {
+        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;
         DDAPPSEC_G(to_be_configured) = false;
@@ -567,7 +568,7 @@ static const zend_function_entry testing_functions[] = {
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     dd_phpobj_reg_funcs(functions);
 

@@ -6,12 +6,9 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
-#include <cstdint>
 
 #include "config.hpp"
 #include "network/acceptor.hpp"
-#include "network/socket.hpp"
 #include "service_manager.hpp"
 #include "worker_pool.hpp"
 
@@ -20,8 +17,7 @@ namespace dds {
 class runner : public std::enable_shared_from_this<runner> {
 public:
     runner(const config::config &cfg, std::atomic<bool> &interrupted);
-    runner(const config::config &cfg,
-        std::unique_ptr<network::base_acceptor> &&acceptor,
+    runner(std::unique_ptr<network::base_acceptor> &&acceptor,
         std::atomic<bool> &interrupted);
     runner(const runner &) = delete;
     runner &operator=(const runner &) = delete;
@@ -45,7 +41,6 @@ public:
 private:
     static std::shared_ptr<runner> RUNNER_FOR_NOTIFICATIONS;
 
-    const config::config &cfg_; // NOLINT
     std::shared_ptr<service_manager> service_manager_;
     worker::pool worker_pool_;
 

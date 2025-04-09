@@ -2,6 +2,8 @@ mod ffi;
 
 pub use ffi::*;
 
+pub use datadog_library_config_ffi::*;
+
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -320,6 +322,9 @@ extern "C" {
 
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
+
+    /// Writes a string to the output.
+    pub static zend_write: Option<unsafe extern "C" fn(*const c_char, usize) -> usize>;
 
     /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
@@ -657,6 +662,7 @@ pub struct ZaiConfigEntry {
     pub aliases_count: u8,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
+    pub displayer: zai_custom_display,
     pub env_config_fallback: zai_env_config_fallback,
 }
 
@@ -671,6 +677,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub name_index: i16,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
+    pub displayer: zai_custom_display,
     pub env_config_fallback: zai_env_config_fallback,
     pub original_on_modify: Option<
         unsafe extern "C" fn(

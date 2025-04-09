@@ -99,7 +99,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 if (!ce) {
                     LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                        INTEGRATION_ERROR_TELEMETRY(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
                     }
                     success = true;
                     break;
@@ -108,7 +108,7 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 if (!instanceof_function(ce, ddtrace_ce_integration)) {
                     LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
                     }
                     success = true;
                     break;
@@ -138,13 +138,13 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                             LOG(DEBUG, "Integration %s not loaded, possibly unsupported version. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
-                            LOG(DEBUG, "Integration {name} not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
                             unload_hooks = false;
                             break;
                         default:
                             LOG(WARN, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
                             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                                ddtrace_integration_error_telemetryf("Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                                INTEGRATION_ERROR_TELEMETRY(ERROR, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
                             }
                             break;
                     }
@@ -161,14 +161,14 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     log("%s thrown in ddtrace's integration autoloader for %s: %s",
                         type, ZSTR_VAL(aux->classname), msg);
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("%s thrown in ddtrace's integration autoloader for %s: %s",
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's integration autoloader for %s: %s",
                             type, ZSTR_VAL(aux->classname), msg);
                     }
                 } else if (PG(last_error_message)) {
                     log("Error raised in ddtrace's integration autoloader for %s: %s in %s on line %d",
                         ZSTR_VAL(aux->classname), LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        ddtrace_integration_error_telemetryf("Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
                             ZSTR_VAL(aux->classname), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
                     }
                 }
@@ -419,6 +419,10 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
+#if PHP_VERSION_ID >= 80400
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "connect",
+                                         "DDTrace\\Integrations\\PDO\\PDOIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
                                          "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
@@ -431,6 +435,11 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PSR18, "Psr\\Http\\Client\\ClientInterface", "sendRequest",
                                          "DDTrace\\Integrations\\Psr18\\Psr18Integration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Client\\Connector", "__construct",
+                                         "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Http\\HttpServerInterface", "onOpen",
+                                         "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ROADRUNNER, "Spiral\\RoadRunner\\Http\\HttpWorker", "waitRequest",
                                          "DDTrace\\Integrations\\Roadrunner\\RoadrunnerIntegration");

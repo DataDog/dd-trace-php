@@ -23,6 +23,7 @@ mod exception;
 
 #[cfg(feature = "timeline")]
 mod timeline;
+mod vec_ext;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
@@ -229,6 +230,7 @@ unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
  * Be careful out there!
  */
 extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
+    // todo: merge these lifecycle things to tracing feature?
     /* When developing the extension, it's useful to see log messages that
      * occur before the user can configure the log level. However, if we
      * initialized the logger here unconditionally then they'd have no way to
@@ -238,6 +240,36 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     {
         logging::log_init(log::LevelFilter::Trace);
         trace!("MINIT({_type}, {module_number})");
+    }
+
+    #[cfg(feature = "tracing-subscriber")]
+    {
+        use std::fs::File;
+        use std::os::fd::FromRawFd;
+        use std::sync::Mutex;
+
+        let fd = loop {
+            // SAFETY:
+            let result = unsafe { libc::dup(libc::STDERR_FILENO) };
+            if result != -1 {
+                break result;
+            } else {
+                let error = std::io::Error::last_os_error();
+                if error.kind() != std::io::ErrorKind::Interrupted {
+                    error!("failed duplicating stderr to create tracing subscriber: {error}");
+                    return ZendResult::Failure;
+                }
+            }
+        };
+
+        // SAFETY: the file descriptor is both owned and open since the dup
+        // call succeeded.
+        let writer = Mutex::new(unsafe { File::from_raw_fd(fd) });
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .with_writer(writer)
+            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
+            .init();
     }
 
     #[cfg(target_vendor = "apple")]
@@ -449,10 +481,23 @@ static mut ZAI_CONFIG_ONCE: Once = Once::new();
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut RINIT_ONCE: Once = Once::new();
 
+#[cfg(feature = "tracing")]
+thread_local! {
+    static REQUEST_SPAN: RefCell<Option<tracing::span::EnteredSpan>> = const {
+        RefCell::new(None)
+    };
+}
+
 /* If Failure is returned the VM will do a C exit; try hard to avoid that,
  * using it for catastrophic errors only.
  */
 extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
+    #[cfg(feature = "tracing")]
+    REQUEST_SPAN.set(Some(tracing::info_span!("request").entered()));
+
+    #[cfg(feature = "tracing")]
+    let _rinit_span = tracing::info_span!("rinit").entered();
+
     #[cfg(debug_assertions)]
     trace!("RINIT({_type}, {_module_number})");
 
@@ -644,6 +689,10 @@ fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
 }
 
 extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
+    #[cfg(feature = "tracing")]
+    let _rshutdown_span = tracing::info_span!("rshutdown").entered();
+
+    // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({_type}, {_module_number})");
 
@@ -675,6 +724,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_rshutdown();
 
+    #[cfg(feature = "tracing")]
+    REQUEST_SPAN.take();
+
     ZendResult::Success
 }
 
@@ -682,6 +734,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 /// including calling variadic functions. It's essentially all unsafe, so be
 /// careful, and do not call this manually (only let the engine call it).
 unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
+    // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("MINFO({:p})", module_ptr);
 
@@ -882,14 +935,13 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 }
 
 extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
+    // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
 
     // SAFETY: being called before [config::shutdown].
     #[cfg(feature = "timeline")]
-    unsafe {
-        timeline::timeline_mshutdown()
-    };
+    timeline::timeline_mshutdown();
 
     #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
@@ -900,6 +952,7 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 }
 
 extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
+    // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("startup({:p})", extension);
 
@@ -929,6 +982,10 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 }
 
 extern "C" fn shutdown(extension: *mut ZendExtension) {
+    #[cfg(feature = "tracing")]
+    let _shutdown_span = tracing::info_span!("shutdown").entered();
+
+    // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("shutdown({:p})", extension);
 

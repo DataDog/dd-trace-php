@@ -734,6 +734,7 @@ namespace DDTrace\Data {
      * @property int $duration
      * @property array $tags
      * @property array $metrics
+     * @property array $baggage
      */
     abstract class Span implements \DDTrace\Contracts\Span
     {
@@ -937,6 +938,18 @@ namespace DDTrace {
          * {@inheritdoc}
          */
         public function getAllBaggageItems()
+        {
+        }
+        /**
+         * {@inheritdoc}
+         */
+        public function removeBaggageItem($key)
+        {
+        }
+        /**
+         * {@inheritdoc}
+         */
+        public function removeAllBaggageItems()
         {
         }
         public function __destruct()
@@ -2206,7 +2219,7 @@ namespace DDTrace {
         const MANUAL_DROP = 'manual.drop';
         const PID = 'process_id';
         const RESOURCE_NAME = 'resource.name';
-        const DB_STATEMENT = 'sql.query';
+        const DB_STATEMENT = self::DB_STMT;
         const ERROR = 'error';
         const ERROR_MSG = 'error.message';
         // string representing the error message
@@ -2246,7 +2259,7 @@ namespace DDTrace {
         const DB_TYPE = 'db.type';
         const DB_SYSTEM = 'db.system';
         const DB_ROW_COUNT = 'db.row_count';
-        const DB_STMT = 'db.statement';
+        const DB_STMT = 'sql.query';
         const DB_USER = 'db.user';
         // Kafka
         const KAFKA_CLIENT_ID = 'messaging.kafka.client_id';
@@ -2310,6 +2323,7 @@ namespace DDTrace {
         const CLI = 'cli';
         const SQL = 'sql';
         const QUEUE = 'queue';
+        const WEBSOCKET = 'websocket';
         /**
          * @deprecated use QUEUE instead
          */

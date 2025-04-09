@@ -2,8 +2,6 @@
 All headers are collected when track_user_signup_event is triggered by user
 --INI--
 extension=ddtrace.so
-datadog.appsec.log_file=/tmp/php_appsec_test.log
-datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 HTTP_X_FORWARDED_FOR=7.7.7.7
@@ -41,8 +39,7 @@ HTTP_AKAMAI_USER_RISK=akamaiuserisk
 key=val
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,rshutdown,mlog};
-use const datadog\appsec\testing\log_level\DEBUG;
+use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,rshutdown};
 use function datadog\appsec\track_user_signup_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 

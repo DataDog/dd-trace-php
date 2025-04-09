@@ -27,6 +27,7 @@
 #    define zend_strpprintf strpprintf
 #endif
 
+#define DD_SDK "sdk"
 #define DD_TAG_DATA "_dd.appsec.json"
 #define DD_TAG_P_APPSEC "_dd.p.appsec"
 #define DD_TAG_EVENT "appsec.event"
@@ -45,6 +46,7 @@
 #define DD_TAG_HTTP_RH_CONTENT_ENCODING "http.response.headers.content-encoding"
 #define DD_TAG_HTTP_RH_CONTENT_LANGUAGE "http.response.headers.content-language"
 #define DD_TAG_HTTP_CLIENT_IP "http.client_ip"
+#define DD_TAG_USER "usr"
 #define DD_TAG_USER_ID "usr.id"
 #define DD_METRIC_ENABLED "_dd.appsec.enabled"
 #define DD_APPSEC_EVENTS_PREFIX "appsec.events."
@@ -62,6 +64,7 @@
 #define DD_LOGIN_FAILURE_EVENT DD_APPSEC_EVENTS_PREFIX "users.login.failure"
 #define DD_APPSEC_USR_ID "_dd.appsec.usr.id"
 #define DD_APPSEC_USR_LOGIN "_dd.appsec.usr.login"
+#define DD_USER_COLLECTION_MODE "_dd.appsec.user.collection_mode"
 #define DD_EVENTS_USER_SIGNUP_AUTO_MODE                                        \
     "_dd.appsec.events.users.signup.auto.mode"
 #define DD_EVENTS_USER_LOGIN_SUCCESS_AUTO_MODE                                 \
@@ -81,6 +84,7 @@
 #define DD_SERVER_BUSINESS_LOGIC_USERS_LOGIN_FAILURE                           \
     "server.business_logic.users.login.failure"
 
+static zend_string *_dd_sdk_zstr;
 static zend_string *_dd_tag_data_zstr;
 static zend_string *_dd_tag_event_zstr;
 static zend_string *_dd_tag_blocked_zstr;
@@ -97,6 +101,7 @@ static zend_string *_dd_tag_rh_content_length;   // response
 static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
 static zend_string *_dd_tag_rh_content_language; // response
+static zend_string *_dd_tag_user;
 static zend_string *_dd_tag_user_id;
 static zend_string *_dd_metric_enabled;
 static zend_string *_dd_rasp_duration_ext;
@@ -113,6 +118,7 @@ static zend_string *_dd_login_success_event;
 static zend_string *_dd_login_failure_event;
 static zend_string *_dd_appsec_user_id;
 static zend_string *_dd_appsec_user_login;
+static zend_string *_dd_user_collection_mode;
 static zend_string *_dd_signup_event_auto_mode;
 static zend_string *_dd_login_success_event_auto_mode;
 static zend_string *_dd_login_failure_event_auto_mode;
@@ -153,8 +159,9 @@ static bool _set_appsec_enabled(zval *metrics_zv);
 static void _register_functions(void);
 static void _register_test_functions(void);
 
-void dd_tags_startup()
+void dd_tags_startup(void)
 {
+    _dd_sdk_zstr = zend_string_init_interned(LSTRARG(DD_SDK), 1);
     _dd_tag_data_zstr =
         zend_string_init_interned(LSTRARG(DD_TAG_DATA), 1 /* permanent */);
     _dd_tag_event_zstr =
@@ -194,6 +201,7 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_ENCODING), 1);
     _dd_tag_rh_content_language =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LANGUAGE), 1);
+    _dd_tag_user = zend_string_init_interned(LSTRARG(DD_TAG_USER), 1);
     _dd_tag_user_id = zend_string_init_interned(LSTRARG(DD_TAG_USER_ID), 1);
 
     _dd_metric_enabled =
@@ -235,6 +243,8 @@ void dd_tags_startup()
         zend_string_init_interned(LSTRARG(DD_APPSEC_USR_ID), 1);
     _dd_appsec_user_login =
         zend_string_init_interned(LSTRARG(DD_APPSEC_USR_LOGIN), 1);
+    _dd_user_collection_mode =
+        zend_string_init_interned(LSTRARG(DD_USER_COLLECTION_MODE), 1);
     _dd_signup_event_auto_mode =
         zend_string_init_interned(LSTRARG(DD_EVENTS_USER_SIGNUP_AUTO_MODE), 1);
     _dd_login_success_event_auto_mode = zend_string_init_interned(
@@ -267,7 +277,7 @@ void dd_tags_startup()
     }
 }
 
-static void _init_relevant_headers()
+static void _init_relevant_headers(void)
 {
     zend_hash_init(&_relevant_headers, 32, NULL, NULL, 1);
     zend_hash_init(&_relevant_basic_headers, 32, NULL, NULL, 1);
@@ -320,7 +330,7 @@ static void _init_relevant_headers()
         &_relevant_headers, get_global_DD_APPSEC_EXTRA_HEADERS(), NULL);
 }
 
-void dd_tags_shutdown()
+void dd_tags_shutdown(void)
 {
     zend_hash_destroy(&_relevant_headers);
     _relevant_headers = (HashTable){0};
@@ -329,7 +339,7 @@ void dd_tags_shutdown()
     _relevant_basic_headers = (HashTable){0};
 }
 
-void dd_tags_rinit()
+void dd_tags_rinit(void)
 {
     bool init_list = false;
     _user_event_triggered = false;
@@ -374,7 +384,7 @@ void dd_tags_add_rasp_duration_ext(
     zend_hash_add(Z_ARRVAL_P(metrics_zv), _dd_rasp_duration_ext, &zv);
 }
 
-void dd_tags_rshutdown()
+void dd_tags_rshutdown(void)
 {
     zend_llist_clean(&_appsec_json_frags);
 
@@ -406,9 +416,8 @@ void dd_tags_add_tags(
     if (_force_keep) {
         dd_trace_set_priority_sampling_on_span_zobj(span,
             PRIORITY_SAMPLING_USER_KEEP,
-            get_DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED()
-                ? DD_MECHANISM_ASM
-                : DD_MECHANISM_MANUAL);
+            get_DD_APM_TRACING_ENABLED() ? DD_MECHANISM_MANUAL
+                                         : DD_MECHANISM_ASM);
         mlog(dd_log_debug, "Updated sampling priority to user_keep");
     }
 
@@ -458,16 +467,16 @@ void dd_tags_add_tags(
     }
 }
 
-void dd_tags_add_blocked() { _blocked = true; }
+void dd_tags_add_blocked(void) { _blocked = true; }
 
-void dd_tags_set_sampling_priority() { _force_keep = true; }
+void dd_tags_set_sampling_priority(void) { _force_keep = true; }
 
 static void _zend_string_release_indirect(void *s)
 {
     zend_string_release(*(zend_string **)s);
 }
 
-static zend_string *_concat_json_fragments()
+static zend_string *_concat_json_fragments(void)
 {
 #define DD_DATA_TAG_BEFORE "{\"triggers\":["
 #define DD_DATA_TAG_AFTER "]}"
@@ -948,7 +957,7 @@ bool match_regex(zend_string *pattern, zend_string *subject)
     return Z_TYPE(ret) == IS_LONG && Z_LVAL(ret) > 0;
 }
 
-static zval *nullable _root_span_get_meta()
+static zval *nullable _root_span_get_meta(void)
 {
     zend_object *nullable span = dd_req_lifecycle_get_cur_span();
     if (!span) {
@@ -967,8 +976,9 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_signup_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_user_signup_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
@@ -979,13 +989,13 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_login, user_id, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_login, user_id, metadata)");
         return;
     }
 
     if (ZSTR_LEN(user_login) == 0) {
-        mlog(dd_log_warning, "Unexpected empty user login");
+        mlog(dd_log_debug, "Unexpected empty user login");
         return;
     }
 
@@ -1052,6 +1062,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
         meta_ht, _dd_business_logic_users_signup, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
@@ -1108,14 +1119,16 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
         meta_ht, _dd_business_logic_users_signup, _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_login_success_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_user_login_success_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
@@ -1126,13 +1139,13 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
             &metadata) == FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_login, user_id, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_login, user_id, metadata)");
         return;
     }
 
     if (ZSTR_LEN(user_login) == 0) {
-        mlog(dd_log_warning, "Unexpected empty user login");
+        mlog(dd_log_debug, "Unexpected empty user login");
         return;
     }
 
@@ -1201,6 +1214,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
@@ -1260,14 +1274,16 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
         _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to track_user_login_failure_event "
-                           "function while appsec is disabled");
+        mlog(dd_log_debug,
+            "Trying to access to track_user_login_failure_event_automated "
+            "function while appsec is disabled");
         return;
     }
 
@@ -1279,8 +1295,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     HashTable *metadata = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSb|h", &user_login, &user_id,
             &exists, &metadata) == FAILURE) {
-        mlog(dd_log_warning, "Unexpected parameter combination, expected "
-                             "(user_login, user_id, exists, metadata)");
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_login, user_id, exists, metadata)");
         return;
     }
 
@@ -1361,6 +1377,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
         _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
@@ -1421,6 +1438,115 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
         _null_zstr, true, true);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
+}
+
+static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
+{
+    UNUSED(return_value);
+    if (!DDAPPSEC_G(active)) {
+        mlog(dd_log_debug,
+            "Trying to access to track_authenticated_user_event_automated "
+            "function while appsec is disabled");
+        return;
+    }
+
+    zend_string *user_id;
+    zend_string *anon_user_id = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &user_id) == FAILURE) {
+        mlog(
+            dd_log_debug, "Unexpected parameter combination, expected user_id");
+        return;
+    }
+
+    if (ZSTR_LEN(user_id) == 0) {
+        mlog(dd_log_debug, "Unexpected empty user id");
+        return;
+    }
+
+    user_collection_mode mode = dd_get_user_collection_mode();
+    if (mode == user_mode_disabled ||
+        !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
+        return;
+    }
+
+    if (mode == user_mode_anon) {
+        anon_user_id = dd_user_info_anonymize(user_id);
+        if (!anon_user_id) {
+            mlog(dd_log_debug, "Failed to anonymize user ID");
+            return;
+        }
+    }
+
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        if (anon_user_id) {
+            zend_string_release(anon_user_id);
+        }
+        return;
+    }
+
+    _user_event_triggered = true;
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
+
+    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
+
+    // usr.id = <user_id>
+    _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id,
+        anon_user_id ? anon_user_id : user_id, true, false);
+
+    // _dd.appsec.usr.id = <user_id>
+    _add_new_zstr_to_meta(meta_ht, _dd_appsec_user_id,
+        anon_user_id ? anon_user_id : user_id, !anon_user_id, true);
+
+    // _dd.appsec.user.collection_mode =
+    // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
+    _add_new_zstr_to_meta(meta_ht, _dd_user_collection_mode,
+        dd_get_user_collection_mode_zstr(), true, false);
+}
+
+static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
+{
+    UNUSED(return_value);
+    if (!DDAPPSEC_G(active)) {
+        mlog(dd_log_debug, "Trying to access to track_authenticated_user_event "
+                           "function while appsec is disabled");
+        return;
+    }
+
+    zend_string *user_id;
+    HashTable *metadata = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|h", &user_id, &metadata) ==
+        FAILURE) {
+        mlog(dd_log_debug, "Unexpected parameter combination, expected "
+                           "(user_id, metadata)");
+        return;
+    }
+
+    if (ZSTR_LEN(user_id) == 0) {
+        mlog(dd_log_warning, "Unexpected empty user id");
+        return;
+    }
+
+    zval *nullable meta = _root_span_get_meta();
+    if (!meta) {
+        return;
+    }
+
+    _user_event_triggered = true;
+    zend_array *meta_ht = Z_ARRVAL_P(meta);
+
+    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
+
+    // usr.id = <user_id>
+    _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);
+
+    // _dd.appsec.user.collection_mode = sdk
+    _add_new_zstr_to_meta(
+        meta_ht, _dd_user_collection_mode, _dd_sdk_zstr, true, true);
+
+    // usr.<key> = <value>
+    _add_custom_event_metadata(meta_ht, _dd_tag_user, metadata, true);
 }
 
 static PHP_FUNCTION(datadog_appsec_track_custom_event)
@@ -1471,6 +1597,7 @@ static PHP_FUNCTION(datadog_appsec_track_custom_event)
     smart_str_free(&event_str);
 
     dd_tags_set_sampling_priority();
+    dd_trace_emit_asm_event();
 }
 
 static bool _set_appsec_enabled(zval *metrics_zv)
@@ -1563,6 +1690,15 @@ ZEND_ARG_INFO(0, exists)
 ZEND_ARG_INFO(0, metadata)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_automated_arginfo, 0, 0, IS_VOID, 1)
+ZEND_ARG_INFO(0, user_id)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_arginfo, 0, 0, IS_VOID, 2)
+ZEND_ARG_INFO(0, user_id)
+ZEND_ARG_INFO(0, metadata)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_custom_event_arginfo, 0, 0, IS_VOID, 2)
 ZEND_ARG_INFO(0, event_name)
 ZEND_ARG_INFO(0, metadata)
@@ -1575,6 +1711,8 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_success_event", PHP_FN(datadog_appsec_track_user_login_success_event), track_user_login_success_event_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_failure_event_automated", PHP_FN(datadog_appsec_track_user_login_failure_event_automated), track_user_login_failure_event_automated_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_failure_event", PHP_FN(datadog_appsec_track_user_login_failure_event), track_user_login_failure_event_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_authenticated_user_event_automated", PHP_FN(datadog_appsec_track_authenticated_user_event_automated), track_authenticated_user_event_automated_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_authenticated_user_event", PHP_FN(datadog_appsec_track_authenticated_user_event), track_authenticated_user_event_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_custom_event", PHP_FN(datadog_appsec_track_custom_event), track_custom_event_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
@@ -1586,5 +1724,8 @@ static const zend_function_entry test_functions[] = {
 };
 // clang-format on
 
-static void _register_functions() { dd_phpobj_reg_funcs(functions); }
-static void _register_test_functions() { dd_phpobj_reg_funcs(test_functions); }
+static void _register_functions(void) { dd_phpobj_reg_funcs(functions); }
+static void _register_test_functions(void)
+{
+    dd_phpobj_reg_funcs(test_functions);
+}

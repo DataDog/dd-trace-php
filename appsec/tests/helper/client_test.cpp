@@ -90,7 +90,6 @@ network::client_init::request get_default_client_init_msg()
     msg.engine_settings.rules_file = fn;
     msg.engine_settings.waf_timeout_us = 1000000;
     msg.engine_settings.schema_extraction.enabled = false;
-    msg.engine_settings.schema_extraction.sample_rate = 1;
 
     return msg;
 }
@@ -273,7 +272,6 @@ TEST(ClientTest, ClientInitInvalidRules)
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
-    EXPECT_TRUE(doc.HasMember("unknown matcher: squash"));
     EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
 
     EXPECT_EQ(msg_res->metrics.size(), 2);
@@ -2761,6 +2759,7 @@ TEST(ClientTest, SchemasAreAddedOnRequestShutdownWhenEnabled)
         headers.add("user-agent", parameter::string("acunetix-product"sv));
 
         msg.data.add("server.request.headers.no_cookies", std::move(headers));
+        msg.api_sec_samp_key = 0x42LL;
 
         network::request req(std::move(msg));
 
@@ -2858,6 +2857,7 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
             i++;
         }
         msg.data.add("server.request.body", std::move(body));
+        msg.api_sec_samp_key = 0x42LL;
 
         network::request req(std::move(msg));
 
