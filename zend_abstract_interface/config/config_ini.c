@@ -440,13 +440,13 @@ void zai_config_ini_rinit(void) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
 
-                if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_FLEET)
+                if (zai_config_stable_file_get_value(name, buf, DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG)
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
                 } else if (zai_getenv_ex(name, buf, false) == ZAI_ENV_SUCCESS
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
-                } else if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL)
+                } else if (zai_config_stable_file_get_value(name, buf, DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG)
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
                 }
