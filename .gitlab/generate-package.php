@@ -342,7 +342,6 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
-    KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
   script:
