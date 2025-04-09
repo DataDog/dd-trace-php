@@ -214,7 +214,7 @@ if ($suffix == "-alpine") {
     KUBERNETES_MEMORY_LIMIT: 8Gi
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_UPDATE_FLAGS: --remote --jobs 4
-    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
+    GIT_SUBMODULE_PATHS: libdatadog
   script: .gitlab/build-appsec-helper.sh
   artifacts:
     paths:

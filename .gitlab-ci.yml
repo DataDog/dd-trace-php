@@ -9,7 +9,7 @@ stages:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
-  GIT_SUBMODULE_PATHS: libdatadog
+  GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
   LATEST_LIBRARY_x86_64_LINUX_GNU:
     value: ""
     description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
