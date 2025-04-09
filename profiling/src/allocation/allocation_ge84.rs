@@ -3,8 +3,9 @@ use crate::allocation::ALLOCATION_PROFILING_SIZE;
 use crate::allocation::ALLOCATION_PROFILING_STATS;
 use crate::bindings::{self as zend};
 use crate::PROFILER_NAME;
+use lazy_static::lazy_static;
 use libc::{c_char, c_void, size_t};
-use log::{debug, trace, warn};
+use log::{debug, error, trace, warn};
 use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::atomic::Ordering::SeqCst;
@@ -95,12 +96,26 @@ macro_rules! tls_zend_mm_state {
     };
 }
 
+lazy_static! {
+    static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
+}
+
+pub fn first_rinit_should_disable_due_to_jit() -> bool {
+    if *JIT_ENABLED && zend::PHP_VERSION_ID >= 80400 {
+        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT");
+        true
+    } else {
+        false
+    }
+}
+
 /// This initializes the thread locale variable `ZEND_MM_STATE` with respect to the currently
 /// installed `zend_mm_heap` in ZendMM. It guarantees compliance with the safety guarantees
 /// described in the `ZendMMState` structure, specifically for `ZendMMState::alloc`,
 /// `ZendMMState::realloc`, `ZendMMState::free`, `ZendMMState::gc` and `ZendMMState::shutdown`.
 /// This function may panic if called out of order!
 pub fn alloc_prof_ginit() {
+    unsafe { zend::ddog_php_opcache_init_handle() };
     ZEND_MM_STATE.with(|cell| {
         let zend_mm_state = cell.get();
 
