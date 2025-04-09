@@ -455,7 +455,7 @@ class SymfonyIntegration extends Integration
                 } else {
                     $routeCollection = $router->getRouteCollection();
                     $route = $routeCollection->get($route_name);
-                    if ($route == null && ($locale = $request->get('_locale')) !== null) {
+                    if ($route == null && $locale !== null) {
                         $route = $routeCollection->get($route_name . '.' . $locale);
                     }
                     $item->set($route);
