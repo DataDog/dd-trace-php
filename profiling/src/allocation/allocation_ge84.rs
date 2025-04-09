@@ -102,7 +102,7 @@ lazy_static! {
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
     if *JIT_ENABLED && zend::PHP_VERSION_ID >= 80400 {
-        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT");
+        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT. See https://github.com/DataDog/dd-trace-php/pull/3199");
         true
     } else {
         false
