@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+    echo "ERROR: This script only works on Linux."
+    exit 1
+fi
+
 # 3 is the number of unique samples triggered, it's just known statically for the app
 rm -v trigger-{0..2}.txt
 
