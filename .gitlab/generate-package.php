@@ -413,8 +413,8 @@ foreach ($windows_build_platforms as $platform) {
     # Build zts
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php zts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}-zts.pdb"
 
-    # Stop the container
-    docker stop -t 5 ${CONTAINER_NAME} || true
+    # Stop the container, don't care if we fail
+    try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
   artifacts:
     paths:
       - "extensions_x86_64"
