@@ -68,9 +68,17 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-## Application Security Management
+## All products
 ### Fixed
-- Bug collecting client IPs #3183
+- Checks for more ioncube extension names in SSI loader #3204
+
+## Tracer
+### Fixed
+- Fix crash due to double close of span #3202
+
+## Profiling
+### Fixed
+- Disable allocation profiling when JIT is enabled on PHP 8.4 #3199
 ]]></notes>
     <contents>
         <dir name="/">
