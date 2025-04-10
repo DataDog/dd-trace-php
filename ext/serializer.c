@@ -567,8 +567,11 @@ static zend_string *dd_get_referrer_host(zend_array *_server) {
                     curl_url_cleanup(url);
                     return host_str;
                 }
-                curl_url_cleanup(url);
+                if (host) {
+                    curl_free(host);
+                }
             }
+            curl_url_cleanup(url);
         }
     }
     return ZSTR_EMPTY_ALLOC();
