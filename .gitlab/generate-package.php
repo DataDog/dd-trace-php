@@ -392,6 +392,7 @@ foreach ($windows_build_platforms as $platform) {
     IMAGE: "<?= $image ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
+  before_script: git config --system core.longpaths true
   script: |
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
