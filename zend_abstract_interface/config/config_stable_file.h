@@ -17,4 +17,4 @@ typedef struct {
 void zai_config_stable_file_minit(void);
 void zai_config_stable_file_mshutdown(void);
 
-bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf, ddog_LibraryConfigSource source);
+zai_config_stable_file_entry *zai_config_stable_file_get_value(zai_str name);

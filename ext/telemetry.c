@@ -137,9 +137,29 @@ void ddtrace_telemetry_finalize(void) {
         ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
         if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
-            ddog_ConfigurationOrigin origin = cfg->name_index == -1 ? DDOG_CONFIGURATION_ORIGIN_DEFAULT : DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
+            ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
+            switch (cfg->name_index) {
+                case -1:
+                    origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
+                    break;
+                case -2:
+                    origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
+                    break;
+                case -3:
+                    origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
+                    break;
+            }
             if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
-                origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
+                origin = DDOG_CONFIGURATION_ORIGIN_CODE;
+                switch (cfg->name_index) {
+                    case -2:
+                        origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
+                        break;
+                    case -3:
+                        origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
+                        break;
+                }
+                origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : origin;
             }
             ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
             name.len -= strlen("datadog.");
