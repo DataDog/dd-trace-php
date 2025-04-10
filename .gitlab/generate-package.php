@@ -400,7 +400,7 @@ foreach ($windows_build_platforms as $platform) {
     mkdir extensions_x86_64_debugsymbols
     # No DNS for you by default in circleci docker containers
     # docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
-    docker run -v "${CI_PROJECT_DIR}:C:\Users\ContainerAdministrator\app" -d --network net --name php "${IMAGE}" ping -t localhost
+    docker run -v ${CI_PROJECT_DIR}:C:\Users\ContainerAdministrator\app -d --network net --name php ${IMAGE} ping -t localhost
 
     # Build nts
     docker exec php powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}.dll; move x64\Release\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}.pdb"
