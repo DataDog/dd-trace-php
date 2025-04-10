@@ -18,13 +18,15 @@ datadog.trace.agent_url="file://{PWD}/sca_flag_is_sent_03-telemetry.out"
 --FILE_EXTERNAL--
 sca_test.inc
 --EXPECT--
-array(3) {
+array(4) {
   ["name"]=>
   string(18) "appsec.sca_enabled"
   ["value"]=>
   string(5) "false"
   ["origin"]=>
   string(7) "env_var"
+  ["config_id"]=>
+  NULL
 }
 string(4) "Sent"
 --CLEAN--
