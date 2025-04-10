@@ -24,7 +24,6 @@ static void (*_ddog_Error_drop)(struct ddog_Error *error);
 static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
 
 HashTable *stable_config = NULL;
-zend_arena *stable_config_arena = NULL;
 
 bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf, ddog_LibraryConfigSource source) {
     if (!stable_config) {
@@ -44,6 +43,7 @@ static void stable_config_entry_dtor(zval *el) {
     zai_config_stable_file_entry *e = (zai_config_stable_file_entry *)Z_PTR_P(el);
     zend_string_release(e->value);
     zend_string_release(e->config_id);
+    pefree(e, 1);
 }
 
 void zai_config_stable_file_minit(void) {
@@ -88,7 +88,6 @@ void zai_config_stable_file_minit(void) {
 
     ddog_Result_VecLibraryConfig config_result = _ddog_library_configurator_get(configurator);
     if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG) {
-        stable_config_arena = zend_arena_create(4096);
         stable_config = pemalloc(sizeof(HashTable), 1);
         zend_hash_init(stable_config, 8, NULL, stable_config_entry_dtor, 1);
 
@@ -96,7 +95,7 @@ void zai_config_stable_file_minit(void) {
         for (uintptr_t i = 0; i < configs.len; i++) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
 
-            zai_config_stable_file_entry *entry = zend_arena_alloc(&stable_config_arena, sizeof(zai_config_stable_file_entry));
+            zai_config_stable_file_entry *entry = pemalloc(sizeof(zai_config_stable_file_entry), 1);
             entry->value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
             entry->source = cfg->source;
             entry->config_id = zend_string_init(cfg->config_id.ptr, cfg->config_id.length, 1);
@@ -118,9 +117,5 @@ void zai_config_stable_file_mshutdown(void) {
         zend_hash_destroy(stable_config);
         pefree(stable_config, 1);
         stable_config = NULL;
-    }
-    if (stable_config_arena) {
-        zend_arena_destroy(stable_config_arena);
-        stable_config_arena = NULL;
     }
 }
