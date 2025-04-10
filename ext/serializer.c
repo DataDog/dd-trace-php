@@ -5,7 +5,6 @@
 #include <Zend/zend_smart_str.h>
 #include <Zend/zend_types.h>
 #include <Zend/zend_string.h>
-#include <curl/curl.h>
 #include <inttypes.h>
 #include <php.h>
 #include <stdbool.h>
@@ -28,6 +27,7 @@
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
 #include <zend_abstract_interface/symbols/symbols.h>
+#include <ext/standard/url.h>
 
 #include "arrays.h"
 #include "asm_event.h"
@@ -558,20 +558,19 @@ static zend_string *dd_get_referrer_host(zend_array *_server) {
     if (_server) {
         zval *referer = zend_hash_str_find(_server, ZEND_STRL("HTTP_REFERER"));
         if (referer && Z_TYPE_P(referer) == IS_STRING) {
-            CURLU *url = curl_url();
-            if (curl_url_set(url, CURLUPART_URL, Z_STRVAL_P(referer), 0) == CURLUE_OK) {
-                char *host = NULL;
-                if (curl_url_get(url, CURLUPART_HOST, &host, 0) == CURLUE_OK) {
-                    zend_string *host_str = zend_string_init(host, strlen(host), 0);
-                    curl_free(host);
-                    curl_url_cleanup(url);
-                    return host_str;
-                }
-                if (host) {
-                    curl_free(host);
-                }
+            php_url *url = php_url_parse(Z_STRVAL_P(referer));
+            if (url && url->host) {
+#if PHP_VERSION_ID >= 70300
+                zend_string *host_str = zend_string_init(ZSTR_VAL(url->host), ZSTR_LEN(url->host), 0);
+#else
+                zend_string *host_str = zend_string_init(url->host, strlen(url->host), 0);
+#endif
+                php_url_free(url);
+                return host_str;
             }
-            curl_url_cleanup(url);
+            if (url) {
+                php_url_free(url);
+            }
         }
     }
     return ZSTR_EMPTY_ALLOC();
