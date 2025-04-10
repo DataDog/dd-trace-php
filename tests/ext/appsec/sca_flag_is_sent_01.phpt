@@ -23,7 +23,7 @@ array(3) {
   ["value"]=>
   string(5) "false"
   ["origin"]=>
-  string(7) "Default"
+  string(7) "default"
 }
 string(4) "Sent"
 --CLEAN--
