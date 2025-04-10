@@ -58,25 +58,6 @@ extern "C" {
 #endif // __cplusplus
 
 /**
- * Cleans up after the crash-tracker:
- * Unregister the crash handler, restore the previous handler (if any), and
- * shut down the receiver.  Note that the use of this function is optional:
- * the receiver will automatically shutdown when the pipe is closed on program
- * exit.
- *
- * # Preconditions
- *   This function assumes that the crashtracker has previously been
- *   initialized.
- * # Safety
- *   Crash-tracking functions are not reentrant.
- *   No other crash-handler functions should be called concurrently.
- * # Atomicity
- *   This function is not atomic. A crash during its execution may lead to
- *   unexpected crash-handling behaviour.
- */
-DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_shutdown(void);
-
-/**
  * Reinitialize the crash-tracking infrastructure after a fork.
  * This should be one of the first things done after a fork, to minimize the
  * chance that a crash occurs between the fork, and this call.
