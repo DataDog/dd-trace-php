@@ -418,3 +418,30 @@ foreach ($windows_build_platforms as $platform) {
     }
 }
 ?>
+
+<?php
+foreach ($build_platforms as $platform) {
+    $image = sprintf($platform['image_template'], "8.3");
+?>
+"compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    HOST_OS: "<?= $platform['host_os'] ?>"
+    MAKE_JOBS: 2
+  script:
+    # Fix for $BASH_ENV not having a newline at the end of the file
+    - echo "" >> "$BASH_ENV"
+    - ./.gitlab/build-loader.sh
+  artifacts:
+    paths:
+      - "dd_library_loader-*.so"
+<?php
+}
+?>
