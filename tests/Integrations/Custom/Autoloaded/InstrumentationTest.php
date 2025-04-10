@@ -130,13 +130,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 'auto_enabled' => null,
             ],
             [
-                "name" => "filesystem",
-                "enabled" => false,
-                "version" => "",
-                'compatible' => null,
-                'auto_enabled' => null,
-            ],
-            [
                 "name" => "logs",
                 "enabled" => false,
                 "version" => "",

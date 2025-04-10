@@ -17,10 +17,10 @@ $helper = Helper::createInitedRun([
 
 var_dump(rinit());
 
-match_log('/Received message for command config_sync unexpected: client_init/');
+match_log('/Received message for command config_sync unexpected: "client_init"/');
 
 
 ?>
 --EXPECTF--
 bool(true)
-found message in log matching /Received message for command config_sync unexpected: client_init/
+found message in log matching /Received message for command config_sync unexpected: "client_init"/
