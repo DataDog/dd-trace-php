@@ -3,6 +3,8 @@ Check the library config files
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
+if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to telemetry");
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
 require __DIR__ . '/../includes/clear_skipif_telemetry.inc';
 copy(__DIR__.'/local_config.yaml', '/tmp/test_c_local_config.yaml');
 ?>
@@ -38,7 +40,7 @@ for ($i = 0; $i < 100; ++$i) {
                 if ($json && $json["request_type"] == "app-started" && $json["application"]["service_name"] != "background_sender-php-service" && $json["application"]["service_name"] != "datadog-ipc-helper") {
                     $cfg = $json["payload"]["configuration"];
 
-                    print_r(array_values(array_filter($cfg, function($c) {
+                    var_dump(array_values(array_filter($cfg, function($c) {
                         return in_array($c["name"], ['service', 'env', 'dynamic_instrumentation.enabled', 'trace.spans_limit', 'trace.generate_root_span']);
                     })));
                     break 2;
@@ -54,44 +56,63 @@ DD_SERVICE: service_from_local_config
 DD_ENV: env_from_local_config
 DD_DYNAMIC_INSTRUMENTATION_ENABLED: true
 ------ Telemetry ------
-Array
-(
-    [0] => Array
-        (
-            [name] => env
-            [value] => env_from_local_config
-            [origin] => local_stable_config
-        )
-
-    [1] => Array
-        (
-            [name] => service
-            [value] => service_from_local_config
-            [origin] => local_stable_config
-        )
-
-    [2] => Array
-        (
-            [name] => trace.generate_root_span
-            [value] => true
-            [origin] => default
-        )
-
-    [3] => Array
-        (
-            [name] => trace.spans_limit
-            [value] => 42
-            [origin] => env_var
-        )
-
-    [4] => Array
-        (
-            [name] => dynamic_instrumentation.enabled
-            [value] => true
-            [origin] => local_stable_config
-        )
-
-)
+array(5) {
+  [0]=>
+  array(4) {
+    ["name"]=>
+    string(3) "env"
+    ["value"]=>
+    string(21) "env_from_local_config"
+    ["origin"]=>
+    string(19) "local_stable_config"
+    ["config_id"]=>
+    string(15) "42_local_config"
+  }
+  [1]=>
+  array(4) {
+    ["name"]=>
+    string(7) "service"
+    ["value"]=>
+    string(25) "service_from_local_config"
+    ["origin"]=>
+    string(19) "local_stable_config"
+    ["config_id"]=>
+    string(15) "42_local_config"
+  }
+  [2]=>
+  array(4) {
+    ["name"]=>
+    string(24) "trace.generate_root_span"
+    ["value"]=>
+    string(4) "true"
+    ["origin"]=>
+    string(7) "default"
+    ["config_id"]=>
+    NULL
+  }
+  [3]=>
+  array(4) {
+    ["name"]=>
+    string(17) "trace.spans_limit"
+    ["value"]=>
+    string(2) "42"
+    ["origin"]=>
+    string(7) "env_var"
+    ["config_id"]=>
+    NULL
+  }
+  [4]=>
+  array(4) {
+    ["name"]=>
+    string(31) "dynamic_instrumentation.enabled"
+    ["value"]=>
+    string(4) "true"
+    ["origin"]=>
+    string(19) "local_stable_config"
+    ["config_id"]=>
+    string(15) "42_local_config"
+  }
+}
 --CLEAN--
 <?php
 

@@ -164,7 +164,8 @@ void ddtrace_telemetry_finalize(void) {
             ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
             name.len -= strlen("datadog.");
             name.ptr += strlen("datadog.");
-            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin);
+            ddog_CharSlice config_id = (ddog_CharSlice) {.len = cfg->config_id.len, .ptr = cfg->config_id.ptr};
+            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin, config_id);
         }
     }
 
