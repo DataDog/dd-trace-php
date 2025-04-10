@@ -40,6 +40,14 @@ for ($i = 0; $i < 100; ++$i) {
                 if ($json && $json["request_type"] == "app-started" && $json["application"]["service_name"] != "background_sender-php-service" && $json["application"]["service_name"] != "datadog-ipc-helper") {
                     $cfg = $json["payload"]["configuration"];
 
+                    // Hack: On PHP <= 7.3, another PHP process is sending telemetry data
+                    // before the stable config file is taken into account.
+                    if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3) {
+                        if (strpos($l, '42_local_config') === false) {
+                            continue;
+                        }
+                    }
+
                     var_dump(array_values(array_filter($cfg, function($c) {
                         return in_array($c["name"], ['service', 'env', 'dynamic_instrumentation.enabled', 'trace.spans_limit', 'trace.generate_root_span']);
                     })));
