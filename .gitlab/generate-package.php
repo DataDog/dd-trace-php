@@ -67,6 +67,7 @@ stages:
   - profiler
   - appsec
   - tracing
+  - packaging
 
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
@@ -445,3 +446,15 @@ foreach ($build_platforms as $platform) {
 <?php
 }
 ?>
+
+
+"package extension":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  tags: [ "arch:amd64" ]
+  script: ./.gitlab/package-extension.sh
+  artifacts:
+    paths:
+      - "packages/"
+      - "packages.tar.gz"
+      - "pecl/"
