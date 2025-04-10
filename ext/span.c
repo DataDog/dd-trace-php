@@ -883,7 +883,7 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         }
         zval_ptr_dtor(&on_close_zv);
 
-        if (span->duration == DDTRACE_SILENTLY_DROPPED_SPAN || span->duration == DDTRACE_DROPPED_SPAN) {
+        if (span->duration == DDTRACE_SILENTLY_DROPPED_SPAN || span->duration == DDTRACE_DROPPED_SPAN || span->type == DDTRACE_SPAN_CLOSED) {
             return; // It was dropped in onClose handler
         }
     }
