@@ -41,14 +41,21 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
-        if (zai_config_stable_file_get_value(name, buf, DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG)) {
+        zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
+        if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG) {
+            strcpy(buf.ptr, ZSTR_VAL(entry->value));
             zai_config_process_env(memoized, buf, &value);
+            name_index = -3;
+            memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         } else if (zai_config_get_env_value(name, buf)) {
             zai_config_process_env(memoized, buf, &value);
             break;
-        } else if (zai_config_stable_file_get_value(name, buf, DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG)) {
+        } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG) {
+            strcpy(buf.ptr, ZSTR_VAL(entry->value));
             zai_config_process_env(memoized, buf, &value);
+            name_index = -2;
+            memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         }
     }

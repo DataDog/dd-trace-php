@@ -675,6 +675,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub decoded_value: zval,
     pub default_encoded_value: zai_str<'static>,
     pub name_index: i16,
+    pub config_id: zai_str<'static>,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
     pub displayer: zai_custom_display,

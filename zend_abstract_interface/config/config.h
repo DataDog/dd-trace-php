@@ -62,7 +62,10 @@ struct zai_config_memoized_entry_s {
     // The index of the name that was used to set the value
     //     anything > 0 is deprecated
     //     -1 == not set from env or system ini
+    //     -2 == local stable config
+    //     -3 == fleet stable config
     int16_t name_index;
+    zai_str config_id;
     zai_config_apply_ini_change ini_change;
     zai_custom_parse parser;
     zai_custom_display displayer;

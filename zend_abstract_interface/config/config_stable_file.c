@@ -25,18 +25,12 @@ static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
 
 HashTable *stable_config = NULL;
 
-bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf, ddog_LibraryConfigSource source) {
+zai_config_stable_file_entry *zai_config_stable_file_get_value(zai_str name) {
     if (!stable_config) {
         return false;
     }
 
-    zai_config_stable_file_entry *entry = zend_hash_str_find_ptr(stable_config, name.ptr, name.len);
-    if (!entry || entry->source != source) {
-        return false;
-    }
-
-    strcpy(buf.ptr, ZSTR_VAL(entry->value));
-    return true;
+    return zend_hash_str_find_ptr(stable_config, name.ptr, name.len);
 }
 
 static void stable_config_entry_dtor(zval *el) {
