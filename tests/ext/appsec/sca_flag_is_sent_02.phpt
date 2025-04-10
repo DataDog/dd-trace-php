@@ -24,7 +24,7 @@ array(3) {
   ["value"]=>
   string(4) "true"
   ["origin"]=>
-  string(6) "EnvVar"
+  string(7) "env_var"
 }
 string(4) "Sent"
 --CLEAN--
