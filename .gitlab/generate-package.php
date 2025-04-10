@@ -39,6 +39,26 @@ $build_platforms = [
         "host_os" => "linux-gnu",
     ]
 ];
+
+$windows_build_platforms = [
+    [
+        "triplet" => "x86_64-pc-windows-msvc",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_windows",
+        "arch" => "amd64",
+        "host_os" => "windows-msvc",
+    ],
+];
+
+$windows_php_versions = [
+    "7.2",
+    "7.3",
+    "7.4",
+    "8.0",
+    "8.1",
+    "8.2",
+    "8.3",
+    "8.4",
+];
 ?>
 
 
@@ -353,5 +373,45 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     paths:
       - "extensions_*"
 <?php
+}
+?>
+
+<?php
+foreach ($windows_build_platforms as $platform) {
+    foreach ($windows_php_versions as $major_minor) {
+        $abi_no = $php_versions_to_abi[$major_minor];
+        $image = sprintf($platform['image_template'], $major_minor);
+?>
+"compile extension windows: [<?= $major_minor ?>]":
+  stage: tracing
+  tags: [ "runner:windows-docker", "windowsversion:2022" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+  script: |
+    mkdir extensions_x86_64
+    mkdir extensions_x86_64_debugsymbols
+    # No DNS for you by default in circleci docker containers
+    # docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+    docker run -v "${CI_PROJECT_DIR}:C:\Users\ContainerAdministrator\app" -d --network net --name php "${IMAGE}" ping -t localhost
+
+    # Build nts
+    docker exec php powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}.dll; move x64\Release\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}.pdb"
+
+    # Reuse libdatadog build
+    docker exec php powershell.exe "mkdir app\x64\Release_TS; mv app\x64\Release\target app\x64\Release_TS\target"
+
+    # Build zts
+    docker exec php powershell.exe "cd app; switch-php zts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}-zts.pdb"
+  artifacts:
+    paths:
+      - "extensions_x86_64"
+      - "./extensions_x86_64_debugsymbols"
+<?php
+    }
 }
 ?>
