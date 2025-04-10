@@ -24,6 +24,8 @@ void ddog_library_configurator_with_fleet_path(struct ddog_Configurator *c,
 void ddog_library_configurator_with_process_info(struct ddog_Configurator *c,
                                                  struct ddog_ProcessInfo p);
 
+void ddog_library_configurator_with_detect_process_info(struct ddog_Configurator *c);
+
 void ddog_library_configurator_drop(struct ddog_Configurator*);
 
 struct ddog_Result_VecLibraryConfig ddog_library_configurator_get(const struct ddog_Configurator *configurator);
