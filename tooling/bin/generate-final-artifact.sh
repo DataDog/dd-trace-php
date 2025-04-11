@@ -25,7 +25,13 @@ configs=("" -zts -debug -debug-zts)
 
 ln_with_dir() {
     mkdir -p $(dirname $2)
-    ln $1 $2
+    if [ -z "${GITLAB_CI}"]
+    then
+        ln $1 $2
+    else
+        # Gitlab CI doesn't support symlinks, so we copy the file instead
+        cp $1 $2
+    fi
 }
 
 for architecture in "${architectures[@]}"; do
