@@ -3,7 +3,7 @@ set -e -o pipefail
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
-if [ "${ASAN}" = "true" ]; then
+if [ "${PACKAGE_ASAN}" = "true" ]; then
     DDTRACE_MAKE_PACKAGES_ASAN=1
 fi
 # Build packages

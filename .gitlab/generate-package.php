@@ -461,6 +461,8 @@ foreach ($build_platforms as $platform) {
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
   script: ./.gitlab/package-extension.sh
+  variables:
+    PACKAGE_ASAN: "0"
   artifacts:
     paths:
       - "packages/"
