@@ -474,10 +474,10 @@ $(PACKAGES_BUILD_DIR):
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: $(PACKAGES_BUILD_DIR)
-	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)
-	rm -rf /tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
-	fpm -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
+	mkdir -p $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)
+	rm -rf $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
+	fpm -p $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
+	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
