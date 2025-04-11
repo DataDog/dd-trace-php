@@ -40,6 +40,30 @@ $build_platforms = [
     ]
 ];
 
+$asan_build_platforms = [
+    [
+        "triplet" => "x86_64-unknown-linux-gnu",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_buster",
+        "arch" => "amd64",
+        "host_os" => "linux-gnu",
+    ],
+    [
+        "triplet" => "aarch64-unknown-linux-gnu",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_buster",
+        "arch" => "arm64",
+        "host_os" => "linux-gnu",
+    ]
+];
+
+$asan_php_versions = [
+    "7.4",
+    "8.0",
+    "8.1",
+    "8.2",
+    "8.3",
+    "8.4",
+];
+
 $windows_build_platforms = [
     [
         "triplet" => "x86_64-pc-windows-msvc",
@@ -378,6 +402,38 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
 ?>
 
 <?php
+foreach ($asan_build_platforms as $platform) {
+    foreach ($asan_php_versions as $major_minor) {
+        $abi_no = $php_versions_to_abi[$major_minor];
+        $image = sprintf($platform['image_template'], $major_minor);
+?>
+"compile tracing extension asan: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: tracing
+  image: $IMAGE
+  tags: [ "arch:$ARCH" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  variables:
+    IMAGE: "<?= $image ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    ARCH: "<?= $platform['arch'] ?>"
+    ABI_NO: "<?= $abi_no ?>"
+    PHP_VERSION: "<?= $major_minor ?>"
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: ./.gitlab/build-tracing-asan.sh
+  artifacts:
+    paths:
+      - "extensions_*"
+<?php
+    }
+}
+?>
+
+<?php
 foreach ($windows_build_platforms as $platform) {
     foreach ($windows_php_versions as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor];
@@ -454,7 +510,6 @@ foreach ($build_platforms as $platform) {
 <?php
 }
 ?>
-
 
 "package extension":
   stage: packaging
