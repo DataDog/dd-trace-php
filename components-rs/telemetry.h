@@ -41,7 +41,8 @@ ddog_MaybeError ddog_telemetry_builder_with_rust_shared_lib_deps(struct ddog_Tel
 ddog_MaybeError ddog_telemetry_builder_with_config(struct ddog_TelemetryWorkerBuilder *builder,
                                                    ddog_CharSlice name,
                                                    ddog_CharSlice value,
-                                                   enum ddog_ConfigurationOrigin origin);
+                                                   enum ddog_ConfigurationOrigin origin,
+                                                   ddog_CharSlice config_id);
 
 /**
  * Builds the telemetry worker and return a handle to it
