@@ -6,7 +6,7 @@ IFS=$'\n\t'
 release_version=$1
 packages_build_dir=$2
 
-tmp_folder=/tmp/bundle
+tmp_folder=${CI_PROJECT_DIR:-.}/tmp/bundle
 tmp_folder_final=$tmp_folder/final
 
 architectures=(x86_64 aarch64)
