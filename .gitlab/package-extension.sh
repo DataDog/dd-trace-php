@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 set -e -o pipefail
-set -x
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
-if [ "${PACKAGE_ASAN}" = "true" ]; then
-    DDTRACE_MAKE_PACKAGES_ASAN=1
-fi
 # Build packages
 make -j "${MAKE_JOBS}" calculate_package_sha256_sums packages
 

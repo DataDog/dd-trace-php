@@ -462,7 +462,7 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:amd64" ]
   script: ./.gitlab/package-extension.sh
   variables:
-    PACKAGE_ASAN: "0"
+    MAKE_JOBS: 9
   artifacts:
     paths:
       - "packages/"
