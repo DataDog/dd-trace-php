@@ -56,6 +56,7 @@ ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-date.phpt
 ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-time.phpt
 ext/mysqli/tests/protocol_stmt_row_fetch_data.phpt
 ext/opcache/tests/bug66251.phpt
+ext/opcache/tests/jit/fetch_obj_001.phpt
 ext/opcache/tests/match/001.phpt
 ext/opcache/tests/match/003.phpt
 ext/opcache/tests/match/004.phpt
