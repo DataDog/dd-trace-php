@@ -27,7 +27,7 @@ HashTable *stable_config = NULL;
 
 zai_config_stable_file_entry *zai_config_stable_file_get_value(zai_str name) {
     if (!stable_config) {
-        return false;
+        return NULL;
     }
 
     return zend_hash_str_find_ptr(stable_config, name.ptr, name.len);
