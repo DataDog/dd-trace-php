@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e -o pipefail
+set -x
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
