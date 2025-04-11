@@ -15,7 +15,7 @@
 static struct ddog_Configurator *(*_ddog_library_configurator_new)(bool debug_logs, ddog_CharSlice language);
 static void (*_ddog_library_configurator_with_local_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
 static void (*_ddog_library_configurator_with_fleet_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
-static void (*_ddog_library_configurator_with_process_info)(struct ddog_Configurator *c, struct ddog_ProcessInfo p);
+static void (*_ddog_library_configurator_with_detect_process_info)(struct ddog_Configurator *c);
 static struct ddog_Result_VecLibraryConfig (*_ddog_library_configurator_get)(const struct ddog_Configurator *configurator);
 static struct ddog_CStr (*_ddog_library_config_source_to_string)(enum ddog_LibraryConfigSource name);
 static struct ddog_CStr (*_ddog_library_config_name_to_env)(enum ddog_LibraryConfigName name);
@@ -23,22 +23,21 @@ static void (*_ddog_library_config_drop)(struct ddog_Vec_LibraryConfig);
 static void (*_ddog_Error_drop)(struct ddog_Error *error);
 static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
 
-HashTable *local_config_values = NULL;
-HashTable *fleet_config_values = NULL;
+HashTable *stable_config = NULL;
 
-bool zai_config_stable_file_get_value(zai_str name, zai_env_buffer buf, zai_config_stable_file_source source) {
-    HashTable *store = (source == ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL) ? local_config_values : fleet_config_values;
-    if (!store) {
-        return false;
+zai_config_stable_file_entry *zai_config_stable_file_get_value(zai_str name) {
+    if (!stable_config) {
+        return NULL;
     }
 
-    zval *value = zend_hash_str_find(store, name.ptr, name.len);
-    if (value) {
-        strcpy(buf.ptr, Z_STRVAL_P(value));
-        return true;
-    }
+    return zend_hash_str_find_ptr(stable_config, name.ptr, name.len);
+}
 
-    return false;
+static void stable_config_entry_dtor(zval *el) {
+    zai_config_stable_file_entry *e = (zai_config_stable_file_entry *)Z_PTR_P(el);
+    zend_string_release(e->value);
+    zend_string_release(e->config_id);
+    pefree(e, 1);
 }
 
 void zai_config_stable_file_minit(void) {
@@ -57,7 +56,7 @@ void zai_config_stable_file_minit(void) {
         RESOLVE_SYMBOL(ddog_library_configurator_new);
         RESOLVE_SYMBOL(ddog_library_configurator_with_local_path);
         RESOLVE_SYMBOL(ddog_library_configurator_with_fleet_path);
-        RESOLVE_SYMBOL(ddog_library_configurator_with_process_info);
+        RESOLVE_SYMBOL(ddog_library_configurator_with_detect_process_info);
         RESOLVE_SYMBOL(ddog_library_configurator_get);
         RESOLVE_SYMBOL(ddog_library_config_name_to_env);
         RESOLVE_SYMBOL(ddog_library_config_source_to_string);
@@ -79,49 +78,24 @@ void zai_config_stable_file_minit(void) {
         _ddog_library_configurator_with_fleet_path(configurator, path);
     }
 
-    // FIXME: without the call to ddog_library_configurator_with_process_info,
-    // some AppSec's integration tests fails
-#define DDOG_SLICE_CHARSLICE(arr) \
-    ((ddog_Slice_CharSlice){.ptr = arr, .len = sizeof(arr) / sizeof(arr[0])})
-
-    ddog_CharSlice args[] = {
-        DDOG_CHARSLICE_C("/usr/bin/php"),
-    };
-
-    ddog_CharSlice envp[] = {
-        DDOG_CHARSLICE_C("FOO=BAR"),
-    };
-    ddog_ProcessInfo process_info = {
-        .args = DDOG_SLICE_CHARSLICE(args),
-        .envp = DDOG_SLICE_CHARSLICE(envp),
-        .language = DDOG_CHARSLICE_C("php")
-    };
-    _ddog_library_configurator_with_process_info(configurator, process_info);
-    //
+    _ddog_library_configurator_with_detect_process_info(configurator);
 
     ddog_Result_VecLibraryConfig config_result = _ddog_library_configurator_get(configurator);
     if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG) {
-        local_config_values = pemalloc(sizeof(HashTable), 1);
-        zend_hash_init(local_config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
-        fleet_config_values = pemalloc(sizeof(HashTable), 1);
-        zend_hash_init(fleet_config_values, 8, NULL, ZVAL_INTERNAL_PTR_DTOR, 1);
+        stable_config = pemalloc(sizeof(HashTable), 1);
+        zend_hash_init(stable_config, 8, NULL, stable_config_entry_dtor, 1);
 
         ddog_Vec_LibraryConfig configs = config_result.ok;
         for (uintptr_t i = 0; i < configs.len; i++) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
+
+            zai_config_stable_file_entry *entry = pemalloc(sizeof(zai_config_stable_file_entry), 1);
+            entry->value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
+            entry->source = cfg->source;
+            entry->config_id = zend_string_init(cfg->config_id.ptr, cfg->config_id.length, 1);
+
             ddog_CStr env_name = _ddog_library_config_name_to_env(cfg->name);
-            ddog_CStr source = _ddog_library_config_source_to_string(cfg->source);
-
-            zend_string *value = zend_string_init(cfg->value.ptr, cfg->value.length, 1);
-            zval zv;
-            ZVAL_STR(&zv, value);
-
-            HashTable *store = local_config_values;
-            if (strcmp(source.ptr, "fleet_stable_config") == 0) {
-                store = fleet_config_values;
-            }
-
-            zend_hash_str_add(store, env_name.ptr, env_name.length, &zv);
+            zend_hash_str_add_ptr(stable_config, env_name.ptr, env_name.length, entry);
         }
         _ddog_library_config_drop(configs);
     } else {
@@ -133,14 +107,9 @@ void zai_config_stable_file_minit(void) {
 }
 
 void zai_config_stable_file_mshutdown(void) {
-    if (local_config_values) {
-        zend_hash_destroy(local_config_values);
-        pefree(local_config_values, 1);
-        local_config_values = NULL;
-    }
-    if (fleet_config_values) {
-        zend_hash_destroy(fleet_config_values);
-        pefree(fleet_config_values, 1);
-        fleet_config_values = NULL;
+    if (stable_config) {
+        zend_hash_destroy(stable_config);
+        pefree(stable_config, 1);
+        stable_config = NULL;
     }
 }

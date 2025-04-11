@@ -128,7 +128,8 @@ ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTranspor
                                                      const ddog_QueueId *queue_id,
                                                      ddog_CharSlice config_key,
                                                      ddog_CharSlice config_value,
-                                                     enum ddog_ConfigurationOrigin origin);
+                                                     enum ddog_ConfigurationOrigin origin,
+                                                     ddog_CharSlice config_id);
 
 /**
  * Reports a dependency to the telemetry.
