@@ -398,10 +398,14 @@ foreach ($windows_build_platforms as $platform) {
     GIT_CONFIG_VALUE_0: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
   script: |
+    # Make sure we actually fail if a command fails
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandUseErrorActionPreference = $true
+
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
-    # No DNS for you by default in circleci docker containers
-    # docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+
+    # Start the container
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Build nts
@@ -413,7 +417,7 @@ foreach ($windows_build_platforms as $platform) {
     # Build zts
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php zts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}-zts.pdb"
 
-    # Stop the container, don't care if we fail
+    # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
   artifacts:
     paths:
