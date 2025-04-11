@@ -112,7 +112,7 @@ tracer-base-image:
 
 configure_system_tests:
   variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,lib-injection"
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,lib-injection" #system-tests scenario groups
 
 requirements_json_test:
   rules:
