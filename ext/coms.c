@@ -126,8 +126,11 @@ static ddtrace_coms_stack_t *_dd_new_stack(size_t min_size) {
 }
 
 static void _dd_coms_free_stack(ddtrace_coms_stack_t *stack) {
-    free(stack->data);
-    free(stack);
+    if (stack->data) {
+        free(stack->data);
+        stack->data = NULL;
+        free(stack);
+    }
 }
 
 static void _dd_recycle_stack(ddtrace_coms_stack_t *stack) {
@@ -187,8 +190,9 @@ static void _dd_coms_stack_shutdown(void) {
     if (current_stack) {
         if (current_stack->data) {
             free(current_stack->data);
+            current_stack->data = NULL;
+            free(current_stack);
         }
-        free(current_stack);
         ddtrace_coms_globals.current_stack = NULL;
     }
     if (ddtrace_coms_globals.stacks) {
