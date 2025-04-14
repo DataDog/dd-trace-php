@@ -441,7 +441,7 @@ foreach ($windows_build_platforms as $platform) {
 ?>
 "compile extension windows: [<?= $major_minor ?>]":
   stage: tracing
-  tags: [ "runner:windows-docker", "windows-v2:2019"]
+  tags: [ "windows-v2:2019"]
   needs:
     - job: "prepare code"
       artifacts: true
