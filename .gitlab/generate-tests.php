@@ -226,10 +226,11 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 8
+    MAX_TEST_PARALLELISM: 5
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
   script:
-    - strace -tt -T -f -s 2000 make test_c 2>artifacts/strace.log
+    - make test_c
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "ASAN Internal api randomized tests: [<?= $major_minor ?>, <?= $arch ?>]":
