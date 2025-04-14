@@ -24,7 +24,7 @@ class UDPServer {
         }
     }
 
-    public function dump($expected, $iter = 2000) {
+    public function dump($expected, $iter = 5000) {
         $lines = [];
         for ($i = 0; $i < $iter; ++$i) {
             usleep(1000);

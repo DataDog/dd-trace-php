@@ -49,7 +49,7 @@ $start = microtime(true);
 \DDTrace\start_span();
 \DDTrace\close_span();
 $rr->waitForDataAndReplay();
-usleep(floor((microtime(true) - $start) * 100000 / 10));
+usleep(floor((microtime(true) - $start) * 100000 / 5));
 
 var_dump(ini_get("datadog.trace.sample_rate"));
 $tags = explode(",", ini_get("datadog.trace.header_tags"));
