@@ -229,7 +229,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
   script:
-    - strace -ttt -f -s 2000 make test_c 2>artifacts/strace.log
+    - strace -tt -T -f -s 2000 make test_c 2>artifacts/strace.log
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "ASAN Internal api randomized tests: [<?= $major_minor ?>, <?= $arch ?>]":
