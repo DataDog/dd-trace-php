@@ -23,7 +23,7 @@ namespace
     $file = ini_get('datadog.trace.agent_url');
     dd_trace_internal_fn("finalize_telemetry");
 
-    for ($i = 0; $i < 100; ++$i) {
+    for ($i = 0; $i < 300; ++$i) {
         usleep(100000);
         if (file_exists($file )) {
             foreach (file($file) as $l) {

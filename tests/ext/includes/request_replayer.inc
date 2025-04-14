@@ -42,7 +42,7 @@ class RequestReplayer
             ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL') * 100
             : 50000;
 
-        $this->maxIteration = (strncasecmp(PHP_OS, "WIN", 3) === 0) ? 500 : 200;
+        $this->maxIteration = 500;
     }
 
     public function waitForFlush()

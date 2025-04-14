@@ -1,6 +1,6 @@
 <?php
 
-define("UDSSERVER_ITERATIONS", getenv("USE_ZEND_ALLOC") === "0" ? 50000 : 5000);
+define("UDSSERVER_ITERATIONS", getenv("USE_ZEND_ALLOC") === "0" ? 20000 : 2000);
 
 class UDSServer {
     private $socket;
@@ -26,7 +26,7 @@ class UDSServer {
     public function dump($expected, $iter = UDSSERVER_ITERATIONS) {
         $lines = [];
         for ($i = 0; $i < $iter; ++$i) {
-            usleep(100);
+            usleep(1000);
             if (socket_recvfrom($this->socket, $buf, 2048, MSG_DONTWAIT, $remote_ip, $remote_port)) {
                 $lines[] = "$buf\n";
                 if (count($lines) == $expected) {
