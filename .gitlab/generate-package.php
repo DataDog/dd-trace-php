@@ -511,11 +511,104 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-"package extension":
+<?php
+foreach ($build_platforms as $platform) {
+?>
+"package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
   script: ./.gitlab/package-extension.sh
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "pecl build"
+      artifacts: true
+
+    # Loader
+    - job: "compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]"
+      artifacts: true
+
+    # Link tracing extension
+    - job: "link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+
+    # Compile tracing sidecar
+    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+
+    # Compile appsec helper
+    - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $plaform['arch'] ?>"
+      artifacts: true
+
+<?php
+    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+        if ($major_minor == "7.0") {
+            continue;
+        }
+?>
+    # Profiler extension
+    - job: "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+    }
+?>
+  variables:
+    MAKE_JOBS: 9
+  artifacts:
+    paths:
+      - "packages/"
+      - "packages.tar.gz"
+      - "pecl/"
+<?php
+}
+?>
+
+"package extension windows":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  tags: [ "arch:amd64" ]
+  script: ./.gitlab/package-extension.sh
+  needs:
+    - job: "prepare code"
+      artifacts: true
+<?php
+foreach ($windows_php_versions as $major_minor) {
+?>
+    - job: "compile extension windows: [<?= $major_minor ?>]"
+      artifacts: true
+<?php
+}
+?>
+  script: ./.gitlab/package-extension.sh
+  artifacts:
+    paths:
+      - "packages/"
+      - "packages.tar.gz"
+
+
+"package extension asan":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  tags: [ "arch:amd64" ]
+  script: ./.gitlab/package-extension.sh
+  needs:
+    - job: "prepare code"
+      artifacts: true
+<?php
+foreach ($asan_build_platforms as $platform) {
+    foreach ($asan_php_versions as $major_minor) {
+        $abi_no = $php_versions_to_abi[$major_minor];
+?>
+    - job: "compile tracing extension asan: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+    }
+}
+?>
   variables:
     MAKE_JOBS: 9
   artifacts:
