@@ -541,7 +541,7 @@ foreach ($build_platforms as $platform) {
     - job: "compile appsec helper"
       parallel:
         matrix:
-          - ARCH: "<?= $plaform['arch'] ?>"
+          - ARCH: "<?= $platform['arch'] ?>"
       artifacts: true
 
 <?php
