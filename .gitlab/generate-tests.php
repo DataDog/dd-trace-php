@@ -189,7 +189,8 @@ foreach ($arch_targets as $arch_target) {
     MAX_TEST_PARALLELISM: 8
     TEST_FILES_DIR: "."
     DATADOG_HAVE_DEV_ENV: 1
-    HTTPBIN_HOSTNAME: httpbin-integration:8080
+    HTTPBIN_HOSTNAME: httpbin-integration
+    HTTPBIN_PORT: 8080
   before_script:
     # DD env vars auto-added to GitLab runners for infra purposes
     - unset DD_SERVICE
