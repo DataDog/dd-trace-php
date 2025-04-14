@@ -32,27 +32,6 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             return $this->connection;
         }
 
-        protected function checkPdoErrors($query)
-        {
-            if ($this->getDbPdo()->errorCode() != '00000') {
-                var_dump($this->getDbPdo()->errorInfo());
-                var_dump("Query with error: $query");
-            }
-        }
-
-        protected function runQuery($query)
-        {
-            $query = $this->getDbPdo()->query($query);
-            $this->checkPdoErrors($query);
-            return $query;
-        }
-
-        protected function execQuery($query)
-        {
-            $this->getDbPdo()->exec($query);
-            $this->checkPdoErrors($query);
-        }
-
         /**
          * Not all test are interested on events but frameworks are instrumented so this check is to avoid errors
          */
@@ -65,8 +44,8 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
 
         public function init()
         {
-            $this->execQuery("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000), token varchar(100))");
-            $this->execQuery("CREATE TABLE IF NOT EXISTS appsec_blocked_events (event varchar(1000), token varchar(100))");
+            $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000), token varchar(100))");
+            $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_blocked_events (event varchar(1000), token varchar(100))");
         }
 
         public function setDefaults()

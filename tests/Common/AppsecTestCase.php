@@ -15,8 +15,7 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'APPSEC_MOCK_ENABLED' => true,
-            'DD_APPSEC_RASP_ENABLED' => true
+            'APPSEC_MOCK_ENABLED' => true
         ]);
     }
 
@@ -24,6 +23,7 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
     {
         if (!isset(self::$connection)) {
             self::$connection = new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
+            self::$connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         }
         return self::$connection;
     }
