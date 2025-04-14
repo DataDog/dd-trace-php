@@ -39,13 +39,13 @@ for ($i = 0; $i < 100; ++$i) {
                 if ($json && $json["request_type"] == "app-started" && $json["application"]["service_name"] != "background_sender-php-service" && $json["application"]["service_name"] != "datadog-ipc-helper") {
                     $cfg = $json["payload"]["configuration"];
                     print_r(array_values(array_filter($cfg, function($c) {
-                        return $c["origin"] == "EnvVar" && $c["name"] != "trace.sources_path" && $c["name"] != "trace.sidecar_trace_sender";
+                        return $c["origin"] == "env_var" && $c["name"] != "trace.sources_path" && $c["name"] != "trace.sidecar_trace_sender";
                     })));
                     var_dump(count(array_filter($cfg, function($c) {
-                        return $c["origin"] == "Default";
+                        return $c["origin"] == "default";
                     })) > 100); // all the configs, no point in asserting them all here
                     var_dump(count(array_filter($cfg, function($c) {
-                        return $c["origin"] != "Default" && $c["origin"] != "EnvVar";
+                        return $c["origin"] != "default" && $c["origin"] != "env_var";
                     }))); // all other configs
                     break 2;
                 }
@@ -63,35 +63,35 @@ Array
         (
             [name] => trace.agent_url
             [value] => file://%s/config-telemetry.out
-            [origin] => EnvVar
+            [origin] => env_var
         )
 
     [1] => Array
         (
             [name] => instrumentation_telemetry_enabled
             [value] => 1
-            [origin] => EnvVar
+            [origin] => env_var
         )
 
     [2] => Array
         (
             [name] => trace.ignore_agent_sampling_rates
             [value] => 1
-            [origin] => EnvVar
+            [origin] => env_var
         )
 
     [3] => Array
         (
             [name] => trace.generate_root_span
             [value] => 0
-            [origin] => EnvVar
+            [origin] => env_var
         )
 
     [4] => Array
         (
             [name] => trace.git_metadata_enabled
             [value] => 0
-            [origin] => EnvVar
+            [origin] => env_var
         )
 
 )

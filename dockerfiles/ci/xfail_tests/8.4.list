@@ -57,6 +57,7 @@ ext/json/tests/json_encode_exceptions.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
+ext/opcache/tests/jit/fetch_obj_001.phpt
 ext/openssl/tests/bug46127.phpt
 ext/openssl/tests/bug48182.phpt
 ext/openssl/tests/bug54992.phpt
