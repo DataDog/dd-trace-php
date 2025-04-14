@@ -37,9 +37,11 @@ $rr = new RequestReplayer();
 $span = \DDTrace\start_span();
 
 // make sure sidecar keeps up with us
+$start = microtime(true);
 \DDTrace\start_trace_span();
 \DDTrace\close_span();
 $rr->waitForDataAndReplay();
+usleep(floor((microtime(true) - $start) * 100000 / 10));
 
 \DDTrace\close_span();
 var_dump($span->env);
