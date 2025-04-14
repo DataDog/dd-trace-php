@@ -124,7 +124,7 @@ foreach ($arch_targets as $arch_target) {
   httpbin-integration:
     name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
     alias: httpbin-integration
-    command: ["pipenv", "run", "gunicorn", "-b", "<?= $service_bind_address ?>:80", "httpbin:app", "-k", "gevent"]
+    command: ["pipenv", "run", "gunicorn", "-b", "<?= $service_bind_address ?>:8080", "httpbin:app", "-k", "gevent"]
 
 .agent_httpbin_service: &agent_httpbin_service
   - !reference [.services, test-agent]
@@ -189,7 +189,7 @@ foreach ($arch_targets as $arch_target) {
     MAX_TEST_PARALLELISM: 8
     TEST_FILES_DIR: "."
     DATADOG_HAVE_DEV_ENV: 1
-    HTTPBIN_HOSTNAME: httpbin-integration
+    HTTPBIN_HOSTNAME: httpbin-integration:8080
   before_script:
     # DD env vars auto-added to GitLab runners for infra purposes
     - unset DD_SERVICE
@@ -229,7 +229,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
   script:
-    - make test_c
+    - strace -ttt -f -s 2000 make test_c 2>artifacts/strace.log
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "ASAN Internal api randomized tests: [<?= $major_minor ?>, <?= $arch ?>]":
