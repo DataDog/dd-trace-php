@@ -199,7 +199,7 @@ foreach ($arch_targets as $arch_target) {
     - switch-php "${SWITCH_PHP_VERSION}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
-    - mkdir -p "tmp/build_extension/modules/"
+    - mkdir -p tmp/build_extension/modules artifacts
     - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
 
