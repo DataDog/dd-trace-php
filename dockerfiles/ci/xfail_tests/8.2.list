@@ -123,6 +123,7 @@ ext/simplexml/tests/bug51615.phpt
 ext/soap/tests/bug77088.phpt
 ext/sockets/tests/mcast_ipv6_recv.phpt
 ext/sockets/tests/mcast_ipv6_send.phpt
+ext/sockets/tests/mcast_ipv6_recv_limited.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
 ext/spl/tests/bug48493.phpt

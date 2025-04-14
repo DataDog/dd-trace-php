@@ -14,7 +14,7 @@ index b75dcc27004..339402866ce 100644
 @@ -329,10 +329,10 @@ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_wrong_parameter_class_or_string_or_nu
  ZEND_API ZEND_COLD void ZEND_FASTCALL zend_wrong_callback_error(uint32_t num, char *error) /* {{{ */
  {
- 	if (EG(exception)) {
+ 	if (!EG(exception)) {
 -		return;
 +		zend_argument_type_error(num, "must be a valid callback, %s", error);
  	}

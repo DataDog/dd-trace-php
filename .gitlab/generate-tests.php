@@ -227,7 +227,7 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 8
-    MAX_TEST_PARALLELISM: 5
+    MAX_TEST_PARALLELISM: 3
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
   script:

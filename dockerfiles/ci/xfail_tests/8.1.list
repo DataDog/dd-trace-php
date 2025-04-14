@@ -134,6 +134,7 @@ ext/simplexml/tests/bug51615.phpt
 ext/soap/tests/bug71610.phpt
 ext/soap/tests/bug77088.phpt
 ext/sockets/tests/mcast_ipv6_recv.phpt
+ext/sockets/tests/mcast_ipv6_recv_limited.phpt
 ext/sockets/tests/mcast_ipv6_send.phpt
 ext/spl/tests/SplFixedArray_setSize_param_float.phpt
 ext/spl/tests/bug40091.phpt
