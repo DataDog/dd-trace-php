@@ -21,6 +21,23 @@ if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
     targets+=(windows)
 fi
 
+# if TRIPLET env var is set, then parse it to get the architectures and targets
+# Example: x86_64-unknown-linux-gnu, aarch64-alpine-linux-musl, etc
+if [[ -n ${TRIPLET:-} ]]; then
+    architectures=()
+    targets=()
+
+    if [[ $TRIPLET = "x86_64-pc-windows-msvc" ]]; then
+        architectures+=("x86_64")
+        targets+=("windows")
+    else
+        IFS='-' read -r arch target <<< "$TRIPLET"
+        architectures+=("$arch")
+        targets+=("$target")
+    fi
+fi
+
+
 configs=("" -zts -debug -debug-zts)
 
 ln_with_dir() {

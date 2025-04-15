@@ -40,6 +40,7 @@ $build_platforms = [
         "targets" => [
             ".rpm.x86_64",
             ".deb.x86_64",
+            ".tar.gz.x86_64",
         ],
     ],
     [
@@ -50,6 +51,7 @@ $build_platforms = [
         "targets" => [
             ".rpm.arm64",
             ".deb.arm64",
+            ".tar.gz.aarch64",
         ],
     ]
 ];
@@ -84,6 +86,9 @@ $windows_build_platforms = [
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_windows",
         "arch" => "amd64",
         "host_os" => "windows-msvc",
+        "targets" => [
+            "dbgsym.tar.gz",
+        ],
     ],
 ];
 
@@ -532,9 +537,13 @@ foreach ($build_platforms as $platform) {
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
+  variables:
+    ARCH: "<?= $platform['arch'] ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
   script:
     - make -j 4 <?= implode(' ', $platform['targets']) ?>
 
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -596,7 +605,11 @@ foreach ($windows_php_versions as $major_minor) {
 <?php
 }
 ?>
-  script: ./.gitlab/package-extension.sh
+  script:
+    - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']) ?>
+
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mv build/packages/ packages/
   artifacts:
     paths:
       - "packages/"
@@ -607,7 +620,9 @@ foreach ($windows_php_versions as $major_minor) {
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
-  script: ./.gitlab/package-extension.sh
+  script:
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mv build/packages/ packages/
   needs:
     - job: "prepare code"
       artifacts: true
