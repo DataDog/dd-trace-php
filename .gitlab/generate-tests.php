@@ -350,6 +350,7 @@ foreach ($all_minor_major_targets as $major_minor) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_CPU_REQUEST: 8
+    MAX_TEST_PARALLELISM: 16
   script:
     - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>

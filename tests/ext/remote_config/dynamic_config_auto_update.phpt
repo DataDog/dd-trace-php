@@ -26,21 +26,13 @@ $path = put_dynamic_config_file([
     "log_injection_enabled" => true,
 ]);
 
-$start = microtime(true);
-\DDTrace\close_span();
-$rr->waitForDataAndReplay(); // make sure sidecar keeps up with us
-usleep(floor((microtime(true) - $start) * 100000 / 5));
+sleep(20); // signal interrupts interrupt the sleep().
 
 var_dump(ini_get("datadog.logs_injection"));
 
 del_rc_file($path);
 
-// make sure sidecar keeps up with us
-$start = microtime(true);
-\DDTrace\start_span();
-\DDTrace\close_span();
-$rr->waitForDataAndReplay();
-usleep(floor((microtime(true) - $start) * 100000 / 5));
+sleep(20);
 
 var_dump(ini_get("datadog.logs_injection"));
 

@@ -44,12 +44,12 @@ put_dynamic_config_file([
     ],
 ]);
 
-// make sure sidecar keeps up with us and submit span data
-$start = microtime(true);
+// submit span data
 \DDTrace\start_span();
-\DDTrace\close_span();
-$rr->waitForDataAndReplay();
-usleep(floor((microtime(true) - $start) * 100000 / 5));
+
+if (ini_get("datadog.trace.sample_rate") != 0.5) {
+    sleep(20); // signal interrupts interrupt the sleep().
+}
 
 var_dump(ini_get("datadog.trace.sample_rate"));
 $tags = explode(",", ini_get("datadog.trace.header_tags"));
