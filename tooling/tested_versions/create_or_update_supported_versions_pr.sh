@@ -17,6 +17,7 @@ git remote add origin https://$GITHUB_TOKEN@github.com/DataDog/dd-trace-php.git
 
 if git ls-remote --heads origin $TARGET_BRANCH | grep $TARGET_BRANCH; then
   echo "Branch exists, updating it..."
+  git fetch origin $TARGET_BRANCH
   git checkout $TARGET_BRANCH
   git pull origin $TARGET_BRANCH
 else
