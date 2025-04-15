@@ -555,7 +555,7 @@ foreach ($matches as $m):
 <?php endif; endforeach; endif; ?>
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
-    MAKE_TARGET: <?= $target ?>
+    MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
 
 <?php
