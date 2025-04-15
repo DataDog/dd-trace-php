@@ -851,6 +851,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_googlespanner_latest \
+	test_integrations_graphql_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
@@ -906,6 +907,7 @@ TEST_INTEGRATIONS_81 := \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
+	test_integrations_graphql_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -964,6 +966,7 @@ TEST_INTEGRATIONS_82 := \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
+	test_integrations_graphql_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -1030,6 +1033,7 @@ TEST_INTEGRATIONS_83 := \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
+	test_integrations_graphql_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -1090,6 +1094,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_integrations_googlespanner_latest \
+	test_integrations_graphql_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
 	test_integrations_pdo \
@@ -1367,6 +1372,8 @@ test_integrations_googlespanner_latest: global_test_run_dependencies tests/Integ
 	$(call run_tests_debug,tests/Integrations/GoogleSpanner/Latest)
 	$(eval TEST_EXTRA_INI=)
 	$(eval TEST_EXTRA_ENV=)
+test_integrations_graphql_latest: global_test_run_dependencies tests/Integrations/GraphQL/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/GraphQL/Latest)
 test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
