@@ -24,9 +24,9 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         protected function getDbPdo()
         {
             if (!isset($this->connection)) {
-                $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+                $pdo = new \PDO('mysql:host=mysql-integration', 'test', 'test');
                 $pdo->exec("CREATE DATABASE IF NOT EXISTS test");
-                $this->connection = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+                $this->connection = new \PDO('mysql:host=mysql-integration;dbname=test', 'test', 'test');
                 $this->connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             }
             return $this->connection;

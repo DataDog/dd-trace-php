@@ -22,7 +22,7 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
     protected function connection()
     {
         if (!isset(self::$connection)) {
-            self::$connection = new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
+            self::$connection = new \PDO('mysql:host=mysql-integration;dbname=' . static::$database, 'test', 'test');
         }
         return self::$connection;
     }

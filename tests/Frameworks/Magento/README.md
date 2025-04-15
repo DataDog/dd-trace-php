@@ -22,7 +22,7 @@ php -d memory_limit=1G ./bin/magento setup:install \
      --language=en_US \
      --timezone=America/Los_Angeles \
      --currency=USD \
-     --db-host=mysql_integration \
+     --db-host=mysql-integration \
      --db-name=test \
      --db-user=test \
      --db-password=test \
@@ -34,7 +34,7 @@ php -d memory_limit=1G ./bin/magento setup:install \
      --admin-email=admin@admin.com \
      --admin-user=admin \
      --admin-password=Magento2 \
-     --elasticsearch-host=elasticsearch7_integration \
+     --elasticsearch-host=elasticsearch7-integration \
      --search-engine=elasticsearch7 \
      --cleanup-database
 ```

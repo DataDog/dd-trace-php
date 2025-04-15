@@ -18,7 +18,7 @@ static bool rdkafka_version_supported(void) {
     return rdkafka_me && strncmp(rdkafka_me->version, "6", 1) >= 0;
 }
 
-static bool dd_load_kafka_integration(void) {
+static bool dd_load_kafka-integration(void) {
     return dd_ext_kafka_loaded &&
            get_DD_TRACE_ENABLED() &&
            get_DD_TRACE_KAFKA_ENABLED() &&
@@ -42,7 +42,7 @@ static void dd_initialize_producev_args(zval* args, zend_long partition, zend_lo
 }
 
 ZEND_FUNCTION(ddtrace_kafka_produce) {
-    if (!dd_load_kafka_integration()) {
+    if (!dd_load_kafka-integration()) {
         // Call the original handler
         dd_kafka_produce_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;

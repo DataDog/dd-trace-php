@@ -20,19 +20,19 @@ x-aliases:
         - ddagent_integration
         - request-replayer
         - test-agent
-        #- elasticsearch2_integration
-        - rabbitmq_integration
-        - elasticsearch7_integration
+        #- elasticsearch2-integration
+        - rabbitmq-integration
+        - elasticsearch7-integration
         - httpbin-integration
-        - redis_integration
-        - sqlsrv_integration
-        - mongodb_integration
-        - mysql_integration
-        - memcached_integration
-        - googlespanner_integration
-        - kafka_integration
+        - redis-integration
+        - sqlsrv-integration
+        - mongodb-integration
+        - mysql-integration
+        - memcached-integration
+        - googlespanner-integration
+        - kafka-integration
       environment:
-        - REDIS_HOSTNAME=redis_integration
+        - REDIS_HOSTNAME=redis-integration
         - DDAGENT_HOSTNAME=ddagent_integration
         - HTTPBIN_HOSTNAME=httpbin-integration
         - RUSTC_BOOTSTRAP=1
@@ -113,13 +113,13 @@ services:
   '8.3-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.3_windows' }
   '8.4-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.4_windows' }
 
-  rabbitmq_integration:
+  rabbitmq-integration:
     image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
     ports:
       - "5672:5672"
       - "15672:15672"
 
-  mysql_integration:
+  mysql-integration:
     image: mysql/mysql-server:8.0
     command: --default-authentication-plugin=mysql_native_password --sql-mode="NO_ENGINE_SUBSTITUTION"
     ports:
@@ -132,7 +132,7 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-  sqlsrv_integration:
+  sqlsrv-integration:
     image: mcr.microsoft.com/mssql/server:2022-latest
     ports:
       - "1433:1433"
@@ -141,12 +141,12 @@ services:
       - MSSQL_SA_PASSWORD=Password12!
       - MSSQL_PID=Developer
 
-  elasticsearch2_integration:
+  elasticsearch2-integration:
     image: "elasticsearch:2"
 
-  elasticsearch7_integration:
+  elasticsearch7-integration:
     image: "elasticsearch:7.17.0"
-    container_name: "elasticsearch7_integration"
+    container_name: "elasticsearch7-integration"
     environment:
       - discovery.type=single-node
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
@@ -160,7 +160,7 @@ services:
             soft: -1
             hard: -1
 
-  googlespanner_integration:
+  googlespanner-integration:
     image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
     ports:
       - "9010:9010"
@@ -170,19 +170,19 @@ services:
         aliases:
           - spanner.local
 
-  kafka_integration:
+  kafka-integration:
     image: confluentinc/cp-kafka:7.7.1
     ports:
       - "9092:9092"
     networks:
       default:
         aliases:
-          - kafka_integration
+          - kafka-integration
     environment:
         - KAFKA_BROKER_ID=111
         - KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-integration:9092
         - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
         - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
@@ -200,7 +200,7 @@ services:
       - ZOOKEEPER_CLIENT_PORT=2181
       - ZOOKEEPER_TICK_TIME=2000
 
-  mongodb_integration:
+  mongodb-integration:
     image: "circleci/mongo:4.0"
     ports:
       - "27017:27017"
@@ -208,10 +208,10 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
 
-  redis_integration:
+  redis-integration:
     image: "datadog/dd-trace-ci:php-redis-5.0"
 
-  memcached_integration:
+  memcached-integration:
     image: "memcached:1.5-alpine"
 
   httpbin-integration:

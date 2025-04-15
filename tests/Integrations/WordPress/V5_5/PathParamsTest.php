@@ -18,6 +18,6 @@ class PathParamsTest extends PathParamsTestSuite
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql-integration;dbname=test', 'test', 'test');
     }
 }

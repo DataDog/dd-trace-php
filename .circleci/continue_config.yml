@@ -26,15 +26,15 @@ aliases:
 
   - &IMAGE_DOCKER_REDIS
     image: datadog/dd-trace-ci:php-redis-5.0
-    name: redis_integration
+    name: redis-integration
 
   - &IMAGE_DOCKER_ELASTICSEARCH2
     image: elasticsearch:2
-    name: elasticsearch2_integration
+    name: elasticsearch2-integration
 
   - &IMAGE_DOCKER_ELASTICSEARCH7
     image: elasticsearch:7.17.0
-    name: elasticsearch7_integration
+    name: elasticsearch7-integration
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
@@ -45,12 +45,12 @@ aliases:
 
   - &IMAGE_DOCKER_KAFKA
     image: confluentinc/cp-kafka:7.7.1
-    name: kafka_integration
+    name: kafka-integration
     environment:
       - KAFKA_BROKER_ID=111
       - KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1
       - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-integration:9092
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
       - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
@@ -60,11 +60,11 @@ aliases:
 
   - &IMAGE_DOCKER_MEMCHACED
     image: memcached:1.5-alpine
-    name: memcached_integration
+    name: memcached-integration
 
   - &IMAGE_DOCKER_MYSQL
     image: datadog/dd-trace-ci:php-mysql-dev-5.6
-    name: mysql_integration
+    name: mysql-integration
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
@@ -73,14 +73,14 @@ aliases:
 
   - &IMAGE_DOCKER_MONGO
     image: "circleci/mongo:4.0"
-    name: mongodb_integration
+    name: mongodb-integration
     environment:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
 
   - &IMAGE_DOCKER_RABBITMQ
     image: rabbitmq:3.8.9-alpine
-    name: rabbitmq_integration
+    name: rabbitmq-integration
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer-2.0
@@ -105,7 +105,7 @@ aliases:
 
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
-    name: sqlsrv_integration
+    name: sqlsrv-integration
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=Password12!
@@ -113,7 +113,7 @@ aliases:
 
   - &IMAGE_DOCKER_GOOGLESPANNER
     image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
-    name: googlespanner_integration
+    name: googlespanner-integration
 
   - &IMAGE_DOCKER_ZOOKEEPER
     image: confluentinc/cp-zookeeper:7.7.1
@@ -207,7 +207,7 @@ aliases:
   - &STEP_WAIT_MYSQL
     run:
       name: Waiting for Dockerized MySQL
-      command: wait-for mysql_integration:3306 --timeout=60
+      command: wait-for mysql-integration:3306 --timeout=60
 
   - &STEP_WAIT_REQUEST_REPLAYER
     run:
@@ -562,11 +562,11 @@ commands:
             fi
             if [[ $extra == "with_snapshots" ]]; then
               retry_docker run --detach --rm --net net \
-                --name elasticsearch2_integration elasticsearch:2
+                --name elasticsearch2-integration elasticsearch:2
               retry_docker run --detach --rm --net net \
                 -e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
                 -e discovery.type=single-node \
-                --name elasticsearch7_integration elasticsearch:7.17.0
+                --name elasticsearch7-integration elasticsearch:7.17.0
               retry_docker run --detach --rm --net net \
                 -e ZOOKEEPER_CLIENT_PORT=2181 \
                 -e ZOOKEEPER_TICK_TIME=2000 \
@@ -575,37 +575,37 @@ commands:
                 -e KAFKA_BROKER_ID=111 \
                 -e KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1 \
                 -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
-                -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092 \
+                -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-integration:9092 \
                 -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT \
                 -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
                 -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
                 -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
                 -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
                 -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
-                --name kafka_integration confluentinc/cp-kafka:7.7.1
+                --name kafka-integration confluentinc/cp-kafka:7.7.1
               retry_docker run --detach --rm --net net \
-                --name redis_integration datadog/dd-trace-ci:php-redis-5.0
+                --name redis-integration datadog/dd-trace-ci:php-redis-5.0
               retry_docker run --detach --rm --net net \
-                --name memcached_integration memcached:1.5-alpine
+                --name memcached-integration memcached:1.5-alpine
               retry_docker run --detach --rm --net net \
                 -e MYSQL_ROOT_PASSWORD=test \
                 -e MYSQL_PASSWORD=test \
                 -e MYSQL_USER=test \
                 -e MYSQL_DATABASE=test \
-                --name mysql_integration datadog/dd-trace-ci:php-mysql-dev-5.6
+                --name mysql-integration datadog/dd-trace-ci:php-mysql-dev-5.6
               retry_docker run --detach --rm --net net \
-                --name rabbitmq_integration rabbitmq:3.8.9-alpine
+                --name rabbitmq-integration rabbitmq:3.8.9-alpine
               retry_docker run --detach --rm --net net \
                 -e MONGO_INITDB_ROOT_USERNAME=test \
                 -e MONGO_INITDB_ROOT_PASSWORD=test \
-                --name mongodb_integration circleci/mongo:4.0
+                --name mongodb-integration circleci/mongo:4.0
               retry_docker run --detach --rm --net net \
                 -e ACCEPT_EULA=Y \
                 -e MSSQL_SA_PASSWORD=Password12! \
                 -e MSSQL_PID=Developer \
-                --name sqlsrv_integration mcr.microsoft.com/mssql/server:2022-latest
+                --name sqlsrv-integration mcr.microsoft.com/mssql/server:2022-latest
               retry_docker run --detach --rm --net net \
-                --name googlespanner_integration gcr.io/cloud-spanner-emulator/emulator:1.5.25
+                --name googlespanner-integration gcr.io/cloud-spanner-emulator/emulator:1.5.25
             fi
       - when:
           condition:
@@ -624,25 +624,25 @@ commands:
             equal: [ "with_snapshots", << parameters.extra >> ]
           steps:
             - docker_logs:
-                docker_image: elasticsearch2_integration
+                docker_image: elasticsearch2-integration
             - docker_logs:
-                docker_image: elasticsearch7_integration
+                docker_image: elasticsearch7-integration
             - docker_logs:
-                docker_image: kafka_integration
+                docker_image: kafka-integration
             - docker_logs:
-                docker_image: redis_integration
+                docker_image: redis-integration
             - docker_logs:
-                docker_image: memcached_integration
+                docker_image: memcached-integration
             - docker_logs:
-                docker_image: mysql_integration
+                docker_image: mysql-integration
             - docker_logs:
-                docker_image: rabbitmq_integration
+                docker_image: rabbitmq-integration
             - docker_logs:
-                docker_image: mongodb_integration
+                docker_image: mongodb-integration
             - docker_logs:
-                docker_image: sqlsrv_integration
+                docker_image: sqlsrv-integration
             - docker_logs:
-                docker_image: googlespanner_integration
+                docker_image: googlespanner-integration
             - docker_logs:
                 docker_image: zookeeper
       - run:

@@ -13,7 +13,7 @@ for ($curlIndex = 0; $curlIndex < CURL_COUNT; $curlIndex++) {
 }
 
 for ($queryIndex = 0; $queryIndex < QUERY_COUNT; $queryIndex++) {
-    $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+    $pdo = new \PDO('mysql:host=mysql-integration;dbname=test', 'test', 'test');
     $stm = $pdo->query("SELECT VERSION()");
     $version = $stm->fetch();
     $pdo = null;
@@ -21,7 +21,7 @@ for ($queryIndex = 0; $queryIndex < QUERY_COUNT; $queryIndex++) {
 
 for ($cacheIndex = 0; $cacheIndex < CACHE_COUNT; $cacheIndex++) {
     $redis = new \Redis();
-    $redis->connect('redis_integration', 6379);
+    $redis->connect('redis-integration', 6379);
     $redis->set('k1', 'v1');
     $redis->get('k1');
 }

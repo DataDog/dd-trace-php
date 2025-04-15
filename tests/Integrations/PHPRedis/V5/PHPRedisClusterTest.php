@@ -24,7 +24,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
 
     const SCRIPT_SHA = 'e0e1f9fabfc9d4800c877a703b823ac0578ff8db';
 
-    private $host = 'redis_integration';
+    private $host = 'redis-integration';
     private $clusterIp;
     private $connection1;
     private $connection2;

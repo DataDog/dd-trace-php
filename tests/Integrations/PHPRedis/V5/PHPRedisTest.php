@@ -29,7 +29,7 @@ class PHPRedisTest extends IntegrationTestCase
 
     const SCRIPT_SHA = 'e0e1f9fabfc9d4800c877a703b823ac0578ff8db';
 
-    private $host = 'redis_integration';
+    private $host = 'redis-integration';
     private $port = '6379';
     private $portSecondInstance = '6380';
 
@@ -1890,7 +1890,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.migrate"
-            )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k1 0 3600", Tag::SPAN_KIND => 'client',
+            )->withExactTags(['redis.raw_command' => "migrate redis-integration 6380 k1 0 3600", Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis', Tag::TARGET_HOST => $this->host]),
         ]);
 
@@ -1903,7 +1903,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.migrate"
-            )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k2 k3 0 3600", Tag::SPAN_KIND => 'client',
+            )->withExactTags(['redis.raw_command' => "migrate redis-integration 6380 k2 k3 0 3600", Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis', Tag::TARGET_HOST => $this->host]),
         ]);
 
@@ -2292,7 +2292,7 @@ class PHPRedisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 "Redis.connect",
-                'redis-redis_integration',
+                'redis-redis-integration',
                 'redis',
                 "Redis.connect"
             )
@@ -2305,7 +2305,7 @@ class PHPRedisTest extends IntegrationTestCase
             ]),
             SpanAssertion::build(
                 "Redis.set",
-                'redis-redis_integration',
+                'redis-redis-integration',
                 'redis',
                 "Redis.set"
             )

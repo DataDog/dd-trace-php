@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 
 class KafkaTest extends IntegrationTestCase
 {
-    private static $host = 'kafka_integration';
+    private static $host = 'kafka-integration';
     private static $port = '9092';
 
     const FIELDS_TO_IGNORE = [
@@ -93,7 +93,7 @@ class KafkaTest extends IntegrationTestCase
         // Get the latest offset of the test-lowlevel topic
         $this->isolateLimitedTracer(function () use (&$low, &$high) {
             $conf = new \RdKafka\Conf();
-            $conf->set('bootstrap.servers', 'kafka_integration:9092');
+            $conf->set('bootstrap.servers', 'kafka-integration:9092');
             $conf->set('group.id', 'consumer-lowlevel');
             $conf->set('enable.partition.eof', 'true');
 

@@ -18,14 +18,14 @@ class AMQPTest extends IntegrationTestCase
      */
     protected function connectionToServer()
     {
-        return new AMQPStreamConnection('rabbitmq_integration', 5672, 'guest', 'guest');
+        return new AMQPStreamConnection('rabbitmq-integration', 5672, 'guest', 'guest');
     }
 
     public function testConnectError()
     {
         $traces = $this->isolateTracer(function () {
             try {
-                $connection = new AMQPStreamConnection('rabbitmq_integration', 5673, 'guest', 'guest'); // wrong port
+                $connection = new AMQPStreamConnection('rabbitmq-integration', 5673, 'guest', 'guest'); // wrong port
                 $connection->close();
             } catch (\Exception $e) {
                 // Ignore exception

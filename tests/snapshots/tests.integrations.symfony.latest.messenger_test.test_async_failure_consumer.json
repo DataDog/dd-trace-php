@@ -318,7 +318,7 @@
                "db.name": "symfonyLatest",
                "db.system": "mysql",
                "db.user": "test",
-               "out.host": "mysql_integration",
+               "out.host": "mysql-integration",
                "out.port": "3306",
                "span.kind": "client"
              }
@@ -339,7 +339,7 @@
                "db.name": "symfonyLatest",
                "db.system": "mysql",
                "db.user": "test",
-               "out.host": "mysql_integration",
+               "out.host": "mysql-integration",
                "out.port": "3306",
                "span.kind": "client"
              },
@@ -363,7 +363,7 @@
                "db.name": "symfonyLatest",
                "db.system": "mysql",
                "db.user": "test",
-               "out.host": "mysql_integration",
+               "out.host": "mysql-integration",
                "out.port": "3306",
                "span.kind": "client"
              }
@@ -384,7 +384,7 @@
          "db.name": "symfonyLatest",
          "db.system": "mysql",
          "db.user": "test",
-         "out.host": "mysql_integration",
+         "out.host": "mysql-integration",
          "out.port": "3306",
          "span.kind": "client"
        }
@@ -405,7 +405,7 @@
          "db.name": "symfonyLatest",
          "db.system": "mysql",
          "db.user": "test",
-         "out.host": "mysql_integration",
+         "out.host": "mysql-integration",
          "out.port": "3306",
          "span.kind": "client"
        },

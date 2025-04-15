@@ -129,7 +129,7 @@ foreach ($arch_targets as $arch_target) {
 
   mysql:
     name: datadog/dd-trace-ci:php-mysql-dev-5.6
-    alias: mysql_integration
+    alias: mysql-integration
     variables:
       MYSQL_ROOT_PASSWORD: test
       MYSQL_PASSWORD: test
@@ -138,10 +138,10 @@ foreach ($arch_targets as $arch_target) {
 
   elasticsearch2:
     name: elasticsearch:2
-    alias: elasticsearch2_integration
+    alias: elasticsearch2-integration
 
   elasticsearch7:
-    name: elasticsearch7_integration
+    name: elasticsearch7-integration
     alias: elasticsearch:7.17.0
     variables:
       ES_JAVA_OPTS: -Xms1g -Xmx1g
@@ -156,12 +156,12 @@ foreach ($arch_targets as $arch_target) {
 
   kafka:
     name: confluentinc/cp-kafka:7.7.1
-    alias: kafka_integration
+    alias: kafka-integration
     variables:
       KAFKA_BROKER_ID: 111
       KAFKA_CREATE_TOPICS: test-lowlevel:1:1,test-highlevel:1:1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_integration:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-integration:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -171,26 +171,26 @@ foreach ($arch_targets as $arch_target) {
 
   redis:
     name: datadog/dd-trace-ci:php-redis-5.0
-    alias: redis_integration
+    alias: redis-integration
 
   memcache:
     name: memcached:1.5-alpine
-    alias: memcached_integration
+    alias: memcached-integration
 
   amqp:
     name: rabbitmq:3.8.9-alpine
-    alias: rabbitmq_integration
+    alias: rabbitmq-integration
 
   mongodb:
     name: docker.io/library/mongo:4.2.24
-    alias: mongodb_integration
+    alias: mongodb-integration
     variables:
       MONGO_INITDB_ROOT_USERNAME: test
       MONGO_INITDB_ROOT_PASSWORD: test
 
   mssql:
     name: mcr.microsoft.com/mssql/server:2022-latest
-    alias: sqlsrv_integration
+    alias: sqlsrv-integration
     variables:
       ACCEPT_EULA: Y
       MSSQL_SA_PASSWORD: Password12!
@@ -198,7 +198,7 @@ foreach ($arch_targets as $arch_target) {
 
   googlespanner:
     name: gcr.io/cloud-spanner-emulator/emulator:1.5.25
-    alias: googlespanner_integration
+    alias: googlespanner-integration
 
 <?php function agent_httpbin_service() { ?>
     - !reference [.services, test-agent]
@@ -498,6 +498,7 @@ endforeach;
     KUBERNETES_CPU_REQUEST: 2 # generally one for PHP and one for the webserver
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
+    SWITCH_PHP_VERSION: debug
   before_script:
 <?php before_script_steps() ?>
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --2 --no-interaction; fi

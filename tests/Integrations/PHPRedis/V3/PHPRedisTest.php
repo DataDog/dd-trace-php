@@ -21,7 +21,7 @@ class PHPRedisTest extends IntegrationTestCase
 
     const SCRIPT_SHA = 'e0e1f9fabfc9d4800c877a703b823ac0578ff8db';
 
-    private $host = 'redis_integration';
+    private $host = 'redis-integration';
     private $port = '6379';
     private $portSecondInstance = '6380';
 
@@ -1719,7 +1719,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.migrate"
-            )->withExactTags($this->baseTags("migrate redis_integration 6380 k1 0 3600")),
+            )->withExactTags($this->baseTags("migrate redis-integration 6380 k1 0 3600")),
         ]);
 
         $traces = $this->isolateTracer(function () {
@@ -1731,7 +1731,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "Redis.migrate"
-            )->withExactTags($this->baseTags("migrate redis_integration 6380 k2 k3 0 3600")),
+            )->withExactTags($this->baseTags("migrate redis-integration 6380 k2 k3 0 3600")),
         ]);
 
         $this->assertSame('v1', $this->redisSecondInstance->get('k1'));
@@ -1846,14 +1846,14 @@ class PHPRedisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 "Redis.connect",
-                'redis-redis_integration',
+                'redis-redis-integration',
                 'redis',
                 "Redis.connect"
             )
                 ->withExactTags($this->baseTags(), [Tag::TARGET_PORT => '6379']),
             SpanAssertion::build(
                 "Redis.set",
-                'redis-redis_integration',
+                'redis-redis-integration',
                 'redis',
                 "Redis.set"
             )
@@ -1947,7 +1947,7 @@ class PHPRedisTest extends IntegrationTestCase
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'phpredis',
             Tag::DB_SYSTEM => 'redis',
-            Tag::TARGET_HOST => 'redis_integration',
+            Tag::TARGET_HOST => 'redis-integration',
         ];
 
         if ($rawCommand) {
@@ -1955,7 +1955,7 @@ class PHPRedisTest extends IntegrationTestCase
         }
 
         if ($expectPeerService) {
-            $tags['peer.service'] = 'redis_integration';
+            $tags['peer.service'] = 'redis-integration';
             $tags['_dd.peer.service.source'] = 'out.host';
         }
 

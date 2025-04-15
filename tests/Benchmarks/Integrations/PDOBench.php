@@ -15,7 +15,7 @@ class PDOBench
     const MYSQL_DATABASE = 'test';
     const MYSQL_USER = 'test';
     const MYSQL_PASSWORD = 'test';
-    const MYSQL_HOST = 'mysql_integration';
+    const MYSQL_HOST = 'mysql-integration';
 
     public $pdo;
 
