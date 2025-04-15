@@ -43,7 +43,7 @@ configs=("" -zts -debug -debug-zts)
 if [[ -n "${GITLAB_CI:-}" ]]; then
     # If running in Gitlab CI, we cannot use symlinks
     alias ln=cp
-else
+fi
 
 ln_with_dir() {
     mkdir -p $(dirname $2)
