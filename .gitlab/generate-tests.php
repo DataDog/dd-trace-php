@@ -535,9 +535,16 @@ foreach ($matches as $m):
     preg_match_all('(\t\K[a-z0-9_]+)', $m["targets"], $targets, PREG_PATTERN_ORDER);
     foreach ($targets[0] as $target):
 ?>
-"<?= $target ?> <?= $type ?> tests [<?= $major_minor ?>]":
+"<?= $target ?> <?= $type ?> tests: [<?= $major_minor ?>]":
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
   services:
 <?php agent_httpbin_service() ?>
 <?php if ($type == "web"): ?>
