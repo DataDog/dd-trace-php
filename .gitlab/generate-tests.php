@@ -19,7 +19,7 @@ $all_minor_major_targets = [
     "8.4",
 ];
 
-$asan_minor_major_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">=") });
+$asan_minor_major_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); });
 
 $arch_targets = ["amd64", "arm64"];
 
