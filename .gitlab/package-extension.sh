@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-set -e -o pipefail
+set -ex -o pipefail
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
 # Build packages
-make -j "${MAKE_JOBS}" calculate_package_sha256_sums packages
+make -d -j "${MAKE_JOBS}" calculate_package_sha256_sums packages
 
 # Display sha256sums
 cat package_sha256sums

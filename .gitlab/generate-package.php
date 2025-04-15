@@ -611,6 +611,7 @@ foreach ($asan_build_platforms as $platform) {
 ?>
   variables:
     MAKE_JOBS: 9
+    DDTRACE_MAKE_PACKAGES_ASAN: 1
   artifacts:
     paths:
       - "packages/"
