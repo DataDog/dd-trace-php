@@ -19,24 +19,38 @@ $build_platforms = [
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "amd64",
         "host_os" => "linux-musl",
+        "targets" => [
+            ".apk.x86_64"
+        ],
     ],
     [
       "triplet" => "aarch64-alpine-linux-musl",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "arm64",
         "host_os" => "linux-musl",
+        "targets" => [
+            ".apk.aarch64"
+        ],
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
+        "targets" => [
+            ".rpm.x86_64",
+            ".deb.x86_64",
+        ],
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
         "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
+        "targets" => [
+            ".rpm.arm64",
+            ".deb.arm64",
+        ],
     ]
 ];
 
@@ -518,7 +532,9 @@ foreach ($build_platforms as $platform) {
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
-  script: ./.gitlab/package-extension.sh
+  script:
+    - make -j 4 <?= implode(' ', $platform['targets']) ?>
+    - mv build/packages/ packages/
   needs:
     - job: "prepare code"
       artifacts: true
@@ -556,13 +572,9 @@ foreach ($build_platforms as $platform) {
 <?php
     }
 ?>
-  variables:
-    MAKE_JOBS: 9
   artifacts:
     paths:
       - "packages/"
-      - "packages.tar.gz"
-      - "pecl/"
 <?php
 }
 ?>
@@ -617,3 +629,17 @@ foreach ($asan_build_platforms as $platform) {
       - "packages/"
       - "packages.tar.gz"
       - "pecl/"
+
+"datadog-setup.py":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  tags: [ "arch:amd64" ]
+  script:
+    - mkdir -p "build/packages"
+    - make "build/packages/datadog-setup.py"
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  artifacts:
+    paths:
+      - "datadog-setup.py"

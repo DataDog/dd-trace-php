@@ -2,9 +2,10 @@
 set -ex -o pipefail
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
+TARGET=${TARGET:-"packages"}
 
 # Build packages
-make -d -j "${MAKE_JOBS}" calculate_package_sha256_sums packages
+make -d -j "${MAKE_JOBS}" "${TARGET}"
 
 # Display sha256sums
 cat package_sha256sums
