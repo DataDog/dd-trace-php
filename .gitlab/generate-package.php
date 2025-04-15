@@ -534,6 +534,7 @@ foreach ($build_platforms as $platform) {
   tags: [ "arch:amd64" ]
   script:
     - make -j 4 <?= implode(' ', $platform['targets']) ?>
+
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -630,13 +631,13 @@ foreach ($asan_build_platforms as $platform) {
       - "packages.tar.gz"
       - "pecl/"
 
-"datadog-setup.py":
+"datadog-setup.php":
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
   script:
     - mkdir -p "build/packages"
-    - make "build/packages/datadog-setup.py"
+    - make "build/packages/datadog-setup.php"
   needs:
     - job: "prepare code"
       artifacts: true
