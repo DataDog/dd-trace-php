@@ -19,21 +19,7 @@ $all_minor_major_targets = [
     "8.4",
 ];
 
-$non_asan_minor_major_targets = [
-    "7.0",
-    "7.1",
-    "7.2",
-    "7.3",
-];
-
-$asan_minor_major_targets = [
-  "7.4",
-  "8.0",
-  "8.1",
-  "8.2",
-  "8.3",
-  "8.4",
-];
+$asan_minor_major_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">=") });
 
 $arch_targets = ["amd64", "arm64"];
 
@@ -73,13 +59,6 @@ variables:
 .all_targets: &all_minor_major_targets
 <?php
 foreach ($all_minor_major_targets as $version) {
-    echo "  - \"{$version}\"\r\n";
-}
-?>
-
-.non_asan_targets: &non_asan_minor_major_targets
-<?php
-foreach ($non_asan_minor_major_targets as $version) {
     echo "  - \"{$version}\"\r\n";
 }
 ?>
@@ -349,8 +328,13 @@ foreach ($all_minor_major_targets as $major_minor) {
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     MAX_TEST_PARALLELISM: 16
+<?php else: /* no test parallelism */ ?>
+    KUBERNETES_CPU_REQUEST: 1
+  timeout: 40m
+<?php endif; ?>
   script:
     - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>

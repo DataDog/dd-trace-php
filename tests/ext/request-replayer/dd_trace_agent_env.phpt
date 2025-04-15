@@ -41,7 +41,7 @@ $start = microtime(true);
 \DDTrace\start_trace_span();
 \DDTrace\close_span();
 $rr->waitForDataAndReplay();
-usleep(floor(microtime(true) - $start) * 100000));
+usleep(floor(microtime(true) - $start) * 100000);
 
 \DDTrace\close_span();
 var_dump($span->env);
