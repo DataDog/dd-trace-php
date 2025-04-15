@@ -524,8 +524,6 @@ generate_stubs:
 
 tested_versions:
 	@composer -dtooling/tested_versions generate
-	mkdir -p /tmp/artifacts
-	cp tests/tested_versions/tested_versions.json /tmp/artifacts/tested_versions.json
 
 # Find all generated core dumps, sorted by date descending
 cores:
