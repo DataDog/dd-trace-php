@@ -17,15 +17,19 @@ git remote add origin https://$GITHUB_TOKEN@github.com/DataDog/dd-trace-php.git
 
 if git ls-remote --heads origin $TARGET_BRANCH | grep $TARGET_BRANCH; then
   echo "Branch exists, updating it..."
-  git checkout $TARGET_BRANCH
-  git pull origin $TARGET_BRANCH
+  git fetch -f origin $TARGET_BRANCH:$TARGET_BRANCH
+  git symbolic-ref HEAD refs/heads/$TARGET_BRANCH
+  git rebase $CURRENT_BRANCH
 else
   echo "Branch does not exist, creating it..."
   git checkout -b $TARGET_BRANCH
 fi
 
 git add aggregated_tested_versions.json integration_versions.md
-git commit -m "chore: Update supported versions" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+if ! git commit -m "chore: Update supported versions" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"; then
+  echo "No changes to commit. Exiting successfully."
+  exit 0
+fi
 git push origin $TARGET_BRANCH
 
 # Install GitHub CLI
