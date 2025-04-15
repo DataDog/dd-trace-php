@@ -40,15 +40,14 @@ fi
 
 configs=("" -zts -debug -debug-zts)
 
+if [[ -n "${GITLAB_CI:-}" ]]; then
+    # If running in Gitlab CI, we cannot use symlinks
+    alias ln=cp
+else
+
 ln_with_dir() {
     mkdir -p $(dirname $2)
-    if [ -z "${GITLAB_CI}"]
-    then
-        ln $1 $2
-    else
-        # Gitlab CI doesn't support symlinks, so we copy the file instead
-        cp $1 $2
-    fi
+    ln $1 $2
 }
 
 for architecture in "${architectures[@]}"; do
