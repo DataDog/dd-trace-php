@@ -15,42 +15,7 @@ use DDTrace\Util\ObjectKVStore;
  */
 function register_subscriber()
 {
-    class DatadogSubscriber implements \MongoDB\Driver\Monitoring\CommandSubscriber
-    {
-        private static $useDeprecatedMethods = null;
-
-        #[\ReturnTypeWillChange]
-        public function commandStarted(\MongoDB\Driver\Monitoring\CommandStartedEvent $event)
-        {
-            $span = \DDTrace\active_span();
-            if ($span) {
-                if (is_null(self::$useDeprecatedMethods)) {
-                    // v1.20+: getServer() is deprecated in favor of getHost() and getPort()
-                    self::$useDeprecatedMethods = !method_exists($event, 'getHost') || !method_exists($event, 'getPort');
-                }
-
-                if (self::$useDeprecatedMethods) {
-                    $span->meta['out.host'] = $event->getServer()->getHost();
-                    $span->meta['out.port'] = $event->getServer()->getPort();
-                } else {
-                    $span->meta['out.host'] = $event->getHost();
-                    $span->meta['out.port'] = $event->getPort();
-                }
-            }
-        }
-
-        #[\ReturnTypeWillChange]
-        public function commandSucceeded(\MongoDB\Driver\Monitoring\CommandSucceededEvent $event)
-        {
-        }
-
-        #[\ReturnTypeWillChange]
-        public function commandFailed(\MongoDB\Driver\Monitoring\CommandFailedEvent $event)
-        {
-        }
-    }
-
-    \MongoDB\Driver\Monitoring\addSubscriber(new DatadogSubscriber());
+    \MongoDB\Driver\Monitoring\addSubscriber(DatadogSubscriberLoader::load());
 }
 
 class MongoDBIntegration extends Integration

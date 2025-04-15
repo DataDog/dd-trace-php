@@ -1,15 +1,15 @@
 package com.datadog.appsec.php.integration
 
-import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.mock_agent.rem_cfg.Capability
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
+import com.datadog.appsec.php.model.Span
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.DisabledIf
+import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -19,14 +19,13 @@ import java.net.http.HttpResponse
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static java.net.http.HttpResponse.BodyHandlers.ofString
-import static org.junit.jupiter.api.Assumptions.assumeTrue
 import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
 @Slf4j
-@DisabledIf('isDisabled')
+@EnabledIf('isEnabled')
 class RemoteConfigTests {
-    static boolean disabled = variant.contains('zts') || phpVersion != '8.3'
+    static boolean enabled = !variant.contains('zts') && phpVersion == '8.3'
 
     private static final Target INITIAL_TARGET = new Target('some-name', 'none', '')
 
@@ -87,6 +86,7 @@ class RemoteConfigTests {
                 Capability.ASM_TRUSTED_IPS,
                 Capability.ASM_RASP_LFI,
                 Capability.ASM_RASP_SSRF,
+                Capability.ASM_RASP_SQLI,
         ].each { assert it in capSet }
 
         doReq.call(403)

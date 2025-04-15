@@ -115,8 +115,10 @@ endif()
 if (PhpConfig_VERNUM LESS 80100)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_fiber.c")
 endif()
+list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
 
 find_package(CURL REQUIRED)
+message(STATUS "CURL version: ${CURL_VERSION_STRING}")
 
 add_library(ddtrace SHARED ${FILES_DDTRACE})
 set_target_properties(ddtrace PROPERTIES

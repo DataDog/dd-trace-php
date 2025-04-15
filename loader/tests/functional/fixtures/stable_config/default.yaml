@@ -1,0 +1,3 @@
+apm_configuration_default:
+  DD_PROFILING_ENABLED: 1
+  DD_APPSEC_ENABLED: 1

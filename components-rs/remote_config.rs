@@ -14,7 +14,10 @@ use datadog_remote_config::{
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
-use datadog_sidecar_ffi::{ddog_sidecar_send_debugger_data, ddog_sidecar_send_debugger_diagnostics};
+use datadog_sidecar_ffi::{
+    ddog_sidecar_send_debugger_data, ddog_sidecar_send_debugger_diagnostics,
+};
+use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, MaybeError};
@@ -28,7 +31,6 @@ use std::ffi::c_char;
 use std::mem;
 use std::sync::Arc;
 use tracing::debug;
-use ddcommon::tag::Tag;
 
 type DynamicConfigUpdate = for<'a> extern "C" fn(
     config: CharSlice,
@@ -124,6 +126,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
             RemoteConfigCapabilities::AsmTrustedIps,
             RemoteConfigCapabilities::AsmRaspLfi,
             RemoteConfigCapabilities::AsmRaspSsrf,
+            RemoteConfigCapabilities::AsmRaspSqli,
             RemoteConfigCapabilities::AsmProcessorOverrides,
             RemoteConfigCapabilities::AsmCustomDataScanners,
         ]

@@ -352,7 +352,6 @@ impl TimeCollector {
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = InternalProfile::new(
-            started_at,
             &sample_types,
             Some(Period {
                 r#type: ApiValueType {
@@ -362,6 +361,7 @@ impl TimeCollector {
                 value: period.min(i64::MAX as u128) as i64,
             }),
         );
+        let _ = profile.set_start_time(started_at);
 
         #[cfg(feature = "allocation_profiling")]
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
@@ -546,7 +546,6 @@ impl TimeCollector {
                     name: frame.function.as_ref(),
                     system_name: "",
                     filename: frame.file.as_deref().unwrap_or(""),
-                    start_line: 0,
                 },
                 line: frame.line as i64,
                 ..Location::default()
@@ -557,7 +556,7 @@ impl TimeCollector {
 
         let sample = Sample {
             locations,
-            values,
+            values: &values,
             labels,
         };
 
