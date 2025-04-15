@@ -638,9 +638,10 @@ foreach ($asan_build_platforms as $platform) {
   script:
     - mkdir -p "build/packages"
     - make "build/packages/datadog-setup.php"
+    - mv "build/packages/" "packages/"
   needs:
     - job: "prepare code"
       artifacts: true
   artifacts:
     paths:
-      - "datadog-setup.py"
+      - "packages/datadog-setup.py"
