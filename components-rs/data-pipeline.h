@@ -38,29 +38,67 @@ void ddog_free_span(ddog_SpanBytes *ptr);
 
 void ddog_set_span_service(ddog_SpanBytes *ptr, ddog_CharSlice slice);
 
+char *ddog_get_span_service(ddog_SpanBytes *ptr);
+
 void ddog_set_span_name(ddog_SpanBytes *ptr, ddog_CharSlice slice);
+
+char *ddog_get_span_name(ddog_SpanBytes *ptr);
 
 void ddog_set_span_resource(ddog_SpanBytes *ptr, ddog_CharSlice slice);
 
+char *ddog_get_span_resource(ddog_SpanBytes *ptr);
+
 void ddog_set_span_type(ddog_SpanBytes *ptr, ddog_CharSlice slice);
+
+char *ddog_get_span_type(ddog_SpanBytes *ptr);
 
 void ddog_set_span_trace_id(ddog_SpanBytes *ptr, uint64_t value);
 
+uint64_t ddog_get_span_trace_id(ddog_SpanBytes *ptr);
+
 void ddog_set_span_span_id(ddog_SpanBytes *ptr, uint64_t value);
+
+uint64_t ddog_get_span_span_id(ddog_SpanBytes *ptr);
 
 void ddog_set_span_parent_id(ddog_SpanBytes *ptr, uint64_t value);
 
+uint64_t ddog_get_span_parent_id(ddog_SpanBytes *ptr);
+
 void ddog_set_span_start(ddog_SpanBytes *ptr, int64_t value);
+
+int64_t ddog_get_span_start(ddog_SpanBytes *ptr);
 
 void ddog_set_span_duration(ddog_SpanBytes *ptr, int64_t value);
 
+int64_t ddog_get_span_duration(ddog_SpanBytes *ptr);
+
 void ddog_set_span_error(ddog_SpanBytes *ptr, int32_t value);
+
+int32_t ddog_get_span_error(ddog_SpanBytes *ptr);
 
 void ddog_add_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key, ddog_CharSlice val);
 
+void ddog_del_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+char *ddog_get_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+bool ddog_has_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+char **ddog_span_meta_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *out_count);
+
 void ddog_add_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key, double val);
 
+void ddog_del_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+bool ddog_get_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key, double *result);
+
+bool ddog_has_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+char **ddog_span_metrics_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *out_count);
+
 void ddog_add_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key, ddog_CharSlice val);
+
+void ddog_span_free_keys_ptr(char **keys_ptr, uintptr_t count);
 
 ddog_SpanLinkBytes *ddog_span_new_link(ddog_SpanBytes *span_ptr);
 

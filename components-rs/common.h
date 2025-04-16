@@ -1524,6 +1524,12 @@ typedef struct ddog_TelemetryClientConfig {
    * - Be associated with traces to allow correlation between traces and telemetry data
    */
   ddog_CharSlice runtime_id;
+  /**
+   * Whether to enable debug mode for telemetry.
+   * When enabled, sets the DD-Telemetry-Debug-Enabled header to true.
+   * Defaults to false.
+   */
+  bool debug_enabled;
 } ddog_TelemetryClientConfig;
 
 typedef struct ddog_Slice_U8 {
