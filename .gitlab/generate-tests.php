@@ -137,25 +137,25 @@ foreach ($arch_targets as $arch_target) {
       MYSQL_DATABASE: test
 
   elasticsearch2:
-    name: registry.ddbuild.io/images/mirror/elasticsearch:2
+    name: registry.ddbuild.io/images/mirror/library/elasticsearch:2
     alias: elasticsearch2-integration
 
   elasticsearch7:
-    name: elasticsearch7-integration
-    alias: registry.ddbuild.io/images/mirror/elasticsearch:7.17.23
+    name: registry.ddbuild.io/images/mirror/library/elasticsearch:7.17.23
+    alias: elasticsearch7-integration
     variables:
       ES_JAVA_OPTS: -Xms1g -Xmx1g
       discovery.type: single-node
 
   zookeeper:
-    name: registry.ddbuild.io/images/mirror/confluentinc/cp-zookeeper:7.7.1
+    name: registry.ddbuild.io/images/mirror/confluentinc/cp-zookeeper:7.8.0
     alias: zookeeper
     variables:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.7.1
+    name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
     alias: kafka-integration
     variables:
       KAFKA_BROKER_ID: 111
@@ -174,7 +174,7 @@ foreach ($arch_targets as $arch_target) {
     alias: redis-integration
 
   memcache:
-    name: registry.ddbuild.io/images/mirror/memcached:1.5-alpine
+    name: registry.ddbuild.io/images/mirror/library/memcached:1.5-alpine
     alias: memcached-integration
 
   amqp:
@@ -188,7 +188,7 @@ foreach ($arch_targets as $arch_target) {
       MONGO_INITDB_ROOT_USERNAME: test
       MONGO_INITDB_ROOT_PASSWORD: test
 
-  mssql:
+  sqlsrv:
     name: registry.ddbuild.io/images/mirror/sqlserver:2022-latest
     alias: sqlsrv-integration
     variables:
@@ -250,6 +250,22 @@ foreach ($arch_targets as $arch_target) {
     matrix:
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
+
+"Prepare code":
+  stage: compile
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  needs: []
+  variables:
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+  before_script:
+    - composer update --no-interaction
+  script:
+    - make generate
+  artifacts:
+    paths:
+      - src/bridge/_generated_*.php
 
 .base_test:
   stage: test
@@ -528,6 +544,7 @@ endforeach;
 $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
+$services["pdo"] = "mysql";
 
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m):
@@ -546,6 +563,8 @@ foreach ($matches as $m):
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
       artifacts: true
   services:
 <?php agent_httpbin_service() ?>

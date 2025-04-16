@@ -213,6 +213,7 @@ trait SnapshotTestTrait
             $expectedMetrics = file_get_contents($expectedMetricsFile);
             $this->compareMetrics($expectedMetrics, $receivedMetrics, $fieldsToIgnore);
         } else {
+            mkdir(dirname($expectedMetricsFile));
             file_put_contents($expectedMetricsFile, $receivedMetrics);
         }
     }
