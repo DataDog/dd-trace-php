@@ -1359,7 +1359,7 @@ dependencies = [
  "goblin",
  "http 1.2.0",
  "libc 0.2.169",
- "nix 0.27.1",
+ "nix",
  "num-derive",
  "num-traits",
  "os_info",
@@ -1426,7 +1426,7 @@ dependencies = [
  "io-lifetimes",
  "libc 0.2.169",
  "memfd",
- "nix 0.27.1",
+ "nix",
  "page_size",
  "pin-project",
  "pretty_assertions",
@@ -1668,7 +1668,7 @@ dependencies = [
  "manual_future",
  "memory-stats",
  "microseh",
- "nix 0.27.1",
+ "nix",
  "prctl",
  "priority-queue",
  "rand 0.8.5",
@@ -1803,6 +1803,7 @@ dependencies = [
  "log",
  "maplit",
  "memfd",
+ "nix",
  "pin-project",
  "rand 0.8.5",
  "regex",
@@ -1927,7 +1928,7 @@ dependencies = [
  "datadog-ddsketch",
  "ddcommon 0.0.1",
  "futures",
- "hashbrown 0.14.5",
+ "hashbrown 0.15.2",
  "http 1.2.0",
  "http-body-util",
  "hyper 1.6.0",
@@ -2322,6 +2323,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2640,6 +2647,11 @@ name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -3648,18 +3660,6 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nix"
-version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
-dependencies = [
- "bitflags 2.8.0",
- "cfg-if",
- "libc 0.2.169",
- "memoffset",
-]
-
-[[package]]
-name = "nix"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
@@ -3668,6 +3668,7 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc 0.2.169",
+ "memoffset",
 ]
 
 [[package]]
@@ -4161,7 +4162,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "059a34f111a9dee2ce1ac2826a68b24601c4298cfeb1a587c3cb493d5ab46f52"
 dependencies = [
  "libc 0.2.169",
- "nix 0.29.0",
+ "nix",
 ]
 
 [[package]]
@@ -5347,7 +5348,7 @@ dependencies = [
  "io-lifetimes",
  "kernel32-sys",
  "memfd",
- "nix 0.27.1",
+ "nix",
  "rlimit",
  "tempfile",
  "winapi 0.2.8",
