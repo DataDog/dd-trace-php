@@ -128,6 +128,10 @@ bool ddtrace_parse_client_ip_header_config(zai_str value, zval *decoded_value, b
 }
 
 DDTRACE_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
+    if (!server || Z_TYPE_P(server) != IS_ARRAY) {
+        return NULL;
+    }
+
     // Extract ip from define customer header
     zend_string *ipheader = get_DD_TRACE_CLIENT_IP_HEADER();
     if (ipheader && ZSTR_LEN(ipheader) > 0) {
@@ -147,10 +151,6 @@ DDTRACE_PUBLIC zend_string *ddtrace_ip_extraction_find(zval *server) {
             return dd_ipaddr_to_zstr(&out);
         }
 
-        return NULL;
-    }
-
-    if (!server || Z_TYPE_P(server) != IS_ARRAY) {
         return NULL;
     }
 
