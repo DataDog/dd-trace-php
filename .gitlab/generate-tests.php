@@ -111,7 +111,7 @@ foreach ($arch_targets as $arch_target) {
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       PORT: 9126
-      SNAPSHOT_DIR: ${CI_PROJECT_DIR}/snapshots
+      SNAPSHOT_DIR: ${CI_PROJECT_DIR}/tests/snapshots
       SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
@@ -175,6 +175,8 @@ foreach ($arch_targets as $arch_target) {
   redis:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0
     alias: redis-integration
+    variables:
+      DOCKER_IP: "<?= $service_bind_address ?>"
 
   memcache:
     name: registry.ddbuild.io/images/mirror/library/memcached:1.5-alpine
@@ -550,6 +552,7 @@ $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["pdo"] = "mysql";
+$services["kafka"] = "zookeeper";
 
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m):
