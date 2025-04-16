@@ -263,7 +263,7 @@ foreach ($arch_targets as $arch_target) {
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - apk add git
+    - apt update && apt install -y unzip
     - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
     - composer update --no-interaction
   script:
