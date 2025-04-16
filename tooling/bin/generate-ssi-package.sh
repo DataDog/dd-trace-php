@@ -20,7 +20,21 @@ if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
 fi
 
 function stripto() {
-   $(if [[ "${architecture}" == "aarch64" ]]; then echo aarch64-linux-gnu-; fi)strip -o "$2" "$1"
+    source=$1
+    target=$2
+
+    local arch_cmd_prefix=""
+    if [[ "${architecture}" == "aarch64" ]]; then
+        arch_cmd_prefix="aarch64-linux-gnu-"
+    fi
+
+    "${arch_cmd_prefix}objcopy" --only-keep-debug "$source" "${target}.debug"
+    "${arch_cmd_prefix}strip" -o "$target" "$source"
+    (
+        cd "$(dirname "$target")"
+        filename=$(basename "$target")
+        "${arch_cmd_prefix}objcopy" --add-gnu-debuglink="${filename}.debug" "${filename}"
+    )
 }
 
 for architecture in "${architectures[@]}"; do
