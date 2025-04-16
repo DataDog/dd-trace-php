@@ -46,6 +46,11 @@ cp_with_dir() {
     cp $1 $2
 }
 
+echo "Architectures: ${architectures[@]}"
+echo "Targets: ${targets[@]}"
+echo "PHP APIs: ${php_apis[@]}"
+echo "Configs: ${configs[@]}"
+
 for architecture in "${architectures[@]}"; do
     for php_api in "${php_apis[@]}"; do
         for full_target in "${targets[@]}"; do
