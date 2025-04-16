@@ -108,7 +108,7 @@ foreach ($arch_targets as $arch_target) {
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
       PORT: 9126
-      SNAPSHOT_DIR: /snapshots
+      SNAPSHOT_DIR: ${CI_PROJECT_DIR}/snapshots
       SNAPSHOT_CI: 1
       DD_SUPPRESS_TRACE_PARSE_ERRORS: true
       ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
@@ -260,6 +260,7 @@ foreach ($arch_targets as $arch_target) {
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/
     - composer update --no-interaction
   script:
     - make generate
