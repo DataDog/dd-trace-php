@@ -22,6 +22,6 @@ void ddtrace_shutdown_span_sampling_limiter(void);
 
 void ddtrace_serializer_startup(void);
 
-typedef zend_result (*add_tag_fn_t)(void *context, ddtrace_string key, ddtrace_string value);
+typedef zend_result (*add_tag_fn_t)(ddog_SpanBytes *span, ddtrace_string key, ddtrace_string value);
 
 #endif  // DD_SERIALIZER_H
