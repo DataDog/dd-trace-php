@@ -1,4 +1,7 @@
 <?php
+
+include "generate-common.php";
+
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";
 
@@ -260,7 +263,7 @@ foreach ($arch_targets as $arch_target) {
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
     - composer update --no-interaction
   script:
     - make generate

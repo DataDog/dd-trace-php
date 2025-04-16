@@ -1,5 +1,7 @@
 <?php
 
+include "generate-common.php";
+
 $php_versions_to_abi = [
     "7.0" => "20151012",
     "7.1" => "20160303",
