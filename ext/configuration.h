@@ -249,9 +249,10 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                             \
     CONFIG(BOOL, DD_WORDPRESS_HOOKS_ENABLED, "false")                                                            \
-        CONFIG(BOOL, DD_WORDPRESS_LOGS_ENABLED, "true")                                                             \
-        CONFIG(DOUBLE, DD_WORDPRESS_LOGS_SAMPLE_RATE, "0.1")                                                        \
-        CONFIG(BOOL, DD_WORDPRESS_METRICS_ENABLED, "true")                                                          \
+    CONFIG(BOOL, DD_WORDPRESS_LOGS_ENABLED, "true")                                                             \
+    CONFIG(DOUBLE, DD_WORDPRESS_LOGS_SAMPLE_RATE, "0.1")                                                        \
+    CONFIG(BOOL, DD_WORDPRESS_METRICS_ENABLED, "true")                                                          \
+    CONFIG(BOOL, DD_WORDPRESS_PLUGIN_TOTAL_DURATION_ENABLED, "false")                                           \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

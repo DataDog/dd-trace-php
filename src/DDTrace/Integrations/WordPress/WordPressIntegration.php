@@ -26,6 +26,8 @@ class WordPressIntegration extends Integration
     public $logsEnabled;
     /** @var bool */
     public $metricsEnabled;
+    /** @var bool */
+    public $totalDurationEnabled;
 
 
     public function getEnv()

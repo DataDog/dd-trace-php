@@ -275,6 +275,7 @@ class WordPressIntegrationLoader
         $integration->logsSampleRate = dd_trace_env_config('DD_WORDPRESS_LOGS_SAMPLE_RATE');
         $integration->metricsEnabled = dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED');
         $integration->hooksEnabled = dd_trace_env_config('DD_WORDPRESS_HOOKS_ENABLED');
+        $integration->totalDurationEnabled = dd_trace_env_config('DD_WORDPRESS_PLUGIN_TOTAL_DURATION_ENABLED');
 
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
@@ -861,21 +862,23 @@ class WordPressIntegrationLoader
                 return;
             }
 
-           $USTTags = [
-               'env' => $integration->getEnv(),
-               'service' => $integration->getServiceName(),
-               'version' => $integration->getVersion(),
-           ];
+            $USTTags = [
+                'env' => $integration->getEnv(),
+                'service' => $integration->getServiceName(),
+                'version' => $integration->getVersion(),
+            ];
 
-           foreach ($pluginTimes->total as $pluginName => $totalDuration) {
-               WordPressIntegrationLoader::sendMetric(
-                   $integration,
-                   '\DDTrace\dogstatsd_distribution',
-                   'wordpress.plugin.total_duration',
-                   $totalDuration,
-                   $USTTags + ['wordpress.plugin.name' => $pluginName]
-               );
-           }
+            if ($integration->totalDurationEnabled) {
+                foreach ($pluginTimes->total as $pluginName => $totalDuration) {
+                    WordPressIntegrationLoader::sendMetric(
+                        $integration,
+                        '\DDTrace\dogstatsd_distribution',
+                        'wordpress.plugin.total_duration',
+                        $totalDuration,
+                        $USTTags + ['wordpress.plugin.name' => $pluginName]
+                    );
+                }
+            }
 
             foreach ($pluginTimes->cumulative as $pluginName => $cumulativeDuration) {
                 WordPressIntegrationLoader::sendMetric(
