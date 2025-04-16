@@ -1,0 +1,158 @@
+[[
+  {
+    "name": "symfony.request",
+    "service": "test_symfony_28",
+    "resource": "simple_view",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 15410758655764076331,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "6663129800000000",
+      "component": "symfony",
+      "http.method": "GET",
+      "http.status_code": "200",
+      "http.url": "http://localhost/simple_view?key=value&<redacted>",
+      "runtime-id": "86589533-e0a0-485f-bc9a-135cbd0cf009",
+      "span.kind": "server",
+      "symfony.route.action": "AppBundle\\Controller\\CommonScenariosController@simpleViewAction",
+      "symfony.route.name": "simple_view"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "symfony.httpkernel.kernel.handle",
+       "service": "test_symfony_28",
+       "resource": "AppKernel",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony",
+         "span.kind": "server"
+       }
+     },
+        {
+          "name": "symfony.httpkernel.kernel.boot",
+          "service": "test_symfony_28",
+          "resource": "AppKernel",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+        {
+          "name": "symfony.kernel.handle",
+          "service": "test_symfony_28",
+          "resource": "symfony.kernel.handle",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+           {
+             "name": "symfony.kernel.request",
+             "service": "test_symfony_28",
+             "resource": "symfony.kernel.request",
+             "trace_id": 0,
+             "span_id": 6,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+              {
+                "name": "symfony.security.authentication.success",
+                "service": "test_symfony_28",
+                "resource": "symfony.security.authentication.success",
+                "trace_id": 0,
+                "span_id": 11,
+                "parent_id": 6,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+           {
+             "name": "symfony.kernel.controller",
+             "service": "test_symfony_28",
+             "resource": "symfony.kernel.controller",
+             "trace_id": 0,
+             "span_id": 7,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.controller",
+             "service": "test_symfony_28",
+             "resource": "AppBundle\\Controller\\CommonScenariosController::simpleViewAction",
+             "trace_id": 0,
+             "span_id": 8,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+              {
+                "name": "symfony.templating.render",
+                "service": "test_symfony_28",
+                "resource": "Symfony\\Bundle\\TwigBundle\\TwigEngine twig_template.html.twig",
+                "trace_id": 0,
+                "span_id": 12,
+                "parent_id": 8,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+           {
+             "name": "symfony.kernel.response",
+             "service": "test_symfony_28",
+             "resource": "symfony.kernel.response",
+             "trace_id": 0,
+             "span_id": 9,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.kernel.finish_request",
+             "service": "test_symfony_28",
+             "resource": "symfony.kernel.finish_request",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+     {
+       "name": "symfony.kernel.terminate",
+       "service": "test_symfony_28",
+       "resource": "symfony.kernel.terminate",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony"
+       }
+     }]]

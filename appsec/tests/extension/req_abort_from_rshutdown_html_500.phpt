@@ -11,8 +11,8 @@ use function datadog\appsec\testing\{rinit,rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['record', new ArrayObject(), ['{"found":"attack"}','{"another":"attack"}']])),
-    response_list(response_request_shutdown(['block', ['status_code' => "500", 'type' => 'html', 'unused' => 'value'], ['{"yet another":"attack"}']]))
+    response_list(response_request_init([[['record', new ArrayObject()]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_shutdown([[['block', ['status_code' => "500", 'type' => 'html', 'unused' => 'value']]], ['{"yet another":"attack"}']]))
 ], ['continuous' => false]);
 
 rinit();

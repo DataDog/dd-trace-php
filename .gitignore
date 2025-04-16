@@ -13,6 +13,7 @@ composer.lock*
 .tmp/
 **.code-workspace
 /Makefile*
+/loader/Makefile*
 acinclude.m4
 aclocal.m4
 autom4te*
@@ -20,7 +21,9 @@ build
 configure
 coverage/
 /configure.*
+/loader/configure.*
 /config.*
+/loader/config.*
 !config.m4
 !config.w32
 ddtrace.def
@@ -29,6 +32,8 @@ ext/version.h
 *.lo
 *.o
 *.so
+*~
+*.dep
 install-sh
 *.log
 nginx.pid
@@ -41,7 +46,7 @@ modules/*
 php_test_results*
 results.bin
 run-tests.php
-/target
+/target*
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff
@@ -49,6 +54,7 @@ tests/ext/*.log
 tests/ext/*.exp
 tests/ext/*.sh
 tests/ext/*.mem
+phpt.*
 tmp-php.ini
 tmp/opcache*
 *.orig

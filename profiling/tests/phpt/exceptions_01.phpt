@@ -27,6 +27,7 @@ DD_PROFILING_LOG_LEVEL=trace
 function generateExceptions() {
     for ($i = 0; $i <= 100; $i++) {
         try {
+            // two labels: "thread_id" and "exception type"
             throw new \RuntimeException();
         } catch (\RuntimeException $e) {
             # I don't care :-P
@@ -41,6 +42,6 @@ echo 'Done.';
 ?>
 --EXPECTREGEX--
 .* Exception profiling initialized with sampling distance: 20
-.* Sent stack sample of 2 frames, 1 labels with Exception RuntimeException to profiler.
-.*Done..*
+.* Sent stack sample of 2 frames, 3 labels with Exception RuntimeException to profiler.
+.*Done\..*
 .*

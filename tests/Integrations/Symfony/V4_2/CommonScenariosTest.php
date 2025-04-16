@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_2/public/index.php';
     }
@@ -20,6 +20,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_TRACE_DEBUG' => 'true',
             'DD_SERVICE' => 'test_symfony_42',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
     }
 
     /**
@@ -51,7 +56,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'App\Controller\CommonScenariosController@simpleAction',
                         'symfony.route.name' => 'simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
@@ -89,7 +94,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'App\Controller\CommonScenariosController@simpleViewAction',
                         'symfony.route.name' => 'simple_view',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
@@ -136,7 +141,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'App\Controller\CommonScenariosController@errorAction',
                         'symfony.route.name' => 'error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
@@ -202,7 +207,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'symfony.route.action' => 'Symfony\Bundle\TwigBundle\Controller\ExceptionController@showAction',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
+                        'http.url' => 'http://localhost/does_not_exist?key=value&<redacted>',
                         'http.status_code' => '404',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',

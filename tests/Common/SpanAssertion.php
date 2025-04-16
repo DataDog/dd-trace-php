@@ -34,7 +34,7 @@ final class SpanAssertion
 
     /**
      * @param string $name
-     * @param bool $error
+     * @param bool|string $error
      * @param bool $onlyCheckExistance
      */
     private function __construct($name, $error, $onlyCheckExistance)
@@ -47,12 +47,28 @@ final class SpanAssertion
     /**
      * @param string $name
      * @param null|string $resource
-     * @param bool $error
+     * @param bool|string $error
      * @param null|string $service
      * @return SpanAssertion
      */
-    public static function exists($name, $resource = null, $error = false, $service = null)
-    {
+    public static function exists(
+        $name,
+        $resource = SpanAssertion::NOT_TESTED,
+        $error = SpanAssertion::NOT_TESTED,
+        $service = SpanAssertion::NOT_TESTED
+    ){
+        if ($error === null) {
+            $error = false;
+        }
+
+        if ($resource === null) {
+            $resource = SpanAssertion::NOT_TESTED;
+        }
+
+        if ($error === null) { // false is a valid value, we don't convert it
+            $error = SpanAssertion::NOT_TESTED;
+        }
+
         return SpanAssertion::forOperation($name, $error, true)
             ->resource($resource)
             ->service($service);
@@ -90,7 +106,7 @@ final class SpanAssertion
 
     /**
      * @param string $name
-     * @param bool $error
+     * @param bool|string $error
      * @param bool $onlyCheckExistence
      * @return SpanAssertion
      */

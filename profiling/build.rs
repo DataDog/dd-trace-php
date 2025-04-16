@@ -1,9 +1,9 @@
 use bindgen::callbacks::IntKind;
 use std::collections::HashSet;
-use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::{env, fs};
 
 fn main() {
     let php_config_includes_output = Command::new("php-config")
@@ -21,6 +21,14 @@ fn main() {
         }
     }
 
+    // Read the version from the VERSION file
+    let version = fs::read_to_string("../VERSION")
+        .expect("Failed to read VERSION file")
+        .trim()
+        .to_string();
+    println!("cargo:rustc-env=PROFILER_VERSION={}", version);
+    println!("cargo:rerun-if-changed=../VERSION");
+
     let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
         .expect("`php-config`'s stdout to be valid utf8");
 
@@ -30,8 +38,9 @@ fn main() {
     let fibers = cfg_fibers(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
     let trigger_time_sample = cfg_trigger_time_sample();
+    let zend_error_observer = cfg_zend_error_observer(vernum);
 
-    generate_bindings(php_config_includes, fibers);
+    generate_bindings(php_config_includes, fibers, zend_error_observer);
     build_zend_php_ffis(
         php_config_includes,
         post_startup_cb,
@@ -39,6 +48,7 @@ fn main() {
         run_time_cache,
         fibers,
         trigger_time_sample,
+        zend_error_observer,
         vernum,
     );
 
@@ -78,11 +88,15 @@ const ZAI_H_FILES: &[&str] = &[
     "../zend_abstract_interface/config/config.h",
     "../zend_abstract_interface/config/config_decode.h",
     "../zend_abstract_interface/config/config_ini.h",
+    "../zend_abstract_interface/config/config_stable_file.h",
     "../zend_abstract_interface/env/env.h",
     "../zend_abstract_interface/exceptions/exceptions.h",
     "../zend_abstract_interface/json/json.h",
+    "../components-rs/common.h",
+    "../components-rs/library-config.h",
 ];
 
+#[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_config_includes: &str,
     post_startup_cb: bool,
@@ -90,6 +104,7 @@ fn build_zend_php_ffis(
     run_time_cache: bool,
     fibers: bool,
     trigger_time_sample: bool,
+    zend_error_observer: bool,
     vernum: u64,
 ) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
@@ -107,6 +122,7 @@ fn build_zend_php_ffis(
     let zai_c_files = [
         "../zend_abstract_interface/config/config_decode.c",
         "../zend_abstract_interface/config/config_ini.c",
+        "../zend_abstract_interface/config/config_stable_file.c",
         "../zend_abstract_interface/config/config.c",
         "../zend_abstract_interface/config/config_runtime.c",
         "../zend_abstract_interface/env/env.c",
@@ -135,6 +151,7 @@ fn build_zend_php_ffis(
     let fibers = if fibers { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
+    let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
     #[cfg(feature = "stack_walking_tests")]
     let stack_walking_tests = "1";
@@ -142,7 +159,8 @@ fn build_zend_php_ffis(
     #[cfg(not(feature = "stack_walking_tests"))]
     let stack_walking_tests = "0";
 
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .files(files.into_iter().chain(zai_c_files))
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
@@ -150,17 +168,21 @@ fn build_zend_php_ffis(
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
+        .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
         .includes([Path::new("../ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
                 .split(' ')
                 .map(Path::new)
-                .chain([Path::new("../zend_abstract_interface")]),
+                .chain([Path::new("../zend_abstract_interface")])
+                .chain([Path::new("../")]),
         )
         .flag_if_supported("-fuse-ld=lld")
         .flag_if_supported("-std=c11")
-        .flag_if_supported("-std=c17")
-        .compile("php_ffi");
+        .flag_if_supported("-std=c17");
+    #[cfg(feature = "test")]
+    build.define("CFG_TEST", "1");
+    build.compile("php_ffi");
 }
 
 #[derive(Debug)]
@@ -181,6 +203,8 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
             | "IS_STRING" | "IS_ARRAY" | "IS_OBJECT" | "IS_RESOURCE" | "IS_REFERENCE"
             | "_IS_BOOL" => Some(IntKind::U8),
 
+            "ZEND_INTERNAL_FUNCTION" | "ZEND_USER_FUNCTION" => Some(IntKind::U8),
+
             // None means whatever it would have been without this hook
             // (likely u32).
             _ => None,
@@ -188,7 +212,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
     }
 }
 
-fn generate_bindings(php_config_includes: &str, fibers: bool) {
+fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observer: bool) {
     println!("cargo:rerun-if-changed=src/php_ffi.h");
     println!("cargo:rerun-if-changed=../ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
@@ -204,11 +228,19 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .collect(),
     );
 
-    let clang_args = if fibers {
+    let mut clang_args = if fibers {
         vec!["-D", "CFG_FIBERS=1"]
     } else {
         vec!["-D", "CFG_FIBERS=0"]
     };
+
+    if zend_error_observer {
+        clang_args.push("-D");
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=1");
+    } else {
+        clang_args.push("-D");
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=0");
+    }
 
     let bindings = bindgen::Builder::default()
         .ctypes_prefix("libc")
@@ -217,6 +249,7 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .header("src/php_ffi.h")
         .header("../ext/handlers_api.h")
         .clang_arg("-I../zend_abstract_interface")
+        .clang_arg("-I../")
         // Block some zend items that we'll provide manual definitions for
         .blocklist_item("zai_str_s")
         .blocklist_item("zai_str")
@@ -248,7 +281,7 @@ fn generate_bindings(php_config_includes: &str, fibers: bool) {
         .rustified_enum("zai_config_type")
         .parse_callbacks(Box::new(ignored_macros))
         .clang_args(php_config_includes.split(' '))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(false)
         // this prevents bindgen from copying C comments to Rust, as otherwise
         // rustdoc would look for tests and currently fail as it assumes
@@ -294,6 +327,18 @@ fn cfg_trigger_time_sample() -> bool {
     env::var("CARGO_FEATURE_TRIGGER_TIME_SAMPLE").is_ok()
 }
 
+fn cfg_zend_error_observer(vernum: u64) -> bool {
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=zend_error_observer");
+        if vernum < 80100 {
+            println!("cargo:rustc-cfg=zend_error_observer_80");
+        }
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_php_major_version(vernum: u64) {
     let major_version = match vernum {
         70000..=79999 => 7,
@@ -327,10 +372,16 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80300 {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
+    if vernum >= 80400 {
+        println!("cargo:rustc-cfg=php_frameless");
+        println!("cargo:rustc-cfg=php_opcache_restart_hook");
+        println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
+    }
 }
 
 fn cfg_zts() {
     let output = Command::new("php")
+        .arg("-n")
         .arg("-r")
         .arg("echo PHP_ZTS, PHP_EOL;")
         .output()

@@ -10,7 +10,8 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=666
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
-DD_TRACE_AUTO_FLUSH_ENABLED=1
+--INI--
+datadog.trace.agent_test_session_token=background-sender/agent_headers
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
@@ -19,7 +20,6 @@ include __DIR__ . '/../includes/request_replayer.inc';
 \DDTrace\close_span();
 
 $rr = new RequestReplayer();
-$rr->waitForFlush();
 
 echo PHP_EOL;
 $headers = $rr->replayHeaders([

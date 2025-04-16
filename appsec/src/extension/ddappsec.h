@@ -9,14 +9,14 @@
 // This header MUST be included in files that use EG/PG/OG/...
 // See https://bugs.php.net/bug.php?id=81634
 
-#include "attributes.h"
-#include "logging.h"
-#include "version.h"
 #include <php.h>
 #include <stdbool.h>
 
+#include "attributes.h"
+
 typedef enum _enabled_configuration {
-    APPSEC_ENABLED_VIA_REMCFG = 0,
+    APPSEC_UNSET_STATE = 0,
+    APPSEC_ENABLED_VIA_REMCFG,
     APPSEC_FULLY_ENABLED,
     APPSEC_FULLY_DISABLED
 } enabled_configuration;
@@ -53,6 +53,7 @@ extern __thread void *unspecnull ATTR_TLS_LOCAL_DYNAMIC TSRMLS_CACHE;
 #    define DDAPPSEC_G(v) (ddappsec_globals.v)
 #endif
 
+void dd_appsec_rinit_once(void);
 int dd_appsec_rshutdown(bool ignore_verdict);
 
 // Add a NO_CACHE version.

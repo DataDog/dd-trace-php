@@ -2,24 +2,16 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
-use DDTrace\Log\Logger;
 use DDTrace\Tag;
-use DDTrace\Tests\Common\SnapshotTestTrait;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\SpanChecker;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use Illuminate\Support\Facades\Artisan;
 
 class QueueTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
-    use SnapshotTestTrait;
+    public static $database = "laravel8";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
@@ -38,19 +30,6 @@ class QueueTest extends WebFrameworkTestCase
     {
         parent::ddSetUp();
         $this->resetQueue();
-    }
-
-    protected static function flattenArray($arr)
-    {
-        $retArr = [];
-        foreach ($arr as $val) {
-            if (isset($val[0]['trace_id'])) {
-                $retArr[] = [$val];
-            } else {
-                $retArr = array_merge($retArr, self::flattenArray($val));
-            }
-        }
-        return $retArr;
     }
 
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
@@ -108,12 +87,11 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $this->isolateTracer(function () {
+        $workTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
             sleep(4);
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -135,8 +113,8 @@ class QueueTest extends WebFrameworkTestCase
         );
 
         // $workTraces should have 2 traces: 1 'laravel.queue.process' and 1 'laravel.artisan'
-        $processTrace1 = $workTraces[0];
-        $artisanTrace = $workTraces[1];
+        $processTrace1 = [$workTraces[0]];
+        $artisanTrace = [$workTraces[1]];
 
 
         $this->assertFlameGraph($processTrace1, [
@@ -202,12 +180,11 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $this->isolateTracer(function () {
+        $workTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue work emails', '/queue/workOn');
             $this->call($spec);
             sleep(4);
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         $this->assertFlameGraph(
             $createTraces,
@@ -229,8 +206,8 @@ class QueueTest extends WebFrameworkTestCase
         );
 
         // $workTraces should have 2 traces: 1 'laravel.queue.process' and 1 'laravel.artisan'
-        $processTrace1 = $workTraces[0];
-        $artisanTrace = $workTraces[1];
+        $processTrace1 = [$workTraces[0]];
+        $artisanTrace = [$workTraces[1]];
 
         $this->assertFlameGraph(
             $processTrace1,
@@ -276,21 +253,19 @@ class QueueTest extends WebFrameworkTestCase
             sleep(3);
         });
 
-        $this->isolateTracer(function () {
+        $workTraces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Queue work batch', '/queue/workOn');
             $this->call($spec);
             sleep(7);
         });
-        $workTraces = $this->parseMultipleRequestsFromDumpedData();
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
-        $workTraces = self::flattenArray($workTraces);
         usort($workTraces, function ($a, $b) {
-            return $a[0][0]['start'] - $b[0][0]['start'];
+            return $a[0]['start'] - $b[0]['start'];
         });
-        $artisanTrace = $workTraces[0];
-        $processTrace1 = $workTraces[1];
-        $processTrace2 = $workTraces[2];
+        $artisanTrace = [$workTraces[0]];
+        $processTrace1 = [$workTraces[1]];
+        $processTrace2 = [$workTraces[2]];
 
         $this->assertFlameGraph($processTrace1, [
             $this->spanProcessOneJob('database', 'emails', 'App\Jobs\SendVerificationEmail -> emails', true)
@@ -366,7 +341,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql_integration;dbname=laravel8', 'test', 'test');
     }
 
     protected function spanEventJobProcessing()

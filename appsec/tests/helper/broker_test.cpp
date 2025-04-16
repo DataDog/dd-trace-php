@@ -80,12 +80,13 @@ TEST(BrokerTest, SendClientInit)
     packer.pack_array(1);            // Array of messages
     packer.pack_array(2);            // First message
     pack_str(packer, "client_init"); // Type
-    packer.pack_array(5);
+    packer.pack_array(6);
     pack_str(packer, "ok");
     pack_str(packer, dds::php_ddappsec_version);
     packer.pack_array(2);
     pack_str(packer, "one");
     pack_str(packer, "two");
+    packer.pack_map(0);
     packer.pack_map(0);
     packer.pack_map(0);
     const auto &expected_data = ss.str();
@@ -121,6 +122,8 @@ TEST(BrokerTest, SendRequestInit)
     packer.pack_array(2);             // First message
     pack_str(packer, "request_init"); // Type
     packer.pack_array(4);
+    packer.pack_array(1); // Array of actions
+    packer.pack_array(2); // First action
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -131,6 +134,9 @@ TEST(BrokerTest, SendRequestInit)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force_keep
+    packer.pack_map(1);
+    pack_str(packer, "auto_user_instrum");
+    pack_str(packer, "DISABLED");
 
     const auto &expected_data = ss.str();
 
@@ -142,10 +148,11 @@ TEST(BrokerTest, SendRequestInit)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_init::response>();
-    response->verdict = "block";
+    response->actions.push_back(
+        {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
-    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
     response->force_keep = true;
+    response->settings["auto_user_instrum"] = "DISABLED";
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);
@@ -166,7 +173,9 @@ TEST(BrokerTest, SendRequestShutdown)
     packer.pack_array(1);                 // Array of messages
     packer.pack_array(2);                 // First message
     pack_str(packer, "request_shutdown"); // Type
-    packer.pack_array(6);
+    packer.pack_array(7);
+    packer.pack_array(1);
+    packer.pack_array(2);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -177,8 +186,10 @@ TEST(BrokerTest, SendRequestShutdown)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force keep
-    packer.pack_map(0);
-    packer.pack_map(0);
+    packer.pack_map(0); // Settings
+    packer.pack_map(0); // Meta
+    packer.pack_map(0); // Metrics
+    packer.pack_map(0); // Tel_metrics
     const auto &expected_data = ss.str();
 
     network::header_t h;
@@ -189,9 +200,9 @@ TEST(BrokerTest, SendRequestShutdown)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_shutdown::response>();
-    response->verdict = "block";
+    response->actions.push_back(
+        {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
-    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
     response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
@@ -214,6 +225,8 @@ TEST(BrokerTest, SendRequestExec)
     packer.pack_array(2);             // First message
     pack_str(packer, "request_exec"); // Type
     packer.pack_array(4);
+    packer.pack_array(1);
+    packer.pack_array(2);
     pack_str(packer, "block");
     packer.pack_map(2);
     pack_str(packer, "type");
@@ -224,6 +237,7 @@ TEST(BrokerTest, SendRequestExec)
     pack_str(packer, "one");
     pack_str(packer, "two");
     packer.pack_true(); // Force keep
+    packer.pack_map(0); // Settings
     const auto &expected_data = ss.str();
 
     network::header_t h;
@@ -234,9 +248,9 @@ TEST(BrokerTest, SendRequestExec)
         .WillOnce(DoAll(SaveString(&buffer), Return(expected_data.size())));
 
     auto response = std::make_shared<network::request_exec::response>();
-    response->verdict = "block";
+    response->actions.push_back(
+        {"block", {{"status_code", "403"}, {"type", "auto"}}});
     response->triggers = {"one", "two"};
-    response->parameters = {{"status_code", "403"}, {"type", "auto"}};
     response->force_keep = true;
 
     std::vector<std::shared_ptr<network::base_response>> messages;
@@ -260,33 +274,13 @@ TEST(BrokerTest, RecvClientInit)
     pack_str(packer, "client_init");
 
     // Message contents
-    packer.pack_array(7);
+    packer.pack_array(6);
     packer.pack_unsigned_int(20); // 1. PID
     pack_str(packer, "one");      // 2. client_version
     pack_str(packer, "two");      // 3. runtime_version
     packer.pack_nil();            // 4. enabled_configuration
 
-    packer.pack_map(6); // 5. service_identifier
-    pack_str(packer, "service");
-    pack_str(packer, "api");
-
-    pack_str(packer, "extra_services");
-    packer.pack_array(0);
-
-    pack_str(packer, "env");
-    pack_str(packer, "prod");
-
-    pack_str(packer, "tracer_version");
-    pack_str(packer, "9.99.9");
-
-    pack_str(packer, "app_version");
-    pack_str(packer, "1.23.4");
-
-    pack_str(packer, "runtime_id");
-    pack_str(packer,
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-
-    packer.pack_map(6); // 6. engine_settings
+    packer.pack_map(6); // 5. engine_settings
     pack_str(packer, "rules_file");
     pack_str(packer, "three");
 
@@ -303,21 +297,15 @@ TEST(BrokerTest, RecvClientInit)
     pack_str(packer, "value_regex");
 
     pack_str(packer, "schema_extraction");
-    packer.pack_map(2);
+    packer.pack_map(1);
     pack_str(packer, "enabled");
     packer.pack_true();
-    pack_str(packer, "sample_rate");
-    packer.pack_double(0.5);
 
-    packer.pack_map(4); // 7. rc_settings
+    packer.pack_map(2); // 6. rc_settings
     pack_str(packer, "enabled");
     packer.pack_true();
-    pack_str(packer, "host");
-    pack_str(packer, "datadog.host");
-    pack_str(packer, "port");
-    packer.pack_uint32(1025);
-    pack_str(packer, "poll_interval");
-    packer.pack_uint32(2222);
+    pack_str(packer, "shmem_path");
+    pack_str(packer, "/shmem_path_test");
 
     const std::string &expected_data = ss.str();
 
@@ -337,15 +325,6 @@ TEST(BrokerTest, RecvClientInit)
     EXPECT_STREQ(command.runtime_version.c_str(), "two");
     EXPECT_FALSE(command.enabled_configuration.has_value());
 
-    // Service Identifier
-    EXPECT_STREQ(command.service.service.c_str(), "api");
-    EXPECT_EQ(command.service.extra_services.size(), 0);
-    EXPECT_STREQ(command.service.env.c_str(), "prod");
-    EXPECT_STREQ(command.service.tracer_version.c_str(), "9.99.9");
-    EXPECT_STREQ(command.service.app_version.c_str(), "1.23.4");
-    EXPECT_STREQ(command.service.runtime_id.c_str(),
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-
     // Engine settings
     EXPECT_EQ(command.engine_settings.rules_file, std::string{"three"});
     EXPECT_EQ(command.engine_settings.waf_timeout_us, 42ul);
@@ -355,13 +334,10 @@ TEST(BrokerTest, RecvClientInit)
     EXPECT_STREQ(
         command.engine_settings.obfuscator_value_regex.c_str(), "value_regex");
     EXPECT_EQ(command.engine_settings.schema_extraction.enabled, true);
-    EXPECT_EQ(command.engine_settings.schema_extraction.sample_rate, 0.5);
 
     // RC settings
     EXPECT_EQ(command.rc_settings.enabled, true);
-    EXPECT_STREQ(command.rc_settings.host.c_str(), "datadog.host");
-    EXPECT_EQ(command.rc_settings.port, 1025);
-    EXPECT_EQ(command.rc_settings.poll_interval, 2222);
+    EXPECT_EQ(command.rc_settings.shmem_path, std::string{"/shmem_path_test"});
 }
 
 TEST(BrokerTest, RecvRequestInit)

@@ -12,13 +12,13 @@
       "_dd.p.dm": "-0",
       "_dd.p.tid": "65e701c900000000",
       "component": "wordpress",
-      "error.message": "Uncaught Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php:23",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(298): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(323): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/plugin.php(515): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(735): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/functions.php(955): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/index.php(17): require()\n#8 {main}",
+      "error.message": "Uncaught Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php:23",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(298): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(323): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/plugin.php(515): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(735): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/functions.php(955): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/index.php(17): require()\n#8 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "([^/]+)(?:/([0-9]+))?/?$",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/error?key=value&<redacted>",
+      "http.url": "http://localhost/error?key=value&<redacted>",
       "runtime-id": "8fdcf6ef-7cd9-4910-b426-c7c9809f3dd4",
       "span.kind": "server"
     },
@@ -81,7 +81,7 @@
           "service": "wordpress_test_app",
           "resource": "wp_maybe_load_widgets",
           "trace_id": 0,
-          "span_id": 13,
+          "span_id": 14,
           "parent_id": 5,
           "type": "web",
           "meta": {
@@ -93,7 +93,7 @@
           "service": "wordpress_test_app",
           "resource": "wp_maybe_load_embeds",
           "trace_id": 0,
-          "span_id": 14,
+          "span_id": 15,
           "parent_id": 5,
           "type": "web",
           "meta": {
@@ -105,7 +105,7 @@
           "service": "wordpress_test_app",
           "resource": "_wp_customize_include",
           "trace_id": 0,
-          "span_id": 15,
+          "span_id": 16,
           "parent_id": 5,
           "type": "web",
           "meta": {
@@ -126,11 +126,24 @@
        }
      },
      {
+       "name": "load_theme",
+       "service": "wordpress_test_app",
+       "resource": "Twentyseventeen (theme)",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "wordpress",
+         "wordpress.theme": "Twentyseventeen"
+       }
+     },
+     {
        "name": "action",
        "service": "wordpress_test_app",
        "resource": "after_setup_theme (hook)",
        "trace_id": 0,
-       "span_id": 7,
+       "span_id": 8,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -143,7 +156,7 @@
        "service": "wordpress_test_app",
        "resource": "WP.init",
        "trace_id": 0,
-       "span_id": 8,
+       "span_id": 9,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -155,7 +168,7 @@
        "service": "wordpress_test_app",
        "resource": "init (hook)",
        "trace_id": 0,
-       "span_id": 9,
+       "span_id": 10,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -168,8 +181,8 @@
           "service": "wordpress_test_app",
           "resource": "create_initial_post_types",
           "trace_id": 0,
-          "span_id": 16,
-          "parent_id": 9,
+          "span_id": 17,
+          "parent_id": 10,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -180,8 +193,8 @@
           "service": "wordpress_test_app",
           "resource": "create_initial_taxonomies",
           "trace_id": 0,
-          "span_id": 17,
-          "parent_id": 9,
+          "span_id": 18,
+          "parent_id": 10,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -192,8 +205,8 @@
           "service": "wordpress_test_app",
           "resource": "wp_widgets_init",
           "trace_id": 0,
-          "span_id": 18,
-          "parent_id": 9,
+          "span_id": 19,
+          "parent_id": 10,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -204,8 +217,8 @@
              "service": "wordpress_test_app",
              "resource": "WP_Widget_Factory._register_widgets",
              "trace_id": 0,
-             "span_id": 21,
-             "parent_id": 18,
+             "span_id": 22,
+             "parent_id": 19,
              "type": "web",
              "meta": {
                "component": "wordpress"
@@ -216,7 +229,7 @@
        "service": "wordpress_test_app",
        "resource": "wp_loaded (hook)",
        "trace_id": 0,
-       "span_id": 10,
+       "span_id": 11,
        "parent_id": 1,
        "type": "web",
        "meta": {
@@ -229,14 +242,14 @@
        "service": "wordpress_test_app",
        "resource": "WP.main",
        "trace_id": 0,
-       "span_id": 11,
+       "span_id": 12,
        "parent_id": 1,
        "type": "web",
        "error": 1,
        "meta": {
          "component": "wordpress",
-         "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php:23",
-         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(298): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(323): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/plugin.php(515): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(735): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/functions.php(955): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/index.php(17): require()\n#8 {main}",
+         "error.message": "Thrown Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php:23",
+         "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(298): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(323): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/plugin.php(515): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(735): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/functions.php(955): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/index.php(17): require()\n#8 {main}",
          "error.type": "Exception"
        }
      },
@@ -245,8 +258,8 @@
           "service": "wordpress_test_app",
           "resource": "WP.init",
           "trace_id": 0,
-          "span_id": 19,
-          "parent_id": 11,
+          "span_id": 20,
+          "parent_id": 12,
           "type": "web",
           "meta": {
             "component": "wordpress"
@@ -257,14 +270,14 @@
           "service": "wordpress_test_app",
           "resource": "WP.parse_request",
           "trace_id": 0,
-          "span_id": 20,
-          "parent_id": 11,
+          "span_id": 21,
+          "parent_id": 12,
           "type": "web",
           "error": 1,
           "meta": {
             "component": "wordpress",
-            "error.message": "Thrown Exception: Oops! in /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php:23",
-            "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(298): datadog_parse_request()\n#1 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(323): WP_Hook->apply_filters()\n#2 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/plugin.php(515): WP_Hook->do_action()\n#3 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(735): WP->parse_request()\n#5 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-includes/functions.php(955): WP->main()\n#6 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/wp-blog-header.php(16): wp()\n#7 /home/circleci/datadog/tests/Frameworks/WordPress/Version_4_8/index.php(17): require()\n#8 {main}",
+            "error.message": "Thrown Exception: Oops! in /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/plugins/datadog/datadog.php:23",
+            "error.stack": "#0 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(298): datadog_parse_request()\n#1 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp-hook.php(323): WP_Hook->apply_filters()\n#2 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/plugin.php(515): WP_Hook->do_action()\n#3 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(388): do_action_ref_array()\n#4 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/class-wp.php(735): WP->parse_request()\n#5 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-includes/functions.php(955): WP->main()\n#6 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-blog-header.php(16): wp()\n#7 /home/circleci/app/tests/Frameworks/WordPress/Version_4_8/index.php(17): require()\n#8 {main}",
             "error.type": "Exception"
           }
         },
@@ -273,7 +286,7 @@
        "service": "wordpress_test_app",
        "resource": "shutdown (hook)",
        "trace_id": 0,
-       "span_id": 12,
+       "span_id": 13,
        "parent_id": 1,
        "type": "web",
        "meta": {

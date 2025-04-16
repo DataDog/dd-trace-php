@@ -5,17 +5,19 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include <chrono>
+#include <map>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <string>
-#include <thread>
 
-#include "base64.h"
+#include "action.hpp"
 #include "client.hpp"
-#include "compression.hpp"
 #include "exception.hpp"
+#include "metrics.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
+#include "service.hpp"
+#include "service_config.hpp"
 #include "std_logging.hpp"
 
 using namespace std::chrono_literals;
@@ -23,6 +25,11 @@ using namespace std::chrono_literals;
 namespace dds {
 
 namespace {
+
+void collect_metrics(network::request_shutdown::response &response,
+    service &service, std::optional<engine::context> &context);
+void collect_metrics(network::client_init::response &response, service &service,
+    std::optional<engine::context> &context);
 
 template <typename M, typename... Mrest>
 // NOLINTNEXTLINE(google-runtime-references)
@@ -87,6 +94,7 @@ bool handle_message(client &client, const network::base_broker &broker,
         auto msg = broker.recv(initial_timeout);
         return maybe_exec_cmd_M<Ms...>(client, msg);
     } catch (const unexpected_command &e) {
+        SPDLOG_DEBUG("Unexpected command: {}", e.what());
         send_error = true;
         if (!ignore_unexpected_messages) {
             result = false;
@@ -144,35 +152,26 @@ bool handle_message(client &client, const network::base_broker &broker,
 bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
-                 "runtime_version={}, service={}, engine_settings={}, "
+                 "runtime_version={}, engine_settings={}, "
                  "remote_config_settings={}",
         command.pid, command.client_version, command.runtime_version,
-        command.service, command.engine_settings, command.rc_settings);
+        command.engine_settings, command.rc_settings);
 
-    auto service_id = command.service;
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
-
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
 
     std::vector<std::string> errors;
     bool has_errors = false;
 
     client_enabled_conf = command.enabled_configuration;
-    if (service_id.runtime_id.empty()) {
-        service_id.runtime_id = generate_random_uuid();
-    }
-    runtime_id_ = service_id.runtime_id;
 
     try {
-        service_ = service_manager_->create_service(std::move(service_id),
-            eng_settings, command.rc_settings, meta, metrics,
-            !client_enabled_conf.has_value());
-        if (service_) {
-            // This null check is only needed due to some tests
-            service_->register_runtime_id(runtime_id_);
-        }
+        set_service(service_manager_->create_service(
+            eng_settings, command.rc_settings));
+
+        // save engine settings so we can recreate the service if rc path
+        // changes
+        engine_settings_ = eng_settings;
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
@@ -192,8 +191,11 @@ bool client::handle_command(const network::client_init::request &command)
     auto response = std::make_shared<network::client_init::response>();
     response->status = has_errors ? "fail" : "ok";
     response->errors = std::move(errors);
-    response->meta = std::move(meta);
-    response->metrics = std::move(metrics);
+
+    if (service_) {
+        // may be null in testing
+        collect_metrics(*response, *service_, context_);
+    }
 
     try {
         if (!broker_->send(response)) {
@@ -211,12 +213,94 @@ bool client::handle_command(const network::client_init::request &command)
     return !has_errors;
 }
 
-bool client::handle_command(network::request_init::request &command)
+template <typename T> bool client::service_guard()
 {
     if (!service_) {
         // This implies a failed client_init, we can't continue.
-        SPDLOG_DEBUG("no service available on request_init");
+        SPDLOG_DEBUG("no service available on {}", T::name);
         send_error_response(*broker_);
+        return false;
+    }
+
+    return true;
+}
+
+template <typename T>
+std::shared_ptr<typename T::response> client::publish(
+    typename T::request &command, const std::string &rasp_rule)
+{
+    SPDLOG_DEBUG("received command {}", T::name);
+
+    auto response = std::make_shared<typename T::response>();
+    try {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        auto res = context_->publish(std::move(command.data), rasp_rule);
+        if (res) {
+            bool event_action = false;
+            bool stack_trace = false;
+            for (auto &act : res->actions) {
+                dds::network::action_struct new_action;
+                switch (act.type) {
+                case dds::action_type::block:
+                    new_action.verdict = network::verdict::block;
+                    new_action.parameters = std::move(act.parameters);
+                    event_action = true;
+                    break;
+                case dds::action_type::redirect:
+                    new_action.verdict = network::verdict::redirect;
+                    new_action.parameters = std::move(act.parameters);
+                    event_action = true;
+                    break;
+                case dds::action_type::stack_trace:
+                    stack_trace = true;
+                    new_action.verdict = network::verdict::stack_trace;
+                    new_action.parameters = std::move(act.parameters);
+                    break;
+                case dds::action_type::record:
+                default:
+                    event_action = true;
+                    new_action.verdict = network::verdict::record;
+                    new_action.parameters = {};
+                    break;
+                }
+                response->actions.push_back(new_action);
+            }
+            if (!event_action && stack_trace) {
+                // Stacktrace needs to send a record as well so Appsec event is
+                // generated
+                dds::network::action_struct extra_record_action;
+                extra_record_action.verdict = network::verdict::record;
+                extra_record_action.parameters = {};
+                response->actions.push_back(extra_record_action);
+            }
+            response->triggers = std::move(res->events);
+            response->force_keep = res->force_keep;
+
+            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
+        } else {
+            dds::network::action_struct new_action;
+            new_action.verdict = network::verdict::ok;
+            response->actions.push_back(new_action);
+        }
+    } catch (const invalid_object &e) {
+        // This error indicates some issue in either the communication with
+        // the client, incompatible versions or malicious client.
+        SPDLOG_ERROR("invalid data format provided by the client");
+        send_error_response(*broker_);
+        return nullptr;
+    } catch (const std::exception &e) {
+        // Uncertain what the issue is... lets be cautious
+        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
+        send_error_response(*broker_);
+        return nullptr;
+    }
+
+    return response;
+}
+
+bool client::handle_command(network::request_init::request &command)
+{
+    if (!service_guard<network::request_init>()) {
         return false;
     }
 
@@ -226,137 +310,33 @@ bool client::handle_command(network::request_init::request &command)
         response_cf->enabled = false;
 
         SPDLOG_DEBUG("sending config_features to request_init");
-        try {
-            return broker_->send(response_cf);
-        } catch (std::exception &e) {
-            SPDLOG_ERROR(e.what());
-        }
-
-        return true;
+        return send_message<network::config_features, false>(response_cf);
     }
 
     // During request init we initialize the engine context
     context_.emplace(*service_->get_engine());
 
-    SPDLOG_DEBUG("received command request_init");
-
-    auto response = std::make_shared<network::request_init::response>();
-    try {
-        auto res = context_->publish(std::move(command.data));
-        if (res) {
-            switch (res->type) {
-            case engine::action_type::block:
-                response->verdict = network::verdict::block;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::redirect:
-                response->verdict = network::verdict::redirect;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::record:
-            default:
-                response->verdict = network::verdict::record;
-                response->parameters = {};
-                break;
-            }
-
-            response->triggers = std::move(res->events);
-            response->force_keep = res->force_keep;
-
-            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
-        } else {
-            response->verdict = network::verdict::ok;
-        }
-    } catch (const invalid_object &e) {
-        // This error indicates some issue in either the communication with
-        // the client, incompatible versions or malicious client.
-        SPDLOG_ERROR("invalid data format provided by the client");
-        send_error_response(*broker_);
-        return false;
-    } catch (const std::exception &e) {
-        // Uncertain what the issue is... lets be cautious
-        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
-        send_error_response(*broker_);
-        return false;
+    auto response = publish<network::request_init>(command);
+    if (response) {
+        response->settings["auto_user_instrum"] = to_string_view(
+            service_->get_service_config()->get_auto_user_intrum_mode());
     }
 
-    SPDLOG_DEBUG(
-        "sending response to request_init, verdict: {}", response->verdict);
-    try {
-        return broker_->send(response);
-    } catch (std::exception &e) {
-        SPDLOG_ERROR(e.what());
-    }
-
-    return false;
+    return send_message<network::request_init>(response);
 }
 
 bool client::handle_command(network::request_exec::request &command)
 {
     if (!context_) {
-        // A lack of context implies processing request_init failed, this
-        // can happen for legitimate reasons so let's try to process the data.
-        if (!service_) {
-            // This implies a failed client_init, we can't continue.
-            SPDLOG_DEBUG("no service available on request_exec");
-            send_error_response(*broker_);
+        if (!service_guard<network::request_exec>()) {
             return false;
         }
 
         context_.emplace(*service_->get_engine());
     }
 
-    SPDLOG_DEBUG("received command request_exec");
-
-    auto response = std::make_shared<network::request_exec::response>();
-    try {
-        auto res = context_->publish(std::move(command.data));
-        if (res) {
-            switch (res->type) {
-            case engine::action_type::block:
-                response->verdict = network::verdict::block;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::redirect:
-                response->verdict = network::verdict::redirect;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::record:
-            default:
-                response->verdict = network::verdict::record;
-                response->parameters = {};
-                break;
-            }
-
-            response->triggers = std::move(res->events);
-            response->force_keep = res->force_keep;
-
-            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
-        } else {
-            response->verdict = network::verdict::ok;
-        }
-    } catch (const invalid_object &e) {
-        // This error indicates some issue in either the communication with
-        // the client, incompatible versions or malicious client.
-        SPDLOG_ERROR("invalid data format provided by the client");
-        send_error_response(*broker_);
-        return false;
-    } catch (const std::exception &e) {
-        // Uncertain what the issue is... lets be cautious
-        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
-        send_error_response(*broker_);
-        return false;
-    }
-
-    SPDLOG_DEBUG(
-        "sending response to request_exec, verdict: {}", response->verdict);
-    try {
-        return broker_->send(response);
-    } catch (std::exception &e) {
-        SPDLOG_ERROR(e.what());
-    }
-
-    return false;
+    auto response = publish<network::request_exec>(command, command.rasp_rule);
+    return send_message<network::request_exec>(response);
 }
 
 bool client::compute_client_status()
@@ -378,16 +358,16 @@ bool client::compute_client_status()
     return request_enabled_;
 }
 
-bool client::handle_command(network::config_sync::request & /* command */)
+bool client::handle_command(network::config_sync::request &command)
 {
-    if (!service_) {
-        // This implies a failed client_init, we can't continue.
-        SPDLOG_DEBUG("no service available on config_sync");
-        send_error_response(*broker_);
+    if (!service_guard<network::config_sync>()) {
         return false;
     }
 
-    SPDLOG_DEBUG("received command config_sync");
+    SPDLOG_DEBUG(
+        "received command config_sync with path {}", command.rem_cfg_path);
+
+    update_remote_config_path(command.rem_cfg_path);
 
     if (compute_client_status()) {
         auto response_cf =
@@ -404,7 +384,7 @@ bool client::handle_command(network::config_sync::request & /* command */)
         return true;
     }
 
-    SPDLOG_DEBUG("sending config_sync to config_sync");
+    SPDLOG_DEBUG("sending response to config_sync");
     try {
         return broker_->send(
             std::make_shared<network::config_sync::response>());
@@ -415,91 +395,87 @@ bool client::handle_command(network::config_sync::request & /* command */)
     return false;
 }
 
+template <typename T, bool actions>
+bool client::send_message(const std::shared_ptr<typename T::response> &message)
+{
+    if (!message) {
+        return false;
+    }
+
+    if (spdlog::should_log(spdlog::level::debug)) {
+        // NOLINTNEXTLINE(misc-const-correctness)
+        std::ostringstream all_verdicts;
+        if constexpr (actions) {
+            for (const auto &action : message->actions) {
+                all_verdicts << action.verdict << " ";
+            }
+            if (message->actions.empty()) {
+                all_verdicts << "no verdicts";
+            }
+        }
+        SPDLOG_DEBUG("sending response to {}, verdicts: {}",
+            message->get_type(), all_verdicts.str());
+    }
+    try {
+        return broker_->send(message);
+    } catch (std::exception &e) {
+        SPDLOG_ERROR(e.what());
+    }
+    return false;
+}
+
 bool client::handle_command(network::request_shutdown::request &command)
 {
     if (!context_) {
-        // A lack of context implies processing request_init failed, this
-        // can happen for legitimate reasons so let's try to process the data.
-        if (!service_) {
-            // This implies a failed client_init, we can't continue.
-            SPDLOG_DEBUG("no service available on request_shutdown");
-            send_error_response(*broker_);
+        if (!service_guard<network::request_shutdown>()) {
             return false;
         }
 
         context_.emplace(*service_->get_engine());
     }
 
-    SPDLOG_DEBUG("received command request_shutdown");
-
     // Free the context at the end of request shutdown
     auto free_ctx = defer([this]() { this->context_.reset(); });
 
-    auto response = std::make_shared<network::request_shutdown::response>();
+    std::uint64_t const sample_key = command.api_sec_samp_key;
+    if (sample_key != 0 && service_->schema_extraction_enabled() &&
+        (!sample_acc_ || sample_acc_->hit(sample_key))) {
+        parameter context_processor = parameter::map();
+        context_processor.add("extract-schema", parameter::as_boolean(true));
+        command.data.add("waf.context.processor", std::move(context_processor));
+    }
 
-    try {
-        auto sampler = service_->get_schema_sampler();
-        std::optional<sampler::scope> scope;
-        if (sampler) {
-            scope = sampler->get();
-            if (scope.has_value()) {
-                parameter context_processor = parameter::map();
-                context_processor.add(
-                    "extract-schema", parameter::as_boolean(true));
-                command.data.add(
-                    "waf.context.processor", std::move(context_processor));
-            }
-        }
-
-        auto res = context_->publish(std::move(command.data));
-        if (res) {
-            switch (res->type) {
-            case engine::action_type::block:
-                response->verdict = network::verdict::block;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::redirect:
-                response->verdict = network::verdict::redirect;
-                response->parameters = std::move(res->parameters);
-                break;
-            case engine::action_type::record:
-            default:
-                response->verdict = network::verdict::record;
-                response->parameters = {};
-                break;
-            }
-
-            response->triggers = std::move(res->events);
-            response->force_keep = res->force_keep;
-
-            DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
-        } else {
-            response->verdict = network::verdict::ok;
-        }
-
-        context_->get_meta_and_metrics(response->meta, response->metrics);
-    } catch (const invalid_object &e) {
-        // This error indicates some issue in either the communication with
-        // the client, incompatible versions or malicious client.
-        SPDLOG_ERROR("invalid data format provided by the client");
-        send_error_response(*broker_);
-        return false;
-    } catch (const std::exception &e) {
-        // Uncertain what the issue is... lets be cautious
-        DD_STDLOG(DD_STDLOG_REQUEST_ANALYSIS_FAILED, e.what());
-        send_error_response(*broker_);
+    auto response = publish<network::request_shutdown>(command);
+    if (!response) {
         return false;
     }
 
-    SPDLOG_DEBUG(
-        "sending response to request_shutdown, verdict: {}", response->verdict);
-    try {
-        return broker_->send(response);
-    } catch (std::exception &e) {
-        SPDLOG_ERROR(e.what());
+    collect_metrics(*response, *service_, context_);
+
+    return send_message<network::request_shutdown>(response);
+}
+
+void client::update_remote_config_path(std::string_view path)
+{
+    if (service_->is_remote_config_shmem_path(path) ||
+        !engine_settings_.has_value()) {
+        return;
     }
 
-    return false;
+    remote_config::settings rc_settings;
+    if (path.empty()) {
+        SPDLOG_INFO("Remote config path is empty, recreating service with "
+                    "disabled remote config");
+        rc_settings.enabled = false;
+    } else {
+        SPDLOG_INFO(
+            "Remote config path changed to {}, recreating service", path);
+        rc_settings.enabled = true;
+        rc_settings.shmem_path = path;
+    }
+
+    set_service(
+        service_manager_->create_service(*engine_settings_, rc_settings));
 }
 
 bool client::run_client_init()
@@ -525,12 +501,6 @@ bool client::run_request()
 
 void client::run(worker::queue_consumer &q)
 {
-    const defer on_exit{[this]() {
-        if (this->service_) {
-            this->service_->unregister_runtime_id(this->runtime_id_);
-        }
-    }};
-
     if (q.running()) {
         if (!run_client_init()) {
             SPDLOG_DEBUG("Finished handling client (client_init failed)");
@@ -544,5 +514,79 @@ void client::run(worker::queue_consumer &q)
 
     SPDLOG_DEBUG("Finished handling client");
 }
+
+namespace {
+
+struct request_metrics_submitter : public metrics::telemetry_submitter {
+    request_metrics_submitter() = default;
+    ~request_metrics_submitter() override = default;
+    request_metrics_submitter(const request_metrics_submitter &) = delete;
+    request_metrics_submitter &operator=(
+        const request_metrics_submitter &) = delete;
+    request_metrics_submitter(request_metrics_submitter &&) = delete;
+    request_metrics_submitter &operator=(request_metrics_submitter &&) = delete;
+
+    void submit_metric(std::string_view name, double value,
+        metrics::telemetry_tags tags) override
+    {
+        std::string tags_s = tags.consume();
+        SPDLOG_TRACE("submit_metric [req]: name={}, value={}, tags={}", name,
+            value, tags_s);
+        tel_metrics[name].emplace_back(value, std::move(tags_s));
+    };
+    void submit_span_metric(std::string_view name, double value) override
+    {
+        SPDLOG_TRACE(
+            "submit_span_metric [req]: name={}, value={}", name, value);
+        metrics[name] = value;
+    };
+    void submit_span_meta(std::string_view name, std::string value) override
+    {
+        SPDLOG_TRACE("submit_span_meta [req]: name={}, value={}", name, value);
+        meta[std::string{name}] = value;
+    };
+    void submit_span_meta_copy_key(std::string name, std::string value) override
+    {
+        SPDLOG_TRACE(
+            "submit_span_meta_copy_key [req]: name={}, value={}", name, value);
+        meta[name] = value;
+    }
+
+    std::map<std::string, std::string> meta;
+    std::map<std::string_view, double> metrics;
+    std::unordered_map<std::string_view,
+        std::vector<std::pair<double, std::string>>>
+        tel_metrics;
+};
+
+template <typename Response>
+void collect_metrics_impl(Response &response, service &service,
+    std::optional<engine::context> &context)
+{
+    request_metrics_submitter msubmitter{};
+    if (context) {
+        context->get_metrics(msubmitter);
+    }
+    service.drain_metrics(
+        [&msubmitter](std::string_view name, double value, auto tags) {
+            msubmitter.submit_metric(name, value, std::move(tags));
+        });
+    msubmitter.metrics.merge(service.drain_legacy_metrics());
+    msubmitter.meta.merge(service.drain_legacy_meta());
+    response.tel_metrics = std::move(msubmitter.tel_metrics);
+    response.meta = std::move(msubmitter.meta);
+    response.metrics = std::move(msubmitter.metrics);
+}
+void collect_metrics(network::request_shutdown::response &response,
+    service &service, std::optional<engine::context> &context)
+{
+    collect_metrics_impl(response, service, context);
+}
+void collect_metrics(network::client_init::response &response, service &service,
+    std::optional<engine::context> &context)
+{
+    collect_metrics_impl(response, service, context);
+}
+} // namespace
 
 } // namespace dds

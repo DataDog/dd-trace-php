@@ -1,6 +1,7 @@
 --TEST--
 Setting a distributed tracing context if a span is already active
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TAGS=custom_tag=inherited
 HTTP_X_DATADOG_ORIGIN=datadog
 DD_TRACE_GENERATE_ROOT_SPAN=0

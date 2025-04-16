@@ -17,6 +17,8 @@ class CustomRedisClass extends \Redis
 
 class PHPRedisTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "redis";
+
     const A_STRING = 'A_STRING';
     const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
@@ -53,6 +55,11 @@ class PHPRedisTest extends IntegrationTestCase
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
         ];
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-redis';
     }
 
     public function testRedisInExtendedClass()

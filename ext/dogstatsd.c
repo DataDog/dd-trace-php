@@ -13,7 +13,11 @@ char *ddtrace_dogstatsd_url(void) {
         return zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url) + 1);
     }
 
-    zend_string *hostname = get_global_DD_AGENT_HOST();
+    zend_string *hostname = get_DD_DOGSTATSD_HOST();
+    if (ZSTR_LEN(hostname) == 0) {
+        hostname = get_global_DD_AGENT_HOST();
+    }
+
     if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
         return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
     }

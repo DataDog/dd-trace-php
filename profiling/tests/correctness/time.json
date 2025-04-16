@@ -1,47 +1,46 @@
 {
-    "test_name":"php_time",
-    "stacks": [
-      {
-        "profile-type": "wall-time",
-        "stack-content":
-        [
-          {
-            "regular_expression":"<?php;main;a$",
-            "percent": 17,
-            "error_margin": 10
-          },
-          {
-            "regular_expression":"<?php;main;b$",
-            "percent": 33,
-            "error_margin": 10
-          },
-          {
-            "regular_expression":"<?php;main;standard\\|sleep$",
-            "percent": 50,
-            "error_margin": 10
-          }
-        ]
-      }, {
-        "profile-type": "cpu-time",
-        "stack-content":
-        [
-          {
-            "regular_expression":"<?php;main;a$",
-            "percent": 33,
-            "error_margin": 10
-          },
-          {
-            "regular_expression":"<?php;main;b$",
-            "percent": 66,
-            "error_margin": 10
-          },
-          {
-            "regular_expression":"<?php;main;standard\\|sleep$",
-            "percent": 1,
-            "error_margin": 10
-          }
-        ]
-      }
-    ]
-  }
-
+  "scale_by_duration": true,
+  "test_name": "php_time",
+  "stacks": [
+    {
+      "profile-type": "wall-time",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;a$",
+          "percent": 17,
+          "error_margin": 10
+        },
+        {
+          "regular_expression": "<?php;main;b$",
+          "percent": 33,
+          "error_margin": 10
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|sleep$",
+          "percent": 50,
+          "error_margin": 10
+        }
+      ]
+    },
+    {
+      "profile-type": "cpu-time",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;a$",
+          "percent": 33,
+          "error_margin": 10
+        },
+        {
+          "regular_expression": "<?php;main;b$",
+          "percent": 66,
+          "error_margin": 10
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|sleep$",
+          "percent": 1,
+          "error_margin": 10
+        }
+      ]
+    }
+  ]
+}

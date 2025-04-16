@@ -12,8 +12,10 @@
 #include "ip_extraction.h"
 #include "logging.h"
 #include "php_objects.h"
-#include "tags.h"
+#include "user_tracking.h"
 #include "zai_string/string.h"
+
+#include "compatibility.h"
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -234,7 +236,7 @@ bool dd_config_minit(int module_number)
     return true;
 }
 
-void dd_config_first_rinit()
+void dd_config_first_rinit(void)
 {
     zai_config_first_time_rinit(true);
     zai_config_rinit();
@@ -285,13 +287,13 @@ ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_value", PHP_FN(datadog_appsec_testing_zai_config_get_value), set_string_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_global_value", PHP_FN(datadog_appsec_testing_zai_config_get_global_value), set_string_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_value", PHP_FN(datadog_appsec_testing_zai_config_get_value), set_string_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "zai_config_get_global_value", PHP_FN(datadog_appsec_testing_zai_config_get_global_value), set_string_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

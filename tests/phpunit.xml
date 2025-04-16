@@ -7,7 +7,7 @@
     beStrictAboutResourceUsageDuringSmallTests="true"
     beStrictAboutTestsThatDoNotTestAnything="true"
     beStrictAboutTodoAnnotatedTests="true"
-    bootstrap="./bootstrap.php"
+    bootstrap="./bootstrap_phpunit.php"
     colors="true"
     columns="max"
     verbose="true"
@@ -37,9 +37,9 @@
             <directory>./Integrations/CakePHP/V4_5</directory>
             <directory>./Integrations/CLI/CakePHP/V4_5</directory>
         </testsuite>
-        <testsuite name="cakephp-50-test">
-            <directory>./Integrations/CakePHP/V5_0</directory>
-            <directory>./Integrations/CLI/CakePHP/V5_0</directory>
+        <testsuite name="cakephp-latest-test">
+            <directory>./Integrations/CakePHP/Latest</directory>
+            <directory>./Integrations/CLI/CakePHP/Latest</directory>
         </testsuite>
         <testsuite name="codeigniter-22-test">
             <directory>./Integrations/CodeIgniter/V2_2</directory>
@@ -70,15 +70,26 @@
             <directory>./Integrations/Laravel/V11_x</directory>
             <directory>./Integrations/CLI/Laravel/V11_X</directory>
         </testsuite>
-        <testsuite name="laravel-octane-test">
-            <directory>./Integrations/Laravel/Octane</directory>
+        <testsuite name="laravel-latest-test">
+            <directory>./Integrations/Laravel/Latest</directory>
+            <directory>./Integrations/CLI/Laravel/Latest</directory>
+        </testsuite>
+        <testsuite name="laravel-octane-latest-test">
+            <directory>./Integrations/Laravel/Octane/Latest</directory>
+        </testsuite>
+        <testsuite name="api-gateway-test">
+            <file>./Integrations/Laravel/APIGWTest.php</file>
+            <file>./Integrations/Laravel/Octane/APIGWTest.php</file>
+            <file>./Integrations/Roadrunner/APIGWTest.php</file>
         </testsuite>
         <testsuite name="opentelemetry1">
+            <directory suffix=".phpt">./OpenTelemetry/Integration/Context/Fiber</directory>
             <directory>./OpenTelemetry/Unit/API</directory>
             <directory>./OpenTelemetry/Unit/Context</directory>
             <directory>./OpenTelemetry/Unit/Propagation</directory>
             <directory>./OpenTelemetry/Integration/API</directory>
             <directory phpVersion="8.1.0" phpVersionOperator="&gt;=">./OpenTelemetry/Integration/Context</directory>
+            <directory phpVersion="8.2.0" phpVersionOperator="&gt;=">./OpenTelemetry/Integration/SpanProvenanceTest.php</directory>
             <directory>./OpenTelemetry/Integration/Logs</directory>
             <directory>./OpenTelemetry/Integration/SDK</directory>
             <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>
@@ -87,8 +98,11 @@
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>
-        <testsuite name="slim-4-test">
-            <directory>./Integrations/Slim/V4</directory>
+        <testsuite name="slim-48-test">
+            <directory>./Integrations/Slim/V4_8</directory>
+        </testsuite>
+        <testsuite name="slim-latest-test">
+            <directory>./Integrations/Slim/Latest</directory>
         </testsuite>
         <testsuite name="frankenphp-test">
             <directory>./Integrations/Frankenphp</directory>
@@ -108,9 +122,9 @@
             <directory>./Integrations/Symfony/V6_2</directory>
             <directory>./Integrations/CLI/Symfony/V6_2</directory>
         </testsuite>
-        <testsuite name="symfony-70-test">
-            <directory>./Integrations/Symfony/V7_0</directory>
-            <directory>./Integrations/CLI/Symfony/V7_0</directory>
+        <testsuite name="symfony-latest-test">
+            <directory>./Integrations/Symfony/Latest</directory>
+            <directory>./Integrations/CLI/Symfony/Latest</directory>
         </testsuite>
         <testsuite name="custom-framework-autoloading-test">
             <directory>./Integrations/Custom/Autoloaded</directory>

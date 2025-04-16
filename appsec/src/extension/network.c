@@ -19,6 +19,11 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/un.h>
+#include <time.h>
+
+#ifdef __APPLE__
+#    include <sys/ucred.h>
+#endif
 
 #define HELPER_PROCESS_C_INCLUDES
 #include "ddappsec.h"
@@ -34,8 +39,12 @@ struct PACKED _dd_header { // NOLINT
 
 typedef struct PACKED _dd_header dd_header;
 
-static const int CONNECT_TIMEOUT = 2500; // ms
+static const int CONNECT_TIMEOUT = 2500;    // ms
+static const int CONNECT_RETRY_PAUSE = 100; // ms
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
+
+static void _timespec_add_ms(struct timespec *ts, long num_ms);
+static long _timespec_delta_ms(struct timespec *ts1, struct timespec *ts2);
 
 int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
     dd_conn *nonnull conn, const char *nonnull path, size_t path_len)
@@ -45,6 +54,7 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
         return dd_error;
     }
 
+    // NOLINTNEXTLINE(android-cloexec-socket)
     int res = conn->socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
     if (res == -1) {
@@ -71,13 +81,28 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
     }
 
     mlog(dd_log_info, "Attempting to connect to UNIX socket %s", path);
+    struct timespec deadline;
+    clock_gettime(CLOCK_MONOTONIC, &deadline);
+    _timespec_add_ms(&deadline, CONNECT_TIMEOUT);
+
+try_again:
     res = connect(
         conn->socket, (struct sockaddr *)&conn->addr, sizeof(conn->addr));
     if (res == -1) {
-        if (errno == EINPROGRESS) {
+        int errno_copy = errno;
+        if (errno_copy == EINPROGRESS) {
             struct pollfd pfds[] = {
                 {.fd = conn->socket, .events = POLLIN | POLLOUT}};
-            res = poll(pfds, 1, CONNECT_TIMEOUT);
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            long time_left = _timespec_delta_ms(&deadline, &now);
+            if (time_left <= 0) {
+                dd_conn_destroy(conn);
+                mlog(dd_log_info, "Connection to helper timed out");
+                return dd_error;
+            }
+
+            res = poll(pfds, 1, (int)time_left);
             if (res == 0) {
                 dd_conn_destroy(conn);
                 mlog(dd_log_info, "Connection to helper timed out");
@@ -103,7 +128,32 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
             }
             // else good
         } else {
+            if (errno_copy == ENOENT || errno_copy == ECONNREFUSED) {
+                // the socket does not exist or is not being listened on. Retry
+                struct timespec now;
+                clock_gettime(CLOCK_MONOTONIC, &now);
+                long time_left = _timespec_delta_ms(&deadline, &now);
+                if (time_left <= 0) {
+                    dd_conn_destroy(conn);
+                    mlog(dd_log_info, "Connection to helper timed out");
+                    return dd_error;
+                }
+
+                mlog(dd_log_debug, "Socket %s.  Waiting %d ms for next retry",
+                    errno_copy == ENOENT ? "does not exist"
+                                         : "is not being listened on",
+                    CONNECT_RETRY_PAUSE);
+                int ret = usleep(CONNECT_RETRY_PAUSE * 1000); // NOLINT
+                if (ret == 0 || errno == EINTR) {
+                    goto try_again;
+                } else {
+                    mlog_err(dd_log_warning,
+                        "Failed connecting to helper (usleep())");
+                }
+            }
+
             dd_conn_destroy(conn);
+            errno = errno_copy; // restore for mlog_err
             mlog_err(
                 dd_log_info, "Failed connecting to helper (connect() call)");
             return dd_error;
@@ -151,51 +201,55 @@ dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
         iovs[i] = *iov;
     }
 
-    size_t total = sizeof(dd_header) + data_len;
+    const size_t total = sizeof(dd_header) + data_len;
     mlog_g(dd_log_debug, "About to send %zu + %zu bytes to helper",
         sizeof(dd_header), data_len);
 
-    ssize_t sent_bytes = writev(conn->socket, iovs, (int)iovecs_count + 1);
+    size_t sent_bytes = 0;
+    struct iovec *ciovs = iovs;
+    int ciovs_count = (int)iovecs_count + 1;
+    while (true) {
+        const ssize_t written = writev(conn->socket, ciovs, ciovs_count);
+        if (written == -1) {
+            if (errno == EINTR) {
+                mlog(dd_log_debug, "writev() call interrupted. Retrying");
+                continue;
+            }
+            mlog_err(dd_log_info, "Error writing %zu bytes to helper", total);
+            efree(iovs);
+            return dd_network;
+        }
+        if (written == 0) {
+            mlog(dd_log_info, "writev() call returned zero");
+            efree(iovs);
+            return dd_network;
+        }
+
+        mlog_g(dd_log_debug, "Wrote %zu bytes", (size_t)written);
+        sent_bytes += written;
+        if (sent_bytes == total) {
+            break;
+        }
+
+        // adjust iovecs
+        size_t uwritten = (size_t)written;
+        for (int i = 0; i < ciovs_count; ++i) {
+            struct iovec *ciov = &ciovs[i];
+            if (uwritten >= ciov->iov_len) {
+                assert(i < ciovs_count - 1);
+                uwritten -= ciov->iov_len;
+            } else {
+                ciov->iov_base = (char *)ciov->iov_base + uwritten;
+                ciov->iov_len -= uwritten;
+                ciovs += i;
+                break;
+            }
+        }
+    }
+
     efree(iovs);
-    if (sent_bytes == -1) {
-        mlog_err(dd_log_info, "Error writing %zu bytes to helper", total);
-        return dd_network;
-    }
-    mlog_g(dd_log_debug, "Wrote %zu bytes", (size_t)sent_bytes);
-
-    if ((size_t)sent_bytes != total) {
-        mlog(dd_log_info,
-            "Could not send the desired number of bytes. Total sent was %zu, "
-            "wanted %zu",
-            (size_t)sent_bytes, total);
-        return dd_network;
-    }
-
     return dd_success;
 }
-#ifdef SO_PASSCRED
-dd_result dd_conn_sendv_cred(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
-{
-    // set SO_PASSCRED before sending the message. This is to try to
-    // ensure that the helper does not send a response ahead of our having
-    // had the chance to set SO_PASSCRED before calling recvmsg(), resulting in
-    // the credentials received having the overflowuid
-    int res = setsockopt(
-        conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){1}, sizeof(int));
-    if (res == -1) {
-        mlog_err(
-            dd_log_warning, "Call to setsockopt to get credentials failed");
-        return dd_error;
-    }
-
-    return dd_conn_sendv(conn, iovecs);
-}
-#else // no SO_PASSCRED
-dd_result dd_conn_sendv_cred(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
-{
-    return dd_conn_sendv(conn, iovecs);
-}
-#endif
 
 static dd_result _recv_message_body(int sock, char *nullable *nonnull data,
     size_t *nonnull data_len, size_t expected_size);
@@ -207,23 +261,38 @@ dd_result dd_conn_recv(dd_conn *nonnull conn, char *nullable *nonnull data,
     }
 
     dd_header h;
-    ssize_t recv_bytes = recv(conn->socket, (void *)&h, sizeof(dd_header), 0);
-    if (recv_bytes == -1) {
-        mlog_err(dd_log_info, "Error receiving the header");
-        return dd_network;
-    }
-    if (recv_bytes != sizeof(dd_header)) {
-        mlog(dd_log_info, "Could not read the full header. Read %zd",
-            recv_bytes);
-        return dd_network;
+    char *writep = (char *)&h;
+    char *const endp = writep + sizeof(h);
+    while (writep < endp) {
+        ssize_t recv_bytes = recv(conn->socket, writep, endp - writep, 0);
+        if (recv_bytes == -1) {
+            if (errno == EINTR) {
+                mlog(dd_log_debug, "recv() call interrupted. Retrying");
+                continue;
+            }
+            mlog_err(dd_log_info, "Error receiving the header");
+            return dd_network;
+        }
+        if (recv_bytes == 0) {
+            mlog(dd_log_info, "recv() call receiving header yielded no data");
+            return dd_network;
+        }
+        writep += recv_bytes;
     }
 
-    if (strncmp(h.code, "dds", 3) != 0) {
-        mlog(dd_log_warning, "Invalid message header from helper");
+    if (memcmp(h.code, "dds", 4) != 0) {
+        mlog(dd_log_warning,
+            "Invalid message header from helper. First eight bytes are "
+            "%02X%02X%02X%02x%02X%02X%02X%02x",
+            ((unsigned char *)&h)[0], ((unsigned char *)&h)[1],
+            ((unsigned char *)&h)[2], ((unsigned char *)&h)[3],
+            ((unsigned char *)&h)[4], ((unsigned char *)&h)[5],
+            ((unsigned char *)&h)[6], ((unsigned char *)&h)[7]);
         // to force the connection closed. It may be we half-read a previous
         // message, so a reconnection can help
         return dd_network;
     }
+
     // size is in machine order
     if (h.size > MAX_RECV_MESSAGE_SIZE) {
         mlog(dd_log_warning,
@@ -252,6 +321,10 @@ static dd_result _recv_message_body(int sock, char *nullable *nonnull data,
     while (remaining_bytes > 0) {
         ssize_t recv_bytes = recv(sock, buffer, remaining_bytes, 0);
         if (recv_bytes == -1) {
+            if (errno == EINTR) {
+                mlog(dd_log_debug, "recv() call interrupted. Retrying");
+                continue;
+            }
             mlog_err(dd_log_info, "Error receiving the body of a message");
             goto error;
         }
@@ -273,83 +346,34 @@ error:
     return dd_network;
 }
 
-#ifdef SO_PASSCRED
-static dd_result _check_credentials(struct cmsghdr *cmsgp);
-dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
-    size_t *nonnull data_len)
+dd_result dd_conn_check_credentials(dd_conn *nonnull conn)
 {
-    if (conn == NULL || conn->socket <= 0 || data == NULL) {
-        mlog(dd_log_warning, "Invalid arguments. Bug");
-        return dd_error;
-    }
-
-    union {
-        char buf[CMSG_SPACE(sizeof(struct ucred))];
-        struct cmsghdr _align;
-    } control;
-
-    dd_header h;
-    struct iovec iov = {
-        .iov_base = &h,
-        .iov_len = sizeof h,
-    };
-    struct msghdr msgh = {
-        .msg_iov = &iov,
-        .msg_iovlen = 1,
-        .msg_control = control.buf,
-        .msg_controllen = CMSG_LEN(sizeof(struct ucred)),
-    };
-
-    ssize_t recv_bytes = recvmsg(conn->socket, &msgh, 0);
-    if (recv_bytes == -1) {
-        mlog_err(dd_log_info, "Error receviving data from helper");
-        // will return after setsockopt() call
-    }
-
-    setsockopt(conn->socket, SOL_SOCKET, SO_PASSCRED, &(int){0}, sizeof(int));
-
-    if (recv_bytes <= 0) {
-        mlog(dd_log_info, "No data received");
-        return dd_network;
-    }
-    if ((size_t)recv_bytes < sizeof(h)) {
-        mlog(dd_log_info, "Not enough data received for the header");
-        return dd_network;
-    }
-
-    // check credentials
-    if (msgh.msg_flags & MSG_CTRUNC) { // NOLINT
-        mlog(dd_log_info, "Truncated ancillary data");
-    }
-    dd_result ddres = _check_credentials(CMSG_FIRSTHDR(&msgh));
-    if (ddres) {
-        return ddres;
-    }
-
-    if (strncmp(h.code, "dds", 3) != 0) {
-        mlog(dd_log_warning, "Invalid message header from helper");
-        return dd_network;
-    }
-
-    return _recv_message_body(conn->socket, data, data_len, h.size);
-}
-static dd_result _check_credentials(struct cmsghdr *cmsgp)
-{
-    if (!cmsgp || cmsgp->cmsg_len != CMSG_LEN(sizeof(struct ucred))) {
-        mlog(dd_log_warning,
-            "Helper credentials: no ancillary data or incorrect size");
-        return dd_network;
-    }
-    if (cmsgp->cmsg_level != SOL_SOCKET ||
-        cmsgp->cmsg_type != SCM_CREDENTIALS) {
-        mlog(dd_log_warning, "Unexpect type of ancillary data");
-        return dd_network;
-    }
-
+#ifdef __APPLE__
+    struct xucred creds;
+#else
     struct ucred creds;
-    memcpy(&creds, CMSG_DATA(cmsgp), sizeof(struct ucred)); // NOLINT
-    mlog_g(dd_log_debug, "Credentials: pid %d, uid %d, gid %d", (int)creds.pid,
+#endif
+    socklen_t len = sizeof(creds);
+#ifdef __APPLE__
+    if (getsockopt(conn->socket, SOL_LOCAL, LOCAL_PEERCRED, &creds, &len) ==
+        -1) {
+#else
+    if (getsockopt(conn->socket, SOL_SOCKET, SO_PEERCRED, &creds, &len) == -1) {
+#endif
+        mlog_err(
+            dd_log_warning, "Error getting credentials of the helper process");
+        return dd_network;
+    }
+
+    uid_t uid;
+#ifdef __APPLE__
+    uid = creds.cr_uid;
+    mlog_g(dd_log_debug, "credentials: pid %u", (unsigned)creds.cr_uid);
+#else
+    uid = creds.uid;
+    mlog_g(dd_log_debug, "credentials: pid %d, uid %d, gid %d", (int)creds.pid,
         (int)creds.uid, (int)creds.gid);
+#endif
 
     tsrm_env_lock();
     char *use_zend_alloc = getenv("USE_ZEND_ALLOC"); // NOLINT
@@ -360,24 +384,18 @@ static dd_result _check_credentials(struct cmsghdr *cmsgp)
         return dd_success;
     }
 
-    if (creds.uid != geteuid()) {
+    if (uid != geteuid()) {
         mlog(dd_log_error,
             "Mismatch of effective uid between helper and this process. "
-            "Helper's uid is %d, ours is %d",
-            (int)creds.uid, (int)geteuid());
+            "Helper's uid is %u, ours is %u",
+            (unsigned)uid, (int)geteuid());
         return dd_network;
     }
 
-    mlog(dd_log_debug, "Helper's process credentials are correct");
+    mlog(dd_log_debug, "Helper's process credentials are correct (uid %u)",
+        (unsigned)uid);
     return dd_success;
 }
-#else // no SO_PASSCRED
-dd_result dd_conn_recv_cred(dd_conn *nonnull conn, char *nullable *nonnull data,
-    size_t *nonnull data_len)
-{
-    return dd_conn_recv(conn, data, data_len);
-}
-#endif
 
 int dd_conn_destroy(dd_conn *nonnull conn)
 {
@@ -422,4 +440,30 @@ dd_result dd_conn_set_timeout(
     }
 
     return dd_success;
+}
+
+#define ONE_E3 1000
+#define ONE_E6 1000000
+#define ONE_E9 1000000000
+static void _timespec_add_ms(struct timespec *ts, long num_ms)
+{
+    long seconds = num_ms / ONE_E3;
+    long nanoseconds = (num_ms % ONE_E3) * ONE_E6;
+
+    ts->tv_sec += seconds;
+    ts->tv_nsec += nanoseconds;
+
+    if (ts->tv_nsec >= ONE_E9) {
+        ts->tv_sec += ts->tv_nsec / ONE_E9;
+        ts->tv_nsec %= ONE_E9;
+    }
+}
+
+static long _timespec_delta_ms(struct timespec *ts1, struct timespec *ts2)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    long res = (ts1->tv_sec - ts2->tv_sec) * 1000;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    res += (ts1->tv_nsec - ts2->tv_nsec) / 1000000;
+    return res;
 }

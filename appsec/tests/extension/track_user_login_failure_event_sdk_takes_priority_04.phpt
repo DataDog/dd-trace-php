@@ -1,20 +1,21 @@
 --TEST--
-When values are set with automated event and with sdk, SDK takes priority on extended mode
+When values are set with automated event and with sdk, SDK takes priority on identification mode
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=extended
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
 use function datadog\appsec\track_user_login_failure_event;
+use function datadog\appsec\track_user_login_failure_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("Admin", true, ["value" => "something-from-sdk"]); //Sdk
-track_user_login_failure_event("1234", false, ["value" => "something-from-automated"], true); //Automated
+track_user_login_failure_event("sdkID", true, ["value" => "something-from-sdk"]);
+track_user_login_failure_event_automated("login", "automatedID", false, ["value" => "something-from-automated"]);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -24,10 +25,15 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [appsec.events.users.login.failure.usr.id] => Admin
+    [appsec.events.users.login.failure.usr.id] => sdkID
+    [appsec.events.users.login.failure.usr.login] => sdkID
     [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
-    [appsec.events.users.login.failure.usr.exists] => true
     [appsec.events.users.login.failure.value] => something-from-sdk
-    [_dd.appsec.events.users.login.failure.auto.mode] => extended
+    [appsec.events.users.login.failure.usr.exists] => true
+    [server.business_logic.users.login.failure] => null
+    [_dd.p.ts] => 02
+    [_dd.appsec.usr.id] => automatedID
+    [_dd.appsec.events.users.login.failure.auto.mode] => identification
+    [_dd.appsec.usr.login] => login
 )

@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
     }
@@ -37,7 +37,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                 'symfony.route.action' => 'AppBundle\Controller\HomeController@actionBeingTerminatedByExit',
                 'symfony.route.name' => 'terminated_by_exit',
                 'http.method' => 'GET',
-                'http.url' => 'http://localhost:9999/terminated_by_exit',
+                'http.url' => 'http://localhost/terminated_by_exit',
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'symfony',

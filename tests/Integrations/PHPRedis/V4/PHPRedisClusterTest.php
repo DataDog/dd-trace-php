@@ -10,6 +10,8 @@ use Exception;
 
 class PHPRedisClusterTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "redis";
+
     const CONNECTION_1 = 'CONNECTION_1';
     const CONNECTION_1_AS_ARG = 'CONNECTION_1_AS_ARG';
     const A_STRING = 'A_STRING';
@@ -131,11 +133,19 @@ class PHPRedisClusterTest extends IntegrationTestCase
     /**
      * @dataProvider dataProviderTestMethodsSimpleSpan
      */
-    public function testMethodsOnlySpan($method, $arg)
+    public function testMethodsOnlySpan($method, $arg, $canFail = false)
     {
         $redis = $this->redis;
-        $traces = $this->isolateTracer(function () use ($redis, $method, $arg) {
-            null === $arg ? $redis->$method($this->connection1) : $redis->$method($this->connection1, $arg);
+        $hasError = false;
+        $traces = $this->isolateTracer(function () use ($redis, $method, $arg, $canFail, &$hasError) {
+            try {
+                null === $arg ? $redis->$method($this->connection1) : $redis->$method($this->connection1, $arg);
+            } catch (\RedisClusterException $e) {
+                if (!$canFail) {
+                    throw $e;
+                }
+                $hasError = true;
+            }
         });
 
         $this->assertFlameGraph($traces, [
@@ -143,8 +153,13 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.$method",
                 'phpredis',
                 'redis',
-                "RedisCluster.$method"
-            )->withExactTags($this->baseTags()),
+                "RedisCluster.$method",
+                [],
+                null,
+                $hasError
+            )
+            ->withExactTags($this->baseTags())
+            ->skipTagsLike('/^error\..*/'),
         ]);
     }
 
@@ -154,8 +169,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
             'ping' => ['ping', null],
             'echo' => ['echo', 'hey'],
             'save' => ['save', null],
-            'bgRewriteAOF' => ['bgRewriteAOF', null],
-            'flushAll' => ['flushAll', null],
+            'bgRewriteAOF' => ['bgRewriteAOF', null, true],
+            'flushAll' => ['flushAll', null, true],
             'flushDb' => ['flushDb', null],
         ];
     }

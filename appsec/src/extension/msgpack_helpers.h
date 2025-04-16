@@ -6,10 +6,10 @@
 #ifndef DD_MSGPACK_HELPERS_H
 #define DD_MSGPACK_HELPERS_H
 
-#include "attributes.h"
 #include "string_helpers.h"
 #include <mpack.h>
 #include <php.h>
+#include "attributes.h"
 
 // safe against null returning from mpack_node_str because length is checked 1st
 #define dd_mpack_node_lstr_eq(node, lstr)                                      \
@@ -39,5 +39,7 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv);
 
 void dd_mpack_writer_init_iov(
     mpack_writer_t *nonnull writer, zend_llist *nonnull iovec_list);
+
+void dd_msgpack_helpers_startup(void);
 
 #endif // DD_MSGPACK_HELPERS_H

@@ -1,81 +1,110 @@
 {
-    "test_name": "php_timeline",
-    "stacks": [
+  "scale_by_duration": true,
+  "test_name": "php_timeline",
+  "stacks": [
+    {
+      "profile-type": "timeline",
+      "stack-content": [
         {
-            "profile-type": "timeline",
-            "stack-content": [
-                {
-                    "regular_expression": "^\\[gc\\]$",
-                    "percent": 100,
-                    "error_margin": 100,
-                    "labels": [
-                        {
-                            "key": "gc reason",
-                            "values": [
-                                "induced"
-                            ]
-                        },
-                        {
-                            "key": "event",
-                            "values": [
-                                "gc"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "regular_expression": "^\\[require\\]$",
-                    "percent": 100,
-                    "error_margin": 100,
-                    "labels": [
-                        {
-                            "key": "event",
-                            "values": [
-                                "compilation"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "regular_expression": "^\\[include\\]$",
-                    "percent": 100,
-                    "error_margin": 100,
-                    "labels": [
-                        {
-                            "key": "event",
-                            "values": [
-                                "compilation"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "regular_expression": "^\\[eval\\]$",
-                    "percent": 100,
-                    "error_margin": 100,
-                    "labels": [
-                        {
-                            "key": "event",
-                            "values": [
-                                "compilation"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "regular_expression": "^\\[idle\\]$",
-                    "percent": 100,
-                    "error_margin": 100,
-                    "labels": [
-                        {
-                            "key": "event",
-                            "values": [
-                                "sleeping"
-                            ]
-                        }
-                    ]
-                }
-            ]
+          "regular_expression": "^\\[gc\\]$",
+          "percent": 100,
+          "error_margin": 100,
+          "labels": [
+            {
+              "key": "gc reason",
+              "values": [
+                "induced"
+              ]
+            },
+            {
+              "key": "event",
+              "values": [
+                "gc"
+              ]
+            },
+            {
+              "key": "end_timestamp_ns",
+              "values_regex": "^[0-9]+$"
+            },
+            {
+              "key": "gc collected",
+              "values_regex": "^[0-9]+$"
+            },
+            {
+              "key": "gc runs",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
+        },
+        {
+          "regular_expression": "^\\[require\\]$",
+          "percent": 100,
+          "error_margin": 99,
+          "labels": [
+            {
+              "key": "event",
+              "values": [
+                "compilation"
+              ]
+            },
+            {
+              "key": "end_timestamp_ns",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
+        },
+        {
+          "regular_expression": "^\\[include\\]$",
+          "percent": 100,
+          "error_margin": 99,
+          "labels": [
+            {
+              "key": "event",
+              "values": [
+                "compilation"
+              ]
+            },
+            {
+              "key": "end_timestamp_ns",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
+        },
+        {
+          "regular_expression": "^\\[eval\\]$",
+          "percent": 100,
+          "error_margin": 99,
+          "labels": [
+            {
+              "key": "event",
+              "values": [
+                "compilation"
+              ]
+            },
+            {
+              "key": "end_timestamp_ns",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
+        },
+        {
+          "regular_expression": "^\\[idle\\]$",
+          "percent": 100,
+          "error_margin": 99,
+          "labels": [
+            {
+              "key": "event",
+              "values": [
+                "sleeping"
+              ]
+            },
+            {
+              "key": "end_timestamp_ns",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
         }
-    ]
+      ]
+    }
+  ]
 }

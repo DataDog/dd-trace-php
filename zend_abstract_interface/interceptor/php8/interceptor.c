@@ -6,12 +6,14 @@
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
 #include "interceptor.h"
+#include "zend_vm.h"
+#include "zend_closures.h"
 
 #ifdef __SANITIZE_ADDRESS__
 # include <sanitizer/common_interface_defs.h>
 #endif
 
-#if 1
+#if PHP_VERSION_ID < 80400
 int zai_registered_observers = 0;
 #endif
 
@@ -42,8 +44,12 @@ static inline bool zai_hook_memory_table_del(zend_execute_data *index) {
 }
 
 #if defined(__x86_64__) || defined(__aarch64__)
-# if defined(__GNUC__) && !defined(__clang__)
+# if defined(__GNUC__)
+#  if defined(__clang__)
+__attribute__((no_sanitize("address")))
+#  else
 __attribute__((no_sanitize_address))
+#  endif
 # endif
 static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, zai_frame_memory *frame_memory) {
     if (!CG(unclean_shutdown)) {
@@ -62,17 +68,23 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     const size_t stack_size = 1 << 17;
     const size_t stack_top_offset = 0x400;
     void *volatile stack = malloc(stack_size);
-    if (SETJMP(target) == 0) {
-        void *stacktop = stack + stack_size, *stacktarget = stacktop - stack_top_offset;
+    void *stacktop = stack + stack_size;
+#if PHP_VERSION_ID >= 80300
+    register void *volatile
+#else
+    void *
+#endif
+    stacktarget = stacktop - stack_top_offset;
 
 #ifdef __SANITIZE_ADDRESS__
-        void *volatile fake_stack;
-        __sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
+    void *volatile fake_stack;
+    __sanitizer_start_switch_fiber((void**) &fake_stack, stacktop, stack_size);
 #define STACK_REG "5"
 #else
 #define STACK_REG "4"
 #endif
 
+    if (SETJMP(target) == 0) {
         register zend_execute_data *ex = execute_data;
         register zval *rv = retval;
         register zai_hook_memory_t *hook_data = &frame_memory->hook_data;
@@ -83,11 +95,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
 #if defined(__x86_64__)
             "mov %" STACK_REG ", %%rsp"
 #elif defined(__aarch64__)
-#ifdef __SANITIZE_ADDRESS__
+#if defined(__SANITIZE_ADDRESS__) && !defined(__clang__)
             "ldr x7, [sp, #72]\n\t" // magic, but I have no idea what else to do here
 #endif
             "mov sp, %" STACK_REG "\n\t"
-#ifdef __SANITIZE_ADDRESS__
+#if defined(__SANITIZE_ADDRESS__) && !defined(__clang__)
             "str x7, [sp, #72]"
 #endif
 #endif
@@ -95,14 +107,18 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
 #ifdef __SANITIZE_ADDRESS__
                 , "+r"(fake_stack)
 #endif
+#if PHP_VERSION_ID >= 80300
+                , "+r"(stacktarget)
+#else
             : "r"(stacktarget)
-#if defined(__SANITIZE_ADDRESS__) && defined(__aarch64__)
+#endif
+#if defined(__SANITIZE_ADDRESS__) && defined(__aarch64__) && !defined(__clang__)
             : "x7"
 #endif
             );
 
 #ifdef __SANITIZE_ADDRESS__
-        __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
+        __sanitizer_finish_switch_fiber(NULL, &bottom, &capacity);
 #endif
 
 #if PHP_VERSION_ID >= 80300
@@ -110,7 +126,11 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
         void *stack_limit = EG(stack_limit);
 
         EG(stack_base) = stacktarget;
-        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset - EG(reserved_stack_size) * 2);
+        EG(stack_limit) = (void*)((uintptr_t)stacktarget - stack_top_offset
+#ifdef ZEND_CHECK_STACK_LIMIT
+            - EG(reserved_stack_size) * 2
+#endif
+        );
 #endif
 
         zai_hook_finish(ex, rv, hook_data);
@@ -128,7 +148,7 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     }
 
 #ifdef __SANITIZE_ADDRESS__
-    __sanitizer_finish_switch_fiber(NULL, &bottom, &capacity);
+    __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
     free(stack);
@@ -323,8 +343,13 @@ void (*zai_interceptor_replace_observer)(zend_function *func, bool remove, zend_
 void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler);
 #endif
 
+#if PHP_VERSION_ID < 80400
+#define ZAI_GENERATOR_YIELD_OFFSET (-1)
+#else
+#define ZAI_GENERATOR_YIELD_OFFSET 0
+#endif
 static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval *retval, zend_generator *generator, zai_frame_memory *frame_memory) {
-    if (generator->execute_data && (generator->execute_data->opline - 1)->opcode == ZEND_YIELD_FROM) {
+    if (generator->execute_data && generator->execute_data->opline[ZAI_GENERATOR_YIELD_OFFSET].opcode == ZEND_YIELD_FROM) {
         // There are two cases here:
         // a) yield from array or iterator
         //    Here we can just wrap the iterator or array into our custom iterator, transparently without observable side effects
@@ -391,14 +416,14 @@ static void zai_interceptor_observer_generator_yield(zend_execute_data *ex, zval
 
 static void zai_interceptor_handle_ended_generator(zend_generator *generator, zend_execute_data *ex, zval *retval, zai_frame_memory *frame_memory) {
     if (frame_memory->implicit) {
-        zai_install_address genaddr = zai_hook_install_address_user(&generator->execute_data->func->op_array);
+        zai_install_address genaddr = zai_hook_install_address_user(&ex->func->op_array);
         zval *count = zend_hash_index_find(&zai_interceptor_implicit_generators, genaddr);
         if (count && !--Z_LVAL_P(count)) {
             zend_hash_index_del(&zai_interceptor_implicit_generators, genaddr);
             if (!zend_hash_index_exists(&zai_hook_resolved, genaddr)) {
                 zend_observer_fcall_end_handler next_end_handler = NULL;
-                zai_interceptor_replace_observer(generator->execute_data->func, true, &next_end_handler);
-                if (UNEXPECTED(next_end_handler)) {
+                zai_interceptor_replace_observer(ex->func, true, &next_end_handler);
+                if (UNEXPECTED(next_end_handler) && generator->execute_data == ex /* Not equal within dtor */) {
                     next_end_handler(ex, retval);
                 }
             }
@@ -435,12 +460,12 @@ static inline zend_observer_fcall_handlers zai_interceptor_determine_handlers(ze
 #if PHP_VERSION_ID < 80200
 #define ZEND_OBSERVER_DATA(function) \
     ZEND_OP_ARRAY_EXTENSION((&(function)->op_array), zend_observer_fcall_op_array_extension)
-#else
+#elif PHP_VERSION_ID < 80400
 #define ZEND_OBSERVER_DATA(function) \
     ZEND_OP_ARRAY_EXTENSION((&(function)->common), zend_observer_fcall_op_array_extension)
 #endif
 
-#if 1
+#if PHP_VERSION_ID < 80400
 #define ZEND_OBSERVER_NOT_OBSERVED ((void *) 2)
 
 #if PHP_VERSION_ID < 80200
@@ -598,7 +623,7 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_obs
 }
 #else
 void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) {
-    if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
+    if (!ZEND_MAP_PTR(func->op_array.run_time_cache) || !RUN_TIME_CACHE(&func->common) || !*ZEND_OBSERVER_DATA(func) || (func->common.fn_flags & ZEND_ACC_HEAP_RT_CACHE) != 0) {
         return;
     }
 
@@ -610,9 +635,9 @@ void zai_interceptor_replace_observer(zend_function *func, bool remove, zend_obs
 
     zend_observer_fcall_handlers handlers = zai_interceptor_determine_handlers(func);
     if (remove) {
-        zend_observer_remove_begin_handler(func, handlers.begin);
-        zend_observer_remove_end_handler(func, handlers.end);
-        // TODO get next end_handler for PHP 8.4
+        zend_observer_fcall_begin_handler next_begin;
+        zend_observer_remove_begin_handler(func, handlers.begin, &next_begin);
+        zend_observer_remove_end_handler(func, handlers.end, next_end_handler);
     } else {
         zend_observer_add_begin_handler(func, handlers.begin);
         zend_observer_add_end_handler(func, handlers.end);
@@ -668,21 +693,124 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
 #endif
 }
 
+static const zend_op zai_interceptor_generator_post_op_template = {
+    .opcode = ZEND_RETURN,
+    .op1 = { .var = XtOffsetOf(zend_execute_data, This) },
+    .op1_type = IS_TMP_VAR,
+    .op2 = { .num = 0 },
+    .op2_type = IS_UNUSED,
+    .result = { .num = 0 },
+    .result_type = IS_UNUSED,
+    .lineno = -1,
+    .extended_value = 0,
+};
+
+static zend_op zai_interceptor_generator_post_op[3];
+
+ZEND_TLS zend_execute_data *zai_interceptor_prev_execute_data;
+ZEND_TLS uint32_t zai_interceptor_prev_call_info;
+ZEND_TLS zval *zai_interceptor_prev_stack_top;
+
+#ifndef Z_TYPE_EXTRA
+#define Z_TYPE_EXTRA(zval)			(zval).u1.v.u.extra
+#endif
+
+// Copied from zend_vm_execute.h: Make sure we don't mess with JIT/VM internal state, and do back these up
+# if defined(__GNUC__) && defined(__x86_64__)
+#  define HYBRID_JIT_GUARD() __asm__ __volatile__ (""::: "rbx","r12","r13","r14","r15")
+# elif defined(__GNUC__) && defined(__aarch64__)
+#  define HYBRID_JIT_GUARD() __asm__ __volatile__ (""::: "x19","x20","x21","x22","x23","x24","x25","x26","x27","x28")
+# else
+#  define HYBRID_JIT_GUARD()
+# endif
+static zend_never_inline const void *zai_interceptor_handle_created_generator_func(void) {
+    HYBRID_JIT_GUARD();
+    zai_frame_memory frame_memory;
+    zend_execute_data *execute_data = EG(current_execute_data);
+    EX(prev_execute_data) = zai_interceptor_prev_execute_data; // fixup stacktrace
+
+    // put stuff back
+    EX_CALL_INFO() = zai_interceptor_prev_call_info;
+    EG(vm_stack_top) = zai_interceptor_prev_stack_top;
+
+    zend_object *generator = Z_OBJ_P(EX(return_value)); // save it here; EX(return_value) might be updated in zai_hook_continue
+    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
+        frame_memory.resumed = false;
+        frame_memory.implicit = false;
+        frame_memory.ex = execute_data;
+        zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+    }
+    EG(current_execute_data) = execute_data;
+
+    // We'll copy from EX(This) in ZEND_RETURN then (we don't need EX(This) anymore from this moment on)
+    ZVAL_COPY_VALUE(&EX(This), EX(return_value));
+    Z_TYPE_EXTRA(EX(This)) = (zai_interceptor_prev_call_info & ~ZEND_CALL_RELEASE_THIS) >> 16;
+
+    // Now execute a "real" return opcode, which is in control of the VM and can update execute_data and opline.
+    ++EX(opline);
+    return zai_interceptor_generator_post_op[2].handler;
+}
+
+#ifdef __GNUC__
+bool zai_interceptor_avoid_compile_opt = true;
+uintptr_t zai_interceptor_dummy_label_use;
+
+// a bit of stuff to make the function control flow undecidable for the compiler, so that it doesn't optimize anything away
+static void *ZEND_FASTCALL zai_interceptor_handle_created_generator_goto(void) {
+    if (zai_interceptor_avoid_compile_opt) {
+        uintptr_t tmp = (uintptr_t)&&zai_interceptor_handle_created_generator_goto_LABEL2;
+        zai_interceptor_dummy_label_use = tmp;
+        zai_interceptor_avoid_compile_opt = false; // tell the compiler that the other branch is not unreachable
+        // We need to return zai_interceptor_handle_created_generator_goto_LABEL; zai_interceptor_handle_created_generator_goto cannot be jumped to directly as it will contain prologue updating the stack pointer.
+        tmp = (uintptr_t)&&zai_interceptor_handle_created_generator_goto_LABEL;
+        return (void *)tmp; // extra var to prevent 'function returns address of label [-Werror=return-local-addr]'
+    }
+    zai_interceptor_handle_created_generator_goto_LABEL:
+    goto *(void**)zai_interceptor_handle_created_generator_func();
+    zai_interceptor_handle_created_generator_goto_LABEL2:
+    return (void *)zai_interceptor_dummy_label_use;
+}
+#endif
+
+// Windows & Mac use call VM without IP/FP
+static int ZEND_FASTCALL zai_interceptor_handle_created_generator_call(void) {
+    zai_interceptor_handle_created_generator_func();
+    return 0 /* ZEND_VM_CONTINUE */;
+}
+
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
 static zend_object *zai_interceptor_generator_create(zend_class_entry *class_type) {
     zend_generator *generator = (zend_generator *)generator_create_prev(class_type);
 
-    zai_frame_memory frame_memory;
     zend_execute_data *execute_data = EG(current_execute_data);
     // We also land here when new Generator is invoked. We only care about ZEND_GENERATOR_CREATE.
     if (execute_data && execute_data->func
      && (execute_data->func->common.fn_flags & ZEND_ACC_GENERATOR)
      && execute_data->opline->opcode == ZEND_GENERATOR_CREATE) {
-        if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
-            frame_memory.resumed = false;
-            frame_memory.implicit = false;
-            frame_memory.ex = execute_data;
-            zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+        if (zai_hook_installed_user(&execute_data->func->op_array)) {
+            EX(opline) = zai_interceptor_generator_post_op; // will be advanced to [1] immediately
+            zai_interceptor_prev_call_info = EX_CALL_INFO();
+            // Prevent freeing the frame (it will reset EG(vm_stack_top) though, so we need to back it up)
+            EX_CALL_INFO() &= ~(ZEND_CALL_TOP|ZEND_CALL_ALLOCATED);
+            zai_interceptor_prev_execute_data = EX(prev_execute_data);
+            EX(prev_execute_data) = execute_data;
+            zai_interceptor_prev_stack_top = EG(vm_stack_top);
+
+            // Now that we're persisting the stack frame a bit longer and are going to free args in ZEND_RETURN later, we have to incref them here
+            for (zval *var = EX_VAR_NUM(0), *end = var + EX(func)->op_array.last_var; var < end; ++var) {
+                Z_TRY_ADDREF_P(var);
+            }
+            if (zai_interceptor_prev_call_info & ZEND_CALL_FREE_EXTRA_ARGS) {
+                for (zval *var = EX_VAR_NUM(EX(func)->op_array.last_var + EX(func)->op_array.T), *end = var + EX_NUM_ARGS() - EX(func)->op_array.num_args; var < end; ++var) {
+                    Z_TRY_ADDREF_P(var);
+                }
+            }
+            if (zai_interceptor_prev_call_info & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS) {
+                GC_ADDREF(EX(extra_named_params));
+            }
+            if (zai_interceptor_prev_call_info & ZEND_CALL_CLOSURE) {
+                GC_ADDREF(ZEND_CLOSURE_OBJECT(EX(func)));
+            }
         }
     }
 
@@ -785,18 +913,58 @@ void zai_interceptor_execute_internal_with_handler(INTERNAL_FUNCTION_PARAMETERS,
 }
 #endif
 
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+zend_internal_function **preloaded_enum_functions = NULL;
+#endif
+
 void zai_interceptor_setup_resolving_post_startup(void);
 
 // extension handles are supposed to be frozen at post_startup time and observer extension handle allocation
 // incidentally is right before the defacto freeze via zend_finalize_system_id
 static zend_result (*prev_post_startup)(void);
 zend_result zai_interceptor_post_startup(void) {
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+    uint32_t classes = zend_hash_num_elements(CG(class_table));
+#endif
+
     zend_result result = prev_post_startup ? prev_post_startup() : SUCCESS; // first run opcache post_startup, then ours
 
     zai_hook_post_startup();
     zai_interceptor_setup_resolving_post_startup();
-#if 1
+#if PHP_VERSION_ID < 80400
     zai_registered_observers = (zend_op_array_extension_handles - zend_observer_fcall_op_array_extension) / 2;
+#endif
+
+#ifdef __GNUC__
+    zai_interceptor_avoid_compile_opt = true; // Reset it in case MINIT gets re-executed
+#endif
+
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+    if (classes != zend_hash_num_elements(CG(class_table))) {
+        // We suppose some preloading happened here
+        zend_class_entry *ce;
+        int num = 0;
+        ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+            if ((ce->ce_flags & ZEND_ACC_ENUM) && ce->type != ZEND_INTERNAL_CLASS) {
+                num += ce->enum_backing_type == IS_UNDEF ? 1 : 3;
+            }
+        } ZEND_HASH_FOREACH_END();
+        if (num) {
+            preloaded_enum_functions = pemalloc(sizeof(zend_function *) * (num + 1), 1);
+            int idx = 0;
+            ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+                if ((ce->ce_flags & ZEND_ACC_ENUM) && ce->type != ZEND_INTERNAL_CLASS) {
+                    zend_function *function;
+                    ZEND_HASH_FOREACH_PTR(&ce->function_table, function) {
+                        if (!ZEND_USER_CODE(function->type)) {
+                            preloaded_enum_functions[idx++] = &function->internal_function;
+                        }
+                    } ZEND_HASH_FOREACH_END();
+                }
+            } ZEND_HASH_FOREACH_END();
+            preloaded_enum_functions[idx] = NULL;
+        }
+    }
 #endif
 
     return result;
@@ -842,6 +1010,18 @@ void zai_interceptor_startup(void) {
     efree(generator);
     EG(objects_store) = objects_store;
 
+    zai_interceptor_generator_post_op[0] = zai_interceptor_generator_post_op_template;
+    zai_interceptor_generator_post_op[1] = zai_interceptor_generator_post_op_template;
+#ifdef __GNUC__
+    int kind = zend_vm_kind();
+    zai_interceptor_generator_post_op[1].handler = kind == ZEND_VM_KIND_HYBRID || kind == ZEND_VM_KIND_GOTO ? zai_interceptor_handle_created_generator_goto() : (void*)zai_interceptor_handle_created_generator_call;
+#else
+    zai_interceptor_generator_post_op[1].handler = (void *)zai_interceptor_handle_created_generator_call;
+#endif
+    // Note: return handler without SPEC(OBSERVER) (will be the case as before post_startup zend_observer_fcall_op_array_extension won't be set yet)
+    zai_interceptor_generator_post_op[2] = zai_interceptor_generator_post_op_template;
+    zend_vm_set_opcode_handler(&zai_interceptor_generator_post_op[2]);
+
     prev_post_startup = zend_post_startup_cb;
     zend_post_startup_cb = zai_interceptor_post_startup;
 
@@ -863,6 +1043,18 @@ void zai_interceptor_activate(void) {
     zai_interceptor_reset_resolver();
 #endif
 }
+
+#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+void zai_interceptor_rinit(void) {
+    if (preloaded_enum_functions) {
+        zend_internal_function **zif = preloaded_enum_functions;
+        size_t cache_size = zend_internal_run_time_cache_reserved_size();
+        do {
+            ZEND_MAP_PTR_SET((*zif)->run_time_cache, zend_arena_calloc(&CG(arena), 1, cache_size));
+        } while (*++zif);
+    }
+}
+#endif
 
 void zai_interceptor_deactivate(void) {
     zend_hash_destroy(&zai_hook_memory);

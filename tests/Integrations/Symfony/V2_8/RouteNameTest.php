@@ -9,39 +9,39 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class RouteNameTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_2_8/web/app.php';
     }
 
-    /**
-     * @throws \Exception
-     */
-    public function testResource2UriMapping()
+    public function testResourceToURIMappingApache()
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $spec  = GetSpec::create('Resource name properly set to route', '/app.php');
+        $isApache = \getenv('DD_TRACE_TEST_SAPI') == 'apache2handler';
+        if (!$isApache) {
+            $this->markTestSkipped('This test is only for apache2handler');
+        }
+
+        $this->tracesFromWebRequestSnapshot(function () {
+            $spec = GetSpec::create(
+                'Resource name properly set to route',
+                '/app.php?key=value&pwd=should_redact'
+            );
             $this->call($spec);
         });
-
+    }
+    public function testResourceToURIMapping()
+    {
         $isApache = \getenv('DD_TRACE_TEST_SAPI') == 'apache2handler';
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                'symfony.request',
-                'symfony',
-                'web',
-                'AppBundle\Controller\DefaultController testingRouteNameAction'
-            )->withExactTags([
-                'http.method' => 'GET',
-                'http.url' => 'http://localhost:' . self::PORT . '/' . ($isApache ? '' : 'app.php'),
-                'http.status_code' => '200',
-                Tag::SPAN_KIND => 'server',
-                Tag::COMPONENT => 'symfony',
-            ])->withChildren([
-                SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
-                    SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
-                ]),
-            ]),
-        ]);
+        if ($isApache) {
+            $this->markTestSkipped('This test is not for apache2handler');
+        }
+
+        $this->tracesFromWebRequestSnapshot(function () {
+            $spec = GetSpec::create(
+                'Resource name properly set to route',
+                '/app.php?key=value&pwd=should_redact'
+            );
+            $this->call($spec);
+        });
     }
 }

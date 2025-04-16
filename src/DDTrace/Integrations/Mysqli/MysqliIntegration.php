@@ -9,6 +9,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
+use function DDTrace\install_hook;
 
 class MysqliIntegration extends Integration
 {
@@ -113,6 +114,7 @@ class MysqliIntegration extends Integration
             $integration->setConnectionInfo($span, $mysqli);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            $integration->handleRasp($span);
         }, function (HookData $hook) use ($integration) {
             list($mysqli, $query) = $hook->args;
             $span = $hook->span();
@@ -127,6 +129,25 @@ class MysqliIntegration extends Integration
             }
         });
 
+        \DDTrace\install_hook('mysqli_real_query', function (HookData $hook) use ($integration) {
+            list($mysqli, $query) = $hook->args;
+
+            $span = $hook->span();
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            $integration->setDefaultAttributes($span, 'mysqli_real_query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, $mysqli);
+
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            $integration->handleRasp($span);
+        }, function (HookData $hook) use ($integration) {
+            list($mysqli, $query) = $hook->args;
+            $span = $hook->span();
+            $integration->setConnectionInfo($span, $mysqli);
+
+            MysqliCommon::storeQuery($mysqli, $query);
+        });
+
         \DDTrace\install_hook('mysqli_prepare', function (HookData $hook) use ($integration) {
             list(, $query) = $hook->args;
 
@@ -134,6 +155,7 @@ class MysqliIntegration extends Integration
             $integration->setDefaultAttributes($span, 'mysqli_prepare', $query);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            $integration->handleRasp($span);
         }, function (HookData $hook) use ($integration) {
             list($mysqli, $query) = $hook->args;
             $span = $hook->span();
@@ -159,6 +181,7 @@ class MysqliIntegration extends Integration
             $integration->setConnectionInfo($span, $this);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+            $integration->handleRasp($span);
         }, function (HookData $hook) use ($integration) {
             list($query) = $hook->args;
             $span = $hook->span();
@@ -174,6 +197,25 @@ class MysqliIntegration extends Integration
             }
         });
 
+        \DDTrace\install_hook('mysqli::real_query', function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
+
+            $span = $hook->span();
+            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
+            $integration->setDefaultAttributes($span, 'mysqli.real_query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, $this);
+
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+            $integration->handleRasp($span);
+        }, function (HookData $hook) use ($integration) {
+            list($query) = $hook->args;
+            $span = $hook->span();
+            $integration->setConnectionInfo($span, $this);
+
+            MysqliCommon::storeQuery($this, $query);
+        });
+
         \DDTrace\install_hook('mysqli::prepare', function (HookData $hook) use ($integration) {
             list($query) = $hook->args;
 
@@ -181,6 +223,7 @@ class MysqliIntegration extends Integration
             $integration->setDefaultAttributes($span, 'mysqli.prepare', $query);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+            $integration->handleRasp($span);
         }, function (HookData $hook) use ($integration) {
             list($query) = $hook->args;
             $span = $hook->span();
@@ -216,6 +259,7 @@ class MysqliIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($span);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+                $integration->handleRasp($span);
             }, function (HookData $hook) use ($integration) {
                 list($mysqli, $query) = $hook->args;
                 $span = $hook->span();
@@ -240,6 +284,7 @@ class MysqliIntegration extends Integration
                 $integration->addTraceAnalyticsIfEnabled($span);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+                $integration->handleRasp($span);
             }, function (HookData $hook) use ($integration) {
                 list($query) = $hook->args;
                 $span = $hook->span();
@@ -255,6 +300,20 @@ class MysqliIntegration extends Integration
                 }
             });
         }
+        \DDTrace\install_hook(
+            'mysqli_multi_query',
+            function (HookData $hook) use ($integration) {
+                list(, $query) = $hook->args;
+                $integration->handleRasp($query);
+            }
+        );
+        \DDTrace\install_hook(
+            'mysqli::multi_query',
+            function (HookData $hook) use ($integration) {
+                list($query) = $hook->args;
+                $integration->handleRasp($query);
+            }
+        );
 
         \DDTrace\trace_function('mysqli_commit', function (SpanData $span, $args) use ($integration) {
             list($mysqli) = $args;
@@ -376,7 +435,32 @@ class MysqliIntegration extends Integration
     {
         $errorCode = mysqli_connect_errno();
         if ($errorCode > 0) {
-            $span->exception = new \Exception(mysqli_connect_error());
+            $span->meta[Tag::ERROR_MSG] = mysqli_connect_error();
+            $span->meta[Tag::ERROR_TYPE] = 'mysqli error';
+            $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 2);
         }
+    }
+
+    /**
+     * Handle RASP for SQLi detection.
+     * @param SpanData|string $span
+     */
+    public function handleRasp($span)
+    {
+        static $raspEnabled = null;
+        if ($raspEnabled === null) {
+            $raspEnabled = \dd_trace_env_config("DD_APPSEC_RASP_ENABLED") &&
+                function_exists('datadog\appsec\push_addresses');
+        }
+
+        if (!$raspEnabled) {
+            return;
+        }
+
+        $addresses = array(
+            'server.db.statement' => \is_string($span) ? $span : $span->resource,
+            'server.db.system' => 'mysql',
+        );
+        \datadog\appsec\push_addresses($addresses, "sqli");
     }
 }

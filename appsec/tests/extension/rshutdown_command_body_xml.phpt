@@ -12,9 +12,12 @@ use function datadog\appsec\testing\{rinit,rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()]))
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
+
+rinit();
+$helper->get_commands(); // ignore
 
 header('content-type: application/xml');
 http_response_code(403);
@@ -25,12 +28,10 @@ test<br/>baz
 </foo>
 XML;
 echo "$xml\n";
-var_dump(rinit());
-$helper->get_commands(); // ignore
 
 var_dump(rshutdown());
 $c = $helper->get_commands();
-print_r($c[0]);
+print_r($c[0][1][0]['server.response.body']);
 
 ?>
 --EXPECT--
@@ -39,50 +40,26 @@ print_r($c[0]);
 test<br/>baz
 </foo>
 bool(true)
-bool(true)
 Array
 (
-    [0] => request_shutdown
-    [1] => Array
+    [foo] => Array
         (
             [0] => Array
                 (
-                    [server.response.status] => 403
-                    [server.response.headers.no_cookies] => Array
-                        (
-                            [content-type] => Array
-                                (
-                                    [0] => application/xml
-                                )
+                    [@attr] => bar
+                )
 
-                        )
-
-                    [server.response.body] => Array
-                        (
-                            [foo] => Array
-                                (
-                                    [0] => Array
-                                        (
-                                            [@attr] => bar
-                                        )
-
-                                    [1] => 
+            [1] => 
 test
-                                    [2] => Array
-                                        (
-                                            [br] => Array
-                                                (
-                                                )
-
-                                        )
-
-                                    [3] => baz
-
-                                )
-
+            [2] => Array
+                (
+                    [br] => Array
+                        (
                         )
 
                 )
+
+            [3] => baz
 
         )
 

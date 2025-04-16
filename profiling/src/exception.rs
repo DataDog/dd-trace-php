@@ -1,9 +1,10 @@
-use crate::bindings as zend;
-use crate::PROFILER;
+use crate::profiling::Profiler;
+use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
 use crate::REQUEST_LOCALS;
 use log::{error, info};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
+use std::ptr;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 
@@ -81,7 +82,7 @@ impl ExceptionProfilingStats {
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = PROFILER.lock().unwrap().as_ref() {
+        if let Some(profiler) = Profiler::get() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
             unsafe {
                 profiler.collect_exception(
@@ -98,10 +99,52 @@ thread_local! {
     static EXCEPTION_PROFILING_STATS: RefCell<ExceptionProfilingStats> = RefCell::new(ExceptionProfilingStats::new());
 }
 
+static mut GENERATOR_THROW_HANDLER: InternalFunctionHandler = None;
+
+/// Wrapping the PHP `Generator::throw()` method to fixup the prev_execute_data of the fake frame
+///
+/// If an exception gets thrown into a generator the `prev_execute_data` of the generator is a
+/// left-over from the last generator call, which is a stack frame that has already been freed.
+/// This fix sets the `prev_execute_data` to the current `execute_data` that got passed in, which
+/// is the `Generator::throw()` frame itself.
+///
+/// See `tests/phpt/exceptions_generator_throw.phpt` for a reproducer and the upstream bug report
+/// at https://github.com/php/php-src/issues/14387
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_generator_throw(
+    execute_data: *mut zend_execute_data,
+    return_value: *mut zval,
+) {
+    if let Some(func) = GENERATOR_THROW_HANDLER {
+        // SAFETY: if Zend is not broken, the pointers are all valid
+        let generator = (*execute_data).This.value.obj as *mut zend_generator;
+        let generator_ex = (*generator).execute_data;
+        // guard against Generator being already finished and execute_data freed
+        if !generator_ex.is_null() {
+            (*generator_ex).prev_execute_data = execute_data;
+        }
+
+        // SAFETY: simple forwarding to original func with original args.
+        func(execute_data, return_value);
+    }
+}
+
 pub fn exception_profiling_minit() {
     unsafe {
         PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
         zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);
+
+        let method_handlers = [zend::datadog_php_zim_handler::new(
+            c"generator",
+            c"throw",
+            ptr::addr_of_mut!(GENERATOR_THROW_HANDLER),
+            Some(ddog_php_prof_generator_throw),
+        )];
+
+        for handler in method_handlers.into_iter() {
+            // Safety: we've set all the parameters correctly for this C call.
+            zend::datadog_php_install_method_handler(handler);
+        }
     }
 }
 

@@ -3,26 +3,36 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
 #include "common.hpp"
-#include "json_helper.hpp"
+#include "ddwaf.h"
+#include "metrics.hpp"
+#include "remote_config/mocks.hpp"
 #include <engine.hpp>
+#include <gmock/gmock-nice-strict.h>
+#include <memory>
 #include <rapidjson/document.h>
+#include <rapidjson/rapidjson.h>
 #include <subscriber/waf.hpp>
 
+using dds::remote_config::changeset;
+
 const std::string waf_rule =
-    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]}]})";
+    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^string.*"}}]}]})";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
+
+using dds::remote_config::mock::asm_add;
+using dds::remote_config::mock::asm_remove;
 
 namespace dds {
 
 namespace mock {
 class listener : public dds::subscriber::listener {
 public:
-    typedef std::shared_ptr<dds::mock::listener> ptr;
-
-    MOCK_METHOD1(
-        call, std::optional<dds::subscriber::event>(dds::parameter_view &));
+    MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
+    MOCK_METHOD3(
+        call, void(dds::parameter_view &, dds::event &, const std::string &));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
@@ -30,14 +40,11 @@ public:
 
 class subscriber : public dds::subscriber {
 public:
-    typedef std::shared_ptr<dds::mock::subscriber> ptr;
-
     MOCK_METHOD0(get_name, std::string_view());
-    MOCK_METHOD0(get_listener, dds::subscriber::listener::ptr());
+    MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
-    MOCK_METHOD3(update, dds::subscriber::ptr(dds::parameter &,
-                             std::map<std::string, std::string> &meta,
-                             std::map<std::string_view, double> &metrics));
+    MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(const changeset &,
+                             metrics::telemetry_submitter &));
 };
 } // namespace mock
 
@@ -56,14 +63,19 @@ TEST(EngineTest, SingleSubscriptor)
 {
     auto e{engine::create()};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"block"}}));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([]() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _, _))
+            .WillRepeatedly(
+                Invoke([](dds::parameter_view &data, dds::event &event_,
+                           std::string rasp) -> void {
+                    event_.actions.push_back({dds::action_type::block, {}});
+                }));
+        return listener;
+    }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
-
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -71,13 +83,13 @@ TEST(EngineTest, SingleSubscriptor)
     p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
 
 using namespace std::literals;
@@ -85,43 +97,53 @@ using namespace std::literals;
 TEST(EngineTest, MultipleSubscriptors)
 {
     auto e{engine::create()};
-    mock::listener::ptr blocker = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*blocker, call(_))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data)
-                                   -> std::optional<dds::subscriber::event> {
+
+    auto blocker = std::make_unique<mock::listener>();
+    EXPECT_CALL(*blocker, call(_, _, _))
+        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
+                                   std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                return subscriber::event{{"some event"}, {"block"}};
+                event_.data.push_back("some event");
+                event_.actions.push_back({dds::action_type::block, {}});
             }
-            return std::nullopt;
         }));
 
-    mock::listener::ptr recorder = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*recorder, call(_))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data)
-                                   -> std::optional<dds::subscriber::event> {
+    auto recorder = std::make_unique<mock::listener>();
+    EXPECT_CALL(*recorder, call(_, _, _))
+        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
+                                   std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                return subscriber::event{{"some event"}, {}};
+                event_.data.push_back("some event");
             }
-            return std::nullopt;
         }));
 
-    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+    std::unique_ptr<mock::listener> ignorer =
+        std::unique_ptr<mock::listener>(new mock::listener());
+    EXPECT_CALL(*ignorer, call(_, _, _)).Times(testing::AnyNumber());
 
-    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, get_listener()).WillRepeatedly(Return(blocker));
+    std::unique_ptr<mock::subscriber> sub1 =
+        std::unique_ptr<mock::subscriber>(new mock::subscriber());
+    EXPECT_CALL(*sub1, get_listener()).WillRepeatedly(Invoke([&]() {
+        return std::move(blocker);
+    }));
 
-    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, get_listener()).WillRepeatedly(Return(recorder));
+    std::unique_ptr<mock::subscriber> sub2 =
+        std::unique_ptr<mock::subscriber>(new mock::subscriber());
+    EXPECT_CALL(*sub2, get_listener()).WillRepeatedly(Invoke([&]() {
+        return std::move(recorder);
+    }));
 
-    mock::subscriber::ptr sub3 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub3, get_listener()).WillRepeatedly(Return(ignorer));
+    std::unique_ptr<mock::subscriber> sub3 =
+        std::unique_ptr<mock::subscriber>(new mock::subscriber());
+    EXPECT_CALL(*sub3, get_listener()).WillRepeatedly(Invoke([&]() {
+        return std::move(ignorer);
+    }));
 
-    e->subscribe(sub1);
-    e->subscribe(sub2);
-    e->subscribe(sub3);
+    e->subscribe(std::move(sub1));
+    e->subscribe(std::move(sub2));
+    e->subscribe(std::move(sub3));
 
     auto ctx = e->get_context();
 
@@ -129,43 +151,43 @@ TEST(EngineTest, MultipleSubscriptors)
     p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("c", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("d", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("e", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("f", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("g", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("h", parameter::string("value"sv));
@@ -178,34 +200,39 @@ TEST(EngineTest, MultipleSubscriptors)
     p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("c", parameter::string("value"sv));
     p.add("h", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 }
 
 TEST(EngineTest, StatefulSubscriptor)
 {
     auto e{engine::create()};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .Times(6)
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(subscriber::event{{}, {"block"}}))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(std::nullopt))
-        .WillOnce(Return(subscriber::event{{}, {"block"}}));
+    int attempt = 0;
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _, _))
+            .Times(3)
+            .WillRepeatedly(
+                Invoke([&attempt](dds::parameter_view &data, dds::event &event_,
+                           std::string rasp) -> void {
+                    if (attempt == 2 || attempt == 5) {
+                        event_.actions.push_back({dds::action_type::block, {}});
+                    }
+                    attempt++;
+                }));
+        return listener;
+    }));
 
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -223,7 +250,7 @@ TEST(EngineTest, StatefulSubscriptor)
     p.add("final", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     auto ctx2 = e->get_context();
 
@@ -241,23 +268,29 @@ TEST(EngineTest, StatefulSubscriptor)
     p.add("sub2", parameter::string("value"sv));
     res = ctx2.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::block);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
 
-TEST(EngineTest, CustomActions)
+TEST(EngineTest, WafDefaultActions)
 {
-    auto e{engine::create(engine_settings::default_trace_rate_limit,
-        {{"redirect",
-            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+    auto e{engine::create(engine_settings::default_trace_rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+    auto listener = std::make_unique<mock::listener>();
+    EXPECT_CALL(*listener, call(_, _, _))
+        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
+                                   std::string rasp) -> void {
+            event_.actions.push_back({dds::action_type::redirect, {}});
+            event_.actions.push_back({dds::action_type::block, {}});
+            event_.actions.push_back({dds::action_type::stack_trace, {}});
+            event_.actions.push_back({dds::action_type::extract_schema, {}});
+        }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
+        return std::move(listener);
+    }));
 
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     auto ctx = e->get_context();
 
@@ -265,24 +298,77 @@ TEST(EngineTest, CustomActions)
     p.add("a", parameter::string("value"sv));
     auto res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::redirect);
+    EXPECT_EQ(4, res->actions.size());
+    EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
+    EXPECT_EQ(res->actions[1].type, dds::action_type::block);
+    EXPECT_EQ(res->actions[2].type, dds::action_type::stack_trace);
+    EXPECT_EQ(res->actions[3].type, dds::action_type::extract_schema);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
     res = ctx.publish(std::move(p));
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::redirect);
+    EXPECT_EQ(4, res->actions.size());
+    EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
+    EXPECT_EQ(res->actions[1].type, dds::action_type::block);
+    EXPECT_EQ(res->actions[2].type, dds::action_type::stack_trace);
+    EXPECT_EQ(res->actions[3].type, dds::action_type::extract_schema);
+}
+
+TEST(EngineTest, InvalidActionsAreDiscarded)
+{
+    auto e{engine::create(engine_settings::default_trace_rate_limit)};
+
+    auto listener = std::make_unique<mock::listener>();
+    EXPECT_CALL(*listener, call(_, _, _))
+        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
+                                   std::string rasp) -> void {
+            event_.actions.push_back({dds::action_type::invalid, {}});
+            event_.actions.push_back({dds::action_type::block, {}});
+        }));
+
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
+        return std::move(listener);
+    }));
+
+    e->subscribe(std::move(sub));
+
+    auto ctx = e->get_context();
+
+    parameter p = parameter::map();
+    p.add("a", parameter::string("value"sv));
+    auto res = ctx.publish(std::move(p));
+    EXPECT_TRUE(res);
+    EXPECT_EQ(1, res->actions.size());
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
+
+    p = parameter::map();
+    p.add("b", parameter::string("value"sv));
+    res = ctx.publish(std::move(p));
+    EXPECT_TRUE(res);
+    EXPECT_EQ(1, res->actions.size());
+    EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
 
 TEST(EngineTest, WafSubscriptorBasic)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
     auto e{engine::create()};
+    auto msubmitter = mock::tel_submitter{};
 
-    auto waf_ptr = waf::instance::from_string(waf_rule, meta, metrics);
-    e->subscribe(waf_ptr);
+    // the number of loaded rules is 2 due to rules added unconditionally by us
+    EXPECT_CALL(
+        msubmitter, submit_span_metric("_dd.appsec.event_rules.loaded"sv, 2.0));
+    EXPECT_CALL(msubmitter,
+        submit_span_metric("_dd.appsec.event_rules.error_count"sv, 0.0));
+    EXPECT_CALL(msubmitter,
+        submit_span_meta("_dd.appsec.event_rules.errors"sv, std::string{"{}"}));
+    EXPECT_CALL(msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
+    EXPECT_CALL(msubmitter, submit_metric("waf.init"sv, 1, _));
+
+    auto waf_uptr = waf::instance::from_string(waf_rule, msubmitter);
+    auto *waf_ptr = waf_uptr.get();
+    e->subscribe(static_cast<decltype(waf_uptr) &&>(waf_uptr));
 
     EXPECT_STREQ(waf_ptr->get_name().data(), "waf");
 
@@ -293,8 +379,9 @@ TEST(EngineTest, WafSubscriptorBasic)
     p.add("arg2", parameter::string("string 3"sv));
 
     auto res = ctx.publish(std::move(p));
+    Mock::VerifyAndClearExpectations(&msubmitter);
     EXPECT_TRUE(res);
-    EXPECT_EQ(res->type, engine::action_type::record);
+    EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     EXPECT_EQ(res->events.size(), 1);
     for (auto &match : res->events) {
         rapidjson::Document doc;
@@ -306,11 +393,10 @@ TEST(EngineTest, WafSubscriptorBasic)
 
 TEST(EngineTest, WafSubscriptorInvalidParam)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto mock_msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, mock_msubmitter));
 
     auto ctx = e->get_context();
 
@@ -321,11 +407,10 @@ TEST(EngineTest, WafSubscriptorInvalidParam)
 
 TEST(EngineTest, WafSubscriptorTimeout)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto mock_msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics, 0));
+    e->subscribe(waf::instance::from_string(waf_rule, mock_msubmitter, 0));
 
     auto ctx = e->get_context();
 
@@ -337,222 +422,46 @@ TEST(EngineTest, WafSubscriptorTimeout)
     EXPECT_FALSE(res);
 }
 
-TEST(EngineTest, ActionsParserBlockRequest)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage","type": "block_request","parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 1);
-    EXPECT_NE(parsed_actions.find("cabbage"), parsed_actions.end());
-
-    auto &action_spec = parsed_actions["cabbage"];
-    EXPECT_EQ(action_spec.type, engine::action_type::block);
-    EXPECT_EQ(action_spec.parameters.size(), 6);
-    EXPECT_STREQ(action_spec.parameters["status_code"].c_str(), "100");
-    EXPECT_STREQ(action_spec.parameters["type"].c_str(), "html");
-    EXPECT_STREQ(
-        action_spec.parameters["double"].substr(0, 5).c_str(), "1.523");
-    EXPECT_STREQ(action_spec.parameters["negative"].c_str(), "-44");
-    EXPECT_STREQ(action_spec.parameters["true"].c_str(), "true");
-    EXPECT_STREQ(action_spec.parameters["false"].c_str(), "false");
-}
-
-TEST(EngineTest, ActionsParserRedirectRequest)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage","type": "redirect_request","parameters": {"status_code": 300,"location": "datadoghq.com"}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 1);
-    EXPECT_NE(parsed_actions.find("cabbage"), parsed_actions.end());
-
-    auto &action_spec = parsed_actions["cabbage"];
-    EXPECT_EQ(action_spec.type, engine::action_type::redirect);
-    EXPECT_EQ(action_spec.parameters.size(), 2);
-    EXPECT_STREQ(action_spec.parameters["status_code"].c_str(), "300");
-    EXPECT_STREQ(action_spec.parameters["location"].c_str(), "datadoghq.com");
-}
-
-TEST(EngineTest, ActionsParseInvalidActionsType)
-{
-    const std::string action_ruleset =
-        R"({"actions": {"type": "block_request","parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}})";
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParseInvalidActionType)
-{
-    const std::string action_ruleset = R"({"actions": [[]]})";
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserNoId)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"type": "block_request","parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserWrongIdType)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": 25, "type": "block_request","parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserNoType)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage", "parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserWrongTypeType)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage", "type": false, "parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserInvalidType)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage", "type": "redirect", "parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserNoParameters)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage", "type": "block_request"}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserWrongParametersType)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage", "type": "block_request", "parameters": []}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 0);
-}
-
-TEST(EngineTest, ActionsParserMultiple)
-{
-    const std::string action_ruleset =
-        R"({"actions": [{"id": "cabbage","type": "block_request","parameters": {"status_code": 100,"type": "html","double": 1.523, "negative": -44, "true": true, "false": false, "invalid": []}},{"id": "tomato","type": "block_request","parameters": {}}]})";
-
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(action_ruleset);
-    EXPECT_NE(result, nullptr);
-    EXPECT_TRUE(doc.IsObject());
-
-    auto parsed_actions = engine::parse_actions(doc, {});
-    EXPECT_EQ(parsed_actions.size(), 2);
-}
-
 TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 {
+    auto mock_submitter = mock::tel_submitter{};
     auto e{engine::create()};
 
-    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+    auto ignorer = []() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _, _)).Times(testing::AnyNumber());
+        return listener;
+    };
 
-    mock::subscriber::ptr new_sub1 =
-        mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*new_sub1, get_listener()).WillOnce(Return(ignorer));
+    auto new_sub1 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*new_sub1, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, update(_, _, _)).WillOnce(Return(new_sub1));
+    auto sub1 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub1, update(_, _)).WillOnce(Invoke([&]() {
+        return std::move(new_sub1);
+    }));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
 
-    mock::subscriber::ptr new_sub2 =
-        mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*new_sub2, get_listener()).WillOnce(Return(ignorer));
+    auto new_sub2 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*new_sub2, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, update(_, _, _)).WillOnce(Return(new_sub2));
+    auto sub2 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub2, update(_, _)).WillOnce(Invoke([&]() {
+        return std::move(new_sub2);
+    }));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
 
-    e->subscribe(sub1);
-    e->subscribe(sub2);
+    e->subscribe(std::move(sub1));
+    e->subscribe(std::move(sub2));
 
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
-    engine_ruleset ruleset(
-        R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-    e->update(ruleset, meta, metrics);
+    std::string_view ruleset{
+        R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})"};
+    auto changeset = create_cs(asm_add{"employee/ASM/0/blocked_ips", ruleset});
+    e->update(std::move(changeset), mock_submitter);
 
     // Ensure after the update we still have the same number of subscribers
     auto ctx = e->get_context();
@@ -566,30 +475,38 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
 
 TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 {
+    auto msubmitter = mock::tel_submitter{};
     auto e{engine::create()};
 
-    mock::listener::ptr ignorer = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*ignorer, call(_)).WillRepeatedly(Return(std::nullopt));
+    auto ignorer = []() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _, _)).Times(testing::AnyNumber());
+        return listener;
+    };
 
-    mock::subscriber::ptr sub1 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub1, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
+    auto sub1 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub1, update(_, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub1, get_name()).WillRepeatedly(Return(""));
-    EXPECT_CALL(*sub1, get_listener()).WillOnce(Return(ignorer));
+    EXPECT_CALL(*sub1, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    mock::subscriber::ptr sub2 = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub2, update(_, _, _)).WillRepeatedly(Throw(std::exception()));
+    auto sub2 = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub2, update(_, _)).WillRepeatedly(Throw(std::exception()));
     EXPECT_CALL(*sub2, get_name()).WillRepeatedly(Return(""));
-    EXPECT_CALL(*sub2, get_listener()).WillOnce(Return(ignorer));
+    EXPECT_CALL(*sub2, get_listener()).WillOnce(Invoke([&]() {
+        return ignorer();
+    }));
 
-    e->subscribe(sub1);
-    e->subscribe(sub2);
+    e->subscribe(std::move(sub1));
+    e->subscribe(std::move(sub2));
 
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
 
-    engine_ruleset ruleset(R"({})");
+    auto changeset = create_cs(asm_remove{"employee/ASM_DD/0/builtin"});
     // All subscribers should be called regardless of failures
-    e->update(ruleset, meta, metrics);
+    e->update(changeset, msubmitter);
 
     // Ensure after the update we still have the same number of subscribers
     auto ctx = e->get_context();
@@ -603,11 +520,10 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleData)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -620,10 +536,21 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
     }
 
     {
+        EXPECT_CALL(
+            msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
+        EXPECT_CALL(msubmitter,
+            submit_metric("waf.updates"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{
+                        "success:true,event_rules_version:,waf_version:"} +
+                    ddwaf_get_version())));
 
-        engine_ruleset rule_data(
+        std::string_view rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]}]})");
-        e->update(rule_data, meta, metrics);
+        auto cs = create_cs(asm_add{"employee/ASM/0/blocked_ips", rule_data});
+        e->update(cs, msubmitter);
+
+        Mock::VerifyAndClear(&msubmitter);
     }
 
     {
@@ -634,14 +561,26 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 
     {
-        engine_ruleset rule_data(
+        EXPECT_CALL(
+            msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
+        EXPECT_CALL(msubmitter,
+            submit_metric("waf.updates"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{
+                        "success:true,event_rules_version:,waf_version:"} +
+                    ddwaf_get_version())));
+
+        std::string_view rule_data(
             R"({"rules_data":[{"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.2","expiration":"9999999999"}]}]})");
-        e->update(rule_data, meta, metrics);
+        auto cs = create_cs(asm_add{"employee/ASM/0/blocked_ips", rule_data});
+        e->update(cs, msubmitter);
+
+        Mock::VerifyAndClearExpectations(&msubmitter);
     }
 
     {
@@ -657,11 +596,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
 
 TEST(EngineTest, WafSubscriptorInvalidRuleData)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto submitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, submitter));
 
     {
         auto ctx = e->get_context();
@@ -674,9 +612,20 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
     }
 
     {
-        engine_ruleset rule_data(
+        // success is true because WAF is capable of generating a handle
+        EXPECT_CALL(submitter,
+            submit_metric("waf.updates"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{
+                        "success:true,event_rules_version:,waf_version:"} +
+                    ddwaf_get_version())));
+
+        std::string_view rule_data( // invalid
             R"({"id":"blocked_ips","type":"data_with_expiration","data":[{"value":"192.168.1.1","expiration":"9999999999"}]})");
-        e->update(rule_data, meta, metrics);
+        auto cs = create_cs(asm_add{"employee/ASM/0/blocked_ips", rule_data});
+        e->update(cs, submitter);
+
+        Mock::VerifyAndClearExpectations(&submitter);
     }
 
     {
@@ -692,11 +641,10 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
 
 TEST(EngineTest, WafSubscriptorUpdateRules)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto submitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule_with_data, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule_with_data, submitter));
 
     {
         auto ctx = e->get_context();
@@ -709,9 +657,10 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
     }
 
     {
-        engine_ruleset update(
+        std::string_view update(
             R"({"version": "2.2", "rules": [{"id": "some id", "name": "some name", "tags": {"type": "lfi", "category": "attack_attempt"}, "conditions": [{"parameters": {"inputs": [{"address": "server.request.query"} ], "list": ["/some-url"] }, "operator": "phrase_match"} ], "on_match": ["block"] } ] })");
-        e->update(update, meta, metrics);
+        auto cs = create_cs(asm_add{"employee/ASM_DD/0/rules", update});
+        e->update(cs, submitter);
     }
 
     {
@@ -722,18 +671,17 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->events.size(), 1);
     }
 }
 
 TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -747,9 +695,11 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
     }
 
     {
-        engine_ruleset update(
-            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "enabled": "false"}]})");
-        e->update(update, meta, metrics);
+        std::string_view update(
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
+             "enabled": "false"}]})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -764,8 +714,9 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
     }
 
     {
-        engine_ruleset update(R"({"rules_override": []})");
-        e->update(update, meta, metrics);
+        std::string_view update(R"({"rules_override": []})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -782,11 +733,10 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
 
 TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -797,31 +747,17 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
-        engine_ruleset update(
-            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "on_match": ["redirect"]}], "actions": [{"id": "redirect", "type": "redirect_request", "parameters": {"status_code": "303", "location": "localhost"}}]})");
-        e->update(update, meta, metrics);
-    }
-
-    {
-        auto ctx = e->get_context();
-
-        auto p = parameter::map();
-        p.add("arg1", parameter::string("string 1"sv));
-        p.add("arg2", parameter::string("string 3"sv));
-
-        auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::redirect);
-    }
-
-    {
-        engine_ruleset update(
-            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}], "on_match": ["redirect"]}], "actions": []})");
-        e->update(update, meta, metrics);
+        std::string_view update(
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
+             "on_match": ["redirect"]}], "actions": [{"id": "redirect",
+             "type": "redirect_request", "parameters": {"status_code": "303",
+             "location": "https://localhost"}}]})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -833,17 +769,36 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
+    }
+
+    {
+        std::string_view update(
+            R"({"rules_override": [{"rules_target":[{"rule_id":"1"}],
+             "on_match": ["redirect"]}], "actions": []})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/rules_override", update});
+        e->update(cs, msubmitter);
+    }
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg1", parameter::string("string 1"sv));
+        p.add("arg2", parameter::string("string 3"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 }
 
 TEST(EngineTest, WafSubscriptorExclusions)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
 
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -854,13 +809,15 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
-        engine_ruleset update(
-            R"({"exclusions": [{"id": "1", "rules_target":[{"rule_id":"1"}]}]})");
-        e->update(update, meta, metrics);
+        std::string_view update(
+            R"({"exclusions": [{"id": "1",
+             "rules_target":[{"rule_id":"1"}]}]})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/exclusions", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -875,8 +832,9 @@ TEST(EngineTest, WafSubscriptorExclusions)
     }
 
     {
-        engine_ruleset update(R"({"exclusions": []})");
-        e->update(update, meta, metrics);
+        std::string_view update(R"({"exclusions": []})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/exclusions", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -893,11 +851,9 @@ TEST(EngineTest, WafSubscriptorExclusions)
 
 TEST(EngineTest, WafSubscriptorCustomRules)
 {
-    std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
     auto e{engine::create()};
-    e->subscribe(waf::instance::from_string(waf_rule, meta, metrics));
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
 
     {
         auto ctx = e->get_context();
@@ -919,12 +875,16 @@ TEST(EngineTest, WafSubscriptorCustomRules)
 
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
     {
-        engine_ruleset update(
-            R"({"custom_rules":[{"id":"1","name":"custom_rule1","tags":{"type":"custom","category":"custom"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
-        e->update(update, meta, metrics);
+        std::string_view update(
+            R"({"custom_rules":[{"id":"3","name":"custom_rule1","tags":{
+            "type":"custom","category":"custom"},"conditions":[{"operator":
+            "match_regex","parameters":{"inputs":[{"address":"arg3","key_path":
+            []}],"regex":"^custom.*"}}],"on_match":["block"]}]})");
+        auto cs = create_cs(asm_add{"employee/ASM/0/custom_rules", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -934,8 +894,8 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg3", parameter::string("custom rule"sv));
 
         auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::block);
+        ASSERT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::block);
     }
 
     {
@@ -947,13 +907,15 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg2", parameter::string("string 3"sv));
 
         auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        ASSERT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
     {
-        engine_ruleset update(R"({"custom_rules": []})");
-        e->update(update, meta, metrics);
+        std::string_view update(R"({"custom_rules": []})");
+        auto cs = create_cs(asm_remove{"employee/ASM/0/custom_rules"},
+            asm_add{"employee/ASM/0/custom_rules2", update});
+        e->update(cs, msubmitter);
     }
 
     {
@@ -975,8 +937,8 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg2", parameter::string("string 3"sv));
 
         auto res = ctx.publish(std::move(p));
-        EXPECT_TRUE(res);
-        EXPECT_EQ(res->type, engine::action_type::record);
+        ASSERT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 }
 
@@ -984,18 +946,21 @@ TEST(EngineTest, RateLimiterForceKeep)
 {
     // Rate limit 0 allows all calls
     int rate_limit = 0;
-    auto e{engine::create(rate_limit,
-        {{"redirect",
-            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+    auto e{engine::create(rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+    auto listener = std::make_unique<mock::listener>();
+    EXPECT_CALL(*listener, call(_, _, _))
+        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
+                                   std::string rasp) -> void {
+            event_.actions.push_back({dds::action_type::redirect, {}});
+        }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
+        return std::move(listener);
+    }));
 
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
@@ -1007,18 +972,20 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
 {
     // Lets set max 1 per second and do two calls
     int rate_limit = 1;
-    auto e{engine::create(rate_limit,
-        {{"redirect",
-            {engine::action_type::redirect, {{"url", "datadoghq.com"}}}}})};
+    auto e{engine::create(rate_limit)};
 
-    mock::listener::ptr listener = mock::listener::ptr(new mock::listener());
-    EXPECT_CALL(*listener, call(_))
-        .WillRepeatedly(Return(subscriber::event{{}, {"redirect"}}));
+    auto sub = std::make_unique<mock::subscriber>();
+    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
+        auto listener = std::make_unique<mock::listener>();
+        EXPECT_CALL(*listener, call(_, _, _))
+            .WillOnce(Invoke([](dds::parameter_view &data, dds::event &event_,
+                                 std::string rasp) -> void {
+                event_.actions.push_back({dds::action_type::redirect, {}});
+            }));
+        return listener;
+    }));
 
-    mock::subscriber::ptr sub = mock::subscriber::ptr(new mock::subscriber());
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Return(listener));
-
-    e->subscribe(sub);
+    e->subscribe(std::move(sub));
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));

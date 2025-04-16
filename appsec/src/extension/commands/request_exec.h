@@ -9,4 +9,5 @@
 #include <SAPI.h>
 #include <php.h>
 
-dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data);
+dd_result dd_request_exec(
+    dd_conn *nonnull conn, zval *nonnull data, zend_string *nullable rasp_rule);

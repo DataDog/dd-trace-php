@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_2_8/app/webroot/index.php';
     }
@@ -19,6 +19,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'cakephp_test_app',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'cakephp/cakephp';
     }
 
     /**
@@ -50,7 +55,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.controller' => 'simple',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
@@ -76,7 +81,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.controller' => 'simple_view',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
@@ -111,7 +116,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.controller' => 'error',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
@@ -153,7 +158,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.controller' => 'Parameterized',
                         'cakephp.route.action' => 'customAction',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/parameterized/paramValue',
+                        'http.url' => 'http://localhost/parameterized/paramValue',
                         'http.status_code' => '200',
                         'http.route' => '/parameterized/:param',
                         Tag::SPAN_KIND => 'server',

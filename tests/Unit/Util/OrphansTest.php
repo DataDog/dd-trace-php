@@ -8,8 +8,6 @@ use DDTrace\Tests\Common\TracerTestTrait;
 
 final class OrphansTest extends IntegrationTestCase
 {
-    use TracerTestTrait;
-
     static function foo()
     {
         // no-op
@@ -41,19 +39,31 @@ final class OrphansTest extends IntegrationTestCase
 
         $this->setResponse(["rate_by_service" => ["service:,env:" => 1]]);
         self::foo();
-        usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
+        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            \dd_trace_synchronous_flush();
+        } else {
+            usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
+        }
         $response = $this->retrieveDumpedTraceData();
         $this->assertEquals(0, self::getSampling($response));
 
         $this->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
         self::foo();
-        usleep(333 * 2 * 1000);
+        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            \dd_trace_synchronous_flush();
+        } else {
+            usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
+        }
         $response = $this->retrieveDumpedTraceData();
         $this->assertEquals(0, self::getSampling($response));
 
         $this->setResponse(["rate_by_service" => ["service:,env:" => 0.5]]);
         self::foo();
-        usleep(333 * 2 * 1000);
+        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
+            \dd_trace_synchronous_flush();
+        } else {
+            usleep(333 * 2 * 1000); // DD_TRACE_AGENT_FLUSH_INTERVAL * 2 * 1000
+        }
         $response = $this->retrieveDumpedTraceData();
         $this->assertEquals(0, self::getSampling($response));
     }

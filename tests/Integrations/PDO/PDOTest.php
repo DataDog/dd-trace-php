@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 final class PDOTest extends IntegrationTestCase
 {
-    const MYSQL_DATABASE = 'test';
+    public static $database = 'pdotest';
     const MYSQL_USER = 'test';
     const MYSQL_PASSWORD = 'test';
     const MYSQL_HOST = 'mysql_integration';
@@ -53,6 +53,11 @@ final class PDOTest extends IntegrationTestCase
             'DD_SERVICE_MAPPING',
             'DD_SERVICE',
         ];
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-PDO';
     }
 
     public function testCustomPDOPrepareWithStringableStatement()
@@ -148,6 +153,22 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPDOConnectOk()
+    {
+        if (PHP_VERSION_ID < 80400) {
+            $this->markTestSkipped('Test relies on PDO::connect() which was added in PHP 8.4');
+            return;
+        }
+
+        $traces = $this->isolateTracer(function () {
+            \PDO::connect($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.connect', 'pdo', 'sql', 'PDO.connect')
                 ->withExactTags($this->baseTags()),
         ]);
     }
@@ -720,58 +741,46 @@ final class PDOTest extends IntegrationTestCase
         $pdo = $this->pdoInstance($opts);
 
         $this->isolateTracer(function () use ($pdo) {
-            $pdo->beginTransaction();
-            $stmt = $pdo->prepare("INSERT INTO tests (name) VALUES (?)");
-
-            for ($i = 0; $i < 1000; $i++) {
-                $stmt->execute(['Jerry']);
-            }
-            $pdo->commit();
+            $pdo->query("INSERT INTO tests (name) VALUES " . str_repeat("('Jerry'), ", 999) . "('Jerry')");
         });
         return $pdo;
     }
 
     private function setUpDatabase()
     {
-        $this->isolateTracer(function () {
-            $pdo = $this->pdoInstance();
+        $pdo = $this->pdoInstance();
+        $pdo->beginTransaction();
+        $pdo->exec("
+            CREATE TABLE tests (
+                id integer not null primary key AUTO_INCREMENT,
+                name varchar(100)
+            )
+        ");
+        if (PHP_VERSION_ID >= 80000 && !$pdo->inTransaction()) {
+            // CREATE TABLE causes an implicit commit on PHP 8
+            // @see https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
             $pdo->beginTransaction();
-            $pdo->exec("
-                CREATE TABLE tests (
-                    id integer not null primary key AUTO_INCREMENT,
-                    name varchar(100)
-                )
-            ");
-            if (PHP_VERSION_ID >= 80000 && !$pdo->inTransaction()) {
-                // CREATE TABLE causes an implicit commit on PHP 8
-                // @see https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
-                $pdo->beginTransaction();
-            }
-            $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
+        }
+        $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
 
-            $pdo->commit();
-            $pdo = null;
-        });
+        $pdo->commit();
     }
 
     private function clearDatabase()
     {
-        $this->isolateTracer(function () {
-            $pdo = $this->pdoInstance();
-            $pdo->beginTransaction();
-            $pdo->exec("DROP TABLE tests");
-            if (PHP_VERSION_ID < 80000) {
-                // DROP TABLE causes an implicit commit on PHP 8
-                // @see https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
-                $pdo->commit();
-            }
-            $pdo = null;
-        });
+        $pdo = $this->pdoInstance();
+        $pdo->beginTransaction();
+        $pdo->exec("DROP TABLE tests");
+        if (PHP_VERSION_ID < 80000) {
+            // DROP TABLE causes an implicit commit on PHP 8
+            // @see https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+            $pdo->commit();
+        }
     }
 
     public function mysqlDns()
     {
-        return "mysql:host=" . self::MYSQL_HOST . ";dbname=" . self::MYSQL_DATABASE;
+        return "mysql:host=" . self::MYSQL_HOST . ";dbname=" . self::$database;
     }
 
     protected function baseTags($expectPeerService = false)
@@ -779,7 +788,7 @@ final class PDOTest extends IntegrationTestCase
         $tags = [
             'db.engine' => 'mysql',
             'out.host' => self::MYSQL_HOST,
-            'db.name' => self::MYSQL_DATABASE,
+            'db.name' => self::$database,
             'db.user' => self::MYSQL_USER,
             'span.kind' => 'client',
             Tag::COMPONENT => 'pdo',
@@ -787,7 +796,7 @@ final class PDOTest extends IntegrationTestCase
         ];
 
         if ($expectPeerService) {
-            $tags['peer.service'] = self::MYSQL_DATABASE;
+            $tags['peer.service'] = self::$database;
             $tags['_dd.peer.service.source'] = 'db.name';
         }
 

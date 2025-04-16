@@ -7,6 +7,9 @@
 #include <hook/hook.h>
 #include <sandbox/sandbox.h>
 #undef INTEGRATION
+#undef INTEGRATION_CUSTOM_ENABLED
+
+static bool is_filesystem_enabled() { return get_DD_TRACE_FILESYSTEM_ENABLED() && get_DD_APPSEC_RASP_ENABLED(); }
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
     dd_hook_method_and_unhook_on_first_call((zai_str)ZAI_STRL(class), (zai_str)ZAI_STRL(fname), \
@@ -24,13 +27,15 @@
     dd_set_up_deferred_loading_by_method(name, (zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STRL(fname), \
                                          (zai_str)ZAI_STRL(integration), false)
 
-#define INTEGRATION(id, lcname, ...)                                    \
+#define INTEGRATION(id, lcname, ...) INTEGRATION_AUX(id, lcname, get_DD_TRACE_##id##_ENABLED)
+#define INTEGRATION_CUSTOM_ENABLED(id, lcname, is_enabled_func, ...) INTEGRATION_AUX(id, lcname, is_enabled_func)
+#define INTEGRATION_AUX(id, lcname, is_enabled_func)                   \
     {                                                                  \
         .name = DDTRACE_INTEGRATION_##id,                              \
         .name_ucase = #id,                                             \
         .name_lcase = (lcname),                                        \
         .name_len = sizeof(lcname) - 1,                                \
-        .is_enabled = get_DD_TRACE_##id##_ENABLED,              \
+        .is_enabled = is_enabled_func,                                 \
         .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
         .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
         .aux = {0},                                                    \
@@ -93,12 +98,18 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 zend_class_entry *ce = zend_lookup_class(aux->classname);
                 if (!ce) {
                     LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                        INTEGRATION_ERROR_TELEMETRY(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
+                    }
                     success = true;
                     break;
                 }
 
                 if (!instanceof_function(ce, ddtrace_ce_integration)) {
                     LOG(WARN, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error loading deferred integration %s: Class is not an instance of DDTrace\\Integration", ZSTR_VAL(aux->classname));
+                    }
                     success = true;
                     break;
                 }
@@ -124,14 +135,17 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                             LOG(DEBUG, "Loaded integration %s", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_LOADED:
-                            LOG(DEBUG, "Integration %s not available. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not loaded, possibly unsupported version. New attempts WILL NOT be performed.", ZSTR_VAL(aux->classname));
                             break;
                         case DD_TRACE_INTEGRATION_NOT_AVAILABLE:
-                            LOG(DEBUG, "Integration {name} not loaded. New attempts might be performed.", ZSTR_VAL(aux->classname));
+                            LOG(DEBUG, "Integration %s not available. New attempts might be performed.", ZSTR_VAL(aux->classname));
                             unload_hooks = false;
                             break;
                         default:
                             LOG(WARN, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                            if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                                INTEGRATION_ERROR_TELEMETRY(ERROR, "Invalid value returning by integration loader for %s: " ZEND_LONG_FMT, ZSTR_VAL(aux->classname), Z_LVAL(rv));
+                            }
                             break;
                     }
                 }
@@ -146,9 +160,17 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)) : "<exit>";
                     log("%s thrown in ddtrace's integration autoloader for %s: %s",
                         type, ZSTR_VAL(aux->classname), msg);
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's integration autoloader for %s: %s",
+                            type, ZSTR_VAL(aux->classname), msg);
+                    }
                 } else if (PG(last_error_message)) {
                     log("Error raised in ddtrace's integration autoloader for %s: %s in %s on line %d",
                         ZSTR_VAL(aux->classname), LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
+                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
+                            ZSTR_VAL(aux->classname), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
+                    }
                 }
             })
         }
@@ -245,6 +267,13 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_EXEC, "proc_open",
                                          "DDTrace\\Integrations\\Exec\\ExecIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "file_get_contents",
+                                           "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "file_put_contents",
+                                           "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "fopen", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_FILESYSTEM, "readfile", "DDTrace\\Integrations\\Filesystem\\FilesystemIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_exec",
                                            "DDTrace\\Integrations\\Curl\\CurlIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_CURL, "curl_multi_exec",
@@ -273,8 +302,20 @@ void ddtrace_integrations_minit(void) {
                                           "DDTrace\\Integrations\\Frankenphp\\FrankenphpIntegration");
 #endif
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GOOGLESPANNER, "Google\\Cloud\\Spanner\\SpannerClient", "__construct",
+                                         "DDTrace\\Integrations\\GoogleSpanner\\GoogleSpannerIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GOOGLESPANNER, "Google\\Cloud\\Spanner\\Database", "__construct",
+                                         "DDTrace\\Integrations\\GoogleSpanner\\GoogleSpannerIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_KAFKA, "RdKafka\\Producer", "__construct",
+                                         "DDTrace\\Integrations\\Kafka\\KafkaIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_KAFKA, "RdKafka\\Consumer", "__construct",
+                                         "DDTrace\\Integrations\\Kafka\\KafkaIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_KAFKA, "RdKafka\\Conf", "__construct",
+                                         "DDTrace\\Integrations\\Kafka\\KafkaIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_LAMINAS, "Laminas\\Mvc\\Application", "init",
                                          "DDTrace\\Integrations\\Laminas\\LaminasIntegration");
@@ -355,6 +396,13 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENAI, "OpenAI\\Client", "__construct",
+                                         "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENAI, "OpenAI\\Factory", "make",
+                                         "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_OPENAI, "OpenAI\\Transporters\\HttpTransporter", "__construct",
+                                         "DDTrace\\Integrations\\OpenAI\\OpenAIIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_NETTE, "Nette\\Bootstrap\\Configurator", "__construct",
                                          "DDTrace\\Integrations\\Nette\\NetteIntegration");
 
@@ -371,6 +419,10 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
+#if PHP_VERSION_ID >= 80400
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "connect",
+                                         "DDTrace\\Integrations\\PDO\\PDOIntegration");
+#endif
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
                                          "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
@@ -383,6 +435,11 @@ void ddtrace_integrations_minit(void) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PSR18, "Psr\\Http\\Client\\ClientInterface", "sendRequest",
                                          "DDTrace\\Integrations\\Psr18\\Psr18Integration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Client\\Connector", "__construct",
+                                         "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_RATCHET, "Ratchet\\Http\\HttpServerInterface", "onOpen",
+                                         "DDTrace\\Integrations\\Ratchet\\RatchetIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ROADRUNNER, "Spiral\\RoadRunner\\Http\\HttpWorker", "waitRequest",
                                          "DDTrace\\Integrations\\Roadrunner\\RoadrunnerIntegration");
@@ -412,6 +469,11 @@ void ddtrace_integrations_minit(void) {
                                              "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONY, "Drupal\\Core\\DrupalKernel", "__construct",
                                              "DDTrace\\Integrations\\Symfony\\SymfonyIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONYMESSENGER, "Symfony\\Component\\Messenger\\Worker", "__construct",
+                                             "DDTrace\\Integrations\\SymfonyMessenger\\SymfonyMessengerIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SYMFONYMESSENGER, "Symfony\\Component\\Messenger\\MessageBusInterface", "dispatch",
+                                         "DDTrace\\Integrations\\SymfonyMessenger\\SymfonyMessengerIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_FUNCTION(DDTRACE_INTEGRATION_SQLSRV, "sqlsrv_connect",
                                          "DDTrace\\Integrations\\SQLSRV\\SQLSRVIntegration");

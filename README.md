@@ -4,7 +4,7 @@
 [![CodeCov](https://codecov.io/gh/DataDog/dd-trace-php/branch/master/graph/badge.svg?token=eXio8H7vwF)](https://codecov.io/gh/DataDog/dd-trace-php)
 [![OpenTracing Badge](https://img.shields.io/badge/OpenTracing-enabled-blue.svg)](http://opentracing.io)
 [![OpenTelemetry Badge](https://img.shields.io/badge/OpenTelemetry-enabled-blue.svg)](https://opentelemetry.io)
-[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.4-8892BF.svg)](https://php.net/)
+[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%207.0-8892BF.svg)](https://php.net/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 [![Packagist Version](https://img.shields.io/packagist/v/datadog/dd-trace.svg)](https://packagist.org/packages/datadog/dd-trace)
 [![Total Downloads](https://img.shields.io/packagist/dt/datadog/dd-trace.svg)](https://packagist.org/packages/datadog/dd-trace)
@@ -23,7 +23,7 @@ Visit the [PHP tracer documentation](https://docs.datadoghq.com/tracing/language
 
 #### Installation from PECL (datadog_trace) or from source
 
-Compilation of the tracer and the profiler requires cargo to be installed. Ensure that cargo is minimum version 1.71.0, otherwise follow the [official instructions for installing cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+Compilation of the tracer and the profiler requires cargo to be installed. Ensure that cargo is minimum version 1.78.0, otherwise follow the [official instructions for installing cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html).
 
 ### Advanced configuration
 

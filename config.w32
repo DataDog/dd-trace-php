@@ -8,14 +8,56 @@ if (PHP_DDTRACE != 'no') {
 
 	var versionpath = configure_module_dirname + "/ext/version.h";
 	var versionfile = FSO.CreateTextFile(versionpath, true);
+	var versionContent = FSO.OpenTextFile(configure_module_dirname + "/VERSION", 1).ReadAll();
+	versionContent = versionContent.replace(/[\r\n]+$/, '');
 	versionfile.WriteLine("#ifndef PHP_DDTRACE_VERSION");
-	versionfile.WriteLine('#define PHP_DDTRACE_VERSION "' + FSO.OpenTextFile(configure_module_dirname + "/VERSION", 1).ReadAll() + '"');
+	versionfile.WriteLine('#define PHP_DDTRACE_VERSION "' + versionContent  + '"');
 	versionfile.WriteLine("#endif");
 	versionfile.Close();
 
 	var version = PHP_VERSION * 100 + PHP_MINOR_VERSION;
 
-	var DDTRACE_EXT_SOURCES = "arrays.c auto_flush.c autoload_php_files.c compat_string.c configuration.c distributed_tracing_headers.c ddshared.c dogstatsd.c engine_api.c engine_hooks.c excluded_modules.c handlers_api.c handlers_curl" + (version < 800 ? "_php7" : "") + ".c handlers_exception.c handlers_internal.c handlers_pcntl.c ip_extraction.c logging.c memory_limit.c profiling.c random.c serializer.c sidecar.c span.c startup_logging.c telemetry.c user_request.c";
+	var DDTRACE_EXT_SOURCES = "agent_info.c";
+	DDTRACE_EXT_SOURCES += " arrays.c";
+	DDTRACE_EXT_SOURCES += " asm_event.c";
+	DDTRACE_EXT_SOURCES += " auto_flush.c";
+	DDTRACE_EXT_SOURCES += " autoload_php_files.c";
+	DDTRACE_EXT_SOURCES += " collect_backtrace.c";
+	DDTRACE_EXT_SOURCES += " compat_string.c";
+	DDTRACE_EXT_SOURCES += " configuration.c";
+	DDTRACE_EXT_SOURCES += " distributed_tracing_headers.c";
+	DDTRACE_EXT_SOURCES += " ddshared.c";
+	DDTRACE_EXT_SOURCES += " dogstatsd.c";
+	DDTRACE_EXT_SOURCES += " engine_api.c";
+	DDTRACE_EXT_SOURCES += " engine_hooks.c";
+	DDTRACE_EXT_SOURCES += " exception_serialize.c";
+	DDTRACE_EXT_SOURCES += " excluded_modules.c";
+	DDTRACE_EXT_SOURCES += " git.c";
+	DDTRACE_EXT_SOURCES += " handlers_api.c";
+	DDTRACE_EXT_SOURCES += " handlers_curl" + (version < 800 ? "_php7" : "") + ".c";
+	DDTRACE_EXT_SOURCES += " handlers_exception.c";
+	DDTRACE_EXT_SOURCES += " handlers_internal.c";
+	DDTRACE_EXT_SOURCES += " handlers_kafka.c";
+	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
+	DDTRACE_EXT_SOURCES += " inferred_proxy_headers.c";
+	DDTRACE_EXT_SOURCES += " ip_extraction.c";
+	DDTRACE_EXT_SOURCES += " standalone_limiter.c";
+	DDTRACE_EXT_SOURCES += " live_debugger.c";
+	DDTRACE_EXT_SOURCES += " logging.c";
+	DDTRACE_EXT_SOURCES += " memory_limit.c";
+	DDTRACE_EXT_SOURCES += " otel_config.c";
+	DDTRACE_EXT_SOURCES += " profiling.c";
+	DDTRACE_EXT_SOURCES += " random.c";
+	DDTRACE_EXT_SOURCES += " remote_config.c";
+	DDTRACE_EXT_SOURCES += " serializer.c";
+	DDTRACE_EXT_SOURCES += " sidecar.c";
+	DDTRACE_EXT_SOURCES += " span.c";
+	DDTRACE_EXT_SOURCES += " startup_logging.c";
+	DDTRACE_EXT_SOURCES += " telemetry.c";
+	DDTRACE_EXT_SOURCES += " trace_source.c";
+	DDTRACE_EXT_SOURCES += " threads.c";
+	DDTRACE_EXT_SOURCES += " user_request.c";
+	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	if (version >= 800 && version < 802) {
 		DDTRACE_EXT_SOURCES += " weakrefs.c";
 	}
@@ -28,7 +70,7 @@ if (PHP_DDTRACE != 'no') {
 
 	var DDTRACE_HOOK_SOURCES = "uhook.c uhook_legacy.c";
 	if (version >= 800) {
-		DDTRACE_HOOK_SOURCES += " uhook_attributes.c";
+		DDTRACE_HOOK_SOURCES += " uhook_attributes.c uhook_otel.c";
 	}
 
 	var zai_dirname = configure_module_dirname + "/zend_abstract_interface";
@@ -54,7 +96,7 @@ if (PHP_DDTRACE != 'no') {
 	ADD_SOURCES(configure_module_dirname + "/ext/priority_sampling", "priority_sampling.c", "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/ext/tracer_tag_propagation", "tracer_tag_propagation.c", "ddtrace");
 
-	ADD_SOURCES(zai_dirname + "/config", "config.c config_decode.c config_ini.c config_runtime.c", "ddtrace");
+	ADD_SOURCES(zai_dirname + "/config", "config.c config_decode.c config_ini.c config_stable_file.c config_runtime.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/env", "env.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/exceptions", "exceptions.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/headers", "headers.c", "ddtrace");
@@ -129,12 +171,13 @@ if (PHP_DDTRACE != 'no') {
 
 	ADD_FLAG("STATIC_EXT_OBJS", cargo_lib);
 	ADD_FLAG("DEPS_DDTRACE", cargo_lib);
-	ADD_FLAG("LIBS_DDTRACE", "userenv.lib crypt32.lib Powrprof.lib Secur32.Lib ncrypt.lib ntdll.lib oleaut32.lib " + cargo_lib);
+	ADD_FLAG("LIBS_DDTRACE", "userenv.lib crypt32.lib Powrprof.lib Secur32.Lib ncrypt.lib ntdll.lib oleaut32.lib psapi.lib shlwapi.lib ws2_32.lib wsock32.lib RuntimeObject.lib SHCore.lib dbghelp.lib " + cargo_lib);
 
 	var defpath = configure_module_dirname + "/ddtrace.def";
 	deffile = FSO.CreateTextFile(defpath, true);
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/ddtrace.sym", 1).ReadAll();
+    contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/ddtrace-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");
 	}

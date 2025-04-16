@@ -5,13 +5,13 @@ namespace DDTrace\Log;
 /**
  * JSON logger that writes to a stream, with simple logs correlation support.
  * Heavily inspired from Monolog's StreamHandler.
- * @internal
+ * @internal This logger is internal and can be removed without prior notice
  */
 final class DatadogLogger
 {
     use InterpolateTrait;
 
-    const DEFAULT_JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR;
+    const DEFAULT_JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_PARTIAL_OUTPUT_ON_ERROR;
 
     /** @var resource|null */
     protected $stream;
@@ -145,15 +145,14 @@ final class DatadogLogger
     private static function format(string $level, $message, array $context = []): string {
         $message = self::interpolate($message, $context);
 
-        $now = microtime(true);
-        $micro = sprintf("%06d", ($now - floor($now)) * 1000000);
-        $date = new \DateTime(date('Y-m-d H:i:s.'.$micro, $now));
+        $date = \DateTime::createFromFormat('U.u', microtime(true));
 
-        $record = array_merge([
+
+        $record = [
             'message' => $message,
             'status' => $level,
             'timestamp' => $date->format('Y-m-d\TH:i:s.uP'),
-        ], $context);
+        ] + $context;
 
         return json_encode(array_merge($record, self::handleLogInjection()), self::DEFAULT_JSON_FLAGS) . PHP_EOL;
     }
@@ -215,7 +214,7 @@ final class DatadogLogger
         if (null !== $dir && !is_dir($dir)) {
             $this->errorMessage = null;
             set_error_handler([$this, 'customErrorHandler']);
-            $status = mkdir($dir, 0777, true);
+            $status = mkdir($dir, 0666, true);
             restore_error_handler();
             if (false === $status && !is_dir($dir) && strpos((string) $this->errorMessage, 'File exists') === false) {
                 return;
@@ -232,7 +231,7 @@ final class DatadogLogger
         restore_error_handler();
     }
 
-    private function customErrorHandler(int $code, string $msg): bool
+    public function customErrorHandler(int $code, string $msg): bool
     {
         $this->errorMessage = preg_replace('{^(fopen|mkdir)\(.*?\): }', '', $msg);
 

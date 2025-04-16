@@ -10,7 +10,9 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class RouteCachingTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static $database = "laravel8";
+
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
@@ -40,7 +42,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\RouteCachingController@unnamed',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/unnamed-route',
+                        'http.url' => 'http://localhost/unnamed-route',
                         'http.status_code' => '200',
                         'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
@@ -88,7 +90,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\RouteCachingController@unnamed',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/unnamed-route',
+                        'http.url' => 'http://localhost/unnamed-route',
                         'http.status_code' => '200',
                         'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',

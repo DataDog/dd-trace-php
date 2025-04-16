@@ -5,12 +5,13 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "config.hpp"
-#include "engine_ruleset.hpp"
+#include "action.hpp"
 #include "engine_settings.hpp"
+#include "metrics.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
+#include <atomic>
 #include <map>
 #include <memory>
 #include <rapidjson/document.h>
@@ -33,30 +34,17 @@ namespace dds {
  **/
 class engine {
 public:
-    using ptr = std::shared_ptr<engine>;
-    using subscription_map =
-        std::map<std::string_view, std::vector<subscriber::ptr>>;
-
-    enum class action_type : uint8_t { record = 1, redirect = 2, block = 3 };
-
-    struct action {
-        action_type type;
-        std::unordered_map<std::string, std::string> parameters;
-    };
-
     using action_map = std::unordered_map<std::string /*id*/, action>;
 
     struct result {
-        action_type type;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<dds::action> actions;
         std::vector<std::string> events;
         bool force_keep;
     };
 
 protected:
     struct shared_state {
-        std::vector<subscriber::ptr> subscribers;
-        action_map actions;
+        std::vector<std::unique_ptr<subscriber>> subscribers;
     };
 
 public:
@@ -66,8 +54,9 @@ public:
     class context {
     public:
         explicit context(engine &engine)
-            : common_(std::atomic_load(&engine.common_)),
-              limiter_(engine.limiter_)
+            : common_{std::atomic_load_explicit(
+                  &engine.common_, std::memory_order_acquire)},
+              limiter_{engine.limiter_}
         {}
         context(const context &) = delete;
         context &operator=(const context &) = delete;
@@ -75,16 +64,18 @@ public:
         context &operator=(context &&) = delete;
         ~context() = default;
 
-        std::optional<result> publish(parameter &&param);
+        std::optional<result> publish(
+            parameter &&param, const std::string &rasp_rule = "");
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_meta_and_metrics(std::map<std::string, std::string> &meta,
-            std::map<std::string_view, double> &metrics);
+        void get_metrics(metrics::telemetry_submitter &msubmitter);
 
     protected:
-        std::vector<parameter> prev_published_params_;
-        std::map<subscriber::ptr, subscriber::listener::ptr> listeners_;
         std::shared_ptr<shared_state> common_;
-        rate_limiter<dds::timer> &limiter_;
+        std::map<subscriber *, const std::unique_ptr<subscriber::listener>>
+            listeners_;
+        std::vector<parameter> prev_published_params_;
+        rate_limiter<dds::timer> &
+            limiter_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
     };
 
     engine(const engine &) = delete;
@@ -93,45 +84,36 @@ public:
     engine &operator=(engine &&) = delete;
     virtual ~engine() = default;
 
-    static engine::ptr from_settings(const dds::engine_settings &eng_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
+    static std::unique_ptr<engine> from_settings(
+        const dds::engine_settings &eng_settings,
+        metrics::telemetry_submitter &msubmitter);
 
     static auto create(
-        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit,
-        action_map actions = default_actions)
+        uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
     {
-        return std::shared_ptr<engine>(
-            new engine(trace_rate_limit, std::move(actions)));
+        return std::unique_ptr<engine>(new engine(trace_rate_limit));
     }
 
+    // Not thread-safe, should only be called after construction
+    void subscribe(std::unique_ptr<subscriber> sub);
+
     context get_context() { return context{*this}; }
-    void subscribe(const subscriber::ptr &sub);
 
-    // Update is not thread-safe, although only one remote config client should
-    // be able to update it so in practice it should not be a problem.
-    virtual void update(engine_ruleset &ruleset,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics);
-
-    // Only exposed for testing purposes
-    template <typename T,
-        typename = std::enable_if_t<std::disjunction_v<
-            std::is_same<rapidjson::Document,
-                std::remove_cv_t<std::decay_t<T>>>,
-            std::is_same<rapidjson::Value, std::remove_cv_t<std::decay_t<T>>>>>>
-    static action_map parse_actions(
-        const T &doc, const action_map &default_actions);
+    // Should not be called concurrently but safely publishes changes to common_
+    // the rc client has a lock that ensures this
+    virtual void update(const rapidjson::Document &doc,
+        metrics::telemetry_submitter &submit_metric);
 
 protected:
-    explicit engine(uint32_t trace_rate_limit, action_map &&actions = {})
-        : limiter_(trace_rate_limit),
-          common_(new shared_state{{}, std::move(actions)})
+    explicit engine(uint32_t trace_rate_limit)
+        : common_(new shared_state{{}}), limiter_(trace_rate_limit)
     {}
 
-    static const action_map default_actions;
-
+    // in practice: the current ddwaf_handle, swapped in update
+    // should use only atomic operations (pre-c++20
+    // std::atomic<std::shared_ptr>)
     std::shared_ptr<shared_state> common_;
+    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
     rate_limiter<dds::timer> limiter_;
 };
 

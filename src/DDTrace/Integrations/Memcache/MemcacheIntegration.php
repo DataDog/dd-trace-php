@@ -97,7 +97,9 @@ class MemcacheIntegration extends Integration
             }
             if (!is_array($args[0])) {
                 $integration->setServerTags($span, $this);
-                $span->meta['memcache.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
+                $queryParams = dd_trace_env_config("DD_TRACE_MEMCACHED_OBFUSCATION") ?
+                    Obfuscation::toObfuscatedString($args[0]) : $args[0];
+                $span->meta['memcache.query'] = $command . ' ' . $queryParams;
             }
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $integration->markForTraceAnalytics($span, $command);

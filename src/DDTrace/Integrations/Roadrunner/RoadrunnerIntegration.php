@@ -6,7 +6,6 @@ use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Normalizer;
 use function DDTrace\UserRequest\notify_commit;
 use function DDTrace\UserRequest\notify_start;
 use function DDTrace\UserRequest\set_blocking_function;
@@ -111,7 +110,7 @@ class RoadrunnerIntegration extends Integration
     }
 
     private static function getHost(array $parsed_url) {
-        $port = $parsed_url['port'];
+        $port = $parsed_url['port'] ?? 80;
         $scheme = $parsed_url['scheme'];
         if ($scheme === 'https') {
             if ($port === 443) {

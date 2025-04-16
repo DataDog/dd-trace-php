@@ -5,19 +5,16 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "config.hpp"
 #include "config_aggregator.hpp"
-#include "engine.hpp"
-#include "json_helper.hpp"
-#include "parameter.hpp"
-#include <optional>
 #include <rapidjson/document.h>
-#include <utility>
 
 namespace dds::remote_config {
 
 class asm_aggregator : public config_aggregator_base {
 public:
+    static constexpr char ASM_ADDED[]{"asm_added"};
+    static constexpr char ASM_REMOVED[]{"asm_removed"};
+
     asm_aggregator() = default;
     asm_aggregator(const asm_aggregator &) = delete;
     asm_aggregator(asm_aggregator &&) = default;
@@ -27,14 +24,12 @@ public:
 
     void init(rapidjson::Document::AllocatorType *allocator) override;
     void add(const config &config) override;
-    void remove(const config & /*config*/) override {}
-    void aggregate(rapidjson::Document &doc) override
-    {
-        json_helper::merge_objects(doc, ruleset_, doc.GetAllocator());
-    }
+    void remove(const config &config) override;
+    void aggregate(rapidjson::Document &doc) override;
 
 protected:
-    rapidjson::Document ruleset_;
+    auto &allocator() { return change_set_.GetAllocator(); }
+    rapidjson::Document change_set_;
 };
 
 } // namespace dds::remote_config

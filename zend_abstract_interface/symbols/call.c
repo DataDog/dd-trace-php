@@ -56,7 +56,11 @@ zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
     size_t cache_size = zend_internal_run_time_cache_reserved_size();
     void **rt_cache = ecalloc(cache_size, 1);
     // Set the begin handler to not observed and the end handler (where ever it is) to NULL (implicitly due to ecalloc)
+#if PHP_VERSION_ID >= 80400
+    rt_cache[zend_observer_fcall_internal_function_extension] = ZEND_OBSERVER_NOT_OBSERVED;
+#else
     rt_cache[zend_observer_fcall_op_array_extension] = ZEND_OBSERVER_NOT_OBSERVED;
+#endif
     ZEND_MAP_PTR_INIT(dummy_observable_func.op_array.run_time_cache, rt_cache);
 
     // We have a run_time cache with nothing observed, meaning no uncontrolled code will be executed now
@@ -208,7 +212,7 @@ bool zai_symbol_call_impl(
     bool zai_symbol_call_bailed    = false;
     bool rebound_closure = false;
     zval new_closure;
-    zend_op_array *op_array;
+    zend_op_array *op_array = NULL;
 
     if (function_type == ZAI_SYMBOL_FUNCTION_CLOSURE && fcc.called_scope) {
         zend_class_entry *closure_called_scope;

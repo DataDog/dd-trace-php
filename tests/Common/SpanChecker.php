@@ -21,8 +21,6 @@ function array_filter_by_key($fn, array $input)
  */
 final class SpanChecker
 {
-    const DEFAULTS_ATTRIBUTES = ['_dd.p.tid'];
-
     /**
      * Asserts a flame graph with parent child relations.
      *
@@ -30,14 +28,8 @@ final class SpanChecker
      * @param SpanAssertion[] $expectedFlameGraph
      * @param bool $assertExactCount
      */
-    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true, bool $applyDefaults = true)
+    public function assertFlameGraph(array $traces, array $expectedFlameGraph, bool $assertExactCount = true)
     {
-        if ($applyDefaults) {
-            foreach ($expectedFlameGraph as $spanAssertion) {
-                $spanAssertion->withExistingTagsNames(self::DEFAULTS_ATTRIBUTES);
-            }
-        }
-
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
         if ($assertExactCount && \count($actualGraph) != \count($expectedFlameGraph)) {
@@ -61,6 +53,14 @@ final class SpanChecker
             })->call($e);
             throw $e;
         }
+    }
+
+    public static function dumpTracesGraph(array $traces)
+    {
+        $self = new self;
+        $flattened = $self->flattenTraces($traces);
+        $actualGraph = $self->buildSpansGraph($flattened);
+        return self::dumpSpansGraph($actualGraph);
     }
 
     public static function dumpSpansGraph(array $spansGraph, int $indent = 0)
@@ -87,6 +87,7 @@ final class SpanChecker
             $out .= "\n";
             if (isset($span['meta'])) {
                 unset($span['meta']['_dd.p.dm']);
+                unset($span['meta']['_dd.p.tid']);
                 unset($span['meta']['http.client_ip']);
                 foreach ($span['meta'] as $k => $v) {
                     $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
@@ -94,6 +95,8 @@ final class SpanChecker
             }
             if (isset($span['metrics'])) {
                 unset($span['metrics']['php.compilation.total_time_ms']);
+                unset($span['metrics']['php.memory.peak_usage_bytes']);
+                unset($span['metrics']['php.memory.peak_real_usage_bytes']);
                 unset($span['metrics']['process_id']);
                 foreach ($span['metrics'] as $k => $v) {
                     $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
@@ -180,7 +183,8 @@ final class SpanChecker
 
     private function findOne(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parenResource)
     {
-        if ($expectedNodeRoot->getResource()) {
+        $expectedNodeRootResource = $expectedNodeRoot->getResource();
+        if ($expectedNodeRootResource && $expectedNodeRootResource !== SpanAssertion::NOT_TESTED) {
             // If the resource is specified, then we use it
             $found = array_values(array_filter($graph, function (array $node) use ($expectedNodeRoot) {
                 return empty($node['__visited'])
@@ -199,7 +203,7 @@ final class SpanChecker
             // Not using a TestCase::markTestAsIncomplete() because it exits immediately,
             // while with an error log we are still able to proceed with tests.
             error_log(sprintf(
-                "WARNING: More then one candidate found for '%s' at the same level. "
+                "WARNING: More than one candidate found for '%s' at the same level. "
                     . "Proceeding in the order they appears. "
                     . "This might not work if this span is not a leaf span.",
                 $expectedNodeRoot
@@ -264,14 +268,14 @@ final class SpanChecker
         $normalizedExpected = $expected;
         $normalizedActual = $actual;
 
-        if (substr($normalizedExpected, -1) === '*') {
+        if (substr($normalizedExpected ?? '', -1) === '*') {
             // Ends with *
             $length = strlen($normalizedExpected) - 1;
             $normalizedExpected = substr($normalizedExpected, 0, $length);
             $normalizedActual = substr($normalizedActual, 0, $length);
         }
 
-        if (substr($normalizedExpected, 0, 1) === '*') {
+        if (substr($normalizedExpected ?? '', 0, 1) === '*') {
             // Starts with *
             $length = strlen($normalizedExpected) - 1;
             $normalizedExpected = substr($normalizedExpected, -$length);
@@ -336,16 +340,9 @@ final class SpanChecker
      *
      * @param $traces
      * @param SpanAssertion[] $expectedSpans
-     * @param bool $applyDefaults
      */
-    public function assertSpans($traces, $expectedSpans, $applyDefaults = true)
+    public function assertSpans($traces, $expectedSpans)
     {
-        if ($applyDefaults) {
-            foreach ($expectedSpans as $spanAssertion) {
-                $spanAssertion->withExistingTagsNames(self::DEFAULTS_ATTRIBUTES);
-            }
-        }
-
         $flattenTraces = $this->flattenTraces($traces);
         // The sandbox API pops closed spans off a stack so spans will be in reverse order
         $flattenTraces = array_reverse($flattenTraces);
@@ -418,20 +415,43 @@ final class SpanChecker
             TestCase::assertGreaterThan(0, $span['duration']);
         }
 
-        if ($exp->isOnlyCheckExistence()) {
-            return;
-        }
-
         TestCase::assertSame(
             $exp->getOperationName(),
             isset($span['name']) ? $span['name'] : '',
             $namePrefix . "Wrong value for 'operation name': " . print_r($span, true)
         );
-        TestCase::assertSame(
-            $exp->hasError(),
-            isset($span['error']) && 1 === $span['error'],
-            $namePrefix . "Wrong value for 'error': " . print_r($span, true)
-        );
+        if ($exp->hasError() !== SpanAssertion::NOT_TESTED) {
+            TestCase::assertSame(
+                $exp->hasError(),
+                isset($span['error']) && 1 === $span['error'],
+                $namePrefix . "Wrong value for 'error': " . print_r($span, true)
+            );
+        }
+        if ($exp->getService() !== SpanAssertion::NOT_TESTED) {
+            TestCase::assertSame(
+                $exp->getService(),
+                isset($span['service']) ? $span['service'] : '',
+                $namePrefix . "Wrong value for 'service' " . print_r($span, true)
+            );
+        }
+        if ($exp->getResource() !== SpanAssertion::NOT_TESTED) {
+            $expectedResource = $exp->getResource();
+            $actualResource = isset($span['resource']) ? $span['resource'] : '';
+            TestCase::assertTrue(
+                $this->exactWildcardsMatches($expectedResource, $actualResource),
+                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource' "
+                . print_r($span, true)
+            );
+        }
+
+        foreach ($exp->getExistingTagNames(true) as $key) {
+            TestCase::assertArrayHasKey($key, $spanMeta);
+        }
+
+        if ($exp->isOnlyCheckExistence()) {
+            return;
+        }
+
         if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
             $filtered = [];
             foreach ($spanMeta as $key => $value) {
@@ -457,6 +477,10 @@ final class SpanChecker
             // Ignore _dd.p.dm unless explicitly tested
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
+            }
+            // Ignore _dd.p.tid unless explicitly tested
+            if (!isset($expectedTags['_dd.p.tid'])) {
+                unset($filtered['_dd.p.tid']);
             }
             // Ignore runtime-id unless explicitly tested
             if (!isset($expectedTags['runtime-id'])) {
@@ -510,23 +534,26 @@ final class SpanChecker
             if (!isset($metrics['php.compilation.total_time_ms'])) {
                 unset($spanMetrics['php.compilation.total_time_ms']);
             }
+            if (!isset($metrics['php.memory.peak_usage_bytes'])) {
+                unset($spanMetrics['php.memory.peak_usage_bytes']);
+            }
+            if (!isset($metrics['php.memory.peak_real_usage_bytes'])) {
+                unset($spanMetrics['php.memory.peak_real_usage_bytes']);
+            }
             if (isset($metrics['process_id'])) {
                 unset($metrics['process_id']);
             }
             if (isset($spanMetrics["process_id"])) {
                 unset($spanMetrics['process_id']);
             }
+            if (isset($spanMetrics["_top_level"])) {
+                // Set by sidecar only
+                unset($spanMetrics['_top_level']);
+            }
             TestCase::assertEquals(
                 $metrics,
                 $spanMetrics,
                 $namePrefix . "Wrong value for 'metrics' " . print_r($span, true)
-            );
-        }
-        if ($exp->getService() != SpanAssertion::NOT_TESTED) {
-            TestCase::assertSame(
-                $exp->getService(),
-                isset($span['service']) ? $span['service'] : '',
-                $namePrefix . "Wrong value for 'service' " . print_r($span, true)
             );
         }
         if ($exp->getType() != SpanAssertion::NOT_TESTED) {
@@ -536,26 +563,32 @@ final class SpanChecker
                 $namePrefix . "Wrong value for 'type' " . print_r($span, true)
             );
         }
-        if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
-            $expectedResource = $exp->getResource();
-            $actualResource = isset($span['resource']) ? $span['resource'] : '';
-            TestCase::assertTrue(
-                $this->exactWildcardsMatches($expectedResource, $actualResource),
-                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource' "
-                    . print_r($span, true)
-            );
-        }
     }
 
     /**
      * @param array[] $traces
      * @return array
+     * @throws \InvalidArgumentException if $traces is not an array
      */
     public function flattenTraces($traces)
     {
+        if (!is_array($traces)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Argument $traces must be of type array, %s given',
+                is_object($traces) ? get_class($traces) : gettype($traces)
+            ));
+        }
+
         $result = [];
 
-        foreach ($traces as $trace) {
+        foreach ($traces as $index => $trace) {
+            if (!is_array($trace)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Each trace must be an array, %s given at index %d',
+                    is_object($trace) ? get_class($trace) : gettype($trace),
+                    $index
+                ));
+            }
             array_walk($trace, function (array $span) use (&$result) {
                 $result[] = $span;
             });

@@ -4,8 +4,13 @@
 
 #include "ip_extraction.h"
 #include "logging.h"
+#include "json/json.h"
+#include "sidecar.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
+#include "sidecar.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
@@ -41,9 +46,10 @@ DD_CONFIGURATION
 #undef CALIAS
 #define CONFIG(...)
 #define ELEMENT(arg) 1,
-#define CALIASES(...) APPLY_N(ELEMENT, ##__VA_ARGS__)
+#define CALIASES(...) (APPLY_N(ELEMENT, ##__VA_ARGS__))
+#define ELEMENTS(...) __VA_ARGS__
 #define CALIAS(type, name, default, aliases, ...)                             \
-    _Static_assert(sizeof((uint8_t[]){aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
+    _Static_assert(sizeof((uint8_t[]){ELEMENTS aliases}) < ZAI_CONFIG_NAMES_COUNT_MAX, \
                    #name " has more than the allowed ZAI_CONFIG_NAMES_COUNT_MAX alias names");
 DD_CONFIGURATION
 #undef CALIAS
@@ -88,22 +94,99 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
+    ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
+    zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
+
+    if (value.len == 0) {
+        return true;
+    }
+
+    const char *str = value.ptr;
+    const char *end = str + value.len;
+    const char *current = str;
+
+    // Determine separator - prefer comma if present, otherwise use space
+    char sep = memchr(str, ',', value.len) ? ',': ' ';
+
+    while (current < end) {
+        // Skip leading whitespace
+        while (current < end && (*current == ' ' || *current == sep)) current++;
+        if (current == end) {
+            // Abort if only separators are remaining
+            break;
+        }
+
+        // Find next separator, this will be the end of the tag
+        const char *tag_end = memchr(current, sep, end - current);
+        if (!tag_end) {
+            tag_end = end;
+        }
+        // Prepare key and value
+        // Initialize key to be the entire tag and value to be empty
+        const char *key_start = current;
+        const char *key_end = tag_end;
+        const char *val_start = tag_end;
+        const char *val_end = tag_end;
+        // If the tag has a colon, use the index of the colon to split the tag into key and value
+        const char *colon = memchr(current, ':', tag_end - current);
+        if (colon) {
+            // Tag has a colon, use the index of the colon to  split into key and value
+            key_end = colon;
+            val_start = colon + 1;
+        }
+
+        // Strip whitespace from key
+        while (key_start < key_end && *key_start == ' ') key_start++;
+        while (key_end > key_start && key_end[-1] == ' ') key_end--;
+        // Only add if key is non-empty
+        if (key_start != key_end) {
+            // Strip whitespace from value
+            while (val_start < val_end && *val_start == ' ') val_start++;
+            while (val_end > val_start && val_end[-1] == ' ') val_end--;
+
+            zval val;
+            ZVAL_STR(&val, zend_string_init(val_start, val_end - val_start, persistent));
+            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_end - key_start, &val);
+        }
+        // Move to the start of the next tag
+        current = tag_end + 1;
+    }
+
+    return true;
+}
+
+#define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
+    static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
+        UNUSED(old_value, new_value); \
+        if (!DDTRACE_G(remote_config_state)) {  \
+            return true; \
+        } \
+        return ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C(config), dd_zend_string_to_CharSlice(new_str)); \
+    }
+
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_HEADER_TAGS, "datadog.trace.header_tags")
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
+INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
+
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
+#define EXPAND_FIRST(arg, ...) arg
+#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
+#define EXPAND_IDENTITY(...) __VA_ARGS__
 
 #ifndef _WIN32
 // Allow for partially defined struct initialization here
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #else
 #define CONFIG(...)
-#define CALIASES(...) {APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)}
-#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = aliases;
+#define CALIASES(...) ({APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
+#define CALIAS(type, name, default, aliases, ...) const zai_str dd_config_aliases_##name[] = EXPAND_CALL(EXPAND_IDENTITY, EXPAND_FIRST(aliases));
 DD_CONFIGURATION
 #undef CALIAS
 #undef CONFIG
 #endif
 
 #define CUSTOM(...) CUSTOM
-#define EXPAND_CALL(macro, args) macro args // I hate the "traditional" MSVC preprocessor
 #define CONFIG(type, name, ...) EXPAND_CALL(ZAI_CONFIG_ENTRY, (DDTRACE_CONFIG_##name, name, type, __VA_ARGS__)),
 #ifndef _WIN32
 #define CALIASES(...) ((zai_str[]){APPLY_N(CALIAS_EXPAND, ##__VA_ARGS__)})
@@ -143,6 +226,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
             ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
+        } else if (env_name.ptr == strstr(env_name.ptr, "DD_DYNAMIC_INSTRUMENTATION_")) {
+            ini_name->ptr[sizeof("datadog.dynamic_instrumentation") - 1] = '.';
         }
     } else {
         ini_name->len = 0;
@@ -153,6 +238,17 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 }
 
 bool ddtrace_config_minit(int module_number) {
+    if (ddtrace_active_sapi == DATADOG_PHP_SAPI_CLI) {
+        config_entries[DDTRACE_CONFIG_DD_TRACE_AUTO_FLUSH_ENABLED].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+    }
+
+#ifndef _WIN32
+    // Background sender does not send a Content-Length header, but sidecar does. Force-enable it thus, as the background sender does not work at all.
+    if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
+        config_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+    }
+#endif
+
     if (!zai_config_minit(config_entries, (sizeof config_entries / sizeof *config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
         ddtrace_log_ginit();
@@ -165,6 +261,7 @@ bool ddtrace_config_minit(int module_number) {
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit(false);
 
+    ddtrace_alter_dd_trace_debug(NULL, &zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_DEBUG].decoded_value, NULL);
     ddtrace_log_ginit();
     return true;
 }
@@ -204,4 +301,35 @@ bool ddtrace_config_integration_enabled(ddtrace_integration_name integration_nam
     ddtrace_integration *integration = &ddtrace_integrations[integration_name];
 
     return integration->is_enabled();
+}
+
+void ddtrace_change_default_ini(ddtrace_config_id config_id, zai_str str) {
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[config_id];
+    zend_ini_entry *entry = memoized->ini_entries[0];
+    zend_string_release(entry->value);
+    entry->value = zend_string_init(str.ptr, str.len, 1);
+    if (entry->modified) {
+        entry->modified = false;
+        zend_string_release(entry->orig_value);
+    }
+#if ZTS
+    zend_ini_entry *runtime_entry = zend_hash_find_ptr(EG(ini_directives), entry->name);
+    if (runtime_entry != entry) {
+        zend_string_release(runtime_entry->value);
+        runtime_entry->value = zend_string_copy(entry->value);
+        if (runtime_entry->modified) {
+            runtime_entry->modified = false;
+            zend_string_release(runtime_entry->orig_value);
+        }
+    }
+#endif
+    memoized->default_encoded_value = str;
+    memoized->name_index = -1;
+
+    zval decoded;
+    ZVAL_UNDEF(&decoded);
+    if (zai_config_decode_value(str, memoized->type, memoized->parser, &decoded, 1)) {
+        zai_json_dtor_pzval(&memoized->decoded_value);
+        ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
+    }
 }

@@ -4,8 +4,10 @@ ARG VARIANT
 FROM datadog/dd-appsec-php-ci:php-$PHP_VERSION-$VARIANT
 
 RUN apt-get update && apt-get install -y \
-	nginx \
-	&& rm -rf /var/lib/apt/lists/*
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN usermod -a -G linux_users www-data
 
 RUN rm -rf /var/www/html
 

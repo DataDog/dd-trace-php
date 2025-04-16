@@ -28,7 +28,7 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\RootSpanData)#%d (18) {
+object(DDTrace\RootSpanData)#%d (24) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
@@ -39,6 +39,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   string(0) ""
   ["version"]=>
   string(0) ""
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
@@ -58,22 +61,37 @@ object(DDTrace\RootSpanData)#%d (18) {
   ["links"]=>
   array(0) {
   }
+  ["events"]=>
+  array(0) {
+  }
   ["peerServiceSources"]=>
   array(0) {
   }
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
+      ["spanCreationObservers"]=>
+      array(0) {
+      }
     }
     ["active"]=>
     *RECURSION*
+    ["spanCreationObservers"]=>
+    array(0) {
+    }
+  }
+  ["onClose"]=>
+  array(0) {
+  }
+  ["baggage"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
@@ -85,5 +103,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
+  ["gitMetadata"]=>
+  NULL
+  ["inferredSpan"]=>
+  NULL
 }
 bool(true)

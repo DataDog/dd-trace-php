@@ -1,0 +1,6 @@
+{
+    "require": {
+        "elasticsearch/elasticsearch": "~7.16",
+        "symfony/event-dispatcher": "~2.7"
+    }
+}

@@ -49,8 +49,8 @@ class LoginFormAuthenticator extends AbstractFormLoginAuthenticator implements P
     public function getCredentials(Request $request)
     {
         $credentials = [
-            'email' => $request->request->get('email'),
-            'password' => $request->request->get('password'),
+            'email' => $request->request->get('_username'),
+            'password' => $request->request->get('_password'),
         ];
         $request->getSession()->set(
             Security::LAST_USERNAME,
@@ -90,9 +90,20 @@ class LoginFormAuthenticator extends AbstractFormLoginAuthenticator implements P
             return new RedirectResponse($targetPath);
         }
 
-        return new Response(
-                    'Logged in!'
-                );
+        return new Response('Logged in!');
+    }
+
+    public function onAuthenticationFailure(Request $request, \Symfony\Component\Security\Core\Exception\AuthenticationException $exception)
+    {
+        // Call parent implementation to trigger the hook
+        $response = parent::onAuthenticationFailure($request, $exception);
+        
+        // Override the response to prevent redirect
+        if ($response instanceof RedirectResponse) {
+            return new Response('Invalid credentials', 403);
+        }
+        
+        return $response;
     }
 
     protected function getLoginUrl()

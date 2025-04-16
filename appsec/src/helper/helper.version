@@ -1,0 +1,12 @@
+{
+	global:
+	  /* add the symbols here with wildcards because lld fails in case some of
+	   * the symbols don't exist. This would generally be something to be
+	   * encouraged, but we test if --Wl,--version-script is supported by the
+	   * linker using this file and a program where these symbols are not
+	   * defined */
+	  appsec_helper_main*;
+	  appsec_helper_shutdown*;
+	local: *;
+};
+

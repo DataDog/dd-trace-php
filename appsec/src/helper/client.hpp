@@ -22,15 +22,15 @@ class client {
 public:
     // Below this limit the encoding+compression might result on a longer string
     client(std::shared_ptr<service_manager> service_manager,
-        network::base_broker::ptr &&broker)
-        : service_manager_(std::move(service_manager)),
-          broker_(std::move(broker))
+        std::unique_ptr<network::base_broker> &&broker)
+        : broker_(std::move(broker)),
+          service_manager_(std::move(service_manager))
     {}
 
     client(std::shared_ptr<service_manager> service_manager,
-        network::base_socket::ptr &&socket)
-        : service_manager_(std::move(service_manager)),
-          broker_(std::make_unique<network::broker>(std::move(socket)))
+        std::unique_ptr<network::base_socket> &&socket)
+        : broker_(std::make_unique<network::broker>(std::move(socket))),
+          service_manager_(std::move(service_manager))
     {}
 
     ~client() = default;
@@ -61,16 +61,43 @@ public:
     void run(worker::queue_consumer &q);
     bool compute_client_status();
 
+    void update_remote_config_path(std::string_view path);
+
 protected:
+    void set_service(std::shared_ptr<service> new_service)
+    {
+        if (!new_service) {
+            sample_acc_.reset();
+            service_.reset();
+            return;
+        }
+
+        std::optional<sampler> &sampler = new_service->get_schema_sampler();
+        sample_acc_ =
+            sampler.has_value() ? sampler->new_accessor_up() : nullptr;
+
+        // must come after, sample_acc_ depends on service_
+        service_ = std::move(new_service);
+    }
+
+    template <typename T>
+    std::shared_ptr<typename T::response> publish(
+        typename T::request &command, const std::string &rasp_rule = "");
+    template <typename T> bool service_guard();
+    template <typename T, bool actions = true>
+    bool send_message(const std::shared_ptr<typename T::response> &message);
     bool initialised{false};
     uint32_t version{};
-    network::base_broker::ptr broker_;
+    std::unique_ptr<network::base_broker> broker_;
     std::shared_ptr<service_manager> service_manager_;
-    std::shared_ptr<service> service_ = {nullptr};
+    std::optional<dds::engine_settings> engine_settings_;
+
+    std::shared_ptr<service> service_;
+    std::unique_ptr<sampler::table_accessor> sample_acc_; // depends on service_
+
     std::optional<engine::context> context_;
     std::optional<bool> client_enabled_conf;
     bool request_enabled_ = {false};
-    std::string runtime_id_;
 };
 
 } // namespace dds

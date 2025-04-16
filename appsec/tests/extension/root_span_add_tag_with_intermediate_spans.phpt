@@ -2,8 +2,6 @@
 Test that tags are always added to the root span regardless of intermediate spans
 --INI--
 extension=ddtrace.so
-datadog.appsec.log_file=/tmp/php_appsec_test.log
-datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 SERVER_NAME=localhost:8888
@@ -17,8 +15,8 @@ ddtrace_version_at_least('0.79.0');
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(response_request_init(['ok', []]))),
-    response_list(response_request_shutdown(['ok', []])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]]])),
 ], ['continuous' => true]);
 
 echo "rinit\n";
@@ -84,4 +82,6 @@ Array
     [_dd.agent_psr] => 1
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %s
+    [php.memory.peak_usage_bytes] => %f
+    [php.memory.peak_real_usage_bytes] => %f
 )

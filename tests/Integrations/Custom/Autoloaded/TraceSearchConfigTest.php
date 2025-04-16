@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -40,7 +40,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     'GET /simple'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/simple',
+                    'http.url' => 'http://localhost/simple',
                     'http.status_code' => '200',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,

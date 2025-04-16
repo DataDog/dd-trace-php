@@ -1,0 +1,49 @@
+[[
+  {
+    "name": "aws.apigateway",
+    "service": "example.com",
+    "resource": "GET /test",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 6373047108625745819,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "67cb014400000000",
+      "component": "aws-apigateway",
+      "env": "local-test",
+      "http.method": "GET",
+      "http.url": "example.com/test",
+      "stage": "aws-prod",
+      "version": "1.0"
+    },
+    "metrics": {
+      "_dd.inferred_span": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "web.request",
+       "service": "roadrunner_test_app",
+       "resource": "GET /simple",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "roadrunner",
+         "env": "local-test",
+         "http.method": "GET",
+         "http.request.headers.x-dd-proxy": "aws-apigateway",
+         "http.request.headers.x-dd-proxy-domain-name": "example.com",
+         "http.request.headers.x-dd-proxy-httpmethod": "GET",
+         "http.request.headers.x-dd-proxy-path": "/test",
+         "http.request.headers.x-dd-proxy-request-time-ms": "1739261376000",
+         "http.request.headers.x-dd-proxy-stage": "aws-prod",
+         "http.status_code": "200",
+         "http.url": "http://localhost/simple?key=value&<redacted>",
+         "runtime-id": "fd6e51db-bf2d-40fe-aa43-ae7c29474411",
+         "span.kind": "server",
+         "version": "1.0"
+       }
+     }]]

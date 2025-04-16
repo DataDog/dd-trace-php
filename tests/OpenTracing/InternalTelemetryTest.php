@@ -18,12 +18,17 @@ final class InternalTelemetryTest extends CLITestCase
             if (strpos($request["uri"], "/telemetry/") === 0) {
                 $json = json_decode($request["body"], true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    $telemetryPayloads[] = $json;
+                foreach ($batch as $innerJson) {
+                    if (isset($json["application"])) {
+                        $innerJson["application"] = $json["application"];
+                    }
+                    $telemetryPayloads[] = $innerJson;
                 }
             }
         }
-        return $telemetryPayloads;
+
+        // Filter the payloads from the trace background sender
+        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") == "service_name"; }));
     }
 
     public function testInternalMetricWithOpenTracing()
@@ -32,22 +37,25 @@ final class InternalTelemetryTest extends CLITestCase
 
         $this->executeCommand();
 
-        $requests = $this->retrieveDumpedData(function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
-            ;
-        }, true);
+        $requests = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"), true);
 
         $payloads = $this->readTelemetryPayloads($requests);
         $isMetric = function (array $payload) {
             return 'generate-metrics' === $payload['request_type'];
         };
-        $metrics = array_values(array_filter($payloads, $isMetric));
+        $metricRequests = array_values(array_filter($payloads, $isMetric));
 
-        $this->assertCount(1, $metrics);
-        $this->assertEquals("generate-metrics", $metrics[0]["request_type"]);
-        $this->assertEquals("tracers", $metrics[0]["payload"]["series"][0]["namespace"]);
-        $this->assertEquals("spans_created", $metrics[0]["payload"]["series"][0]["metric"]);
-        $this->assertEquals(["integration_name:opentracing"], $metrics[0]["payload"]["series"][0]["tags"]);
+        $this->assertCount(1, $metricRequests);
+        $this->assertEquals("generate-metrics", $metricRequests[0]["request_type"]);
+
+        $metrics = [];
+        foreach ($metricRequests[0]['payload']['series'] as $serie) {
+            $metrics[$serie['metric']][] = $serie;
+        }
+
+        $this->assertCount(1, $metrics['spans_created']);
+        $this->assertEquals("tracers", $metrics['spans_created'][0]["namespace"]);
+        $this->assertEquals("spans_created", $metrics['spans_created'][0]["metric"]);
+        $this->assertEquals(["integration_name:opentracing"], $metrics['spans_created'][0]["tags"]);
     }
 }

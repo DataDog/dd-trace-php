@@ -1,5 +1,5 @@
 function(patch_away_libc target)
-    if (NOT ${DD_APPSEC_ENABLE_PATCHELF_LIBC})
+    if(NOT ${DD_APPSEC_ENABLE_PATCHELF_LIBC})
         return()
     endif()
 
@@ -8,10 +8,15 @@ function(patch_away_libc target)
     endif()
 
     find_program(PATCHELF patchelf)
-    if (PATCHELF STREQUAL "PATCHELF-NOTFOUND")
+    find_program(READELF readelf)
+    if(PATCHELF STREQUAL "PATCHELF-NOTFOUND")
         message(WARNING "Patchelf not found. Can't build glibc + musl binaries")
     else()
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND patchelf --remove-needed libc.so $<TARGET_FILE:${target}> ${SYMBOL_FILE})
+        if(READELF STREQUAL "READELF-NOTFOUND")
+            message(WARNING "readelf not found. Can't build glibc + musl binaries")
+        else()
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND ${CMAKE_SOURCE_DIR}/cmake/strip_libc.sh "${PATCHELF}" "${READELF}" $<TARGET_FILE:${target}>)
+       endif()
     endif()
 endfunction()

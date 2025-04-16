@@ -1,4 +1,3 @@
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -38,6 +37,8 @@
 #include <components-rs/ddtrace.h>
 #include <components/log/log.h>
 
+#include "asm_event.h"
+#include "trace_source.h"
 #include "auto_flush.h"
 #include "compatibility.h"
 #ifndef _WIN32
@@ -61,17 +62,22 @@
 #include "logging.h"
 #include "memory_limit.h"
 #include "limiter/limiter.h"
+#include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
 #include "random.h"
 #include "autoload_php_files.h"
+#include "remote_config.h"
 #include "serializer.h"
 #include "sidecar.h"
 #ifndef _WIN32
 #include "signals.h"
+#else
+#include "crashtracking_windows.h"
 #endif
 #include "span.h"
 #include "startup_logging.h"
 #include "telemetry.h"
+#include "threads.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "user_request.h"
 #include "zend_hrtime.h"
@@ -81,27 +87,31 @@
 #include "handlers_fiber.h"
 #include "handlers_exception.h"
 #include "exceptions/exceptions.h"
+#include "git.h"
 
 // On PHP 7 we cannot declare arrays as internal values. Assign null and handle in create_object where necessary.
 #if PHP_VERSION_ID < 80000
+#pragma push_macro("ZVAL_EMPTY_ARRAY")
 #undef ZVAL_EMPTY_ARRAY
 #define ZVAL_EMPTY_ARRAY ZVAL_NULL
 #endif
 // CG(empty_string) is not accessible during MINIT (in ZTS at least)
 #if PHP_VERSION_ID < 70200
+#pragma push_macro("ZVAL_EMPTY_STRING")
 #undef ZVAL_EMPTY_STRING
 #define ZVAL_EMPTY_STRING(z) ZVAL_NEW_STR(z, zend_string_init("", 0, 1))
 #endif
 #include "ddtrace_arginfo.h"
 #include "distributed_tracing_headers.h"
+#include "inferred_proxy_headers.h"
+#include "live_debugger.h"
+#include "agent_info.h"
 
 #if PHP_VERSION_ID < 70200
-#undef ZVAL_EMPTY_STRING
-#define ZVAL_EMPTY_STRING(z) ZVAL_INTERNED_STR(z, ZSTR_EMPTY_ALLOC())
+#pragma pop_macro("ZVAL_EMPTY_STRING")
 #endif
 #if PHP_VERSION_ID < 80000
-#undef ZVAL_EMPTY_ARRAY
-#define ZVAL_EMPTY_ARRAY DD_ZVAL_EMPTY_ARRAY
+#pragma pop_macro("ZVAL_EMPTY_ARRAY")
 #endif
 
 // For manual ZPP
@@ -358,8 +368,9 @@ bool dd_save_sampling_rules_file_config(zend_string *path, int modify_type, int 
     return altered;
 }
 
-bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) {
+bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, zend_string *new_str) {
     (void) old_value;
+    (void) new_str;
     if (Z_STRLEN_P(new_value) == 0) {
         return true;
     }
@@ -367,28 +378,38 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value) 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline bool dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value) {
-    UNUSED(old_value);
+static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
-        zval *property = (zval*)(prop_offset + (char*)pspan), garbage = *property;
+        zval *property = (zval *) (prop_offset + (char *) pspan), garbage = *property;
         ZVAL_COPY(property, new_value);
         zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
     }
+}
 
+bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    if (DDTRACE_G(request_initialized)) {
+        ddtrace_sidecar_submit_root_span_data_direct(NULL, new_str, get_DD_ENV(), get_DD_VERSION());
+    }
     return true;
 }
-
-bool ddtrace_alter_dd_service(zval *old_value, zval *new_value) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    if (DDTRACE_G(request_initialized)) {
+        ddtrace_sidecar_submit_root_span_data_direct(NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
+    }
+    return true;
 }
-bool ddtrace_alter_dd_env(zval *old_value, zval *new_value) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
-}
-bool ddtrace_alter_dd_version(zval *old_value, zval *new_value) {
-    return dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    if (DDTRACE_G(request_initialized)) {
+        ddtrace_sidecar_submit_root_span_data_direct(NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
+    }
+    return true;
 }
 
 static void dd_activate_once(void) {
@@ -397,19 +418,73 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
+        bool appsec_activation = false;
+        bool appsec_config = false;
+
 #ifndef _WIN32
-        if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())
+        // Only disable sidecar sender when explicitly disabled
+        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
+        zend_string *bgs_service = NULL;
+        if (bgs_fallback) {
+            // We enabled sending traces through the sidecar by default
+            // That said a few customers have explicitly disabled telemetry to disable the sidecar
+            // So if telemetry is disabled, we will disable the sidecar and send a one shot telemetry call
+            ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER, (zai_str) ZAI_STR_FROM_CSTR("0"));
+            if ((bgs_service = get_DD_SERVICE())) {
+                zend_string_addref(bgs_service);
+            } else {
+                bgs_service = ddtrace_default_service_name();
+            }
+        }
+
+        // if we're to enable appsec, we need to enable sidecar
+        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
+        if (!enable_sidecar) {
+            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
+        }
+
+        if (enable_sidecar)
 #endif
         {
-            bool modules_activated = PG(modules_activated);
-            PG(modules_activated) = false;
-            ddtrace_sidecar_setup();
-            PG(modules_activated) = modules_activated;
+            bool request_startup = PG(during_request_startup);
+            PG(during_request_startup) = false;
+            ddtrace_sidecar_setup(appsec_activation, appsec_config);
+            PG(during_request_startup) = request_startup;
         }
+#ifndef _WIN32
+        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+            if (get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS() == 0) {
+                // Set the default to 10 so that BGS flushes faster. With sidecar it's not needed generally.
+                ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, (zai_str) ZAI_STR_FROM_CSTR("10"));
+            }
+            if (get_DD_TRACE_AGENT_FLUSH_INTERVAL() == DD_TRACE_AGENT_FLUSH_INTERVAL_VAL) {
+                // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
+                ddtrace_change_default_ini(DDTRACE_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
+            }
+            ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
+                               get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
+                               get_global_DD_TRACE_AGENT_STACK_BACKLOG(),
+                               bgs_fallback ? ZSTR_VAL(bgs_service) : NULL);
+            zend_string *testing_token = get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN();
+            if (ZSTR_LEN(testing_token)) {
+                ddtrace_coms_set_test_session_token(ZSTR_VAL(testing_token), ZSTR_LEN(testing_token));
+            }
+            if (bgs_fallback) {
+                zend_string_release(bgs_service);
+            }
+        }
+#endif
     }
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
+
+static bool dd_is_cli_autodisabled(const char *arg) {
+    const char *slashend = strrchr(arg, '/');
+    const char *backslashend = strrchr(arg, '\\');
+    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
+}
 
 static void ddtrace_activate(void) {
     ddog_reset_logger();
@@ -433,13 +508,23 @@ static void ddtrace_activate(void) {
         ddtrace_sidecar_ensure_active();
     }
 
+    ddtrace_sidecar_activate();
+
     zend_string *sampling_rules_file = get_DD_SPAN_SAMPLING_RULES_FILE();
     if (ZSTR_LEN(sampling_rules_file) > 0 && !zend_string_equals(get_global_DD_SPAN_SAMPLING_RULES_FILE(), sampling_rules_file)) {
         dd_save_sampling_rules_file_config(sampling_rules_file, PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
     }
 
-    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0 && !get_DD_TRACE_CLI_ENABLED()) {
-        ddtrace_disable = 2;
+    if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0) {
+        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index < 0 && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
+            zend_string *zero = zend_string_init("0", 1, 0);
+            zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].ini_entries[0]->name, zero,
+                                 ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+            zend_string_release(zero);
+        }
+        if (!get_DD_TRACE_CLI_ENABLED()) {
+            ddtrace_disable = 2;
+        }
     }
 
     if (ddtrace_disable) {
@@ -496,7 +581,14 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_ddtrace_init_globals(ddtrace_globals);
+#if PHP_VERSION_ID < 70100
+    zai_vm_interrupt = &ddtrace_globals->zai_vm_interrupt;
+#endif
+#if ZTS
+    ddtrace_thread_ginit();
+#endif
     zai_hook_ginit();
+    zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, (dtor_func_t)ddtrace_git_metadata_dtor, 1);
 }
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
@@ -506,9 +598,6 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 // This prevents us from a) having the weak symbols updated to the new locations and b) having ddtrace updates going live without hard restart.
 // Thus, we need to intercept it: define it ourselves so that the linker will force the rust code to call our code here.
 // Then we can collect the callbacks and invoke them ourselves right at thread shutdown, i.e. GSHUTDOWN.
-#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
-#define CXA_THREAD_ATEXIT_WRAPPER 1
-#endif
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 #define CXA_THREAD_ATEXIT_PHP ((void *)0)
 #define CXA_THREAD_ATEXIT_UNINITIALIZED ((void *)1)
@@ -526,7 +615,7 @@ struct dd_rust_thread_destructor {
 static __thread struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
 ZEND_TLS bool dd_is_main_thread = false;
 
-static void dd_run_rust_thread_destructors(void *unused) {
+void dd_run_rust_thread_destructors(void *unused) {
     UNUSED(unused);
     struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
     dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.
@@ -571,10 +660,24 @@ static void dd_clean_main_thread_locals() {
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
-    if (ddtrace_globals->remote_config_reader) {
-        ddog_agent_remote_config_reader_drop(ddtrace_globals->remote_config_reader);
+#if ZTS
+    ddtrace_thread_gshutdown();
+#endif
+    if (ddtrace_globals->agent_config_reader) {
+        ddog_agent_remote_config_reader_drop(ddtrace_globals->agent_config_reader);
+    }
+    if (ddtrace_globals->remote_config_state) {
+        ddog_shutdown_remote_config(ddtrace_globals->remote_config_state);
+    }
+    if (ddtrace_globals->agent_info_reader) {
+        ddog_drop_agent_info_reader(ddtrace_globals->agent_info_reader);
     }
     zai_hook_gshutdown();
+    if (ddtrace_globals->telemetry_buffer) {
+        ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
+    }
+
+    zend_hash_destroy(&ddtrace_globals->git_metadata);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -582,6 +685,138 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
         dd_run_rust_thread_destructors(NULL);
     }
 #endif
+}
+
+static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name, zend_long timestamp, zval *attributes)
+{
+    zval garbage_name, garbage_timestamp, garbage_attributes;
+
+    // Copy current values to temporary zval variables
+    ZVAL_COPY_VALUE(&garbage_name, &event->property_name);
+    ZVAL_COPY_VALUE(&garbage_timestamp, &event->property_timestamp);
+    ZVAL_COPY_VALUE(&garbage_attributes, &event->property_attributes);
+
+    ZVAL_STR_COPY(&event->property_name, name);
+
+    // Use the provided timestamp or the current time in nanoseconds
+    if (timestamp == 0) {
+        struct timespec ts;
+        timespec_get(&ts, TIME_UTC);
+        timestamp = ts.tv_sec * ZEND_NANO_IN_SEC + ts.tv_nsec;
+    }
+    ZVAL_LONG(&event->property_timestamp, timestamp);
+
+    // Initialize attributes
+    if (attributes) {
+        ZVAL_COPY(&event->property_attributes, attributes);
+    } else {
+        array_init(&event->property_attributes);
+    }
+
+    // Free the copied values after replacement
+    zval_ptr_dtor(&garbage_name);
+    zval_ptr_dtor(&garbage_timestamp);
+    zval_ptr_dtor(&garbage_attributes);
+}
+
+/* DDTrace\SpanEvent */
+zend_class_entry *ddtrace_ce_span_event;
+
+PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
+    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    zval array;
+    array_init(&array);
+
+    Z_TRY_ADDREF(event->property_name);
+    add_assoc_zval_ex(&array, ZEND_STRL("name"), &event->property_name);
+    Z_TRY_ADDREF(event->property_timestamp);
+    add_assoc_zval_ex(&array, ZEND_STRL("time_unix_nano"), &event->property_timestamp);
+
+    // Handle attributes dynamically
+    zval *attributes = &event->property_attributes;
+    zval combined_attributes;
+    array_init(&combined_attributes);
+
+    if (instanceof_function(event->std.ce, ddtrace_ce_exception_span_event)) {
+        // Handle exception attributes dynamically if an exception property exists
+        ddtrace_exception_span_event *exception_event = (ddtrace_exception_span_event *) event;
+        zval *exception = &exception_event->property_exception;
+        if (Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
+            // Get exception message, type, and stack trace directly
+            zend_string *message = zai_exception_message(Z_OBJ_P(exception));
+            if (ZSTR_LEN(message)) {
+                add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.message"), zend_string_copy(message));
+            }
+            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.type"), zend_string_copy(Z_OBJCE_P(exception)->name));
+
+            // Get the exception stack trace using zai_get_trace_without_args_from_exception
+            zend_string *stacktrace = zai_get_trace_without_args_from_exception(Z_OBJ_P(exception));
+            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.stacktrace"), stacktrace);
+        }
+    }
+
+    if (Z_TYPE_P(attributes) == IS_ARRAY) {
+        zend_hash_copy(Z_ARRVAL(combined_attributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref);
+    }
+
+    if (zend_hash_num_elements(Z_ARRVAL(combined_attributes)) > 0) {
+        add_assoc_zval_ex(&array, ZEND_STRL("attributes"), &combined_attributes);
+    } else {
+        zval_ptr_dtor(&combined_attributes); // Clean up if no elements
+    }
+
+    RETURN_ARR(Z_ARR(array)); // Return the array
+}
+
+PHP_METHOD(DDTrace_SpanEvent, __construct)
+{
+    UNUSED(return_value);
+
+    zend_string *name;
+    zval *attributes = NULL;
+    zend_long timestamp = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+        Z_PARAM_STR(name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(attributes, 1, 0)
+        Z_PARAM_LONG(timestamp)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    // Use the static function to set properties and handle cleanup
+    dd_span_event_construct(event, name, timestamp, attributes);
+}
+
+/* DDTrace\ExceptionSpanEvent */
+zend_class_entry *ddtrace_ce_exception_span_event;
+
+PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
+{
+    UNUSED(return_value);
+
+    zval *exception;
+    zval *attributes = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_OBJECT_OF_CLASS(exception, zend_ce_throwable)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_EX(attributes, 1, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_exception_span_event *event = (ddtrace_exception_span_event*)Z_OBJ_P(ZEND_THIS);
+
+    // Use the static function to set properties and handle cleanup
+    zend_string *name = zend_string_init(ZEND_STRL("exception"), 0);
+    dd_span_event_construct(&event->span_event, name, 0, attributes);
+    zend_string_release(name);
+
+    zval garbage;
+    ZVAL_COPY_VALUE(&garbage, &event->property_exception);
+    ZVAL_COPY(&event->property_exception, exception);
+    zval_ptr_dtor(&garbage);
 }
 
 /* DDTrace\SpanLink */
@@ -639,7 +874,9 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
     zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
-    zend_string_release(propagated_tags);
+    if (propagated_tags) {
+        zend_string_release(propagated_tags);
+    }
     if (full_tracestate) {
         ZVAL_STR(&link->property_trace_state, full_tracestate);
     }
@@ -648,6 +885,8 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
+    zend_hash_destroy(&result.baggage);
+
     if (result.origin) {
         zend_string_release(result.origin);
     }
@@ -658,12 +897,14 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
+zend_class_entry *ddtrace_ce_inferred_span_data;
 zend_class_entry *ddtrace_ce_root_span_data;
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
 HashTable dd_root_span_data_duplicated_properties_table;
 #endif
 zend_class_entry *ddtrace_ce_span_stack;
 zend_object_handlers ddtrace_span_data_handlers;
+zend_object_handlers ddtrace_inferred_span_data_handlers;
 zend_object_handlers ddtrace_root_span_data_handlers;
 zend_object_handlers ddtrace_span_stack_handlers;
 
@@ -675,8 +916,11 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     // Not handled in arginfo on these old versions
     array_init(&span->property_meta);
     array_init(&span->property_metrics);
+    array_init(&span->property_meta_struct);
     array_init(&span->property_links);
+    array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
+    array_init(&span->property_on_close);
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -686,7 +930,18 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
 
 static zend_object *ddtrace_span_data_create(zend_class_entry *class_type) {
     ddtrace_span_data *span = ecalloc(1, sizeof(*span));
-    return dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+    dd_init_span_data_object(class_type, span, &ddtrace_span_data_handlers);
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&span->property_baggage);
+#endif
+
+    return &span->std;
+}
+
+static zend_object *ddtrace_inferred_span_data_create(zend_class_entry *class_type) {
+    ddtrace_inferred_span_data *span = ecalloc(1, sizeof(*span));
+    return dd_init_span_data_object(class_type, &span->span, &ddtrace_inferred_span_data_handlers);
 }
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
@@ -696,6 +951,7 @@ static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) 
     // Not handled in arginfo on these old versions
     array_init(&span->property_propagated_tags);
     array_init(&span->property_tracestate_tags);
+    array_init(&span->property_baggage);
 #endif
     return &span->std;
 }
@@ -709,6 +965,10 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     // Explicitly assign property-mapped NULLs
     stack->active = NULL;
     stack->parent_stack = NULL;
+#if PHP_VERSION_ID < 80000
+    // Not handled in arginfo on these old versions
+    array_init(&stack->property_span_creation_observers);
+#endif
     return &stack->std;
 }
 
@@ -795,6 +1055,18 @@ static zend_object *ddtrace_span_data_clone_obj(zend_object *old_obj) {
 }
 
 #if PHP_VERSION_ID < 80000
+static zend_object *ddtrace_inferred_span_data_clone_obj(zval *old_zv) {
+    zend_object *old_obj = Z_OBJ_P(old_zv);
+#else
+static zend_object *ddtrace_inferred_span_data_clone_obj(zend_object *old_obj) {
+#endif
+    zend_object *new_obj = ddtrace_inferred_span_data_create(old_obj->ce);
+    zend_objects_clone_members(new_obj, old_obj);
+    return new_obj;
+}
+
+
+#if PHP_VERSION_ID < 80000
 static zend_object *ddtrace_root_span_data_clone_obj(zval *old_zv) {
     zend_object *old_obj = Z_OBJ_P(old_zv);
 #else
@@ -829,6 +1101,19 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
 #endif
     }
 
+    ddtrace_span_data *span = OBJ_SPANDATA(obj);
+    // As per unified service tagging spec if a span is created with a service name different from the global
+    // service name it will not inherit the global version value
+    if (zend_string_equals_literal(prop_name, "service")) {
+        cache_slot = NULL;
+        if (ZSTR_LEN(get_DD_SERVICE()) || !ddtrace_span_is_entrypoint_root(span)) {
+            if (!zend_is_identical(&span->property_service, value)) {
+                zval_ptr_dtor(&span->property_version);
+                ZVAL_EMPTY_STRING(&span->property_version);
+            }
+        }
+    }
+
 #if PHP_VERSION_ID >= 70400
     return zend_std_write_property(object, member, value, cache_slot);
 #else
@@ -851,18 +1136,23 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     ddtrace_root_span_data *span = ROOTSPANDATA(obj);
     zval zv;
+    bool root_span_data_changed = false;
     if (zend_string_equals_literal(prop_name, "parentId")) {
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
             span->parent_id = (uint64_t) Z_LVAL_P(value);
             ZVAL_STR(&zv, zend_strpprintf(0, "%" PRIu64, span->parent_id));
+            Z_DELREF(zv); // zend_std_write_property will incref itself
             value = &zv;
         } else {
             span->parent_id = ddtrace_parse_userland_span_id(value);
             if (!span->parent_id) {
+                zval_ptr_dtor(value);
                 ZVAL_EMPTY_STRING(&zv);
+                Z_TRY_DELREF(zv);
                 value = &zv;
             }
         }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "traceId")) {
         span->trace_id = Z_TYPE_P(value) == IS_STRING ? ddtrace_parse_hex_trace_id(Z_STRVAL_P(value), Z_STRLEN_P(value)) : (ddtrace_trace_id){ 0 };
         if (!span->trace_id.low && !span->trace_id.high) {
@@ -872,14 +1162,37 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             };
             value = &span->property_id;
         }
+        cache_slot = NULL;
+    } else if (zend_string_equals_literal(prop_name, "service")) {
+        if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
+            root_span_data_changed = true;
+        }
+        cache_slot = NULL;
+    } else if (zend_string_equals_literal(prop_name, "env")) {
+        if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_env, value)) {
+            root_span_data_changed = true;
+        }
+        cache_slot = NULL;
+    } else if (zend_string_equals_literal(prop_name, "version")) {
+        if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_version, value)) {
+            root_span_data_changed = true;
+        }
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        cache_slot = NULL;
     }
 
 #if PHP_VERSION_ID >= 70400
-    return ddtrace_span_data_readonly(object, member, value, cache_slot);
+    zval *ret = ddtrace_span_data_readonly(object, member, value, cache_slot);
 #else
     ddtrace_span_data_readonly(object, member, value, cache_slot);
+#endif
+    if (root_span_data_changed) {
+        ddtrace_sidecar_submit_root_span_data();
+    }
+#if PHP_VERSION_ID >= 70400
+    return ret;
 #endif
 }
 
@@ -925,6 +1238,8 @@ PHP_METHOD(DDTrace_SpanData, getStartTime) {
 PHP_METHOD(DDTrace_SpanData, getLink) {
     ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(ZEND_THIS));
 
+    span->flags |= DDTRACE_SPAN_FLAG_NOT_DROPPABLE;
+
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_link);
     ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(&fci_zv);
@@ -950,6 +1265,14 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
     ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
     ddtrace_span_data_handlers.get_constructor = ddtrace_span_data_get_constructor;
+
+    ddtrace_ce_inferred_span_data = register_class_DDTrace_InferredSpanData(ddtrace_ce_span_data);
+    ddtrace_ce_inferred_span_data->create_object = ddtrace_inferred_span_data_create;
+
+    memcpy(&ddtrace_inferred_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
+    ddtrace_inferred_span_data_handlers.offset = XtOffsetOf(ddtrace_inferred_span_data, std);
+    ddtrace_inferred_span_data_handlers.clone_obj = ddtrace_inferred_span_data_clone_obj;
+
 
     ddtrace_ce_root_span_data = register_class_DDTrace_RootSpanData(ddtrace_ce_span_data);
     ddtrace_ce_root_span_data->create_object = ddtrace_root_span_data_create;
@@ -991,6 +1314,19 @@ static void dd_register_fatal_error_ce(void) {
 }
 
 zend_class_entry *ddtrace_ce_integration;
+zend_class_entry *ddtrace_ce_git_metadata;
+zend_object_handlers ddtrace_git_metadata_handlers;
+
+static zend_object *ddtrace_git_metadata_create(zend_class_entry *class_type) {
+    zend_object *object = zend_objects_new(class_type);
+    object_properties_init(object, class_type);
+    object->handlers = &ddtrace_git_metadata_handlers;
+    return object;
+}
+
+static void ddtrace_free_obj_wrapper(zend_object *object) {
+    zend_object_std_dtor(object);
+}
 
 static bool dd_is_compatible_sapi() {
     switch (ddtrace_active_sapi) {
@@ -1015,6 +1351,45 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
+#if PHP_VERSION_ID < 80500
+zend_string *ddtrace_known_strings[ZEND_STR__LAST];
+void ddtrace_init_known_strings(void) {
+#if PHP_VERSION_ID < 80500
+#undef ZEND_STR_PARENT
+    ddtrace_known_strings[ZEND_STR_PARENT] = zend_string_init_interned(ZEND_STRL("parent"), 1);
+#endif
+#if PHP_VERSION_ID < 70300
+#undef ZEND_STR_NAME
+    ddtrace_known_strings[ZEND_STR_NAME] = zend_string_init_interned(ZEND_STRL("name"), 1);
+#endif
+#if PHP_VERSION_ID < 70200
+#undef ZEND_STR_RESOURCE
+    ddtrace_known_strings[ZEND_STR_RESOURCE] = zend_string_init_interned(ZEND_STRL("resource"), 1);
+#endif
+#if PHP_VERSION_ID < 70100
+    ddtrace_known_strings[ZEND_STR_TRACE] = zend_string_init_interned(ZEND_STRL("trace"), 1);
+    ddtrace_known_strings[ZEND_STR_LINE] = zend_string_init_interned(ZEND_STRL("line"), 1);
+    ddtrace_known_strings[ZEND_STR_FILE] = zend_string_init_interned(ZEND_STRL("file"), 1);
+    ddtrace_known_strings[ZEND_STR_MESSAGE] = zend_string_init_interned(ZEND_STRL("message"), 1);
+    ddtrace_known_strings[ZEND_STR_CODE] = zend_string_init_interned(ZEND_STRL("code"), 1);
+    ddtrace_known_strings[ZEND_STR_TYPE] = zend_string_init_interned(ZEND_STRL("type"), 1);
+    ddtrace_known_strings[ZEND_STR_FUNCTION] = zend_string_init_interned(ZEND_STRL("function"), 1);
+    ddtrace_known_strings[ZEND_STR_OBJECT] = zend_string_init_interned(ZEND_STRL("object"), 1);
+    ddtrace_known_strings[ZEND_STR_CLASS] = zend_string_init_interned(ZEND_STRL("class"), 1);
+    ddtrace_known_strings[ZEND_STR_OBJECT_OPERATOR] = zend_string_init_interned(ZEND_STRL("->"), 1);
+    ddtrace_known_strings[ZEND_STR_PAAMAYIM_NEKUDOTAYIM] = zend_string_init_interned(ZEND_STRL("::"), 1);
+    ddtrace_known_strings[ZEND_STR_ARGS] = zend_string_init_interned(ZEND_STRL("args"), 1);
+    ddtrace_known_strings[ZEND_STR_UNKNOWN] = zend_string_init_interned(ZEND_STRL("unknown"), 1);
+    ddtrace_known_strings[ZEND_STR_EVAL] = zend_string_init_interned(ZEND_STRL("eval"), 1);
+    ddtrace_known_strings[ZEND_STR_INCLUDE] = zend_string_init_interned(ZEND_STRL("include"), 1);
+    ddtrace_known_strings[ZEND_STR_REQUIRE] = zend_string_init_interned(ZEND_STRL("require"), 1);
+    ddtrace_known_strings[ZEND_STR_INCLUDE_ONCE] = zend_string_init_interned(ZEND_STRL("include_once"), 1);
+    ddtrace_known_strings[ZEND_STR_REQUIRE_ONCE] = zend_string_init_interned(ZEND_STRL("require_once"), 1);
+    ddtrace_known_strings[ZEND_STR_PREVIOUS] = zend_string_init_interned(ZEND_STRL("previous"), 1);
+#endif
+}
+#endif
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
 
@@ -1031,6 +1406,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
+
+#if PHP_VERSION_ID < 80500
+    ddtrace_init_known_strings();
+#endif
 
     zai_hook_minit();
     zai_uhook_minit(module_number);
@@ -1087,6 +1466,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     mod_ptr->handle = NULL;
     /* }}} */
 
+    // Make sure it's available for appsec, i.e. before disabling
+    dd_ip_extraction_startup();
+
     if (ddtrace_disable) {
         return SUCCESS;
     }
@@ -1101,6 +1483,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_initialize_span_sampling_limiter();
     ddtrace_limiter_create();
+    ddtrace_standalone_limiter_create();
 
     ddtrace_log_minit();
 
@@ -1114,20 +1497,23 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
+    ddtrace_ce_span_event = register_class_DDTrace_SpanEvent(php_json_serializable_ce);
+    ddtrace_ce_exception_span_event = register_class_DDTrace_ExceptionSpanEvent(ddtrace_ce_span_event);
+    ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
+    ddtrace_ce_git_metadata->create_object = ddtrace_git_metadata_create;
+    memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
+    ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
 
     ddtrace_engine_hooks_minit();
-
-#ifndef _WIN32
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
-                           get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
-                           get_global_DD_TRACE_AGENT_STACK_BACKLOG());
-    }
-#endif
+    ddtrace_init_proxy_info_map();
 
     ddtrace_integrations_minit();
-    dd_ip_extraction_startup();
     ddtrace_serializer_startup();
+
+    ddtrace_live_debugger_minit();
+    ddtrace_minit_remote_config();
+    ddtrace_trace_source_minit();
 
     return SUCCESS;
 }
@@ -1145,6 +1531,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         zai_json_shutdown_bindings();
         return SUCCESS;
     }
+
+    ddtrace_mshutdown_remote_config();
 
     if (DDTRACE_G(agent_rate_by_service)) {
         zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
@@ -1167,15 +1555,19 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_log_mshutdown();
 
     ddtrace_engine_hooks_mshutdown();
+    ddtrace_shutdown_proxy_info_map();
 
     ddtrace_shutdown_span_sampling_limiter();
     ddtrace_limiter_destroy();
+    ddtrace_standalone_limiter_destroy();
     zai_config_mshutdown();
     zai_json_shutdown_bindings();
 
     ddtrace_user_req_shutdown();
 
     ddtrace_sidecar_shutdown();
+
+    ddtrace_live_debugger_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation
@@ -1188,6 +1580,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     return SUCCESS;
 }
+
+static bool dd_rinit_once_done = false;
 
 static void dd_rinit_once(void) {
     /* The env vars are memoized on MINIT before the SAPI env vars are available.
@@ -1202,7 +1596,13 @@ static void dd_rinit_once(void) {
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_init_and_start_writer();
     }
+#else
+    if (get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED()) {
+        init_crash_tracking();
+    }
 #endif
+
+    dd_rinit_once_done = true;
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -1213,23 +1613,42 @@ static void dd_initialize_request(void) {
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
+    DDTRACE_G(inferred_span_created) = false;
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
+
+    // Check for the env first, before the first RC
+    ddtrace_check_agent_info_env();
+
+    // Do after env check, so that RC data is not updated before RC init
+    DDTRACE_G(request_initialized) = true;
+
+    ddtrace_sidecar_rinit();
+    ddtrace_asm_event_rinit();
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
 
-    if (!DDTRACE_G(remote_config_reader)) {
+    if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (ddtrace_endpoint) {
-                DDTRACE_G(remote_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
+                DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(ddtrace_endpoint);
             }
 #ifndef _WIN32
         } else if (ddtrace_coms_agent_config_handle) {
-            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
 #endif
         }
+    }
+
+    if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
+        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint);
+    }
+
+    if (DDTRACE_G(remote_config_state)) {
+        ddtrace_rinit_remote_config();
     }
 
     ddtrace_internal_handlers_rinit();
@@ -1246,6 +1665,8 @@ static void dd_initialize_request(void) {
     }
 #endif
 
+    ddtrace_agent_info_rinit();
+
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
 
@@ -1253,10 +1674,6 @@ static void dd_initialize_request(void) {
 
     ddtrace_distributed_tracing_result distributed_result = ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, NULL);
     ddtrace_apply_distributed_tracing_result(&distributed_result, NULL);
-
-    if (!DDTRACE_G(telemetry_queue_id)) {
-        DDTRACE_G(telemetry_queue_id) = ddog_sidecar_queueId_generate();
-    }
 
     if (get_DD_TRACE_GENERATE_ROOT_SPAN()) {
         ddtrace_push_root_span();
@@ -1266,13 +1683,14 @@ static void dd_initialize_request(void) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID < 80000 || (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500)
     zai_interceptor_rinit();
 #endif
 
     if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
+        DDTRACE_G(active_stack) = NULL; // This should not be necessary, but somehow sometimes it may be a leftover from a previous request.
         DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
 #if PHP_VERSION_ID < 80000
         ddtrace_autoload_rinit();
@@ -1291,6 +1709,7 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(root_span_tags_preset));
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
+    zend_hash_destroy(&DDTRACE_G(baggage));
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
@@ -1370,10 +1789,13 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
-static void dd_finalize_telemetry(void) {
-    if (DDTRACE_G(telemetry_queue_id)) {
+static void dd_finalize_sidecar_lifecycle(void) {
+    if (DDTRACE_G(request_initialized)) {
         ddtrace_telemetry_finalize();
-        DDTRACE_G(telemetry_queue_id) = 0;
+        if (ddtrace_sidecar) {
+            ddtrace_ffi_try("Failed signaling lifecycle end",
+                ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
+        }
     }
 }
 
@@ -1392,6 +1814,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         dd_shutdown_hooks_and_observer();
     }
 
+    if (DDTRACE_G(remote_config_state)) {
+        ddtrace_rshutdown_remote_config();
+    }
+
     if (!ddtrace_disable) {
         ddtrace_autoload_rshutdown();
 
@@ -1399,8 +1825,11 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    dd_finalize_telemetry();
+    dd_finalize_sidecar_lifecycle();
+    DDTRACE_G(request_initialized) = false;
+
     ddtrace_telemetry_rshutdown();
+    ddtrace_sidecar_rshutdown();
 
     if (DDTRACE_G(last_flushed_root_service_name)) {
         zend_string_release(DDTRACE_G(last_flushed_root_service_name));
@@ -1410,6 +1839,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         zend_string_release(DDTRACE_G(last_flushed_root_env_name));
         DDTRACE_G(last_flushed_root_env_name) = NULL;
     }
+
+    ddtrace_clean_git_object();
 
     return SUCCESS;
 }
@@ -1427,6 +1858,7 @@ zend_result ddtrace_post_deactivate(void) {
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
+
     return SUCCESS;
 }
 
@@ -1438,7 +1870,9 @@ void ddtrace_disable_tracing_in_current_request(void) {
     zend_string_release(zero);
 }
 
-bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value) {
+bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, zend_string *new_str) {
+    (void)new_str;
+
     if (Z_TYPE_P(old_value) == Z_TYPE_P(new_value)) {
         return true;
     }
@@ -1686,8 +2120,25 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    array_init(return_value);
-    ddtrace_serialize_closed_spans_with_cycle(return_value);
+    zval traces;
+    array_init(&traces);
+    ddtrace_serialize_closed_spans_with_cycle(&traces);
+
+    if (zend_hash_num_elements(Z_ARR(traces)) == 1) {
+        ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces)));
+    } else {
+        array_init(return_value);
+        zval *spans;
+        ZEND_HASH_FOREACH_VAL(Z_ARR(traces), spans) {
+            zval *span;
+            ZEND_HASH_FOREACH_VAL(Z_ARR_P(spans), span) {
+                Z_ADDREF_P(span);
+                zend_hash_next_index_insert_new(Z_ARR_P(return_value), span);
+            } ZEND_HASH_FOREACH_END();
+        } ZEND_HASH_FOREACH_END();
+    }
+
+    zval_ptr_dtor(&traces);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
@@ -1920,13 +2371,21 @@ void dd_internal_handle_fork(void) {
         ddtrace_coms_clean_background_sender_after_fork();
     }
 #endif
-    if (DDTRACE_G(remote_config_reader)) {
-        ddog_agent_remote_config_reader_drop(DDTRACE_G(remote_config_reader));
-        DDTRACE_G(remote_config_reader) = NULL;
+    if (DDTRACE_G(agent_config_reader)) {
+        ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
+        DDTRACE_G(agent_config_reader) = NULL;
+    }
+    if (DDTRACE_G(remote_config_state)) {
+        ddog_shutdown_remote_config(DDTRACE_G(remote_config_state));
+        DDTRACE_G(remote_config_state) = NULL;
+    }
+    if (DDTRACE_G(agent_info_reader)) {
+        ddog_drop_agent_info_reader(DDTRACE_G(agent_info_reader));
+        DDTRACE_G(agent_info_reader) = NULL;
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar_globals();
+    ddtrace_reset_sidecar();
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
@@ -1950,7 +2409,7 @@ void dd_internal_handle_fork(void) {
         ddtrace_coms_init_and_start_writer();
 
         if (ddtrace_coms_agent_config_handle) {
-            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(remote_config_reader));
+            ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
         }
     }
 #endif
@@ -2126,12 +2585,18 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_telemetry();
+            dd_finalize_sidecar_lifecycle();
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(telemetry_queue_id), path);
+            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
             RETVAL_TRUE;
+        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
+            zval *name = ZVAL_VARARG_PARAM(params, 0);
+            zval *version = ZVAL_VARARG_PARAM(params, 1);
+            if (Z_TYPE_P(name) == IS_STRING && Z_TYPE_P(version) == IS_STRING) {
+                ddtrace_telemetry_notify_integration_version(Z_STRVAL_P(name), Z_STRLEN_P(name), Z_STRVAL_P(version), Z_STRLEN_P(version));
+            }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {
                 RETURN_FALSE;
@@ -2146,6 +2611,22 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_CharSlice slice = ddog_sidecar_stats(&ddtrace_sidecar);
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
+        } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
+            uint32_t timeout = 100;
+            if (params_count == 1) {
+                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+#ifndef _WIN32
+            if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+                if (dd_rinit_once_done) {
+                    ddtrace_coms_synchronous_flush(timeout);
+                }
+            } else
+#endif
+            if (ddtrace_sidecar) {
+                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
+            }
+            RETVAL_TRUE;
 #ifndef _WIN32
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
@@ -2178,13 +2659,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer")) {
             ddtrace_coms_test_msgpack_consumer();
-            RETVAL_TRUE;
-        } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
-            uint32_t timeout = 100;
-            if (params_count == 1) {
-                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
-            }
-            ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
 #endif
         } else if (FUNCTION_NAME_MATCHES("test_logs")) {
@@ -2247,9 +2721,9 @@ PHP_FUNCTION(dd_trace_close_all_spans_and_flush) {
 
 /* {{{ proto void dd_trace_synchronous_flush(int) */
 PHP_FUNCTION(dd_trace_synchronous_flush) {
-    zend_long timeout;
+    zend_long timeout = 100;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &timeout) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &timeout) == FAILURE) {
         RETURN_THROWS();
     }
 
@@ -2260,8 +2734,15 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     }
 
 #ifndef _WIN32
-    ddtrace_coms_synchronous_flush(timeout);
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        if (dd_rinit_once_done) {
+            ddtrace_coms_synchronous_flush(timeout);
+        }
+    } else
 #endif
+    if (ddtrace_sidecar) {
+        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
+    }
     RETURN_NULL();
 }
 
@@ -2322,6 +2803,10 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
 
     if (start_time_seconds > 0) {
         span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
+    }
+
+    if (get_DD_TRACE_ENABLED()) {
+        ddtrace_observe_opened_span(span);
     }
 
     RETURN_OBJ(&span->std);
@@ -2396,6 +2881,41 @@ PHP_FUNCTION(DDTrace_update_span_duration) {
     dd_set_span_finish_time(span, finish_time_seconds);
 
     RETURN_NULL();
+}
+
+/* {{{ proto string DDTrace\try_drop_span() */
+PHP_FUNCTION(DDTrace_try_drop_span) {
+    zval *spanzv = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "O", &spanzv, ddtrace_ce_span_data) != SUCCESS) {
+        RETURN_FALSE;
+    }
+
+    ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ_P(spanzv));
+
+    if (span->flags & DDTRACE_SPAN_FLAG_NOT_DROPPABLE) {
+        RETURN_FALSE;
+    }
+
+    if (span->duration == DDTRACE_DROPPED_SPAN || span->duration == DDTRACE_SILENTLY_DROPPED_SPAN) {
+        RETURN_TRUE;
+    }
+
+    ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
+    if (span->active_child_spans) {
+        RETURN_FALSE;
+    }
+
+    bool on_active_stack = active_stack == span->stack;
+    if (!on_active_stack) {
+        GC_ADDREF(&active_stack->std);
+    }
+    ddtrace_drop_span(span);
+    if (!on_active_stack) {
+        ddtrace_switch_span_stack(active_stack);
+        GC_DELREF(&active_stack->std);
+    }
+
+    RETURN_TRUE;
 }
 
 /* {{{ proto string DDTrace\active_stack() */
@@ -2671,36 +3191,22 @@ static bool dd_read_userspace_header(zai_str zai_header, const char *lowercase_h
     return true;
 }
 
-static bool dd_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {
-    UNUSED(zai_header);
-    zend_array *array = (zend_array *) data;
-    zval *value = zend_hash_str_find(array, lowercase_header, strlen(lowercase_header));
-    if (!value) {
-        return false;
-    }
-
-    *header_value = zval_get_string(value);
-    return true;
-}
-
-static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
+static bool parse_tracing_headers_common(INTERNAL_FUNCTION_PARAMETERS, dd_fci_fcc_pair *func, bool *use_server_headers, zend_array **array) {
     UNUSED(return_value);
-
-    dd_fci_fcc_pair func;
-    bool use_server_headers = false;
-    zend_array *array = NULL;
+    *use_server_headers = false;
+    *array = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
         DD_PARAM_PROLOGUE(0, 0);
         if (Z_TYPE_P(_arg) == IS_NULL) {
-            use_server_headers = true;
-        } else if (UNEXPECTED(!zend_parse_arg_func(_arg, &func.fci, &func.fcc, false, &_error, true))) {
+            *use_server_headers = true;
+        } else if (UNEXPECTED(!zend_parse_arg_func(_arg, &func->fci, &func->fcc, false, &_error, true))) {
             if (!_error) {
                 zend_argument_type_error(1, "must be a valid callback or of type array, %s given", zend_zval_value_name(_arg));
                 _error_code = ZPP_ERROR_FAILURE;
                 break;
             } else if (Z_TYPE_P(_arg) == IS_ARRAY) {
-                array = Z_ARR_P(_arg);
+                *array = Z_ARR_P(_arg);
                 efree(_error);
             } else {
                 _error_code = ZPP_ERROR_WRONG_CALLBACK;
@@ -2715,17 +3221,25 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 #endif
 #endif
         }
-    ZEND_PARSE_PARAMETERS_END_EX(*success = false; return (ddtrace_distributed_tracing_result){0});
+    ZEND_PARSE_PARAMETERS_END_EX(return false);
 
-    *success = true;
-    if (!get_DD_TRACE_ENABLED()) {
+    return true;
+}
+
+static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
+    dd_fci_fcc_pair func;
+    bool use_server_headers;
+    zend_array *array;
+
+    *success = parse_tracing_headers_common(INTERNAL_FUNCTION_PARAM_PASSTHRU, &func, &use_server_headers, &array);
+    if (!*success || !get_DD_TRACE_ENABLED()) {
         return (ddtrace_distributed_tracing_result){0};
     }
 
     func.fci.param_count = 1;
 
     if (array) {
-        return ddtrace_read_distributed_tracing_ids(dd_read_array_header, array);
+        return ddtrace_read_distributed_tracing_ids(ddtrace_read_array_header, array);
     } else if (use_server_headers) {
         return ddtrace_read_distributed_tracing_ids(ddtrace_read_zai_header, &func);
     } else {
@@ -2733,8 +3247,35 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
     }
 }
 
+static ddtrace_inferred_proxy_result dd_parse_inferred_proxy_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success) {
+    dd_fci_fcc_pair func;
+    bool use_server_headers;
+    zend_array *array;
+
+    *success = parse_tracing_headers_common(INTERNAL_FUNCTION_PARAM_PASSTHRU, &func, &use_server_headers, &array);
+    if (!*success || !get_DD_TRACE_ENABLED() || !get_DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED()) {
+        return (ddtrace_inferred_proxy_result){0};
+    }
+
+    func.fci.param_count = 1;
+
+    if (array) {
+        return ddtrace_read_inferred_proxy_headers(ddtrace_read_array_header, array);
+    } else if (use_server_headers) {
+        return ddtrace_read_inferred_proxy_headers(ddtrace_read_zai_header, &func);
+    } else {
+        return ddtrace_read_inferred_proxy_headers(dd_read_userspace_header, &func);
+    }
+}
+
 PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     bool success;
+
+    ddtrace_inferred_proxy_result inferred_result = dd_parse_inferred_proxy_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
+    if (success && get_DD_TRACE_ENABLED() && DDTRACE_G(active_stack)->root_span && Z_TYPE(DDTRACE_G(active_stack)->root_span->property_inferred_span) != IS_OBJECT) {
+        ddtrace_open_inferred_span(&inferred_result, DDTRACE_G(active_stack)->root_span);
+    }
+
     ddtrace_distributed_tracing_result result = dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAM_PASSTHRU, &success);
     if (success && get_DD_TRACE_ENABLED()) {
         ddtrace_apply_distributed_tracing_result(&result, DDTRACE_G(active_stack)->root_span);
@@ -2919,8 +3460,11 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
     RETURN_NULL();
 }
 
-static const zend_module_dep ddtrace_module_deps[] = {ZEND_MOD_REQUIRED("json") ZEND_MOD_REQUIRED("standard")
-                                                          ZEND_MOD_END};
+static const zend_module_dep ddtrace_module_deps[] = {
+        ZEND_MOD_REQUIRED("json")
+        ZEND_MOD_REQUIRED("standard")
+        ZEND_MOD_OPTIONAL("openetelemetry") // make sure we load after otel to insert the hook function if it doesn't exist yet
+        ZEND_MOD_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
                                           ddtrace_module_deps,       PHP_DDTRACE_EXTNAME,

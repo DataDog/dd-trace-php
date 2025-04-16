@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -e
 
 if [ -z "$SRC_DIR" ]; then

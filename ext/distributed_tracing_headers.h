@@ -10,6 +10,7 @@ typedef struct {
     uint64_t parent_id;
     zend_string *origin;
     zend_string *tracestate;
+    HashTable baggage;
     HashTable tracestate_unknown_dd_keys;
     HashTable propagated_tags;
     HashTable meta_tags;
@@ -22,5 +23,6 @@ typedef bool (ddtrace_read_header)(zai_str zai_header, const char *lowercase_hea
 ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_read_header *read_header, void *data);
 void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result *result, ddtrace_root_span_data *span);
 bool ddtrace_read_zai_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data);
+bool ddtrace_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data);
 
 #endif // DD_DISTRIBUTED_TRACING_HEADERS_H

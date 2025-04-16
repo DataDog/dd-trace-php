@@ -1,0 +1,413 @@
+[[
+  {
+    "name": "laminas.request",
+    "service": "test_laminas_rest_latest",
+    "resource": "DatadogApi\\V1\\Rest\\DatadogRestService\\DatadogRestServiceResource@fetch datadog-api.rest.datadog-rest-service",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 7418555806868091952,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "component": "laminas",
+      "http.method": "GET",
+      "http.status_code": "405",
+      "http.url": "http://localhost/datadog-rest-service/1",
+      "http.version": "1.1",
+      "laminas.route.action": "DatadogApi\\V1\\Rest\\DatadogRestService\\DatadogRestServiceResource@fetch",
+      "laminas.route.name": "datadog-api.rest.datadog-rest-service",
+      "runtime-id": "fb85000f-e2a1-46f3-b5c9-5f7f2c342eb2",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "laminas.application.init",
+       "service": "test_laminas_rest_latest",
+       "resource": "laminas.application.init",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laminas"
+       }
+     },
+        {
+          "name": "laminas.event.loadModules",
+          "service": "test_laminas_rest_latest",
+          "resource": "laminas.event.loadModules",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          }
+        },
+        {
+          "name": "laminas.event.loadModules.post",
+          "service": "test_laminas_rest_latest",
+          "resource": "laminas.event.loadModules.post",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          }
+        },
+        {
+          "name": "laminas.application.bootstrap",
+          "service": "test_laminas_rest_latest",
+          "resource": "laminas.application.bootstrap",
+          "trace_id": 0,
+          "span_id": 6,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          }
+        },
+           {
+             "name": "laminas.event.bootstrap",
+             "service": "test_laminas_rest_latest",
+             "resource": "laminas.event.bootstrap",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 6,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+              {
+                "name": "laminas.mvcEventListener",
+                "service": "test_laminas_rest_latest",
+                "resource": "Laminas\\Mvc\\View\\Http\\ViewManager@onBootstrap",
+                "trace_id": 0,
+                "span_id": 28,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                }
+              },
+              {
+                "name": "laminas.controller.pluginManager.get",
+                "service": "test_laminas_rest_latest",
+                "resource": "AcceptableViewModelSelector",
+                "trace_id": 0,
+                "span_id": 29,
+                "parent_id": 10,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                }
+              },
+     {
+       "name": "laminas.application.run",
+       "service": "test_laminas_rest_latest",
+       "resource": "laminas.application.run",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laminas"
+       }
+     },
+        {
+          "name": "laminas.event.route",
+          "service": "test_laminas_rest_latest",
+          "resource": "laminas.event.route",
+          "trace_id": 0,
+          "span_id": 7,
+          "parent_id": 3,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          }
+        },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\Mvc\\HttpMethodListener@onRoute",
+             "trace_id": 0,
+             "span_id": 11,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\Mvc\\RouteListener@onRoute",
+             "trace_id": 0,
+             "span_id": 12,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+              {
+                "name": "laminas.route.match",
+                "service": "test_laminas_rest_latest",
+                "resource": "Laminas\\Router\\Http\\TreeRouteStack@match",
+                "trace_id": 0,
+                "span_id": 30,
+                "parent_id": 12,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                }
+              },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\Versioning\\AcceptListener@onRoute",
+             "trace_id": 0,
+             "span_id": 13,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\Versioning\\ContentTypeListener@onRoute",
+             "trace_id": 0,
+             "span_id": 14,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\Versioning\\VersionListener@onRoute",
+             "trace_id": 0,
+             "span_id": 15,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\MvcAuth\\MvcRouteListener@authentication",
+             "trace_id": 0,
+             "span_id": 16,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\MvcAuth\\MvcRouteListener@authenticationPost",
+             "trace_id": 0,
+             "span_id": 17,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\Rest\\Listener\\OptionsListener@onRoute",
+             "trace_id": 0,
+             "span_id": 18,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\Rpc\\OptionsListener@onRoute",
+             "trace_id": 0,
+             "span_id": 19,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\MvcAuth\\MvcRouteListener@authorization",
+             "trace_id": 0,
+             "span_id": 20,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\MvcAuth\\MvcRouteListener@authorizationPost",
+             "trace_id": 0,
+             "span_id": 21,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\ContentNegotiation\\AcceptFilterListener@onRoute",
+             "trace_id": 0,
+             "span_id": 22,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\ContentNegotiation\\ContentTypeFilterListener@onRoute",
+             "trace_id": 0,
+             "span_id": 23,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\ApiTools\\ContentValidation\\ContentValidationListener@onRoute",
+             "trace_id": 0,
+             "span_id": 24,
+             "parent_id": 7,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+        {
+          "name": "laminas.event.dispatch",
+          "service": "test_laminas_rest_latest",
+          "resource": "laminas.event.dispatch",
+          "trace_id": 0,
+          "span_id": 8,
+          "parent_id": 3,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          }
+        },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\Mvc\\MiddlewareListener@onDispatch",
+             "trace_id": 0,
+             "span_id": 25,
+             "parent_id": 8,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\Mvc\\DispatchListener@onDispatch",
+             "trace_id": 0,
+             "span_id": 26,
+             "parent_id": 8,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           },
+              {
+                "name": "laminas.controller.dispatch",
+                "service": "test_laminas_rest_latest",
+                "resource": "Laminas\\ApiTools\\Rest\\RestController",
+                "trace_id": 0,
+                "span_id": 31,
+                "parent_id": 26,
+                "type": "web",
+                "meta": {
+                  "component": "laminas"
+                }
+              },
+                 {
+                   "name": "laminas.mvcEventListener",
+                   "service": "test_laminas_rest_latest",
+                   "resource": "Laminas\\ApiTools\\Rest\\RestController@onDispatch",
+                   "trace_id": 0,
+                   "span_id": 32,
+                   "parent_id": 31,
+                   "type": "web",
+                   "meta": {
+                     "component": "laminas"
+                   }
+                 },
+                    {
+                      "name": "laminas.controller.action",
+                      "service": "test_laminas_rest_latest",
+                      "resource": "DatadogApi\\V1\\Rest\\DatadogRestService\\DatadogRestServiceResource@fetch",
+                      "trace_id": 0,
+                      "span_id": 33,
+                      "parent_id": 32,
+                      "type": "web",
+                      "error": 1,
+                      "meta": {
+                        "component": "laminas",
+                        "error.message": "The GET method has not been defined for individual resources",
+                        "error.stack": "#0 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas-api-tools/api-tools-rest/src/AbstractResourceListener.php(182): DatadogApi\\V1\\Rest\\DatadogRestService\\DatadogRestServiceResource->fetch()\n#1 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-eventmanager/src/EventManager.php(320): Laminas\\ApiTools\\Rest\\AbstractResourceListener->dispatch()\n#2 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-eventmanager/src/EventManager.php(178): Laminas\\EventManager\\EventManager->triggerListeners()\n#3 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas-api-tools/api-tools-rest/src/Resource.php(548): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#4 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas-api-tools/api-tools-rest/src/Resource.php(499): Laminas\\ApiTools\\Rest\\Resource->triggerEvent()\n#5 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas-api-tools/api-tools-rest/src/RestController.php(493): Laminas\\ApiTools\\Rest\\Resource->fetch()\n#6 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-mvc/src/Controller/AbstractRestfulController.php(372): Laminas\\ApiTools\\Rest\\RestController->get()\n#7 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas-api-tools/api-tools-rest/src/RestController.php(335): Laminas\\Mvc\\Controller\\AbstractRestfulController->onDispatch()\n#8 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-eventmanager/src/EventManager.php(320): Laminas\\ApiTools\\Rest\\RestController->onDispatch()\n#9 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-eventmanager/src/EventManager.php(178): Laminas\\EventManager\\EventManager->triggerListeners()\n#10 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-mvc/src/Controller/AbstractController.php(105): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#11 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-mvc/src/Controller/AbstractRestfulController.php(306): Laminas\\Mvc\\Controller\\AbstractController->dispatch()\n#12 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-mvc/src/DispatchListener.php(117): Laminas\\Mvc\\Controller\\AbstractRestfulController->dispatch()\n#13 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-eventmanager/src/EventManager.php(320): Laminas\\Mvc\\DispatchListener->onDispatch()\n#14 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-eventmanager/src/EventManager.php(178): Laminas\\EventManager\\EventManager->triggerListeners()\n#15 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/vendor/laminas/laminas-mvc/src/Application.php(319): Laminas\\EventManager\\EventManager->triggerEventUntil()\n#16 /home/circleci/app/tests/Frameworks/Laminas/ApiTools/Latest/public/index.php(60): Laminas\\Mvc\\Application->run()\n",
+                        "error.type": "ApiProblem"
+                      }
+                    },
+        {
+          "name": "laminas.event.finish",
+          "service": "test_laminas_rest_latest",
+          "resource": "laminas.event.finish",
+          "trace_id": 0,
+          "span_id": 9,
+          "parent_id": 3,
+          "type": "web",
+          "meta": {
+            "component": "laminas"
+          }
+        },
+           {
+             "name": "laminas.mvcEventListener",
+             "service": "test_laminas_rest_latest",
+             "resource": "Laminas\\Mvc\\SendResponseListener@sendResponse",
+             "trace_id": 0,
+             "span_id": 27,
+             "parent_id": 9,
+             "type": "web",
+             "meta": {
+               "component": "laminas"
+             }
+           }]]

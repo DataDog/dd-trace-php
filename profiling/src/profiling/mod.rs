@@ -7,6 +7,7 @@ mod uploader;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
+use thread_utils::get_current_thread_name;
 use uploader::*;
 
 #[cfg(all(php_has_fibers, not(test)))]
@@ -18,32 +19,46 @@ use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_
 use crate::config::SystemSettings;
 use crate::{CLOCKS, TAGS};
 use chrono::Utc;
-use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
 };
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
+use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::transmute;
+use std::mem::forget;
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
 #[cfg(feature = "timeline")]
-use lazy_static::lazy_static;
+use core::{ptr, str};
 #[cfg(feature = "timeline")]
 use std::time::UNIX_EPOCH;
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-#[cfg(feature = "allocation_profiling")]
+
+#[cfg(all(target_os = "linux", feature = "io_profiling"))]
+use crate::io::{
+    FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
+    FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
+    SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
+    SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
+};
+
+#[cfg(any(
+    feature = "allocation_profiling",
+    feature = "exception_profiling",
+    feature = "io_profiling"
+))]
 use datadog_profiling::api::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
@@ -51,18 +66,21 @@ use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
-#[cfg(feature = "timeline")]
 pub const NO_TIMESTAMP: i64 = 0;
 
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
+/// The global profiler. Profiler gets made during the first rinit after an
+/// minit, and is destroyed on mshutdown.
+static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
+
 /// Order this array this way:
 ///  1. Always enabled types.
 ///  2. On by default types.
 ///  3. Off by default types.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SampleValues {
     interrupt_count: i64,
     wall_time: i64,
@@ -71,6 +89,22 @@ pub struct SampleValues {
     alloc_size: i64,
     timeline: i64,
     exception: i64,
+    socket_read_time: i64,
+    socket_read_time_samples: i64,
+    socket_write_time: i64,
+    socket_write_time_samples: i64,
+    file_read_time: i64,
+    file_read_time_samples: i64,
+    file_write_time: i64,
+    file_write_time_samples: i64,
+    socket_read_size: i64,
+    socket_read_size_samples: i64,
+    socket_write_size: i64,
+    socket_write_size_samples: i64,
+    file_read_size: i64,
+    file_read_size_samples: i64,
+    file_write_size: i64,
+    file_write_size_samples: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -209,16 +243,8 @@ pub struct Profiler {
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
     sample_types_filter: SampleTypeFilter,
-    system_settings: ptr::NonNull<SystemSettings>,
+    system_settings: AtomicPtr<SystemSettings>,
 }
-
-/// The [Profiler] is sync *except* for some edge cases system_settings, which
-/// may be mutated under fringe conditions like in the child of a fork.
-unsafe impl Sync for Profiler {}
-
-/// The [Profiler] is send *except* for some edge cases system_settings, which
-/// may be mutated under fringe conditions like in the child of a fork.
-unsafe impl Send for Profiler {}
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
@@ -275,23 +301,57 @@ impl TimeCollector {
             })
             .collect();
 
+        let get_offset = |sample_type| sample_types.iter().position(|&x| x.r#type == sample_type);
+
         // check if we have the `alloc-size` and `alloc-samples` sample types
         #[cfg(feature = "allocation_profiling")]
-        let alloc_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "alloc-samples");
-        #[cfg(feature = "allocation_profiling")]
-        let alloc_size_offset = sample_types.iter().position(|&x| x.r#type == "alloc-size");
+        let (alloc_samples_offset, alloc_size_offset) =
+            (get_offset("alloc-samples"), get_offset("alloc-size"));
+
+        // check if we have the IO sample types
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        let (
+            socket_read_time_offset,
+            socket_read_time_samples_offset,
+            socket_write_time_offset,
+            socket_write_time_samples_offset,
+            file_read_time_offset,
+            file_read_time_samples_offset,
+            file_write_time_offset,
+            file_write_time_samples_offset,
+            socket_read_size_offset,
+            socket_read_size_samples_offset,
+            socket_write_size_offset,
+            socket_write_size_samples_offset,
+            file_read_size_offset,
+            file_read_size_samples_offset,
+            file_write_size_offset,
+            file_write_size_samples_offset,
+        ) = (
+            get_offset("socket-read-time"),
+            get_offset("socket-read-time-samples"),
+            get_offset("socket-write-time"),
+            get_offset("socket-write-time-samples"),
+            get_offset("file-read-time"),
+            get_offset("file-read-time-samples"),
+            get_offset("file-write-time"),
+            get_offset("file-write-time-samples"),
+            get_offset("socket-read-size"),
+            get_offset("socket-read-size-samples"),
+            get_offset("socket-write-size"),
+            get_offset("socket-write-size-samples"),
+            get_offset("file-read-size"),
+            get_offset("file-read-size-samples"),
+            get_offset("file-write-size"),
+            get_offset("file-write-size-samples"),
+        );
 
         // check if we have the `exception-samples` sample types
         #[cfg(feature = "exception_profiling")]
-        let exception_samples_offset = sample_types
-            .iter()
-            .position(|&x| x.r#type == "exception-samples");
+        let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = InternalProfile::new(
-            started_at,
             &sample_types,
             Some(Period {
                 r#type: ApiValueType {
@@ -301,6 +361,7 @@ impl TimeCollector {
                 value: period.min(i64::MAX as u128) as i64,
             }),
         );
+        let _ = profile.set_start_time(started_at);
 
         #[cfg(feature = "allocation_profiling")]
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
@@ -320,6 +381,95 @@ impl TimeCollector {
             }
         }
 
+        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        {
+            let add_io_upscaling_rule =
+                |profile: &mut InternalProfile,
+                 sum_value_offset: Option<usize>,
+                 count_value_offset: Option<usize>,
+                 sampling_distance: u64,
+                 metric_name: &str| {
+                    if let (Some(sum_value_offset), Some(count_value_offset)) =
+                        (sum_value_offset, count_value_offset)
+                    {
+                        let upscaling_info = UpscalingInfo::Poisson {
+                            sum_value_offset,
+                            count_value_offset,
+                            sampling_distance,
+                        };
+                        let values_offset = [sum_value_offset, count_value_offset];
+                        if let Err(err) =
+                            profile.add_upscaling_rule(&values_offset, "", "", upscaling_info)
+                        {
+                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+                        }
+                    }
+                };
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_read_time_offset,
+                socket_read_time_samples_offset,
+                SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket read time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_write_time_offset,
+                socket_write_time_samples_offset,
+                SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket write time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_read_time_offset,
+                file_read_time_samples_offset,
+                FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file read time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_write_time_offset,
+                file_write_time_samples_offset,
+                FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file write time samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_read_size_offset,
+                socket_read_size_samples_offset,
+                SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket read size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                socket_write_size_offset,
+                socket_write_size_samples_offset,
+                SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "socket write size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_read_size_offset,
+                file_read_size_samples_offset,
+                FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file read size samples",
+            );
+
+            add_io_upscaling_rule(
+                &mut profile,
+                file_write_size_offset,
+                file_write_size_samples_offset,
+                FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                "file write size samples",
+            );
+        }
         #[cfg(feature = "exception_profiling")]
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
@@ -396,7 +546,6 @@ impl TimeCollector {
                     name: frame.function.as_ref(),
                     system_name: "",
                     filename: frame.file.as_deref().unwrap_or(""),
-                    start_line: 0,
                 },
                 line: frame.line as i64,
                 ..Location::default()
@@ -407,7 +556,7 @@ impl TimeCollector {
 
         let sample = Sample {
             locations,
-            values,
+            values: &values,
             labels,
         };
 
@@ -517,8 +666,29 @@ pub enum UploadMessage {
     Upload(Box<UploadRequest>),
 }
 
+#[cfg(feature = "timeline")]
+const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+
+const DDPROF_TIME: &str = "ddprof_time";
+const DDPROF_UPLOAD: &str = "ddprof_upload";
+
 impl Profiler {
-    pub fn new(system_settings: &SystemSettings) -> Self {
+    /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
+    pub fn init(system_settings: &mut SystemSettings) {
+        // SAFETY: the `get_or_init` access is a thread-safe API, and the
+        // PROFILER is not being mutated outside single-threaded phases such
+        // as minit/mshutdown.
+        unsafe { PROFILER.get_or_init(|| Profiler::new(system_settings)) };
+    }
+
+    pub fn get() -> Option<&'static Profiler> {
+        // SAFETY: the `get` access is a thread-safe API, and the PROFILER is
+        // not being mutated outside single-threaded phases such as minit and
+        // mshutdown.
+        unsafe { PROFILER.get() }
+    }
+
+    pub fn new(system_settings: &mut SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -539,25 +709,23 @@ impl Profiler {
             Utc::now(),
         );
 
-        let ddprof_time = "ddprof_time";
-        let ddprof_upload = "ddprof_upload";
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
             message_sender,
             upload_sender,
-            time_collector_handle: thread_utils::spawn(ddprof_time, move || {
+            time_collector_handle: thread_utils::spawn(DDPROF_TIME, move || {
                 time_collector.run();
-                trace!("thread {ddprof_time} complete, shutting down");
+                trace!("thread {DDPROF_TIME} complete, shutting down");
             }),
-            uploader_handle: thread_utils::spawn(ddprof_upload, move || {
+            uploader_handle: thread_utils::spawn(DDPROF_UPLOAD, move || {
                 uploader.run();
-                trace!("thread {ddprof_upload} complete, shutting down");
+                trace!("thread {DDPROF_UPLOAD} complete, shutting down");
             }),
             should_join: AtomicBool::new(true),
             sample_types_filter,
-            system_settings: ptr::NonNull::from(system_settings),
+            system_settings: AtomicPtr::new(system_settings),
         }
     }
 
@@ -583,22 +751,26 @@ impl Profiler {
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
-    pub fn fork_prepare(&self) {
-        // Send the message to the uploader first, as it has a longer worst-
+    pub fn fork_prepare(&self) -> anyhow::Result<()> {
+        // Send the message to the uploader first, as it has a longer worst
         // case time to wait.
         let uploader_result = self.upload_sender.send(UploadMessage::Pause);
         let profiler_result = self.message_sender.send(ProfilerMessage::Pause);
 
-        // todo: handle fails more gracefully, but it's tricky to sync 3
-        //       threads, any of which could have crashed or be delayed. This
-        //       could also deadlock.
         match (uploader_result, profiler_result) {
             (Ok(_), Ok(_)) => {
                 self.fork_barrier.wait();
+                Ok(())
             }
-            (_, _) => {
-                error!("failed to prepare the profiler for forking, a deadlock could occur")
+            (Err(err), Ok(_)) => {
+                anyhow::bail!("failed to prepare {DDPROF_UPLOAD} thread for forking: {err}")
             }
+            (Ok(_), Err(err)) => {
+                anyhow::bail!("failed to prepare {DDPROF_TIME} thread for forking: {err}")
+            }
+            (Err(_), Err(_)) => anyhow::bail!(
+                "failed to prepare both {DDPROF_UPLOAD} and {DDPROF_TIME} threads for forking"
+            ),
         }
     }
 
@@ -629,7 +801,16 @@ impl Profiler {
     /// Note that you must call [Profiler::shutdown] afterwards; it's two
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
-    pub fn stop(&mut self, timeout: Duration) {
+    pub fn stop(timeout: Duration) {
+        // SAFETY: the `get_mut` access is a thread-safe API, and the PROFILER
+        // is not being mutated outside single-threaded phases such as minit
+        // and mshutdown.
+        if let Some(profiler) = unsafe { PROFILER.get_mut() } {
+            profiler.join_and_drop_sender(timeout);
+        }
+    }
+
+    pub fn join_and_drop_sender(&mut self, timeout: Duration) {
         debug!("Stopping profiler.");
 
         let sent = match self
@@ -660,27 +841,73 @@ impl Profiler {
     /// Completes the shutdown process; to start it, call [Profiler::stop]
     /// before calling [Profiler::shutdown].
     /// Note the timeout is per thread, and there may be multiple threads.
-    pub fn shutdown(self, timeout: Duration) {
+    /// Returns Ok(true) if any thread hit a timeout.
+    ///
+    /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
+    pub fn shutdown(timeout: Duration) -> Result<(), JoinError> {
+        // SAFETY: the `take` access is a thread-safe API, and the PROFILER is
+        // not being mutated outside single-threaded phases such  as minit and
+        // mshutdown.
+        if let Some(profiler) = unsafe { PROFILER.take() } {
+            profiler.join_collector_and_uploader(timeout)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn join_collector_and_uploader(self, timeout: Duration) -> Result<(), JoinError> {
         if self.should_join.load(Ordering::SeqCst) {
-            thread_utils::join_timeout(
-                self.time_collector_handle,
-                timeout,
-                "Recent samples may be lost.",
-            );
+            let result1 = thread_utils::join_timeout(self.time_collector_handle, timeout);
+            if let Err(err) = &result1 {
+                warn!("{err}, recent samples may be lost");
+            }
 
             // Wait for the time_collector to join, since that will drop
             // the sender half of the channel that the uploader is
             // holding, allowing it to finish.
-            thread_utils::join_timeout(
-                self.uploader_handle,
-                timeout,
-                "Recent samples are most likely lost.",
-            );
+            let result2 = thread_utils::join_timeout(self.uploader_handle, timeout);
+            if let Err(err) = &result2 {
+                warn!("{err}, recent samples are most likely lost");
+            }
+
+            let num_failures = result1.is_err() as usize + result2.is_err() as usize;
+            result2.and(result1).map_err(|_| JoinError { num_failures })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Throws away the profiler and moves it to uninitialized.
+    ///
+    /// In a forking situation, the currently active profiler may not be valid
+    /// because it has join handles and other state shared by other threads,
+    /// and threads are not copied when the process is forked.
+    /// Additionally, if we've hit certain other issues like not being able to
+    /// determine the return type of the pcntl_fork function, we don't know if
+    /// we're the parent or child.
+    /// So, we throw away the current profiler and forget it, which avoids
+    /// running the destructor. Yes, this will leak some memory.
+    ///
+    /// # Safety
+    /// Must be called when no other thread is using the PROFILER object. That
+    /// includes this thread in some kind of recursive manner.
+    pub unsafe fn kill() {
+        // SAFETY: see this function's safety conditions.
+        if let Some(mut profiler) = PROFILER.take() {
+            // Drop some things to reduce memory.
+            profiler.interrupt_manager = Arc::new(InterruptManager::new());
+            profiler.message_sender = crossbeam_channel::bounded(0).0;
+            profiler.upload_sender = crossbeam_channel::bounded(0).0;
+
+            // But we're not 100% sure everything is safe to drop, notably the
+            // join handles, so we leak the rest.
+            forget(profiler)
         }
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -690,20 +917,25 @@ impl Profiler {
                 let depth = frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with(|cell| cell.borrow_mut().rotate_clocks());
 
-                let labels = Profiler::message_labels();
-                let mut timestamp = 0;
-                // SAFETY: collecting time is done during PHP requests only,
-                //         so the ptr is valid at this time.
+                let labels = Profiler::common_labels(0);
+                let n_labels = labels.len();
+
+                #[cfg(not(feature = "timeline"))]
+                let mut timestamp = NO_TIMESTAMP;
                 #[cfg(feature = "timeline")]
-                if unsafe { self.system_settings.as_ref() }.profiling_timeline_enabled {
-                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                        timestamp = now.as_nanos() as i64;
+                let mut timestamp = NO_TIMESTAMP;
+                #[cfg(feature = "timeline")]
+                {
+                    let system_settings = self.system_settings.load(Ordering::SeqCst);
+                    // SAFETY: system settings are stable during a request.
+                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                            timestamp = now.as_nanos() as i64;
+                        }
                     }
                 }
 
-                let n_labels = labels.len();
-
-                match self.send_sample(self.prepare_sample_message(
+                match self.prepare_and_send_message(
                     frames,
                     SampleValues {
                         interrupt_count,
@@ -713,7 +945,7 @@ impl Profiler {
                     },
                     labels,
                     timestamp,
-                )) {
+                ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames and {n_labels} labels to profiler."
                     ),
@@ -728,8 +960,9 @@ impl Profiler {
         }
     }
 
+    /// Collect a stack sample with memory allocations.
     #[cfg(feature = "allocation_profiling")]
-    /// Collect a stack sample with memory allocations
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -740,10 +973,10 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let labels = Profiler::message_labels();
+                let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                match self.send_sample(self.prepare_sample_message(
+                match self.prepare_and_send_message(
                     frames,
                     SampleValues {
                         alloc_size,
@@ -752,7 +985,7 @@ impl Profiler {
                     },
                     labels,
                     NO_TIMESTAMP,
-                )) {
+                ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
                     ),
@@ -767,8 +1000,9 @@ impl Profiler {
         }
     }
 
+    /// Collect a stack sample with exception.
     #[cfg(feature = "exception_profiling")]
-    /// Collect a stack sample with exception
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
@@ -779,7 +1013,7 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let mut labels = Profiler::message_labels();
+                let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
                     key: "exception type",
@@ -795,15 +1029,30 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                match self.send_sample(self.prepare_sample_message(
+                #[cfg(not(feature = "timeline"))]
+                let timestamp = NO_TIMESTAMP;
+                #[cfg(feature = "timeline")]
+                let mut timestamp = NO_TIMESTAMP;
+                #[cfg(feature = "timeline")]
+                {
+                    let system_settings = self.system_settings.load(Ordering::SeqCst);
+                    // SAFETY: system settings are stable during a request.
+                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                            timestamp = now.as_nanos() as i64;
+                        }
+                    }
+                }
+
+                match self.prepare_and_send_message(
                     frames,
                     SampleValues {
                         exception: 1,
                         ..Default::default()
                     },
                     labels,
-                    NO_TIMESTAMP,
-                )) {
+                    timestamp,
+                ) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
                     ),
@@ -819,23 +1068,22 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    const TIMELINE_COMPILE_FILE_LABELS: &'static [Label] = &[Label {
+        key: "event",
+        value: LabelValue::Str(Cow::Borrowed("compilation")),
+    }];
+
+    #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
-        let mut labels = Profiler::message_labels();
-
-        lazy_static! {
-            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
-                key: "event",
-                value: LabelValue::Str("compilation".into()),
-            },];
-        }
-
-        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
+        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: COW_EVAL,
-                file: Some(filename),
+                file: Some(Cow::Owned(filename)),
                 line,
             }],
             SampleValues {
@@ -844,7 +1092,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
             }
@@ -857,6 +1105,7 @@ impl Profiler {
     }
 
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_compile_file(
         &self,
         now: i64,
@@ -864,16 +1113,8 @@ impl Profiler {
         filename: String,
         include_type: &str,
     ) {
-        let mut labels = Profiler::message_labels();
-
-        lazy_static! {
-            static ref TIMELINE_COMPILE_FILE_LABELS: Vec<Label> = vec![Label {
-                key: "event",
-                value: LabelValue::Str("compilation".into()),
-            },];
-        }
-
-        labels.extend_from_slice(&TIMELINE_COMPILE_FILE_LABELS);
+        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
+        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         labels.push(Label {
             key: "filename",
             value: LabelValue::Str(Cow::from(filename)),
@@ -881,7 +1122,7 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: format!("[{include_type}]").into(),
                 file: None,
@@ -893,7 +1134,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
             }
@@ -905,10 +1146,132 @@ impl Profiler {
         }
     }
 
+    /// This function will collect a thread start or stop timeline event
+    #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
+    pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
+        let mut labels = Profiler::common_labels(1);
+
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
+        });
+
+        let n_labels = labels.len();
+
+        match self.prepare_and_send_message(
+            vec![ZendFrame {
+                function: format!("[{event}]").into(),
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                timeline: 1,
+                ..Default::default()
+            },
+            labels,
+            now,
+        ) {
+            Ok(_) => {
+                trace!("Sent event '{event}' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send event '{event}' with {n_labels} labels to profiler: {err}")
+            }
+        }
+    }
+
+    /// This function can be called to collect any fatal errors
     #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
+    pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
+        let mut labels = Profiler::common_labels(2);
+
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str("fatal".into()),
+        });
+        labels.push(Label {
+            key: "message",
+            value: LabelValue::Str(message.into()),
+        });
+
+        let n_labels = labels.len();
+
+        match self.prepare_and_send_message(
+            vec![ZendFrame {
+                function: "[fatal]".into(),
+                file: Some(Cow::Owned(file)),
+                line,
+            }],
+            SampleValues {
+                timeline: 1,
+                ..Default::default()
+            },
+            labels,
+            now,
+        ) {
+            Ok(_) => {
+                trace!("Sent event 'fatal error' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to send event 'fatal error' with {n_labels} labels to profiler: {err}"
+                )
+            }
+        }
+    }
+
+    /// This function can be called to collect an opcache restart
+    #[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
+    pub(crate) fn collect_opcache_restart(
+        &self,
+        now: i64,
+        file: String,
+        line: u32,
+        reason: &'static str,
+    ) {
+        let mut labels = Profiler::common_labels(2);
+
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str("opcache_restart".into()),
+        });
+        labels.push(Label {
+            key: "reason",
+            value: LabelValue::Str(reason.into()),
+        });
+
+        let n_labels = labels.len();
+
+        match self.prepare_and_send_message(
+            vec![ZendFrame {
+                function: "[opcache restart]".into(),
+                file: Some(Cow::Owned(file)),
+                line,
+            }],
+            SampleValues {
+                timeline: 1,
+                ..Default::default()
+            },
+            labels,
+            now,
+        ) {
+            Ok(_) => {
+                trace!("Sent event 'opcache_restart' with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}")
+            }
+        }
+    }
+
     /// This function can be called to collect any kind of inactivity that is happening
+    #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
-        let mut labels = Profiler::message_labels();
+        let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
             key: "event",
@@ -917,7 +1280,7 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[idle]".into(),
                 file: None,
@@ -929,7 +1292,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'idle' with {n_labels} labels to profiler.")
             }
@@ -939,9 +1302,10 @@ impl Profiler {
         }
     }
 
-    #[cfg(feature = "timeline")]
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
+    #[cfg(feature = "timeline")]
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_garbage_collection(
         &self,
         now: i64,
@@ -950,16 +1314,13 @@ impl Profiler {
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
     ) {
-        let mut labels = Profiler::message_labels();
+        let mut labels = Profiler::common_labels(4);
 
-        lazy_static! {
-            static ref TIMELINE_GC_LABELS: Vec<Label> = vec![Label {
-                key: "event",
-                value: LabelValue::Str("gc".into()),
-            },];
-        }
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(Cow::Borrowed("gc")),
+        });
 
-        labels.extend_from_slice(&TIMELINE_GC_LABELS);
         labels.push(Label {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
@@ -976,7 +1337,7 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
-        match self.send_sample(self.prepare_sample_message(
+        match self.prepare_and_send_message(
             vec![ZendFrame {
                 function: "[gc]".into(),
                 file: None,
@@ -988,7 +1349,7 @@ impl Profiler {
             },
             labels,
             now,
-        )) {
+        ) {
             Ok(_) => {
                 trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
             }
@@ -998,48 +1359,143 @@ impl Profiler {
         }
     }
 
-    fn message_labels() -> Vec<Label> {
-        let gpc = unsafe { datadog_php_profiling_get_profiling_context };
-        if let Some(get_profiling_context) = gpc {
-            let context = unsafe { get_profiling_context() };
-            if context.local_root_span_id != 0 {
-                /* Safety: PProf only has signed integers for label.num.
-                 * We bit-cast u64 to i64, and the backend does the
-                 * reverse so the conversion is lossless.
-                 */
-                let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
-                let span_id: i64 = unsafe { transmute(context.span_id) };
-
-                return vec![
-                    Label {
-                        key: "local root span id",
-                        value: LabelValue::Num(local_root_span_id, None),
-                    },
-                    Label {
-                        key: "span id",
-                        value: LabelValue::Num(span_id, None),
-                    },
-                ];
-            }
-        }
-        vec![]
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_read_time = socket_io_read_time;
+            vals.socket_read_time_samples = 1;
+        })
     }
 
-    fn prepare_sample_message(
-        &self,
-        frames: Vec<ZendFrame>,
-        samples: SampleValues,
-        #[cfg(any(php_has_fibers, php_zts))] mut labels: Vec<Label>,
-        #[cfg(not(any(php_has_fibers, php_zts)))] labels: Vec<Label>,
-        timestamp: i64,
-    ) -> SampleMessage {
-        // If profiling is disabled, these will naturally return empty Vec.
-        // There's no short-cutting here because:
-        //  1. Nobody should be calling this when it's disabled anyway.
-        //  2. It would require tracking more state and/or spending CPU on
-        //     something that shouldn't be done anyway (see #1).
-        let sample_types = self.sample_types_filter.sample_types();
-        let sample_values = self.sample_types_filter.filter(samples);
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_write_time = socket_io_write_time;
+            vals.socket_write_time_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_read_time = file_io_read_time;
+            vals.file_read_time_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_write_time = file_io_write_time;
+            vals.file_write_time_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_read_size = socket_io_read_size;
+            vals.socket_read_size_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.socket_write_size = socket_io_write_size;
+            vals.socket_write_size_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_read_size = file_io_read_size;
+            vals.file_read_size_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
+        self.collect_io(ed, |vals| {
+            vals.file_write_size = file_io_write_size;
+            vals.file_write_size_samples = 1;
+        })
+    }
+
+    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
+    where
+        F: FnOnce(&mut SampleValues),
+    {
+        let result = collect_stack_sample(execute_data);
+        match result {
+            Ok(frames) => {
+                let depth = frames.len();
+                let labels = Profiler::common_labels(0);
+
+                let n_labels = labels.len();
+
+                let mut values = SampleValues::default();
+                set_value(&mut values);
+
+                match self.prepare_and_send_message(
+                    frames,
+                    values,
+                    labels,
+                    NO_TIMESTAMP,
+                ) {
+                    Ok(_) => trace!(
+                        "Sent I/O stack sample of {depth} frames, {n_labels} labels with to profiler."
+                    ),
+                    Err(err) => warn!(
+                        "Failed to send I/O stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
+                    ),
+                }
+            }
+            Err(err) => {
+                warn!("Failed to collect stack sample: {err}")
+            }
+        }
+    }
+
+    /// Creates the common message labels for all samples.
+    ///
+    /// * `n_extra_labels` - Reserve room for extra labels, such as when the
+    ///                      caller adds gc or exception labels.
+    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+        let mut labels = Vec::with_capacity(5 + n_extra_labels);
+        labels.push(Label {
+            key: "thread id",
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+        });
+
+        labels.push(Label {
+            key: "thread name",
+            value: LabelValue::Str(get_current_thread_name().into()),
+        });
+
+        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
+        // we're getting the profiling context on a PHP thread.
+        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+        if context.local_root_span_id != 0 {
+            /* Safety: PProf only has signed integers for label.num.
+             * We bit-cast u64 to i64, and the backend does the
+             * reverse so the conversion is lossless.
+             */
+            let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
+            let span_id: i64 = unsafe { transmute(context.span_id) };
+
+            labels.push(Label {
+                key: "local root span id",
+                value: LabelValue::Num(local_root_span_id, None),
+            });
+
+            labels.push(Label {
+                key: "span id",
+                value: LabelValue::Num(span_id, None),
+            });
+        }
 
         #[cfg(php_has_fibers)]
         if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
@@ -1051,16 +1507,40 @@ impl Profiler {
             if let Some(functionname) = extract_function_name(func) {
                 labels.push(Label {
                     key: "fiber",
-                    value: LabelValue::Str(functionname.into()),
+                    value: LabelValue::Str(functionname),
                 });
             }
         }
+        labels
+    }
 
-        #[cfg(php_zts)]
-        labels.push(Label {
-            key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
-        });
+    fn prepare_and_send_message(
+        &self,
+        frames: Vec<ZendFrame>,
+        samples: SampleValues,
+        labels: Vec<Label>,
+        timestamp: i64,
+    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
+        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
+        self.message_sender
+            .try_send(ProfilerMessage::Sample(message))
+            .map_err(Box::new)
+    }
+
+    fn prepare_sample_message(
+        &self,
+        frames: Vec<ZendFrame>,
+        samples: SampleValues,
+        labels: Vec<Label>,
+        timestamp: i64,
+    ) -> SampleMessage {
+        // If profiling is disabled, these will naturally return empty Vec.
+        // There's no short-cutting here because:
+        //  1. Nobody should be calling this when it's disabled anyway.
+        //  2. It would require tracking more state and/or spending CPU on
+        //     something that shouldn't be done anyway (see #1).
+        let sample_types = self.sample_types_filter.sample_types();
+        let sample_values = self.sample_types_filter.filter(samples);
 
         let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
 
@@ -1074,6 +1554,10 @@ impl Profiler {
             },
         }
     }
+}
+
+pub struct JoinError {
+    pub num_failures: usize,
 }
 
 #[cfg(test)]
@@ -1102,6 +1586,7 @@ mod tests {
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: true,
+            profiling_io_enabled: false,
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
@@ -1118,6 +1603,22 @@ mod tests {
             alloc_size: 50,
             timeline: 60,
             exception: 70,
+            socket_read_time: 80,
+            socket_read_time_samples: 81,
+            socket_write_time: 90,
+            socket_write_time_samples: 91,
+            file_read_time: 100,
+            file_read_time_samples: 101,
+            file_write_time: 110,
+            file_write_time_samples: 111,
+            socket_read_size: 120,
+            socket_read_size_samples: 121,
+            socket_write_size: 130,
+            socket_write_size_samples: 131,
+            file_read_size: 140,
+            file_read_size_samples: 141,
+            file_write_size: 150,
+            file_write_size_samples: 151,
         }
     }
 
@@ -1126,13 +1627,13 @@ mod tests {
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
         let samples = get_samples();
-        let labels = Profiler::message_labels();
+        let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_timeline_enabled = true;
 
-        let profiler = Profiler::new(&settings);
+        let profiler = Profiler::new(&mut settings);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 

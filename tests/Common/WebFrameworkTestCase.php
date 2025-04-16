@@ -18,7 +18,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     // host and port for the testing framework
     const HOST = 'http://localhost';
     const HOST_WITH_CREDENTIALS = 'http://my_user:my_password@localhost';
-    const PORT = 9999;
+    const PORT = 9999 - GLOBAL_PORT_OFFSET;
 
     const ERROR_LOG_NAME = 'phpunit_error.log';
     const COOKIE_JAR = 'cookies.txt';
@@ -76,16 +76,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         parent::ddTearDown();
     }
 
-    /**
-     * Returns the application index.php file full path.
-     *
-     * @return string|null
-     */
-    protected static function getAppIndexScript()
-    {
-        return null;
-    }
-
     protected static function getRoadrunnerVersion()
     {
         return null;
@@ -121,7 +111,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_DEBUG' => ini_get("datadog.trace.debug"),
             'DD_TRACE_EXEC_ENABLED' => 'false',
             'DD_TRACE_SHUTDOWN_TIMEOUT' => '666666', // Arbitrarily high value to avoid flakiness
-            'DD_TRACE_AGENT_RETRIES' => '3'
+            'DD_TRACE_AGENT_RETRIES' => '3',
+            'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
         ];
 
         return $envs;
@@ -141,8 +132,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
             // option.
             'xdebug.remote_enable' => 1,
+            'xdebug.mode' => 'debug',
             'xdebug.remote_host' => 'host.docker.internal',
+            'xdebug.client_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
+            'xdebug.start_with_request' => 'yes',
         ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : []);
     }
 
@@ -214,7 +208,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $response = $this->sendRequest(
             $spec->getMethod(),
-            self::HOST . ':' . self::PORT . $spec->getPath(),
+            self::HOST . $spec->getPath(),
             $spec->getHeaders(),
             $spec->getBody(),
             $options
@@ -244,6 +238,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
         for ($i = 0; $i < 10; ++$i) {
             $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_CONNECT_TO, ["localhost:80:localhost:" . self::PORT]);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, $options[CURLOPT_RETURNTRANSFER]);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $options[CURLOPT_FOLLOWLOCATION]);

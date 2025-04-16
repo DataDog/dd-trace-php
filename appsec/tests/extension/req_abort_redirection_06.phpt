@@ -9,7 +9,7 @@ use function datadog\appsec\testing\{rinit, rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['redirect', ['status_code' => 'bad', 'location' => 'http://alex.com'], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['redirect', ['status_code' => 'bad', 'location' => 'http://alex.com']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ], ['continuous' => true]);
 
 rinit();

@@ -15,30 +15,7 @@ use DDTrace\Util\ObjectKVStore;
  */
 function register_subscriber()
 {
-    class DatadogSubscriber implements \MongoDB\Driver\Monitoring\CommandSubscriber
-    {
-        #[\ReturnTypeWillChange]
-        public function commandStarted(\MongoDB\Driver\Monitoring\CommandStartedEvent $event)
-        {
-            $span = \DDTrace\active_span();
-            if ($span) {
-                $span->meta['out.host'] = $event->getServer()->getHost();
-                $span->meta['out.port'] = $event->getServer()->getPort();
-            }
-        }
-
-        #[\ReturnTypeWillChange]
-        public function commandSucceeded(\MongoDB\Driver\Monitoring\CommandSucceededEvent $event)
-        {
-        }
-
-        #[\ReturnTypeWillChange]
-        public function commandFailed(\MongoDB\Driver\Monitoring\CommandFailedEvent $event)
-        {
-        }
-    }
-
-    \MongoDB\Driver\Monitoring\addSubscriber(new DatadogSubscriber());
+    \MongoDB\Driver\Monitoring\addSubscriber(DatadogSubscriberLoader::load());
 }
 
 class MongoDBIntegration extends Integration

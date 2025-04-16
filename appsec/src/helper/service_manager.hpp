@@ -6,6 +6,7 @@
 #pragma once
 
 #include "engine.hpp"
+#include "engine_settings.hpp"
 #include "exception.hpp"
 #include "network/proto.hpp"
 #include "service.hpp"
@@ -21,25 +22,61 @@ namespace dds {
 
 class service_manager {
 public:
-    virtual ~service_manager() = default;
     service_manager() = default;
+    service_manager(const service_manager &) = delete;
+    service_manager &operator=(const service_manager &) = delete;
+    service_manager(service_manager &&) = delete;
+    service_manager &operator=(service_manager &&) = delete;
+    virtual ~service_manager() = default;
 
-    virtual std::shared_ptr<service> create_service(service_identifier &&id,
+    virtual std::shared_ptr<service> create_service(
         const engine_settings &settings,
-        const remote_config::settings &rc_settings,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics, bool dynamic_enablement);
+        const remote_config::settings &rc_settings);
+
+    void notify_of_rc_updates(std::string_view shmem_path);
 
 protected:
-    using cache_t = std::unordered_map<service_identifier,
-        std::weak_ptr<service>, service_identifier::hash>;
+    class cache_key {
+    public:
+        cache_key(engine_settings engine_settings,
+            remote_config::settings config_settings)
+            : engine_settings_{std::move(engine_settings)},
+              config_settings_{std::move(config_settings)},
+              hash_{dds::hash(engine_settings_, config_settings_)}
+        {}
+
+        bool operator==(const cache_key &other) const
+        {
+            return engine_settings_ == other.engine_settings_ &&
+                   config_settings_ == other.config_settings_;
+        }
+
+        struct hash {
+            std::size_t operator()(const cache_key &key) const
+            {
+                return key.hash_;
+            }
+        };
+
+        [[nodiscard]] const std::string &get_shmem_path() const
+        {
+            return config_settings_.shmem_path;
+        }
+
+    private:
+        engine_settings engine_settings_;
+        remote_config::settings config_settings_;
+        std::size_t hash_;
+    };
+
+    using cache_t =
+        std::unordered_map<cache_key, std::weak_ptr<service>, cache_key::hash>;
 
     void cleanup_cache(); // mutex_ must be held when calling this
 
-    // TODO this should be some sort of time-based LRU cache
-    service::ptr last_service_;
     std::mutex mutex_;
     cache_t cache_;
+    std::shared_ptr<service> last_service_; // keep always one
 };
 
 } // namespace dds

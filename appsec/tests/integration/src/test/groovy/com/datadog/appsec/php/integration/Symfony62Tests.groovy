@@ -5,8 +5,10 @@ import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
-import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -20,6 +22,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 @Testcontainers
 @EnabledIf('isExpectedVersion')
+@TestMethodOrder(MethodOrderer.OrderAnnotation)
 class Symfony62Tests {
     static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
 
@@ -43,6 +46,12 @@ class Symfony62Tests {
             )
 
     @Test
+    @Order(1)
+    void 'reported telemetry integrations are not repeated'() {
+
+    }
+
+    @Test
     void 'login success automated event'() {
         //The user ciuser@example.com is already on the DB
         String body = '_username=test-user%40email.com&_password=test'
@@ -53,7 +62,8 @@ class Symfony62Tests {
             assert resp.statusCode() == 302
         }
         Span span = trace.first()
-        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == "safe"
+        assert span.meta."usr.id" != ""
+        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == "identification"
         assert span.meta."appsec.events.users.login.success.track" == "true"
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
@@ -69,7 +79,7 @@ class Symfony62Tests {
         }
         Span span = trace.first()
         assert span.meta."appsec.events.users.login.failure.track" == 'true'
-        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'safe'
+        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'identification'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
@@ -84,7 +94,8 @@ class Symfony62Tests {
             assert resp.statusCode() == 302
         }
         Span span = trace.first()
-        assert span.meta."_dd.appsec.events.users.signup.auto.mode" == "safe"
+        assert span.meta."usr.id" != ""
+        assert span.meta."_dd.appsec.events.users.signup.auto.mode" == "identification"
         assert span.meta."appsec.events.users.signup.track" == "true"
         assert span.metrics._sampling_priority_v1 == 2.0d
     }

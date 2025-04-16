@@ -7,10 +7,13 @@ namespace Benchmarks\Integrations;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class SymfonyBench extends WebFrameworkTestCase
+/**
+* @Groups({"frameworks"})
+*/
+class SymfonyBench extends FrameworkBenchmarksCase
 {
     /**
-     * @BeforeMethods("disableSymfonyTracing")
+     * @BeforeMethods("disableDatadog")
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -27,7 +30,7 @@ class SymfonyBench extends WebFrameworkTestCase
     }
 
     /**
-     * @BeforeMethods("enableSymfonyTracing")
+     * @BeforeMethods("enableDatadog")
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -48,22 +51,8 @@ class SymfonyBench extends WebFrameworkTestCase
         return __DIR__ . '/../../Frameworks/Symfony/Version_5_2/public/index.php';
     }
 
-    public function disableSymfonyTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 0,
-        ]);
-    }
-
     public function afterMethod()
     {
         $this->TearDownAfterClass();
-    }
-
-    public function enableSymfonyTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 1,
-        ]);
     }
 }

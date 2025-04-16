@@ -6,13 +6,17 @@ on:
 jobs:
   add-labels:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write # Update labels on PRs (might not be necessary, but we call the UpdateIssue API so...)
+      pull-requests: write # Update labels on PRs
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-dotnet@v1
+      - uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
         with:
           dotnet-version: '7.0.101'
 

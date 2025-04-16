@@ -9,10 +9,8 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
-use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
-use function DDTrace\install_hook;
 
 class SymfonyIntegration extends Integration
 {
@@ -90,7 +88,7 @@ class SymfonyIntegration extends Integration
             'Doctrine\ORM\UnitOfWork',
             'executeInserts',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event')) {
+                if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
                     return;
                 }
 
@@ -119,7 +117,7 @@ class SymfonyIntegration extends Integration
                     $user = $userEntity->getUserIdentifier();
                 }
 
-                \datadog\appsec\track_user_signup_event($user, [], true);
+                \datadog\appsec\track_user_signup_event_automated($user, $user, []);
             }
         );
 
@@ -128,23 +126,26 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationSuccess',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
                     return;
                 }
+
                 $token = $args[1];
                 $authClass = '\Symfony\Component\Security\Core\Authentication\Token\TokenInterface';
                 if (!$token || !($token instanceof $authClass)) {
                     return;
                 }
-                $metadata = [];
 
-                \datadog\appsec\track_user_login_success_event(
-                    \method_exists($token, 'getUsername') ? $token->getUsername() : '',
-                    $metadata,
-                    true
+                $metadata = [];
+                $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $user,
+                    $user,
+                    $metadata
                 );
             }
         );
@@ -154,10 +155,10 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationFailure',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
             }
         );
 
@@ -166,10 +167,10 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
             }
         );
 
@@ -178,7 +179,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -191,11 +192,12 @@ class SymfonyIntegration extends Integration
                 }
 
                 $metadata = [];
+                $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
-                \datadog\appsec\track_user_login_success_event(
-                    \method_exists($token, 'getUsername') ? $token->getUsername() : '',
-                    $metadata,
-                    true
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $user,
+                    $user,
+                    $metadata
                 );
             }
         );
@@ -205,10 +207,10 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationFailure',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event(null, false, [], true);
+                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
             }
         );
 
@@ -217,7 +219,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationSuccess',
             function ($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event')) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -228,18 +230,52 @@ class SymfonyIntegration extends Integration
                 if (!$token || !($token instanceof $authClass)) {
                     return;
                 }
-                $metadata = [];
 
                 $user = \method_exists($token, 'getUser') ? $token->getUser() : null;
                 $userClass = '\Symfony\Component\Security\Core\User\UserInterface';
                 if (!$user || !($user instanceof $userClass)) {
                     return;
                 }
-                \datadog\appsec\track_user_login_success_event(
-                    \method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : '',
-                    $metadata,
-                    true
+
+                $metadata = [];
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $userIdentifier,
+                    $userIdentifier,
+                    $metadata
                 );
+            }
+        );
+
+        \DDTrace\hook_method(
+            'Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface',
+            'decide',
+            function ($This, $scope, $args, $result) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                // Extract the authentication token
+                $token = $args[0];
+                if (!$token) {
+                    return;
+                }
+
+                // Extract user information
+                $user = $token->getUser();
+                if (!$user) {
+                    return;
+                }
+
+                $userIdentifier = method_exists($user, 'getUserIdentifier')
+                    ? $user->getUserIdentifier()
+                    : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
+
+                // Track the access check
+                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
             }
         );
 
@@ -258,6 +294,18 @@ class SymfonyIntegration extends Integration
                         return false;
                     }
 
+                    $commandName = $this->getName();
+
+                    if (\dd_trace_env_config('DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER')
+                        && $commandName === 'messenger:consume'
+                    ) {
+                        \DDTrace\set_priority_sampling(DD_TRACE_PRIORITY_SAMPLING_AUTO_REJECT);
+                        \dd_trace_close_all_spans_and_flush();
+                        ini_set("datadog.trace.auto_flush_enabled", 1);
+                        ini_set("datadog.trace.generate_root_span", 0);
+                        return false;
+                    }
+
                     $namespace = \get_class($this);
                     if (strpos($namespace, DrupalIntegration::NAME) !== false) {
                         $integration->frameworkPrefix = DrupalIntegration::NAME;
@@ -266,7 +314,7 @@ class SymfonyIntegration extends Integration
                     }
 
                     $span->name = 'symfony.console.command.run';
-                    $span->resource = $this->getName() ?: $span->name;
+                    $span->resource = $commandName ?: $span->name;
                     $span->service = \ddtrace_config_app_name($integration->frameworkPrefix);
                     $span->type = Type::CLI;
                     $span->meta['symfony.console.command.class'] = \get_class($this);
@@ -297,14 +345,7 @@ class SymfonyIntegration extends Integration
             }
         );
 
-        if (
-            defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
-            && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
-        ) {
-            $this->loadSymfony2($this);
-        } else {
-            $this->loadSymfony($this);
-        }
+        $this->loadSymfony($this);
 
         return Integration::LOADED;
     }
@@ -391,8 +432,8 @@ class SymfonyIntegration extends Integration
                 $parameters = $request->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
-                    function_exists('\datadog\appsec\push_address')) {
-                    \datadog\appsec\push_address("server.request.path_params", $parameters);
+                    function_exists('\datadog\appsec\push_addresses')) {
+                    \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                 }
 
                 $route = $request->get('_route');
@@ -531,43 +572,25 @@ class SymfonyIntegration extends Integration
         \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
         \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
         \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
-    }
 
-    public function loadSymfony2($integration)
-    {
-        // Symfony 2.x specific resource name assignment
-        \DDTrace\trace_method(
-            'Symfony\Component\HttpKernel\Event\FilterControllerEvent',
-            'setController',
-            function (SpanData $span, $args) use ($integration) {
-                list($controllerInfo) = $args;
-                $resourceParts = [];
-
-                // Controller info can be provided in various ways.
-                if (is_string($controllerInfo)) {
-                    $resourceParts[] = $controllerInfo;
-                } elseif (is_array($controllerInfo) && count($controllerInfo) === 2) {
-                    if (is_object($controllerInfo[0])) {
-                        $resourceParts[] = get_class($controllerInfo[0]);
-                    } elseif (is_string($controllerInfo[0])) {
-                        $resourceParts[] = $controllerInfo[0];
+        /* Silence ExecIntegration spans to stty. These are going to fail intentionally,
+         * and always executed within symfony requests. This is pure noise which we hereby silence.
+         */
+        foreach (['Symfony\Component\Console\Terminal::hasSttyAvailable', 'Symfony\Component\Console\Helper\QuestionHelper::isInteractiveInput'] as $method) {
+            \DDTrace\install_hook($method, function (HookData $hook) {
+                $hook->data = false;
+                \DDTrace\active_stack()->spanCreationObservers[] = function (SpanData $span) use ($hook) {
+                    if ($hook->data) {
+                        return false;
                     }
-
-                    if (is_string($controllerInfo[1])) {
-                        $resourceParts[] = $controllerInfo[1];
-                    }
-                }
-
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan) {
-                    if (count($resourceParts) > 0) {
-                        $rootSpan->resource = \implode(' ', $resourceParts);
-                    }
-                }
-
-                return false;
-            }
-        );
+                    $span->onClose[] = function (SpanData $span) {
+                        \DDTrace\try_drop_span($span);
+                    };
+                };
+            }, function (HookData $hook) {
+                $hook->data = true;
+            });
+        }
     }
 
     /**

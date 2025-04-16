@@ -9,9 +9,19 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_21/public/index.php';
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'shardj/zf1-future';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '1.21.4';
     }
 
     /**
@@ -39,7 +49,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'zf1.action' => 'index',
                         'zf1.route_name' => 'default',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",
@@ -52,7 +62,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'zf1.action' => 'view',
                         'zf1.route_name' => 'my_simple_view_route',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",
@@ -65,7 +75,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'zf1.action' => 'error',
                         'zf1.route_name' => 'default',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "zendframework",

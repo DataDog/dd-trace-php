@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 final class NetteTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Nette/Version_2_4/www/index.php';
     }
@@ -20,6 +20,11 @@ final class NetteTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'nette_test_app',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'nette/application';
     }
 
     /**
@@ -51,7 +56,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
@@ -93,7 +98,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'simpleView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
@@ -147,41 +152,41 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
                     ])
-                    ->setError('Internal Server Error')
-                    ->withChildren([
-                        SpanAssertion::build(
-                            'nette.configurator.createRobotLoader',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.configurator.createRobotLoader'
-                        )->withExactTags([
-                            Tag::COMPONENT => 'nette'
-                        ]),
-                        SpanAssertion::build(
-                            'nette.application.run',
-                            'nette_test_app',
-                            Type::WEB_SERVLET,
-                            'nette.application.run'
-                        )->withExactTags([
-                            Tag::COMPONENT => 'nette'
-                        ])->withChildren([
+                        ->setError('Internal Server Error')
+                        ->withChildren([
                             SpanAssertion::build(
-                                'nette.presenter.run',
+                                'nette.configurator.createRobotLoader',
                                 'nette_test_app',
                                 Type::WEB_SERVLET,
-                                'nette.presenter.run'
+                                'nette.configurator.createRobotLoader'
                             )->withExactTags([
                                 Tag::COMPONENT => 'nette'
+                            ]),
+                            SpanAssertion::build(
+                                'nette.application.run',
+                                'nette_test_app',
+                                Type::WEB_SERVLET,
+                                'nette.application.run'
+                            )->withExactTags([
+                                Tag::COMPONENT => 'nette'
+                            ])->withChildren([
+                                SpanAssertion::build(
+                                    'nette.presenter.run',
+                                    'nette_test_app',
+                                    Type::WEB_SERVLET,
+                                    'nette.presenter.run'
+                                )->withExactTags([
+                                    Tag::COMPONENT => 'nette'
+                                ])
+                                    ->setError('Exception', 'An exception occurred')
+                                    ->withExistingTagsNames(['error.stack']),
                             ])
-                            ->setError('Exception', 'An exception occurred')
-                            ->withExistingTagsNames(['error.stack']),
                         ])
-                    ])
                 ],
             ]
         );

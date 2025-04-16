@@ -28,6 +28,7 @@ RUN set -eux; \
         libffi-dev \
         libmemcached \
         libmemcached-dev \
+        librdkafka-dev \
         libsodium-dev \
         libxml2-dev \
         libzip-dev \

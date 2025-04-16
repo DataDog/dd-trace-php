@@ -7,10 +7,13 @@ namespace Benchmarks\Integrations;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class LaravelBench extends WebFrameworkTestCase
+/**
+* @Groups({"frameworks"})
+*/
+class LaravelBench extends FrameworkBenchmarksCase
 {
     /**
-     * @BeforeMethods("disableLaravelTracing")
+     * @BeforeMethods("disableDatadog")
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -27,7 +30,7 @@ class LaravelBench extends WebFrameworkTestCase
     }
 
     /**
-     * @BeforeMethods("enableLaravelTracing")
+     * @BeforeMethods("enableDatadog")
      * @AfterMethods("afterMethod")
      * @Revs(10)
      * @Iterations(10)
@@ -48,22 +51,8 @@ class LaravelBench extends WebFrameworkTestCase
         return __DIR__ . '/../../Frameworks/Laravel/Version_10_x/public/index.php';
     }
 
-    public function disableLaravelTracing()
-    {
-        $this->setUpWebServer([
-                'DD_TRACE_ENABLED' => 0,
-        ]);
-    }
-
     public function afterMethod()
     {
         $this->TearDownAfterClass();
-    }
-
-    public function enableLaravelTracing()
-    {
-        $this->setUpWebServer([
-            'DD_TRACE_ENABLED' => 1,
-        ]);
     }
 }

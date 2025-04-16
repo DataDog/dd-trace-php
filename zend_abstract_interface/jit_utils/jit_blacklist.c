@@ -9,6 +9,7 @@
 #include <unistd.h>
 #endif
 
+
 #if PHP_VERSION_ID >= 80100
 #include <Zend/Optimizer/zend_call_graph.h>
 #else
@@ -66,6 +67,7 @@ typedef struct _zend_func_info {
 } zend_func_info;
 #endif
 
+#if PHP_VERSION_ID < 80400
 typedef struct _zend_jit_op_array_trace_extension {
     zend_func_info func_info;
     const zend_op_array *op_array;
@@ -86,6 +88,7 @@ typedef union _zend_op_trace_info {
 
 #define ZEND_OP_TRACE_INFO(opline, offset) \
 	((zend_op_trace_info*)(((char*)opline) + offset))
+#endif
 
 #define ZEND_FUNC_INFO(op_array) \
 	((zend_func_info*)((op_array)->reserved[zend_func_info_rid]))
@@ -103,6 +106,19 @@ void zai_jit_minit(void) {
     zend_llist_apply(&zend_extensions, zai_jit_find_opcache_handle);
 }
 
+#if PHP_VERSION_ID >= 80400
+void (*zai_jit_blacklist_function)(zend_op_array *), (*zai_jit_unprotect)(void);
+static void zai_jit_fetch_symbols(void) {
+    if (!zai_jit_blacklist_function) {
+        ZEND_ASSERT(opcache_handle); // assert the handle is there is zend_func_info_rid != -1
+
+        zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(opcache_handle, "zend_jit_blacklist_function");
+        if (zai_jit_blacklist_function == NULL) {
+            zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_blacklist_function");
+        }
+    }
+}
+#else
 void (*zai_jit_protect)(void), (*zai_jit_unprotect)(void);
 static void zai_jit_fetch_symbols(void) {
     if (!zai_jit_protect) {
@@ -123,6 +139,7 @@ static void zai_jit_fetch_symbols(void) {
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
 }
+#endif
 
 #if PHP_VERSION_ID < 80100
 static inline bool check_pointer_near(void *a, void *b) {
@@ -161,11 +178,81 @@ int zai_get_zend_func_rid(zend_op_array *op_array) {
     return zend_func_info_rid;
 }
 
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__)) && PHP_VERSION_ID < 80400
+static bool is_mapped(void *addr, size_t size) {
+    uintptr_t page_size = sysconf(_SC_PAGESIZE);
+    assert(size <= page_size);
+    uintptr_t page_addr = ((uintptr_t)addr & ~(page_size - 1));
+    uintptr_t last_page_addr = ((uintptr_t)(addr + size - 1) & ~(page_size - 1));
+
+    unsigned char vec[2];
+#ifdef __x86_64__
+#define SYS_mincore 0x1B
+#else // aarch64
+#define SYS_mincore 0xE8
+#endif
+
+    int retries = 5;
+again:
+    if (syscall(SYS_mincore, page_addr, (1 + (page_addr != last_page_addr)) * page_size, &vec) == 0) {
+        return true;
+    } else if (errno == EFAULT || errno == ENOMEM) {
+        return false;
+    } else if (errno == EAGAIN) {
+        if (retries-- > 0) {
+            goto again;
+        }
+		return true;
+    } else {
+        // we don't know... assume true
+#ifdef ZEND_DEBUG
+        abort();
+#else
+        return true;
+#endif
+    }
+}
+#elif defined(__APPLE__) && PHP_VERSION_ID < 80400
+#include <mach/mach.h>
+static bool is_mapped(void *addr, size_t size) {
+    mach_port_t task = mach_task_self();
+    vm_address_t address = (vm_address_t)addr;
+
+    while (address < (vm_address_t)addr + size) {
+        __auto_type a = address;
+        vm_size_t region_size;
+        vm_region_basic_info_data_64_t info;
+        kern_return_t kr = vm_region_64(task, &address, &region_size, VM_REGION_BASIC_INFO, (vm_region_info_t)&info,
+                                        &(mach_msg_type_number_t){VM_REGION_BASIC_INFO_COUNT_64}, &(memory_object_name_t){0});
+
+        if (kr != KERN_SUCCESS || !(info.protection & VM_PROT_READ)) {
+            return false;
+        }
+
+        address += region_size;
+    }
+
+    return true;
+}
+#else
+static inline bool is_mapped(void *addr, size_t size) {
+    (void)addr;
+    (void)size;
+    return true;
+}
+#endif
+
 void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
+#if PHP_VERSION_ID >= 80400
+    if (opcache_handle) {
+        zai_jit_fetch_symbols();
+        zai_jit_blacklist_function(op_array);
+    }
+#else
     if (zai_get_zend_func_rid(op_array) < 0) {
         return;
     }
-    // now in PHP < 8.1, zend_func_info_rid is set
+    // now in PHP < 8.1, zend_func_info_rid is set (on newer versions it's in zend_func_info.h)
 
     zend_jit_op_array_trace_extension *jit_extension = (zend_jit_op_array_trace_extension *)ZEND_FUNC_INFO(op_array);
     if (!jit_extension) {
@@ -179,6 +266,12 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
     }
 
     size_t offset = jit_extension->offset;
+
+    // check whether the op_trace_info is actually readable or EFAULTing
+    // we can't trust opcache too much here...
+    if (!is_mapped(ZEND_OP_TRACE_INFO(opline, offset), sizeof(zend_op_trace_info))) {
+        return;
+    }
 
     if (!(ZEND_OP_TRACE_INFO(opline, offset)->trace_flags & ZEND_JIT_TRACE_BLACKLISTED)) {
         bool is_protected_memory = false;
@@ -230,4 +323,5 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #endif
         }
     }
+#endif
 }

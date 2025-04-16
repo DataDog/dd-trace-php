@@ -18,11 +18,15 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_REMOTE_RATE = 2,
     DD_MECHANISM_RULE = 3,
     DD_MECHANISM_MANUAL = 4,
+    DD_MECHANISM_ASM = 5,
+    DD_MECHANISM_REMOTE_USER_RULE = 11,
+    DD_MECHANISM_REMOTE_DYNAMIC_RULE = 12,
 };
 
 void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
 void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
 DDTRACE_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
+DDTRACE_PUBLIC zend_long ddtrace_get_priority_sampling_on_span_zobj(zend_object *root_span);
 zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root_span);
 zend_long ddtrace_fetch_priority_sampling_from_root(void);
 void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span);

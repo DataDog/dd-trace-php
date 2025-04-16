@@ -1,19 +1,25 @@
+#[cfg(feature = "allocation_profiling")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 use crate::config::AgentEndpoint;
+#[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use datadog_profiling::exporter::File;
 use ddcommon::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
-use std::time::Duration;
+
+#[cfg(any(
+    feature = "exception_profiling",
+    feature = "allocation_profiling",
+    feature = "io_profiling"
+))]
+use std::sync::atomic::Ordering;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -43,12 +49,22 @@ impl Uploader {
     /// This function will not only create the internal metadata JSON representation, but is also
     /// in charge to reset all those counters back to 0.
     fn create_internal_metadata() -> Option<serde_json::Value> {
-        let metadata = json!({
+        #[cfg(all(feature = "exception_profiling", feature = "allocation_profiling"))]
+        Some(json!({
             "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
             "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
             "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
-        });
-        Some(metadata)
+        }));
+        #[cfg(feature = "allocation_profiling")]
+        Some(json!({
+            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+        }));
+        #[cfg(feature = "exception_profiling")]
+        Some(json!({
+            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
+        }));
+        None
     }
 
     fn create_profiler_info(&self) -> Option<serde_json::Value> {
@@ -69,9 +85,8 @@ impl Uploader {
         let agent_endpoint = &self.endpoint;
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
-        // This is the currently unstable Arc::unwrap_or_clone.
-        let tags = Some(Arc::try_unwrap(index.tags).unwrap_or_else(|arc| (*arc).clone()));
-        let exporter = datadog_profiling::exporter::ProfileExporter::new(
+        let tags = Some(Arc::unwrap_or_clone(index.tags));
+        let mut exporter = datadog_profiling::exporter::ProfileExporter::new(
             profiling_library_name,
             profiling_library_version,
             "php",
@@ -81,24 +96,14 @@ impl Uploader {
 
         let serialized =
             profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
-        let endpoint_counts = Some(&serialized.endpoints_stats);
-        let start = serialized.start.into();
-        let end = serialized.end.into();
-        let files = &[File {
-            name: "profile.pprof",
-            bytes: serialized.buffer.as_slice(),
-        }];
-        let timeout = Duration::from_secs(10);
+        exporter.set_timeout(10000); // 10 seconds in milliseconds
         let request = exporter.build(
-            start,
-            end,
+            serialized,
             &[],
-            files,
+            &[],
             None,
-            endpoint_counts,
             Self::create_internal_metadata(),
             self.create_profiler_info(),
-            timeout,
         )?;
         debug!("Sending profile to: {agent_endpoint}");
         let result = exporter.send(request, None)?;

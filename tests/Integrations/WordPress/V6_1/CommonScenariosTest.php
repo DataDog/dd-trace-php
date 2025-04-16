@@ -7,7 +7,9 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static $database = "wp61";
+
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_6_1/index.php';
     }
@@ -15,7 +17,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql_integration;dbname=wp61', 'test', 'test');
         $pdo->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_6_1/scripts/wp_initdb.sql'));
     }
 
@@ -26,6 +28,16 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_TRACE_WORDPRESS_CALLBACKS' => '0',
             'DD_TRACE_MYSQLI_ENABLED' => '0',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'wordpress';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '6.1.1';
     }
 
     public function testScenarioGetReturnString()

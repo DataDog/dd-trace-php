@@ -3,6 +3,7 @@ Clone DDTrace\SpanData
 --SKIPIF--
 <?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r"); ?>
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
@@ -24,7 +25,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (18) {
+object(DDTrace\RootSpanData)#%d (24) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -35,6 +36,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   string(0) ""
   ["version"]=>
   string(0) ""
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
@@ -54,22 +58,37 @@ object(DDTrace\RootSpanData)#%d (18) {
   ["links"]=>
   array(0) {
   }
+  ["events"]=>
+  array(0) {
+  }
   ["peerServiceSources"]=>
   array(0) {
   }
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
+      ["spanCreationObservers"]=>
+      array(0) {
+      }
     }
     ["active"]=>
     *RECURSION*
+    ["spanCreationObservers"]=>
+    array(0) {
+    }
+  }
+  ["onClose"]=>
+  array(0) {
+  }
+  ["baggage"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
@@ -81,8 +100,12 @@ object(DDTrace\RootSpanData)#%d (18) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
+  ["gitMetadata"]=>
+  NULL
+  ["inferredSpan"]=>
+  NULL
 }
-object(DDTrace\RootSpanData)#%d (18) {
+object(DDTrace\RootSpanData)#%d (24) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -93,6 +116,9 @@ object(DDTrace\RootSpanData)#%d (18) {
   string(0) ""
   ["version"]=>
   string(0) ""
+  ["meta_struct"]=>
+  array(0) {
+  }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
@@ -112,22 +138,28 @@ object(DDTrace\RootSpanData)#%d (18) {
   ["links"]=>
   array(0) {
   }
+  ["events"]=>
+  array(0) {
+  }
   ["peerServiceSources"]=>
   array(0) {
   }
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (2) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (2) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
+      ["spanCreationObservers"]=>
+      array(0) {
+      }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (18) {
+    object(DDTrace\RootSpanData)#%d (24) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -138,6 +170,9 @@ object(DDTrace\RootSpanData)#%d (18) {
       string(0) ""
       ["version"]=>
       string(0) ""
+      ["meta_struct"]=>
+      array(0) {
+      }
       ["type"]=>
       string(3) "cli"
       ["meta"]=>
@@ -157,13 +192,22 @@ object(DDTrace\RootSpanData)#%d (18) {
       ["links"]=>
       array(0) {
       }
+      ["events"]=>
+      array(0) {
+      }
       ["peerServiceSources"]=>
       array(0) {
       }
       ["parent"]=>
       NULL
       ["stack"]=>
-      *RECURSION*%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+      *RECURSION*
+      ["onClose"]=>
+      array(0) {
+      }
+      ["baggage"]=>
+      array(0) {
+      }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
       }
@@ -174,7 +218,20 @@ object(DDTrace\RootSpanData)#%d (18) {
       }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
       ["traceId"]=>
       string(32) "%s"
+      ["gitMetadata"]=>
+      NULL
+      ["inferredSpan"]=>
+      NULL
     }
+    ["spanCreationObservers"]=>
+    array(0) {
+    }
+  }
+  ["onClose"]=>
+  array(0) {
+  }
+  ["baggage"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
@@ -186,6 +243,10 @@ object(DDTrace\RootSpanData)#%d (18) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
+  ["gitMetadata"]=>
+  NULL
+  ["inferredSpan"]=>
+  NULL
 }
 array(1) {
   [0]=>
@@ -216,7 +277,7 @@ array(1) {
       string(16) "%s"
     }
     ["metrics"]=>
-    array(4) {
+    array(6) {
       ["process_id"]=>
       float(%f)
       ["_dd.agent_psr"]=>
@@ -224,6 +285,10 @@ array(1) {
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

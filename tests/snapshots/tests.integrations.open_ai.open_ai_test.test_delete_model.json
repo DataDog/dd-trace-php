@@ -1,0 +1,52 @@
+[[
+  {
+    "name": "openai.request",
+    "service": "openai-test",
+    "resource": "deleteModel",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "openai",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "6698ca8b00000000",
+      "env": "test",
+      "openai.api_base": "https://api.openai.com/v1/",
+      "openai.organization.name": "org-1234",
+      "openai.request.endpoint": "/v1/models/*",
+      "openai.request.fine_tune_id": "curie:ft-acmeco-2021-03-03-21-44-20",
+      "openai.request.method": "DELETE",
+      "openai.response.deleted": "true",
+      "openai.response.model": "gpt-3.5-turbo-instruct",
+      "openai.response.object": "model",
+      "openai.user.api_key": "sk-...9d5d",
+      "runtime-id": "346eaf5f-f96d-4451-afbb-5d7c573d013b",
+      "span.kind": "client",
+      "version": "1.0"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_dd.measured": 1,
+      "_sampling_priority_v1": 1,
+      "openai.response.id": 42
+    }
+  },
+     {
+       "name": "Psr\\Http\\Client\\ClientInterface.sendRequest",
+       "service": "openai-test",
+       "resource": "sendRequest",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "http",
+       "meta": {
+         "component": "psr18",
+         "env": "test",
+         "http.method": "DELETE",
+         "http.status_code": "200",
+         "http.url": "https://api.openai.com/v1/models/curie:ft-acmeco-2021-03-03-21-44-20?foo=bar",
+         "network.destination.name": "api.openai.com",
+         "span.kind": "client",
+         "version": "1.0"
+       }
+     }]]

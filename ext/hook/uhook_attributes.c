@@ -1,9 +1,9 @@
 #include <php.h>
 #include <Zend/zend_attributes.h>
 #include <Zend/zend_smart_str.h>
-#include "uhook_attributes_arginfo.h"
 #include "../ddtrace.h"
 #include "../configuration.h"
+#include "uhook_attributes_arginfo.h"
 #include "uhook.h"
 
 #include <hook/hook.h>
@@ -199,9 +199,13 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     def->active = true; // recursion protection
     dyn->was_primed = false;
 
-    dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
+    bool new_span;
+    dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
     dd_uhook_fill_args_in_meta(def, ddtrace_property_array(&dyn->span->property_meta), execute_data);
+    if (new_span) {
+        ddtrace_observe_opened_span(dyn->span);
+    }
 
     return true;
 }
@@ -223,12 +227,16 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
         return;
     }
 
-    dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
+    bool new_span;
+    dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
     if (def->retval) {
         zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
         zval val = dd_uhook_save_value(value);
         zend_hash_str_update(meta, ZEND_STRL("send_value"), &val);
+    }
+    if (new_span) {
+        ddtrace_observe_opened_span(dyn->span);
     }
 }
 

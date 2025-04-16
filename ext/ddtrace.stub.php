@@ -23,16 +23,62 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    class SpanEvent implements \JsonSerializable {
+        /**
+         * SpanEvent constructor.
+         *
+         * @param string $name The event name.
+         * @param int|null $timestamp The event start time in nanoseconds, if not provided set the current Unix timestamp.
+         * @param array $attributes Optional attributes for the event.
+         */
+        public function __construct(string $name, array $attributes = [], ?int $timestamp = null) {}
+
+        /**
+         * @var string The event name
+         */
+        public string $name;
+
+        /**
+         * @var string[] $attributes
+         */
+        public array $attributes;
+
+        /**
+         * @var int The event start time in nanoseconds, if not provided set the current Unix timestamp
+         */
+        public int $timestamp;
+
+        /**
+         * @return mixed
+         */
+        public function jsonSerialize(): mixed {}
+    }
+
+    class ExceptionSpanEvent extends SpanEvent {
+        /**
+         * ExceptionSpanEvent constructor.
+         *
+         * @param \Throwable $exception exception to record.
+         * @param array $attributes Optional attributes for the event.
+         */
+        public function __construct(\Throwable $exception, array $attributes = []) {}
+
+        /**
+         * @var \Throwable
+         */
+        public \Throwable $exception;
+    }
+
     class SpanLink implements \JsonSerializable {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
-         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLink() method instead.
          */
         public string $traceId;
 
         /**
          * @var string $spanId A 16-character, lower-case hexadecimal encoded string of the linked span ID. This field
-         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLinks() method instead.
+         * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLink() method instead.
          */
         public string $spanId;
 
@@ -65,6 +111,18 @@ namespace DDTrace {
         public static function fromHeaders(array|callable $headersOrCallback): SpanLink {}
     }
 
+    class GitMetadata {
+        /**
+         * @var string The commit sha of the git repository
+         */
+        public string $commitSha = "";
+
+        /**
+         * @var string The repository URL of the git repository
+         */
+        public string $repositoryUrl = "";
+    }
+
     class SpanData {
         /**
          * @var string|null The span name
@@ -93,6 +151,13 @@ namespace DDTrace {
          * span creation (i.e., the parent span), or datadog.version initialization settings if no parent exists
          */
         public string $version = "";
+
+        /**
+         * @var string[] Meta struct can be used to send any data to the backend. The peculiarity of meta struct is
+         * that the values are encoded with msgpack when sent to the agent. The values are first encoded to msgpack
+         * and then, encoded again with msgpack to binary
+         */
+        public array $meta_struct = [];
 
         /**
          * @var string|null The type of request which can be set to: web, db, cache, or custom (Optional). Inherited
@@ -126,6 +191,11 @@ namespace DDTrace {
         public array $links = [];
 
         /**
+         * @var SpanEvent[] $spanEvents An array of span events
+         */
+        public array $events = [];
+
+        /**
          * @var string[] $peerServiceSources A sorted list of tag names used to set the `peer.service` tag. If a tag
          * name is added to this field and the tag exists on the span at serialization time, then the value of the tag
          * will be used to set the value of the `peer.service` tag.
@@ -135,12 +205,21 @@ namespace DDTrace {
         /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
-        public readonly SpanData|null $parent;
+        public readonly SpanData|null $parent = null;
 
         /**
          * @var SpanStack The span's stack trace
          */
         public readonly SpanStack $stack;
+
+        /**
+         * @var \Closure(self $span)[] $handler Defines handlers which will be invoked in reverse order when this span
+         * is closed.
+         * These handlers will not be called when the span is dropped.
+         * This array is cleared upon span drop or close.
+         * The passed $span parameter is this instance.
+         */
+        public array $onClose = [];
 
         /**
          * @return int Get the current span duration, in nanoseconds
@@ -158,10 +237,18 @@ namespace DDTrace {
         public function getLink(): SpanLink {}
 
         /**
-         * @return Returns the span id as zero-padded 16 character hexadecimal string.
+         * @return string Returns the span id as zero-padded 16 character hexadecimal string.
          */
         public function hexId(): string {}
+
+        /**
+         * @var array In OpenTelemetry, Baggage is contextual information that resides next to context.
+         * Baggage is a key-value store, which means it lets you propagate any data you like alongside context regardless of trace ids existence.
+         */
+        public array $baggage = [];
     }
+
+    class InferredSpanData extends SpanData {}
 
     class RootSpanData extends SpanData {
         /**
@@ -209,6 +296,13 @@ namespace DDTrace {
          * This variable cannot be accessed by reference.
          */
         public string $traceId = "";
+
+        /**
+         * @var GitMetadata|null The git metadata of the span
+         */
+        public GitMetadata|null $gitMetadata = null;
+
+        public InferredSpanData|null $inferredSpan = null;
     }
 
     /**
@@ -227,12 +321,21 @@ namespace DDTrace {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public readonly SpanStack|null $parent;
+        public readonly SpanStack|null $parent = null;
 
         /**
          * @var SpanData|null The active span
          */
         public SpanData|null $active = null;
+
+        /**
+         * @var \Closure(SpanData $span):(false|null)[] The observers to be called when a span on top of this span stack is started.
+         * This property is inherited when child span stacks are created.
+         * The handler can remove itself (globally) from further invocation by returning false.
+         * Maintained as an array of references (promoted to reference on nested create_stack) to ensure propagation of
+         * removal.
+         */
+        public array $spanCreationObservers = [];
     }
 
     interface Integration {
@@ -275,7 +378,7 @@ namespace DDTrace {
      *
      * @param string $className The name of the class that contains the method.
      * @param string $methodName The name of the method to instrument.
-     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Exception|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Throwable|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData', an array of
      * arguments from the instrumented call, the return value of the instrumented call, and an instance of the exception
@@ -287,6 +390,8 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the method be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
+     *
+     * Note that this closure will be bound to the object (or scope if static) of the target method.
      * @return bool 'true' if the call was successfully instrumented, else 'false'
      */
     function trace_method(
@@ -304,7 +409,7 @@ namespace DDTrace {
      * Additional tags are set on the span from the closure (called a tracing closure).
      *
      * @param string $functionName The name of the function to trace.
-     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Exception|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
+     * @param null|\Closure(SpanData $span, array $args, mixed $retval, \Throwable|null $exception):void|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $tracingClosureOrConfigArray
      * The tracing closure is a function that adds extra tags to the span after the
      * instrumented call is executed. It accepts four parameters, namely, an instance of 'DDTrace\SpanData' that writes
      * to the span properties, an array of arguments from the instrumented call, the return value of the instrumented
@@ -325,7 +430,7 @@ namespace DDTrace {
      * This function allows to define pre- and post-hooks that will be executed before and after the function is called.
      *
      * @param string $functionName The name of the function to be instrumented.
-     * @param \Closure(object ):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * @param \Closure(array $args, mixed $retval, \Throwable|null $exception):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
      * A pre-hook function that will be called before the instrumented function is
      * executed. This can be useful for things like asserting the function is passed the  correct arguments.
      *
@@ -335,7 +440,7 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
-     * @param \Closure(array $args, mixed $retval, \Exception|null $exception):void|null $posthook A post-hook function that will be called after
+     * @param \Closure(array $args, mixed $retval, \Throwable|null $exception):void|null $posthook A post-hook function that will be called after
      * the instrumented function is executed. This can be useful for things like formatting output data or logging the
      * results of the function call.
      *
@@ -354,7 +459,7 @@ namespace DDTrace {
      *
      * @param string $className The name of the class that contains the method.
      * @param string $methodName The name of the method to instrument.
-     * @param \Closure(mixed $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
+     * @param \Closure(object $object, string $scope, array $args):void|null|array{prehook?: \Closure, posthook?: \Closure, instrument_when_limited?: int, recurse?: bool} $prehookOrConfigArray
      * A pre-hook function that will be called before the instrumented
      * method is executed. This can be useful for things like asserting the method is passed the correct arguments.
      *
@@ -364,7 +469,7 @@ namespace DDTrace {
      * - 'instrument_when_limited': set to 1 shall the function be traced in limited mode (e.g., when span limit
      * exceeded)
      * - 'recurse': a boolean to state whether should recursive calls be traced as well
-     * @param \Closure(object $object, string $scope, array $args, mixed $retval, \Exception|null $exception):void|null $posthook A post-hook function that will be called after
+     * @param \Closure(object $object, string $scope, array $args, mixed $retval, \Throwable|null $exception):void|null $posthook A post-hook function that will be called after
      * the instrumented method is executed. This can be useful for things like formatting output data or logging the
      * results of the method call.
      *
@@ -466,9 +571,21 @@ namespace DDTrace {
      * More precisely, a new root span stack will be created and switched on to, and a new span started.
      *
      * @param float $startTime Start time of the span in seconds.
-     * @return SpanData The newly created root span
+     * @return RootSpanData The newly created root span
      */
-    function start_trace_span(float $startTime = 0): SpanData {}
+    function start_trace_span(float $startTime = 0): RootSpanData {}
+
+
+    /**
+     * Attempts to drop a span without breaking the trace.
+     * No metrics will be collected for that span, if successfully dropped.
+     * This means, the span is not dropped if any of the following were true before calling this function:
+     *  - the span has a non-dropped child span
+     *  - generate_distributed_tracing_headers() was called while this span was active
+     *  - a span link to this span was generated
+     * @return bool Whether the span was successfully dropped.
+     */
+    function try_drop_span(SpanData $span): bool {}
 
     /**
      * Get the active stack
@@ -518,12 +635,12 @@ namespace DDTrace {
     /**
      * Sanitize an exception
      *
-     * @param \Exception|\Throwable $exception
+     * @param \Throwable $exception
      * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
      * in a hook function.
      * @return string
      */
-    function get_sanitized_exception_trace(\Exception|\Throwable $exception, int $skipFrames = 0): string {}
+    function get_sanitized_exception_trace(\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
@@ -718,12 +835,12 @@ namespace DDTrace\UserRequest {
     /**
      * Notifies the user request listeners of the start of a user request.
      *
-     * @param \DDTrace\Span $span the span associated with this user request.
+     * @param \DDTrace\RootSpanData $span the span associated with this user request.
      * @param array $data an array with keys named '_GET', '_POST', '_SERVER', '_FILES', '_COOKIE'
      * @param string|resource|null $body the body of the request (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
      */
-    function notify_start(\DDTrace\RootSpanData $span, array $data, ?mixed $body = null): ?array {}
+    function notify_start(\DDTrace\RootSpanData $span, array $data, mixed $body = null): ?array {}
 
     /**
      * Notifies the user request listeners of the imminence of a commit, and allows for the replacement of the response.
@@ -733,7 +850,7 @@ namespace DDTrace\UserRequest {
      * @param string|resource|null $body the body of the response (a string or a seekable resource)
      * @return array|null an array with the keys 'status', 'headers' and 'body', or null
      */
-    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers, ?mixed $body = null): ?array {}
+    function notify_commit(\DDTrace\RootSpanData $span, int $status, array $headers, mixed $body = null): ?array {}
 
     /**
      * Sets a function to be called when blocking a request midway.
@@ -755,6 +872,10 @@ namespace DDTrace\Testing {
      * E_DEPRECATED, E_USER_DEPRECATED
      */
     function trigger_error(string $message, int $errorType): void {}
+    /**
+     * Emits an asm event
+     */
+    function emit_asm_event(): void {}
 }
 
 namespace DDTrace\Internal {
@@ -1033,12 +1154,12 @@ namespace {
      * @param string|null $className In the case of a method, its respective class should be provided as well
      * @return bool 'true' if the un-tracing process was successful, else 'false'
      */
-    function dd_untrace(string $functionName, string $className = null): bool {}
+    function dd_untrace(string $functionName, string|null $className = null): bool {}
 
     /**
      * Blocking-call synchronously flushing all spans to the agent
      *
      * @param int $timeout Timeout in milliseconds to wait for the flush to complete
      */
-    function dd_trace_synchronous_flush(int $timeout): void {}
+    function dd_trace_synchronous_flush(int $timeout = 100): void {}
 }

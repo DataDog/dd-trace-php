@@ -38,8 +38,8 @@ class LogsIntegration extends Integration
     }
 
     public static function getPlaceholders(
-        string $traceIdSubstitute = null,
-        string $spanIdSubstitute = null
+        $traceIdSubstitute = null,
+        $spanIdSubstitute = null
     ): array {
         $placeholders = [
             '%dd.trace_id%' => 'dd.trace_id="' . ($traceIdSubstitute ?? logs_correlation_trace_id()) . '"',
@@ -84,8 +84,8 @@ class LogsIntegration extends Integration
 
     public static function appendTraceIdentifiersToMessage(
         string $message,
-        string $traceIdSubstitute = null,
-        string $spanIdSubstitute = null
+        $traceIdSubstitute = null,
+        $spanIdSubstitute = null
     ): string {
         $placeholders = LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
         LogsIntegration::replacePlaceholders($message, $placeholders);
@@ -108,20 +108,20 @@ class LogsIntegration extends Integration
 
     public static function replacePlaceholders(
         string $message,
-        array $placeholders = null,
-        string $traceIdSubstitute = null,
-        string $spanIdSubstitute = null
+        $placeholders = null,
+        $traceIdSubstitute = null,
+        $spanIdSubstitute = null
     ): string {
         return strtr(
             $message,
-            $placeholders ? $placeholders : LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
+            $placeholders ?: LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
         );
     }
 
     public static function addTraceIdentifiersToContext(
         array $context,
-        string $traceIdSubstitute = null,
-        string $spanIdSubstitute = null
+        $traceIdSubstitute = null,
+        $spanIdSubstitute = null
     ): array {
         if (!isset($context['dd.trace_id'])) {
             $context['dd.trace_id'] = $traceIdSubstitute ?? logs_correlation_trace_id();

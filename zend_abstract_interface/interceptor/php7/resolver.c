@@ -355,8 +355,9 @@ void zai_interceptor_setup_resolving_post_startup(void) {
     SET_UNUSED(op->result);
     SET_UNUSED(op->op1);
     SET_UNUSED(op->op2);
-    op->opcode = ZAI_INTERCEPTOR_POST_DECLARE_OP;
+    op->opcode = ZEND_USER_OPCODE;
     ZEND_VM_SET_OPCODE_HANDLER(op);
+    op->opcode = ZAI_INTERCEPTOR_POST_DECLARE_OP;
 
     prev_exception_hook = zend_throw_exception_hook;
     zend_throw_exception_hook = zai_interceptor_exception_hook;

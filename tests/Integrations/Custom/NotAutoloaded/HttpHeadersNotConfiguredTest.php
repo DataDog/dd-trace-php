@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class HttpHeadersNotConfiguredTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Not_Autoloaded/Headers/index.php';
     }
@@ -44,7 +44,7 @@ final class HttpHeadersNotConfiguredTest extends WebFrameworkTestCase
                     'GET /'
                 )->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost:' . self::PORT . '/',
+                    'http.url' => 'http://localhost/',
                     'http.status_code' => 200,
                 ]),
             ]

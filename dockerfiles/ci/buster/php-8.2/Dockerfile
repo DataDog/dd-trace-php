@@ -3,10 +3,11 @@ FROM datadog/dd-trace-ci:buster AS base
 ARG phpVersion
 ENV PHP_VERSION=${phpVersion}
 
-FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster as src
+FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Delete-timers-on-fork.patch /home/circleci
+COPY php-8.2/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
@@ -14,6 +15,7 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force; \
+    git apply /home/circleci/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch; \
     patch Zend/zend_max_execution_timer.c /home/circleci/0001-Delete-timers-on-fork.patch;
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
@@ -31,25 +33,25 @@ RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
 COPY build-php.sh /home/circleci
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
-FROM build as php-debug
+FROM build AS php-debug
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-nts
+FROM build AS php-nts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-zts
+FROM build AS php-zts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
-FROM build as php-debug-zts-asan
+FROM build AS php-debug-zts-asan
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR debug-zts-asan $PHP_VERSION \
     && mv /tmp/build-php/sapi/cli/php /tmp/build-php/sapi/cli/php-asan
@@ -61,7 +63,7 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
-FROM base as final
+FROM base AS final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug

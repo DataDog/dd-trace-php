@@ -5,16 +5,16 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 1008984056658375899,
+    "parent_id": 10907279024383771668,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "662b8a2e00000000",
+      "_dd.p.tid": "67da9a0f00000000",
       "component": "laravel",
       "http.method": "GET",
       "http.status_code": "404",
-      "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
-      "runtime-id": "4f76a87a-df89-41fb-909e-e269a4616334"
+      "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
+      "runtime-id": "e719c2fb-81c9-4ae3-b1f9-e1a2843d4845"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -203,9 +203,9 @@
         {
           "name": "laravel.view",
           "service": "my_service",
-          "resource": "/home/circleci/datadog/tests/Frameworks/Laravel/Version_11_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_11_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
-          "span_id": 18,
+          "span_id": 19,
           "parent_id": 16,
           "type": "web",
           "meta": {
@@ -218,6 +218,18 @@
        "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
        "trace_id": 0,
        "span_id": 17,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Foundation\\Events\\Terminating",
+       "trace_id": 0,
+       "span_id": 18,
        "parent_id": 1,
        "type": "web",
        "meta": {

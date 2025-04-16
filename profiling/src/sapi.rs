@@ -62,7 +62,7 @@ impl Sapi {
                     // Safety: It's not null; the VM should do the rest.
                     let cstr = unsafe { CStr::from_ptr(*sapi_request_info.argv) };
                     let bytes = cstr.to_bytes();
-                    return if !bytes.is_empty() {
+                    if !bytes.is_empty() {
                         let osstr = OsStr::from_bytes(bytes);
                         Path::new(osstr)
                             .file_name()
@@ -82,7 +82,7 @@ impl Sapi {
                             })
                     } else {
                         None
-                    };
+                    }
                 } else {
                     None
                 }

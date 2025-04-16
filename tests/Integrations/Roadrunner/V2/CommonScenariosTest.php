@@ -9,9 +9,19 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Roadrunner/Version_2/worker.php';
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'spiral/roadrunner';
+    }
+
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return self::getRoadrunnerVersion();
     }
 
     protected static function getRoadrunnerVersion()
@@ -46,7 +56,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'roadrunner'
@@ -60,7 +70,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'roadrunner'
@@ -74,7 +84,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         'error.stack' => '#0 {main}',
                         Tag::SPAN_KIND => 'server',

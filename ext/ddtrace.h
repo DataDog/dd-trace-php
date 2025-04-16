@@ -1,5 +1,8 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -12,20 +15,29 @@
 
 #include "ext/version.h"
 #include "compatibility.h"
+#include "git.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+extern zend_class_entry *ddtrace_ce_inferred_span_data;
 extern zend_class_entry *ddtrace_ce_root_span_data;
 extern zend_class_entry *ddtrace_ce_span_stack;
 extern zend_class_entry *ddtrace_ce_fatal_error;
 extern zend_class_entry *ddtrace_ce_span_link;
+extern zend_class_entry *ddtrace_ce_span_event;
+extern zend_class_entry *ddtrace_ce_exception_span_event;
 extern zend_class_entry *ddtrace_ce_integration;
+extern zend_class_entry *ddtrace_ce_git_metadata;
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
+typedef struct ddtrace_inferred_span_data ddtrace_inferred_span_data;
 typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 typedef struct ddtrace_span_link ddtrace_span_link;
+typedef struct ddtrace_span_event ddtrace_span_event;
+typedef struct ddtrace_exception_span_event ddtrace_exception_span_event;
+typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
 extern datadog_php_sapi ddtrace_active_sapi;
 
@@ -41,18 +53,25 @@ static inline zend_array *ddtrace_property_array(zval *zv) {
     return Z_ARR_P(zv);
 }
 
+#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
+#define CXA_THREAD_ATEXIT_WRAPPER 1
+#endif
+
 bool ddtrace_tracer_is_limited(void);
 // prepare the tracer state to start handling a new trace
 void dd_prepare_for_new_trace(void);
 void ddtrace_disable_tracing_in_current_request(void);
-bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value);
-bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value);
-bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_service(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_env(zval *old_value, zval *new_value);
-bool ddtrace_alter_dd_version(zval *old_value, zval *new_value);
+bool ddtrace_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str);
+bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str);
 void dd_force_shutdown_tracing(void);
 void dd_internal_handle_fork(void);
+#ifdef CXA_THREAD_ATEXIT_WRAPPER
+void dd_run_rust_thread_destructors(void *unused);
+#endif
 
 typedef struct {
     int type;
@@ -87,10 +106,17 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array tracestate_unknown_dd_keys;
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
+    HashTable baggage;
 #ifndef _WIN32
     dogstatsd_client dogstatsd_client;
 #endif
     zend_bool in_shutdown;
+
+#if PHP_VERSION_ID < 70100
+    bool zai_vm_interrupt;
+#endif
+    bool reread_remote_configuration;
+    bool root_span_data_submitted;
 
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;
@@ -107,16 +133,38 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_reference *curl_multi_injecting_spans;
 
     char *cgroup_file;
-    ddog_QueueId telemetry_queue_id;
-    ddog_AgentRemoteConfigReader *remote_config_reader;
+    ddog_QueueId sidecar_queue_id;
+    ddog_AgentRemoteConfigReader *agent_config_reader;
+    ddog_RemoteConfigState *remote_config_state;
+    ddog_AgentInfoReader *agent_info_reader;
+    zend_arena *debugger_capture_arena;
+    HashTable debugger_capture_ephemerals;
+    ddog_Vec_DebuggerPayload exception_debugger_buffer;
+    HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
     zend_string *last_flushed_root_service_name;
     zend_string *last_flushed_root_env_name;
+    ddog_Vec_Tag active_global_tags;
 
+    bool request_initialized;
     HashTable telemetry_spans_created_per_integration;
+    ddog_SidecarActionsBuffer *telemetry_buffer;
+
+    bool asm_event_emitted;
+
+#if PHP_VERSION_ID >= 80000
+    HashTable curl_headers;
+    // Multi-handle API: curl_multi_*()
+    HashTable curl_multi_handles;
+#endif
 
     HashTable uhook_active_hooks;
     HashTable uhook_closure_hooks;
+
+    HashTable git_metadata;
+    zend_object *git_object;
+
+    bool inferred_span_created;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
@@ -127,7 +175,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #    define ATTR_TLS_GLOBAL_DYNAMIC
 #  endif
 extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
-#  define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#  define DDTRACE_G(v) ZEND_TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)
 #endif

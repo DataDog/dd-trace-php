@@ -99,7 +99,7 @@ class SwooleIntegration extends Integration
                 $path = $request->server['request_uri'] ?? $request->server['path_info'] ?? '';
                 $query = isset($request->server['query_string']) ? '?' . $request->server['query_string'] : '';
                 $url = $scheme . $host . $path . $query;
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::uriNormalizeincomingPath($url);
+                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($url);
 
                 unset($rootSpan->meta['closure.declaration']);
             }
@@ -108,27 +108,8 @@ class SwooleIntegration extends Integration
 
     public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
     {
-        if ($server->mode === SWOOLE_BASE) {
-            return;
-        }
-
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use ($integration, $server) {
-                handle_fork();
-            }
-        );
-    }
-
-    public function instrumentWorkerStop(callable $callback, SwooleIntegration $integration, Server $server)
-    {
-        if ($server->mode === SWOOLE_BASE) {
-            return;
-        }
-
-        \DDTrace\install_hook(
-            $callback,
-            null,
             function (HookData $hook) use ($integration, $server) {
                 handle_fork();
             }
@@ -151,9 +132,7 @@ class SwooleIntegration extends Integration
             '__construct',
             null,
             function ($server) use ($integration) {
-                foreach (['workerstart', 'workerstop', 'workerexit', 'workererror'] as $serverEvent) {
-                    $server->on($serverEvent, function () { });
-                }
+                $server->on('workerstart', function () { });
             }
         );
 
@@ -175,11 +154,6 @@ class SwooleIntegration extends Integration
                         break;
                     case 'workerstart':
                         $integration->instrumentWorkerStart($callback, $integration, $server);
-                        break;
-                    case 'workerstop':
-                    case 'workerexit':
-                    case 'workererror':
-                        $integration->instrumentWorkerStop($callback, $integration, $server);
                         break;
                 }
 

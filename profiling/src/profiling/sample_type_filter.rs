@@ -1,7 +1,7 @@
 use crate::config::SystemSettings;
 use crate::profiling::{SampleValues, ValueType};
 
-const MAX_SAMPLE_TYPES: usize = 7;
+const MAX_SAMPLE_TYPES: usize = 23;
 
 pub struct SampleTypeFilter {
     sample_types: Vec<ValueType>,
@@ -19,6 +19,22 @@ impl SampleTypeFilter {
             ValueType::new("alloc-size", "bytes"),
             ValueType::new("timeline", "nanoseconds"),
             ValueType::new("exception-samples", "count"),
+            ValueType::new("socket-read-time", "nanoseconds"),
+            ValueType::new("socket-read-time-samples", "count"),
+            ValueType::new("socket-write-time", "nanoseconds"),
+            ValueType::new("socket-write-time-samples", "count"),
+            ValueType::new("file-io-read-time", "nanoseconds"),
+            ValueType::new("file-io-read-time-samples", "count"),
+            ValueType::new("file-io-write-time", "nanoseconds"),
+            ValueType::new("file-io-write-time-samples", "count"),
+            ValueType::new("socket-read-size", "bytes"),
+            ValueType::new("socket-read-size-samples", "count"),
+            ValueType::new("socket-write-size", "bytes"),
+            ValueType::new("socket-write-size-samples", "count"),
+            ValueType::new("file-io-read-size", "bytes"),
+            ValueType::new("file-io-read-size-samples", "count"),
+            ValueType::new("file-io-write-size", "bytes"),
+            ValueType::new("file-io-write-size-samples", "count"),
         ];
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
@@ -50,6 +66,42 @@ impl SampleTypeFilter {
                 sample_types.push(SAMPLE_TYPES[6]);
                 sample_types_mask[6] = true;
             }
+
+            #[cfg(feature = "io_profiling")]
+            if system_settings.profiling_io_enabled {
+                sample_types.push(SAMPLE_TYPES[7]);
+                sample_types_mask[7] = true;
+                sample_types.push(SAMPLE_TYPES[8]);
+                sample_types_mask[8] = true;
+                sample_types.push(SAMPLE_TYPES[9]);
+                sample_types_mask[9] = true;
+                sample_types.push(SAMPLE_TYPES[10]);
+                sample_types_mask[10] = true;
+                sample_types.push(SAMPLE_TYPES[11]);
+                sample_types_mask[11] = true;
+                sample_types.push(SAMPLE_TYPES[12]);
+                sample_types_mask[12] = true;
+                sample_types.push(SAMPLE_TYPES[13]);
+                sample_types_mask[13] = true;
+                sample_types.push(SAMPLE_TYPES[14]);
+                sample_types_mask[14] = true;
+                sample_types.push(SAMPLE_TYPES[15]);
+                sample_types_mask[15] = true;
+                sample_types.push(SAMPLE_TYPES[16]);
+                sample_types_mask[16] = true;
+                sample_types.push(SAMPLE_TYPES[17]);
+                sample_types_mask[17] = true;
+                sample_types.push(SAMPLE_TYPES[18]);
+                sample_types_mask[18] = true;
+                sample_types.push(SAMPLE_TYPES[19]);
+                sample_types_mask[19] = true;
+                sample_types.push(SAMPLE_TYPES[20]);
+                sample_types_mask[20] = true;
+                sample_types.push(SAMPLE_TYPES[21]);
+                sample_types_mask[21] = true;
+                sample_types.push(SAMPLE_TYPES[22]);
+                sample_types_mask[22] = true;
+            }
         }
 
         Self {
@@ -76,6 +128,22 @@ impl SampleTypeFilter {
             sample_values.alloc_size,
             sample_values.timeline,
             sample_values.exception,
+            sample_values.socket_read_time,
+            sample_values.socket_read_time_samples,
+            sample_values.socket_write_time,
+            sample_values.socket_write_time_samples,
+            sample_values.file_read_time,
+            sample_values.file_read_time_samples,
+            sample_values.file_write_time,
+            sample_values.file_write_time_samples,
+            sample_values.socket_read_size,
+            sample_values.socket_read_size_samples,
+            sample_values.socket_write_size,
+            sample_values.socket_write_size_samples,
+            sample_values.file_read_size,
+            sample_values.file_read_size_samples,
+            sample_values.file_write_size,
+            sample_values.file_write_size_samples,
         ];
 
         for (value, enabled) in values.into_iter().zip(self.sample_types_mask.iter()) {

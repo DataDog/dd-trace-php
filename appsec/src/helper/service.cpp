@@ -10,10 +10,19 @@ namespace dds {
 
 service::service(std::shared_ptr<engine> engine,
     std::shared_ptr<service_config> service_config,
-    dds::remote_config::client_handler::ptr &&client_handler,
+    std::unique_ptr<dds::remote_config::client_handler> &&client_handler,
+    std::shared_ptr<metrics_impl> msubmitter, std::string rc_path,
     const schema_extraction_settings &schema_extraction_settings)
-    : engine_(std::move(engine)), service_config_(std::move(service_config)),
-      client_handler_(std::move(client_handler))
+    : engine_{std::move(engine)}, service_config_{std::move(service_config)},
+      client_handler_{std::move(client_handler)},
+      schema_extraction_enabled_{schema_extraction_settings.enabled},
+      schema_sampler_{
+          schema_extraction_settings.enabled &&
+                  schema_extraction_settings.sampling_period >= 1.0
+              ? std::make_optional<sampler>(static_cast<std::uint32_t>(
+                    schema_extraction_settings.sampling_period))
+              : std::nullopt},
+      rc_path_{std::move(rc_path)}, msubmitter_{std::move(msubmitter)}
 {
     // The engine should always be valid
     if (!engine_) {
@@ -21,33 +30,26 @@ service::service(std::shared_ptr<engine> engine,
     }
 
     if (client_handler_) {
-        client_handler_->start();
+        client_handler_->poll();
     }
-
-    double sample_rate = schema_extraction_settings.sample_rate;
-
-    if (!schema_extraction_settings.enabled) {
-        sample_rate = 0;
-    }
-
-    schema_sampler_ = std::make_shared<sampler>(sample_rate);
 }
 
-service::ptr service::from_settings(service_identifier &&id,
+std::shared_ptr<service> service::from_settings(
     const dds::engine_settings &eng_settings,
-    const remote_config::settings &rc_settings,
-    std::map<std::string, std::string> &meta,
-    std::map<std::string_view, double> &metrics, bool dynamic_enablement)
+    const remote_config::settings &rc_settings)
 {
-    auto engine_ptr = engine::from_settings(eng_settings, meta, metrics);
+    std::shared_ptr<metrics_impl> msubmitter = std::make_shared<metrics_impl>();
+
+    const std::shared_ptr<engine> engine_ptr =
+        engine::from_settings(eng_settings, *msubmitter);
 
     auto service_config = std::make_shared<dds::service_config>();
 
     auto client_handler = remote_config::client_handler::from_settings(
-        std::move(id), eng_settings, service_config, rc_settings, engine_ptr,
-        dynamic_enablement);
+        eng_settings, service_config, rc_settings, engine_ptr, msubmitter);
 
-    return std::make_shared<service>(engine_ptr, std::move(service_config),
-        std::move(client_handler), eng_settings.schema_extraction);
+    return create_shared(engine_ptr, std::move(service_config),
+        std::move(client_handler), std::move(msubmitter),
+        rc_settings.shmem_path, eng_settings.schema_extraction);
 }
 } // namespace dds

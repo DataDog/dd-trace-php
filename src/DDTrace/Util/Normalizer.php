@@ -216,10 +216,9 @@ class Normalizer
                 // Concatenate the postkey and postval into '<postkey>=<postval>'
                 $postField = "$postKey=$postVal";
 
-                // Match it with the regex to redact if needed
+                // Match it with the regex to redact if needed and regex is not empty
                 $obfuscationRegex = \ini_get('datadog.trace.obfuscation_query_string_regexp');
-                $obfuscationRegex = '(' . $obfuscationRegex . ')';
-                if (preg_match($obfuscationRegex, $postField)) {
+                if ($obfuscationRegex != "" && preg_match('(' . $obfuscationRegex . ')', $postField)) {
                     return [$postKey => '<redacted>'];
                 } else {
                     return [$postKey => $postVal];

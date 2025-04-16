@@ -10,6 +10,8 @@ use Exception;
 
 class PHPRedisTest extends IntegrationTestCase
 {
+    protected static $lockedResource = "redis";
+
     const A_STRING = 'A_STRING';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
     const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';
@@ -52,6 +54,11 @@ class PHPRedisTest extends IntegrationTestCase
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
         ];
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-redis';
     }
 
     /**

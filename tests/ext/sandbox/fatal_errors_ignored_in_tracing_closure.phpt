@@ -3,6 +3,7 @@ Fatal errors are ignored inside a tracing closure (PHP 7+)
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+DD_APPSEC_ENABLED=0
 --FILE--
 <?php
 DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {
@@ -18,7 +19,7 @@ array_map(function($span) {
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist()
+[ddtrace] [warning] Error thrown in ddtrace's closure defined at %s:%d for array_sum(): Call to undefined function this_function_does_not_exist() in %s on line %d
 int(100)
 array_sum
 NULL

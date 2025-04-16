@@ -53,8 +53,8 @@ partial class Build
             var currentMilestone = (await client.PullRequest.Get(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                number: PullRequestNumber.Value))
-                .Milestone;
+                pullRequestNumber: PullRequestNumber.Value)
+            ).Milestone;
 
             if (currentMilestone != null && currentMilestone.Number != 0) {
                 Console.WriteLine($"Pull request {PullRequestNumber} already has a milesotone: {currentMilestone.Title} ({currentMilestone.Number})");
@@ -68,8 +68,9 @@ partial class Build
             await client.Issue.Update(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                number: PullRequestNumber.Value,
-                new IssueUpdate { Milestone = milestone.Number });
+                issueNumber: PullRequestNumber.Value,
+                issueUpdate: new IssueUpdate { Milestone = milestone.Number }
+            );
 
             Console.WriteLine($"PR assigned");
         });
@@ -163,7 +164,7 @@ partial class Build
                     char[] charsToTrim = { ' ', ',' };
                     string cleaned = value.TrimStart('-', '+').Trim(charsToTrim);
 
-                    string[] keysToReplace = { "start", "duration", "php.compilation.total_time_ms", "process_id" };
+                    string[] keysToReplace = { "start", "duration", "php.compilation.total_time_ms", "metrics.php.memory.peak_usage_bytes", "metrics.php.memory.peak_real_usage_bytes", "process_id" };
                     foreach (var key in keysToReplace)
                     {
                         if (cleaned.Contains(key))
@@ -183,7 +184,8 @@ partial class Build
         var comments = await client.Issue.Comment.GetAllForIssue(
             owner: GitHubRepositoryOwner,
             name: GitHubRepositoryName,
-            number: prNumber);
+            issueNumber: prNumber
+        );
 
         var existingComment = comments.LastOrDefault(c => c.Body.StartsWith("## Snapshots difference"));
         if (existingComment is not null)
@@ -192,8 +194,9 @@ partial class Build
             await client.Issue.Comment.Update(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                id: existingComment.Id,
-                commentUpdate: markdown);
+                existingComment.Id,
+                markdown
+            );
         }
         else
         {
@@ -201,8 +204,9 @@ partial class Build
             await client.Issue.Comment.Create(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                number: prNumber,
-                newComment: markdown);
+                prNumber,
+                markdown
+            );
         }
     }
 
@@ -218,7 +222,8 @@ partial class Build
             var pr = await client.PullRequest.Get(
                 owner: GitHubRepositoryOwner,
                 name: GitHubRepositoryName,
-                number: PullRequestNumber.Value);
+                pullRequestNumber: PullRequestNumber.Value
+            );
 
             // Fixes an issue (ambiguous argument) when we do git diff in the Action.
             GitTasks.Git("fetch origin master:master", logOutput: false);
@@ -235,8 +240,9 @@ partial class Build
                 await client.Issue.Update(
                     owner: GitHubRepositoryOwner,
                     name: GitHubRepositoryName,
-                    number: PullRequestNumber.Value,
-                    issueUpdate);
+                    PullRequestNumber.Value,
+                    issueUpdate
+                );
             }
             catch(Exception ex)
             {

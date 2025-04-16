@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
     }
@@ -19,6 +19,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'lumen_test_app'
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'laravel/lumen-framework';
     }
 
     /**
@@ -50,7 +55,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen'
@@ -110,7 +115,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'lumen'
@@ -159,7 +164,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'lumen.route.name' => 'simple_route',
                 'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                 'http.method' => 'GET',
-                'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                'http.url' => 'http://localhost/simple?key=value&<redacted>',
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
                 TAG::COMPONENT => 'lumen'
@@ -188,7 +193,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             )->withExactTags([
                 'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
                 'http.method' => 'GET',
-                'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                'http.url' => 'http://localhost/error?key=value&<redacted>',
                 'http.status_code' => '500',
                 Tag::SPAN_KIND => 'server',
                 TAG::COMPONENT => 'lumen'

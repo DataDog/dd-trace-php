@@ -1,6 +1,11 @@
 FROM centos:7
 
 RUN set -eux; \
+# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore
+# https://serverfault.com/a/1161847
+    sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo; \
+    sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo; \
+    sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo; \
     echo 'ip_resolve = IPv4' >>/etc/yum.conf; \
     yum update -y; \
     yum install -y \
@@ -21,8 +26,13 @@ RUN set -eux; \
         unzip \
         vim \
         xz; \
+# package centos-release-scl installs new yum repos, we must fix them too
+    sed -i s/mirror.centos.org/buildlogs.centos.org/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
+    sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
+    sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
     yum update nss nss-util nss-sysinit nss-tools; \
-    yum install -y devtoolset-7; \
+    yum install -y --nogpgcheck devtoolset-7; \
+    yum install -y --nogpgcheck devtoolset-9; \
     yum clean all;
 
 ENV SRC_DIR=/usr/local/src
@@ -85,10 +95,10 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# Required: CMake >= 3.0.2 (default version is 2.8.12.2)
+# Required: CMake >= 3.20.0 (default version is 2.8.12.2)
 # Required to build libzip from source (has to be a separate RUN layer)
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz; \
+    /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.28.6/cmake-3.28.6.tar.gz; \
     cd "${SRC_DIR}/cmake"; \
     mkdir -v 'build' && cd 'build'; \
     ../bootstrap && make -j $(nproc) && make install; \
@@ -99,17 +109,58 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh libzip https://libzip.org/download/libzip-1.7.3.tar.gz; \
     cd "${SRC_DIR}/libzip"; \
     mkdir build && cd build; \
-    cmake .. && make -j $(nproc) && make install;
+    cmake .. && make -j $(nproc) && make install; \
+    cd - && rm -fr build
 
-ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
+# PHP 8.4 requires OpenSSL >= 1.1.1
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh openssl https://openssl.org/source/old/1.1.1/openssl-1.1.1w.tar.gz; \
+    cd "${SRC_DIR}/openssl"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl shared zlib; \
+    make -j $(nproc) && make install; \
+    echo "export PATH=/usr/local/openssl/bin:\$PATH" > /etc/profile.d/openssl.sh; \
+    echo "export LD_LIBRARY_PATH=/usr/local/openssl/lib:\$LD_LIBRARY_PATH" >> /etc/profile.d/openssl.sh; \
+    source /etc/profile.d/openssl.sh; \
+    openssl version; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires zlib >= 1.2.11
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh zlib https://zlib.net/fossils/zlib-1.2.11.tar.gz; \
+    cd "${SRC_DIR}/zlib"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure --prefix=/usr/local/zlib; \
+    make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires curl >= 7.61.0
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh curl https://curl.se/download/curl-7.61.1.tar.gz; \
+    cd "${SRC_DIR}/curl"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure --prefix=/usr/local/curl; \
+    make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires sqlite3 >= 3.43
+RUN source scl_source enable devtoolset-7; set -ex; \
+    /root/download-src.sh sqlite3 https://www.sqlite.org/2024/sqlite-autoconf-3460000.tar.gz; \
+    cd "${SRC_DIR}/sqlite3"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure --prefix=/usr/local/sqlite3; \
+    make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/openssl/lib/pkgconfig:/usr/local/zlib/lib/pkgconfig:/usr/local/curl/lib/pkgconfig:/usr/local/sqlite3/lib/pkgconfig"
 
 # Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 16, which matches Rust 1.71.
+# I picked LLVM 17, which matches Rust 1.76.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
-RUN source scl_source enable devtoolset-7 \
+RUN source scl_source enable devtoolset-9 \
   && yum install -y python3 \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
   && mkdir -vp "${SRC_DIR}/ninja/build" \
@@ -120,7 +171,7 @@ RUN source scl_source enable devtoolset-7 \
   && cd - \
   && rm -fr "${SRC_DIR}/ninja" \
   && cd /usr/local/src \
-  && git clone --depth 1 -b release/16.x https://github.com/llvm/llvm-project.git \
+  && git clone --depth 1 -b release/17.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
   && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
@@ -151,9 +202,9 @@ RUN source scl_source enable devtoolset-7 \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.71.1"
-ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
-ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
+ARG RUST_VERSION="1.78.0"
+ARG RUST_SHA256_ARM="131eda738cd977fff2c912e5838e8e9b9c260ecddc1247c0fe5473bf09c594af"
+ARG RUST_SHA256_X86="1307747915e8bd925f4d5396ab2ae3d8d9c7fad564afbc358c081683d0f22e87"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
@@ -174,13 +225,14 @@ RUN source scl_source enable devtoolset-7 \
 
 # now install PHP specific dependencies
 RUN set -eux; \
-    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; \
+    yum install -y epel-release; \
     yum update -y; \
     yum install -y \
     re2c \
     bzip2-devel \
     httpd-devel \
     libmemcached-devel \
+    librdkafka-devel \
     libsodium-devel \
     libsqlite3x-devel \
     libxml2-devel \

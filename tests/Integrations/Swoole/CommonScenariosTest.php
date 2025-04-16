@@ -11,7 +11,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../Frameworks/Swoole/index.php';
     }
@@ -36,6 +36,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
         return array_merge(parent::getInis(), [
             'extension' => 'swoole.so',
         ]);
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'ext-swoole';
     }
 
     /**
@@ -65,7 +70,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole'
@@ -79,7 +84,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple_view'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole'
@@ -93,9 +98,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /error'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:' . self::PORT . '/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
-                        'error.stack' => "#0 [internal function]: {closure}()\n#1 {main}",
+                        'error.stack' => (PHP_VERSION_ID >= 80400 ? "#0 [internal function]: {closure:" . dirname(__DIR__, 2) . "/Frameworks/Swoole/index.php:9}()" : "#0 [internal function]: {closure}()") . "\n#1 {main}",
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole'
                     ])->setError('Exception', 'Uncaught Exception: Error page'),

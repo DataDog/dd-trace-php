@@ -16,10 +16,10 @@ use function datadog\appsec\testing\dump_req_lifecycle_state;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createinitedRun([
-    response_list(response_request_init(['ok', [], [], []])),
-    response_list(response_request_shutdown(['ok', [], [], []])),
-    response_list(response_request_init(['ok', [], [], []])),
-    response_list(response_request_shutdown(['ok', [], [], []])),
+    response_list(response_request_init([[['ok', []]], [], []])),
+    response_list(response_request_shutdown([[['ok', []]], [], []])),
+    response_list(response_request_init([[['ok', []]], [], []])),
+    response_list(response_request_shutdown([[['ok', []]], [], []])),
 ]);
 
 function d() {

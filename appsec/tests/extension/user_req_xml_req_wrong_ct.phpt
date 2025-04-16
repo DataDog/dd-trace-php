@@ -1,5 +1,5 @@
 --TEST--
-User requests: request body is parsed (XML)
+User requests: XML request body is not parsed wotj wrong content-type
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=true
@@ -16,8 +16,8 @@ use function DDTrace\start_span;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createinitedRun([
-    response_list(response_request_init(['ok'])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
 ]);
 
 $span = start_span();

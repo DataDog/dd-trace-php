@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integrations\AMQP\V3_5;
 error_reporting(E_ALL ^ E_DEPRECATED);  // AMQP2 will trigger deprecation warnings
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
-
+require_once $argv[1];
 
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 

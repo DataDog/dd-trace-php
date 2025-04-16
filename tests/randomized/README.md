@@ -4,7 +4,7 @@ The purpose of randomized tests is to find edge cases that users could encounter
 
 The basic idea is to randomly generate a matrix of application configurations:
   - Apache/Nginx
-  - PHP 7.0-8.2
+  - PHP 7.0-8.3
   - Centos 7 / Debian Buster
 
 and to run a application with randomily generated execution paths, which involve a number of scenarios and integrations.
@@ -145,6 +145,16 @@ Note that the generated scenarios can be run individually. In the directory `.tm
 
 ### Analyzing a core dump generated in CI
 
+Run a script `circleci_core.sh` which will install the used extension, and launch a gdb shell with the core dump:
+
+```
+tests/randomized/circleci_core.sh https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/17113/workflows/196b5740-f3ce-4faf-8731-e9a4b15d114a/jobs/4964970/steps
+```
+
+The only argument to that script is the URL of the job.
+
+#### Alternative: Manual steps
+
 Run a container with the most recent version of the proper docker image for the specific version of PHP. For example, assuming PHP 8.0:
 
 ```
@@ -172,7 +182,7 @@ Then load it in `gdb`:
 gdb --core=/tmp/core php-fpm|httpd|php
 ```
 
-### Analyzing using ASAN
+#### Manual steps using ASAN
 
 In some cases it might be tricky to find the memory corruption, but you can
 always use an address sanitizer to try and find problems.

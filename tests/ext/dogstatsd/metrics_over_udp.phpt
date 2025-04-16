@@ -24,14 +24,17 @@ class UDPServer {
         }
     }
 
-    public function dump($iter = 100, $usleep = 100) {
-        $buf = '';
+    public function dump($expected, $iter = 5000) {
+        $lines = [];
         for ($i = 0; $i < $iter; ++$i) {
-            usleep($usleep);
-            $r = socket_recvfrom($this->socket, $buf, 2048, MSG_DONTWAIT, $remote_ip, $remote_port);
-            if ($buf) {
-                echo $buf."\n";
-                $buf = '';
+            usleep(100);
+            if (socket_recvfrom($this->socket, $buf, 2048, MSG_DONTWAIT, $remote_ip, $remote_port)) {
+                $lines[] = "$buf\n";
+                if (count($lines) == $expected) {
+                    sort($lines, SORT_STRING);
+                    echo implode($lines);
+                    return;
+                }
             }
         }
     }
@@ -43,19 +46,19 @@ class UDPServer {
 
 $server = new UDPServer('127.0.0.1', 9876);
 
-\DDTrace\dogstatsd_count("simple-counter", 42, ['foo' => 'bar', 'bar' => true]);
+\DDTrace\dogstatsd_count("counter-simple", 42, ['foo' => 'bar', 'bar' => true]);
 \DDTrace\dogstatsd_gauge("gogogadget", 21.4);
-\DDTrace\dogstatsd_histogram("my_histo", 22.22, ['histo' => 'gram']);
 \DDTrace\dogstatsd_distribution("my_disti", 22.22, ['distri' => 'bution']);
+\DDTrace\dogstatsd_histogram("my_histo", 22.22, ['histo' => 'gram']);
 \DDTrace\dogstatsd_set("set", 7, ['set' => '7']);
 
-$server->dump();
+$server->dump(5);
 $server->close();
 
 ?>
 --EXPECT--
-simple-counter:42|c|#foo:bar,bar:true
-gogogadget:21.4|g
-my_histo:22.22|h|#histo:gram
-my_disti:22.22|d|#distri:bution
-set:7|s|#set:7
+counter-simple:42|c|#service:metrics_over_udp.php,foo:bar,bar:true
+gogogadget:21.4|g|#service:metrics_over_udp.php
+my_disti:22.22|d|#service:metrics_over_udp.php,distri:bution
+my_histo:22.22|h|#service:metrics_over_udp.php,histo:gram
+set:7|s|#service:metrics_over_udp.php,set:7

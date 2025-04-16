@@ -4,14 +4,21 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "parameter.hpp"
+#include "service_config.hpp"
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
+#include <cstring>
+#include <ddwaf.h>
+#include <gtest/gtest.h>
 #include <json_helper.hpp>
+#include <memory>
+#include <metrics.hpp>
 #include <network/broker.hpp>
 #include <rapidjson/document.h>
 #include <regex>
-#include <tags.hpp>
+#include <utility>
 
 namespace dds {
 
@@ -30,11 +37,8 @@ public:
 class service_manager : public dds::service_manager {
 public:
     MOCK_METHOD(std::shared_ptr<dds::service>, create_service,
-        (dds::service_identifier && id, const dds::engine_settings &settings,
-            const dds::remote_config::settings &rc_settings,
-            (std::map<std::string, std::string> & meta),
-            (std::map<std::string_view, double> & metrics),
-            bool dynamic_enablement),
+        (const dds::engine_settings &settings,
+            const dds::remote_config::settings &rc_settings),
         (override));
 };
 
@@ -42,12 +46,9 @@ class service : public dds::service {
 public:
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config)
-        : dds::service(engine, service_config, {})
+        : dds::service{engine, service_config, {},
+              dds::service::create_shared_metrics(), "/rc_path"}
     {}
-
-    MOCK_METHOD(void, register_runtime_id, (const std::string &id), (override));
-    MOCK_METHOD(
-        void, unregister_runtime_id, (const std::string &id), (override));
 };
 
 } // namespace mock
@@ -89,7 +90,6 @@ network::client_init::request get_default_client_init_msg()
     msg.engine_settings.rules_file = fn;
     msg.engine_settings.waf_timeout_us = 1000000;
     msg.engine_settings.schema_extraction.enabled = false;
-    msg.engine_settings.schema_extraction.sample_rate = 1;
 
     return msg;
 }
@@ -107,9 +107,6 @@ void request_init(mock::broker *broker, client &c)
 {
     network::request_init::request msg;
     msg.data = parameter::map();
-    msg.data.add(
-        "server.request.headers.no_cookies", parameter::string("Arachni"sv));
-    msg.data.add("server.request.body", parameter::string("asdfds"sv));
 
     network::request req(std::move(msg));
 
@@ -121,7 +118,7 @@ void request_init(mock::broker *broker, client &c)
 
     EXPECT_TRUE(c.run_request());
     auto msg_res = dynamic_cast<network::request_init::response *>(res.get());
-    EXPECT_STREQ(msg_res->verdict.c_str(), "ok");
+    EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
     EXPECT_EQ(msg_res->triggers.size(), 0);
 }
 
@@ -158,16 +155,16 @@ TEST(ClientTest, ClientInit)
 
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
+    EXPECT_STREQ(msg_res->meta[std::string(metrics::waf_version)].c_str(),
+        ddwaf_get_version());
     EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.16.0");
-    EXPECT_STREQ(
-        msg_res->meta[std::string(tag::event_rules_errors)].c_str(), "{}");
+        msg_res->meta[std::string(metrics::event_rules_errors)].c_str(), "{}");
 
     EXPECT_EQ(msg_res->metrics.size(), 2);
     // For small enough integers this comparison should work, otherwise replace
     // with EXPECT_NEAR.
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_loaded], 3.0);
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_failed], 0.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 5.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_failed], 0.0);
 }
 
 TEST(ClientTest, ClientInitRegisterRuntimeId)
@@ -187,7 +184,6 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
     msg.pid = 1729;
     msg.runtime_version = "1.0";
     msg.client_version = "2.0";
-    msg.service.runtime_id = "thisisaruntimeid";
     msg.engine_settings.rules_file = fn;
 
     network::request req(std::move(msg));
@@ -198,17 +194,11 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _))
         .Times(1)
         .WillOnce(Return(service));
 
-    std::string runtime_id;
-    EXPECT_CALL(*service, register_runtime_id(_))
-        .Times(1)
-        .WillOnce(testing::SaveArg<0>(&runtime_id));
-
     EXPECT_TRUE(c.run_client_init());
-    EXPECT_STREQ(runtime_id.c_str(), "thisisaruntimeid");
 }
 
 TEST(ClientTest, ClientInitGeneratesRuntimeId)
@@ -238,17 +228,11 @@ TEST(ClientTest, ClientInitGeneratesRuntimeId)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
-    EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+    EXPECT_CALL(*smanager, create_service(_, _))
         .Times(1)
         .WillOnce(Return(service));
 
-    std::string runtime_id;
-    EXPECT_CALL(*service, register_runtime_id(_))
-        .Times(1)
-        .WillOnce(testing::SaveArg<0>(&runtime_id));
-
     EXPECT_TRUE(c.run_client_init());
-    EXPECT_STRNE(runtime_id.c_str(), "");
 }
 
 TEST(ClientTest, ClientInitInvalidRules)
@@ -280,22 +264,21 @@ TEST(ClientTest, ClientInitInvalidRules)
 
     EXPECT_STREQ(msg_res->status.c_str(), "ok");
     EXPECT_EQ(msg_res->meta.size(), 2);
-    EXPECT_STREQ(
-        msg_res->meta[std::string(tag::waf_version)].c_str(), "1.16.0");
+    EXPECT_STREQ(msg_res->meta[std::string(metrics::waf_version)].c_str(),
+        ddwaf_get_version());
 
     rapidjson::Document doc;
-    doc.Parse(msg_res->meta[std::string(tag::event_rules_errors)]);
+    doc.Parse(msg_res->meta[std::string(metrics::event_rules_errors)]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
     EXPECT_TRUE(doc.HasMember("missing key 'type'"));
-    EXPECT_TRUE(doc.HasMember("unknown matcher: squash"));
     EXPECT_TRUE(doc.HasMember("missing key 'inputs'"));
 
     EXPECT_EQ(msg_res->metrics.size(), 2);
     // For small enough integers this comparison should work, otherwise replace
     // with EXPECT_NEAR.
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_loaded], 1.0);
-    EXPECT_EQ(msg_res->metrics[tag::event_rules_failed], 4.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 1.0);
+    EXPECT_EQ(msg_res->metrics[metrics::event_rules_failed], 4.0);
 }
 
 TEST(ClientTest, ClientInitResponseFail)
@@ -508,8 +491,11 @@ TEST(ClientTest, RequestInit)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -523,9 +509,10 @@ TEST(ClientTest, RequestInit)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_init::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
         EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "undefined");
     }
 }
 
@@ -546,8 +533,11 @@ TEST(ClientTest, RequestInitLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -568,8 +558,9 @@ TEST(ClientTest, RequestInitLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -616,10 +607,250 @@ TEST(ClientTest, RequestInitBlock)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_init::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToIdentification)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::IDENTIFICATION);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "identification");
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToAnonymization)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::ANONYMIZATION);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "anonymization");
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToDisabled)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::DISABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "disabled");
+    }
+}
+
+TEST(ClientTest, RequestInitWithInstrumModeToUnknown)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    c.get_service()->get_service_config()->set_auto_user_instrum(
+        auto_user_instrum_mode::UNKNOWN);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+        EXPECT_EQ(msg_res->triggers.size(), 1);
+        EXPECT_TRUE(msg_res->force_keep);
+        EXPECT_EQ(msg_res->settings["auto_user_instrum"], "unknown");
+    }
+}
+
+TEST(ClientTest, EventWithMultipleActions)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+        msg.data.add("http.client_ip", parameter::string("192.168.1.2"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_EQ(msg_res->actions.size(),
+            3); // Block is not generated since there is a redirect
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "redirect");
+        EXPECT_STREQ(msg_res->actions[0].parameters["location"].c_str(),
+            "https://localhost");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "303");
+        EXPECT_STREQ(msg_res->actions[1].verdict.c_str(),
+            "record"); // Generate schema is transformed to record
+        EXPECT_TRUE(msg_res->actions[1].parameters.empty());
+        EXPECT_STREQ(msg_res->actions[2].verdict.c_str(), "stack_trace");
+        EXPECT_FALSE(msg_res->actions[2].parameters["stack_id"].empty());
+    }
+}
+
+TEST(ClientTest, StackTraceNeverComesAlone)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+        msg.data = parameter::map();
+        msg.data.add("http.client_ip", parameter::string("192.168.1.3"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_EQ(msg_res->actions.size(), 2);
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "stack_trace");
+        EXPECT_STREQ(msg_res->actions[1].verdict.c_str(), "record");
     }
 }
 
@@ -729,9 +960,9 @@ TEST(ClientTest, RequestInitBrokerThrows)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
-
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
         network::request req(std::move(msg));
 
         std::shared_ptr<network::base_response> res;
@@ -759,7 +990,12 @@ TEST(ClientTest, RequestShutdown)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("Arachni"sv));
+
         msg.data.add("server.response.code", parameter::string("1991"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -773,14 +1009,14 @@ TEST(ClientTest, RequestShutdown)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_EQ(msg_res->triggers.size(), 1);
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
-        EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
-        EXPECT_EQ(msg_res->meta.size(), 1);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
+        EXPECT_EQ(msg_res->meta.size(), 3);
         EXPECT_STREQ(
-            msg_res->meta[std::string(tag::event_rules_version)].c_str(),
+            msg_res->meta[std::string(metrics::event_rules_version)].c_str(),
             "1.2.3");
     }
 }
@@ -814,16 +1050,17 @@ TEST(ClientTest, RequestShutdownBlock)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
 
         EXPECT_EQ(msg_res->metrics.size(), 1);
-        EXPECT_GT(msg_res->metrics[tag::waf_duration], 0.0);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
         EXPECT_EQ(msg_res->meta.size(), 1);
         EXPECT_STREQ(
-            msg_res->meta[std::string(tag::event_rules_version)].c_str(),
+            msg_res->meta[std::string(metrics::event_rules_version)].c_str(),
             "1.2.3");
     }
 }
@@ -1657,9 +1894,10 @@ TEST(ClientTest, RequestExecAfterRequestInit)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
     }
 }
@@ -1692,8 +1930,8 @@ TEST(ClientTest, RequestExecWithoutAttack)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "ok");
-        EXPECT_EQ(msg_res->parameters.size(), 0);
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+        EXPECT_EQ(msg_res->actions[0].parameters.size(), 0);
         EXPECT_EQ(msg_res->triggers.size(), 0);
     }
 }
@@ -1727,10 +1965,236 @@ TEST(ClientTest, RequestExecWithAttack)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
+    }
+}
+
+TEST(ClientTest, RequestInitWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // Request Init
+    {
+        network::request_init::request msg;
+
+        msg.data = parameter::map();
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        auto headers = parameter::map();
+        headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_init::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+        EXPECT_EQ(msg_res->triggers.size(), 0);
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
+    }
+}
+
+TEST(ClientTest, RequestExecWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+    request_init(broker, c);
+
+    // Request Exec
+    {
+        network::request_exec::request msg;
+        msg.data = parameter::map();
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        auto headers = parameter::map();
+        headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_exec::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+    }
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "ok");
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
+    }
+}
+
+TEST(ClientTest, RequestShutdownWithFingerprint)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+    request_init(broker, c);
+
+    // Request Shutdown
+    {
+        network::request_shutdown::request msg;
+
+        msg.data = parameter::map();
+
+        // Endpoint Fingerprint inputs
+        auto query = parameter::map();
+        query.add("query", parameter::string("asdfds"sv));
+        msg.data.add("server.request.uri.raw", parameter::string("asdfds"sv));
+        msg.data.add("server.request.method", parameter::string("GET"sv));
+        msg.data.add("server.request.query", std::move(query));
+
+        // Network and Headers Fingerprint inputs
+        auto headers = parameter::map();
+        headers.add("X-Forwarded-For", parameter::string("192.168.72.0"sv));
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+
+        // Session Fingerprint inputs
+        msg.data.add("server.request.cookies", parameter::string("asdfds"sv));
+        msg.data.add("usr.session_id", parameter::string("asdfds"sv));
+        msg.data.add("usr.id", parameter::string("asdfds"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.endpoint"].c_str(),
+            MatchesRegex("http-get(-[A-Za-z0-9]*){3}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.network"].c_str(),
+            MatchesRegex("net-[0-9]*-[a-zA-Z0-9]*"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.http.header"].c_str(),
+            MatchesRegex("hdr(-[0-9]*-[a-zA-Z0-9]*){2}"));
+
+        EXPECT_THAT(msg_res->meta["_dd.appsec.fp.session"].c_str(),
+            MatchesRegex("ssn(-[a-zA-Z0-9]*){4}"));
     }
 }
 
@@ -1801,7 +2265,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
 
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, _, true))
+        EXPECT_CALL(*smanager, create_service(_, _))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -1817,7 +2281,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -1833,7 +2297,7 @@ TEST(ClientTest, ServiceIsCreatedDependingOnEnabledConfigurationValue)
             send(
                 testing::An<const std::shared_ptr<network::base_response> &>()))
             .WillRepeatedly(Return(true));
-        EXPECT_CALL(*smanager, create_service(_, _, _, _, _, false))
+        EXPECT_CALL(*smanager, create_service(_, _))
             .Times(1)
             .WillOnce(Return(service));
         client c(smanager, std::unique_ptr<mock::broker>(broker));
@@ -1874,9 +2338,10 @@ TEST(ClientTest, RequestCallsWorkIfRequestInitWasEnabled)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_exec::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "block");
-        EXPECT_STREQ(msg_res->parameters["type"].c_str(), "auto");
-        EXPECT_STREQ(msg_res->parameters["status_code"].c_str(), "403");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "block");
+        EXPECT_STREQ(msg_res->actions[0].parameters["type"].c_str(), "auto");
+        EXPECT_STREQ(
+            msg_res->actions[0].parameters["status_code"].c_str(), "403");
         EXPECT_EQ(msg_res->triggers.size(), 1);
     }
 
@@ -2075,8 +2540,10 @@ TEST(ClientTest, RequestShutdownLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("Arachni"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("Arachni"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -2111,7 +2578,7 @@ TEST(ClientTest, RequestShutdownLimiter)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_TRUE(msg_res->force_keep);
     }
 
@@ -2158,7 +2625,7 @@ TEST(ClientTest, RequestShutdownLimiter)
         EXPECT_TRUE(c.run_request());
         auto msg_res =
             dynamic_cast<network::request_shutdown::response *>(res.get());
-        EXPECT_STREQ(msg_res->verdict.c_str(), "record");
+        EXPECT_STREQ(msg_res->actions[0].verdict.c_str(), "record");
         EXPECT_FALSE(msg_res->force_keep);
     }
 }
@@ -2180,8 +2647,10 @@ TEST(ClientTest, RequestExecLimiter)
     {
         network::request_init::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("Arachni"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("Arachni"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -2285,8 +2754,12 @@ TEST(ClientTest, SchemasAreAddedOnRequestShutdownWhenEnabled)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
+        msg.api_sec_samp_key = 0x42LL;
 
         network::request req(std::move(msg));
 
@@ -2304,7 +2777,7 @@ TEST(ClientTest, SchemasAreAddedOnRequestShutdownWhenEnabled)
         EXPECT_GT(count_schemas(msg_res->meta), 0);
         EXPECT_STREQ(
             msg_res->meta["_dd.appsec.s.req.headers.no_cookies"].c_str(),
-            "[8]");
+            "[{\"user-agent\":[8]}]");
     }
 }
 
@@ -2327,8 +2800,9 @@ TEST(ClientTest, SchemasAreNotAddedOnRequestShutdownWhenDisabled)
     { // Request Shutdown
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         network::request req(std::move(msg));
 
@@ -2363,8 +2837,10 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
     {
         network::request_shutdown::request msg;
         msg.data = parameter::map();
-        msg.data.add("server.request.headers.no_cookies",
-            parameter::string("acunetix-product"sv));
+        auto headers = parameter::map();
+        headers.add("user-agent", parameter::string("acunetix-product"sv));
+
+        msg.data.add("server.request.headers.no_cookies", std::move(headers));
 
         auto body = parameter::map();
         auto expected_schemas = parameter::map();
@@ -2381,6 +2857,7 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
             i++;
         }
         msg.data.add("server.request.body", std::move(body));
+        msg.api_sec_samp_key = 0x42LL;
 
         network::request req(std::move(msg));
 
@@ -2405,6 +2882,85 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
             base64_decode(msg_res->meta["_dd.appsec.s.req.body"], false))
                                     ->c_str();
         EXPECT_FALSE(d.Parse(body_sent).HasParseError());
+    }
+}
+
+TEST(ClientTest, RaspCalls)
+{
+    auto smanager = std::make_shared<service_manager>();
+    auto broker = new mock::broker();
+
+    client c(smanager, std::unique_ptr<mock::broker>(broker));
+
+    set_extension_configuration_to(broker, c, EXTENSION_CONFIGURATION_ENABLED);
+
+    // No Rasp during request
+    {
+        request_init(broker, c);
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+        msg.data.add("server.response.code", parameter::string("1991"sv));
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+
+        EXPECT_EQ(msg_res->metrics.size(), 1);
+        EXPECT_GT(msg_res->metrics[metrics::waf_duration], 0.0);
+    }
+
+    // Rasp during request
+    {
+        request_init(broker, c);
+
+        // Request Execution
+        {
+            network::request_exec::request msg;
+
+            msg.rasp_rule = "lfi";
+            msg.data = parameter::map();
+
+            network::request req(std::move(msg));
+
+            std::shared_ptr<network::base_response> res;
+            EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+            EXPECT_CALL(*broker,
+                send(testing::An<
+                    const std::shared_ptr<network::base_response> &>()))
+                .WillOnce(DoAll(Return(true)));
+
+            EXPECT_TRUE(c.run_request());
+        }
+
+        network::request_shutdown::request msg;
+        msg.data = parameter::map();
+
+        network::request req(std::move(msg));
+
+        std::shared_ptr<network::base_response> res;
+        EXPECT_CALL(*broker, recv(_)).WillOnce(Return(req));
+        EXPECT_CALL(*broker,
+            send(
+                testing::An<const std::shared_ptr<network::base_response> &>()))
+            .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
+
+        EXPECT_TRUE(c.run_request());
+        auto msg_res =
+            dynamic_cast<network::request_shutdown::response *>(res.get());
+
+        EXPECT_EQ(msg_res->metrics.size(), 3);
+        EXPECT_GE(msg_res->metrics[metrics::waf_duration], 0.0);
+        EXPECT_EQ(msg_res->metrics[metrics::rasp_rule_eval], 1);
+        EXPECT_GE(msg_res->metrics[metrics::rasp_duration], 0.0);
     }
 }
 

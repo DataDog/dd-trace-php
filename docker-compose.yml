@@ -13,9 +13,10 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
         - agent-socket:/var/run/datadog
         - .cargo-registry:/rust/cargo/registry
-      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec', '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec,size=12G' ]
       depends_on:
         - agent
+        #- staging_agent
         - ddagent_integration
         - request-replayer
         - test-agent
@@ -28,6 +29,8 @@ x-aliases:
         - mongodb_integration
         - mysql_integration
         - memcached_integration
+        - googlespanner_integration
+        - kafka_integration
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
@@ -81,9 +84,12 @@ services:
   '8.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
   '8.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
   '8.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_buster' }
+  '8.4-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_buster' }
   'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- Bookworm ---
-  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-2' }
+  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-5' }
+  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-5' }
+  '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-5' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
   '7.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
@@ -93,6 +99,8 @@ services:
   '8.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-7' }
   '8.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-7' }
   '8.2-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
+  '8.3-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_centos-7' }
+  '8.4-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_centos-7' }
   # --- Windows ---
   '7.0-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.0_windows' }
   '7.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.1_windows' }
@@ -103,6 +111,7 @@ services:
   '8.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.1_windows' }
   '8.2-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.2_windows' }
   '8.3-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.3_windows' }
+  '8.4-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.4_windows' }
 
   rabbitmq_integration:
     image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
@@ -115,6 +124,8 @@ services:
     command: --default-authentication-plugin=mysql_native_password --sql-mode="NO_ENGINE_SUBSTITUTION"
     ports:
       - "3306:3306"
+    volumes:
+      - ./dockerfiles/services/mysql:/docker-entrypoint-initdb.d
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
@@ -149,6 +160,46 @@ services:
             soft: -1
             hard: -1
 
+  googlespanner_integration:
+    image: gcr.io/cloud-spanner-emulator/emulator:1.5.25
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+    networks:
+      default:
+        aliases:
+          - spanner.local
+
+  kafka_integration:
+    image: confluentinc/cp-kafka:7.7.1
+    ports:
+      - "9092:9092"
+    networks:
+      default:
+        aliases:
+          - kafka_integration
+    environment:
+        - KAFKA_BROKER_ID=111
+        - KAFKA_CREATE_TOPICS=test-lowlevel:1:1,test-highlevel:1:1
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka_integration:9092
+        - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+        - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+        - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+        - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+        - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+        - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.1
+    ports:
+      - "2181:2181"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+
   mongodb_integration:
     image: "circleci/mongo:4.0"
     ports:
@@ -164,7 +215,7 @@ services:
     image: "memcached:1.5-alpine"
 
   httpbin_integration:
-    image: kong/httpbin
+    image: kong/httpbin:0.2.2
     ports:
       - "8765:80"
 
@@ -197,8 +248,28 @@ services:
       - DD_APM_ENABLED=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
       - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
     ports:
       - "8126:8126"
+
+  staging_agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - agent-socket:/var/run/datadog
+    environment:
+      - DD_API_KEY=${DATADOG_STAGING_API_KEY}
+      - DD_SITE=datad0g.com
+      - DD_APM_ENABLED=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=1
+      - DD_APM_RECEIVER_SOCKET=/var/run/datadog/apm.socket
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
+      - DD_REMOTE_CONFIGURATION_REFRESH_INTERVAL=5s
+      - DD_APM_RECEIVER_PORT=8125
+    ports:
+      - "8125:8125"
 
   packager:
     image: datadog/docker-library:ddtrace_php_fpm_packaging
@@ -207,7 +278,7 @@ services:
       - .:/app
 
   test-agent:
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     ports:
       - "127.0.0.1:9126:8126"
     volumes:
@@ -222,7 +293,7 @@ services:
       - DD_DISABLE_ERROR_RESPONSES=true
       - SNAPSHOTS_DIR=/snapshots
       - SNAPSHOT_CI=0
-      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.process_id
+      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.php.memory.peak_usage_bytes,metrics.php.memory.peak_real_usage_bytes,metrics.process_id
       - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
 
 

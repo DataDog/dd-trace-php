@@ -14,9 +14,9 @@ datadog.profiling.log_level=debug
 --FILE--
 <?php
 usleep(10000);
-var_dump(PHP_ZTS);
+var_dump((bool)PHP_ZTS);
 ?>
 --EXPECTREGEX--
 .*Started with an upload period of 67 seconds and approximate wall-time period of 10 milliseconds.
-.*int\(1\)
+.*bool\(true\)
 .*

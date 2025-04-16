@@ -23,9 +23,12 @@ class LaminasLogV2Test extends BaseLogsTest
     protected function getLogger($jsonFormatter = false)
     {
         $logger = new Logger();
-        $writer = new Stream('/tmp/test.log');
+        $writer = new Stream(static::logFile());
 
         if ($jsonFormatter) {
+            if (!class_exists(Json::class)) {
+                $this->markTestSkipped("LaminasLog v2.7+ have an explicit PHP version support range. 2.6 gets automatically installed on PHP 8.4. But Json requires v2.10+. Skipping.");
+            }
             $writer->setFormatter(new Json());
         }
 

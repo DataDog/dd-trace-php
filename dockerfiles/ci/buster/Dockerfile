@@ -9,11 +9,10 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    clang-16 \
-    libclang-16-dev \
-    libclang-rt-16-dev \
-    llvm-16-dev \
-    lld-16 \
+    libclang-17-dev \
+    libclang-rt-17-dev \
+    llvm-17-dev \
+    lld-17 \
     libbrotli-dev \
     libcurl4-openssl-dev \
     libedit-dev \
@@ -23,9 +22,12 @@ ENV DEVLIBS \
     libjpeg-dev \
     libmcrypt-dev \
     libmemcached-dev \
+    libodbc1 \
     libonig-dev \
     libpq-dev \
     libpng-dev \
+    librabbitmq-dev \
+    librdkafka-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \
@@ -33,31 +35,29 @@ ENV DEVLIBS \
     libxml2-dev \
     libxslt1-dev \
     libzip-dev \
+    libc6-dbg \
+    odbcinst1debian2 \
     zlib1g-dev \
-    libasan5 \
-    gnupg \
-    gpg \
     unixodbc-dev \
     unixodbc
 
+#netcat
 ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang \
     clang-format \
     curl \
     debian-goodies \
-    gdb \
     git \
     less \
+    lsof \
     netbase \
     netcat \
     nginx \
     strace \
     sudo \
     unzip \
-    valgrind \
     vim \
     xz-utils \
     zip
@@ -65,10 +65,13 @@ ENV RUNTIME_DEPS \
 ENV PHPIZE_DEPS \
     autoconf \
     bison \
+    clang-17 \
+    cmake \
     dpkg-dev \
     file \
-    g++ \
-    gcc \
+    gnupg \
+    gpg \
+    file \
     libc-dev \
     make \
     pkg-config \
@@ -89,11 +92,11 @@ RUN set -eux; \
     echo "deb http://deb.debian.org/debian-debug/ buster-debug main" | \
         tee -a /etc/apt/sources.list; \
     \
-# Use LLVM from orig vendor (also LLVM 16 is not shipped with buster)
+# Use LLVM from orig vendor (also LLVM 17 is not shipped with buster)
     apt-get update; \
     apt-get install -y curl gnupg; \
-    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
-    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-16 main" >> /etc/apt/sources.list; \
+    echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-17 main" >> /etc/apt/sources.list; \
+    echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-17 main" >> /etc/apt/sources.list; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
     \
@@ -108,17 +111,9 @@ RUN set -eux; \
 # persistent / runtime deps
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        gcc-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
-        g++-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
-        libc6-dev-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo arm64; else echo amd64; fi)-cross \
         $DEVLIBS \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \
-    \
-# valgrind 3.14 has a fatal bug making it unusable with PHP on arm64, manually install valgrind from bullseye \
-    curl -O http://ftp.de.debian.org/debian/pool/main/v/valgrind/valgrind_3.16.1-1_${TARGETPLATFORM#linux/}.deb; \
-    dpkg -i valgrind*.deb; \
-    rm valgrind*.deb; \
     \
 # Disable DST ROOT X3 certificate explicitly to fix conflicts with older openssl versions \
     sed -ri 's/(mozilla\/DST_Root_CA_X3.crt)/!\1/' /etc/ca-certificates.conf; \
@@ -131,7 +126,17 @@ RUN set -eux; \
         echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep; \
     \
 # Allow nginx to be run as non-root for tests
-    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/;
+    chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
+    \
+# Make clang the default compiler
+    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100; \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100; \
+    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-17 100; \
+    echo "-L /usr/lib/llvm-17/lib/clang/17/lib/linux" > /usr/lib/llvm-17/bin/clang.cfg; \
+# Include libasan library path
+    echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
 
 ENV CMAKE_VERSION="3.24.4"
 
@@ -173,6 +178,31 @@ RUN set -eux; \
     make install; \
     lcov --version; \
     rm -rfv /tmp/*
+
+# Install gdb
+RUN set -eux; \
+    apt install -y libmpfr-dev libgmp-dev; \
+    GDB_VERSION="15.2"; \
+    GDB_SHA256="9d16bc2539a2a20dc3ef99b48b8414d51c51305c8577eb7a1da00996f6dea223";\
+    cd /tmp && curl -OL https://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz; \
+    (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir gdb && cd gdb; \
+    tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
+    ./configure; \
+    make -j "$((`nproc`+1))"; \
+    make install
+
+# Install valgrind
+RUN set -eux; \
+    VALGRIND_VERSION="3.23.0"; \
+    VALGRIND_SHA1="ec410c75d3920d4f9249a5cfa2cac31e1bf6d586"; \
+    cd /tmp && curl -OL https://sourceware.org/pub/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
+    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha1sum -c -); \
+    mkdir valgrind && cd valgrind; \
+    tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
+    ./configure; \
+    make -j "$((`nproc`+1))"; \
+    make install
 
 # Install SqlServer PHP Driver
 # https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
@@ -261,9 +291,9 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.71.1"
-ARG RUST_SHA256_ARM="c7cf230c740a62ea1ca6a4304d955c286aea44e3c6fc960b986a8c2eeea4ec3f"
-ARG RUST_SHA256_X86="34778d1cda674990dfc0537bc600066046ae9cb5d65a07809f7e7da31d4689c4"
+ARG RUST_VERSION="1.78.0"
+ARG RUST_SHA256_ARM="131eda738cd977fff2c912e5838e8e9b9c260ecddc1247c0fe5473bf09c594af"
+ARG RUST_SHA256_X86="1307747915e8bd925f4d5396ab2ae3d8d9c7fad564afbc358c081683d0f22e87"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

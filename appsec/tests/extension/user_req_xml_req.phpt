@@ -16,8 +16,8 @@ use function DDTrace\start_span;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createinitedRun([
-    response_list(response_request_init(['ok'])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
 ]);
 
 $span = start_span();

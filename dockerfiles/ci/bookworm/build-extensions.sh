@@ -6,6 +6,9 @@ SHARED_BUILD=$(if php -i | grep -q enable-pcntl=shared; then echo 1; else echo 0
 PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 
+# This make `pecl install` use all available cores
+export MAKEFLAGS="-j $(nproc)"
+
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
   XDEBUG_VERSIONS=(-2.7.2)
@@ -17,8 +20,10 @@ elif [[ $PHP_VERSION_ID -le 81 ]]; then
   XDEBUG_VERSIONS=(-3.1.0)
 elif [[ $PHP_VERSION_ID -le 82 ]]; then
   XDEBUG_VERSIONS=(-3.2.2)
+elif [[ $PHP_VERSION_ID -le 83 ]]; then
+  XDEBUG_VERSIONS=(-3.3.2)
 else
-  XDEBUG_VERSIONS=(-3.3.0)
+  XDEBUG_VERSIONS=(-3.4.0)
 fi
 
 MONGODB_VERSION=
@@ -54,8 +59,8 @@ fi
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
 
 export PKG_CONFIG=/usr/bin/$HOST_ARCH-linux-gnu-pkg-config
-export CC=$HOST_ARCH-linux-gnu-gcc
-export CXX=$HOST_ARCH-linux-gnu-g++
+# export CC=$HOST_ARCH-linux-gnu-gcc
+# export CXX=$HOST_ARCH-linux-gnu-g++
 
 iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}');
 
@@ -129,5 +134,24 @@ else
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_ZTS -eq 1 ]]; then
     pecl install parallel;
     echo "extension=parallel" >> ${iniDir}/parallel.ini;
+  fi
+
+  # ext-swoole needs PHP 8
+  if [[ $PHP_VERSION_ID -ge 80 ]]; then
+    pushd /tmp
+    if [[ $PHP_VERSION_ID -ge 83 ]]; then
+      pecl download swoole-6.0.0RC1;
+      tar xzf swoole-6.0.0RC1.tgz
+      cd swoole-6.0.0RC1
+    else
+      pecl download swoole-5.1.6;
+      tar xzf swoole-5.1.6.tgz
+      cd swoole-5.1.6
+    fi
+    phpize
+    ./configure --host=$HOST_ARCH-linux-gnu
+    make -j "$((`nproc`+1))"
+    make install
+    popd
   fi
 fi

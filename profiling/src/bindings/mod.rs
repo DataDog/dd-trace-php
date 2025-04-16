@@ -2,6 +2,8 @@ mod ffi;
 
 pub use ffi::*;
 
+pub use datadog_library_config_ffi::*;
+
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -20,6 +22,8 @@ pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
 #[cfg(feature = "timeline")]
 pub type VmZendCompileFile =
     unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
+#[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+pub type VmZendAccelScheduleRestartHook = unsafe extern "C" fn(i32);
 #[cfg(all(feature = "timeline", php_zend_compile_string_has_position))]
 pub type VmZendCompileString = unsafe extern "C" fn(
     *mut zend_string,
@@ -44,6 +48,10 @@ pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
 #[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
+#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomGcFn = unsafe extern "C" fn() -> size_t;
+#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomShutdownFn = unsafe extern "C" fn(bool, bool);
 
 // todo: this a lie on some PHP versions; is it a problem even though zend_bool
 //       was always supposed to be 0 or 1 anyway?
@@ -126,10 +134,9 @@ impl _zend_function {
 
     /// Returns the module name, if there is one. May return Some(b"\0").
     pub fn module_name(&self) -> Option<&[u8]> {
-        // Safety: the function's type field is always safe to access.
-        if unsafe { self.type_ } == ZEND_INTERNAL_FUNCTION as u8 {
-            // Safety: union access is guarded by ZEND_INTERNAL_FUNCTION, and
-            // assume its module is valid.
+        if self.is_internal() {
+            // Safety: union access is guarded by is_internal(), and assume
+            // its module is valid.
             unsafe { self.internal_function.module.as_ref() }
                 .filter(|module| !module.name.is_null())
                 // Safety: assume module.name has a valid c string.
@@ -137,6 +144,12 @@ impl _zend_function {
         } else {
             None
         }
+    }
+
+    #[inline]
+    pub fn is_internal(&self) -> bool {
+        // Safety: the function's type field is always safe to access.
+        unsafe { self.type_ == ZEND_INTERNAL_FUNCTION }
     }
 }
 
@@ -164,12 +177,25 @@ pub struct ModuleEntry {
         Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
     pub info_func: Option<unsafe extern "C" fn(zend_module: *mut ModuleEntry)>,
     pub version: *const u8,
+    /// Size of the module globals in bytes. In ZTS this will be the size TSRM will allocate per
+    /// thread for module globals. The function pointers in [`ModuleEntry::globals_ctor`] and
+    /// [`ModuleEntry::globals_dtor`] will only be called if this is a non-zero.
     pub globals_size: size_t,
+    /// Pointer to a `ts_rsrc_id` (which is a [`i32`]). For C-Extension this is created using the
+    /// `ZEND_DECLARE_MODULE_GLOBALS(module_name)` macro.
+    /// See <https://heap.space/xref/PHP-8.3/Zend/zend_API.h?r=a89d22cc#249>
     #[cfg(php_zts)]
     pub globals_id_ptr: *mut ts_rsrc_id,
+    /// Pointer to the module globals struct in NTS mode
     #[cfg(not(php_zts))]
     pub globals_ptr: *mut c_void,
+    /// Constructor for module globals.
+    /// Be aware this will only be called in case [`ModuleEntry::globals_size`] is non-zero and for
+    /// ZTS you need to make sure [`ModuleEntry::globals_id_ptr`] is a valid, non-null pointer.
     pub globals_ctor: Option<unsafe extern "C" fn(global: *mut c_void)>,
+    /// Destructor for module globals.
+    /// Be aware this will only be called in case [`ModuleEntry::globals_size`] is non-zero and for
+    /// ZTS you need to make sure [`ModuleEntry::globals_id_ptr`] is a valid, non-null pointer.
     pub globals_dtor: Option<unsafe extern "C" fn(global: *mut c_void)>,
     pub post_deactivate_func: Option<unsafe extern "C" fn() -> ZendResult>,
     pub module_started: c_int,
@@ -297,6 +323,9 @@ extern "C" {
     #[cfg(php7)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 
+    /// Writes a string to the output.
+    pub static zend_write: Option<unsafe extern "C" fn(*const c_char, usize) -> usize>;
+
     /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
@@ -378,6 +407,22 @@ unsafe impl Sync for ModuleDep {}
 
 pub type InternalFunctionHandler =
     Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval)>;
+
+impl datadog_php_zim_handler {
+    pub fn new(
+        class_name: &'static CStr,
+        name: &'static CStr,
+        old_handler: *mut InternalFunctionHandler,
+        new_handler: InternalFunctionHandler,
+    ) -> Self {
+        let class_name = class_name.to_bytes();
+        Self {
+            class_name: class_name.as_ptr() as *const c_char,
+            class_name_len: class_name.len(),
+            zif: datadog_php_zif_handler::new(name, old_handler, new_handler),
+        }
+    }
+}
 
 impl datadog_php_zif_handler {
     pub fn new(
@@ -532,6 +577,12 @@ impl<'a> From<&'a str> for ZaiStr<'a> {
     }
 }
 
+impl Default for ZaiStr<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ZaiStr<'a> {
     pub const fn new() -> ZaiStr<'a> {
         const NULL: &[u8] = b"\0";
@@ -611,6 +662,8 @@ pub struct ZaiConfigEntry {
     pub aliases_count: u8,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
+    pub displayer: zai_custom_display,
+    pub env_config_fallback: zai_env_config_fallback,
 }
 
 #[repr(C)]
@@ -624,6 +677,8 @@ pub struct ZaiConfigMemoizedEntry {
     pub name_index: i16,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
+    pub displayer: zai_custom_display,
+    pub env_config_fallback: zai_env_config_fallback,
     pub original_on_modify: Option<
         unsafe extern "C" fn(
             entry: *mut zend_ini_entry,

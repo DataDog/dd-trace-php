@@ -29,12 +29,6 @@
         <active>yes</active>
     </lead>
     <lead>
-        <name>Joe Watkins</name>
-        <user>krakjoe</user>
-        <email>krakjoe@php.net</email>
-        <active>yes</active>
-    </lead>
-    <lead>
         <name>Pierre Bonet</name>
         <user>pierotibou</user>
         <email>pierotibou@php.net</email>
@@ -44,6 +38,18 @@
         <name>Alejandro Estringana Ruiz</name>
         <user>estringanadd</user>
         <email>estringanadd@php.net</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Florian Engelhardt</name>
+        <user>flowcontrol</user>
+        <email>flo@dotbox.org</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Luc Vieillescazes</name>
+        <user>iamluc</user>
+        <email>luc@vieillescazes.net</email>
         <active>yes</active>
     </lead>
     <!-- **Automatically updated with pecl-build script** -->
@@ -56,50 +62,66 @@
         <api>${version}</api>
     </version>
     <stability>
-        <release>beta</release>
+        <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         <![CDATA[
-This beta release contains all breaking changes planned for dd-trace-php 1.0. An upgrade guide can be found at https://github.com/DataDog/dd-trace-php/blob/1.0.0beta1/UPGRADE-1.0.md.
+## All products
+### Added
+- Add support for file based configuration (library-config) #3068
 
 ## Tracer
-
 ### Added
-- Add --ini and --extension-dir installation option #2620
-- CodeIgniter 3 Compatibility #2515
-- Add CakePHP 3+ Support #2618
+- Add DDTrace\try_drop_span() API #3136
+- Add support for PDO::connect #3125
+- Add span creation and close handlers #3123
+- API Gateway Tracing #3116
+- Add a Ratchet integration #3115
+- Baggage Header Propagation Support #3102
+- Crashtracking for windows #3099
 
 ### Changed
-- Cleanup deferred loader and remove some PHP 5 compat code #2527
-- Change DD_TRACE_SAMPLING_RULES_FORMAT default from regex to glob #2534
-- Raise API errors instead of debug logs when wrong arguments are passed #2542
-- Change WordPress Default Behavior #2525
-- [OTel] Only set resource info on root spans #2558
-- Remove early code execution and use an autoloader instead #2530
-- Remove deprecated configuration keys or APIs #2574
-- Drop Configuration classes from API #2596
+- Enable 128 bit trace_id logging by default #3163
+- Allow whitespace as separator in DD_TAGS #3162
+- Implement Disable APM Tracing #3080
 
 ### Fixed
-- Elasticsearch: Hook not being removed #2616
-- Fix shared compilation on macOS
-- Fix host Scopes not being removed #2624
-- Add note about update_span_duration semantics #2622
+- Support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
+- Handle flushing of multiple traces at once #3176
 
 ### Internal
-- Use a global version and change installer tests to use the version #2537
-- Clean PHP 5 checks #2584
-- Collect 'logs_created' internal metric #2604
-- Make the root Makefile macOS compatible #2614
-- Add stats reporting for sidecar and telemetry #2621
-- Clean Integration configuration #2598
-- Re-added spans_created telemetry metric Datadog/libdatadog#391
+- Show actual file and line for occurrence of exceptions as well #3172
+- Support ZSTR_PARENT known_string #3106
 
-## Application Security Management
+## Profiling
+### Added
+- Add profiling and appsec to SSI #3063
 
 ### Fixed
-- Disable Appsec when FrankenPHP SAPI is detected #2617
+- FrankenPHP idle phase #3169
+- Add active span null check #3164
+- Avoid some OOM panics and avoid long strings #3151
+- Fix upscaling of I/O profiles #3146
+
+### Internal
+- Add 'tracing' features to capture time spent walking the stack #3094
+
+## Application Security Management
+### Added
+- Implement API Security Sampling RFC #3117
+- Add authenticated user tracking #3114
+- Add profiling and appsec to SSI #3063
+
+### Changed
+- Upgrade libddwaf #3126
+
+### Fixed
+- Emit asm event on user events #3170
+
+### Internal
+- Add more logging around stack generation #3096
 ]]></notes>
     <contents>
         <dir name="/">
@@ -123,7 +145,7 @@ This beta release contains all breaking changes planned for dd-trace-php 1.0. An
         <required>
             <php>
                 <min>7.0</min>
-                <max>8.3.99</max>
+                <max>8.4.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

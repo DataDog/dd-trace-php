@@ -9,7 +9,9 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static $database = "laravel42";
+
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
@@ -39,7 +41,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'simple_route',
                         'laravel.route.action' => 'HomeController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost/simple',
                         'http.status_code' => '200',
                         'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',

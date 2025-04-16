@@ -16,8 +16,8 @@ use function DDTrace\close_span;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createinitedRun([
-    response_list(response_request_init(['redirect', ['status_code' => '302', 'location' => 'https://www.example.com'], ['{"yet another":"attack"}'], true])),
-    response_list(response_request_shutdown(['ok', [], [], []]))
+    response_list(response_request_init([[['redirect', ['status_code' => '302', 'location' => 'https://www.example.com']]], ['{"yet another":"attack"}'], true])),
+    response_list(response_request_shutdown([[['ok', []]], [], []]))
 ]);
 
 $span = start_span();

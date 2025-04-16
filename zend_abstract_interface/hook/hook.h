@@ -28,10 +28,12 @@ typedef void (*zai_hook_generator_yield)(zend_ulong invocation, zend_execute_dat
 typedef struct {
     void *data;
     void (*dtor)(void *data);
+    void (*resolved)(void *data, bool found);
 } zai_hook_aux; /* }}} */
 
 /* {{{ zai_hook_aux ZAI_HOOK_AUX(void *pointer, void (*destructor)(void *pointer)) */
-#define ZAI_HOOK_AUX(pointer, destructor) (zai_hook_aux){ .data = (pointer), .dtor = (destructor) }
+#define ZAI_HOOK_AUX_RESOLVED(pointer, destructor, resolvedfn) (zai_hook_aux){ .data = (pointer), .dtor = (destructor), .resolved = (resolvedfn) }
+#define ZAI_HOOK_AUX(pointer, destructor) ZAI_HOOK_AUX_RESOLVED(pointer, destructor, NULL)
 #define ZAI_HOOK_AUX_UNUSED ZAI_HOOK_AUX(NULL, NULL)
 /* }}} */
 

@@ -1,0 +1,1 @@
+{"message":"sampled createCompletion","status":"error","timestamp":"2024-07-18T07:58:35.721700+00:00","env":"test","version":"1.0","service":"openai-test","openai.request.method":"POST","openai.request.endpoint":"\/v1\/completions","openai.request.model":"gpt-4","openai.user.api_key":"sk-...9d5d","dd.trace_id":"14096723169168487868","dd.span_id":"14096723169168487868"}

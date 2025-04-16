@@ -9,19 +9,14 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <type_traits>
 #include <utility>
 
 namespace dds {
 
-template <typename T, typename... Args>
-inline constexpr std::size_t hash(T &value, Args... args)
+template <typename... Args> inline constexpr std::size_t hash(Args... args)
 {
-    using non_const_t = typename std::remove_cv<T>::type;
-    if constexpr (sizeof...(Args) == 0) {
-        return std::hash<non_const_t>{}(value);
-    } else {
-        return std::hash<non_const_t>{}(value) ^ hash<Args...>(args...);
-    }
+    return (... ^ std::hash<std::remove_cv_t<Args>>{}(args));
 }
 
 template <typename T> struct defer {
@@ -51,5 +46,23 @@ inline std::string dd_tolower(std::string string)
 }
 
 std::string read_file(std::string_view filename);
+
+#ifdef __linux__
+extern "C" int __xpg_strerror_r(int, char *, size_t);
+#endif
+inline std::string strerror_ts(int errnum)
+{
+    std::string buf(256, '\0'); // NOLINT
+
+#ifdef __linux__
+    (void)__xpg_strerror_r(errnum, buf.data(), buf.size());
+#else
+    (void)strerror_r(errnum, buf.data(), buf.size());
+#endif
+
+    buf.resize(std::strlen(buf.data()));
+
+    return buf;
+}
 
 } // namespace dds

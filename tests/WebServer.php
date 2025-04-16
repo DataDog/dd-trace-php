@@ -20,7 +20,7 @@ use PHPUnit\Framework\Assert;
 final class WebServer
 {
     const FCGI_HOST = '0.0.0.0';
-    const FCGI_PORT = 9797;
+    const FCGI_PORT = 9797 - GLOBAL_PORT_OFFSET;
 
     const ERROR_LOG_NAME = 'dd_php_error.log';
 
@@ -128,6 +128,13 @@ final class WebServer
 
     public function start()
     {
+        if (!isset($this->envs['DD_TRACE_DEBUG'])) {
+            $this->inis['datadog.trace.debug'] = 'true';
+        }
+        if (GLOBAL_AUTO_PREPEND_FILE) {
+            $this->inis['auto_prepend_file'] = GLOBAL_AUTO_PREPEND_FILE;
+        }
+
         $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
 
         if ($this->roadrunnerVersion) {
@@ -150,6 +157,7 @@ final class WebServer
         } elseif ($this->isSwoole) {
             $this->sapi = new SwooleServer(
                 $this->indexFile,
+                $this->port,
                 $this->envs,
                 $this->inis
             );
@@ -279,7 +287,7 @@ final class WebServer
         $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
         $out = "";
         foreach (explode("\n", $diff) as $line) {
-            if (preg_match("(\[ddtrace] \[(error|warn|deprecated)])", $line)) {
+            if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)) {
                 $out .= $line;
             }
         }

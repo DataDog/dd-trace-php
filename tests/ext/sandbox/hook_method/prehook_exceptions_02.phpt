@@ -1,6 +1,7 @@
 --TEST--
 DDTrace\hook_method prehook exception is sandboxed (debug)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_LOG_LEVEL=info,startup=off
 --FILE--
 <?php
@@ -32,7 +33,7 @@ try {
 ?>
 --EXPECTF--
 Greeter::greet hooked.
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:%d for Greeter::greet(): !
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:%d for Greeter::greet(): ! in %s on line %d
 Hello, Datadog.
 Done.
 [ddtrace] [info] Flushing trace of size 1 to send-queue for %s

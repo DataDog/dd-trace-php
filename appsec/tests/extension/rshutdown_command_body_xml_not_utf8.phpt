@@ -3,6 +3,8 @@ request_shutdown — xml body variant (not utf-8)
 --INI--
 expose_php=0
 datadog.appsec.enabled=1
+datadog.appsec.log_file=/tmp/php_appsec_test.log
+datadog.appsec.log_level=info
 --GET--
 a=b
 --FILE--
@@ -12,8 +14,8 @@ use function datadog\appsec\testing\{rinit,rshutdown};
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()]))
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
 
 header('content-type: application/xml;charset=iso-8859-1');
@@ -30,7 +32,10 @@ $helper->get_commands(); // ignore
 
 var_dump(rshutdown());
 $c = $helper->get_commands();
-print_r($c[0]);
+print_r($c[0][1][0]);
+
+require __DIR__ . '/inc/logging.php';
+match_log("/Only UTF-8 is supported for XML parsing/");
 
 ?>
 --EXPECT--
@@ -42,23 +47,15 @@ bool(true)
 bool(true)
 Array
 (
-    [0] => request_shutdown
-    [1] => Array
+    [server.response.status] => 403
+    [server.response.headers.no_cookies] => Array
         (
-            [0] => Array
+            [content-type] => Array
                 (
-                    [server.response.status] => 403
-                    [server.response.headers.no_cookies] => Array
-                        (
-                            [content-type] => Array
-                                (
-                                    [0] => application/xml;charset=iso-8859-1
-                                )
-
-                        )
-
+                    [0] => application/xml;charset=iso-8859-1
                 )
 
         )
 
 )
+found message in log matching /Only UTF-8 is supported for XML parsing/

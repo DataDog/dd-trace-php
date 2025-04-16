@@ -10,7 +10,9 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class HttpHideRouteTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static $database = "laravel8";
+
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }

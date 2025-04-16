@@ -3,8 +3,10 @@ ARG VARIANT
 FROM datadog/dd-appsec-php-ci:php-$PHP_VERSION-$VARIANT
 
 RUN apt-get update && apt-get install -y \
-	apache2 \
-	&& rm -rf /var/lib/apt/lists/*
+    apache2 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN usermod -a -G linux_users www-data
 
 RUN rm -rf /var/www/html
 RUN sed -i 's@/var/www/html@/var/www/public@' /etc/apache2/sites-available/000-default.conf
@@ -24,6 +26,10 @@ RUN if echo $VARIANT | grep -q zts; \
 	else sed -i "s/%MPM/prefork/" /etc/apache2/mods-available/php.load; \
 	fi
 RUN if ! { echo $VARIANT | grep -q zts; }; then a2dismod mpm_event; a2enmod mpm_prefork; fi
+
+RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_prefork.conf
+RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_worker.conf
+
 RUN a2enmod php
 
 RUN chmod a+rx /root

@@ -14,7 +14,7 @@
       "http.method": "GET",
       "http.route": "does_not_exist",
       "http.status_code": "404",
-      "http.url": "http://localhost:9999/does_not_exist?key=value&<redacted>",
+      "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
       "runtime-id": "232799b0-3a18-4d64-9c97-4f6b441bb91e",
       "span.kind": "server"
     },

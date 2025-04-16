@@ -1,14 +1,20 @@
 # Contributing to dd-trace-php
 
-As an open-source project we welcome contributions of many forms, but due to the experimental pre-beta nature of this repository, you should [reach out to us](https://github.com/DataDog/dd-trace-php/issues) before starting work on any major code changes. This will ensure we avoid duplicating work, or that your code can't be merged due to a rapidly changing base.
+As an open-source project we welcome contributions of many forms, but you should [reach out to us](https://github.com/DataDog/dd-trace-php/issues) before starting work on any major code changes. This will ensure we avoid duplicating work, or that your code can't be merged due to a rapidly changing base.
 
 ## Project initialization
+
+The project should be cloned in the php source code:
+```bash
+git clone https://github.com/php/php-src.git
+cd php-src/ext
+git clone https://github.com/DataDog/dd-trace-php.git
+```
 
 The project uses git submodules to include the [datadog shared library](https://github.com/DataDog/libdatadog). From the project root:
 
 ```
-git submodule init
-git submodule update
+git submodule update --init --recursive
 ```
 
 To integrate new tracing and profiling features from the datadog shared library please refer to this [guide](https://github.com/DataDog/dd-trace-php/blob/master/LIBDATADOG.md).
@@ -48,29 +54,29 @@ Execute one the following commands from your command line, this will bring up al
 
 ```bash
 # For 7.0
-$ docker-compose run --rm 7.0-buster bash
+$ docker compose run --rm 7.0-buster bash
 # For 7.1
-$ docker-compose run --rm 7.1-buster bash
+$ docker compose run --rm 7.1-buster bash
 # For 7.2
-$ docker-compose run --rm 7.2-buster bash
+$ docker compose run --rm 7.2-buster bash
 # For 7.3
-$ docker-compose run --rm 7.3-buster bash
+$ docker compose run --rm 7.3-buster bash
 # For 7.4
-$ docker-compose run --rm 7.4-buster bash
+$ docker compose run --rm 7.4-buster bash
 # For 8.0
-$ docker-compose run --rm 8.0-buster bash
+$ docker compose run --rm 8.0-buster bash
 # For 8.1
-$ docker-compose run --rm 8.1-buster bash
+$ docker compose run --rm 8.1-buster bash
 # For 8.2
-$ docker-compose run --rm 8.2-buster bash
+$ docker compose run --rm 8.2-buster bash
 # For 8.3
-$ docker-compose run --rm 8.3-buster bash
+$ docker compose run --rm 8.3-buster bash
 ```
 
 > :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:
 
 ```bash
-docker-compose run --rm 8.2-buster -e DD_TRACE_DOCKER_DEBUG=1 bash
+$ docker compose run -e DD_TRACE_DOCKER_DEBUG=1 --rm 8.3-buster bash
 ```
 
 #### Set up the container
@@ -85,6 +91,10 @@ Then install the `ddtrace` extension.
 
 ```bash
 $ composer install-ext
+```
+or
+```bash
+$ sudo make install install_ini
 ```
 
 > :memo: **Note:** You'll need to run the above `install-ext` command to install the `ddtrace` extension every time you access the container's bash for the first time.
@@ -154,6 +164,19 @@ Then you can run tests:
 
     # Run OPcache PHP benchmarks
     $ make benchmarks_opcache
+
+To run a specific C Tests, you can use the TESTS parameter:
+```bash
+$ make test_c TESTS=tests/ext/<pathToTest>
+```
+To run a specific library integration tests, you can use:
+``` bash
+$ make test_integrations_<library>
+```
+You can even specify a singular test with the FILTER parameter, for example
+```bash
+$ make test_integrations_curl FILTER=testLoad200UrlOnInit
+```
 
 In order to run the `phpt` tests for the php extension:
 

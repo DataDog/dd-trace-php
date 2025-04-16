@@ -52,8 +52,6 @@ final class FrankenphpServer implements Sapi
         $this->envs = $envs;
 
         if (getenv('PHPUNIT_COVERAGE')) {
-            $inis['auto_prepend_file'] = __DIR__ . '/../../save_code_coverage.php';
-
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $inis['zend_extension'] = $xdebugExtension;

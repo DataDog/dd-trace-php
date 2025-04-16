@@ -1,24 +1,24 @@
 --TEST--
-Track automated user login failure with invalid mode mode event and verify the tags in the root span
+Validate that when the mode is set to an invalid value, collection is disabled
 --INI--
 extension=ddtrace.so
 --ENV--
 DD_APPSEC_ENABLED=1
-DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=invalid
+DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=invalid
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
-use function datadog\appsec\track_user_login_failure_event;
+use function datadog\appsec\track_user_login_failure_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_failure_event("Admin", true,
+track_user_login_failure_event_automated("login", "automatedID", true,
 [
     "value" => "something",
     "metadata" => "some other metadata",
     "email" => "noneofyour@business.com"
-], true);
+]);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
@@ -28,7 +28,4 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
-    [appsec.events.users.login.failure.track] => true
-    [_dd.appsec.events.users.login.failure.auto.mode] => safe
-    [appsec.events.users.login.failure.usr.exists] => true
 )

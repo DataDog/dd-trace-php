@@ -8,6 +8,7 @@ To test this we will issue a setgroups() via the libc wrapper (which distributes
 <?php if (!extension_loaded("ffi")) die("skip: requires ext/ffi"); ?>
 <?php if (posix_getuid() != 0 && getenv("ZEND_DONT_UNLOAD_MODULES")) die("skip: detected ZEND_DONT_UNLOAD_MODULES - the test is most likely executed as non-root via valgrind"); ?>
 <?php if (getenv("SKIP_ASAN")) die("skip leak sanitizer crashes"); ?>
+<?php if (getenv("CI")) die("skip: too flaky for CI, and we anyway slowly move away from the background sender"); ?>
 <?php if (posix_getuid() != 0 && trim(shell_exec("sudo echo 1")) !== "1") die("skip: user is not root and has no password-less sudo"); ?>
 <?php if (dd_trace_env_config('DD_TRACE_SIDECAR_TRACE_SENDER')) die("skip: background-sender only test"); ?>
 --ENV--

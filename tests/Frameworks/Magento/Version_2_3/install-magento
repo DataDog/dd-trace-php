@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+php -r "(new PDO('mysql:host=mysql_integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS magento23');"
+
 php -d memory_limit=1G ./bin/magento setup:install \
     --base-url=http://localhost/ \
     --backend-frontname=admin \
@@ -7,7 +9,7 @@ php -d memory_limit=1G ./bin/magento setup:install \
      --timezone=America/Los_Angeles \
      --currency=USD \
      --db-host=mysql_integration \
-     --db-name=test \
+     --db-name=magento23 \
      --db-user=test \
      --db-password=test \
      --use-secure=0 \

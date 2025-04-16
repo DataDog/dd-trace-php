@@ -8,14 +8,19 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class ConsoleCommandTest extends IntegrationTestCase
 {
-    protected static function getConsoleScript()
+    public static function getConsoleScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_6_2/bin/console';
     }
 
+    public static function getTestedLibrary()
+    {
+        return 'symfony/console';
+    }
+
     public function testScenario()
     {
-        list($traces) = $this->inCli(self::getConsoleScript(), [
+        list($traces) = $this->inCli(static::getConsoleScript(), [
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
             'DD_TRACE_EXEC_ENABLED' => 'false',
         ], [], 'about');

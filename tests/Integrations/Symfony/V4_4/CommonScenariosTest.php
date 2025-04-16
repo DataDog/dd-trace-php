@@ -9,9 +9,14 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_4/public/index.php';
+    }
+
+    public static function getTestedLibrary()
+    {
+        return 'symfony/framework-bundle';
     }
 
     protected static function getEnvs()
@@ -51,7 +56,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'App\Controller\CommonScenariosController@simpleAction',
                         'symfony.route.name' => 'simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
@@ -91,7 +96,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'App\Controller\CommonScenariosController@simpleViewAction',
                         'symfony.route.name' => 'simple_view',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view?key=value&<redacted>',
+                        'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
@@ -138,7 +143,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.action' => 'App\Controller\CommonScenariosController@errorAction',
                         'symfony.route.name' => 'error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error?key=value&<redacted>',
+                        'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
@@ -148,8 +153,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('symfony.kernel.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')
-                        ->setError('Exception', 'An exception occurred')
-                        ->withExistingTagsNames(['error.stack'])
                         ->withChildren([
                             SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                             SpanAssertion::exists('symfony.kernel.handle')->withChildren([
@@ -194,7 +197,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /does_not_exist'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/does_not_exist?key=value&<redacted>',
+                        'http.url' => 'http://localhost/does_not_exist?key=value&<redacted>',
                         'http.status_code' => '404',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',

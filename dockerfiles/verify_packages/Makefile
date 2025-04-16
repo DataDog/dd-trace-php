@@ -51,9 +51,6 @@ verify_centos:
 		centos \
 		dockerfiles/verify_packages/verify.sh
 
-# Centos 6 is verified using the existing images due to difficulties building it after the repos have been disabled.
-verify_centos_6: $(CENTOS6_PHP_VERSIONS)
-
 verify_tar_root:
 	docker-compose run --rm \
 		-e PHP_VERSION="$(PHP_VERSION)" \
@@ -130,6 +127,11 @@ test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
 	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
+
+test_alpine_zts_no_zend_signals.sh \
+	: global_test_dependencies
+	@echo "################### $(@) ###################"
+	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libexecinfo.sh: global_test_dependencies
 	@echo "################### $(@) ###################"

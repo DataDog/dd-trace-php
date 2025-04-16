@@ -1,39 +1,38 @@
 {
-    "test_name":"php_allocations",
-    "stacks": [
-      {
-        "profile-type": "alloc-size",
-        "stack-content":
-        [
-          {
-            "regular_expression":"<?php;main;a;standard\\|str_repeat$",
-            "percent": 66,
-            "value": 1248240336,
-            "error_margin": 5
-          },
-          {
-            "regular_expression":"<?php;main;b;standard\\|str_repeat$",
-            "percent": 33,
-            "value": 613620616,
-            "error_margin": 5
-          }
-        ]
-      }, {
-        "profile-type": "alloc-samples",
-        "stack-content":
-        [
-          {
-            "regular_expression":"<?php;main;a;standard\\|str_repeat$",
-            "percent": 50,
-            "error_margin": 5
-          },
-          {
-            "regular_expression":"<?php;main;b;standard\\|str_repeat$",
-            "percent": 50,
-            "error_margin": 5
-          }
-        ]
-      }
-    ]
-  }
-
+  "scale_by_duration": true,
+  "test_name": "php_allocations",
+  "stacks": [
+    {
+      "profile-type": "alloc-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;a;standard\\|str_repeat$",
+          "percent": 66,
+          "value": 1248240336,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;b;standard\\|str_repeat$",
+          "percent": 33,
+          "value": 613620616,
+          "error_margin": 5
+        }
+      ]
+    },
+    {
+      "profile-type": "alloc-samples",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;a;standard\\|str_repeat$",
+          "percent": 50,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;b;standard\\|str_repeat$",
+          "percent": 50,
+          "error_margin": 5
+        }
+      ]
+    }
+  ]
+}

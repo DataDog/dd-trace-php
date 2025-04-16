@@ -26,7 +26,7 @@ final class ScopeManager implements ScopeManagerInterface
      */
     private $rootContext;
 
-    public function __construct(SpanContext $rootContext = null)
+    public function __construct($rootContext = null)
     {
         $this->rootContext = $rootContext;
     }

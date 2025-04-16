@@ -12,14 +12,13 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.net.http.HttpResponse
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
-import static com.datadog.appsec.php.integration.TestParams.getTracerVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
 @Slf4j
 @DisabledIf('isZts')
-class Apache2FpmTests implements CommonTests {
+class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
     static boolean zts = variant.contains('zts')
 
     @Container
@@ -77,4 +76,5 @@ class Apache2FpmTests implements CommonTests {
             assert content.contains('Value of pool env is 10001')
         }
     }
+
 }

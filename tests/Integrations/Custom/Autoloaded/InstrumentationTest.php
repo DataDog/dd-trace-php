@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class InstrumentationTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -31,12 +31,17 @@ final class InstrumentationTest extends WebFrameworkTestCase
             if (strpos($request["uri"], "/telemetry/") === 0) {
                 $json = json_decode($request["body"], true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
-                foreach ($batch as $json) {
-                    $telemetryPayloads[] = $json;
+                foreach ($batch as $innerJson) {
+                    if (isset($json["application"])) {
+                        $innerJson["application"] = $json["application"];
+                    }
+                    $telemetryPayloads[] = $innerJson;
                 }
             }
         }
-        return $telemetryPayloads;
+
+        // Filter the payloads from the trace background sender
+        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
     }
 
     public function testInstrumentation()
@@ -48,11 +53,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/simple"));
-        $response = $this->retrieveDumpedData(function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
-            ;
-        }, true);
+        usleep(500000);
+        $response = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
 
         $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
@@ -67,7 +69,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertContains([
             "name" => "agent_host",
             "value" => "request-replayer",
-            "origin" => "EnvVar",
+            "origin" => "env_var",
         ], $payloads[0]["payload"]["configuration"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals([[
@@ -78,18 +80,29 @@ final class InstrumentationTest extends WebFrameworkTestCase
         }));
         // Not asserting app-closing, this is not expected to happen until shutdown
 
-        $this->assertCount(1, $metrics);
-        $series = array_values(array_filter($metrics[0]["payload"]["series"], function ($p) { return $p['metric'] === 'spans_created'; }));
-        $this->assertEquals("tracers", $series[0]["namespace"]);
-        $this->assertEquals("spans_created", $series[0]["metric"]);
-        $this->assertEquals(["integration_name:datadog"], $series[0]["tags"]);
+        $allMetrics = [];
+        foreach ($metrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $allMetrics[$s["metric"]] = $s;
+            }
+        }
+        $this->assertArrayHasKey("spans_created", $allMetrics);
+        $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
+        $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
+        $this->assertEquals(["integration_name:datadog"], $allMetrics["spans_created"]["tags"]);
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
-
-        $response = $this->retrieveDumpedData(function ($request) {
-            return (strpos($request["uri"] ?? "", "/telemetry/") === 0)
-                && (strpos($request["body"] ?? "", "generate-metrics") !== false)
-            ;
+        usleep(500000);
+        $found_telemetry = false;
+        $found_app_integrations_change = false;
+        $response = $this->retrieveDumpedData(function ($request) use (&$found_telemetry, &$found_app_integrations_change) {
+            if (strpos($request["uri"] ?? "", "/telemetry/") === 0 && strpos($request["body"] ?? "", "spans_created") !== false) {
+                $found_telemetry = true;
+            }
+            if (strpos($request["body"] ?? "", "app-integrations-change") !== false) {
+                $found_app_integrations_change = true;
+            }
+            return $found_telemetry && $found_app_integrations_change;
         }, true);
 
         $this->assertGreaterThanOrEqual(3, $response);
@@ -125,10 +138,15 @@ final class InstrumentationTest extends WebFrameworkTestCase
             ]
         ], $payloads[2]["payload"]["integrations"]);
 
-        $this->assertCount(1, $metrics);
-        $series = array_values(array_filter($metrics[0]["payload"]["series"], function ($p) { return $p['metric'] === 'spans_created'; }));
-        $this->assertEquals("tracers", $series[0]["namespace"]);
-        $this->assertEquals("spans_created", $series[0]["metric"]);
-        $this->assertEquals(["integration_name:pdo"], $series[0]["tags"]);
+        $allMetrics = [];
+        foreach ($metrics as $m) {
+            foreach ($m["payload"]["series"] as $s) {
+                $allMetrics[$s["metric"]] = $s;
+            }
+        }
+        $this->assertArrayHasKey("spans_created", $allMetrics);
+        $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
+        $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
+        $this->assertEquals(["integration_name:pdo"], $allMetrics["spans_created"]["tags"]);
     }
 }

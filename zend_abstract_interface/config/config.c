@@ -9,10 +9,7 @@
 
 HashTable zai_config_name_map = {0};
 
-#ifndef _WIN32
-_Static_assert(ZAI_CONFIG_ENTRIES_COUNT_MAX < 256, "zai config entry count is overflowing uint8_t");
-#endif
-uint8_t zai_config_memoized_entries_count = 0;
+uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
 static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
@@ -22,29 +19,42 @@ static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
     return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
 }
 
+static inline void zai_config_process_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, zai_option_str *value) {
+    zval tmp;
+    ZVAL_UNDEF(&tmp);
+    zai_str env_value = ZAI_STR_FROM_CSTR(buf.ptr);
+    if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
+        // TODO Log decoding error
+    } else {
+        zai_json_dtor_pzval(&tmp);
+        *value = zai_option_str_from_str(env_value);
+    }
+}
+
 static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {
     // TODO Use less buffer space
     // TODO Make a more generic zai_string_buffer
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-
-    zval tmp;
-    ZVAL_UNDEF(&tmp);
 
     zai_option_str value = ZAI_OPTION_STR_NONE;
 
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
-        if (zai_config_get_env_value(name, buf)) {
-            zai_str env_value = ZAI_STR_FROM_CSTR(buf.ptr);
-            if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
-                // TODO Log decoding error
-            } else {
-                zai_json_dtor_pzval(&tmp);
-                value = zai_option_str_from_str(env_value);
-            }
+        if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_FLEET)) {
+            zai_config_process_env(memoized, buf, &value);
+            break;
+        } else if (zai_config_get_env_value(name, buf)) {
+            zai_config_process_env(memoized, buf, &value);
+            break;
+        } else if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL)) {
+            zai_config_process_env(memoized, buf, &value);
             break;
         }
+    }
+    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(buf, true)) {
+        zai_config_process_env(memoized, buf, &value);
+        name_index = 0;
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
@@ -56,6 +66,10 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             name_index = ini_name_index;
         }
         // TODO If name_index > 0, log deprecation notice
+
+        zval tmp;
+        ZVAL_UNDEF(&tmp);
+
         zai_config_decode_value(value_view, memoized->type, memoized->parser, &tmp, /* persistent */ true);
         assert(Z_TYPE(tmp) > IS_NULL);
         zai_json_dtor_pzval(&memoized->decoded_value);
@@ -88,6 +102,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     memoized->type = entry->type;
     memoized->default_encoded_value = entry->default_encoded_value;
     memoized->parser = entry->parser;
+    memoized->displayer = entry->displayer;
 
     ZVAL_UNDEF(&memoized->decoded_value);
     if (!zai_config_decode_value(entry->default_encoded_value, memoized->type, memoized->parser, &memoized->decoded_value, /* persistent */ true)) {
@@ -95,6 +110,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     }
     memoized->name_index = -1;
     memoized->original_on_modify = NULL;
+    memoized->env_config_fallback = entry->env_config_fallback;
     memoized->ini_change = entry->ini_change;
 
     return memoized;
@@ -122,11 +138,12 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
     if (!zai_json_setup_bindings()) return false;
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
+    zai_config_stable_file_minit();
     return true;
 }
 
 static void zai_config_dtor_memoized_zvals(void) {
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_json_dtor_pzval(&zai_config_memoized_entries[i].decoded_value);
     }
 }
@@ -137,6 +154,7 @@ void zai_config_mshutdown(void) {
         zend_hash_destroy(&zai_config_name_map);
     }
     zai_config_ini_mshutdown();
+    zai_config_stable_file_mshutdown();
 }
 
 void zai_config_runtime_config_ctor(void);
@@ -198,7 +216,7 @@ void zai_config_first_time_rinit(bool in_request) {
     }
 #endif
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; i++) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         zai_config_find_and_set_value(memoized, i);
         if (in_request) {
@@ -220,8 +238,9 @@ void zai_config_rinit(void) {
 
 void zai_config_rshutdown(void) { zai_config_runtime_config_dtor(); }
 
-bool zai_config_system_ini_change(zval *old_value, zval *new_value) {
+bool zai_config_system_ini_change(zval *old_value, zval *new_value, zend_string *new_str) {
     (void)old_value;
     (void)new_value;
+    (void)new_str;
     return false;
 }

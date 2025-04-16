@@ -4,15 +4,18 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "commands_helpers.h"
+#include "backtrace.h"
 #include "commands_ctx.h"
-#include "configuration.h"
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "tags.h"
+#include "user_tracking.h"
 #include <ext/standard/base64.h>
+#include <mpack.h>
+#include <stdatomic.h>
 
 typedef struct _dd_omsg {
     zend_llist iovecs;
@@ -26,8 +29,6 @@ static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(
 static inline void _omsg_destroy(dd_omsg *nonnull omsg);
 static inline dd_result _omsg_send(
     dd_conn *nonnull conn, dd_omsg *nonnull omsg);
-static inline dd_result _omsg_send_cred(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg);
 static void _dump_in_msg(
     dd_log_level_t lvl, const char *nonnull data, size_t data_len);
 static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs);
@@ -39,16 +40,15 @@ typedef struct _dd_imsg {
     mpack_node_t root;
 } dd_imsg;
 
-// iif these two return success, _imsg_destroy must be called
-static inline dd_result _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn);
-static inline ATTR_WARN_UNUSED dd_result _imsg_recv_cred(
+// if and only if this returns success, _imsg_destroy must be called
+static dd_result ATTR_WARN_UNUSED _imsg_recv(
     dd_imsg *nonnull imsg, dd_conn *nonnull conn);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
+static void _imsg_cleanup(dd_imsg *nullable *imsg);
 
-static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
+static dd_result _dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
 #define NAME_L (int)spec->name_len, spec->name
@@ -75,11 +75,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return dd_error;
         }
 
-        if (check_cred) {
-            res = _omsg_send_cred(conn, &omsg);
-        } else {
-            res = _omsg_send(conn, &omsg);
-        }
+        res = _omsg_send(conn, &omsg);
         _dump_out_msg(dd_log_trace, &omsg.iovecs);
         _omsg_destroy(&omsg);
         if (res) {
@@ -93,11 +89,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
     dd_result res;
     {
         dd_imsg imsg = {0};
-        if (check_cred) {
-            res = _imsg_recv_cred(&imsg, conn);
-        } else {
-            res = _imsg_recv(&imsg, conn);
-        }
+        res = _imsg_recv(&imsg, conn);
         if (res) {
             if (res != dd_helper_error) {
                 mlog(dd_log_warning,
@@ -107,20 +99,24 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return res;
         }
 
+        // automatic cleanup of imsg on error branches
+        // set to NULL before calling _imsg_destroy
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+        __attribute__((cleanup(_imsg_cleanup))) dd_imsg *nullable destroy_imsg =
+            &imsg;
+
+        // TODO: it seems we only look at the first response? Why even support
+        //       several responses then?
         mpack_node_t first_response = mpack_node_array_at(imsg.root, 0);
         mpack_error_t err = mpack_node_error(first_response);
         if (err != mpack_ok) {
             mlog(dd_log_error, "Array of responses could not be retrieved - %s",
                 mpack_error_to_string(err));
-            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-            err = _imsg_destroy(&imsg);
             return dd_error;
         }
         if (mpack_node_type(first_response) != mpack_type_array) {
             mlog(dd_log_error, "Invalid response. Expected array but got %s",
                 mpack_type_to_string(mpack_node_type(first_response)));
-            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-            err = _imsg_destroy(&imsg);
             return dd_error;
         }
         mpack_node_t first_message = mpack_node_array_at(first_response, 1);
@@ -136,28 +132,28 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         if (err != mpack_ok) {
             mlog(dd_log_error, "Response type could not be retrieved - %s",
                 mpack_error_to_string(err));
-            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-            err = _imsg_destroy(&imsg);
             return dd_error;
         }
         if (mpack_node_type(type) != mpack_type_str) {
             mlog(dd_log_error,
                 "Unexpected type field. Expected string but got %s",
                 mpack_type_to_string(mpack_node_type(type)));
-            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-            err = _imsg_destroy(&imsg);
             return dd_error;
         }
         if (dd_mpack_node_lstr_eq(type, "config_features")) {
             res = spec->config_features_cb(first_message, ctx);
         } else if (dd_mpack_node_str_eq(type, spec->name, spec->name_len)) {
             res = spec->incoming_cb(first_message, ctx);
+        } else if (dd_mpack_node_lstr_eq(type, "error")) {
+            mlog(dd_log_info,
+                "Helper responded with an error. Check helper logs");
+            return dd_helper_error;
         } else {
             mlog(dd_log_debug,
-                "Received message for command %.*s unexpected: %.*s\n", NAME_L,
-                (int)mpack_node_strlen(type), mpack_node_str(type));
-            // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-            err = _imsg_destroy(&imsg);
+                "Received message for command %.*s unexpected: \"%.*s\". "
+                "Expected \"config_features\", \"error\" or \"%.*s\"",
+                NAME_L, (int)mpack_node_strlen(type), mpack_node_str(type),
+                NAME_L);
             return dd_error;
         }
 
@@ -166,6 +162,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
         err = imsg.root.tree->error;
         _dump_in_msg(err == mpack_ok ? dd_log_trace : dd_log_debug, imsg._data,
             imsg._size);
+        destroy_imsg = NULL;
         err = _imsg_destroy(&imsg);
         if (err != mpack_ok) {
             mlog(dd_log_warning,
@@ -175,7 +172,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
             return dd_error;
         }
         if (res != dd_success && res != dd_should_block &&
-            res != dd_should_redirect) {
+            res != dd_should_redirect && res != dd_should_record) {
             mlog(dd_log_warning, "Processing for command %.*s failed: %s",
                 NAME_L, dd_result_to_string(res));
             return res;
@@ -191,20 +188,25 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn, bool check_cred,
 dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
-    return _dd_command_exec(conn, false, spec, ctx);
+    return _dd_command_exec(conn, spec, ctx);
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, struct req_info *nonnull ctx)
 {
     ctx->command_name = spec->name;
-    return _dd_command_exec(conn, false, spec, ctx);
+    return _dd_command_exec(conn, spec, ctx);
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
-    return _dd_command_exec(conn, true, spec, ctx);
+    dd_result res = dd_conn_check_credentials(conn);
+    if (res) {
+        return res;
+    }
+
+    return _dd_command_exec(conn, spec, ctx);
 }
 
 // outgoing
@@ -244,32 +246,15 @@ static inline dd_result _omsg_send(dd_conn *nonnull conn, dd_omsg *nonnull omsg)
     return dd_conn_sendv(conn, &omsg->iovecs);
 }
 
-static inline dd_result _omsg_send_cred(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg)
-{
-    return dd_conn_sendv_cred(conn, &omsg->iovecs);
-}
-
 // incoming
-static inline dd_result _dd_imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn, bool check_cred)
+static ATTR_WARN_UNUSED dd_result _imsg_recv(
+    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
 {
     mlog(dd_log_debug, "Will receive response from helper");
 
-    dd_result res;
-    if (check_cred) {
-        res = dd_conn_recv_cred(conn, &imsg->_data, &imsg->_size);
-    } else {
-        res = dd_conn_recv(conn, &imsg->_data, &imsg->_size);
-    }
+    dd_result res = dd_conn_recv(conn, &imsg->_data, &imsg->_size);
     if (res) {
         return res;
-    }
-
-    if (imsg->_size == 1) {
-        // The helper process sent an error response, this is a non-fatal
-        // error to indicate the message could not be processed.
-        return dd_helper_error;
     }
 
     mpack_tree_init(&imsg->_tree, imsg->_data, imsg->_size);
@@ -287,17 +272,6 @@ static inline dd_result _dd_imsg_recv(
     return dd_success;
 }
 
-ATTR_WARN_UNUSED dd_result _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
-{
-    return _dd_imsg_recv(imsg, conn, false);
-}
-ATTR_WARN_UNUSED dd_result _imsg_recv_cred(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
-{
-    return _dd_imsg_recv(imsg, conn, true);
-}
-
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg)
 {
@@ -305,6 +279,14 @@ static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     imsg->_data = NULL;
     imsg->_size = 0;
     return mpack_tree_destroy(&imsg->_tree);
+}
+
+static void _imsg_cleanup(dd_imsg *nullable *imsg)
+{
+    dd_imsg **imsg_c = (dd_imsg * nullable * nonnull) imsg;
+    if (*imsg_c) {
+        UNUSED(_imsg_destroy(*imsg_c));
+    }
 }
 
 /* Baked response */
@@ -419,6 +401,48 @@ static void _command_process_redirect_parameters(mpack_node_t root)
 
     dd_set_redirect_code_and_location(status_code, location);
 }
+static void _command_process_stack_trace_parameters(mpack_node_t root)
+{
+    size_t count = mpack_node_map_count(root);
+    for (size_t i = 0; i < count; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+        if (dd_mpack_node_lstr_eq(key, "stack_id")) {
+            zend_string *id = NULL;
+            size_t id_len = mpack_node_strlen(value);
+            id = zend_string_init(mpack_node_str(value), id_len, 0);
+            dd_report_exploit_backtrace(id);
+            zend_string_release(id);
+            break;
+        }
+    }
+}
+
+static dd_result _command_process_actions(
+    mpack_node_t root, struct req_info *ctx);
+
+static void dd_command_process_settings(mpack_node_t root);
+
+/*
+ * array(
+ *    0: [<"ok" / "record" / "block" / "redirect">,
+ *         [if block/redirect parameters: (map)]]
+ *    1: [if block/redirect/record: appsec span data (array of strings: json
+ *        fragments)],
+ *    2: [force keep: bool]
+ *    3: [meta: map]
+ *    4: [metrics: map]
+ *    5: [telemetry metrics: map string ->
+ *         array(array(value: double, tags: string)])
+ * )
+ */
+#define RESP_INDEX_ACTION_PARAMS 0
+#define RESP_INDEX_APPSEC_SPAN_DATA 1
+#define RESP_INDEX_FORCE_KEEP 2
+#define RESP_INDEX_SETTINGS 3
+#define RESP_INDEX_SPAN_META 4
+#define RESP_INDEX_SPAN_METRICS 5
+#define RESP_INDEX_TELEMETRY_METRICS 6
 
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, void *unspecnull _ctx)
@@ -426,52 +450,87 @@ dd_result dd_command_proc_resp_verd_span_data(
     struct req_info *ctx = _ctx;
     assert(ctx != NULL);
 
-    // expected: ['ok' / 'record' / 'block' / 'redirect']
-    mpack_node_t verdict = mpack_node_array_at(root, 0);
-    if (mlog_should_log(dd_log_debug)) {
-        const char *verd_str = mpack_node_str(verdict);
-        size_t verd_len = mpack_node_strlen(verdict);
-        if (verd_len > INT_MAX) {
-            verd_len = INT_MAX;
-        }
-        mlog(dd_log_debug, "Verdict of %s was '%.*s'",
-            ctx->command_name ? ctx->command_name : "(unknown)", (int)verd_len,
-            verd_str);
-    }
-
-    dd_result res = dd_success;
-    // Parse parameters
-    if (dd_mpack_node_lstr_eq(verdict, "block")) {
-        res = dd_should_block;
-        _command_process_block_parameters(mpack_node_array_at(root, 1));
-        dd_tags_add_blocked();
-    } else if (dd_mpack_node_lstr_eq(verdict, "redirect")) {
-        res = dd_should_redirect;
-        _command_process_redirect_parameters(mpack_node_array_at(root, 1));
-        dd_tags_add_blocked();
-    }
+    mpack_node_t actions = mpack_node_array_at(root, RESP_INDEX_ACTION_PARAMS);
+    dd_result res = _command_process_actions(actions, ctx);
 
     if (res == dd_should_block || res == dd_should_redirect ||
-        dd_mpack_node_lstr_eq(verdict, "record")) {
-        _set_appsec_span_data(mpack_node_array_at(root, 2));
+        res == dd_should_record) {
+        dd_trace_emit_asm_event();
+        _set_appsec_span_data(
+            mpack_node_array_at(root, RESP_INDEX_APPSEC_SPAN_DATA));
     }
 
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    mpack_node_t force_keep = mpack_node_array_at(root, 3);
+    mpack_node_t force_keep = mpack_node_array_at(root, RESP_INDEX_FORCE_KEEP);
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
         dd_tags_set_sampling_priority();
     }
 
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    if (mpack_node_array_length(root) >= 6 && ctx->root_span) {
+    if (mpack_node_array_length(root) >= RESP_INDEX_SETTINGS + 1) {
+        mpack_node_t settings = mpack_node_array_at(root, RESP_INDEX_SETTINGS);
+        dd_command_process_settings(settings);
+    }
+
+    if (mpack_node_array_length(root) >= RESP_INDEX_SPAN_METRICS + 1 &&
+        ctx->root_span) {
         zend_object *span = ctx->root_span;
 
-        mpack_node_t meta = mpack_node_array_at(root, 4);
+        mpack_node_t meta = mpack_node_array_at(root, RESP_INDEX_SPAN_META);
         dd_command_process_meta(meta, span);
-        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-        mpack_node_t metrics = mpack_node_array_at(root, 5);
+        mpack_node_t metrics =
+            mpack_node_array_at(root, RESP_INDEX_SPAN_METRICS);
         dd_command_process_metrics(metrics, span);
+    }
+
+    if (mpack_node_array_length(root) >= RESP_INDEX_TELEMETRY_METRICS + 1) {
+        dd_command_process_telemetry_metrics(
+            mpack_node_array_at(root, RESP_INDEX_TELEMETRY_METRICS));
+    }
+
+    return res;
+}
+
+static dd_result _command_process_actions(
+    mpack_node_t root, struct req_info *ctx)
+{
+    size_t actions = mpack_node_array_length(root);
+    dd_result res = dd_success;
+
+    for (size_t i = 0; i < actions; i++) {
+        mpack_node_t action = mpack_node_array_at(root, i);
+
+        // expected: ['ok' / 'record' / 'block' / 'redirect']
+        mpack_node_t verdict = mpack_node_array_at(action, 0);
+        if (mlog_should_log(dd_log_debug)) {
+            const char *verd_str = mpack_node_str(verdict);
+            size_t verd_len = mpack_node_strlen(verdict);
+            if (verd_len > INT_MAX) {
+                verd_len = INT_MAX;
+            }
+            mlog(dd_log_debug, "Verdict of %s was '%.*s'",
+                ctx->command_name ? ctx->command_name : "(unknown)",
+                (int)verd_len, verd_str);
+        }
+
+        // Parse parameters
+        if (dd_mpack_node_lstr_eq(verdict, "block") && res != dd_should_block &&
+            res != dd_should_redirect) { // Redirect take over block
+            res = dd_should_block;
+            _command_process_block_parameters(mpack_node_array_at(action, 1));
+            dd_tags_add_blocked();
+        } else if (dd_mpack_node_lstr_eq(verdict, "redirect") &&
+                   res != dd_should_redirect) {
+            res = dd_should_redirect;
+            _command_process_redirect_parameters(
+                mpack_node_array_at(action, 1));
+            dd_tags_add_blocked();
+        } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
+                   res == dd_success) {
+            res = dd_should_record;
+        } else if (dd_mpack_node_lstr_eq(verdict, "stack_trace")) {
+            _command_process_stack_trace_parameters(
+                mpack_node_array_at(action, 1));
+        }
     }
 
     return res;
@@ -501,6 +560,48 @@ static void _set_appsec_span_data(mpack_node_t node)
     for (size_t i = 0; i < mpack_node_array_length(node); i++) {
         mpack_node_t frag = mpack_node_array_at(node, i);
         _add_appsec_span_data_frag(frag);
+    }
+}
+
+static void dd_command_process_settings(mpack_node_t root)
+{
+    if (mpack_node_type(root) != mpack_type_map) {
+        return;
+    }
+
+    size_t count = mpack_node_map_count(root);
+
+    for (size_t i = 0; i < count; i++) {
+        mpack_node_t key = mpack_node_map_key_at(root, i);
+        mpack_node_t value = mpack_node_map_value_at(root, i);
+
+        if (mpack_node_type(key) != mpack_type_str) {
+            mlog(dd_log_warning, "Failed to process unknown setting: "
+                                 "invalid type for key");
+            continue;
+        }
+        if (mpack_node_type(value) != mpack_type_str) {
+            mlog(dd_log_warning, "Failed to process unknown setting: "
+                                 "invalid type for value");
+            continue;
+        }
+
+        const char *key_str = mpack_node_str(key);
+        const char *value_str = mpack_node_str(value);
+        size_t key_len = mpack_node_strlen(key);
+        size_t value_len = mpack_node_strlen(value);
+
+        if (dd_string_equals_lc(
+                key_str, key_len, ZEND_STRL("auto_user_instrum"))) {
+            dd_parse_user_collection_mode_rc(value_str, value_len);
+        } else {
+            if (!get_global_DD_APPSEC_TESTING()) {
+                mlog(dd_log_warning,
+                    "Failed to process user collection setting: "
+                    "unknown key %.*s",
+                    (int)key_len, key_str);
+            }
+        }
     }
 }
 
@@ -605,6 +706,108 @@ bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span)
     }
 
     return true;
+}
+
+static void _handle_telemetry_metric(const char *nonnull key_str,
+    size_t key_len, double value, const char *nonnull tags_str,
+    size_t tags_len);
+
+bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
+{
+    if (mpack_node_type(metrics) != mpack_type_map) {
+        return false;
+    }
+
+    if (!ddtrace_metric_register_buffer) {
+        mlog_g(dd_log_debug, "ddtrace_metric_register_buffer unavailable");
+        return true;
+    }
+
+    for (size_t i = 0; i < mpack_node_map_count(metrics); i++) {
+        mpack_node_t key = mpack_node_map_key_at(metrics, i);
+
+        const char *key_str = mpack_node_str(key);
+        if (!key_str) {
+            continue;
+        }
+
+        size_t key_len = mpack_node_strlen(key);
+        mpack_node_t arr_value = mpack_node_map_value_at(metrics, i);
+
+        for (size_t j = 0; j < mpack_node_array_length(arr_value); j++) {
+            mpack_node_t value = mpack_node_array_at(arr_value, j);
+            mpack_node_t dval_node = mpack_node_array_at(value, 0);
+            double dval = mpack_node_double(dval_node);
+
+            const char *tags_str = "";
+            size_t tags_len = 0;
+            if (mpack_node_array_length(value) >= 2) {
+                mpack_node_t tags = mpack_node_array_at(value, 1);
+                tags_str = mpack_node_str(tags);
+                tags_len = mpack_node_strlen(tags);
+            }
+            if (mpack_node_error(metrics) != mpack_ok) {
+                break;
+            }
+
+            _handle_telemetry_metric(
+                key_str, key_len, dval, tags_str, tags_len);
+        }
+    }
+
+    return true;
+}
+
+static void _init_zstr(
+    zend_string *_Atomic *nonnull zstr, const char *nonnull str, size_t len)
+{
+    zend_string *zstr_cur = atomic_load_explicit(zstr, memory_order_acquire);
+    if (zstr_cur != NULL) {
+        return;
+    }
+    zend_string *zstr_new = zend_string_init(str, len, 1);
+    if (atomic_compare_exchange_strong_explicit(zstr, &(zend_string *){NULL},
+            zstr_new, memory_order_release, memory_order_relaxed)) {
+        return;
+    }
+    zend_string_release(zstr_new);
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
+    double value, const char *nonnull tags_str, size_t tags_len)
+{
+#define HANDLE_METRIC(name, type)                                              \
+    do {                                                                       \
+        if (key_len == LSTRLEN(name) && memcmp(key_str, name, key_len) == 0) { \
+            static zend_string *_Atomic key_zstr;                              \
+            _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
+            zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 1);  \
+            ddtrace_metric_register_buffer(                                    \
+                key_zstr, type, DDTRACE_METRIC_NAMESPACE_APPSEC);              \
+            ddtrace_metric_add_point(key_zstr, value, tags_zstr);              \
+            zend_string_release(tags_zstr);                                    \
+            mlog_g(dd_log_debug,                                               \
+                "Telemetry metric %.*s added with tags %.*s and value %f",     \
+                (int)key_len, key_str, (int)tags_len, tags_str, value);        \
+            return;                                                            \
+        }                                                                      \
+    } while (0)
+
+    HANDLE_METRIC("waf.requests", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("waf.updates", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("waf.init", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("waf.config_errors", DDTRACE_METRIC_TYPE_COUNT);
+
+    HANDLE_METRIC("remote_config.first_pull", DDTRACE_METRIC_TYPE_GAUGE);
+    HANDLE_METRIC("remote_config.last_success", DDTRACE_METRIC_TYPE_GAUGE);
+
+    // Rasp
+    HANDLE_METRIC("rasp.timeout", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("rasp.rule.match", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("rasp.rule.eval", DDTRACE_METRIC_TYPE_COUNT);
+
+    mlog_g(dd_log_info, "Unknown telemetry metric %.*s", (int)key_len, key_str);
 }
 
 static void _dump_in_msg(

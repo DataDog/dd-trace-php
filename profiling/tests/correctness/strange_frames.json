@@ -1,17 +1,16 @@
 {
-    "test_name":"php_strange_frames",
-    "stacks": [
-      {
-        "profile-type": "sample",
-        "stack-content":
-        [
-          {
-            "regular_expression": "<?php;main;Datadog\\\\Test\\\\Class1::method1;class@anonymous.*::__invoke;Datadog\\\\Test\\\\Class1::Datadog\\\\Test\\\\\\{closure\\};datadog-profiling\\|Datadog\\\\Profiling\\\\trigger_time_sample",
-            "percent": 100,
-            "error_margin": 1
-          }
-        ]
-      }
-    ]
-  }
-
+  "scale_by_duration": true,
+  "test_name": "php_strange_frames",
+  "stacks": [
+    {
+      "profile-type": "sample",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;Datadog\\\\Test\\\\Class1::method1;class@anonymous.*::__invoke;Datadog\\\\Test\\\\Class1::(Datadog\\\\Test\\\\)*\\{closure(:Datadog\\\\Test\\\\Class1::method1\\(\\):10)*\\};datadog-profiling\\|Datadog\\\\Profiling\\\\trigger_time_sample$",
+          "percent": 100,
+          "error_margin": 1
+        }
+      ]
+    }
+  ]
+}

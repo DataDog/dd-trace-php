@@ -19,8 +19,8 @@ use function DDTrace\switch_stack;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createinitedRun([
-    response_list(response_request_init(['block', new ArrayObject(), ['{"yet another":"attack"}'], true])),
-    response_list(response_request_shutdown(['block', new ArrayObject(), ['{"yet another":"attack"}'], true]))
+    response_list(response_request_init([[['block', new ArrayObject()]], ['{"yet another":"attack"}'], true])),
+    response_list(response_request_shutdown([[['block', new ArrayObject()]], ['{"yet another":"attack"}'], true]))
 ]);
 
 $stack = create_stack();
@@ -183,6 +183,7 @@ Array
 
                 )
 
+            [1] => 0
         )
 
 )

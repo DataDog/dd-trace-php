@@ -5,7 +5,7 @@ The profiler's phpinfo section contains important debugging information. This
 test verifies that certain information is present.
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID < 80120 || PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80207)
+if (PHP_VERSION_ID < 80120 || PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80207 || PHP_VERSION_ID >= 80400)
     echo "skip: unpatched PHP version, so JIT should be inactive";
 if (PHP_VERSION_ID < 80000)
     echo "skip: JIT requires PHP >= 8.0", PHP_EOL;

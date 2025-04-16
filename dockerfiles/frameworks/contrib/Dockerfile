@@ -1,11 +1,11 @@
-FROM debian:buster AS base
+FROM debian:bookworm AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN set -xe; \
   apt-get update; \
   apt-get install -y curl gnupg vim zip git; \
-  echo "deb https://packages.sury.org/php/ buster main" | tee /etc/apt/sources.list.d/php.list; \
+  echo "deb https://packages.sury.org/php/ bookworm main" | tee /etc/apt/sources.list.d/php.list; \
   curl -L -o - https://packages.sury.org/php/apt.gpg | apt-key add -;\
   apt-get update; \
   apt-get clean; \
@@ -14,7 +14,12 @@ RUN set -xe; \
 
 RUN set -xe; \
     apt-get update; \
-    apt-get install -y $(for V in 5.6 7.0 7.1 7.2 7.3; do \
+    apt-get install -y gdb valgrind; \
+    apt-get clean;
+
+RUN set -xe; \
+    apt-get update; \
+    apt-get install -y $(for V in 7.0 7.1 7.2 7.3; do \
         echo \
         php${V}-fpm \
         php${V}-apcu \
@@ -59,7 +64,7 @@ RUN set -xe; \
 ADD switch_php.sh /usr/local/bin/switch_php
 
 RUN set -xe; \
-    for V in 7.0 7.1 7.2 7.3; do \
+    for V in 7.2 7.3; do \
       switch_php ${V}; \
       rm /usr/share/php/.registry/.channel.pecl.php.net/redis.reg || true; \
       pecl install redis; \
@@ -69,8 +74,6 @@ ENV COMPOSER_MEMORY_LIMIT -1
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
 ADD flow/20-redis.ini /etc/php/7.3/cli/conf.d/20-redis.ini
 ADD flow/20-redis.ini /etc/php/7.2/cli/conf.d/20-redis.ini
-ADD flow/20-redis.ini /etc/php/7.1/cli/conf.d/20-redis.ini
-ADD flow/20-redis.ini /etc/php/7.0/cli/conf.d/20-redis.ini
 
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
 CMD [ "bash" ]

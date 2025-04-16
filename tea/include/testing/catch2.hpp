@@ -48,6 +48,11 @@
 #define TEA_TEST_PROLOGUE_NONE {}
 
 /* {{{ TEA_TEST_TAG_NO_ASAN will hide a test when running under ASAN and always tag with [no-asan] */
+#if defined(__has_feature)
+# if __has_feature(address_sanitizer)
+#  define __SANITIZE_ADDRESS__
+# endif
+#endif
 #ifdef __SANITIZE_ADDRESS__
 # define TEA_TEST_TAG_NO_ASAN   "[no-asan][!hide]"
 #else

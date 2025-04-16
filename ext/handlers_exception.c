@@ -2,6 +2,7 @@
 #include <exceptions/exceptions.h>
 #include <php.h>
 
+#include "collect_backtrace.h"
 #include "configuration.h"
 #include "engine_hooks.h"  // For 'ddtrace_resource'
 #include "handlers_exception.h"
@@ -205,10 +206,6 @@ ZEND_ARG_INFO(0, error_filename)
 ZEND_ARG_INFO(0, error_lineno)
 ZEND_END_ARG_INFO()
 
-#if PHP_VERSION_ID < 70100
-#define ZEND_STR_PREVIOUS "previous"
-#endif
-
 #if PHP_VERSION_ID < 70200 && !defined(__clang__)
 // zpp API is not safe by itself, but our code is safe here.
 #pragma GCC diagnostic ignored "-Wclobbered"
@@ -326,11 +323,11 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
         // If this ever turns out to be problematic, we have to store it somewhere in DDTRACE_G()
         // and delay attaching until serialization.
         if (root_span && Z_TYPE_P((zval *)&old_exception) > IS_FALSE) {
-            zval *previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+            zval *previous = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
             while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&
                    instanceof_function(Z_OBJCE_P(previous), zend_ce_throwable)) {
                 Z_PROTECT_RECURSION_P(previous);
-                previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
+                previous = zai_exception_read_property(Z_OBJ_P(previous), ZSTR_KNOWN(ZEND_STR_PREVIOUS));
             }
 
             if (Z_TYPE_P(previous) > IS_FALSE) {
@@ -341,10 +338,10 @@ static PHP_METHOD(DDTrace_ExceptionOrErrorHandler, execute) {
                 ZVAL_COPY_VALUE(previous, (zval *)&old_exception);
             }
 
-            previous = ZAI_EXCEPTION_PROPERTY(exception, ZEND_STR_PREVIOUS);
+            previous = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
             while (Z_TYPE_P(previous) == IS_OBJECT && Z_IS_RECURSIVE_P(previous)) {
                 Z_UNPROTECT_RECURSION_P(previous);
-                previous = ZAI_EXCEPTION_PROPERTY(Z_OBJ_P(previous), ZEND_STR_PREVIOUS);
+                previous = zai_exception_read_property(Z_OBJ_P(previous), ZSTR_KNOWN(ZEND_STR_PREVIOUS));
             }
         }
     }
@@ -388,6 +385,89 @@ void dd_exception_handler_freed(zend_object *object) {
 }
 #endif
 
+static zend_object *ddtrace_exception_new(zend_class_entry *class_type, zend_object *(*prev)(zend_class_entry *class_type)) {
+    zend_execute_data *ex = EG(current_execute_data);
+    EG(current_execute_data) = NULL;
+    zend_object *object = prev(class_type);
+    EG(current_execute_data) = ex;
+
+    zend_class_entry *base_ce = zai_get_exception_base(object);
+
+    bool ignore_args = zend_string_equals_literal(class_type->name, "SodiumException");
+#if PHP_VERSION_ID >= 70400
+    ignore_args = ignore_args || EG(exception_ignore_args);
+#endif
+
+    bool exception_replay = get_DD_EXCEPTION_REPLAY_ENABLED();
+
+    zval trace;
+    ddtrace_fetch_debug_backtrace(&trace, 0, (ignore_args ? DEBUG_BACKTRACE_IGNORE_ARGS : 0) | (exception_replay ? DDTRACE_DEBUG_BACKTRACE_CAPTURE_LOCALS | DEBUG_BACKTRACE_PROVIDE_OBJECT : 0), 0);
+    Z_SET_REFCOUNT(trace, 0);
+
+    zval filezv, linezv;
+    zend_string *filename;
+    if ((class_type != zend_ce_parse_error
+#if PHP_VERSION_ID >= 70300
+                && class_type != zend_ce_compile_error
+#endif
+            ) || !(filename = zend_get_compiled_filename())) {
+        ZVAL_STRING(&filezv, zend_get_executed_filename());
+        ZVAL_LONG(&linezv, zend_get_executed_lineno());
+    } else {
+        ZVAL_STR_COPY(&filezv, filename);
+        ZVAL_LONG(&linezv, zend_get_compiled_lineno());
+    }
+
+    EG(current_execute_data) = NULL; // zend_std_write_property will have side effects when EX(opline) points to ZEND_ASSIGN_OBJ...
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_TRACE), &trace);
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_FILE), &filezv);
+    zend_update_property_ex(base_ce, object, ZSTR_KNOWN(ZEND_STR_LINE), &linezv);
+    zval_ptr_dtor(&filezv);
+    EG(current_execute_data) = ex;
+
+    if (ex && ex->func && ZEND_USER_CODE(ex->func->type) && exception_replay) {
+        zval locals;
+        ddtrace_call_get_locals(ex, &locals, !ignore_args);
+        zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
+        Z_SET_REFCOUNT(locals, 0);
+        zend_update_property_ex(base_ce, object, key_locals, &locals);
+        zend_string_release(key_locals);
+    }
+
+    return object;
+}
+
+// fast path
+zend_object *(*prev_exception_default_create_object)(zend_class_entry *class_type);
+static zend_object *ddtrace_default_exception_new(zend_class_entry *class_type) {
+    return ddtrace_exception_new(class_type, prev_exception_default_create_object);
+}
+
+// support custom exception create handlers
+HashTable ddtrace_exception_custom_create_object;
+static zend_object *ddtrace_custom_exception_new(zend_class_entry *class_type) {
+    zend_class_entry *ce = class_type;
+    zend_object *(*prev)(zend_class_entry *class_type);
+    while (!(prev = zend_hash_index_find_ptr(&ddtrace_exception_custom_create_object, (zend_ulong)(uintptr_t)ce))) {
+        ce = ce->parent;
+    }
+    return ddtrace_exception_new(class_type, prev);
+}
+
+static zend_property_info *dd_add_exception_locals_property(zend_class_entry *ce) {
+    zend_string *key = zend_string_init(ZEND_STRL("locals"), 1);
+    zval zv;
+    ZVAL_UNDEF(&zv);
+#if PHP_VERSION_ID >= 80000
+    zend_property_info *prop = zend_declare_typed_property(ce, key, &zv, ZEND_ACC_PRIVATE, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+#else
+    zend_declare_property_ex(ce, key, &zv, ZEND_ACC_PRIVATE, NULL);
+    zend_property_info *prop = zend_hash_find_ptr(&ce->properties_info, key);
+#endif
+    zend_string_release(key);
+    return prop;
+}
+
 void ddtrace_exception_handlers_startup(void) {
     ddtrace_exception_or_error_handler = (zend_internal_function){
         .type = ZEND_INTERNAL_FUNCTION,
@@ -422,9 +502,86 @@ void ddtrace_exception_handlers_startup(void) {
     for (size_t i = 0; i < handlers_len; ++i) {
         datadog_php_install_handler(handlers[i]);
     }
+
+    zend_property_info *exception_prop = dd_add_exception_locals_property(zend_ce_exception);
+    zend_property_info *error_prop = dd_add_exception_locals_property(zend_ce_error);
+
+    prev_exception_default_create_object = zend_ce_exception->create_object;
+    zend_hash_init(&ddtrace_exception_custom_create_object, 8, NULL, NULL, 1);
+    zend_class_entry *ce;
+    zend_string *locals_key = zend_string_init_interned(ZEND_STRL("locals"), 1);
+    ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+        if ((ce->ce_flags & ZEND_ACC_INTERFACE) == 0 && instanceof_function_slow(ce, zend_ce_throwable)) {
+            if (ce->create_object) {
+                if (ce->create_object == prev_exception_default_create_object) {
+                    ce->create_object = ddtrace_default_exception_new;
+                } else {
+                    zend_hash_index_add_ptr(&ddtrace_exception_custom_create_object, (zend_long)(uintptr_t)ce, ce->create_object);
+                    ce->create_object = ddtrace_custom_exception_new;
+                }
+
+                // add locals property to all existing throwables
+                zend_class_entry *base_ce = NULL;
+                zend_property_info *parent_info;
+                if (ce != zend_ce_exception && instanceof_function_slow(ce, zend_ce_exception)) {
+                    base_ce = zend_ce_exception;
+                    parent_info = exception_prop;
+                } else if (ce != zend_ce_error && instanceof_function_slow(ce, zend_ce_error)) {
+                    base_ce = zend_ce_error;
+                    parent_info = error_prop;
+                }
+                if (base_ce) {
+                    zval *child = zend_hash_find_known_hash(&ce->properties_info, locals_key);
+                    if (child) {
+                        ((zend_property_info *)Z_PTR_P(child))->flags |= ZEND_ACC_CHANGED;
+                    } else {
+#if PHP_VERSION_ID < 80100
+                        if (ce->type == ZEND_INTERNAL_CLASS) {
+                            zend_property_info *property_info = parent_info;
+                            parent_info = pemalloc(sizeof(zend_property_info), 1);
+                            memcpy(parent_info, property_info, sizeof(zend_property_info));
+                            zend_string_addref(parent_info->name);
+                        }
+#endif
+                        zend_hash_add_new_ptr(&ce->properties_info, locals_key, parent_info);
+                    }
+
+                    zend_property_info *property_info;
+                    ZEND_HASH_MAP_FOREACH_PTR(&ce->properties_info, property_info) {
+                        if (property_info->offset >= parent_info->offset && (property_info->flags & ZEND_ACC_STATIC) == 0) {
+#if PHP_VERSION_ID >= 80100
+                            if (property_info->ce == ce)
+#else
+                            if (property_info->ce != base_ce)
+#endif
+                            {
+                                property_info->offset += sizeof(zval);
+                            }
+                        }
+                    } ZEND_HASH_FOREACH_END();
+
+                    int insert_at = zend_hash_num_elements(&base_ce->properties_info) - 1;
+                    ce->default_properties_count++;
+
+                    ce->default_properties_table = perealloc(ce->default_properties_table, sizeof(zval) * ce->default_properties_count, 1);
+                    memmove(ce->default_properties_table + insert_at + 1, ce->default_properties_table + insert_at, sizeof(zval) * (ce->default_properties_count - insert_at - 1));
+                    ZVAL_COPY_VALUE_PROP(ce->default_properties_table + insert_at, base_ce->default_properties_table + insert_at);
+
+#if PHP_VERSION_ID >= 70400
+                    ce->properties_info_table = perealloc(ce->properties_info_table, sizeof(zend_property_info *) * ce->default_properties_count, 1);
+                    memmove(ce->properties_info_table + insert_at + 1, ce->properties_info_table + insert_at, sizeof(zend_property_info *) * (ce->default_properties_count - insert_at - 1));
+                    ce->properties_info_table[insert_at] = parent_info;
+#endif
+                }
+            }
+        }
+    } ZEND_HASH_FOREACH_END();
 }
 
-void ddtrace_exception_handlers_shutdown(void) { ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce); }
+void ddtrace_exception_handlers_shutdown(void) {
+    ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce);
+    zend_hash_destroy(&ddtrace_exception_custom_create_object);
+}
 
 void ddtrace_exception_handlers_rinit(void) {
     if (Z_TYPE(EG(user_exception_handler)) != IS_OBJECT ||

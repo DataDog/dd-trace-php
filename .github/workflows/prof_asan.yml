@@ -5,21 +5,24 @@ on:
 
 jobs:
   prof-asan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        php-version: [8.3, 8.4]
     container:
-      image: datadog/dd-trace-ci:php-8.3_bookworm-2
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-5
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root --privileged
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: true
 
       - name: Restore build cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: |
             ~/.cargo/bin/
@@ -33,19 +36,20 @@ jobs:
         run: |
           set -eux
           switch-php nts-asan
+          rm $(php-config --ini-dir)/sqlsrv.ini #sqlsrv leaks memory and triggers asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
-          export CC=clang-16
+          export CC=clang-17
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
-          export LDFLAGS='-fsanitize=address'
-          export RUSTC_LINKER=lld-16
+          export LDFLAGS='-fsanitize=address -shared-libasan'
+          export RUSTC_LINKER=lld-17
           triplet=$(uname -m)-unknown-linux-gnu
-          RUST_NIGHTLY_VERSION="-2024-02-27"
+          RUST_NIGHTLY_VERSION="-2025-01-03"
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Cache build dependencies
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: |
             ~/.cargo/bin/
@@ -55,18 +59,11 @@ jobs:
             /tmp/build-cargo/
           key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Fix kernel mmap rnd bits
-        # Asan in llvm 14 provided in ubuntu 22.04 is incompatible with
-        # high-entropy ASLR in much newer kernels that GitHub runners are
-        # using leading to random crashes: https://reviews.llvm.org/D148280
-        # https://github.com/actions/runner-images/issues/9491#issuecomment-1989718917
-        run: sysctl vm.mmap_rnd_bits=28
-
       - name: Run phpt tests
         run: |
           set -eux
           switch-php nts-asan
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
+          export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
           php run-tests.php --show-diff --asan -d extension=datadog-profiling.so phpt
-

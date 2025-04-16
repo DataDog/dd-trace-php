@@ -1,0 +1,23 @@
+[[
+  {
+    "name": "google_spanner.execute",
+    "service": "google_spanner",
+    "resource": "SELECT * FROM users",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "sql",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "672dc9f400000000",
+      "component": "google_spanner",
+      "db.name": "projects/emulator-project/instances/test-instance/databases/test-database",
+      "db.system": "spanner",
+      "runtime-id": "a1457750-ef22-437f-a295-10f334f6b7fe",
+      "span.kind": "client"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  }]]

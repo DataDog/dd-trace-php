@@ -1,0 +1,209 @@
+[[
+  {
+    "name": "symfony.request",
+    "service": "test_symfony_28",
+    "resource": "GET /does_not_exist",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 17237293399551304183,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "666312a800000000",
+      "component": "symfony",
+      "http.method": "GET",
+      "http.status_code": "404",
+      "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
+      "runtime-id": "0371654f-098d-496a-ad8e-f1ea99fc59c6",
+      "span.kind": "server",
+      "symfony.route.action": "Symfony\\Bundle\\TwigBundle\\Controller\\ExceptionController@showAction"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "symfony.httpkernel.kernel.handle",
+       "service": "test_symfony_28",
+       "resource": "AppKernel",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony",
+         "span.kind": "server"
+       }
+     },
+        {
+          "name": "symfony.httpkernel.kernel.boot",
+          "service": "test_symfony_28",
+          "resource": "AppKernel",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+        {
+          "name": "symfony.kernel.handle",
+          "service": "test_symfony_28",
+          "resource": "symfony.kernel.handle",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+           {
+             "name": "symfony.kernel.request",
+             "service": "test_symfony_28",
+             "resource": "symfony.kernel.request",
+             "trace_id": 0,
+             "span_id": 6,
+             "parent_id": 5,
+             "type": "web",
+             "error": 1,
+             "meta": {
+               "component": "symfony",
+               "error.message": "Thrown Symfony\\Component\\Routing\\Exception\\ResourceNotFoundException in /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/appProdProjectContainerUrlMatcher.php:62",
+               "error.stack": "#0 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(1455): appProdProjectContainerUrlMatcher->match()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(1318): Symfony\\Component\\Routing\\Matcher\\UrlMatcher->matchRequest()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(2119): Symfony\\Component\\Routing\\Router->matchRequest()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(1886): Symfony\\Component\\HttpKernel\\EventListener\\RouterListener->onKernelRequest()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(1801): Symfony\\Component\\EventDispatcher\\EventDispatcher->doDispatch()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3265): Symfony\\Component\\EventDispatcher\\EventDispatcher->dispatch()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3234): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#7 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3392): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#8 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(2594): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#9 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/web/app.php(15): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#10 {main}\n\nNext Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException: No route found for \"GET /does_not_exist\" in /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php:2135\nStack trace:\n#0 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(1886): Symfony\\Component\\HttpKernel\\EventListener\\RouterListener->onKernelRequest()\n#1 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/cache/prod/classes.php(1801): Symfony\\Component\\EventDispatcher\\EventDispatcher->doDispatch()\n#2 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3265): Symfony\\Component\\EventDispatcher\\EventDispatcher->dispatch()\n#3 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3234): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#4 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(3392): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#5 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/app/bootstrap.php.cache(2594): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#6 /home/circleci/app/tests/Frameworks/Symfony/Version_2_8/web/app.php(15): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#7 {main}",
+               "error.type": "Symfony\\Component\\Routing\\Exception\\ResourceNotFoundException"
+             }
+           },
+           {
+             "name": "symfony.kernel.handleException",
+             "service": "test_symfony_28",
+             "resource": "symfony.kernel.handleException",
+             "trace_id": 0,
+             "span_id": 7,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+              {
+                "name": "symfony.kernel.exception",
+                "service": "test_symfony_28",
+                "resource": "symfony.kernel.exception",
+                "trace_id": 0,
+                "span_id": 8,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+                 {
+                   "name": "symfony.kernel.request",
+                   "service": "test_symfony_28",
+                   "resource": "symfony.kernel.request",
+                   "trace_id": 0,
+                   "span_id": 11,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.controller",
+                   "service": "test_symfony_28",
+                   "resource": "symfony.kernel.controller",
+                   "trace_id": 0,
+                   "span_id": 12,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.controller",
+                   "service": "test_symfony_28",
+                   "resource": "Symfony\\Bundle\\TwigBundle\\Controller\\ExceptionController::showAction",
+                   "trace_id": 0,
+                   "span_id": 13,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                    {
+                      "name": "symfony.templating.render",
+                      "service": "test_symfony_28",
+                      "resource": "Twig\\Environment @Twig/Exception/error.html.twig",
+                      "trace_id": 0,
+                      "span_id": 16,
+                      "parent_id": 13,
+                      "type": "web",
+                      "meta": {
+                        "component": "symfony"
+                      }
+                    },
+                 {
+                   "name": "symfony.kernel.response",
+                   "service": "test_symfony_28",
+                   "resource": "symfony.kernel.response",
+                   "trace_id": 0,
+                   "span_id": 14,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.finish_request",
+                   "service": "test_symfony_28",
+                   "resource": "symfony.kernel.finish_request",
+                   "trace_id": 0,
+                   "span_id": 15,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+              {
+                "name": "symfony.kernel.response",
+                "service": "test_symfony_28",
+                "resource": "symfony.kernel.response",
+                "trace_id": 0,
+                "span_id": 9,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+              {
+                "name": "symfony.kernel.finish_request",
+                "service": "test_symfony_28",
+                "resource": "symfony.kernel.finish_request",
+                "trace_id": 0,
+                "span_id": 10,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+     {
+       "name": "symfony.kernel.terminate",
+       "service": "test_symfony_28",
+       "resource": "symfony.kernel.terminate",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony"
+       }
+     }]]

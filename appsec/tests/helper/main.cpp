@@ -13,7 +13,9 @@ std::string create_sample_rules_ok()
 {
     const static char data[] = R"({
   "version": "2.1",
-  "metadata": { "rules_version" : "1.2.3" },
+  "metadata": {
+    "rules_version": "1.2.3"
+  },
   "rules": [
     {
       "id": "blk-001-001",
@@ -30,7 +32,9 @@ std::string create_sample_rules_ok()
                 "address": "http.client_ip"
               }
             ],
-            "list": ["192.168.1.1"]
+            "list": [
+              "192.168.1.1"
+            ]
           },
           "operator": "ip_match"
         }
@@ -39,6 +43,63 @@ std::string create_sample_rules_ok()
       "on_match": [
         "block"
       ]
+    },
+    {
+      "id": "blk-001-002",
+      "name": "Block IP Addresses with all actions",
+      "tags": {
+        "type": "block_ip",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "list": [
+              "192.168.1.2"
+            ]
+          },
+          "operator": "ip_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block",
+        "redirect",
+        "stack_trace",
+        "extract_schema"
+      ]
+    },
+    {
+        "id": "blk-001-003",
+        "name": "Only stack trace",
+        "tags": {
+        "type": "block_ip",
+        "category": "security_response"
+        },
+        "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "list": [
+              "192.168.1.3"
+            ]
+          },
+          "operator": "ip_match"
+        }
+        ],
+        "transformers": [],
+        "on_match": [
+            "stack_trace"
+        ]
     },
     {
       "id": "crs-913-110",
@@ -63,7 +124,9 @@ std::string create_sample_rules_ok()
           "operator": "phrase_match"
         }
       ],
-      "transformers": ["lowercase"]
+      "transformers": [
+        "lowercase"
+      ]
     },
     {
       "id": "req_shutdown_rule",
@@ -94,9 +157,9 @@ std::string create_sample_rules_ok()
                 "address": "server.response.code"
               }
             ],
-            "regex":1991,
+            "regex": 1991,
             "options": {
-                "case_sensitive": "false"
+              "case_sensitive": "false"
             }
           },
           "operator": "match_regex"
@@ -136,13 +199,13 @@ std::string create_sample_rules_ok()
             "output": "_dd.appsec.s.req.headers.no_cookies"
           },
           {
-           "inputs": [
-             {
-               "address": "server.request.body"
-             }
-           ],
-           "output": "_dd.appsec.s.req.body"
-         }
+            "inputs": [
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "output": "_dd.appsec.s.req.body"
+          }
         ],
         "scanners": [
           {
@@ -154,9 +217,187 @@ std::string create_sample_rules_ok()
       },
       "evaluate": false,
       "output": true
+    },
+    {
+      "id": "http-endpoint-fingerprint",
+      "generator": "http_endpoint_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "method": [
+              {
+                "address": "server.request.method"
+              }
+            ],
+            "uri_raw": [
+              {
+                "address": "server.request.uri.raw"
+              }
+            ],
+            "body": [
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "query": [
+              {
+                "address": "server.request.query"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.endpoint"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "http-header-fingerprint",
+      "generator": "http_header_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "headers": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.header"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "http-network-fingerprint",
+      "generator": "http_network_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "headers": [
+              {
+                "address": "server.request.headers.no_cookies"
+              }
+            ],
+            "output": "_dd.appsec.fp.http.network"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
+    },
+    {
+      "id": "session-fingerprint",
+      "generator": "session_fingerprint",
+      "conditions": [
+        {
+          "operator": "exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "waf.context.event"
+              },
+              {
+                "address": "server.business_logic.users.login.failure"
+              },
+              {
+                "address": "server.business_logic.users.login.success"
+              }
+            ]
+          }
+        }
+      ],
+      "parameters": {
+        "mappings": [
+          {
+            "cookies": [
+              {
+                "address": "server.request.cookies"
+              }
+            ],
+            "session_id": [
+              {
+                "address": "usr.session_id"
+              }
+            ],
+            "user_id": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "output": "_dd.appsec.fp.session"
+          }
+        ]
+      },
+      "evaluate": false,
+      "output": true
     }
   ],
-  "scanners": []
+  "scanners": [],
+  "actions": [
+    {
+      "id": "redirect",
+      "type": "redirect_request",
+      "parameters": {
+        "location": "https://localhost"
+      }
+    }
+  ]
 })";
 
     char tmpl[] = "/tmp/test_ddappsec_XXXXXX";

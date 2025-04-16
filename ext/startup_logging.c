@@ -160,6 +160,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_zstring(ht, ZEND_STRL("dd_version"), zend_string_copy(get_DD_VERSION()));
     // "health_metrics_enabled" N/A for PHP
     _dd_add_assoc_zstring(ht, ZEND_STRL("architecture"), php_get_uname('m'));
+    _dd_add_assoc_bool(ht, ZEND_STRL("instrumentation_telemetry_enabled"), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED());
 
     // PHP-specific values
     _dd_add_assoc_string(ht, ZEND_STRL("sapi"), sapi_module.name);
@@ -181,6 +182,7 @@ static void _dd_get_startup_config(HashTable *ht) {
                           _dd_implode_keys(get_DD_TRACE_TRACED_INTERNAL_FUNCTIONS()));
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
+    _dd_add_assoc_bool(ht, ZEND_STRL("sidecar_trace_sender"), get_global_DD_TRACE_SIDECAR_TRACE_SENDER());
 }
 
 #ifndef _WIN32
@@ -291,7 +293,7 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
                              "with the PHP tracer due to a bug in OPcache: https://bugs.php.net/bug.php?id=79825");
     }
 
-    for (uint8_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+    for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         // DD_TRACE_LOGS_ENABLED would be the proper name, but for compatibility with other tracers, we also support DD_LOGS_INJECTION officially
         if (cfg->name_index > 0 && i != DDTRACE_CONFIG_DD_TRACE_LOGS_ENABLED) {
@@ -372,6 +374,11 @@ void ddtrace_startup_logging_first_rinit(void) {
         log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
             "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
             "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+
+        if (get_DD_OPENAI_LOGS_ENABLED()) {
+            log("Note that DD_OPENAI_LOGS_ENABLED=1 may be changed or removed in any release.");
+        }
+
         smart_str_free(&buf);
 
         zend_hash_destroy(ht);

@@ -20,6 +20,11 @@ final class SwooleServer implements Sapi
     private $indexFile;
 
     /**
+     * @var int
+     */
+    private $port;
+
+    /**
      * @var array
      */
     private $envs;
@@ -31,12 +36,14 @@ final class SwooleServer implements Sapi
 
     /**
      * @param string $indexFile
+     * @param int $port
      * @param array $envs
      * @param array $inis
      */
-    public function __construct($indexFile, array $envs = [], array $inis = [])
+    public function __construct($indexFile, $port, array $envs = [], array $inis = [])
     {
         $this->indexFile = $indexFile;
+        $this->port = $port;
         $this->envs = $envs;
         $this->inis = $inis;
     }
@@ -44,8 +51,6 @@ final class SwooleServer implements Sapi
     public function start()
     {
         if (getenv('PHPUNIT_COVERAGE')) {
-            $this->inis['auto_prepend_file'] = __DIR__ . '/../../save_code_coverage.php';
-
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
             $this->inis['zend_extension'] = $xdebugExtension;
@@ -53,9 +58,10 @@ final class SwooleServer implements Sapi
         }
 
         $cmd = sprintf(
-            PHP_BINARY . ' %s %s',
+            PHP_BINARY . ' %s %s %d',
             new IniSerializer($this->inis),
-            $this->indexFile
+            $this->indexFile,
+            $this->port
         );
         $envs = new EnvSerializer($this->envs);
         $processCmd = "$envs exec $cmd";
@@ -73,7 +79,7 @@ final class SwooleServer implements Sapi
     public function stop()
     {
         error_log("[swoole-server] Stopping...");
-        $this->process->stop(0);
+        $this->process->stop(0, SIGTERM);
     }
 
     public function isFastCgi()

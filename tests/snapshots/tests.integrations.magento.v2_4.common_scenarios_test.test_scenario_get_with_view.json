@@ -12,7 +12,7 @@
       "component": "magento",
       "http.method": "GET",
       "http.status_code": "200",
-      "http.url": "http://localhost:9999/datadog/simpleview/index?key=value&<redacted>",
+      "http.url": "http://localhost/datadog/simpleview/index?key=value&<redacted>",
       "magento.area": "frontend",
       "magento.cached": "false",
       "magento.frontname": "datadog",

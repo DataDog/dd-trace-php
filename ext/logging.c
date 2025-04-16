@@ -9,6 +9,10 @@
 #include "configuration.h"
 #include <main/SAPI.h>
 
+#ifndef _WIN32
+#define atomic_compare_exchange_strong_int atomic_compare_exchange_strong
+#endif
+
 
 static void dd_log_set_level(bool debug) {
     bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
@@ -83,7 +87,7 @@ void ddtrace_log_rinit(char *error_log) {
     time(&now);
     atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
     int expected = -1;
-    if (!atomic_compare_exchange_strong(&ddtrace_error_log_fd, &expected, desired)) {
+    if (!atomic_compare_exchange_strong_int(&ddtrace_error_log_fd, &expected, desired)) {
         // if it didn't exchange, then we need to free it
         close(desired);
     }
@@ -205,16 +209,16 @@ void ddtrace_log_init(void) {
     ddog_log_callback = ddtrace_log_callback;
 }
 
-bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value) {
-    UNUSED(old_value);
+bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
 
     dd_log_set_level(Z_TYPE_P(new_value) == IS_TRUE);
 
     return true;
 }
 
-bool ddtrace_alter_dd_trace_log_level(zval *old_value, zval *new_value) {
-    UNUSED(old_value);
+bool ddtrace_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
     if (runtime_config_first_init ? get_DD_TRACE_DEBUG() : get_global_DD_TRACE_DEBUG()) {
         return true;
     }

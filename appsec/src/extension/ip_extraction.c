@@ -5,14 +5,15 @@
 // (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #include "ip_extraction.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include "logging.h"
+#include "php_compat.h"
 #include "php_objects.h"
 
 static void _register_testing_objects(void);
 
-void dd_ip_extraction_startup() { _register_testing_objects(); }
+void dd_ip_extraction_startup(void) { _register_testing_objects(); }
 
 static PHP_FUNCTION(datadog_appsec_testing_extract_ip_addr)
 {
@@ -29,8 +30,6 @@ static PHP_FUNCTION(datadog_appsec_testing_extract_ip_addr)
     RETURN_STR(res);
 }
 
-#include "php_compat.h"
-
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(extract_ip_addr, 0, 1, IS_STRING, 1)
     ZEND_ARG_TYPE_INFO(0, headers, IS_ARRAY, 0)
@@ -38,12 +37,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(extract_ip_addr, 0, 1, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "extract_ip_addr", PHP_FN(datadog_appsec_testing_extract_ip_addr), extract_ip_addr, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "extract_ip_addr", PHP_FN(datadog_appsec_testing_extract_ip_addr), extract_ip_addr, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

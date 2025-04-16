@@ -9,7 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TemplateEnginesTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
     }
@@ -30,7 +30,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                 'symfony.route.action' => 'AppBundle\Controller\HomeController@indexAction',
                 'symfony.route.name' => 'alternate_templating',
                 'http.method' => 'GET',
-                'http.url' => 'http://localhost:9999/alternate_templating',
+                'http.url' => 'http://localhost/alternate_templating',
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'symfony',

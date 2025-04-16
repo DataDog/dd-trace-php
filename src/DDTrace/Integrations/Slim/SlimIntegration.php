@@ -34,6 +34,7 @@ class SlimIntegration extends Integration
                 // Overwrite root span info
                 $rootSpan = \DDTrace\root_span();
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->name = 'slim.request';
                 $rootSpan->service = $appName;
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = SlimIntegration::NAME;
@@ -70,8 +71,6 @@ class SlimIntegration extends Integration
                 }
 
                 if ('3' === $majorVersion) {
-                    $rootSpan->name = 'slim.request';
-
                     // Hook into the router to extract the proper route name
                     \DDTrace\hook_method(
                         'Slim\\Router',

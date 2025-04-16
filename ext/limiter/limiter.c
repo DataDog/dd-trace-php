@@ -27,6 +27,10 @@ static ddtrace_limiter* dd_limiter;
 
 
 void ddtrace_limiter_create() {
+    if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index < 0) {
+        return;
+    }
+
     uint32_t limit = (uint32_t) get_global_DD_TRACE_RATE_LIMIT();
 
     if (!limit) {
@@ -57,6 +61,9 @@ bool ddtrace_limiter_active() {
 }
 
 bool ddtrace_limiter_allow() {
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
+        return true;
+    }
     ZEND_ASSERT(dd_limiter);
 
     uint64_t timeval = zend_hrtime();

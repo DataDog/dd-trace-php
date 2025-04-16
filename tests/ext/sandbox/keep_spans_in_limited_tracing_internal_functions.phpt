@@ -1,6 +1,7 @@
 --TEST--
 Keep spans in limited mode (internal functions)
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_SPANS_LIMIT=5
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand

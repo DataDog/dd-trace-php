@@ -13,13 +13,13 @@
       "_dd.p.tid": "660bead900000000",
       "app.endpoint": "Error_::index",
       "component": "codeigniter",
-      "error.message": "Uncaught Exception (500): datadog in /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
-      "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 {main}",
+      "error.message": "Uncaught Exception (500): datadog in /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
+      "error.stack": "#0 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 {main}",
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "error",
       "http.status_code": "500",
-      "http.url": "http://localhost:9999/error?key=value&<redacted>",
+      "http.url": "http://localhost/error?key=value&<redacted>",
       "runtime-id": "91489364-94f6-4030-b3ed-5df886a158a0",
       "span.kind": "server"
     },
@@ -38,8 +38,8 @@
        "error": 1,
        "meta": {
          "component": "codeigniter",
-         "error.message": "Thrown Exception (500): datadog in /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
-         "error.stack": "#0 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/datadog/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 {main}",
+         "error.message": "Thrown Exception (500): datadog in /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/application/controllers/Error_.php:5",
+         "error.stack": "#0 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/system/core/CodeIgniter.php(533): Error_->index()\n#1 /home/circleci/app/tests/Frameworks/CodeIgniter/Version_3_1/index.php(315): require_once()\n#2 {main}",
          "error.type": "Exception"
        }
      }]]

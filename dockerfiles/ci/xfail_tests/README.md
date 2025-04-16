@@ -53,15 +53,38 @@ The following tests assert the output of `var_dump($obj)` and fail because we ad
 - `ext/spl/tests/gh10011.phpt`
 - `Zend/tests/gc_045.phpt`
 
+## Tests related to exceptions
+
+- `Zend/tests/generators/exception_during_shutdown.phpt`
+- `ext/dom/tests/dom003.phpt`
+- `ext/dom/tests/dom_set_attr_node.phpt`
+- `ext/intl/tests/bug60192-sort.phpt`
+- `ext/phar/tests/frontcontroller29.phpt`
+- `ext/phar/tests/cache_list/frontcontroller29.phpt`
+- `ext/soap/tests/bug77088.phpt`
+- `ext/spl/tests/gh8318.phpt`
+
+## Tests checking for DO_ICALL
+
+On PHP 8.0 and PHP 8.1 we override zend_execute_internal, which causes DO_FCALL instead of DO_ICALL opcodes to be emitted. Skipping some `ext/opcache` tests there.
+
 ---
 
 # Specific tests
+
+## `ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt`
+
+Disabled on versions: `8.2`, `8.3`.
+
+Allocates > 5GB of Ram on a CircleCI medium instance (limit 4GB) but uses
+`/proc/meminfo` to check if enough memory is available in the `SKIP` section.
+See https://github.com/php/php-src/pull/14895 and https://github.com/DataDog/dd-trace-php/pull/2752#issuecomment-2219813169
 
 ## `sapi/cli/tests/bug80092.phpt`
 
 Temporarily disabled due to a too strict of a check for the precise php -v output.
 
-## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`, `Zend/tests/gh12073.phpt`
+## `Zend/tests/object_gc_in_shutdown.phpt`, `Zend/tests/bug81104.phpt`, `Zend/tests/gh11189(_1).phpt`, `Zend/tests/gh12073.phpt`, `ext/standard/tests/gh14643_longname.phpt`
 
 Tests memory limits, which we exceed due to tracer being loaded.
 
@@ -73,9 +96,13 @@ By _chance_ the internal comparison happens against another GC protected array w
 
 Test does http request to shut down server.
 
-## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`
+## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt`
 
 Distributed tracing headers are injected
+
+## `ext/intl/tests/bug60192-sort.phpt`
+
+Has a refcounting bug on PHP 7.4 (which gets triggered by the tracer, but isn't caused by it).
 
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 
@@ -157,7 +184,7 @@ SKIP Test if socket_create_listen() returns false, when it cannot bind to the po
 
 ddtrace request init hook consumes more than 2 MB of memory and fails too early instead of testing what it should.
 
-## `Zend/tests/fibers/gh10496-001.phpt`, `Zend/tests/weakrefs/gh10043-007.phpt`
+## `Zend/tests/fibers/gh10496-001.phpt`, `Zend/tests/weakrefs/gh10043-007.phpt`, `Zend/tests/fibers/destructors_005.phpt`
 
 ddtrace affects the order of destructor execution due to creating span stacks etc.
 

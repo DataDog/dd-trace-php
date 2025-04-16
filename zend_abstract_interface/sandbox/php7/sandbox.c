@@ -6,6 +6,7 @@ extern inline void zai_sandbox_open(zai_sandbox *sandbox);
 extern inline void zai_sandbox_close(zai_sandbox *sandbox);
 extern inline void zai_sandbox_bailout(zai_sandbox *sandbox);
 extern inline bool zai_sandbox_timed_out(void);
+extern inline bool zai_is_request_blocked(void);
 
 extern inline void zai_sandbox_error_state_backup(zai_error_state *es);
 extern inline void zai_sandbox_error_state_restore(zai_error_state *es);

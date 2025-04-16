@@ -12,11 +12,13 @@ use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextKeys;
 use OpenTelemetry\Context\ContextInterface;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
 use OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface;
 use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
+use Throwable;
 
 final class SpanBuilder implements API\SpanBuilderInterface
 {
@@ -42,6 +44,9 @@ final class SpanBuilder implements API\SpanBuilderInterface
 
     /** @var list<LinkInterface> */
     private array $links = [];
+
+    /** @var list<EventInterface> */
+    private array $events = [];
 
     /** @var array */
     private array $attributes;
@@ -88,6 +93,42 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 ->builder($attributes)
                 ->build(),
         );
+
+        return $this;
+    }
+
+    public function addEvent(string $name, iterable $attributes = [], ?int $timestamp = null): SpanBuilderInterface
+    {
+        $this->events[] = new Event(
+            $name,
+            $timestamp ?? (int)(microtime(true) * 1e9),
+            $this->tracerSharedState
+                ->getSpanLimits()
+                ->getEventAttributesFactory()
+                ->builder($attributes)
+                ->build(),
+        );
+
+        return $this;
+    }
+
+    public function recordException(Throwable $exception, iterable $attributes = []): SpanBuilderInterface
+    {
+        // Standardized exception attributes
+        $exceptionAttributes = [
+            'exception.message' => $attributes['exception.message'] ?? $exception->getMessage(),
+            'exception.type' => $attributes['exception.type'] ?? get_class($exception),
+            'exception.stacktrace' => $attributes['exception.stacktrace'] ?? \DDTrace\get_sanitized_exception_trace($exception),
+        ];
+
+        // Update span metadata based on exception stack
+        $this->setAttribute(Tag::ERROR_STACK, $exceptionAttributes['exception.stacktrace']);
+
+        // Merge additional attributes
+        $allAttributes = array_merge($exceptionAttributes, \is_array($attributes) ? $attributes : iterator_to_array($attributes));
+
+        // Record the exception event
+        $this->addEvent('exception', $allAttributes);
 
         return $this;
     }
@@ -156,6 +197,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
                 $this->spanKind,
                 Attributes::create($this->attributes),
                 $this->links,
+                $this->events
             );
 
         $span = $span ?? \DDTrace\start_trace_span($this->startEpochNanos);
@@ -192,6 +234,13 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->attributes[$key] = $value;
         }
 
+        $parentSpanContextBaggage = $parentContext->get(ContextKeys::baggage());
+        if ($parentSpanContextBaggage) {
+            foreach($parentSpanContextBaggage->getAll() as $baggageKey => $baggageEntry) {
+                $span->baggage[$baggageKey] = $baggageEntry->getValue();
+            }
+        }
+
         return Span::startSpan(
             $span,
             $spanContext,
@@ -204,6 +253,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->attributes,
             $this->links,
             $this->totalNumberOfLinksAdded,
+            $this->events
         );
     }
 

@@ -17,22 +17,22 @@ use function DDTrace\close_span;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
-    response_list(response_request_init(['ok', []])),
-    response_list(response_request_shutdown(['ok', [], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
+    response_list(response_request_init([[['ok', []]]])),
+    response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()])),
 ]);
 
 function test($stream) {

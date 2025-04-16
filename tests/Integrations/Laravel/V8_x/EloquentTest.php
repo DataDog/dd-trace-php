@@ -4,17 +4,14 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
+    public static $database = "laravel8";
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_8_x/public/index.php';
     }
@@ -140,6 +137,6 @@ class EloquentTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+        return new \PDO('mysql:host=mysql_integration;dbname=laravel8', 'test', 'test');
     }
 }

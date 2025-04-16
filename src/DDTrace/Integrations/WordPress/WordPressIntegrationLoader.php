@@ -123,7 +123,7 @@ class WordPressIntegrationLoader
         WordPressIntegration $integration,
         SpanData $span,
         string $name,
-        string $resource = null
+        $resource = null
     ) {
         $span->name = $name;
         $span->resource = $resource ?: $name;
@@ -313,37 +313,47 @@ class WordPressIntegrationLoader
 
 
         hook_function('wp_templating_constants', null, function () use ($integration) {
-            foreach (wp_get_active_and_valid_themes() as $theme) {
-                if (file_exists($theme . '/functions.php')) {
-                    install_hook(
-                        $theme . '/functions.php',
-                        function (HookData $hook) use ($integration, $theme) {
-                            $span = $hook->span();
-                            $themeName = explode('/', $theme);
-                            $themeName = ucfirst(end($themeName));
-                            WordPressIntegrationLoader::setCommonTags(
-                                $integration,
-                                $span,
-                                'load_theme',
-                                "$themeName (theme)"
-                            );
-                            $span->meta['wordpress.theme'] = $themeName;
-                            $hook->data['themeName'] = $themeName;
+            global $wp_theme_directories;
+            if (empty($wp_theme_directories)) {
+                return;
+            }
+            $wp_theme_directories = (array) $wp_theme_directories;
+            foreach ($wp_theme_directories as $themeRoot) {
+                $dirs = scandir($themeRoot);
+                foreach ($dirs as $dir) {
+                    if ($dir === '.' || $dir === '..' || $dir == 'index.php') {
+                        continue;
+                    }
+                    if (file_exists($themeRoot . '/' . $dir . '/functions.php')) {
+                        install_hook(
+                            $themeRoot . '/' . $dir . '/functions.php',
+                            function (HookData $hook) use ($integration, $themeRoot, $dir) {
+                                $span = $hook->span();
+                                $themeName = ucfirst($dir);
+                                WordPressIntegrationLoader::setCommonTags(
+                                    $integration,
+                                    $span,
+                                    'load_theme',
+                                    "$themeName (theme)"
+                                );
+                                $span->meta['wordpress.theme'] = $themeName;
+                                $hook->data['themeName'] = $themeName;
 
-                            remove_hook($hook->id);
-                        },
-                        function (HookData $hook) use ($integration) {
-                            $span = $hook->span();
-                            $duration = (microtime(true) * 1e6) - ($span->getStartTime() / 1e3); // ms - ms := ms
-                            WordPressIntegrationLoader::sendMetric(
-                                $integration,
-                                '\DDTrace\dogstatsd_distribution',
-                                'wordpress.plugin.loading_duration',
-                                $duration,
-                                ['wordpress.plugin.name' => $hook->data['themeName']]
-                            );
-                        }
-                    );
+                                remove_hook($hook->id);
+                            },
+                            function (HookData $hook) use ($integration) {
+                                $span = $hook->span();
+                                $duration = (microtime(true) * 1e6) - ($span->getStartTime() / 1e3); // ms - ms := ms
+                                WordPressIntegrationLoader::sendMetric(
+                                    $integration,
+                                    '\DDTrace\dogstatsd_distribution',
+                                    'wordpress.plugin.loading_duration',
+                                    $duration,
+                                    ['wordpress.plugin.name' => $hook->data['themeName']]
+                                );
+                            }
+                        );
+                    }
                 }
             }
         });

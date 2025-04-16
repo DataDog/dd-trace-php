@@ -1,7 +1,9 @@
 package com.datadog.appsec.php.docker
 
 import com.datadog.appsec.php.mock_agent.MockDatadogAgent
-import com.datadog.appsec.php.model.Span
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
+import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
+import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Trace
 import com.github.dockerjava.api.command.CreateContainerCmd
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
@@ -9,6 +11,7 @@ import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.model.Bind
 import com.github.dockerjava.api.model.Volume
 import com.google.common.util.concurrent.SettableFuture
+import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
 import groovy.transform.TypeCheckingMode
 import groovy.transform.stc.ClosureParams
@@ -23,13 +26,18 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.FrameConsumerResultCallback
 import org.testcontainers.containers.output.OutputFrame
 import org.testcontainers.containers.output.Slf4jLogConsumer
+import org.testcontainers.containers.wait.strategy.WaitStrategy
+import org.testcontainers.containers.wait.strategy.WaitStrategyTarget
 
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.Future
 import java.util.function.Consumer
+import java.util.function.Supplier
 
 @CompileStatic
 @Slf4j
@@ -38,6 +46,8 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     private String imageName
     private Slf4jLogConsumer logConsumer
     private File logsDir
+    private String wwwDir
+    private String wwwSrcDir
     public final HttpClient httpClient = HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.NEVER)
                     .connectTimeout(Duration.ofSeconds(5))
@@ -72,9 +82,18 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_ENV', 'integration'
         withEnv 'DD_TRACE_LOG_LEVEL', 'info,startup=off'
         withEnv 'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS', '0'
-        withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '0'
+        withEnv 'DD_TRACE_AGENT_FLUSH_INTERVAL', '50' // in ms
+        withEnv 'DD_TRACE_SIDECAR_TRACE_SENDER', '0'
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
+        withEnv 'DD_TRACE_GIT_METADATA_ENABLED', '0'
+        withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
+        // very verbose:
+        // withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
+        withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
+        withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
+        withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
+        // withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
             withEnv 'XDEBUG', '1'
@@ -106,12 +125,80 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         mockDatadogAgent.drainTraces()
     }
 
+    List<Object> drainTelemetry(int timeoutInMs) {
+        mockDatadogAgent.drainTelemetry(timeoutInMs)
+    }
+
+    void setNextRCResponse(Target target, RemoteConfigResponse nextResponse) {
+        mockDatadogAgent.setNextRCResponse(target, nextResponse)
+    }
+
+    RemoteConfigRequest waitForRCVersion(Target target, long version, long timeoutInMs) {
+        mockDatadogAgent.waitForRCVersion(target, version, timeoutInMs)
+    }
+
+    Supplier<RemoteConfigRequest> applyRemoteConfig(Target target, Map<String, Map> files) {
+        Map<String, byte[]> encodedFiles = files
+                .findAll { it.value != null }
+                .collectEntries {
+                    [
+                            it.key,
+                            JsonOutput.toJson(it.value).getBytes(StandardCharsets.UTF_8)
+                    ]
+                }
+        long newVersion = Instant.now().epochSecond
+        def rcr = new RemoteConfigResponse()
+        rcr.clientConfigs = files.keySet() as List
+        rcr.targetFiles = encodedFiles.collect {
+            new RemoteConfigResponse.TargetFile(
+                    path: it.key,
+                    raw: new String(
+                            Base64.encoder.encode(it.value),
+                            StandardCharsets.ISO_8859_1)
+            )
+        }
+        rcr.targets = new RemoteConfigResponse.Targets(
+                signatures: [],
+                targetsSigned: new RemoteConfigResponse.Targets.TargetsSigned(
+                        type: 'root',
+                        custom: new RemoteConfigResponse.Targets.TargetsSigned.TargetsCustom(
+                                opaqueBackendState: 'ABCDEF'
+                        ),
+                        specVersion: '1.0.0',
+                        expires: Instant.parse('2030-01-01T00:00:00Z'),
+                        version: newVersion,
+                        targets: encodedFiles.collectEntries {
+                            [
+                                    it.key,
+                                    new RemoteConfigResponse.Targets.ConfigTarget(
+                                            hashes: [sha256: RemoteConfigResponse.sha256(it.value).toString(16).padLeft(64, '0')],
+                                            length: it.value.size(),
+                                            custom: new RemoteConfigResponse.Targets.ConfigTarget.ConfigTargetCustom(
+                                                    version: newVersion
+                                            )
+                                    )
+                            ]
+                        }
+                ),
+        )
+
+        setNextRCResponse(target, rcr)
+
+        long start = System.currentTimeMillis()
+        return { -> waitForRCVersion(target, newVersion,
+                5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
+    }
+
     void close() {
         copyLogs()
         super.close()
     }
 
     private static final Random RAND = new Random()
+
+    HttpClient getHttpClient() {
+        httpClient
+    }
 
     URI buildURI(String path) {
         URI.create("http://${host}:${firstMappedPort}$path")
@@ -127,9 +214,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     Trace traceFromRequest(String path,
                            @ClosureParams(value = FromAbstractTypeMethods,
                                    options = ['java.net.http.HttpResponse'])
-                                   Closure<Void> doWithConn = null) {
+                                   Closure<Void> doWithConn = null,
+                           boolean ignoreOtherRequests = false) {
         HttpRequest req = buildReq(path).GET().build()
-        traceFromRequest(req, HttpResponse.BodyHandlers.ofInputStream(), doWithConn)
+        traceFromRequest(req, HttpResponse.BodyHandlers.ofInputStream(), doWithConn, ignoreOtherRequests)
     }
 
     @CompileStatic(TypeCheckingMode.SKIP)
@@ -137,7 +225,8 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                                HttpResponse.BodyHandler<T> bodyHandler,
                                @ClosureParams(value = FromString,
                                        options = 'java.net.http.HttpResponse<T>')
-                                       Closure<Void> doWithResp = null) {
+                                       Closure<Void> doWithResp = null,
+                               boolean ignoreOtherRequests = false) {
 
         String traceId = req.headers().map().get('x-datadog-trace-id').first()
         if (!traceId) {
@@ -162,25 +251,34 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             ((InputStream)resp.body()).close()
         }
 
-        Trace trace
-        if (savedThrowable) {
-            try {
-                nextCapturedTrace()
-            } finally {
-                throw savedThrowable
+        while (true) {
+            Trace trace
+            if (savedThrowable) {
+                try {
+                    nextCapturedTrace()
+                } finally {
+                    throw savedThrowable
+                }
+            } else {
+                trace = nextCapturedTrace()
             }
-        } else {
-            trace = nextCapturedTrace()
-        }
-        assert trace.size() >= 1
 
-        BigInteger gottenTraceId = trace.traceId
-        BigInteger expectedTraceId = new BigInteger(traceId, 10)
-        if (gottenTraceId != expectedTraceId) {
-            throw new AssertionError("Mismatched trace id gotten after request to ${req.uri()}: " +
-                    "expected ${expectedTraceId}, but got ${gottenTraceId}")
+            assert trace.size() >= 1
+            BigInteger gottenTraceId = trace.traceId
+            BigInteger expectedTraceId = new BigInteger(traceId, 10)
+            if (gottenTraceId == expectedTraceId) {
+                return trace
+            }
+
+            if (!ignoreOtherRequests) {
+                if (gottenTraceId != expectedTraceId) {
+                    throw new AssertionError("Mismatched trace id gotten after request to ${req.uri()}: " +
+                            "expected ${expectedTraceId}, but got ${gottenTraceId}")
+                }
+            } else {
+                log.info "Ignoring trace with id {}", gottenTraceId
+            }
         }
-        trace
     }
 
     private void processOptions(Map options) {
@@ -198,12 +296,19 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         privilegedMode = true
 
-        String wwwDir ="src/test/www/${options.get('www', 'base')}"
+        this.wwwDir ="src/test/www/${options.get('www', 'base')}"
+        if (options['www_src']) {
+            this.wwwSrcDir = "src/test/www/${options['www_src']}"
+        }
 
         withFileSystemBind('../../..', '/project', BindMode.READ_ONLY)
         withFileSystemBind(wwwDir, '/test-resources', BindMode.READ_ONLY)
+        if (this.wwwSrcDir) {
+            withFileSystemBind(wwwSrcDir, '/test-resources-src', BindMode.READ_ONLY)
+        }
         withFileSystemBind('src/test/waf/recommended.json',
                 '/etc/recommended.json', BindMode.READ_ONLY)
+        withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
@@ -217,17 +322,20 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         ensureVolume('php-composer-cache')
         addVolumeMount('php-composer-cache', '/root/.composer/cache')
 
+        addVolumeMount('php-tracer-cargo-cache', '/root/.cargo/registry')
+
         File composerFile
         if (phpVersion in ['7.0', '7.1']) {
             composerFile = new File('build/composer-2.2.x.phar')
         } else {
-            composerFile = new File('build/composer-2.6.6.phar')
+            composerFile = new File('build/composer-2.8.6.phar')
         }
         withFileSystemBind(composerFile.absolutePath, '/usr/local/bin/composer', BindMode.READ_ONLY)
 
         this.logsDir = new File("build/test-logs/$workVolume-$phpVersion-$phpVariant")
 
-        if (new File(wwwDir, 'run.sh').exists()) {
+        if (new File(this.wwwDir, 'run.sh').exists()) {
+            noHttpWait()
             withCreateContainerCmdModifier { it.withEntrypoint('/bin/bash') }
             withCommand '-e', '-c', 'while [[ ! -f /var/www/run.sh ]]; do sleep 0.3; done; /var/www/run.sh'
         }
@@ -260,8 +368,13 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             throw new RuntimeException('failed creating directories: ' + res.stderr)
         }
 
+        String lowerdir = '/test-resources'
+        if (this.wwwSrcDir) {
+            lowerdir += ':/test-resources-src'
+        }
+
         res = execInContainer('mount', '-t', 'overlay', '-o',
-                'lowerdir=/test-resources,upperdir=/overlay/www_upperdir,workdir=/overlay/www_workdir',
+                "lowerdir=$lowerdir,upperdir=/overlay/www_upperdir,workdir=/overlay/www_workdir",
                 'overlay', '/var/www')
         if (res.exitCode != 0) {
             throw new RuntimeException('failed mounting overlay: ' + res.stderr)
@@ -275,6 +388,26 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             fi
         ''')
     }
+
+    private SELF noHttpWait() {
+        // starting the http server. Instead, there is a run.sh file.
+        // Because run.sh can only be run after the container is deemed
+        // ready, we need to not wait for http.
+        // This means http liveliness should be checked in beforeAll()
+        setWaitStrategy(new WaitStrategy() {
+            @Override
+            void waitUntilReady(WaitStrategyTarget waitStrategyTarget) {
+                // we're good. Allow run.sh to run
+            }
+
+            @Override
+            WaitStrategy withStartupTimeout(Duration startupTimeout) {
+                this
+            }
+        })
+        (SELF) this
+    }
+
 
     private void execInContainerWithOutput(String... cmd) {
         ExecCreateCmdResponse exec = dockerClient.execCreateCmd(containerId)

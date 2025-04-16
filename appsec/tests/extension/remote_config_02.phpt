@@ -10,7 +10,7 @@ use function datadog\appsec\testing\{rinit, rshutdown};
 
 $scenario_calls = [
     [ //Scenario 1 It would expect here a config sync or config features but not this one
-        response_list(response_request_init(['ok'])),
+        response_list(response_request_init([[['ok', []]]])),
     ],
     [ //Scenario 2 Config_sync gets config_features disabled
         response_list(response_config_features(false)),

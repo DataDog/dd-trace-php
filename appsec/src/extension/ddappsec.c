@@ -18,12 +18,11 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
+#include "backtrace.h"
 #include "commands/client_init.h"
-#include "commands/config_sync.h"
 #include "commands/request_exec.h"
-#include "commands/request_init.h"
-#include "commands/request_shutdown.h"
 #include "commands_ctx.h"
+#include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
 #include "dddefs.h"
@@ -32,17 +31,18 @@
 #include "helper_process.h"
 #include "ip_extraction.h"
 #include "logging.h"
+#include "msgpack_helpers.h"
 #include "network.h"
 #include "php_compat.h"
-#include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
-#include "string_helpers.h"
 #include "tags.h"
 #include "user_tracking.h"
+#include "version.h"
 
 #include <json/json.h>
+#include <zend_string.h>
 
 #if ZTS
 static atomic_int _thread_count;
@@ -98,7 +98,7 @@ static zend_extension ddappsec_extension_entry = {
     PHP_DDAPPSEC_EXTNAME,
     PHP_DDAPPSEC_VERSION,
     "Datadog",
-    "https://github.com/DataDog/dd-appsec-php",
+    "https://github.com/DataDog/dd-trace-php",
     "Copyright Datadog",
     ddappsec_startup,
     NULL,
@@ -146,6 +146,9 @@ static int ddappsec_startup(zend_extension *extension)
     UNUSED(extension);
 
     zend_hash_sort_ex(&module_registry, ddappsec_sort_modules, NULL, 0);
+
+    dd_request_abort_zend_ext_startup();
+
     return SUCCESS;
 }
 
@@ -202,8 +205,6 @@ static PHP_MINIT_FUNCTION(ddappsec)
         return FAILURE;
     }
 
-    DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
-
     dd_log_startup();
 
 #ifdef TESTING
@@ -218,6 +219,8 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_tags_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
+    dd_backtrace_startup();
+    dd_msgpack_helpers_startup();
 
     return SUCCESS;
 }
@@ -232,6 +235,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     runtime_config_first_init = false;
 
     dd_tags_shutdown();
+    dd_request_abort_shutdown();
     dd_user_tracking_shutdown();
     dd_trace_shutdown();
     dd_helper_shutdown();
@@ -241,9 +245,17 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     return SUCCESS;
 }
 
-static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
+static void _rinit_once(void)
+{
+    dd_config_first_rinit();
+    _check_enabled();
+}
 
-static void _rinit_once() { dd_config_first_rinit(); }
+void dd_appsec_rinit_once(void)
+{
+    static pthread_once_t _rinit_once_control = PTHREAD_ONCE_INIT;
+    pthread_once(&_rinit_once_control, _rinit_once);
+}
 
 // NOLINTNEXTLINE
 static PHP_RINIT_FUNCTION(ddappsec)
@@ -254,7 +266,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
     // Safety precaution
     DDAPPSEC_G(during_request_shutdown) = false;
 
-    pthread_once(&_rinit_once_control, _rinit_once);
+    dd_appsec_rinit_once();
     zai_config_rinit();
     _check_enabled();
 
@@ -262,8 +274,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
-
-    dd_entity_body_rinit();
 
     dd_req_lifecycle_rinit(false);
 
@@ -351,19 +361,27 @@ static PHP_MINFO_FUNCTION(ddappsec)
 __thread void *unspecnull TSRMLS_CACHE = NULL;
 #endif
 
-static void _check_enabled()
+static void _check_enabled(void)
 {
+    if (DDAPPSEC_G(enabled) != APPSEC_UNSET_STATE) {
+        return;
+    }
+
     if ((!get_global_DD_APPSEC_TESTING() && !dd_trace_enabled()) ||
-        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text) ||
-        (strcmp(sapi_module.name, "frankenphp") == 0)) {
+        (strcmp(sapi_module.name, "cli") != 0 && sapi_module.phpinfo_as_text)) {
         DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
         DDAPPSEC_G(active) = false;
         DDAPPSEC_G(to_be_configured) = false;
     } else if (!dd_cfg_enable_via_remcfg()) {
-        DDAPPSEC_G(enabled) = get_DD_APPSEC_ENABLED() ? APPSEC_FULLY_ENABLED
-                                                      : APPSEC_FULLY_DISABLED;
-        DDAPPSEC_G(active) = get_DD_APPSEC_ENABLED() ? true : false;
-        DDAPPSEC_G(to_be_configured) = false;
+        if (get_global_DD_APPSEC_ENABLED()) {
+            DDAPPSEC_G(enabled) = APPSEC_FULLY_ENABLED;
+            DDAPPSEC_G(active) = true;
+            DDAPPSEC_G(to_be_configured) = false;
+        } else {
+            DDAPPSEC_G(enabled) = APPSEC_FULLY_DISABLED;
+            DDAPPSEC_G(active) = false;
+            DDAPPSEC_G(to_be_configured) = false;
+        }
     } else {
         DDAPPSEC_G(enabled) = APPSEC_ENABLED_VIA_REMCFG;
         // leave DDAPPSEC_G(active) as is
@@ -450,43 +468,62 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
-    if (dd_request_exec(conn, data) != dd_success) {
+    if (dd_request_exec(conn, data, false) != dd_success) {
         RETURN_FALSE;
     }
 
     RETURN_TRUE;
 }
 
-static PHP_FUNCTION(datadog_appsec_push_address)
+static PHP_FUNCTION(datadog_appsec_push_addresses)
 {
+    struct timespec start;
+    struct timespec end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to push_address "
+        mlog(dd_log_debug, "Trying to access to push_addresses "
                            "function while appsec is disabled");
         return;
     }
 
-    zend_string *key = NULL;
-    zval *value = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz", &key, &value) == FAILURE) {
+    zval *addresses = NULL;
+    zend_string *rasp_rule = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|S", &addresses, &rasp_rule) ==
+        FAILURE) {
         RETURN_FALSE;
     }
 
-    zval parameters_zv;
-    zend_array *parameters_arr = zend_new_array(1);
-    ZVAL_ARR(&parameters_zv, parameters_arr);
-    zend_hash_add(Z_ARRVAL(parameters_zv), key, value);
-    Z_TRY_ADDREF_P(value);
+    if (Z_TYPE_P(addresses) != IS_ARRAY) {
+        RETURN_FALSE;
+    }
 
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (conn == NULL) {
-        zval_ptr_dtor(&parameters_zv);
-        mlog_g(dd_log_debug, "No connection; skipping push_address");
+    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
+        !get_global_DD_APPSEC_RASP_ENABLED()) {
         return;
     }
 
-    dd_result res = dd_request_exec(conn, &parameters_zv);
-    zval_ptr_dtor(&parameters_zv);
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    if (conn == NULL) {
+        mlog_g(dd_log_debug, "No connection; skipping push_addresses");
+        return;
+    }
+
+    dd_result res = dd_request_exec(conn, addresses, rasp_rule);
+
+    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+        elapsed =
+            ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
+                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                (int64_t)1000000000 +
+            ((int64_t)end.tv_nsec - (int64_t)start.tv_nsec);
+        zend_object *span = dd_trace_get_active_root_span();
+        if (span) {
+            dd_tags_add_rasp_duration_ext(span, elapsed);
+        }
+    }
 
     if (dd_req_is_user_req()) {
         if (res == dd_should_block || res == dd_should_redirect) {
@@ -509,28 +546,29 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_INFO(0, "data")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(push_address_arginfo, 0, 0, IS_VOID, 1)
-ZEND_ARG_INFO(0, key)
-ZEND_ARG_INFO(0, value)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
+    push_addresses_arginfo, 0, 0, IS_VOID, 1)
+ZEND_ARG_INFO(0, addresses)
+ZEND_ARG_INFO(0, rasp)
 ZEND_END_ARG_INFO()
 
 // clang-format off
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_address", PHP_FN(datadog_appsec_push_address), push_address_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_addresses", PHP_FN(datadog_appsec_push_addresses), push_addresses_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
 
-static void _register_testing_objects()
+static void _register_testing_objects(void)
 {
     dd_phpobj_reg_funcs(functions);
 

@@ -1,21 +1,41 @@
-use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function, ZEND_USER_FUNCTION};
+use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
+use crate::vec_ext::VecExt;
 use std::borrow::Cow;
+use std::collections::TryReserveError;
 use std::str::Utf8Error;
+
+#[cfg(php_frameless)]
+use crate::bindings::zend_flf_functions;
+
+#[cfg(php_frameless)]
+use crate::bindings::{
+    ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
+};
 
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 
-// todo: how can we make this private?
-#[cfg(feature = "timeline")]
-pub const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+/// The profiler is not meant to handle such large strings--if a file or
+/// function name exceeds this size, it will fail in some manner, or be
+/// replaced by a shorter string, etc.
+const STR_LEN_LIMIT: usize = u16::MAX as usize;
+const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[large string]");
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
     pub function: Cow<'static, str>,
-    pub file: Option<String>,
+    pub file: Option<Cow<'static, str>>,
     pub line: u32, // use 0 for no line info
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum CollectStackSampleError {
+    #[error("failed to collect stack sample: `0`")]
+    Utf8Error(#[from] Utf8Error),
+    #[error("failed to collect stack sample: `{0}`")]
+    TryReserveError(#[from] TryReserveError),
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -27,7 +47,7 @@ pub struct ZendFrame {
 /// Namespaces are part of the class_name or function_name respectively.
 /// Closures and anonymous classes get reformatted by the backend (or maybe
 /// frontend, either way it's not our concern, at least not right now).
-pub fn extract_function_name(func: &zend_function) -> Option<String> {
+pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
     /* The top of the stack seems to reasonably often not have a function, but
@@ -56,15 +76,31 @@ pub fn extract_function_name(func: &zend_function) -> Option<String> {
 
     buffer.extend_from_slice(method_name);
 
-    Some(String::from_utf8_lossy(buffer.as_slice()).into_owned())
+    // Rather than fail, we use a short string to represent a long string.
+    if buffer.len() <= STR_LEN_LIMIT {
+        // When replacing the string to make it valid utf-8, it may get a bit
+        // longer, but this usually doesn't happen. This limit is a soft-limit
+        // at the moment anyway, so this is okay.
+        let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
+        Some(Cow::Owned(string))
+    } else {
+        Some(COW_LARGE_STRING)
+    }
 }
 
-unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<String>, u32) {
+unsafe fn extract_file_and_line(
+    execute_data: &zend_execute_data,
+) -> (Option<Cow<'static, str>>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
-        Some(func) if func.type_ == ZEND_USER_FUNCTION as u8 => {
+        Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+            let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
+            let file = if bytes.len() <= STR_LEN_LIMIT {
+                Cow::Owned(std::string::String::from_utf8_lossy(bytes).to_string())
+            } else {
+                COW_LARGE_STRING
+            };
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -78,9 +114,54 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Str
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
-    use crate::string_table::StringTable;
-    use log::debug;
+    use crate::string_set::StringSet;
+    use crate::thin_str::ThinStr;
+    use log::{debug, trace};
     use std::cell::RefCell;
+    use std::ptr::NonNull;
+
+    struct StringCache<'a> {
+        /// Refers to a function's run time cache reserved by this extension.
+        cache_slots: &'a mut [usize; 2],
+
+        /// Refers to the string set in the thread-local storage.
+        string_set: &'a mut StringSet,
+    }
+
+    impl StringCache<'_> {
+        /// Makes a copy of the string in the cache slot. If there isn't a
+        /// string in the slot currently, then create one by calling the
+        /// provided function, store it in the string cache and cache slot,
+        /// and return it.
+        fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<String>
+        where
+            F: FnOnce() -> Option<String>,
+        {
+            debug_assert!(slot < self.cache_slots.len());
+            let cached = unsafe { self.cache_slots.get_unchecked_mut(slot) };
+
+            let ptr = *cached as *mut u8;
+            match NonNull::new(ptr) {
+                Some(non_null) => {
+                    // SAFETY: transmuting ThinStr from its repr.
+                    let thin_str: ThinStr = unsafe { core::mem::transmute(non_null) };
+                    // SAFETY: the string set is only reset between requests,
+                    // so this ThinStr points into the same string set that
+                    // created it.
+                    let str = unsafe { self.string_set.get_thin_str(thin_str) };
+                    Some(str.to_string())
+                }
+                None => {
+                    let string = f()?;
+                    let thin_str = self.string_set.insert(&string);
+                    // SAFETY: transmuting ThinStr into its repr.
+                    let non_null: NonNull<u8> = unsafe { core::mem::transmute(thin_str) };
+                    *cached = non_null.as_ptr() as usize;
+                    Some(string)
+                }
+            }
+        }
+    }
 
     /// Used to help track the function run_time_cache hit rate. It glosses over
     /// the fact that there are two cache slots used, and they don't have to be in
@@ -93,6 +174,16 @@ mod detail {
     }
 
     impl FunctionRunTimeCacheStats {
+        const fn new() -> Self {
+            Self {
+                hit: 0,
+                missed: 0,
+                not_applicable: 0,
+            }
+        }
+    }
+
+    impl FunctionRunTimeCacheStats {
         fn hit_rate(&self) -> f64 {
             let denominator = (self.hit + self.missed + self.not_applicable) as f64;
             self.hit as f64 / denominator
@@ -100,17 +191,15 @@ mod detail {
     }
 
     thread_local! {
-        static CACHED_STRINGS: RefCell<StringTable> = RefCell::new(StringTable::new());
+        static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
-            RefCell::new(Default::default())
+            const { RefCell::new(FunctionRunTimeCacheStats::new()) }
     }
 
     /// # Safety
     /// Must be called in Zend Extension activate.
     #[inline]
-    pub unsafe fn activate() {
-        CACHED_STRINGS.with(|cell| cell.replace(StringTable::new()));
-    }
+    pub unsafe fn activate() {}
 
     #[inline]
     pub fn rshutdown() {
@@ -119,33 +208,86 @@ mod detail {
             let hit_rate = stats.hit_rate();
             debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });
+
+        CACHED_STRINGS.with(|cell| {
+            let set: &StringSet = &cell.borrow();
+            let arena_used_bytes = set.arena_used_bytes();
+            // A slow ramp up to 2 MiB is probably _not_ going to look like
+            // a memory leak, whereas a higher threshold could make a user
+            // suspect a leak.
+            let threshold = 2 * 1024 * 1024;
+            if arena_used_bytes > threshold {
+                debug!("string cache arena is using {arena_used_bytes} bytes which exceeds the {threshold} byte threshold, resetting");
+                // Note that this cannot be done _during_ a request. The
+                // ThinStrs inside the run time cache need to remain valid
+                // during the request.
+                cell.replace(StringSet::new());
+            } else {
+                trace!("string cache arena is using {arena_used_bytes} bytes which is less than the {threshold} byte threshold");
+            }
+        });
     }
 
+    #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, Utf8Error> {
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+        #[cfg(feature = "tracing")]
+        let _span = tracing::trace_span!("collect_stack_sample").entered();
+
         CACHED_STRINGS.with(|cell| {
-            let string_table: &mut StringTable = &mut cell.borrow_mut();
+            let string_set: &mut StringSet = &mut cell.borrow_mut();
             let max_depth = 512;
             let mut samples = Vec::with_capacity(max_depth >> 3);
             let mut execute_data_ptr = top_execute_data;
 
             while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-                let maybe_frame = unsafe { collect_call_frame(execute_data, string_table) };
-                if let Some(frame) = maybe_frame {
-                    samples.push(frame);
+                // allowed because it's only used on the frameless path
+                #[allow(unused_variables)]
+                if let Some(func) = unsafe { execute_data.func.as_ref() } {
+                    // It's possible that this is a fake frame put there by
+                    // the engine, see accel_preload on PHP 8.4 and the local
+                    // variable `fake_execute_data`. The frame is zeroed in
+                    // this case, so we can check for null.
+                    #[cfg(php_frameless)]
+                    if !func.is_internal() && !execute_data.opline.is_null() {
+                        // SAFETY: if it's not null, then it should be valid
+                        // or something else has messed up already.
+                        let opline = unsafe { &*execute_data.opline };
+                        match opline.opcode as u32 {
+                            ZEND_FRAMELESS_ICALL_0
+                            | ZEND_FRAMELESS_ICALL_1
+                            | ZEND_FRAMELESS_ICALL_2
+                            | ZEND_FRAMELESS_ICALL_3 => {
+                                let func = unsafe {
+                                    &**zend_flf_functions.offset(opline.extended_value as isize)
+                                };
+                                samples.try_push(ZendFrame {
+                                    function: extract_function_name(func).unwrap(),
+                                    file: None,
+                                    line: 0,
+                                })?;
+                            }
+                            _ => {}
+                        }
+                    }
 
-                    /* -1 to reserve room for the [truncated] message. In case the
-                     * backend and/or frontend have the same limit, without the -1
-                     * then ironically the [truncated] message would be truncated.
-                     */
-                    if samples.len() == max_depth - 1 {
-                        samples.push(ZendFrame {
-                            function: COW_TRUNCATED,
-                            file: None,
-                            line: 0,
-                        });
-                        break;
+                    let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
+                    if let Some(frame) = maybe_frame {
+                        samples.try_push(frame)?;
+
+                        /* -1 to reserve room for the [truncated] message. In case the
+                         * backend and/or frontend have the same limit, without the -1
+                         * then ironically the [truncated] message would be truncated.
+                         */
+                        if samples.len() == max_depth - 1 {
+                            samples.try_push(ZendFrame {
+                                function: COW_TRUNCATED,
+                                file: None,
+                                line: 0,
+                            })?;
+                            break;
+                        }
                     }
                 }
 
@@ -157,7 +299,7 @@ mod detail {
 
     unsafe fn collect_call_frame(
         execute_data: &zend_execute_data,
-        string_table: &mut StringTable,
+        string_set: &mut StringSet,
     ) -> Option<ZendFrame> {
         #[cfg(not(feature = "stack_walking_tests"))]
         use crate::bindings::ddog_php_prof_function_run_time_cache;
@@ -166,7 +308,15 @@ mod detail {
 
         let func = execute_data.func.as_ref()?;
         let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
-            Some(cache_slots) => {
+            Some(slots) => {
+                let mut string_cache = StringCache {
+                    cache_slots: slots,
+                    string_set,
+                };
+                let function = handle_function_cache_slot(func, &mut string_cache);
+                let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
+
+                let cache_slots = string_cache.cache_slots;
                 FUNCTION_CACHE_STATS.with(|cell| {
                     let mut stats = cell.borrow_mut();
                     if cache_slots[0] == 0 {
@@ -175,10 +325,8 @@ mod detail {
                         stats.hit += 1;
                     }
                 });
-                let function = handle_function_cache_slot(func, string_table, cache_slots);
-                let (file, line) = handle_file_cache_slot(execute_data, string_table, cache_slots);
 
-                (function, file, line)
+                (function, file.map(Cow::Owned), line)
             }
 
             None => {
@@ -186,7 +334,7 @@ mod detail {
                     let mut stats = cell.borrow_mut();
                     stats.not_applicable += 1;
                 });
-                let function = extract_function_name(func).map(Cow::Owned);
+                let function = extract_function_name(func);
                 let (file, line) = extract_file_and_line(execute_data);
                 (function, file, line)
             }
@@ -205,29 +353,33 @@ mod detail {
 
     fn handle_function_cache_slot(
         func: &zend_function,
-        string_table: &mut StringTable,
-        cache_slots: &mut [usize; 2],
+        string_cache: &mut StringCache,
     ) -> Option<Cow<'static, str>> {
-        let fname = if cache_slots[0] > 0 {
-            let offset = cache_slots[0] as u32;
-            let str = string_table.get_offset(offset);
-            str.to_string()
-        } else {
-            let name = extract_function_name(func)?;
-            let offset = string_table.insert(name.as_ref());
-            cache_slots[0] = offset as usize;
-            name
-        };
+        let fname =
+            string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))?;
         Some(Cow::Owned(fname))
     }
 
     unsafe fn handle_file_cache_slot(
         execute_data: &zend_execute_data,
-        string_table: &mut StringTable,
-        cache_slots: &mut [usize; 2],
+        string_cache: &mut StringCache,
     ) -> (Option<String>, u32) {
-        match handle_file_cache_slot_helper(execute_data, string_table, cache_slots) {
+        let option = string_cache.get_or_insert(1, || -> Option<String> {
+            unsafe {
+                // Safety: if we have cache slots, we definitely have a func.
+                let func = &*execute_data.func;
+                if func.is_internal() {
+                    return None;
+                };
+
+                // SAFETY: calling C function with correct args.
+                let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+                Some(file)
+            }
+        });
+        match option {
             Some(filename) => {
+                // SAFETY: if there's a file, then there should be an opline.
                 let lineno = match execute_data.opline.as_ref() {
                     Some(opline) => opline.lineno,
                     None => 0,
@@ -236,32 +388,6 @@ mod detail {
             }
             None => (None, 0),
         }
-    }
-
-    #[inline]
-    unsafe fn handle_file_cache_slot_helper(
-        execute_data: &zend_execute_data,
-        string_table: &mut StringTable,
-        cache_slots: &mut [usize; 2],
-    ) -> Option<String> {
-        let file = if cache_slots[1] > 0 {
-            let offset = cache_slots[1] as u32;
-            let str = string_table.get_offset(offset);
-            String::from(str)
-        } else {
-            // Safety: if we have cache slots, we definitely have a func.
-            let func = &*execute_data.func;
-            if func.type_ != ZEND_USER_FUNCTION as u8 {
-                return None;
-            };
-
-            let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
-            let offset = string_table.insert(file.as_ref());
-            cache_slots[1] = offset as usize;
-            file
-        };
-
-        Some(file)
     }
 }
 
@@ -278,9 +404,13 @@ mod detail {
     #[inline]
     pub fn rshutdown() {}
 
+    #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, Utf8Error> {
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+        #[cfg(feature = "tracing")]
+        let _span = tracing::trace_span!("collect_stack_sample").entered();
+
         let max_depth = 512;
         let mut samples = Vec::with_capacity(max_depth >> 3);
         let mut execute_data_ptr = top_execute_data;
@@ -288,18 +418,18 @@ mod detail {
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
-                samples.push(frame);
+                samples.try_push(frame)?;
 
                 /* -1 to reserve room for the [truncated] message. In case the
                  * backend and/or frontend have the same limit, without the -1
                  * then ironically the [truncated] message would be truncated.
                  */
                 if samples.len() == max_depth - 1 {
-                    samples.push(ZendFrame {
+                    samples.try_push(ZendFrame {
                         function: COW_TRUNCATED,
                         file: None,
                         line: 0,
-                    });
+                    })?;
                     break;
                 }
             }
@@ -317,7 +447,7 @@ mod detail {
             // Only create a new frame if there's file or function info.
             if file.is_some() || function.is_some() {
                 // If there's no function name, use a fake name.
-                let function = function.map(Cow::Owned).unwrap_or(COW_PHP_OPEN_TAG);
+                let function = function.unwrap_or(COW_PHP_OPEN_TAG);
                 return Some(ZendFrame {
                     function,
                     file,

@@ -5,15 +5,14 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "engine_settings.hpp"
+#include "../engine_settings.hpp"
+#include "../remote_config/settings.hpp"
+#include "../version.hpp"
 #include "msgpack_helpers.hpp"
-#include "remote_config/settings.hpp"
-#include "service_identifier.hpp"
 #include <msgpack.hpp>
 #include <optional>
 #include <type_traits>
 #include <typeinfo>
-#include <version.hpp>
 
 using stream_packer = msgpack::packer<std::stringstream>;
 
@@ -24,6 +23,7 @@ struct verdict {
     static constexpr std::string_view record = "record";
     static constexpr std::string_view block = "block";
     static constexpr std::string_view redirect = "redirect";
+    static constexpr std::string_view stack_trace = "stack_trace";
 };
 
 using header_t = struct __attribute__((__packed__)) header {
@@ -89,6 +89,9 @@ template <typename T> struct base_response_generic : public base_response {
     }
 };
 
+using telemetry_metrics =
+    std::unordered_map<std::string, std::tuple<double, std::string>>;
+
 struct client_init {
     static constexpr const char *name = "client_init";
     struct request : base_request {
@@ -100,7 +103,6 @@ struct client_init {
         std::string runtime_version;
         std::optional<bool> enabled_configuration;
 
-        dds::service_identifier service;
         dds::engine_settings engine_settings;
         dds::remote_config::settings rc_settings;
 
@@ -112,7 +114,7 @@ struct client_init {
         ~request() override = default;
 
         MSGPACK_DEFINE(pid, client_version, runtime_version,
-            enabled_configuration, service, engine_settings, rc_settings);
+            enabled_configuration, engine_settings, rc_settings)
     };
 
     struct response : base_response_generic<response> {
@@ -128,9 +130,19 @@ struct client_init {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
+        std::unordered_map<std::string_view,
+            std::vector<std::pair<double, std::string>>>
+            tel_metrics;
 
-        MSGPACK_DEFINE(status, version, errors, meta, metrics);
+        MSGPACK_DEFINE(status, version, errors, meta, metrics, tel_metrics)
     };
+};
+
+struct action_struct {
+    std::string verdict;
+    std::unordered_map<std::string, std::string> parameters;
+
+    MSGPACK_DEFINE(verdict, parameters)
 };
 
 struct request_init {
@@ -159,13 +171,13 @@ struct request_init {
         {
             return request_init::name;
         };
-        std::string verdict;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action_struct> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
+        std::map<std::string, std::string> settings;
 
-        MSGPACK_DEFINE(verdict, parameters, triggers, force_keep);
+        MSGPACK_DEFINE(actions, triggers, force_keep, settings)
     };
 };
 
@@ -176,6 +188,7 @@ struct request_exec {
         static constexpr const char *name = request_exec::name;
         static constexpr request_id id = request_id::request_exec;
 
+        std::string rasp_rule;
         dds::parameter data;
 
         request() = default;
@@ -185,7 +198,7 @@ struct request_exec {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data)
+        MSGPACK_DEFINE(rasp_rule, data)
     };
 
     struct response : base_response_generic<response> {
@@ -195,13 +208,13 @@ struct request_exec {
         {
             return request_exec::name;
         };
-        std::string verdict;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action_struct> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
+        std::map<std::string, std::string> settings;
 
-        MSGPACK_DEFINE(verdict, parameters, triggers, force_keep);
+        MSGPACK_DEFINE(actions, triggers, force_keep, settings)
     };
 };
 
@@ -217,7 +230,10 @@ struct config_sync {
         request(request &&) = default;
         request &operator=(request &&) = default;
         ~request() override = default;
-        MSGPACK_DEFINE()
+
+        std::string rem_cfg_path;
+
+        MSGPACK_DEFINE(rem_cfg_path)
     };
 
     struct response : base_response_generic<response> {
@@ -228,7 +244,7 @@ struct config_sync {
             return config_sync::name;
         };
 
-        MSGPACK_DEFINE();
+        MSGPACK_DEFINE()
     };
 };
 
@@ -243,7 +259,7 @@ struct config_features {
         };
         bool enabled;
 
-        MSGPACK_DEFINE(enabled);
+        MSGPACK_DEFINE(enabled)
     };
 };
 
@@ -254,6 +270,7 @@ struct request_shutdown {
         static constexpr request_id id = request_id::request_shutdown;
 
         dds::parameter data;
+        std::uint64_t api_sec_samp_key{0};
 
         request() = default;
         request(const request &) = delete;
@@ -262,7 +279,7 @@ struct request_shutdown {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data)
+        MSGPACK_DEFINE(data, api_sec_samp_key)
     };
 
     struct response : base_response_generic<response> {
@@ -272,17 +289,20 @@ struct request_shutdown {
         {
             return request_shutdown::name;
         };
-        std::string verdict;
-        std::unordered_map<std::string, std::string> parameters;
+        std::vector<action_struct> actions;
         std::vector<std::string> triggers;
 
         bool force_keep;
+        std::map<std::string, std::string> settings;
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
+        std::unordered_map<std::string_view,
+            std::vector<std::pair<double, std::string>>>
+            tel_metrics;
 
         MSGPACK_DEFINE(
-            verdict, parameters, triggers, force_keep, meta, metrics);
+            actions, triggers, force_keep, settings, meta, metrics, tel_metrics)
     };
 };
 
@@ -300,7 +320,7 @@ struct error {
             return error::name;
         };
 
-        MSGPACK_DEFINE();
+        MSGPACK_DEFINE()
     };
 };
 

@@ -31,18 +31,24 @@ $return_span = [
 // Otherwise we grow var_dump() graphs exponentially...
 function ensure_bounded_nesting_depth()
 {
-    $span = DDTrace\active_span();
     $depth = 0;
+    $stack = DDTrace\active_stack();
+    while (!$stack->active && $stack->parent) {
+        ++$depth;
+        $stack = $stack->parent;
+    }
+
+    $span = DDTrace\active_span();
     while ($span) {
         ++$depth;
-        if ($span->parent) {
+        if ($span->parent && $span->parent->stack == $span->stack) {
             $span = $span->parent;
         } else {
             $stack = $span->stack;
             do {
                 ++$depth;
                 $stack = $stack->parent;
-            } while ($stack && $stack->active);
+            } while ($stack && !$stack->active);
             $span = $stack ? $stack->active : null;
         }
     }
@@ -50,6 +56,7 @@ function ensure_bounded_nesting_depth()
     if ($depth >= 5) {
         ini_set("datadog.trace.enabled", "0");
         ini_set("datadog.trace.enabled", "1");
+        DDTrace\switch_stack(new DDTrace\SpanStack);
     }
 }
 
@@ -89,14 +96,22 @@ function generate_garbage()
         ["nonempty" => new stdClass()],
         new stdClass(),
         function ($hook = null) {
-            ob_start();
-            var_dump(func_get_args());
-            ob_end_clean();
+            $args = func_get_args();
+            if (is_array($args[2] ?? null)) {
+                if (rand(1, 10) != 1) {
+                    return; // Otel hooks cannot be removed
+                }
+            }
+            if (rand(1, 3) == 1) {
+                ob_start();
+                var_dump($args);
+                ob_end_clean();
+            }
             if ($hook instanceof DDTrace\HookData) {
-                if (rand(1, 3) != 1) {
+                if (rand(1, 2) != 1) {
                     DDTrace\remove_hook($hook->id);
                 }
-            } elseif (rand(1, 6) == 1) {
+            } elseif (rand(1, 5) == 1) {
                 dd_untrace('DDTrace\hook_method');
                 dd_untrace('call_function');
             }
@@ -116,25 +131,61 @@ function generate_garbage()
     return $garbage;
 }
 
+$minFunctionArgs = [];
+
 function call_function(ReflectionFunction $function)
 {
-    $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : 0;
+    global $minFunctionArgs;
+    print date('Y-m-d H:i:s') . " Executing: {$function->name}\n";
+
+    $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : ($minFunctionArgs[$function->name] ?? 0);
     $invocations = $i == 0 ? [[]] : [];
+    $invocationTypeMap = [];
+    $invNum = 0;
+    $existingGarbage = [generate_garbage()];
     for (; $i < $function->getNumberOfParameters(); ++$i) {
         foreach ($invocations as $invocation) {
-            foreach (generate_garbage() as $garbage) {
+            if (rand(1, max(1, ceil(2 ** $i))) == 1) {
+                $useGarbage = $existingGarbage[] = generate_garbage();
+            } else {
+                $useGarbage = $existingGarbage[array_rand($existingGarbage)];
+            }
+            foreach ($useGarbage as $garbage) {
                 $newInvocation = $invocation;
                 $newInvocation[] = $garbage;
-                $invocations[] = $newInvocation;
+                $invocations[++$invNum] = $newInvocation;
+                foreach ($newInvocation as $arg => $val) {
+                    $invocationTypeMap[$arg][gettype($val)][] = $invNum;
+                    if (is_object($val)) {
+                        $c = get_class($val);
+                        $invocationTypeMap[$arg][strrchr($c, '\\') ?: $c][] = $invNum;
+                    }
+                }
             }
         }
     }
 
-    foreach ($invocations as $invocation) {
+    foreach ($invocations as &$invocation) {
         try {
             $function->invokeArgs($invocation);
         } catch (ArgumentCountError $e) {
+            $minFunctionArgs[$function->name] = $argc = count($invocation);
+            foreach ($invocations as $k => $cur) {
+                if (count($cur) <= $argc) {
+                    unset($invocations[$k]);
+                }
+            }
         } catch (TypeError $e) {
+            # Fatal error: Uncaught TypeError: DDTrace\hook_method(): Argument #1 ($className) must be of type string, array given
+            if (preg_match('(Argument #(\d+).*?(?|got ([a-z]+)|([a-z]+) given))i', $e->getMessage(), $m)) {
+                $arg = $m[1];
+                $argNum = $arg - 1;
+                $type = $m[2];
+                $found = $invocationTypeMap[$arg - 1][$type] ?? $invocationTypeMap[$arg - 1]['\\' . $type] ?? [];
+                foreach ($found as $k) {
+                    unset($invocations[$k]);
+                }
+            }
         }
     }
 }

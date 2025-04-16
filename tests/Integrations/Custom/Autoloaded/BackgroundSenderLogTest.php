@@ -9,7 +9,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
 {
     const BGS_FLUSH_INTERVAL_MS = 500;
 
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';
     }
@@ -24,6 +24,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => false,
             'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::BGS_FLUSH_INTERVAL_MS,
         ]);

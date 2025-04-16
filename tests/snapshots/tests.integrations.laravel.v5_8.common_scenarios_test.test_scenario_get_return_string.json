@@ -1,0 +1,218 @@
+[[
+  {
+    "name": "laravel.request",
+    "service": "laravel_test_app",
+    "resource": "App\\Http\\Controllers\\CommonSpecsController@simple simple_route",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 6300451724870803156,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "664c88b800000000",
+      "component": "laravel",
+      "http.method": "GET",
+      "http.route": "simple",
+      "http.status_code": "200",
+      "http.url": "http://localhost/simple?key=value&<redacted>",
+      "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
+      "laravel.route.name": "simple_route",
+      "runtime-id": "5db5654d-5a9e-4cf0-908b-a51f7ced2ff2",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+       "trace_id": 0,
+       "span_id": 9,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+       "trace_id": 0,
+       "span_id": 10,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.provider.load",
+       "service": "laravel_test_app",
+       "resource": "Illuminate\\Foundation\\ProviderRepository::load",
+       "trace_id": 0,
+       "span_id": 11,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+       "trace_id": 0,
+       "span_id": 12,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "trace_id": 0,
+       "span_id": 13,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "trace_id": 0,
+       "span_id": 14,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "trace_id": 0,
+       "span_id": 15,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.action",
+       "service": "laravel_test_app",
+       "resource": "simple",
+       "trace_id": 0,
+       "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "laravel_test_app",
+       "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
+       "trace_id": 0,
+       "span_id": 17,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     }]]

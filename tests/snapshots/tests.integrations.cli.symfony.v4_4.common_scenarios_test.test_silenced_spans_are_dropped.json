@@ -1,0 +1,86 @@
+[[
+  {
+    "name": "console",
+    "service": "console",
+    "resource": "console",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "cli",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.p.tid": "67dd847d00000000",
+      "runtime-id": "912cfa64-a941-41e9-a07c-4b770d603d12"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1
+    }
+  },
+     {
+       "name": "command_execution",
+       "service": "console",
+       "resource": "sh",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "system",
+       "meta": {
+         "cmd.exit_code": "0",
+         "cmd.shell": "stty -a | grep columns",
+         "component": "subprocess"
+       }
+     },
+     {
+       "name": "symfony.httpkernel.kernel.boot",
+       "service": "symfony",
+       "resource": "App\\Kernel",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony"
+       }
+     },
+     {
+       "name": "symfony.console.command",
+       "service": "symfony",
+       "resource": "symfony.console.command",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "cli",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony"
+       }
+     },
+     {
+       "name": "symfony.console.command.run",
+       "service": "symfony",
+       "resource": "app:stty",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "cli",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony",
+         "symfony.console.command.class": "App\\Command\\SttyCommand"
+       }
+     },
+     {
+       "name": "symfony.console.terminate",
+       "service": "symfony",
+       "resource": "symfony.console.terminate",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "cli",
+       "meta": {
+         "_dd.base_service": "console",
+         "component": "symfony"
+       }
+     }]]

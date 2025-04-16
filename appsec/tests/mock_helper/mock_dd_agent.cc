@@ -14,6 +14,7 @@
 
 #include <regex>
 #include <stdexcept>
+#include <unistd.h>
 #include <utility>
 
 namespace ip = asio::ip;
@@ -22,26 +23,29 @@ using boost::system::error_code;
 
 class HttpClient {
   public:
-    HttpClient(EchoPipe &echo_pipe, ip::tcp::socket &&sock)
-        : echo_pipe_{echo_pipe}, sock_{std::move(sock)}
-    {
-    }
-    ~HttpClient() { SPDLOG_INFO("Closing HTTP connection"); }
+      HttpClient(EchoPipe &echo_pipe, ip::tcp::socket &&sock)
+          : echo_pipe_{echo_pipe}, sock_{std::move(sock)}
+      {}
+      HttpClient(const HttpClient &) = delete;
+      HttpClient(HttpClient &&) = delete;
+      HttpClient &operator=(const HttpClient &) = delete;
+      HttpClient &operator=(HttpClient &&) = delete;
+      ~HttpClient() { SPDLOG_INFO("Closing HTTP connection"); }
 
-    void do_request(yield_context yield)
-    {
-        try {
-            _do_request(yield);
-        } catch (const std::exception &e) {
-            SPDLOG_WARN("Error handling HTTP request: {}", e.what());
-        } catch (...) {
-            SPDLOG_WARN("Error handling HTTP request");
-        }
-        SPDLOG_DEBUG("Finished request handling");
+      void do_request(const yield_context &yield)
+      {
+          try {
+              _do_request(yield);
+          } catch (const std::exception &e) {
+              SPDLOG_WARN("Error handling HTTP request: {}", e.what());
+          } catch (...) {
+              SPDLOG_WARN("Error handling HTTP request");
+          }
+          SPDLOG_DEBUG("Finished request handling");
     }
 
   private:
-    void _do_request(yield_context yield)
+    void _do_request(const yield_context& yield)
     {
         SPDLOG_DEBUG("do_request_line");
         do_request_line(yield);
@@ -51,6 +55,9 @@ class HttpClient {
         if (method_ == "PUT" && uri_ == "/v0.4/traces") {
             SPDLOG_DEBUG("do_traces");
             do_traces(yield);
+        } else if (method_ == "POST" &&
+                   uri_ == "/telemetry/proxy/api/v2/apmtelemetry") {
+            SPDLOG_INFO("Ignoring telemetry data");
         } else {
             SPDLOG_WARN("Don't know how to  handle {} {}", method_, uri_);
         }
@@ -61,11 +68,12 @@ class HttpClient {
 
     void do_request_line(yield_context yield)
     {
-        size_t size = asio::async_read_until(
+        size_t const size = asio::async_read_until(
             sock_, asio::dynamic_buffer(buf_), '\r', yield);
         SPDLOG_DEBUG("Read request line with size {}", size - 1);
 
-        std::sregex_iterator it{buf_.begin(), buf_.begin() + size, word};
+        std::sregex_iterator it{
+            buf_.begin(), buf_.begin() + static_cast<ssize_t>(size), word};
         if (it != itend) {
             method_ = it->str();
             SPDLOG_DEBUG("Method: {}", method_);
@@ -96,14 +104,14 @@ class HttpClient {
         consume_chars(yield, '\n');
     }
 
-    void do_headers(yield_context yield)
+    void do_headers(const yield_context& yield)
     {
         while (do_single_header(yield)) {}
     }
 
     bool do_single_header(yield_context yield)
     {
-        size_t read = asio::async_read_until(
+        size_t const read = asio::async_read_until(
             sock_, asio::dynamic_buffer(buf_), '\r', yield);
 
         if (read == 1) {
@@ -112,8 +120,9 @@ class HttpClient {
         }
         std::smatch match;
         std::string header;
-        if (std::regex_search(
-                buf_.cbegin(), buf_.cbegin() + read, match, header_name)) {
+        if (std::regex_search(buf_.cbegin(),
+                buf_.cbegin() + static_cast<ssize_t>(read), match,
+                header_name)) {
             header = match.str();
         } else {
             throw std::runtime_error{"No header name found"};
@@ -134,7 +143,7 @@ class HttpClient {
         return true;
     }
 
-    void do_traces(yield_context yield)
+    void do_traces(const yield_context& yield)
     {
         auto count_header = headers_.find(trace_count_header);
         if (count_header == headers_.end()) {
@@ -151,10 +160,10 @@ class HttpClient {
     void do_single_trace(yield_context yield)
     {
         auto dyn_buf = asio::dynamic_buffer(buf_);
-        size_t read = asio::async_read_until(sock_, dyn_buf, '\r', yield);
+        size_t const read = asio::async_read_until(sock_, dyn_buf, '\r', yield);
 
         // read the message length
-        std::string_view size_str{&buf_[0], read - 1};
+        std::string_view const size_str{buf_.data(), read - 1};
         SPDLOG_DEBUG("Trace size as string: {}", size_str);
 
         size_t msg_size;
@@ -168,7 +177,7 @@ class HttpClient {
 
         if (buf_.size() < msg_size + 2 /* for \r\n */) {
             buf_.reserve(msg_size + 2);
-            size_t missing = msg_size + 2 - buf_.size();
+            size_t const missing = msg_size + 2 - buf_.size();
             asio::async_read(sock_, dyn_buf.prepare(missing), yield);
         }
 
@@ -210,33 +219,31 @@ class HttpClient {
     }
 
     template <typename Tuple, size_t... Is>
-    void check_n_chars(Tuple &&tuple, std::index_sequence<Is...>)
+    void check_n_chars(Tuple &&tuple, std::index_sequence<Is...> /*seq*/)
     {
         auto check_char = [](char read, char exp) {
             if (read != exp) {
                 throw std::runtime_error{
                     std::string{"Expected read char to be "} +
-                    boost::lexical_cast<std::string>(
-                        static_cast<unsigned int>(exp)) +
+                    std::to_string(static_cast<unsigned int>(exp)) +
                     " but it was " +
-                    boost::lexical_cast<std::string>(
-                        static_cast<unsigned int>(read))};
+                    std::to_string(static_cast<unsigned int>(read))};
             }
         };
-        [[maybe_unused]] int dummy[] = {
-            (check_char(buf_[Is], std::get<Is>(tuple)), 0)...};
+        (check_char(buf_[Is], std::get<Is>(tuple)), ...);
     }
 
     void do_response(yield_context yield)
     {
-        static const char resp[] = "HTTP/1.1 200 OK\r\n"
-                                   "Content-Type: application/json\r\n"
-                                   "Content-Length: 40\r\n"
-                                   "\r\n"
-                                   R"({"rate_by_service":{"service:,env:":1}}")"
-                                   "\n";
+        static const std::array resp{
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: 40\r\n"
+            "\r\n"
+            R"({"rate_by_service":{"service:,env:":1}}")"
+            "\n"};
         asio::async_write(
-            sock_, asio::const_buffer(resp, sizeof(resp) - 1), yield);
+            sock_, asio::const_buffer(resp.data(), sizeof(resp) - 1), yield);
     }
 
     void consume(size_t bytes)
@@ -249,8 +256,11 @@ class HttpClient {
         buf_.erase(0, bytes);
     }
 
+    // NOLINTNEXTLINE
     static inline const std::regex word{R"(\S+)"};
+    // NOLINTNEXTLINE
     static inline const std::regex header_name{R"(^[^:]+(?=:))"};
+    // NOLINTNEXTLINE
     static inline const std::sregex_iterator itend;
     static inline constexpr std::string_view trace_count_header{
         "x-datadog-trace-count"};
@@ -286,7 +296,7 @@ void HttpServerDispatcher::start()
     acceptor_.listen(backlog); // synchronous; may throw
     SPDLOG_INFO("Listening for TCP connections (mock datadog agent)");
 }
-void HttpServerDispatcher::run_loop(yield_context yield)
+void HttpServerDispatcher::run_loop(const yield_context& yield)
 {
     SPDLOG_INFO("Started HttpServerDisp:atcher loop");
     while (!iocontext.stopped()) {

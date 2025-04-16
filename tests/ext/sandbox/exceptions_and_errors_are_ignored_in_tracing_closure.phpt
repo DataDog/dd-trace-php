@@ -3,6 +3,7 @@ Exceptions and errors are ignored when inside a tracing closure
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
+DD_APPSEC_ENABLED=0
 --INI--
 error_reporting=E_ALL
 --FILE--
@@ -45,7 +46,7 @@ array_map(function($span) {
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:21 for mt_srand(): This should be ignored
+[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %s:21 for mt_srand(): This should be ignored in %s on line %d
 [ddtrace] [warning] Error raised in ddtrace's closure defined at %s:26 for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
 Test::testFoo() fav num: %d
 [ddtrace] [warning] %s in ddtrace's closure defined at %s:16 for Test::testFoo(): Undefined variable%sthis_normally_raises_an_%s

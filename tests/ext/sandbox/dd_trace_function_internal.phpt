@@ -1,6 +1,7 @@
 --TEST--
 DDTrace\trace_function() can trace internal functions with internal spans
 --ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
@@ -51,7 +52,7 @@ array(1) {
       string(16) "%s"
     }
     ["metrics"]=>
-    array(4) {
+    array(6) {
       ["process_id"]=>
       float(%f)
       ["_dd.agent_psr"]=>
@@ -59,6 +60,10 @@ array(1) {
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

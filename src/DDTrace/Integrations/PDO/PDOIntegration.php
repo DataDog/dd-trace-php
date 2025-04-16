@@ -45,6 +45,7 @@ class PDOIntegration extends Integration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
+            Integration::handleOrphan($span);
             $span->name = $span->resource = 'PDO.__construct';
             $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
             ObjectKVStore::put($this, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
@@ -53,11 +54,23 @@ class PDOIntegration extends Integration
             PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
         });
 
+        if (PHP_VERSION_ID >= 80400) {
+            // public PDO::connect ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
+            \DDTrace\trace_method('PDO', 'connect', function (SpanData $span, array $args, $pdo) {
+                Integration::handleOrphan($span);
+                $span->name = $span->resource = 'PDO.connect';
+                $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
+                ObjectKVStore::put($pdo, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+                PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
+            });
+        }
+
         // public int PDO::exec(string $query)
         \DDTrace\install_hook('PDO::exec', function (HookData $hook) use ($integration) {
             list($query) = $hook->args;
 
             $span = $hook->span();
+            Integration::handleOrphan($span);
             $span->name = 'PDO.exec';
             $span->resource = Integration::toString($query);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
@@ -65,6 +78,7 @@ class PDOIntegration extends Integration
             $integration->addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
+            PDOIntegration::handleRasp($this, $span);
         }, function (HookData $hook) use ($integration) {
             $span = $hook->span();
             if (is_numeric($hook->returned)) {
@@ -89,6 +103,7 @@ class PDOIntegration extends Integration
             $integration->addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
+            PDOIntegration::handleRasp($this, $span);
         }, function (HookData $hook) use ($integration) {
             $span = $hook->span();
             if ($hook->returned instanceof \PDOStatement) {
@@ -103,17 +118,20 @@ class PDOIntegration extends Integration
             list($query) = $hook->args;
 
             $span = $hook->span();
+            Integration::handleOrphan($span);
             $span->name = 'PDO.prepare';
             $span->resource = Integration::toString($query);
             PDOIntegration::setCommonSpanInfo($this, $span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
+            PDOIntegration::handleRasp($this, $span);
         }, function (HookData $hook) use ($integration) {
             ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
         });
 
         // public bool PDO::commit ( void )
         \DDTrace\trace_method('PDO', 'commit', function (SpanData $span) {
+            Integration::handleOrphan($span);
             $span->name = $span->resource = 'PDO.commit';
             PDOIntegration::setCommonSpanInfo($this, $span);
         });
@@ -123,6 +141,7 @@ class PDOIntegration extends Integration
             'PDOStatement',
             'execute',
             function (SpanData $span, array $args, $retval) use ($integration) {
+                Integration::handleOrphan($span);
                 $span->name = 'PDOStatement.execute';
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
@@ -261,8 +280,7 @@ class PDOIntegration extends Integration
         $span->type = Type::SQL;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
-        if (
-            \dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
+        if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
             Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);
@@ -275,5 +293,37 @@ class PDOIntegration extends Integration
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
         }
+
+        if (\dd_trace_env_config("DD_APPSEC_RASP_ENABLED") && function_exists('datadog\appsec\push_addresses')
+            && !empty($span->resource) && !empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
+        }
+    }
+
+    /**
+     * @param PDO $source
+     * @param DDTrace\SpanData $span
+     */
+    public static function handleRasp(\PDO $source, SpanData $span)
+    {
+        static $raspEnabled = null;
+        if ($raspEnabled === null) {
+            $raspEnabled = \dd_trace_env_config("DD_APPSEC_RASP_ENABLED") &&
+                function_exists('datadog\appsec\push_addresses');
+        }
+
+        if (!$raspEnabled) {
+            return;
+        }
+
+        $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+        if (!\is_array($storedConnectionInfo) || empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
+            return;
+        }
+
+        $addresses = array(
+            'server.db.statement' => $span->resource,
+            'server.db.system' => $storedConnectionInfo[Tag::DB_SYSTEM],
+        );
+        \datadog\appsec\push_addresses($addresses, "sqli");
     }
 }

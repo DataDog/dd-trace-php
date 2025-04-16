@@ -5,6 +5,7 @@
 #if CFG_FIBERS // defined by build.rs
 #include <Zend/zend_fibers.h>
 #endif
+#include <Zend/zend_generators.h>
 #include <Zend/zend_globals_macros.h>
 #include <Zend/zend_modules.h>
 #include <Zend/zend_alloc.h>
@@ -14,6 +15,16 @@
 #include <stddef.h>
 
 #include <ext/standard/info.h>
+
+#ifdef __linux__
+#include <elf.h>
+#endif
+
+// Needed for `zend_observer_error_register` starting from PHP 8
+#if CFG_ZEND_ERROR_OBSERVER // defined by build.rs
+#include <Zend/zend_errors.h>
+#include <Zend/zend_observer.h>
+#endif
 
 // Profiling needs ZAI config for INI support.
 #include <config/config.h>

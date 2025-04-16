@@ -1,0 +1,17 @@
+{
+    "require": {
+        "monolog/monolog": "~2.0",
+        "open-telemetry/sdk": "@stable",
+        "phpbench/phpbench": "^1.0",
+        "phpunit/phpunit": "<10",
+        "symfony/process": "<5"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Benchmarks\\": "./"
+        }
+    },
+    "autoload": {
+        "files": [ "ignore_annotations.php" ]
+    }
+}

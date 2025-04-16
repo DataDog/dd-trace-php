@@ -69,6 +69,7 @@ class TracesV04Handler implements Handler {
             }
             if (capturedTraces.size() == 0) {
                 log.info("Waiting up to $timeoutInMs ms for a trace")
+                long before = System.currentTimeMillis()
                 capturedTraces.wait(timeoutInMs)
                 if (savedError) {
                     throw new AssertionError('Error in mock agent http thread', savedError)
@@ -76,7 +77,7 @@ class TracesV04Handler implements Handler {
                 if (capturedTraces.size() == 0) {
                     throw new AssertionError("No trace gotten within $timeoutInMs ms" as Object)
                 } else {
-                    log.info('Wait finished. Last gotten: {}', capturedTraces.last())
+                    log.info('Wait finished after {} ms', System.currentTimeMillis() - before)
                     if (capturedTraces.size() > 1) {
                         log.info("There are a total of ${capturedTraces.size()} traces stored")
                     }
@@ -101,7 +102,9 @@ class TracesV04Handler implements Handler {
         List<Object> traces = []
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(is)
         while (unpacker.hasNext()) {
-            traces << MsgpackHelper.unpackSingle(unpacker)
+            def trace = MsgpackHelper.unpackSingle(unpacker)
+            log.debug('Read submitted trace {}', trace)
+            traces << trace
         }
 
         traces.first() as List<Object> ?: []

@@ -1,0 +1,62 @@
+[[
+  {
+    "name": "kafka.consume",
+    "service": "kafka_test",
+    "resource": "kafka.consume",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "queue",
+    "meta": {
+      "_dd.p.dm": "0",
+      "_dd.span_links": "[{\"trace_id\":\"0000000000000000c151df7d6ee5e2d6\",\"span_id\":\"c151df7d6ee5e2d6\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"_dd.p.dm\":\"-0\"}}]",
+      "component": "kafka",
+      "messaging.destination": "test-highlevel",
+      "messaging.destination_kind": "queue",
+      "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+      "messaging.kafka.client_id": "rdkafka",
+      "messaging.kafka.group_id": "consumer-highlevel",
+      "messaging.operation": "receive",
+      "messaging.system": "kafka",
+      "runtime-id": "bff4ee81-2002-4ffb-9ec3-13308f9f7dde",
+      "span.kind": "consumer"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1,
+      "messaging.kafka.message_offset": 43,
+      "messaging.kafka.partition": 0,
+      "messaging.message_payload_size_bytes": 11
+    }
+  }],
+[
+  {
+    "name": "kafka.consume",
+    "service": "kafka_test",
+    "resource": "kafka.consume",
+    "trace_id": 1,
+    "span_id": 1,
+    "parent_id": 0,
+    "type": "queue",
+    "meta": {
+      "_dd.p.dm": "0",
+      "component": "kafka",
+      "messaging.destination": "test-highlevel",
+      "messaging.destination_kind": "queue",
+      "messaging.kafka.bootstrap.servers": "kafka_integration:9092",
+      "messaging.kafka.client_id": "rdkafka",
+      "messaging.kafka.group_id": "consumer-highlevel",
+      "messaging.kafka.tombstone": "true",
+      "messaging.operation": "receive",
+      "messaging.system": "kafka",
+      "runtime-id": "bff4ee81-2002-4ffb-9ec3-13308f9f7dde",
+      "span.kind": "consumer"
+    },
+    "metrics": {
+      "_dd.agent_psr": 1,
+      "_sampling_priority_v1": 1,
+      "messaging.kafka.message_offset": 44,
+      "messaging.kafka.partition": 0,
+      "messaging.message_payload_size_bytes": 24
+    }
+  }]]

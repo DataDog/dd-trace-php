@@ -13,6 +13,7 @@
 #include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
 #include <string_view>
+#include <type_traits>
 
 using namespace std::literals;
 
@@ -145,10 +146,10 @@ void json_to_object(ddwaf_object *object, T &doc)
     }
 }
 
-dds::parameter json_to_parameter(const rapidjson::Document &doc)
+dds::parameter json_to_parameter(const rapidjson::Value &value)
 {
     dds::parameter obj;
-    json_to_object(obj, doc);
+    json_to_object(obj, value);
     return obj;
 }
 
@@ -176,8 +177,9 @@ json_helper::get_field_of_type(const rapidjson::Value &parent_field,
     }
 
     if (type != output_itr->value.GetType()) {
-        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key, type,
-            output_itr->value.GetType());
+        SPDLOG_DEBUG("Field {} is not of type {}. Instead {}", key,
+            fmt::underlying(type),
+            fmt::underlying(output_itr->value.GetType()));
         return std::nullopt;
     }
 
@@ -200,19 +202,30 @@ json_helper::get_field_of_type(
     return get_field_of_type(*parent_field, key, type);
 }
 
-bool json_helper::get_json_base64_encoded_content(
-    const std::string &content, rapidjson::Document &output)
+bool json_helper::field_exists(
+    const rapidjson::Value &parent_field, std::string_view key)
 {
-    std::string base64_decoded;
-    try {
-        base64_decoded = base64_decode(content, true);
-    } catch (const std::runtime_error &error) {
-        SPDLOG_DEBUG(
-            "Invalid base64 encoded content: " + std::string(error.what()));
-        return false;
-    }
+    return parent_field.FindMember(key.data()) != parent_field.MemberEnd();
+}
 
-    if (output.Parse(base64_decoded).HasParseError()) {
+bool json_helper::field_exists(
+    const rapidjson::Value::ConstMemberIterator &parent_field,
+    std::string_view key)
+{
+    return field_exists(parent_field->value, key);
+}
+
+bool json_helper::field_exists(
+    const rapidjson::Value::ConstValueIterator parent_field,
+    std::string_view key)
+{
+    return field_exists(*parent_field, key);
+}
+
+bool json_helper::parse_json(
+    std::string_view content, rapidjson::Document &output)
+{
+    if (output.Parse(content.data(), content.size()).HasParseError()) {
         SPDLOG_DEBUG("Invalid json: " + std::string(rapidjson::GetParseError_En(
                                             output.GetParseError())));
         return false;
@@ -236,7 +249,7 @@ void json_helper::merge_arrays(rapidjson::Value &destination,
     }
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters,misc-no-recursion)
 void json_helper::merge_objects(rapidjson::Value &destination,
     rapidjson::Value &source, rapidjson::Value::AllocatorType &allocator)
 {
@@ -247,7 +260,18 @@ void json_helper::merge_objects(rapidjson::Value &destination,
         throw invalid_type("source value not an object");
     }
     for (auto it = source.MemberBegin(); it != source.MemberEnd(); ++it) {
-        destination.AddMember(it->name, it->value, allocator);
+        if (destination.HasMember(it->name)) {
+            auto &cur = destination[it->name];
+            if (cur.IsArray() && it->value.IsArray()) {
+                merge_arrays(cur, it->value, allocator);
+            } else if (cur.IsObject() && it->value.IsObject()) {
+                merge_objects(cur, it->value, allocator);
+            } else {
+                destination[it->name] = it->value;
+            }
+        } else {
+            destination.AddMember(it->name, it->value, allocator);
+        }
     }
 }
 

@@ -2,6 +2,8 @@
 Test file inclusion hooking
 --INI--
 datadog.trace.generate_root_span=0
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
 <?php
 

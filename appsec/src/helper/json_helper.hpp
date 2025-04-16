@@ -50,7 +50,7 @@ protected:
 };
 
 std::string parameter_to_json(const dds::parameter_view &pv);
-dds::parameter json_to_parameter(const rapidjson::Document &doc);
+dds::parameter json_to_parameter(const rapidjson::Value &value);
 dds::parameter json_to_parameter(std::string_view json);
 
 namespace json_helper {
@@ -63,8 +63,12 @@ std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
 std::optional<rapidjson::Value::ConstMemberIterator> get_field_of_type(
     rapidjson::Value::ConstValueIterator parent_field, std::string_view key,
     rapidjson::Type type);
-bool get_json_base64_encoded_content(
-    const std::string &content, rapidjson::Document &output);
+bool field_exists(const rapidjson::Value &parent_field, std::string_view key);
+bool field_exists(const rapidjson::Value::ConstMemberIterator &parent_field,
+    std::string_view key);
+bool field_exists(const rapidjson::Value::ConstValueIterator parent_field,
+    std::string_view key);
+bool parse_json(std::string_view content, rapidjson::Document &output);
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void merge_arrays(rapidjson::Value &destination, rapidjson::Value &source,
     rapidjson::Value::AllocatorType &allocator);

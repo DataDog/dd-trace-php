@@ -5,28 +5,18 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../engine_settings.hpp"
-#include "../parameter.hpp"
+#include "../action.hpp"
+#include "../metrics.hpp"
 #include "../parameter_view.hpp"
+#include "../remote_config/changeset.hpp"
 #include <memory>
-#include <optional>
-#include <vector>
 
 namespace dds {
 
 class subscriber {
 public:
-    using ptr = std::shared_ptr<subscriber>;
-
-    struct event {
-        std::vector<std::string> data;
-        std::unordered_set<std::string> actions;
-    };
-
     class listener {
     public:
-        using ptr = std::shared_ptr<listener>;
-
         listener() = default;
         listener(const listener &) = default;
         listener &operator=(const listener &) = delete;
@@ -35,12 +25,12 @@ public:
 
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual std::optional<event> call(parameter_view &data) = 0;
+        virtual void call(parameter_view &data, event &event,
+            const std::string &rasp_rule = "") = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
-        virtual void get_meta_and_metrics(
-            std::map<std::string, std::string> &meta,
-            std::map<std::string_view, double> &metrics) = 0;
+        virtual void submit_metrics(
+            metrics::telemetry_submitter &msubmitter) = 0;
     };
 
     subscriber() = default;
@@ -53,10 +43,10 @@ public:
 
     virtual std::string_view get_name() = 0;
     virtual std::unordered_set<std::string> get_subscriptions() = 0;
-    virtual listener::ptr get_listener() = 0;
-    virtual subscriber::ptr update(parameter &rule,
-        std::map<std::string, std::string> &meta,
-        std::map<std::string_view, double> &metrics) = 0;
+    virtual std::unique_ptr<listener> get_listener() = 0;
+    virtual std::unique_ptr<subscriber> update(
+        const remote_config::changeset &changeset,
+        metrics::telemetry_submitter &submit_metric) = 0;
 };
 
 } // namespace dds

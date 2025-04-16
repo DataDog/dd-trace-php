@@ -6,6 +6,7 @@
 #pragma once
 
 #include <php.h>
+#include <stdbool.h>
 
 // target the definitions of PHP 7.4
 
@@ -43,6 +44,7 @@ static zend_always_inline zend_string *zend_string_init_interned(
     return zend_new_interned_string(ret);
 #    endif
 }
+extern zend_string *zend_empty_string;
 #endif
 
 #if PHP_VERSION_ID < 70300
@@ -105,4 +107,35 @@ static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc)
     }
 }
 #define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
+#endif
+
+#if PHP_VERSION_ID < 80100
+#    define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                       \
+        do {                                                                   \
+            Bucket *_p = (_ht)->arData + _from;                                \
+            Bucket *_end = _p + (_ht)->nNumUsed;                               \
+            for (; _p != _end; _p++) {                                         \
+                zval *_z = &_p->val;                                           \
+                if (indirect && Z_TYPE_P(_z) == IS_INDIRECT) {                 \
+                    _z = Z_INDIRECT_P(_z);                                     \
+                }                                                              \
+                if (UNEXPECTED(Z_TYPE_P(_z) == IS_UNDEF))                      \
+                    continue;
+#endif
+
+#if PHP_VERSION_ID < 80200
+#    define DD_FOREACH_FROM(_ht, indirect, _from, index)                       \
+        ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                           \
+        index = _p->h;
+
+static zend_always_inline bool zend_string_starts_with_cstr(
+    const zend_string *str, const char *prefix, size_t prefix_length)
+{
+    return ZSTR_LEN(str) >= prefix_length &&
+           !memcmp(ZSTR_VAL(str), prefix, prefix_length);
+}
+#else
+#    define DD_FOREACH_FROM(_ht, indirect, _from, index)                       \
+        ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                           \
+        index = __h;
 #endif

@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Not_Autoloaded/Headers/index.php';
     }
@@ -38,7 +38,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
 
         $tags = [
             'http.method' => 'GET',
-            'http.url' => 'http://localhost:' . self::PORT . '/',
+            'http.url' => 'http://localhost/',
             'http.status_code' => 200,
             'http.request.headers.first-header' => 'some value: with colon',
             'http.request.headers.forth-header' => '123',

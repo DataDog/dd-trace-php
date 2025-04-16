@@ -10,7 +10,7 @@ use DDTrace\Type;
 
 class ExitTest extends WebFrameworkTestCase
 {
-    protected static function getAppIndexScript()
+    public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_2_2/ddshim.php';
     }
@@ -38,7 +38,7 @@ class ExitTest extends WebFrameworkTestCase
                     'GET /exits'
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
-                    Tag::HTTP_URL => 'http://localhost:9999/exits',
+                    Tag::HTTP_URL => 'http://localhost/exits',
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.endpoint' => 'Exits::index',
                     Tag::SPAN_KIND => 'server',

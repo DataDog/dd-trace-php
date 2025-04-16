@@ -8,21 +8,30 @@ crate-type = ["staticlib", "cdylib"]
 path = "lib.rs"
 
 [dependencies]
-ddcommon = { path = "../libdatadog/ddcommon" }
+ddcommon = { path = "../libdatadog/ddcommon", features = ["cgroup_testing"] }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
+datadog-dynamic-configuration = { path = "../libdatadog/dynamic-configuration" }
+datadog-live-debugger = { path = "../libdatadog/live-debugger" }
+datadog-live-debugger-ffi = { path = "../libdatadog/live-debugger-ffi", default-features = false }
+datadog-ipc = { path = "../libdatadog/ipc" }
+datadog-remote-config = { path = "../libdatadog/remote-config" }
 datadog-sidecar = { path = "../libdatadog/sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/sidecar-ffi" }
+datadog-crashtracker-ffi = { path = "../libdatadog/crashtracker-ffi", default-features = false, features = ["collector"] }
+datadog-library-config-ffi = { path = "../libdatadog/library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
+itertools = "0.11.0"
 serde = "1.0.196"
-simd-json = "0.13.8"
+simd-json = "0.14.1"
 serde_with = "3.6.0"
 lazy_static = "1.4"
 log = "0.4.20"
 env_logger = "0.10.1"
+zwohash = "0.1.2"
 uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
 tempfile = {version = "3.3"}
@@ -33,6 +42,10 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
     "fmt",
     "env-filter",
 ] }
+serde_json = "1.0.113"
+regex = "1.10.5"
+regex-automata = "0.4.5"
+http = "1.0"
 
 [build-dependencies]
-cbindgen = "0.26"
+cbindgen = "0.27"

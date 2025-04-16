@@ -28,10 +28,10 @@ print_r(root_span_get_meta());
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init(['record', [], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['record', []]], ['{"found":"attack"}','{"another":"attack"}']])),
     response_list(
      response_request_shutdown(
-          ['record', [], ['{"yet another":"attack"}'], false, ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
+          [[['record', []]], ['{"yet another":"attack"}'], false, [], ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
      )
     ),
 ], ['continuous' => true]);
@@ -80,8 +80,10 @@ tags:
 Array
 (
     [_dd.appsec.json] => {"triggers":[{"found":"attack"},{"another":"attack"},{"yet another":"attack"}]}
+    [_dd.p.appsec] => 1
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
+    [_dd.p.ts] => 02
     [_dd.runtime_family] => php
     [appsec.event] => true
     [http.method] => GET
@@ -102,4 +104,6 @@ Array
     [_dd.agent_psr] => 1
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
+    [php.memory.peak_usage_bytes] => %f
+    [php.memory.peak_real_usage_bytes] => %f
 )

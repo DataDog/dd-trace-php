@@ -1,0 +1,1 @@
+{"message":"sampled listModels","status":"info","timestamp":"2024-07-18T07:59:01.508000+00:00","env":"test","version":"1.0","service":"openai-test","openai.request.method":"GET","openai.request.endpoint":"\/v1\/models","openai.organization.name":"org-1234","openai.user.api_key":"sk-...9d5d","dd.trace_id":"10879944590058579736","dd.span_id":"10879944590058579736"}

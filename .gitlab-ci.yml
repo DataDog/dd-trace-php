@@ -1,21 +1,29 @@
 stages:
   - build
+  - shared-pipeline # OCI packaging
   - deploy
   - benchmarks
   - ci-build
 
 variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 12
+  # Only clone libdatadog submodule by default
+  GIT_SUBMODULE_PATHS: libdatadog
   LATEST_LIBRARY_x86_64_LINUX_GNU:
     value: ""
     description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
+  SYSTEM_TESTS_LIBRARY: php
 
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
+  - local: .gitlab/compile.yml
 
 build:
   extends: .ci_authenticated_job
@@ -41,8 +49,26 @@ build:
       - 'upstream.env'
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
+download_artifacts:
+  extends: .ci_authenticated_job
+  stage: build
+  image: registry.ddbuild.io/images/ci_docker_base
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - |
+      sleep 2m # Let time for the CircleCI pipeline to start
+      source .gitlab/download-circleci_artifact.sh
+
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
+  artifacts:
+    paths:
+      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
+      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
+
 deploy_to_reliability_env:
   stage: deploy
+  needs: [ build ]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
       when: always
@@ -68,17 +94,29 @@ tracer-base-image:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
   stage: deploy
+  needs: [ build ]
   script:
     - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
 
     #Dev X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh dev   
+    - ./tooling/ci/download-binary-php.sh dev
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
- 
+
     #Prod X86
     - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod   
+    - ./tooling/ci/download-binary-php.sh prod
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
+
+configure_system_tests:
+  variables:
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
+
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
