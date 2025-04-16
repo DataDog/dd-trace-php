@@ -128,7 +128,7 @@ foreach ($arch_targets as $arch_target) {
     command: ["pipenv", "run", "gunicorn", "-b", "<?= $service_bind_address ?>:8080", "httpbin:app", "-k", "gevent"]
 
   mysql:
-    name: datadog/dd-trace-ci:php-mysql-dev-5.6
+    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-mysql-dev-5.6
     alias: mysql-integration
     variables:
       MYSQL_ROOT_PASSWORD: test
@@ -137,25 +137,25 @@ foreach ($arch_targets as $arch_target) {
       MYSQL_DATABASE: test
 
   elasticsearch2:
-    name: elasticsearch:2
+    name: registry.ddbuild.io/images/mirror/elasticsearch:2
     alias: elasticsearch2-integration
 
   elasticsearch7:
     name: elasticsearch7-integration
-    alias: elasticsearch:7.17.0
+    alias: registry.ddbuild.io/images/mirror/elasticsearch:7.17.23
     variables:
       ES_JAVA_OPTS: -Xms1g -Xmx1g
       discovery.type: single-node
 
   zookeeper:
-    name: confluentinc/cp-zookeeper:7.7.1
+    name: registry.ddbuild.io/images/mirror/confluentinc/cp-zookeeper:7.7.1
     alias: zookeeper
     variables:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    name: confluentinc/cp-kafka:7.7.1
+    name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.7.1
     alias: kafka-integration
     variables:
       KAFKA_BROKER_ID: 111
@@ -170,26 +170,26 @@ foreach ($arch_targets as $arch_target) {
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
 
   redis:
-    name: datadog/dd-trace-ci:php-redis-5.0
+    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0
     alias: redis-integration
 
   memcache:
-    name: memcached:1.5-alpine
+    name: registry.ddbuild.io/images/mirror/memcached:1.5-alpine
     alias: memcached-integration
 
   amqp:
-    name: rabbitmq:3.8.9-alpine
+    name: registry.ddbuild.io/images/mirror/rabbitmq:3.9.20-alpine
     alias: rabbitmq-integration
 
   mongodb:
-    name: docker.io/library/mongo:4.2.24
+    name: registry.ddbuild.io/images/mirror/mongo:4.2.24
     alias: mongodb-integration
     variables:
       MONGO_INITDB_ROOT_USERNAME: test
       MONGO_INITDB_ROOT_PASSWORD: test
 
   mssql:
-    name: mcr.microsoft.com/mssql/server:2022-latest
+    name: registry.ddbuild.io/images/mirror/sqlserver:2022-latest
     alias: sqlsrv-integration
     variables:
       ACCEPT_EULA: Y
@@ -197,7 +197,7 @@ foreach ($arch_targets as $arch_target) {
       MSSQL_PID: Developer
 
   googlespanner:
-    name: gcr.io/cloud-spanner-emulator/emulator:1.5.25
+    name: registry.ddbuild.io/images/mirror/cloud-spanner-emulator/emulator:1.5.25
     alias: googlespanner-integration
 
 <?php function agent_httpbin_service() { ?>
@@ -527,6 +527,7 @@ endforeach;
 // specific service maps:
 $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
+$services["deferred_loading"] = "mysql";
 
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m):

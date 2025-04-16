@@ -172,7 +172,7 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     protected static function recordVersion($testedLibrary, $version)
     {
-        $projectRoot = preg_replace('/^\/([^\/]+)\/([^\/]+)\/([^\/]+).*/', '/$1/$2/$3', \getcwd());
+        $projectRoot = __DIR__ . "/../..";
         $testsRoot = "$projectRoot/tests";
         $class = \get_called_class();
         echo "Recording tested version $version of $testedLibrary for $class\n";
