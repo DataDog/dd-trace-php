@@ -106,13 +106,13 @@ for architecture in "${architectures[@]}"; do
     rm -rf $tmp_folder
     for full_target in "${targets[@]}"; do
         target=${full_target#*-}
-        if [[ "${target}" == "linux-gnu" ]]; then
+        if [[ $target == "linux-gnu" ]]; then
             mkdir -p $tmp_folder_final_gnu
         fi
-        if [[ "${target}" == "linux-musl" ]]; then
+        if [[ $target == "linux-musl" ]]; then
             mkdir -p $tmp_folder_final_musl
         fi
-        if [[ "${target}" == "windows" && $architecture == "x86_64" ]]; then
+        if [[ $target == "windows" && $architecture == "x86_64" ]]; then
             mkdir -p $tmp_folder_final_windows
         fi
     done
@@ -131,18 +131,18 @@ for architecture in "${architectures[@]}"; do
             target=${full_target#*-}
 
             if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-                if [[ "${target}" == "linux-gnu" ]]; then
+                if [[ $target == "linux-gnu" ]]; then
                     mkdir -p ${tmp_folder_final_gnu_trace}/ext/$php_api
                     cp ./extensions_${architecture}/ddtrace-$php_api.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-zts.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-debug.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug.so;
                 fi
-                if [[ "${target}" == "linux-musl"]]; then
+                if [[ $target == "linux-musl" ]]; then
                     mkdir -p ${tmp_folder_final_musl_trace}/ext/$php_api;
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
                 fi
-                if [[ "${target}" == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
+                if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
                     mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
                     cp ./extensions_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
                     cp ./extensions_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
@@ -156,15 +156,15 @@ for architecture in "${architectures[@]}"; do
     for full_target in "${targets[@]}"; do
         target=${full_target#*-}
 
-        if [[ "${target}" == "linux-gnu" ]]; then
+        if [[ $target == "linux-gnu" ]]; then
             cp -r ./src ${tmp_folder_final_gnu_trace};
         fi
 
-        if [[ "${target}" == "linux-musl" ]]; then
+        if [[ $target == "linux-musl" ]]; then
             cp -r ./src ${tmp_folder_final_musl_trace};
         fi
 
-        if [[ "${target}" == "windows" && $architecture == "x86_64" ]]; then
+        if [[ $target == "windows" && $architecture == "x86_64" ]]; then
             cp -r ./src ${tmp_folder_final_windows_trace};
         fi
     done
@@ -179,7 +179,7 @@ for architecture in "${architectures[@]}"; do
         do
             for full_target in "${targets[@]}"; do
                 target=${full_target#*-}
-                if [[ "${target}" == "linux-gnu" ]]; then
+                if [[ $target == "linux-gnu" ]]; then
                     mkdir -v -p \
                           $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version
 
@@ -191,7 +191,7 @@ for architecture in "${architectures[@]}"; do
                         $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
                 fi
 
-                if [[ "${target}" == "linux-musl" ]]; then
+                if [[ $target == "linux-musl" ]]; then
                     mkdir -v -p \
                           $tmp_folder_final_musl/dd-library-php/profiling/ext/$version
 
@@ -207,18 +207,19 @@ for architecture in "${architectures[@]}"; do
         # Licenses
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
-            if [[ "${target}" == "linux-gnu" ]]; then
+            if [[ $target == "linux-gnu" ]]; then
                 cp -v \
                     ./profiling/LICENSE* \
                     ./profiling/NOTICE \
                     $tmp_folder_final_gnu/dd-library-php/profiling/
             fi
-            if [[ "${target}" == "linux-musl" ]]; then
+            if [[ $target == "linux-musl" ]]; then
                 cp -v \
                     ./profiling/LICENSE* \
                     ./profiling/NOTICE \
                     $tmp_folder_final_musl/dd-library-php/profiling/
            fi
+        done
     fi
 
     ########################
@@ -234,7 +235,7 @@ for architecture in "${architectures[@]}"; do
             for full_target in "${targets[@]}"; do
                 target=${full_target#*-}
 
-                if [[ "${target}" == "linux-gnu" ]]; then
+                if [[ $target == "linux-gnu" ]]; then
                     mkdir -p ${tmp_folder_final_gnu_appsec}/ext/$php_api
 
                     cp \
@@ -246,7 +247,7 @@ for architecture in "${architectures[@]}"; do
                         "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts.so"
                 fi
 
-                if [[ "${target}" == "linux-musl" ]]; then
+                if [[ $target == "linux-musl" ]]; then
                     mkdir -p ${tmp_folder_final_musl_appsec}/ext/$php_api
 
                     cp \
@@ -257,13 +258,14 @@ for architecture in "${architectures[@]}"; do
                         "./appsec_${architecture}/ddappsec-$php_api-alpine-zts.so" \
                         "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
                 fi
+            done
         done
 
         # Helper + Recommended rules
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
 
-            if [[ "${target}" == "linux-gnu" ]]; then
+            if [[ $target == "linux-gnu" ]]; then
                 mkdir -p "${tmp_folder_final_gnu_appsec}/lib"
                 mkdir -p "${tmp_folder_final_gnu_appsec}/etc"
                 cp \
@@ -274,7 +276,7 @@ for architecture in "${architectures[@]}"; do
                     "${tmp_folder_final_gnu_appsec}/etc/recommended.json"
             fi
 
-            if [[ "${target}" == "linux-musl" ]]; then
+            if [[ $target == "linux-musl" ]]; then
                 mkdir -p "${tmp_folder_final_musl_appsec}/lib"
                 mkdir -p "${tmp_folder_final_musl_appsec}/etc"
                 cp \
@@ -284,6 +286,7 @@ for architecture in "${architectures[@]}"; do
                     "./appsec_${architecture}/recommended.json" \
                     "${tmp_folder_final_musl_appsec}/etc/recommended.json"
             fi
+        done
     fi
 
     ########################
@@ -311,20 +314,20 @@ for architecture in "${architectures[@]}"; do
     ########################
     for full_target in "${targets[@]}"; do
         target=${full_target#*-}
-        if [[ "${target}" == "linux-gnu" ]]; then
+        if [[ $target == "linux-gnu" ]]; then
             echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION
             tar -czv \
                 -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-linux-gnu.tar.gz \
                 -C ${tmp_folder_final_gnu} . --owner=0 --group=0
         fi
-        if [[ "${target}" == "linux-musl" ]]; then
+        if [[ $target == "linux-musl" ]]; then
             echo "$release_version" > ${tmp_folder_final_musl}/dd-library-php/VERSION
             tar -czv \
                 -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-linux-musl.tar.gz \
                 -C ${tmp_folder_final_musl} . --owner=0 --group=0
             cp -v ./datadog-tracer.stubs.php ${tmp_folder_final_musl}/dd-library-php/
         fi
-        if [[ "${target}" == "windows"]]; then
+        if [[ $target == "windows" ]]; then
             if [[ $architecture == "x86_64" ]]; then
                 echo "$release_version" > ${tmp_folder_final_windows}/dd-library-php/VERSION
                 tar -czv \
