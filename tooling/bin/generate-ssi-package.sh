@@ -28,7 +28,7 @@ function stripto() {
         arch_cmd_prefix="aarch64-linux-gnu-"
     fi
 
-    "${arch_cmd_prefix}objcopy" --only-keep-debug --compress-debug-sections=zstd "$source" "${target}.debug"
+    "${arch_cmd_prefix}objcopy" --only-keep-debug --compress-debug-sections=zlib "$source" "${target}.debug"
     "${arch_cmd_prefix}strip" -o "$target" "$source"
     (
         cd "$(dirname "$target")"
