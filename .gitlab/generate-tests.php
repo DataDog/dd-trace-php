@@ -552,7 +552,7 @@ $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["pdo"] = "mysql";
-$services["kafka"] = "zookeeper";
+$services["kafk"] = "zookeeper";
 
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m):

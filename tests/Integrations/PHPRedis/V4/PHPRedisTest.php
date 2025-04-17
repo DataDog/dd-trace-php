@@ -142,10 +142,10 @@ class PHPRedisTest extends IntegrationTestCase
             'pconnect host unreachable' => ['not_existing_host', null, 'pconnect'],
             'popen host unreachable' => ['not_existing_host', null, 'popen'],
             // Not listening
-            'connect host not listening' => ['127.0.01', null, 'connect'],
-            'open host not listening' => ['127.0.01', null, 'open'],
-            'pconnect host not listening' => ['127.0.01', null, 'pconnect'],
-            'popen host not listening' => ['127.0.01', null, 'popen'],
+            'connect host not listening' => ['255.255.01', null, 'connect'],
+            'open host not listening' => ['255.255.01', null, 'open'],
+            'pconnect host not listening' => ['255.255.01', null, 'pconnect'],
+            'popen host not listening' => ['255.255.01', null, 'popen'],
             // Wrong port
             'connect wrong port' => [$this->host, 1111, 'connect'],
             'open wrong port' => [$this->host, 1111, 'open'],

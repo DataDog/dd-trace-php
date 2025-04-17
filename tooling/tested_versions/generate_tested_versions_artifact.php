@@ -1,6 +1,6 @@
 <?php
 
-$TESTED_VERSIONS_DIR = realpath(__DIR__ . '/../../tests/tested_versions');
+$TESTED_VERSIONS_DIR = realpath(__DIR__ . '/../..') . '/tests/tested_versions';
 $OUTPUT_FILE = 'tested_versions.json';
 $OUTPUT_FILE_PATH = "$TESTED_VERSIONS_DIR/tested_versions.json";
 $aggregatedData = [];
