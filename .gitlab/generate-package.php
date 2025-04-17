@@ -532,13 +532,19 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
+.package_extension_base:
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
+  tags: [ "arch:amd64" ]
+  artifacts:
+    paths:
+      - "packages/"
+
 <?php
 foreach ($build_platforms as $platform) {
 ?>
 "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
-  tags: [ "arch:amd64" ]
+  extends: .package_extension_base
   variables:
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -593,19 +599,14 @@ foreach ($build_platforms as $platform) {
       artifacts: true
 <?php
     }
-?>
-  artifacts:
-    paths:
-      - "packages/"
-<?php
 }
 ?>
 
 "package extension windows":
-  stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
-  tags: [ "arch:amd64" ]
-  script: ./.gitlab/package-extension.sh
+  extends: .package_extension_base
+  script:
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mv build/packages/ packages/
   needs:
     - job: "prepare code"
       artifacts: true
@@ -622,16 +623,10 @@ foreach ($windows_php_versions as $major_minor) {
 
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
-  artifacts:
-    paths:
-      - "packages/"
-      - "packages.tar.gz"
 
 
 "package extension asan":
-  stage: packaging
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
-  tags: [ "arch:amd64" ]
+  extends: .package_extension_base
   script:
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
@@ -652,11 +647,6 @@ foreach ($asan_build_platforms as $platform) {
   variables:
     MAKE_JOBS: 9
     DDTRACE_MAKE_PACKAGES_ASAN: 1
-  artifacts:
-    paths:
-      - "packages/"
-      - "packages.tar.gz"
-      - "pecl/"
 
 "datadog-setup.php":
   stage: packaging

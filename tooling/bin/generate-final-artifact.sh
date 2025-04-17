@@ -6,6 +6,8 @@ IFS=$'\n\t'
 release_version=$1
 packages_build_dir=$2
 
+mkdir -p $packages_build_dir
+
 tmp_folder=${CI_PROJECT_DIR:-.}/tmp/bundle
 tmp_folder_final=$tmp_folder/final
 
@@ -326,7 +328,7 @@ for architecture in "${architectures[@]}"; do
             tar -czv \
                 -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-linux-musl.tar.gz \
                 -C ${tmp_folder_final_musl} . --owner=0 --group=0
-            cp -v ./datadog-tracer.stubs.php ${tmp_folder_final_musl}/dd-library-php/
+            cp -v ${packages_build_dir}/datadog-tracer.stubs.php ${tmp_folder_final_musl}/dd-library-php/
         fi
         if [[ $target == "windows" ]]; then
             if [[ $architecture == "x86_64" ]]; then

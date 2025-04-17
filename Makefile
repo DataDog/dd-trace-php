@@ -495,7 +495,7 @@ build_pecl_package:
 	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-dbgsym.tar.gz:
+dbgsym.tar.gz: $(PACKAGES_BUILD_DIR)
 	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)
 
 installer_packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
