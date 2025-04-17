@@ -150,8 +150,10 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
             return dd_helper_error;
         } else {
             mlog(dd_log_debug,
-                "Received message for command %.*s unexpected: %.*s\n", NAME_L,
-                (int)mpack_node_strlen(type), mpack_node_str(type));
+                "Received message for command %.*s unexpected: \"%.*s\". "
+                "Expected \"config_features\", \"error\" or \"%.*s\"",
+                NAME_L, (int)mpack_node_strlen(type), mpack_node_str(type),
+                NAME_L);
             return dd_error;
         }
 

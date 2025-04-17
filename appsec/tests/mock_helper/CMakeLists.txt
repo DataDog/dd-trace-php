@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.11)
 project(mock_helper)
 
+if(POLICY CMP0153)
+cmake_policy(SET CMP0153 OLD) # allow exec_program
+endif()
+
 hunter_add_package(Boost COMPONENTS coroutine context program_options system thread stacktrace)
 
 find_package(Boost CONFIG REQUIRED

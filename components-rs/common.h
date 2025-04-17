@@ -257,6 +257,37 @@ typedef struct ddog_Vec_Tag_ParseResult {
   struct ddog_Error *error_message;
 } ddog_Vec_Tag_ParseResult;
 
+/**
+ * C-compatible representation of an anonymous file handle
+ */
+typedef struct ddog_TracerMemfdHandle {
+  /**
+   * File descriptor (relevant only on Linux)
+   */
+  int fd;
+} ddog_TracerMemfdHandle;
+
+/**
+ * A generic result type for when an operation may fail,
+ * or may return <T> in case of success.
+ */
+typedef enum ddog_Result_TracerMemfdHandle_Tag {
+  DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
+  DDOG_RESULT_TRACER_MEMFD_HANDLE_ERR_TRACER_MEMFD_HANDLE,
+} ddog_Result_TracerMemfdHandle_Tag;
+
+typedef struct ddog_Result_TracerMemfdHandle {
+  ddog_Result_TracerMemfdHandle_Tag tag;
+  union {
+    struct {
+      struct ddog_TracerMemfdHandle ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_Result_TracerMemfdHandle;
+
 #define ddog_LOG_ONCE (1 << 3)
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
@@ -267,6 +298,8 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
+  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
 } ddog_ConfigurationOrigin;
 
 typedef enum ddog_EvaluateAt {
@@ -1562,6 +1595,22 @@ struct ddog_Vec_Tag_PushResult ddog_Vec_Tag_push(struct ddog_Vec_Tag *vec,
  * .len property.
  */
 DDOG_CHECK_RETURN struct ddog_Vec_Tag_ParseResult ddog_Vec_Tag_parse(ddog_CharSlice string);
+
+/**
+ * Store tracer metadata to a file handle
+ *
+ * # Safety
+ *
+ * Accepts raw C-compatible strings
+ */
+struct ddog_Result_TracerMemfdHandle ddog_store_tracer_metadata(uint8_t schema_version,
+                                                                ddog_CharSlice runtime_id,
+                                                                ddog_CharSlice tracer_language,
+                                                                ddog_CharSlice tracer_version,
+                                                                ddog_CharSlice hostname,
+                                                                ddog_CharSlice service_name,
+                                                                ddog_CharSlice service_env,
+                                                                ddog_CharSlice service_version);
 
 #ifdef __cplusplus
 }  // extern "C"

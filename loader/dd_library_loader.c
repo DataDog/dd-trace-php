@@ -160,7 +160,7 @@ static void ddtrace_pre_minit_hook(void) {
     // Load, but disable the tracer if runtime configuration is not safe for auto-injection
     bool disable_tracer = false;
 
-    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "newrelic", "blackfire", "pcov"};
+    char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "ionCube Loader", "the ionCube PHP Loader + ionCube24", "newrelic", "blackfire", "pcov"};
     for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
         if (ddloader_is_ext_loaded(incompatible_exts[i])) {
             if (force_load) {

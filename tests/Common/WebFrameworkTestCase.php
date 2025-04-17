@@ -132,8 +132,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
             // option.
             'xdebug.remote_enable' => 1,
+            'xdebug.mode' => 'debug',
             'xdebug.remote_host' => 'host.docker.internal',
+            'xdebug.client_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
+            'xdebug.start_with_request' => 'yes',
         ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : []);
     }
 
