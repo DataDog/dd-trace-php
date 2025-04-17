@@ -565,6 +565,16 @@ foreach ($build_platforms as $platform) {
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 
+<?php
+    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+?>
+    # Compile appsec extension
+    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+}
+?>
+
     # Compile appsec helper
     - job: "compile appsec helper"
       parallel:
