@@ -202,6 +202,7 @@ for architecture in "${architectures[@]}"; do
                         ./datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling-zts.so \
                         $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
                 fi
+            done
         done
 
         # Licenses
