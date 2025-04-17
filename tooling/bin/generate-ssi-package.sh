@@ -20,7 +20,21 @@ if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
 fi
 
 function stripto() {
-   $(if [[ "${architecture}" == "aarch64" ]]; then echo aarch64-linux-gnu-; fi)strip -o "$2" "$1"
+    source=$1
+    target=$2
+
+    local arch_cmd_prefix=""
+    if [[ "${architecture}" == "aarch64" ]]; then
+        arch_cmd_prefix="aarch64-linux-gnu-"
+    fi
+
+    "${arch_cmd_prefix}objcopy" --only-keep-debug --compress-debug-sections=zlib "$source" "${target}.debug"
+    "${arch_cmd_prefix}strip" -o "$target" "$source"
+    (
+        cd "$(dirname "$target")"
+        filename=$(basename "$target")
+        "${arch_cmd_prefix}objcopy" --add-gnu-debuglink="${filename}.debug" "${filename}"
+    )
 }
 
 for architecture in "${architectures[@]}"; do
@@ -101,7 +115,7 @@ for architecture in "${architectures[@]}"; do
 
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
-    ln "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
+    stripto "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
     ln "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
 
     ########################
