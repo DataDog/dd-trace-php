@@ -1,7 +1,6 @@
 stages:
   - build
   - tests
-  - shared-pipeline # OCI packaging
   - deploy
   - benchmarks
   - ci-build
@@ -20,7 +19,6 @@ variables:
 
 include:
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
 
@@ -108,10 +106,6 @@ tracer-base-image:
     - ./tooling/ci/download-binary-php.sh prod
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
-
-configure_system_tests:
-  variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
 
 requirements_json_test:
   rules:

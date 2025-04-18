@@ -113,10 +113,20 @@ stages:
   - appsec
   - tracing
   - packaging
+  - shared-pipeline # OCI packaging
 
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
+include:
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+
+# One pipeline job overrides
+configure_system_tests:
+  variables:
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
+
+# dd-trace-php release packaging
 "prepare code":
   stage: prepare
   image: registry.ddbuild.io/images/mirror/composer:2
