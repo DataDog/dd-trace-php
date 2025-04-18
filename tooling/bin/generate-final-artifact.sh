@@ -163,17 +163,17 @@ for architecture in "${architectures[@]}"; do
         target=${full_target#*-}
 
         if [[ $target == "linux-gnu" ]]; then
-            mkdir -p ${tmp_folder_final_gnu}
+            mkdir -p ${tmp_folder_final_gnu_trace}
             cp -r ./src ${tmp_folder_final_gnu_trace};
         fi
 
         if [[ $target == "linux-musl" ]]; then
-            mkdir -p ${tmp_folder_final_musl}
+            mkdir -p ${tmp_folder_final_musl_trace}
             cp -r ./src ${tmp_folder_final_musl_trace};
         fi
 
         if [[ $target == "windows" && $architecture == "x86_64" ]]; then
-            mkdir -p ${tmp_folder_final_windows}
+            mkdir -p ${tmp_folder_final_windows_trace}
             cp -r ./src ${tmp_folder_final_windows_trace};
         fi
     done
