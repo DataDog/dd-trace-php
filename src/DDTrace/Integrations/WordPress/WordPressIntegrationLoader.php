@@ -277,6 +277,34 @@ class WordPressIntegrationLoader
         $integration->hooksEnabled = dd_trace_env_config('DD_WORDPRESS_HOOKS_ENABLED');
         $integration->totalDurationEnabled = dd_trace_env_config('DD_WORDPRESS_PLUGIN_TOTAL_DURATION_ENABLED');
 
+        if ($integration->metricsEnabled) {
+            \DDTrace\hook_method(
+                'WP_Fatal_Error_Handler',
+                'should_handle_error',
+                null,
+                function ($This, $scope, $args, $retval) use ($integration) {
+                    if ($retval) {
+                        $error = $args[0];
+                        $file = $error['file'] ?? '';
+
+                        $pluginName = WordPressIntegrationLoader::extractPluginNameFromFile($file);
+                        if (!$pluginName) {
+                            if (strpos($file, WPINC) === 0 || strpos($file, ABSPATH . 'wp-admin') === 0) {
+                                $pluginName = 'core';
+                            } else {
+                                $pluginName = 'unknown';
+                            }
+                        }
+
+                        $span = \DDTrace\root_span();
+                        if ($span) {
+                            $span->meta['wordpress.plugin.error'] = $pluginName;
+                        }
+                    }
+                }
+            );
+        }
+
         // File loading
         hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
             WordPressIntegrationLoader::allowQueryParamsInResourceName();
@@ -845,7 +873,7 @@ class WordPressIntegrationLoader
                             );
                         }
 
-                        if ($msDuration > 1) {
+                        if ($msDuration > 75) {
                             WordPressIntegrationLoader::sendLog(
                                 $integration,
                                 $msDuration,
