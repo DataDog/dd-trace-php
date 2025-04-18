@@ -473,7 +473,7 @@ foreach ($windows_build_platforms as $platform) {
     GIT_CONFIG_COUNT: 1
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
-    CONTAINER_NAME: $CI_JOB_NAME_SLUG
+    CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
     # Make sure we actually fail if a command fails
     $ErrorActionPreference = 'Stop'
