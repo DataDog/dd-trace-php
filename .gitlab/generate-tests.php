@@ -53,7 +53,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
 
 function sidecar_logs() {
 ?>
-    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: error
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
 <?php
 }
