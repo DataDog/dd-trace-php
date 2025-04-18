@@ -24,7 +24,7 @@ $all_minor_major_targets = [
 
 $asan_minor_major_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); });
 
-$windows_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); });
+$windows_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
 
 $arch_targets = ["amd64", "arm64"];
 
