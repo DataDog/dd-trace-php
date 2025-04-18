@@ -46,7 +46,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "200",
-         "http.url": "http://httpbin-integration/redirect-to?url=http://httpbin-integration/status/200",
+         "http.url": "http://{httpbin}/redirect-to?url=http://{httpbin}/status/200",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
        }
@@ -64,7 +64,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "200",
-         "http.url": "http://httpbin-integration/status/200",
+         "http.url": "http://{httpbin}/status/200",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
        }
@@ -82,7 +82,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "201",
-         "http.url": "http://httpbin-integration/status/201",
+         "http.url": "http://{httpbin}/status/201",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
        }
@@ -100,7 +100,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "202",
-         "http.url": "http://httpbin-integration/status/202",
+         "http.url": "http://{httpbin}/status/202",
          "network.destination.name": "httpbin-integration",
          "span.kind": "client"
        }
@@ -227,7 +227,7 @@
             "curl.total_time_us": "5026255",
             "curl.upload_content_length": "-1",
             "error.message": "Couldn't resolve host name",
-            "error.stack": "#0 /home/circleci/app/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(128): curl_multi_exec()\n#1 /home/circleci/app/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(145): GuzzleHttp\\Handler\\CurlMultiHandler->tick()\n#2 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(248): GuzzleHttp\\Handler\\CurlMultiHandler->execute()\n#3 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(224): GuzzleHttp\\Promise\\Promise->invokeWaitFn()\n#4 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(269): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#5 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(226): GuzzleHttp\\Promise\\Promise->invokeWaitList()\n#6 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(62): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#7 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Utils.php(134): GuzzleHttp\\Promise\\Promise->wait()\n#8 /home/circleci/app/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(521): GuzzleHttp\\Promise\\Utils::unwrap()\n#9 /home/circleci/app/tests/Common/SnapshotTestTrait.php(171): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->DDTrace\\Tests\\Integrations\\Guzzle\\V6\\{closure}()\n#10 /home/circleci/app/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(502): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->isolateTracerSnapshot()\n#11 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1612): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->testMultiExec()\n#12 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1218): PHPUnit\\Framework\\TestCase->runTest()\n#13 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestResult.php(728): PHPUnit\\Framework\\TestCase->runBare()\n#14 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(968): PHPUnit\\Framework\\TestResult->run()\n#15 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestCase->run()\n#16 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestSuite->run()\n#17 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/TestRunner.php(651): PHPUnit\\Framework\\TestSuite->run()\n#18 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(144): PHPUnit\\TextUI\\TestRunner->run()\n#19 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(97): PHPUnit\\TextUI\\Command->run()\n#20 /home/circleci/app/tests/vendor/phpunit/phpunit/phpunit(107): PHPUnit\\TextUI\\Command::main()\n#21 /home/circleci/app/tests/vendor/bin/phpunit(122): include()\n#22 {main}",
+            "error.stack": "#0 {path}/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(128): curl_multi_exec()\n#1 {path}/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(145): GuzzleHttp\\Handler\\CurlMultiHandler->tick()\n#2 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(248): GuzzleHttp\\Handler\\CurlMultiHandler->execute()\n#3 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(224): GuzzleHttp\\Promise\\Promise->invokeWaitFn()\n#4 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(269): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#5 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(226): GuzzleHttp\\Promise\\Promise->invokeWaitList()\n#6 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(62): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#7 {path}/tests/vendor/guzzlehttp/promises/src/Utils.php(134): GuzzleHttp\\Promise\\Promise->wait()\n#8 {path}/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(521): GuzzleHttp\\Promise\\Utils::unwrap()\n#9 {path}/tests/Common/SnapshotTestTrait.php(171): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->DDTrace\\Tests\\Integrations\\Guzzle\\V6\\{closure}()\n#10 {path}/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(502): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->isolateTracerSnapshot()\n#11 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1612): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->testMultiExec()\n#12 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1218): PHPUnit\\Framework\\TestCase->runTest()\n#13 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestResult.php(728): PHPUnit\\Framework\\TestCase->runBare()\n#14 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(968): PHPUnit\\Framework\\TestResult->run()\n#15 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestCase->run()\n#16 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestSuite->run()\n#17 {path}/tests/vendor/phpunit/phpunit/src/TextUI/TestRunner.php(651): PHPUnit\\Framework\\TestSuite->run()\n#18 {path}/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(144): PHPUnit\\TextUI\\TestRunner->run()\n#19 {path}/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(97): PHPUnit\\TextUI\\Command->run()\n#20 {path}/tests/vendor/phpunit/phpunit/phpunit(107): PHPUnit\\TextUI\\Command::main()\n#21 {path}/tests/vendor/bin/phpunit(122): include()\n#22 {main}",
             "error.type": "curl error",
             "http.status_code": "0",
             "http.url": "https://google.wrong/",
@@ -247,7 +247,7 @@
         {
           "name": "curl_exec",
           "service": "host-httpbin-integration",
-          "resource": "http://httpbin-integration/redirect-to",
+          "resource": "http://{httpbin}/redirect-to",
           "trace_id": 0,
           "span_id": 13,
           "parent_id": 11,
@@ -271,7 +271,7 @@
             "curl.redirect_count": "0",
             "curl.redirect_time": "0",
             "curl.redirect_time_us": "0",
-            "curl.redirect_url": "http://httpbin-integration/status/200",
+            "curl.redirect_url": "http://{httpbin}/status/200",
             "curl.request_size": "414",
             "curl.scheme": "HTTP",
             "curl.speed_download": "0",
@@ -284,7 +284,7 @@
             "curl.total_time_us": "6629",
             "curl.upload_content_length": "-1",
             "http.status_code": "302",
-            "http.url": "http://httpbin-integration/redirect-to?url=http://httpbin-integration/status/200",
+            "http.url": "http://{httpbin}/redirect-to?url=http://{httpbin}/status/200",
             "network.bytes_read": "0",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",
@@ -301,7 +301,7 @@
         {
           "name": "curl_exec",
           "service": "host-httpbin-integration",
-          "resource": "http://httpbin-integration/status/?",
+          "resource": "http://{httpbin}/status/?",
           "trace_id": 0,
           "span_id": 14,
           "parent_id": 11,
@@ -337,7 +337,7 @@
             "curl.total_time_us": "8144",
             "curl.upload_content_length": "-1",
             "http.status_code": "200",
-            "http.url": "http://httpbin-integration/status/200",
+            "http.url": "http://{httpbin}/status/200",
             "network.bytes_read": "0",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",
@@ -354,7 +354,7 @@
         {
           "name": "curl_exec",
           "service": "host-httpbin-integration",
-          "resource": "http://httpbin-integration/status/?",
+          "resource": "http://{httpbin}/status/?",
           "trace_id": 0,
           "span_id": 15,
           "parent_id": 11,
@@ -390,7 +390,7 @@
             "curl.total_time_us": "8124",
             "curl.upload_content_length": "-1",
             "http.status_code": "201",
-            "http.url": "http://httpbin-integration/status/201",
+            "http.url": "http://{httpbin}/status/201",
             "network.bytes_read": "0",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",
@@ -407,7 +407,7 @@
         {
           "name": "curl_exec",
           "service": "host-httpbin-integration",
-          "resource": "http://httpbin-integration/status/?",
+          "resource": "http://{httpbin}/status/?",
           "trace_id": 0,
           "span_id": 16,
           "parent_id": 11,
@@ -443,7 +443,7 @@
             "curl.total_time_us": "8070",
             "curl.upload_content_length": "-1",
             "http.status_code": "202",
-            "http.url": "http://httpbin-integration/status/202",
+            "http.url": "http://{httpbin}/status/202",
             "network.bytes_read": "0",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",
@@ -495,7 +495,7 @@
             "curl.total_time_us": "5025663",
             "curl.upload_content_length": "-1",
             "error.message": "Couldn't resolve host name",
-            "error.stack": "#0 /home/circleci/app/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(128): curl_multi_exec()\n#1 /home/circleci/app/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(145): GuzzleHttp\\Handler\\CurlMultiHandler->tick()\n#2 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(248): GuzzleHttp\\Handler\\CurlMultiHandler->execute()\n#3 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(224): GuzzleHttp\\Promise\\Promise->invokeWaitFn()\n#4 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(269): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#5 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(226): GuzzleHttp\\Promise\\Promise->invokeWaitList()\n#6 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Promise.php(62): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#7 /home/circleci/app/tests/vendor/guzzlehttp/promises/src/Utils.php(134): GuzzleHttp\\Promise\\Promise->wait()\n#8 /home/circleci/app/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(521): GuzzleHttp\\Promise\\Utils::unwrap()\n#9 /home/circleci/app/tests/Common/SnapshotTestTrait.php(171): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->DDTrace\\Tests\\Integrations\\Guzzle\\V6\\{closure}()\n#10 /home/circleci/app/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(502): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->isolateTracerSnapshot()\n#11 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1612): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->testMultiExec()\n#12 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1218): PHPUnit\\Framework\\TestCase->runTest()\n#13 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestResult.php(728): PHPUnit\\Framework\\TestCase->runBare()\n#14 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(968): PHPUnit\\Framework\\TestResult->run()\n#15 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestCase->run()\n#16 /home/circleci/app/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestSuite->run()\n#17 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/TestRunner.php(651): PHPUnit\\Framework\\TestSuite->run()\n#18 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(144): PHPUnit\\TextUI\\TestRunner->run()\n#19 /home/circleci/app/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(97): PHPUnit\\TextUI\\Command->run()\n#20 /home/circleci/app/tests/vendor/phpunit/phpunit/phpunit(107): PHPUnit\\TextUI\\Command::main()\n#21 /home/circleci/app/tests/vendor/bin/phpunit(122): include()\n#22 {main}",
+            "error.stack": "#0 {path}/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(128): curl_multi_exec()\n#1 {path}/tests/vendor/guzzlehttp/guzzle/src/Handler/CurlMultiHandler.php(145): GuzzleHttp\\Handler\\CurlMultiHandler->tick()\n#2 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(248): GuzzleHttp\\Handler\\CurlMultiHandler->execute()\n#3 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(224): GuzzleHttp\\Promise\\Promise->invokeWaitFn()\n#4 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(269): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#5 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(226): GuzzleHttp\\Promise\\Promise->invokeWaitList()\n#6 {path}/tests/vendor/guzzlehttp/promises/src/Promise.php(62): GuzzleHttp\\Promise\\Promise->waitIfPending()\n#7 {path}/tests/vendor/guzzlehttp/promises/src/Utils.php(134): GuzzleHttp\\Promise\\Promise->wait()\n#8 {path}/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(521): GuzzleHttp\\Promise\\Utils::unwrap()\n#9 {path}/tests/Common/SnapshotTestTrait.php(171): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->DDTrace\\Tests\\Integrations\\Guzzle\\V6\\{closure}()\n#10 {path}/tests/Integrations/Guzzle/V6/GuzzleIntegrationTest.php(502): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->isolateTracerSnapshot()\n#11 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1612): DDTrace\\Tests\\Integrations\\Guzzle\\V6\\GuzzleIntegrationTest->testMultiExec()\n#12 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(1218): PHPUnit\\Framework\\TestCase->runTest()\n#13 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestResult.php(728): PHPUnit\\Framework\\TestCase->runBare()\n#14 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestCase.php(968): PHPUnit\\Framework\\TestResult->run()\n#15 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestCase->run()\n#16 {path}/tests/vendor/phpunit/phpunit/src/Framework/TestSuite.php(684): PHPUnit\\Framework\\TestSuite->run()\n#17 {path}/tests/vendor/phpunit/phpunit/src/TextUI/TestRunner.php(651): PHPUnit\\Framework\\TestSuite->run()\n#18 {path}/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(144): PHPUnit\\TextUI\\TestRunner->run()\n#19 {path}/tests/vendor/phpunit/phpunit/src/TextUI/Command.php(97): PHPUnit\\TextUI\\Command->run()\n#20 {path}/tests/vendor/phpunit/phpunit/phpunit(107): PHPUnit\\TextUI\\Command::main()\n#21 {path}/tests/vendor/bin/phpunit(122): include()\n#22 {main}",
             "error.type": "curl error",
             "http.status_code": "0",
             "http.url": "https://google.still.wrong/",

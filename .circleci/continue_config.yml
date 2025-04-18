@@ -102,6 +102,7 @@ aliases:
       ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
+      SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/home/circleci/datadog,httpbin:(?<=//)httpbin-integration'
 
   - &IMAGE_DOCKER_SQLSRV
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -293,14 +294,6 @@ aliases:
         if [ -f tmp/build_extension/modules/ddtrace.so ]; then
           echo "export DD_TRACE_ASSUME_COMPILED=1" >> $BASH_ENV
         fi
-
-  - &STEP_SUBSTITUTE_SNAPSHOT_DIR
-    run:
-      name: Replace /home/circleci/app by /home/circleci/datadog in snapshot results
-      command: |
-        for f in $(find tests/snapshots -type f); do
-          sed -i 's/\/home\/circleci\/app\//\/home\/circleci\/datadog\//g' $f
-        done
 
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
@@ -1756,7 +1749,6 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension
       - <<: *STEP_WAIT_MYSQL
@@ -1886,7 +1878,6 @@ jobs:
             equal: [ false, << parameters.coverage >> ]
           steps:
             - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension
       - when:
@@ -2060,7 +2051,6 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_SUBSTITUTE_SNAPSHOT_DIR
       - <<: *STEP_AWAIT_LINK_EXTENSION
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>

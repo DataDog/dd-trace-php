@@ -295,6 +295,7 @@ services:
       - SNAPSHOT_CI=0
       - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.php.memory.peak_usage_bytes,metrics.php.memory.peak_real_usage_bytes,metrics.process_id
       - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
+      - SNAPSHOT_REGEX_PLACEHOLDERS=path:/home/circleci/app,httpbin:(?<=//)httpbin-integration
 
 
   windows-request-replayer:

@@ -104,7 +104,7 @@ foreach ($arch_targets as $arch_target) {
 
 .services:
   test-agent:
-    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.21.0
+    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.22.1
     alias: test-agent
     variables:
       LOG_LEVEL: DEBUG
@@ -117,6 +117,7 @@ foreach ($arch_targets as $arch_target) {
       ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
+      SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/DataDog/dd-trace-php,httpbin:(?<=//)httpbin-integration:8080'
 
   request-replayer:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
