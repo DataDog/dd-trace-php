@@ -623,7 +623,8 @@ foreach ($windows_php_versions as $major_minor) {
 
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
-
+  variables:
+    TRIPLET: "x86_64-pc-windows-msvc"
 
 "package extension asan":
   extends: .package_extension_base
@@ -645,7 +646,6 @@ foreach ($asan_build_platforms as $platform) {
 }
 ?>
   variables:
-    MAKE_JOBS: 9
     DDTRACE_MAKE_PACKAGES_ASAN: 1
 
 "datadog-setup.php":
