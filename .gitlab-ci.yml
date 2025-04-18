@@ -107,14 +107,6 @@ tracer-base-image:
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
 
-requirements_json_test:
-  rules:
-    - when: on_success
-  variables:
-    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
-    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
-
-
 generate-templates:
   stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli

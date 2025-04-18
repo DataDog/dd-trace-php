@@ -126,6 +126,14 @@ configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
 
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
+
+
 # dd-trace-php release packaging
 "prepare code":
   stage: prepare
