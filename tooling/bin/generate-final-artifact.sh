@@ -150,8 +150,10 @@ for architecture in "${architectures[@]}"; do
                     cp ./extensions_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
                 fi
             else
-                ls ./extensions_${architecture}/
-                cp ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
+                if [[ $target == "linux-gnu" ]]; then
+                    mkdir -p ${tmp_folder_final_gnu_trace}/ext/$php_api
+                    cp ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
+                fi
             fi
         done;
     done;
@@ -160,14 +162,17 @@ for architecture in "${architectures[@]}"; do
         target=${full_target#*-}
 
         if [[ $target == "linux-gnu" ]]; then
+            mkdir -p ${tmp_folder_final_gnu}
             cp -r ./src ${tmp_folder_final_gnu_trace};
         fi
 
         if [[ $target == "linux-musl" ]]; then
+            mkdir -p ${tmp_folder_final_musl}
             cp -r ./src ${tmp_folder_final_musl_trace};
         fi
 
         if [[ $target == "windows" && $architecture == "x86_64" ]]; then
+            mkdir -p ${tmp_folder_final_windows}
             cp -r ./src ${tmp_folder_final_windows_trace};
         fi
     done
@@ -212,12 +217,14 @@ for architecture in "${architectures[@]}"; do
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
             if [[ $target == "linux-gnu" ]]; then
+                mkdir -p $tmp_folder_final_gnu/dd-library-php/profiling
                 cp -v \
                     ./profiling/LICENSE* \
                     ./profiling/NOTICE \
                     $tmp_folder_final_gnu/dd-library-php/profiling/
             fi
             if [[ $target == "linux-musl" ]]; then
+                mkdir -p $tmp_folder_final_musl/dd-library-php/profiling
                 cp -v \
                     ./profiling/LICENSE* \
                     ./profiling/NOTICE \
