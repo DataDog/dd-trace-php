@@ -259,9 +259,10 @@ foreach ($arch_targets as $arch_target) {
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
 
-"compile extension: windows-debug":
+"windows test_c":
   stage: test
   tags: [ "windows-v2:2019"]
+  needs: []
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: <?= json_encode($windows_targets) ?>
