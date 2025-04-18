@@ -730,7 +730,7 @@ dependencies = [
 [[package]]
 name = "build_common"
 version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d#8714b092f469aea826d948c7d2467a7a6030570d"
+source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
 dependencies = [
  "cbindgen",
  "serde",
@@ -1453,7 +1453,7 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d#8714b092f469aea826d948c7d2467a7a6030570d"
+source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
 dependencies = [
  "anyhow",
  "serde",
@@ -1476,13 +1476,13 @@ dependencies = [
 [[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d#8714b092f469aea826d948c7d2467a7a6030570d"
+source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
 dependencies = [
  "anyhow",
  "build_common 17.0.0",
  "constcat",
- "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d)",
- "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d)",
+ "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
+ "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
  "ddcommon-ffi 17.0.0",
 ]
 
@@ -1537,7 +1537,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d)",
+ "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
  "datadog-php-profiling",
  "datadog-profiling",
  "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?tag=v17.0.0)",
@@ -1845,7 +1845,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d#8714b092f469aea826d948c7d2467a7a6030570d"
+source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
 dependencies = [
  "anyhow",
  "cc",
@@ -1896,13 +1896,13 @@ dependencies = [
 [[package]]
 name = "ddcommon-ffi"
 version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d#8714b092f469aea826d948c7d2467a7a6030570d"
+source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
 dependencies = [
  "anyhow",
  "build_common 17.0.0",
  "chrono",
  "crossbeam-queue",
- "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?rev=8714b092f469aea826d948c7d2467a7a6030570d)",
+ "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
  "hyper 1.6.0",
  "serde",
 ]
