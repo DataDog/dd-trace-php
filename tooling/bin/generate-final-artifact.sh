@@ -66,6 +66,7 @@ for architecture in "${architectures[@]}"; do
                     mkdir -p $tmp_folder_final
 
                     trace_base_dir=${tmp_folder_final}/dd-library-php/trace
+                    mkdir -p ${trace_base_dir}
                     cp_with_dir ${ddtrace_ext_path} ${trace_base_dir}/ext/${php_api}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace${config}.${ext}
                     cp -r ./src ${trace_base_dir}
 
