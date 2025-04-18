@@ -423,7 +423,7 @@ static void dd_activate_once(void) {
 
 #ifndef _WIN32
         // Only disable sidecar sender when explicitly disabled
-        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
+        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
         zend_string *bgs_service = NULL;
         if (bgs_fallback) {
             // We enabled sending traces through the sidecar by default
@@ -516,7 +516,7 @@ static void ddtrace_activate(void) {
     }
 
     if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0) {
-        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index < 0 && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
+        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
             zend_string *zero = zend_string_init("0", 1, 0);
             zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].ini_entries[0]->name, zero,
                                  ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);

@@ -137,14 +137,28 @@ void ddtrace_telemetry_finalize(void) {
         ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
         if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
-            ddog_ConfigurationOrigin origin = cfg->name_index == -1 ? DDOG_CONFIGURATION_ORIGIN_DEFAULT : DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
-            if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
-                origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
+            ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
+            switch (cfg->name_index) {
+                case ZAI_CONFIG_ORIGIN_DEFAULT:
+                    origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
+                    break;
+                case ZAI_CONFIG_ORIGIN_LOCAL_STABLE:
+                    origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
+                    break;
+                case ZAI_CONFIG_ORIGIN_FLEET_STABLE:
+                    origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
+                    break;
+            }
+            if (cfg->name_index != ZAI_CONFIG_ORIGIN_LOCAL_STABLE
+                && cfg->name_index != ZAI_CONFIG_ORIGIN_FLEET_STABLE
+                && !zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
+                origin = cfg->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
             }
             ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
             name.len -= strlen("datadog.");
             name.ptr += strlen("datadog.");
-            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin);
+            ddog_CharSlice config_id = (ddog_CharSlice) {.len = cfg->config_id.len, .ptr = cfg->config_id.ptr};
+            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin, config_id);
         }
     }
 

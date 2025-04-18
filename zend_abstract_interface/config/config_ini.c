@@ -64,7 +64,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
 #endif
 #endif
 
-    int16_t name_index = -1;
+    int16_t name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
     zend_string *runtime_value = NULL;
     zend_string *parsed_ini_value = NULL;
 
@@ -439,15 +439,21 @@ void zai_config_ini_rinit(void) {
         if (!env_to_ini_name || !memoized->original_on_modify) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
-
-                if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_FLEET)
+                zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
+                if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG
+                    && strcpy(buf.ptr, ZSTR_VAL(entry->value))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    memoized->name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
+                    memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
                 } else if (zai_getenv_ex(name, buf, false) == ZAI_ENV_SUCCESS
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
-                } else if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL)
+                } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG
+                    && strcpy(buf.ptr, ZSTR_VAL(entry->value))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
+                    memoized->name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
+                    memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
                 }
             }
@@ -480,7 +486,7 @@ void zai_config_ini_mshutdown(void) {}
 
 bool zai_config_is_modified(zai_config_id entry_id) {
     zai_config_memoized_entry *entry = &zai_config_memoized_entries[entry_id];
-    if (entry->name_index >= 0) {
+    if (entry->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED) {
         return true;
     }
 

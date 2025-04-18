@@ -324,7 +324,7 @@ void ddtrace_change_default_ini(ddtrace_config_id config_id, zai_str str) {
     }
 #endif
     memoized->default_encoded_value = str;
-    memoized->name_index = -1;
+    memoized->name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
 
     zval decoded;
     ZVAL_UNDEF(&decoded);

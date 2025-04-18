@@ -70,6 +70,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
             "name" => "agent_host",
             "value" => "request-replayer",
             "origin" => "env_var",
+            "config_id" => null,
         ], $payloads[0]["payload"]["configuration"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals([[
