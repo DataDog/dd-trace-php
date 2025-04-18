@@ -259,7 +259,7 @@ foreach ($arch_targets as $arch_target) {
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
 
-"compile extension: windows-debug"
+"compile extension: windows-debug":
   stage: test
   tags: [ "windows-v2:2019"]
   parallel:
@@ -602,7 +602,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - .gitlab/run_php_language_tests.sh
 <?php after_script("/usr/local/src/php"); ?>
 
-"test_distributed_tracing":
+"test_distributed_tracing: [<?= $major_minor ?>, amd64]":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
