@@ -416,7 +416,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     - make test_with_init_hook
 <?php after_script(); ?>
 
-<?php if (version_compare($major_minor, "8.0", ">="): ?>
+<?php if (version_compare($major_minor, "8.0", ">=")): ?>
 "ASAN test_c with multiple observers: [<?= $major_minor ?>]":
   extends: .asan_test
   services:
