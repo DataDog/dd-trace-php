@@ -6,6 +6,7 @@ pub mod log;
 pub mod remote_config;
 pub mod sidecar;
 pub mod telemetry;
+pub mod bytes;
 
 use std::borrow::Cow;
 use std::ffi::c_char;
