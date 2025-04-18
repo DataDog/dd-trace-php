@@ -745,10 +745,10 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     REPORT_EXIT_STATUS: "1"
   script:
     - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
-    - # Run xdebug tests
+    - '# Run xdebug tests'
     - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>)
 <?php if ($xdebug != "2.7.2"): ?>
-    - # Run unit tests with xdebug
+    - '# Run unit tests with xdebug'
     - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
 <?php endif; ?>
 <?php after_script(has_test_agent: true); ?>
