@@ -24,6 +24,8 @@ $all_minor_major_targets = [
 
 $asan_minor_major_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); });
 
+$windows_targets = array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); });
+
 $arch_targets = ["amd64", "arm64"];
 
 preg_match('(^\.services(.*?)\n\S)ms', file_get_contents(__FILE__), $m);
@@ -257,6 +259,52 @@ foreach ($arch_targets as $arch_target) {
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
 
+"compile extension: windows-debug"
+  stage: test
+  tags: [ "windows-v2:2019"]
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: <?= json_encode($windows_targets) ?>
+
+  variables:
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: core.longpaths
+    GIT_CONFIG_VALUE_0: true
+    CONTAINER_NAME: $CI_JOB_NAME_SLUG
+    IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
+  script: |
+    # Make sure we actually fail if a command fails
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandUseErrorActionPreference = $true
+
+    mkdir dumps
+
+    # Start the container
+    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+
+    # Build nts
+    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+
+    # Set test environment variables
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
+
+    # Run extension tests
+    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+
+    # Try to stop the container, don't care if we fail
+    try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
+  after_script:
+    - |
+        docker exec php cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
+        exit 0
+  artifacts:
+    paths:
+      - sidecar.log
+      - x64/Release/php_ddtrace.dll
+      - x64/Release/php_ddtrace.pdb
+      - dumps
+
+
 "Prepare code":
   stage: compile
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
@@ -368,6 +416,29 @@ foreach ($asan_minor_major_targets as $major_minor):
     - make test_with_init_hook
 <?php after_script(); ?>
 
+<?php if (version_compare($major_minor, "8.0", ">="): ?>
+"ASAN test_c with multiple observers: [<?= $major_minor ?>]":
+  extends: .asan_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug-zts-asan"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 12
+    MAX_TEST_PARALLELISM: 4
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_c_observer
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+<?php endif; ?>
+
 "ASAN Opcache tests: [<?= $major_minor ?>, amd64]":
   extends: .asan_test
   needs:
@@ -396,6 +467,27 @@ endforeach;
 <?php
 foreach ($all_minor_major_targets as $major_minor):
 ?>
+"test_c: [<?= $major_minor ?>]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 12
+    MAX_TEST_PARALLELISM: 4
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_c
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
 "Unit tests: [<?= $major_minor ?>, amd64]":
   extends: .debug_test
   needs:
@@ -510,6 +602,26 @@ foreach ($all_minor_major_targets as $major_minor):
     - .gitlab/run_php_language_tests.sh
 <?php after_script("/usr/local/src/php"); ?>
 
+"test_distributed_tracing":
+  extends: .cli_integration_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  services:
+    - !reference [.services, test-agent]
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+    - !reference [.services, mongodb]
+  variables:
+    MAKE_TARGET: "test_distributed_tracing"
+    ARCH: "amd64"
+    DD_DISTRIBUTED_TRACING: "false"
 <?php
 endforeach;
 ?>
@@ -535,17 +647,6 @@ endforeach;
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions.json
 
-.fpm_integration_test:
-  extends: .cli_integration_test
-  variables:
-    DD_TRACE_TEST_SAPI: cgi-fcgi
-
-.apache_integration_test:
-  extends: .cli_integration_test
-  variables:
-    DD_TRACE_TEST_SAPI: apache2handler
-
-
 <?php
 
 // specific service maps:
@@ -555,22 +656,32 @@ $services["deferred_loading"] = "mysql";
 $services["pdo"] = "mysql";
 $services["kafk"] = "zookeeper";
 
+$jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
-foreach ($matches as $m):
+foreach ($matches as $m) {
     $major_minor = "{$m["major"]}.{$m["minor"]}";
     $type = strtolower($m["type"]);
 
     preg_match_all('(\t\K[a-z0-9_]+)', $m["targets"], $targets, PREG_PATTERN_ORDER);
-    foreach ($targets[0] as $target):
+    foreach ($targets[0] as $target) {
+        $jobs[$type][$target][] = $major_minor;
+    }
+}
+
+foreach ($jobs as $type => $type_jobs):
+    foreach ($type_jobs as $target => $versions):
+        foreach ($versions as $major_minor):
+            $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
+            foreach ($sapis as $sapi):
 ?>
-"<?= $target ?> <?= $type ?> tests: [<?= $major_minor ?>]":
+"<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
     - job: "compile extension: debug"
       parallel:
         matrix:
-          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+          - PHP_MAJOR_MINOR: $PHP_MAJOR_MINOR
             ARCH: "amd64"
       artifacts: true
     - job: "Prepare code"
@@ -587,9 +698,59 @@ foreach ($matches as $m):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
+<?php if ($sapi): ?>
+    DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
+<? endif; ?>
 
 <?php
+            endforeach;
+        endforeach;
     endforeach;
 endforeach;
 ?>
 
+<?php
+$xdebug_test_matrix = [
+    ["7.0", "2.7.2"],
+    ["7.1", "2.9.2"],
+    ["7.1", "2.9.5"],
+    ["7.2", "2.9.2"],
+    ["7.2", "2.9.5"],
+    ["7.3", "2.9.2"],
+    ["7.3", "2.9.5"],
+    ["7.4", "2.9.2"],
+    ["7.4", "2.9.5"],
+    ["8.0", "3.0.0"],
+    ["8.1", "3.1.0"],
+    ["8.2", "3.2.2"],
+    ["8.3", "3.3.2"],
+    ["8.4", "3.4.0"],
+];
+foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
+?>
+"xDebug tests: [<?= $major_minor ?>, <?= $xdebug ?>]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    REPORT_EXIT_STATUS: "1"
+  script:
+    - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
+    - # Run xdebug tests
+    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>)
+<?php if ($xdebug != "2.7.2"): ?>
+    - # Run unit tests with xdebug
+    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
+<?php endif; ?>
+<?php after_script(has_test_agent: true); ?>
+
+<?php endforeach; ?>
