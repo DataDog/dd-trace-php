@@ -52,10 +52,12 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
 }
 
 function sidecar_logs() {
+/*
 ?>
-    _DD_DEBUG_SIDECAR_LOG_LEVEL: error
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
 <?php
+*/
 }
 
 function before_script_steps() {
@@ -623,6 +625,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - !reference [.services, httpbin-integration]
     - !reference [.services, mongodb]
   variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "test_distributed_tracing"
     ARCH: "amd64"
     DD_DISTRIBUTED_TRACING: "false"
@@ -750,7 +753,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   script:
     - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
     - '# Run xdebug tests'
-    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>)
+    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>
 <?php if ($xdebug != "2.7.2"): ?>
     - '# Run unit tests with xdebug'
     - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
