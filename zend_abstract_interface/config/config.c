@@ -45,7 +45,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
         if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG) {
             strcpy(buf.ptr, ZSTR_VAL(entry->value));
             zai_config_process_env(memoized, buf, &value);
-            name_index = -3;
+            name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         } else if (zai_config_get_env_value(name, buf)) {
@@ -54,14 +54,14 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
         } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG) {
             strcpy(buf.ptr, ZSTR_VAL(entry->value));
             zai_config_process_env(memoized, buf, &value);
-            name_index = -2;
+            name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         }
     }
     if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(buf, true)) {
         zai_config_process_env(memoized, buf, &value);
-        name_index = 0;
+        name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
@@ -115,7 +115,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     if (!zai_config_decode_value(entry->default_encoded_value, memoized->type, memoized->parser, &memoized->decoded_value, /* persistent */ true)) {
         assert(0 && "Error decoding default value");
     }
-    memoized->name_index = -1;
+    memoized->name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
     memoized->original_on_modify = NULL;
     memoized->env_config_fallback = entry->env_config_fallback;
     memoized->ini_change = entry->ini_change;

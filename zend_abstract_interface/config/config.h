@@ -52,6 +52,11 @@ struct zai_config_name_s {
     char ptr[ZAI_CONFIG_NAME_BUFSIZ];
 };
 
+#define ZAI_CONFIG_ORIGIN_MODIFIED 0
+#define ZAI_CONFIG_ORIGIN_DEFAULT -1
+#define ZAI_CONFIG_ORIGIN_LOCAL_STABLE -2
+#define ZAI_CONFIG_ORIGIN_FLEET_STABLE -3
+
 struct zai_config_memoized_entry_s {
     zai_config_name names[ZAI_CONFIG_NAMES_COUNT_MAX];
     zend_ini_entry *ini_entries[ZAI_CONFIG_NAMES_COUNT_MAX];
@@ -61,7 +66,8 @@ struct zai_config_memoized_entry_s {
     zai_str default_encoded_value;
     // The index of the name that was used to set the value
     //     anything > 0 is deprecated
-    //     -1 == not set from env or system ini
+    //      0 == modified
+    //     -1 == default value
     //     -2 == local stable config
     //     -3 == fleet stable config
     int16_t name_index;

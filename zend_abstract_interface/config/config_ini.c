@@ -64,7 +64,7 @@ int16_t zai_config_initialize_ini_value(zend_ini_entry **entries,
 #endif
 #endif
 
-    int16_t name_index = -1;
+    int16_t name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
     zend_string *runtime_value = NULL;
     zend_string *parsed_ini_value = NULL;
 
@@ -443,7 +443,7 @@ void zai_config_ini_rinit(void) {
                 if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG
                     && strcpy(buf.ptr, ZSTR_VAL(entry->value))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
-                    memoized->name_index = -3;
+                    memoized->name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
                     memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
                 } else if (zai_getenv_ex(name, buf, false) == ZAI_ENV_SUCCESS
@@ -452,7 +452,7 @@ void zai_config_ini_rinit(void) {
                 } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG
                     && strcpy(buf.ptr, ZSTR_VAL(entry->value))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
-                    memoized->name_index = -2;
+                    memoized->name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
                     memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
                 }
@@ -486,7 +486,7 @@ void zai_config_ini_mshutdown(void) {}
 
 bool zai_config_is_modified(zai_config_id entry_id) {
     zai_config_memoized_entry *entry = &zai_config_memoized_entries[entry_id];
-    if (entry->name_index >= 0) {
+    if (entry->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED) {
         return true;
     }
 

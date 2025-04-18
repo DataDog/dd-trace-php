@@ -139,27 +139,20 @@ void ddtrace_telemetry_finalize(void) {
         if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
             ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
             switch (cfg->name_index) {
-                case -1:
+                case ZAI_CONFIG_ORIGIN_DEFAULT:
                     origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
                     break;
-                case -2:
+                case ZAI_CONFIG_ORIGIN_LOCAL_STABLE:
                     origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
                     break;
-                case -3:
+                case ZAI_CONFIG_ORIGIN_FLEET_STABLE:
                     origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
                     break;
             }
-            if (!zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
-                origin = DDOG_CONFIGURATION_ORIGIN_CODE;
-                switch (cfg->name_index) {
-                    case -2:
-                        origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
-                        break;
-                    case -3:
-                        origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
-                        break;
-                }
-                origin = cfg->name_index >= 0 ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : origin;
+            if (cfg->name_index != ZAI_CONFIG_ORIGIN_LOCAL_STABLE
+                && cfg->name_index != ZAI_CONFIG_ORIGIN_FLEET_STABLE
+                && !zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
+                origin = cfg->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
             }
             ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
             name.len -= strlen("datadog.");

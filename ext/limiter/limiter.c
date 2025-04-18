@@ -27,7 +27,7 @@ static ddtrace_limiter* dd_limiter;
 
 
 void ddtrace_limiter_create() {
-    if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index < 0) {
+    if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SAMPLE_RATE].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
         return;
     }
 
