@@ -681,7 +681,7 @@ foreach ($jobs as $type => $type_jobs):
     - job: "compile extension: debug"
       parallel:
         matrix:
-          - PHP_MAJOR_MINOR: $PHP_MAJOR_MINOR
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "amd64"
       artifacts: true
     - job: "Prepare code"
