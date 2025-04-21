@@ -1,5 +1,5 @@
 {
     "require": {
-        "elasticsearch/elasticsearch": "8.17.1"
+        "elasticsearch/elasticsearch": "9.0.0"
     }
 }
