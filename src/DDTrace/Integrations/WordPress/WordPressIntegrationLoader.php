@@ -4,8 +4,6 @@ namespace DDTrace\Integrations\WordPress;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
-use DDTrace\Log\DatadogLogger;
-use DDTrace\Log\Logger;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -224,31 +222,6 @@ class WordPressIntegrationLoader
         return $hookName;
     }
 
-    public static function sendLog(
-        WordPressIntegration $integration,
-        float $duration,
-        string $pluginOrThemeName,
-        string $hookName
-    ) {
-        if (empty($pluginOrThemeName)
-            || !$integration->logger
-            || mt_rand() / mt_getrandmax() > $integration->logsSampleRate
-        ) {
-            return;
-        }
-
-        $tags = [
-            'env' => $integration->getEnv(),
-            'service' => $integration->getServiceName(),
-            'version' => $integration->getVersion(),
-            'wordpress.plugin.name' => $pluginOrThemeName,
-            'wordpress.hook.name' => $hookName,
-            'wordpress.hook.duration' => $duration, // ms
-        ];
-
-        $integration->logger->info("WordPress Hook $hookName", $tags);
-    }
-
     public static function sendMetric(
         WordPressIntegration $integration,
         string $dogstatsd,
@@ -270,9 +243,6 @@ class WordPressIntegrationLoader
     {
         $pluginTimes = new PluginTimes();
 
-        $integration->logsEnabled = dd_trace_env_config('DD_WORDPRESS_LOGS_ENABLED');
-        $integration->logger = $integration->logsEnabled ? new DatadogLogger() : null;
-        $integration->logsSampleRate = dd_trace_env_config('DD_WORDPRESS_LOGS_SAMPLE_RATE');
         $integration->metricsEnabled = dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED');
         $integration->hooksEnabled = dd_trace_env_config('DD_WORDPRESS_HOOKS_ENABLED');
         $integration->totalDurationEnabled = dd_trace_env_config('DD_WORDPRESS_PLUGIN_EXCLUSIVE_TIME_ENABLED');
@@ -870,15 +840,6 @@ class WordPressIntegrationLoader
                                     'wordpress.plugin.name' => $pluginOrThemeName,
                                     'wordpress.hook.name' => $hookName,
                                 ]
-                            );
-                        }
-
-                        if ($msDuration > 75) {
-                            WordPressIntegrationLoader::sendLog(
-                                $integration,
-                                $msDuration,
-                                $pluginOrThemeName,
-                                $hookName
                             );
                         }
                     }
