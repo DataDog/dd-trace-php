@@ -275,7 +275,7 @@ class WordPressIntegrationLoader
         $integration->logsSampleRate = dd_trace_env_config('DD_WORDPRESS_LOGS_SAMPLE_RATE');
         $integration->metricsEnabled = dd_trace_env_config('DD_WORDPRESS_METRICS_ENABLED');
         $integration->hooksEnabled = dd_trace_env_config('DD_WORDPRESS_HOOKS_ENABLED');
-        $integration->totalDurationEnabled = dd_trace_env_config('DD_WORDPRESS_PLUGIN_TOTAL_DURATION_ENABLED');
+        $integration->totalDurationEnabled = dd_trace_env_config('DD_WORDPRESS_PLUGIN_EXCLUSIVE_TIME_ENABLED');
 
         if ($integration->metricsEnabled) {
             \DDTrace\hook_method(
@@ -901,7 +901,7 @@ class WordPressIntegrationLoader
                     WordPressIntegrationLoader::sendMetric(
                         $integration,
                         '\DDTrace\dogstatsd_distribution',
-                        'wordpress.plugin.total_duration',
+                        'wordpress.plugin.exclusive_time',
                         $totalDuration,
                         $USTTags + ['wordpress.plugin.name' => $pluginName]
                     );
@@ -912,7 +912,7 @@ class WordPressIntegrationLoader
                 WordPressIntegrationLoader::sendMetric(
                     $integration,
                     '\DDTrace\dogstatsd_distribution',
-                    'wordpress.plugin.cumulative_duration',
+                    'wordpress.plugin.inclusive_time',
                     $cumulativeDuration,
                     $USTTags + ['wordpress.plugin.name' => $pluginName]
                 );
@@ -926,6 +926,19 @@ class WordPressIntegrationLoader
                     $nCalls,
                     $USTTags + ['wordpress.plugin.name' => $pluginName]
                 );
+
+                // Calculate and send impact score
+                if (isset($pluginTimes->cumulative[$pluginName])) {
+                    $inclusiveTime = $pluginTimes->cumulative[$pluginName];
+                    $impactScore = $inclusiveTime * log($nCalls + 1, 2);
+                    WordPressIntegrationLoader::sendMetric(
+                        $integration,
+                        '\DDTrace\dogstatsd_distribution',
+                        'wordpress.plugin.impact_score',
+                        $impactScore,
+                        $USTTags + ['wordpress.plugin.name' => $pluginName]
+                    );
+                }
             }
         });
 
