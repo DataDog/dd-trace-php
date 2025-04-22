@@ -44,22 +44,6 @@ static inline ddog_CharSlice dd_zai_string_to_CharSlice(zai_string str) {
     return (ddog_CharSlice){ .len = str.len, .ptr = str.ptr };
 }
 
-static inline ddog_CharSlice dd_zval_string_to_CharSlice(zval *str) {
-    return (ddog_CharSlice){ .len = Z_STRLEN_P(str), .ptr = Z_STRVAL_P(str) };
-}
-
-static inline ddog_CharSlice dd_str_to_CharSlice(char *str) {
-    return dd_zend_string_to_CharSlice(zend_string_init(ZEND_STRL(str), 0));
-}
-
-static inline ddog_ZendString *dd_str_to_ZendString(char *str) {
-    return (ddog_ZendString *)zend_string_init(ZEND_STRL(str), 0);
-}
-
-static inline ddog_ZendString *dd_zval_to_ZendString(zval *str) {
-    return (ddog_ZendString *)Z_STR_P(str);
-}
-
 static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
     return zend_string_init(slice.ptr, slice.len, 0);
 }
@@ -78,4 +62,3 @@ bool ddtrace_exception_debugging_is_active(void);
 ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags);
 
 #endif // DD_SIDECAR_H
-//
