@@ -682,9 +682,8 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
     zend_string *referrer_host = dd_get_referrer_host(data->server);
     if (referrer_host && ZSTR_LEN(referrer_host) > 0) {
         zval http_referrer_host;
-        ZVAL_STR_COPY(&http_referrer_host, referrer_host);
+        ZVAL_STR(&http_referrer_host, referrer_host);
         zend_hash_str_add_new(meta, ZEND_STRL("http.referrer_hostname"), &http_referrer_host);
-        zend_string_release(referrer_host);
     }
 
     if (data->server) {
