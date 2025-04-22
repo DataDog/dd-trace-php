@@ -422,8 +422,6 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
-typedef struct ddog_ZendString ddog_ZendString;
-
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.

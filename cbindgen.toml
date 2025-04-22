@@ -2,6 +2,9 @@ language = "C"
 tab_width = 2
 include_guard = "DDTRACE_PHP_H"
 style = "both"
+header = """
+struct _zend_string;
+"""
 
 no_includes = true
 sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
@@ -17,6 +20,7 @@ rename_types = "PascalCase"
 [export.rename]
 "ParseTagsResult" = "ddog_Vec_Tag_ParseResult"
 "PushTagResult" = "ddog_Vec_Tag_PushResult"
+"ZendString" = "_zend_string"
 "FILE" = "FILE"
 
 [enum]
