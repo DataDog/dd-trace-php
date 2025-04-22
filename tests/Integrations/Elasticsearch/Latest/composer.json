@@ -1,5 +1,6 @@
 {
     "require": {
-        "elasticsearch/elasticsearch": "9.0.0"
+        "elasticsearch/elasticsearch": "9.0.0",
+        "nyholm/psr7": "^1.8"
     }
 }
