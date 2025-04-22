@@ -45,7 +45,7 @@ final class NoRootSpanTest extends CLITestCase
                 ),
                 SpanAssertion::exists(
                     'curl_exec',
-                    'http://httpbin-integration/status/?'
+                    'http://' . HTTPBIN_INTEGRATION . '/status/?'
                 ),
             ])
         ]);

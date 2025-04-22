@@ -19,13 +19,16 @@ $resolver = function (Response $response) use (&$found) {
     $found[] = $response;
 };
 
-$promise1 = $client->getAsync('http://httpbin-integration/headers', [
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
+
+$promise1 = $client->getAsync($url, [
     'headers' => [
         'honored' => 'preserved_value',
     ],
 ])->then($resolver);
 
-$promise2 = $client->getAsync('http://httpbin-integration/headers', [
+$promise2 = $client->getAsync($url, [
     'headers' => [
         'honored' => 'preserved_value',
     ],

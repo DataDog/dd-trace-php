@@ -28,8 +28,8 @@ class PrivateCallbackRequest
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
-    const URL = 'http://httpbin-integration';
-    const URL_WITH_CREDENTIALS = 'http://my_user:my_password@httpbin-integration';
+    const URL = 'http://' . HTTPBIN_INTEGRATION . '';
+    const URL_WITH_CREDENTIALS = 'http://my_user:my_password@' . HTTPBIN_INTEGRATION . '';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
     public function ddSetUp()
@@ -83,12 +83,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -108,12 +108,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -133,12 +133,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://?:?@httpbin-integration/basic-auth/my_user/my_password')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://?:?@' . HTTPBIN_INTEGRATION . '/basic-auth/my_user/my_password')
                 ->withExactTags([
-                    'http.url' => 'http://?:?@httpbin-integration/basic-auth/my_user/my_password',
+                    'http.url' => 'http://?:?@' . HTTPBIN_INTEGRATION . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -159,12 +159,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/basic-auth/my_user/my_password')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/basic-auth/my_user/my_password')
                 ->withExactTags([
                     'http.url' => self::URL . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -190,12 +190,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
-                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             'span.kind' => 'client',
-                            'network.destination.name' => 'httpbin-integration',
+                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             Tag::COMPONENT => 'curl',
                             '_dd.base_service' => 'top_level_app',
                         ])
@@ -214,12 +214,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -238,12 +238,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -462,15 +462,15 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build(
                 'curl_exec',
-                'host-httpbin-integration',
+                "host-" . HTTPBIN_SERVICE_HOST,
                 'http',
-                'http://httpbin-integration/status/?'
+                'http://' . HTTPBIN_INTEGRATION . '/status/?'
             )
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -493,15 +493,15 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build(
                 'curl_exec',
-                'host-httpbin-integration',
+                "host-" . HTTPBIN_SERVICE_HOST,
                 'http',
-                'http://?:?@httpbin-integration/status/?'
+                'http://?:?@' . HTTPBIN_INTEGRATION . '/status/?'
             )
                 ->withExactTags([
-                    'http.url' => 'http://?:?@httpbin-integration/status/200',
+                    'http.url' => 'http://?:?@' . HTTPBIN_INTEGRATION . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -560,12 +560,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::COMPONENT => 'curl',
                 ])->withChildren([
-                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             'span.kind' => 'client',
-                            'network.destination.name' => 'httpbin-integration',
+                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             Tag::COMPONENT => 'curl',
                         ])
                         ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -610,12 +610,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withExactMetrics(['_sampling_priority_v1' => 1, '_dd.agent_psr' => 1, 'process_id' => getmypid()])
                 ->withChildren([
-                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                         ->withExactTags([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             'span.kind' => 'client',
-                            'network.destination.name' => 'httpbin-integration',
+                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             Tag::COMPONENT => 'curl',
                             '_dd.base_service' => 'top_level_app',
                         ])
@@ -700,14 +700,14 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin-integration/status/?')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
-                    'peer.service' => 'httpbin-integration',
+                    'peer.service' => HTTPBIN_SERVICE_HOST,
                     '_dd.peer.service.source' => 'network.destination.name',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
@@ -732,12 +732,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'configured_service', 'http', 'http://httpbin-integration/status/?')
+            SpanAssertion::build('curl_exec', 'configured_service', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
-                    'network.destination.name' => 'httpbin-integration',
+                    'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())

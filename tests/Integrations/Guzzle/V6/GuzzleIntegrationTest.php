@@ -20,7 +20,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 {
     use SnapshotTestTrait;
 
-    const URL = 'http://httpbin-integration';
+    const URL = 'http://' . HTTPBIN_INTEGRATION . '';
 
     public static function ddSetUpBeforeClass()
     {
@@ -403,7 +403,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
-                            'network.destination.name' => 'httpbin-integration',
+                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
                             '_dd.base_service' => 'top_level_app',

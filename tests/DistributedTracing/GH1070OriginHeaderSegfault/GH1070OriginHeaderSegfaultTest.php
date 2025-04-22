@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class GH1070OriginHeaderSegfaultTest extends IntegrationTestCase
 {
-    const URL = 'http://httpbin-integration';
+    const URL = 'http://' . HTTPBIN_INTEGRATION . '';
 
     public function testDistributedTracingWithDatadogOriginHeader()
     {
