@@ -105,7 +105,7 @@ final class CliServer implements Sapi
 
     public function waitUntilServerIsNotRunning()
     {
-        //Let's wait until server is accepting connections
+        //Let's wait until server is not accepting connections
         for ($try = 0; $try < 40; $try++) {
              $socket = @fsockopen($this->host, $this->port);
             if ($socket == false) {
