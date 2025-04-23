@@ -660,6 +660,7 @@ endforeach;
 // specific service maps:
 $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
+$services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["deferred_loading"] = "redis";
 $services["pdo"] = "mysql";
@@ -700,9 +701,9 @@ foreach ($jobs as $type => $type_jobs):
 <?php if ($type == "web"): ?>
     - !reference [.services, mysql]
 <?php endif; ?>
-<?php if ($type == "integrations"): foreach ($services as $part => $service): if (str_contains($target, $part)): ?>
+<?php foreach ($services as $part => $service): if (str_contains($target, $part)): ?>
     - !reference [.services, <?= $service ?>]
-<?php endif; endforeach; endif; ?>
+<?php endif; endforeach; ?>
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
@@ -756,7 +757,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - make install_all
     - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
     - '# Run xdebug tests'
-    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d extension= -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
+    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2"): ?>
     - '# Run unit tests with xdebug'
     - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"

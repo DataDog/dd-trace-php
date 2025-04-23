@@ -27,11 +27,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public static function ddSetUpBeforeClass()
     {
         $swooleIni = file_get_contents(__DIR__ . '/../swoole.ini');
-
-        $currentDir = getcwd();
-        $isLocalDevEnv = strpos($currentDir, 'datadog') === false;
-        $replacement = $isLocalDevEnv ? '/home/circleci/app' : '/home/circleci/datadog';
-        $swooleIni = str_replace('{{path}}', $replacement, $swooleIni);
+        $swooleIni = str_replace('{{path}}', ini_get("datadog.trace.sources_path"), $swooleIni);
 
         $autoloadNoCompile = getenv('DD_AUTOLOAD_NO_COMPILE');
         if (!$autoloadNoCompile || !filter_var($autoloadNoCompile, FILTER_VALIDATE_BOOLEAN)) {
