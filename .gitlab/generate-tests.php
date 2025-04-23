@@ -121,7 +121,7 @@ foreach ($arch_targets as $arch_target) {
       ENABLED_CHECKS: trace_stall,trace_peer_service,trace_dd_service
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
-      SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/DataDog/dd-trace-php,httpbin:(?<=//)httpbin-integration:8080'
+      SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
 
   request-replayer:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
@@ -604,6 +604,7 @@ foreach ($all_minor_major_targets as $major_minor):
     SKIP_ONLINE_TEST: "1"
   timeout: 40m
   script:
+    - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
     - .gitlab/run_php_language_tests.sh
 <?php after_script("/usr/local/src/php"); ?>
@@ -660,6 +661,7 @@ endforeach;
 $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
+$services["deferred_loading"] = "redis";
 $services["pdo"] = "mysql";
 $services["kafk"] = "zookeeper";
 
@@ -751,9 +753,10 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     ARCH: "amd64"
     REPORT_EXIT_STATUS: "1"
   script:
+    - make install_all
     - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
     - '# Run xdebug tests'
-    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>
+    - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d extension= -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2"): ?>
     - '# Run unit tests with xdebug'
     - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
