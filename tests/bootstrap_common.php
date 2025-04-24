@@ -124,4 +124,6 @@ namespace {
     $port = getenv('HTTPBIN_PORT') ?: '80';
     define('HTTPBIN_SERVICE_HOST', getenv('HTTPBIN_HOSTNAME'));
     define('HTTPBIN_INTEGRATION', HTTPBIN_SERVICE_HOST . ($port == 80 ? '' : ':' . $port));
+
+    define("REPOSITORY_ROOT_DIR", realpath(__DIR__ . "/.."));
 }

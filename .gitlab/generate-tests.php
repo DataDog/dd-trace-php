@@ -662,7 +662,7 @@ $services["elasticsearch1"] = "elasticsearch2";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
-$services["deferred_loading"] = "redis";
+$services["deferred_loadin"] = "redis";
 $services["pdo"] = "mysql";
 $services["kafk"] = "zookeeper";
 
