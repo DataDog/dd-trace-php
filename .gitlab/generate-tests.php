@@ -47,7 +47,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
 <?php if ($has_test_agent): ?>
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
-    - .gitlab/check_for_core_dumps.sh "<?= $execute_dir ?>"
+    - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
 <?php
 }
 
@@ -82,8 +82,8 @@ stages:
   - "integrations test"
   - "web test"
 
-variables:
-  CI_DEBUG_SERVICES: "true"
+#variables:
+#  CI_DEBUG_SERVICES: "true"
 
 .all_targets: &all_minor_major_targets
 <?php
@@ -393,8 +393,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     ARCH: "<?= $arch ?>"
   script:
     - make test_internal_api_randomized
-  after_script:
-    - .gitlab/check_for_core_dumps.sh
+<?php after_script(); ?>
 
 <?php
     endforeach;
