@@ -32,7 +32,7 @@ preg_match('(^\.services(.*?)\n\S)ms', file_get_contents(__FILE__), $m);
 preg_match_all('(^  (\S*):)m', $m[1], $m, PREG_PATTERN_ORDER);
 $services = array_combine($m[1], $m[1]);
 
-const ASSERT_NO_MEMLEAKS = ' | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
+const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
 
 function after_script($execute_dir = ".", $has_test_agent = false) {
 ?>
@@ -404,7 +404,7 @@ endforeach;
 <?php
 foreach ($asan_minor_major_targets as $major_minor):
 ?>
-"ASAN init hook tests: [<?= $major_minor ?>, amd64]":
+"ASAN init hook tests: [<?= $major_minor ?>]":
   extends: .asan_test
   services:
     - !reference [.services, httpbin-integration]
@@ -445,7 +445,7 @@ foreach ($asan_minor_major_targets as $major_minor):
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 <?php endif; ?>
 
-"ASAN Opcache tests: [<?= $major_minor ?>, amd64]":
+"ASAN Opcache tests: [<?= $major_minor ?>]":
   extends: .asan_test
   needs:
     - job: "compile extension: debug-zts-asan"
@@ -473,7 +473,7 @@ endforeach;
 <?php
 foreach ($all_minor_major_targets as $major_minor):
 ?>
-"test_c: [<?= $major_minor ?>]":
+"test_extension_ci: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
 <?php agent_httpbin_service() ?>
@@ -491,10 +491,10 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
   script:
-    - make test_c
+    - make test_extension_ci
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
-"Unit tests: [<?= $major_minor ?>, amd64]":
+"Unit tests: [<?= $major_minor ?>]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
@@ -510,7 +510,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - make test_unit <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
-"API unit tests: [<?= $major_minor ?>, amd64]":
+"API unit tests: [<?= $major_minor ?>]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
@@ -526,7 +526,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - make test_api_unit <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
-"Disabled test_c run: [<?= $major_minor ?>, amd64]":
+"Disabled test_c run: [<?= $major_minor ?>]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
@@ -549,7 +549,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
-"Internal api randomized tests: [<?= $major_minor ?>, amd64]":
+"Internal api randomized tests: [<?= $major_minor ?>]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
@@ -565,7 +565,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - make test_internal_api_randomized
 <?php after_script(); ?>
 
-"Opcache tests: [<?= $major_minor ?>, amd64]":
+"Opcache tests: [<?= $major_minor ?>]":
   extends: .debug_test
   needs:
     - job: "compile extension: debug"
@@ -581,7 +581,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - make test_opcache
 <?php after_script("tmp/build_extension"); ?>
 
-"PHP Language Tests: [<?= $major_minor ?>, amd64]":
+"PHP Language Tests: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
     - !reference [.services, test-agent]
@@ -608,28 +608,6 @@ foreach ($all_minor_major_targets as $major_minor):
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
     - .gitlab/run_php_language_tests.sh
 <?php after_script("/usr/local/src/php"); ?>
-
-"test_distributed_tracing: [<?= $major_minor ?>, amd64]":
-  extends: .cli_integration_test
-  needs:
-    - job: "compile extension: debug"
-      parallel:
-        matrix:
-          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
-            ARCH: "amd64"
-      artifacts: true
-    - job: "Prepare code"
-      artifacts: true
-  services:
-    - !reference [.services, test-agent]
-    - !reference [.services, request-replayer]
-    - !reference [.services, httpbin-integration]
-    - !reference [.services, mongodb]
-  variables:
-    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
-    MAKE_TARGET: "test_distributed_tracing"
-    ARCH: "amd64"
-    DD_DISTRIBUTED_TRACING: "false"
 <?php
 endforeach;
 ?>
@@ -650,7 +628,7 @@ endforeach;
     - make composer_tests_update
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
   script:
-    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }
+    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions.json
@@ -720,6 +698,59 @@ endforeach;
 ?>
 
 <?php
+foreach ($all_minor_major_targets as $major_minor):
+    foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
+?>
+"<?= $test ?>: [<?= $major_minor ?>]":
+  extends: .cli_integration_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  services:
+<?php agent_httpbin_service() ?>
+    - !reference [.services, mongodb]
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    MAKE_TARGET: "<?= $test ?>"
+    ARCH: "amd64"
+<?php
+    endforeach;
+?>
+
+<?php foreach(["cli-server", "cgi-fcgi"] as $sapi): ?>
+"test_distributed_tracing: [<?= $major_minor ?>, <?= $sapi ?>]":
+  extends: .cli_integration_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  services:
+<?php agent_httpbin_service() ?>
+    - !reference [.services, mongodb]
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    MAKE_TARGET: "test_distributed_tracing"
+    ARCH: "amd64"
+<?php if ($sapi == "cgi-fcgi"): ?>
+    DD_DISTRIBUTED_TRACING: "false"
+<?php endif; ?>
+<?php
+    endforeach;
+endforeach;
+?>
+
+<?php
 $xdebug_test_matrix = [
     ["7.0", "2.7.2"],
     ["7.1", "2.9.2"],
@@ -758,7 +789,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
     - '# Run xdebug tests'
     - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
-<?php if ($xdebug != "2.7.2"): ?>
+<?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
     - '# Run unit tests with xdebug'
     - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
 <?php endif; ?>

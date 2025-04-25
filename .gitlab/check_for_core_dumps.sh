@@ -5,4 +5,4 @@ set -eo pipefail
 mkdir -p "${CI_PROJECT_DIR}/artifacts/core_dumps"
 find . -type f -name "core*" -exec head -c 4 "{}" \; -exec echo " {}" \;  | grep -a ^.ELF | cut -d' ' -f2 | xargs -I % -n 1 cp % "${CI_PROJECT_DIR}/artifacts/core_dumps" || true
 mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
-find . -type f -name '*.diff' -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/diffs" \; || true
+find . -type f -name '*.diff' -not -path "*/vendor/*" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/diffs" \; || true
