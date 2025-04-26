@@ -132,6 +132,10 @@ static void zai_config_entries_init(zai_config_entry entries[], zai_config_id en
     }
 }
 
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
+zend_new_interned_string_func_t zai_persistent_new_interned_string;
+#endif
+
 bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
                       int module_number) {
     if (!entries || !entries_count) return false;
@@ -139,6 +143,9 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
     zai_config_stable_file_minit();
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
+    zai_persistent_new_interned_string = zend_new_interned_string;
+#endif
     return true;
 }
 
@@ -169,6 +176,8 @@ static void zai_config_intern_zval(zval *pzval) {
     if (Z_TYPE_P(pzval) == IS_STRING) {
 #if PHP_VERSION_ID >= 70400
         ZVAL_INTERNED_STR(pzval, zend_new_interned_string(Z_STR_P(pzval)));
+#elif PHP_VERSION_ID >= 70300
+        ZVAL_INTERNED_STR(pzval, zai_persistent_new_interned_string(Z_STR_P(pzval)));
 #else
         GC_ADD_FLAGS(Z_STR_P(pzval), IS_STR_INTERNED);
         Z_TYPE_INFO_P(pzval) = IS_INTERNED_STRING_EX;
@@ -199,6 +208,8 @@ static void zai_config_intern_zval(zval *pzval) {
                 if (bucket->key) {
 #if PHP_VERSION_ID >= 70400
                     bucket->key = zend_new_interned_string(bucket->key);
+#elif PHP_VERSION_ID >= 70300
+                    bucket->key = zai_persistent_new_interned_string(bucket->key);
 #else
                     GC_ADD_FLAGS(bucket->key, IS_STR_INTERNED);
 #endif
@@ -210,6 +221,7 @@ static void zai_config_intern_zval(zval *pzval) {
 }
 
 void zai_config_first_time_rinit(bool in_request) {
+    // On PHP 7.3 zend_interned_strings_switch_storage has undesired side effects (it calls interned_string_copy_storage); hence we collect zend_new_interned_string_permanent via zai_persistent_new_interned_string at minit.
 #if PHP_VERSION_ID >= 70400
     if (in_request) {
         zend_interned_strings_switch_storage(0);
@@ -219,9 +231,13 @@ void zai_config_first_time_rinit(bool in_request) {
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         zai_config_find_and_set_value(memoized, i);
+#if PHP_VERSION_ID >= 70300
+        zai_config_intern_zval(&memoized->decoded_value);
+#else
         if (in_request) {
             zai_config_intern_zval(&memoized->decoded_value);
         }
+#endif
     }
 
 #if PHP_VERSION_ID >= 70400
