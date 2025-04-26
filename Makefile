@@ -1210,7 +1210,9 @@ test_unit_coverage: global_test_run_dependencies
 	PHPUNIT_COVERAGE=1 $(MAKE) test_unit
 
 test_integration: global_test_run_dependencies
+	$(eval TEST_EXTRA_ENV=DD_TRACE_AGENT_RETRIES=3 DD_TRACE_AGENT_FLUSH_INTERVAL=333 DD_TRACE_AGENT_PORT=9126 DD_AGENT_HOST=test-agent)
 	$(call run_tests,--testsuite=integration $(TESTS))
+	$(eval TEST_EXTRA_ENV=)
 test_integration_coverage:
 	PHPUNIT_COVERAGE=1 $(MAKE) test_integration
 
