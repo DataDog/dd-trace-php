@@ -226,6 +226,8 @@ void zai_config_first_time_rinit(bool in_request) {
     if (in_request) {
         zend_interned_strings_switch_storage(0);
     }
+#else
+    (void)in_request;
 #endif
 
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {

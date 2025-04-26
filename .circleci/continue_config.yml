@@ -539,6 +539,7 @@ commands:
                 -e TRACE_LANGUAGE=php \
                 -e DD_TRACE_AGENT_URL=http://request-replayer:80 \
                 -e ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service \
+                -e SNAPSHOT_REGEX_PLACEHOLDERS=path:/home/circleci/datadog,httpbin:(?<=//)httpbin-integration \
                 -e DD_SUPPRESS_TRACE_PARSE_ERRORS=true \
                 -e DD_POOL_TRACE_CHECK_FAILURES=true \
                 -e DD_DISABLE_ERROR_RESPONSES=true \
