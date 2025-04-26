@@ -779,7 +779,7 @@ TEST_INTEGRATIONS_74 := \
 	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
-	test_integrations_elasticsearch_latest \
+	test_integrations_elasticsearch8 \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
@@ -848,6 +848,7 @@ TEST_INTEGRATIONS_80 := \
 	test_opentelemetry_1 \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
@@ -908,6 +909,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
 	test_integrations_predis_latest \
@@ -966,6 +968,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
@@ -1032,6 +1035,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
@@ -1092,6 +1096,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_pcntl \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
 	test_integrations_elasticsearch_latest \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
@@ -1298,6 +1303,8 @@ test_integrations_elasticsearch1: global_test_run_dependencies tests/Integration
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V1)
 test_integrations_elasticsearch7: global_test_run_dependencies tests/Integrations/Elasticsearch/V7/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/V7)
+test_integrations_elasticsearch8: global_test_run_dependencies tests/Integrations/Elasticsearch/V8/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Elasticsearch/V8)
 test_integrations_elasticsearch_latest: global_test_run_dependencies tests/Integrations/Elasticsearch/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Elasticsearch/Latest)
 test_integrations_guzzle5: global_test_run_dependencies tests/Integrations/Guzzle/V5/composer.lock-php$(PHP_MAJOR_MINOR)

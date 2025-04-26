@@ -23,6 +23,7 @@ abstract class AppsecTestCase extends WebFrameworkTestCase
     {
         if (!isset(self::$connection)) {
             self::$connection = new \PDO('mysql:host=mysql-integration;dbname=' . static::$database, 'test', 'test');
+            self::$connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         }
         return self::$connection;
     }
