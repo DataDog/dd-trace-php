@@ -1478,7 +1478,7 @@ void transfer_data(zend_array *source, zend_array *destination, const char *key,
 
 static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
     // Explicitly set errors are the priority
-    zend_array    *meta    = ddtrace_property_array(&span->property_meta);
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
     if (meta) {
         zval *error_zv = zend_hash_str_find(meta, "error", sizeof("error") - 1);
         if (error_zv && Z_TYPE_P(error_zv) == IS_LONG) {
@@ -1523,12 +1523,10 @@ static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
             zend_array *cfg = is_client_span
                 ? get_DD_TRACE_HTTP_CLIENT_ERROR_STATUSES()
                 : get_DD_TRACE_HTTP_SERVER_ERROR_STATUSES();
-            size_t cfg_sz = cfg ? zend_hash_num_elements(cfg) : 0;
 
-            if (cfg_sz > 0) {
+            // Only check status codes if configuration is explicitly set
+            if (cfg && zend_hash_num_elements(cfg) > 0) {
                 zend_string *str_key;
-
-                // For SET, the keys are the status codes/ranges
                 ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
                     if (str_key) {
                         const char *s = ZSTR_VAL(str_key);
@@ -1552,8 +1550,11 @@ static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
                     }
                 } ZEND_HASH_FOREACH_END();
 
+                // If we get here with specific configuration but no match,
+                // this status code is not considered an error
                 return false;
             }
+            // If no configuration is set, we fall through to exception checking
         }
     }
 
