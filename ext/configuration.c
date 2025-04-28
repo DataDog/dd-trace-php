@@ -158,6 +158,7 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 }
 
 static bool dd_parse_http_error_statuses(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
     array_init(decoded_value);
 
     if (value.len == 0) {

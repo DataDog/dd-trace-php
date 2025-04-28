@@ -1479,8 +1479,6 @@ void transfer_data(zend_array *source, zend_array *destination, const char *key,
 static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
     // Explicitly set errors are the priority
     zend_array    *meta    = ddtrace_property_array(&span->property_meta);
-    zend_string   *key;
-    zval          *zv;
     if (meta) {
         zval *error_zv = zend_hash_str_find(meta, "error", sizeof("error") - 1);
         if (error_zv && Z_TYPE_P(error_zv) == IS_LONG) {
@@ -1533,6 +1531,7 @@ static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
 
                 // For SET, the keys are the status codes/ranges
                 ZEND_HASH_FOREACH_STR_KEY_VAL(cfg, str_key, entry_zv) {
+                    UNUSED(entry_zv);
                     if (str_key) {
                         const char *s = ZSTR_VAL(str_key);
                         char *dash = strchr(s, '-');
