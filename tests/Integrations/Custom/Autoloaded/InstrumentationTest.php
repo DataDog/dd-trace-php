@@ -69,7 +69,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $this->assertContains([
             "name" => "agent_host",
             "value" => "request-replayer",
-            "origin" => "EnvVar",
+            "origin" => "env_var",
         ], $payloads[0]["payload"]["configuration"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
         $this->assertEquals([[
@@ -124,13 +124,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
             ],
             [
                 "name" => "exec",
-                "enabled" => false,
-                "version" => "",
-                'compatible' => null,
-                'auto_enabled' => null,
-            ],
-            [
-                "name" => "filesystem",
                 "enabled" => false,
                 "version" => "",
                 'compatible' => null,
