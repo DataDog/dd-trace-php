@@ -1,7 +1,5 @@
 --TEST--
 HTTP status code configuration parsing test
---INI--
-extension=ddtrace.so
 --ENV--
 DD_TRACE_HTTP_SERVER_ERROR_STATUSES=418,429-451,503
 --FILE--
