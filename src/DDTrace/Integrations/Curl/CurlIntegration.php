@@ -25,6 +25,46 @@ function addSpanDataTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
     }
 }
 
+ /**
+  * Determines if a given status code should be considered an error
+  * based on the DD_TRACE_HTTP_CLIENT_ERROR_STATUSES configuration.
+  *
+  * @param int $statusCode The HTTP status code to check
+  * @return bool Whether the status code should be considered an error
+  */
+private static function isClientError($statusCode) {
+    // Get configured status codes from environment
+    $errorStatusCodes = \dd_trace_env_config("DD_TRACE_HTTP_CLIENT_ERROR_STATUSES");
+
+    if (!empty($errorStatusCodes)) {
+        // Custom configuration exists, use it
+        $codesList = explode(',', $errorStatusCodes);
+
+        foreach ($codesList as $item) {
+            $item = trim($item);
+
+            if (strpos($item, '-') !== false) {
+                // Range ("400-499")
+                list($start, $end) = explode('-', $item);
+                if ($statusCode >= (int)$start && $statusCode <= (int)$end) {
+                    return true;
+                }
+            } else {
+                // Single code ("404")
+                if ($statusCode == (int)$item) {
+                    return true;
+                }
+            }
+        }
+
+        // The status code isn't in any defined error range
+        return false;
+    } else {
+        // Default behavior
+        return ($statusCode >= 400);
+    }
+}
+
 final class CurlIntegration extends Integration
 {
     const NAME = 'curl';
@@ -251,51 +291,61 @@ final class CurlIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
     }
 
-    public static function set_curl_attributes($span, $info) {
-        $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
-        $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
-        $host = Urls::hostname($sanitizedUrl);
-        $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
-        unset($info['url']);
+   public static function set_curl_attributes($span, $info) {
+       $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
+       $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
+       $host = Urls::hostname($sanitizedUrl);
+       $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
+       unset($info['url']);
 
-        if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
-            $span->service = Urls::hostnameForTag($sanitizedUrl);
-        }
+       if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
+           $span->service = Urls::hostnameForTag($sanitizedUrl);
+       }
 
-        $span->resource = $normalizedPath;
+       $span->resource = $normalizedPath;
 
-        /* Special case the Datadog Standard Attributes
-         * See https://docs.datadoghq.com/logs/processing/attributes_naming_convention/
-         */
-        if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
-            $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
-        }
+       /* Special case the Datadog Standard Attributes
+        * See https://docs.datadoghq.com/logs/processing/attributes_naming_convention/
+        */
+       if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
+           $span->meta[Tag::HTTP_URL] = $sanitizedUrl;
+       }
 
-        $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
+       $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
 
-        addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
+       addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 
-        addSpanDataTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
-        addSpanDataTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
+       // Check if the status code should be marked as an error based on configuration
+       if (isset($info['http_code']) && !empty($info['http_code']) && !isset($span->meta[Tag::ERROR])) {
+           $statusCode = (int)$info['http_code'];
+           if (self::isClientError($statusCode)) {
+               $span->meta[Tag::ERROR] = 1;
+               $span->meta[Tag::ERROR_TYPE] = 'http_error';
+               $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode Error";
+           }
+       }
 
-        addSpanDataTagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
-        addSpanDataTagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
+       addSpanDataTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
+       addSpanDataTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
 
-        addSpanDataTagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
-        addSpanDataTagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
+       addSpanDataTagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
+       addSpanDataTagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
 
-        // Add the rest to a 'curl.' object
-        foreach ($info as $key => $val) {
-            // Datadog doesn't support arrays in tags
-            if (\is_scalar($val) && $val !== '') {
-                // Datadog sets durations in nanoseconds - convert from seconds
-                if (\substr_compare($key, '_time', -5) === 0) {
-                    $val *= 1000000000;
-                }
-                $span->meta["curl.{$key}"] = $val;
-            }
-        }
+       addSpanDataTagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
+       addSpanDataTagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
 
-        return $info;
-    }
+       // Add the rest to a 'curl.' object
+       foreach ($info as $key => $val) {
+           // Datadog doesn't support arrays in tags
+           if (\is_scalar($val) && $val !== '') {
+               // Datadog sets durations in nanoseconds - convert from seconds
+               if (\substr_compare($key, '_time', -5) === 0) {
+                   $val *= 1000000000;
+               }
+               $span->meta["curl.{$key}"] = $val;
+           }
+       }
+
+       return $info;
+   }
 }

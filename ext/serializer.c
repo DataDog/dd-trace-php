@@ -1152,10 +1152,77 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
         ZVAL_STR(&status_zv, status_str);
         zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_zv);
 
-        if (status >= 500 && !ignore_error) {
-            zval zv = {0}, *value;
-            if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
-                ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
+        // Only check status codes if not ignoring errors
+        if (!ignore_error) {
+            bool is_error = false;
+            bool is_custom_error = false;
+
+            // Get server error configuration
+            zend_array *cfg = get_DD_TRACE_HTTP_SERVER_ERROR_STATUSES();
+
+            // If configuration exists and has entries, check against it
+            if (cfg && zend_hash_num_elements(cfg) > 0) {
+                // Check custom configuration first
+                zend_string *str_key;
+                ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
+                    if (str_key) {
+                        const char *s = ZSTR_VAL(str_key);
+                        char *dash = strchr(s, '-');
+
+                        if (dash) {
+                            // Range like "500-599"
+                            int start, end;
+                            if (sscanf(s, "%d-%d", &start, &end) == 2) {
+                                if (status >= start && status <= end) {
+                                    is_error = true;
+                                    is_custom_error = true;
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Single status code
+                            int code = atoi(s);
+                            if (status == code) {
+                                is_error = true;
+                                is_custom_error = true;
+                                break;
+                            }
+                        }
+                    }
+                } ZEND_HASH_FOREACH_END();
+
+                // If no custom match, still check for >=500 for backward compatibility
+                if (!is_error) {
+                    is_error = (status >= 500);
+                }
+            } else {
+                // Fallback to original behavior if no configuration is set
+                is_error = (status >= 500);
+            }
+
+            if (is_error) {
+                zval zv = {0}, *value;
+                if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
+                    if (is_custom_error) {
+                        // New behavior for custom-configured errors
+                        ZVAL_STR(value, zend_string_init(ZEND_STRL("http_error"), 0));
+
+                        // Add error message and flag
+                        zval error_msg_zv = {0}, *msg_value;
+                        if ((msg_value = zend_hash_str_add(meta, ZEND_STRL("error.msg"), &error_msg_zv))) {
+                            char error_msg[50];
+                            snprintf(error_msg, sizeof(error_msg), "HTTP %d Error", status);
+                            ZVAL_STR(msg_value, zend_string_init(error_msg, strlen(error_msg), 0));
+                        }
+
+                        zval error_flag;
+                        ZVAL_LONG(&error_flag, 1);
+                        zend_hash_str_update(meta, ZEND_STRL("error"), &error_flag);
+                    } else {
+                        // Original behavior for >= 500 errors
+                        ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
+                    }
+                }
             }
         }
     }
@@ -1474,97 +1541,6 @@ void transfer_data(zend_array *source, zend_array *destination, const char *key,
             zend_hash_str_del(source, key, key_len);
         }
     }
-}
-
-static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
-    // Explicitly set errors are the priority
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
-    if (meta) {
-        zval *error_zv = zend_hash_str_find(meta, "error", sizeof("error") - 1);
-        if (error_zv && Z_TYPE_P(error_zv) == IS_LONG) {
-            if (Z_LVAL_P(error_zv) == 1) {
-                return true;
-            }
-            if (Z_LVAL_P(error_zv) == 0) {
-                return false;
-            }
-        }
-    }
-
-    // HTTP status configured
-    zval *status_zv = meta
-        ? zend_hash_str_find(meta, "http.status_code", sizeof("http.status_code") - 1)
-        : NULL;
-    if (status_zv) {
-        int status_code = 0;
-        if (Z_TYPE_P(status_zv) == IS_STRING) {
-            status_code = atoi(Z_STRVAL_P(status_zv));
-        } else if (Z_TYPE_P(status_zv) == IS_LONG) {
-            status_code = Z_LVAL_P(status_zv);
-        }
-
-        if (status_code > 0) {
-            // Determine if client or server span. Check kind first and fallback to type
-            bool is_client_span = false;
-            zval *kind_zv = zend_hash_str_find(meta, "span.kind", sizeof("span.kind") - 1);
-            if (kind_zv && Z_TYPE_P(kind_zv) == IS_STRING &&
-                strcmp(Z_STRVAL_P(kind_zv), "client") == 0) {
-                is_client_span = true;
-            } else {
-                zval *type_zv = zend_hash_str_find(meta, "span.type", sizeof("span.type") - 1);
-                if (type_zv && Z_TYPE_P(type_zv) == IS_STRING &&
-                    (strcmp(Z_STRVAL_P(type_zv), "http") == 0 ||
-                     strcmp(Z_STRVAL_P(type_zv), "client") == 0)) {
-                    is_client_span = true;
-                }
-            }
-
-            // Get the proper configuration
-            zend_array *cfg = is_client_span
-                ? get_DD_TRACE_HTTP_CLIENT_ERROR_STATUSES()
-                : get_DD_TRACE_HTTP_SERVER_ERROR_STATUSES();
-
-            // Only check status codes if configuration is explicitly set
-            if (cfg && zend_hash_num_elements(cfg) > 0) {
-                zend_string *str_key;
-                ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
-                    if (str_key) {
-                        const char *s = ZSTR_VAL(str_key);
-                        char *dash = strchr(s, '-');
-
-                        if (dash) {
-                            // Range like "500-599"
-                            int start, end;
-                            if (sscanf(s, "%d-%d", &start, &end) == 2) {
-                                if (status_code >= start && status_code <= end) {
-                                    return true;
-                                }
-                            }
-                        } else {
-                            // Single status code
-                            int code = atoi(s);
-                            if (code == status_code) {
-                                return true;
-                            }
-                        }
-                    }
-                } ZEND_HASH_FOREACH_END();
-
-                // If we get here with specific configuration but no match,
-                // this status code is not considered an error
-                return false;
-            }
-            // If no configuration is set, we fall through to exception checking
-        }
-    }
-
-    // Exception with no HTTP status configuration
-    zval *ex_zv = &span->property_exception;
-    if (Z_TYPE_P(ex_zv) == IS_OBJECT) {
-        return true;
-    }
-
-    return false;
 }
 
 zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
@@ -1921,43 +1897,6 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         if (get_DD_TRACE_MEASURE_PEAK_MEMORY_USAGE()) {
             add_assoc_double(&metrics_zv, "php.memory.peak_usage_bytes", zend_memory_peak_usage(false));
             add_assoc_double(&metrics_zv, "php.memory.peak_real_usage_bytes", zend_memory_peak_usage(true));
-        }
-    }
-
-    // Figure out if an error should be tracked
-    bool is_error = _dd_should_mark_as_error(span);
-
-    if (is_error) {
-        zval zv_error;
-        ZVAL_LONG(&zv_error, 1);
-        add_assoc_zval(el, "error", &zv_error);
-
-        // If there's an exception, the existing serializer code will handle it
-        // We only need to add error metadata for HTTP status code errors (no exception)
-        zval *exception = &span->property_exception;
-        if (Z_TYPE_P(exception) != IS_OBJECT) {
-            // HTTP status code error case
-            // Add error meta if not already present
-            zval *serialized_meta = zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta"));
-            if (serialized_meta && Z_TYPE_P(serialized_meta) == IS_ARRAY) {
-                zend_array *meta_arr = Z_ARR_P(serialized_meta);
-                if (!zend_hash_str_exists(meta_arr, ZEND_STRL("error.type"))) {
-                    add_assoc_str(serialized_meta, "error.type", zend_string_init("http_error", sizeof("http_error") - 1, 0));
-                }
-
-                if (!zend_hash_str_exists(meta_arr, ZEND_STRL("error.msg"))) {
-                    zval *status_code_zv = zend_hash_str_find(meta, ZEND_STRL("http.status_code"));
-                    if (status_code_zv) {
-                        char error_msg[50];
-                        if (Z_TYPE_P(status_code_zv) == IS_STRING) {
-                            snprintf(error_msg, sizeof(error_msg), "HTTP %s Error", Z_STRVAL_P(status_code_zv));
-                        } else if (Z_TYPE_P(status_code_zv) == IS_LONG) {
-                            snprintf(error_msg, sizeof(error_msg), "HTTP %ld Error", Z_LVAL_P(status_code_zv));
-                        }
-                        add_assoc_string(serialized_meta, "error.msg", error_msg);
-                    }
-                }
-            }
         }
     }
 

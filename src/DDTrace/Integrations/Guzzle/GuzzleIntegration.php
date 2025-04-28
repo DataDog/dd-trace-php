@@ -50,14 +50,38 @@ class GuzzleIntegration extends Integration
                     $response = $retval;
                     if (\is_a($response, 'GuzzleHttp\Message\ResponseInterface')) {
                         /** @var \GuzzleHttp\Message\ResponseInterface $response */
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                        $statusCode = $response->getStatusCode();
+                        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+
+                        // Mark as error if status code matches configuration
+                        if (self::isClientError($statusCode)) {
+                            $span->meta[Tag::ERROR] = 1;
+                            $span->meta[Tag::ERROR_TYPE] = 'http_error';
+                            $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode: " . $response->getReasonPhrase();
+                        }
                     } elseif (\is_a($response, 'Psr\Http\Message\ResponseInterface')) {
                         /** @var \Psr\Http\Message\ResponseInterface $response */
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                        $statusCode = $response->getStatusCode();
+                        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+
+                        // Mark as error if status code matches configuration
+                        if (self::isClientError($statusCode)) {
+                            $span->meta[Tag::ERROR] = 1;
+                            $span->meta[Tag::ERROR_TYPE] = 'http_error';
+                            $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode: " . $response->getReasonPhrase();
+                        }
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
                         /** @var \GuzzleHttp\Promise\PromiseInterface $response */
                         $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                            $statusCode = $response->getStatusCode();
+                            $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+
+                            // Mark as error if status code matches configuration
+                            if (self::isClientError($statusCode)) {
+                                $span->meta[Tag::ERROR] = 1;
+                                $span->meta[Tag::ERROR_TYPE] = 'http_error';
+                                $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode: " . $response->getReasonPhrase();
+                            }
                         });
                     }
                 }
@@ -84,7 +108,15 @@ class GuzzleIntegration extends Integration
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
                         /** @var \GuzzleHttp\Promise\PromiseInterface $response */
                         $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                            $statusCode = $response->getStatusCode();
+                            $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+
+                            // Mark as error if status code matches configuration
+                            if (self::isClientError($statusCode)) {
+                                $span->meta[Tag::ERROR] = 1;
+                                $span->meta[Tag::ERROR_TYPE] = 'http_error';
+                                $span->meta[Tag::ERROR_MSG] = "HTTP $statusCode: " . $response->getReasonPhrase();
+                            }
                         });
                     }
                 }
@@ -123,6 +155,46 @@ class GuzzleIntegration extends Integration
             if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
                 $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             }
+        }
+    }
+
+    /**
+     * Determines if a given status code should be considered an error
+     * based on the DD_TRACE_HTTP_CLIENT_ERROR_STATUSES configuration.
+     *
+     * @param int $statusCode The HTTP status code to check
+     * @return bool Whether the status code should be considered an error
+     */
+    private static function isClientError($statusCode) {
+        // Get configured status codes from environment
+        $errorStatusCodes = \dd_trace_env_config("DD_TRACE_HTTP_CLIENT_ERROR_STATUSES");
+
+        if (!empty($errorStatusCodes)) {
+            // Custom configuration exists, use it
+            $codesList = explode(',', $errorStatusCodes);
+
+            foreach ($codesList as $item) {
+                $item = trim($item);
+
+                if (strpos($item, '-') !== false) {
+                    // Range ("400-499")
+                    list($start, $end) = explode('-', $item);
+                    if ($statusCode >= (int)$start && $statusCode <= (int)$end) {
+                        return true;
+                    }
+                } else {
+                    // Single code ("404")
+                    if ($statusCode == (int)$item) {
+                        return true;
+                    }
+                }
+            }
+
+            // The status code isn't in any defined error range
+            return false;
+        } else {
+            // Default behavior
+            return ($statusCode >= 400);
         }
     }
 }
