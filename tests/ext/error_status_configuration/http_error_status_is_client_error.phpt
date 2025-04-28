@@ -1,7 +1,5 @@
 --TEST--
 HTTP client status code error configuration parsing
---INI--
-extension=ddtrace.so
 --ENV--
 DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=403,408-417
 --FILE--
