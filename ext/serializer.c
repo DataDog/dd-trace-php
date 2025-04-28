@@ -1527,7 +1527,6 @@ static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
 
             if (cfg_sz > 0) {
                 zend_string *str_key;
-                zval *entry_zv;
 
                 // For SET, the keys are the status codes/ranges
                 ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
