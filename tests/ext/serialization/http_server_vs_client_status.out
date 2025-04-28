@@ -1,0 +1,6 @@
+=== SERVER SPAN WITH 404 ===
+
+Fatal error: Uncaught Error: Call to undefined function DDTrace\start_span() in /home/circleci/app/tests/ext/serialization/http_server_vs_client_status.php:4
+Stack trace:
+#0 {main}
+  thrown in /home/circleci/app/tests/ext/serialization/http_server_vs_client_status.php on line 4

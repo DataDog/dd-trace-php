@@ -7,6 +7,7 @@
 #include "json/json.h"
 #include "sidecar.h"
 #include <components/log/log.h>
+#include <ctype.h>
 #include <zai_string/string.h>
 #include "sidecar.h"
 
@@ -152,6 +153,50 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         // Move to the start of the next tag
         current = tag_end + 1;
     }
+
+    return true;
+}
+
+static bool dd_parse_http_error_statuses(zai_str value, zval *decoded_value, bool persistent) {
+    array_init(decoded_value);
+
+    if (value.len == 0) {
+        return true;
+    }
+
+    // Add null termination
+    char *buf = estrndup(value.ptr, value.len);
+    if (!buf) {
+        return false;
+    }
+
+    char *tok, *saveptr = NULL;
+
+    for (tok = strtok_r(buf, ",", &saveptr); tok; tok = strtok_r(NULL, ",", &saveptr)) {
+        // Trim whitespace
+        char *start = tok;
+        char *end = tok + strlen(tok) - 1;
+
+        while (start <= end && isspace((unsigned char)*start)) start++;
+        while (end > start && isspace((unsigned char)*end)) *end-- = '\0';
+
+        // Remove quotes if present
+        if (strlen(start) >= 2 && start[0] == '"' && start[strlen(start)-1] == '"') {
+            start++;
+            start[strlen(start)-1] = '\0';
+        }
+
+        if (strlen(start) > 0) {
+            // For SET, the value is the key and the value is boolean true
+            zval true_val;
+            ZVAL_TRUE(&true_val);
+
+            // Add to array using string key with boolean true value
+            zend_hash_str_update(Z_ARR_P(decoded_value), start, strlen(start), &true_val);
+        }
+    }
+
+    efree(buf);
 
     return true;
 }
