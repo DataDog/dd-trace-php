@@ -1388,8 +1388,12 @@ version = "0.0.1"
 dependencies = [
  "build_common 0.0.1",
  "data-pipeline",
+ "datadog-ipc",
+ "datadog-sidecar",
+ "datadog-sidecar-ffi",
  "datadog-trace-utils",
  "ddcommon-ffi 0.0.1",
+ "ddtelemetry-ffi",
  "httpmock",
  "rmp-serde",
  "tinybytes",

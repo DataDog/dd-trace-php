@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include <ext/standard/php_string.h>
+#include "zend_hash.h"
 #include "zend_portability.h"
 #include <components-rs/ddtrace.h>
 #include <components-rs/data-pipeline.h>
@@ -221,22 +222,6 @@ int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, siz
     } else {
         return 0;
     }
-}
-
-size_t ddtrace_serialize_simple_array_into_mapped_menory(zval *trace, char *map, size_t size) {
-    // encode to memory buffer
-    mpack_writer_t writer;
-    mpack_writer_init(&writer, map, size);
-    if (msgpack_write_zval(&writer, trace, 0) != 1) {
-        mpack_writer_destroy(&writer);
-        return 0;
-    }
-    size_t written = mpack_writer_buffer_used(&writer);
-    // finish writing
-    if (mpack_writer_destroy(&writer) != mpack_ok) {
-        return 0;
-    }
-    return written;
 }
 
 int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
@@ -1542,19 +1527,28 @@ static zend_always_inline double strconv_parse_bool(zend_string *str) {
     return -1;
 }
 
-void transfer_data(zend_array *source, zend_array *destination, const char *key, size_t key_len, bool delete_source) {
-    zval *value = zend_hash_str_find(source, key, key_len);
-    if (value) {
-        Z_TRY_ADDREF_P(value);
-        zend_hash_str_update(destination, key, key_len, value);
+void transfer_meta_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, ddog_CharSlice key, bool delete_source) {
+    ddog_CharSlice value = ddog_get_span_meta(source, key);
+    if (value.len > 0) {
+        ddog_add_span_meta(destination, key, value);
         if (delete_source) {
-            zend_hash_str_del(source, key, key_len);
+            ddog_del_span_meta(source, key);
         }
     }
 }
 
-zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
-    ddog_SpanBytes *rust_span = ddog_get_span();
+void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, ddog_CharSlice key, bool delete_source) {
+    double metric;
+    if (ddog_get_span_metrics(source, key, &metric)) {
+        ddog_add_span_metrics(destination, key, metric);
+        if (delete_source) {
+            ddog_del_span_metrics(source, key);
+        }
+    }
+}
+
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
+    ddog_SpanBytes *rust_span = ddog_trace_new_span(trace);
 
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
@@ -1889,27 +1883,22 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
         }
     }
 
-    // TODO
-    /* if (inferred_span) { */
-    /*     zval *serialized_inferred_span = ddtrace_serialize_span_to_array(inferred_span, array); */
-    /*     zend_array *serialized_inferred_span_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("meta"))); */
-    /*     zend_array *serialized_inferred_span_metrics = Z_ARR_P(zend_hash_str_find(Z_ARR_P(serialized_inferred_span), ZEND_STRL("metrics"))); */
-    /**/
-    /*     zend_array *serialized_meta = Z_ARR_P(zend_hash_str_find(Z_ARR_P(el), ZEND_STRL("meta"))); */
-    /*     zend_array *serialized_metrics = Z_ARR(metrics_zv); */
-    /**/
-    /*     transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.agent_psr"), true); */
-    /*     transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.rule_psr"), true); */
-    /*     transfer_data(serialized_metrics, serialized_inferred_span_metrics, ZEND_STRL("_dd.limit_psr"), true); */
-    /**/
-    /*     transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.message"), false); */
-    /*     transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.type"), false); */
-    /*     transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("error.stack"), false); */
-    /*     transfer_data(Z_ARR_P(el), Z_ARR_P(serialized_inferred_span), ZEND_STRL("error"), false); */
-    /*     transfer_data(serialized_meta, Z_ARR_P(serialized_inferred_span), ZEND_STRL("track_error"), false); */
-    /*     transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.dm"), true); */
-    /*     transfer_data(serialized_meta, serialized_inferred_span_meta, ZEND_STRL("_dd.p.tid"), true); */
-    /* } */
+    if (inferred_span) {
+        ddog_SpanBytes *serialized_inferred_span = ddtrace_serialize_span_to_rust_span(inferred_span, trace);
+
+        transfer_metrics_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("_dd.agent_psr"), true);
+        transfer_metrics_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("_dd.rule_psr"), true);
+        transfer_metrics_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("_dd.limit_psr"), true);
+
+        transfer_meta_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("error.message"), false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("error.type"), false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("error.stack"), false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("track_error"), false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("_dd.p.dm"), true);
+        transfer_meta_data(rust_span, serialized_inferred_span, DDOG_CHARSLICE_C("_dd.p.tid"), true);
+
+        ddog_set_span_error(serialized_inferred_span, ddog_get_span_error(rust_span));
+    }
 
     LOGEV(SPAN, {
         smart_str meta_str = {0};
@@ -1982,7 +1971,7 @@ zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     }
     ZEND_HASH_FOREACH_END();
 
-    return array;
+    return rust_span;
 }
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {

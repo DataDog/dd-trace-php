@@ -1509,6 +1509,40 @@ typedef struct ddog_TraceExporterError {
 } ddog_TraceExporterError;
 
 /**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_SpanBytes {
+  const ddog_SpanBytes *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_SpanBytes;
+
+typedef struct ddog_Vec_SpanBytes ddog_TraceBytes;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_TraceBytes {
+  const ddog_TraceBytes *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_TraceBytes;
+
+typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
+
+typedef struct ddog_SenderParameters {
+  ddog_TracerHeaderTags tracer_headers_tags;
+  ddog_SidecarTransport *transport;
+  ddog_InstanceId *instance_id;
+  uintptr_t limit;
+  int64_t n_requests;
+  int64_t buffer_size;
+  ddog_CharSlice url;
+} ddog_SenderParameters;
+
+/**
  * FFI compatible configuration for the TelemetryClient.
  */
 typedef struct ddog_TelemetryClientConfig {
