@@ -1530,8 +1530,7 @@ static bool _dd_should_mark_as_error(ddtrace_span_data *span) {
                 zval *entry_zv;
 
                 // For SET, the keys are the status codes/ranges
-                ZEND_HASH_FOREACH_STR_KEY_VAL(cfg, str_key, entry_zv) {
-                    UNUSED(entry_zv);
+                ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
                     if (str_key) {
                         const char *s = ZSTR_VAL(str_key);
                         char *dash = strchr(s, '-');
