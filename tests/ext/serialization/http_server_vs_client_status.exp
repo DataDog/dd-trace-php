@@ -1,7 +1,0 @@
-=== SERVER SPAN WITH 404 ===
-=== CLIENT SPAN WITH 404 ===
-=== RESULTS ===
-string(17) "Client 404 error:"
-int(1)
-string(17) "Server 404 error:"
-NULL
