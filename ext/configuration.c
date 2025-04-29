@@ -7,7 +7,6 @@
 #include "json/json.h"
 #include "sidecar.h"
 #include <components/log/log.h>
-#include <ctype.h>
 #include <zai_string/string.h>
 #include "sidecar.h"
 

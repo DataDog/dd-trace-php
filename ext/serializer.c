@@ -1155,72 +1155,43 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
         // Only check status codes if not ignoring errors
         if (!ignore_error) {
             bool is_error = false;
-            bool is_custom_error = false;
 
             // Get server error configuration
             zend_array *cfg = get_DD_TRACE_HTTP_SERVER_ERROR_STATUSES();
 
-            // If configuration exists and has entries, check against it
-            if (cfg && zend_hash_num_elements(cfg) > 0) {
-                // Check custom configuration first
-                zend_string *str_key;
-                ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
-                    if (str_key) {
-                        const char *s = ZSTR_VAL(str_key);
-                        char *dash = strchr(s, '-');
+            // Loop through configuration if any
+            zend_string *str_key;
+            ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
+                if (str_key) {
+                    const char *s = ZSTR_VAL(str_key);
 
-                        if (dash) {
-                            // Range like "500-599"
-                            int start, end;
-                            if (sscanf(s, "%d-%d", &start, &end) == 2) {
-                                if (status >= start && status <= end) {
-                                    is_error = true;
-                                    is_custom_error = true;
-                                    break;
-                                }
-                            }
-                        } else {
-                            // Single status code
-                            int code = atoi(s);
-                            if (status == code) {
-                                is_error = true;
-                                is_custom_error = true;
-                                break;
-                            }
+                    // Range like "500-599"
+                    int start, end;
+                    if (sscanf(s, "%d-%d", &start, &end) == 2) {
+                        if (status >= start && status <= end) {
+                            is_error = true;
+                            break;
+                        }
+                    } else {
+                        // Single status code
+                        int code = atoi(s);
+                        if (status == code) {
+                            is_error = true;
+                            break;
                         }
                     }
-                } ZEND_HASH_FOREACH_END();
-
-                // If no custom match, still check for >=500 for backward compatibility
-                if (!is_error) {
-                    is_error = (status >= 500);
                 }
-            } else {
-                // Fallback to original behavior if no configuration is set
-                is_error = (status >= 500);
-            }
+            } ZEND_HASH_FOREACH_END();
 
             if (is_error) {
                 zval zv = {0}, *value;
                 if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
-                    if (is_custom_error) {
-                        // New behavior for custom-configured errors
-                        ZVAL_STR(value, zend_string_init(ZEND_STRL("http_error"), 0));
+                    ZVAL_STR(value, zend_string_init(ZEND_STRL("http_error"), 0));
 
-                        // Add error message and flag
-                        zval error_msg_zv = {0}, *msg_value;
-                        if ((msg_value = zend_hash_str_add(meta, ZEND_STRL("error.msg"), &error_msg_zv))) {
-                            char error_msg[50];
-                            snprintf(error_msg, sizeof(error_msg), "HTTP %d Error", status);
-                            ZVAL_STR(msg_value, zend_string_init(error_msg, strlen(error_msg), 0));
-                        }
-
-                        zval error_flag;
-                        ZVAL_LONG(&error_flag, 1);
-                        zend_hash_str_update(meta, ZEND_STRL("error"), &error_flag);
-                    } else {
-                        // Original behavior for >= 500 errors
-                        ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
+                    // Add error message and flag
+                    zval error_msg_zv = {0}, *msg_value;
+                    if ((msg_value = zend_hash_str_add(meta, ZEND_STRL("error.msg"), &error_msg_zv))) {
+                        ZVAL_STR(msg_value, zend_strpprintf(0, "HTTP %d Error", status));
                     }
                 }
             }
