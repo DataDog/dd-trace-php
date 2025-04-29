@@ -22,8 +22,9 @@ class HttpClientIntegrationHelper
         // Get configured status codes from environment
         $errorStatusCodes = \dd_trace_env_config("DD_TRACE_HTTP_CLIENT_ERROR_STATUSES");
 
+        // Specifically set configuration to empty
         if (empty($errorStatusCodes)) {
-                return false;
+            return false;
         }
 
         // Custom configuration exists, use it
