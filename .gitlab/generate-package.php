@@ -73,14 +73,7 @@ $asan_build_platforms = [
     ]
 ];
 
-$asan_php_versions = [
-    "7.4",
-    "8.0",
-    "8.1",
-    "8.2",
-    "8.3",
-    "8.4",
-];
+$asan_php_versions = array_values(array_filter(array_keys($php_versions_to_abi), function($v) { return version_compare($v, "7.4", ">="); }));
 
 $windows_build_platforms = [
     [
@@ -94,16 +87,10 @@ $windows_build_platforms = [
     ],
 ];
 
-$windows_php_versions = [
-    "7.2",
-    "7.3",
-    "7.4",
-    "8.0",
-    "8.1",
-    "8.2",
-    "8.3",
-    "8.4",
-];
+$windows_php_versions = array_values(array_filter(array_keys($php_versions_to_abi), function($v) { return version_compare($v, "7.2", ">="); }));
+
+$profiler_php_versions = array_values(array_filter(array_keys($php_versions_to_abi), function($v) { return version_compare($v, "7.1", ">="); }));
+
 ?>
 
 
@@ -113,6 +100,7 @@ stages:
   - appsec
   - tracing
   - packaging
+  - verify
   - shared-pipeline # OCI packaging
 
 variables:
@@ -192,15 +180,12 @@ foreach ($build_platforms as $platform) {
 }
 
 foreach ($build_platforms as $platform) {
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-        if ($major_minor == "7.0") {
-            continue;
-        }
-        $image = sprintf($platform['image_template'], $major_minor);
+    foreach ($profiler_php_versions as $major_minor) {
+        $abi_no = $php_versions_to_abi[$major_minor]
 ?>
 "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: profiler
-  image: $IMAGE
+  image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
   needs:
     - job: "prepare code"
@@ -208,7 +193,6 @@ foreach ($build_platforms as $platform) {
     - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
   variables:
-    IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
@@ -607,10 +591,7 @@ foreach ($build_platforms as $platform) {
       artifacts: true
 
 <?php
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-        if ($major_minor == "7.0") {
-            continue;
-        }
+    foreach ($profiler_php_versions as $major_minor) {
 ?>
     # Profiler extension
     - job: "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -622,7 +603,10 @@ foreach ($build_platforms as $platform) {
 
 "package extension windows":
   extends: .package_extension_base
+  variables:
+    TRIPLET: "x86_64-pc-windows-msvc"
   script:
+    - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']) ?>
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
   needs:
@@ -636,13 +620,6 @@ foreach ($windows_php_versions as $major_minor) {
 <?php
 }
 ?>
-  script:
-    - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']) ?>
-
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
-    - mv build/packages/ packages/
-  variables:
-    TRIPLET: "x86_64-pc-windows-msvc"
 
 "package extension asan":
   extends: .package_extension_base
@@ -680,3 +657,22 @@ foreach ($asan_build_platforms as $platform) {
   artifacts:
     paths:
       - "packages/datadog-setup.py"
+
+"x-profiling phpt tests on Alpine":
+  stage: verify
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-$PHP_VERSION"
+  tags: [ "arch:amd64" ]
+  parallel:
+    matrix:
+      - PHP_VERSION: <?= json_encode($profiler_php_versions), "\n" ?>
+  needs:
+    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+  before_script:
+    - apk update
+    - apk add autoconf coreutils gcc make
+    - installable_bundle=$(find . -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
+    - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
+    - phpize # run phpize just to get run-tests.php
+  script:
+    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
