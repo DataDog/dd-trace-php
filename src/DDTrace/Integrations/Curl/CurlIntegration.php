@@ -251,7 +251,7 @@ final class CurlIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
     }
 
-   public static function set_curl_attributes($span, $info) {
+    public static function set_curl_attributes($span, $info) {
         $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
         $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
         $host = Urls::hostname($sanitizedUrl);
