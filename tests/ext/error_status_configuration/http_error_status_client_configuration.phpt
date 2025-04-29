@@ -27,33 +27,33 @@ class HttpClientIntegrationHelper
         // Get configured status codes from environment
         $errorStatusCodes = getenv("DD_TRACE_HTTP_CLIENT_ERROR_STATUSES");
 
-        if (!empty($errorStatusCodes)) {
-            // Custom configuration exists, use it
-            $codesList = explode(',', $errorStatusCodes);
+        // Return early if no configuration exists
+        if (empty($errorStatusCodes)) {
+            return false;
+        }
 
-            foreach ($codesList as $item) {
-                $item = trim($item);
+        // Parse and check the status codes
+        $codesList = explode(',', $errorStatusCodes);
+        foreach ($codesList as $item) {
+            $item = trim($item);
+            if (empty($item)) continue;
 
-                if (strpos($item, '-') !== false) {
-                    // Range ("400-499")
-                    list($start, $end) = explode('-', $item);
-                    if ($statusCode >= (int)$start && $statusCode <= (int)$end) {
-                        return true;
-                    }
-                } else {
-                    // Single code ("404")
-                    if ($statusCode == (int)$item) {
-                        return true;
-                    }
+            if (strpos($item, '-') !== false) {
+                // Range ("500-599")
+                list($start, $end) = explode('-', $item);
+                if ($statusCode >= (int)$start && $statusCode <= (int)$end) {
+                    return true;
+                }
+            } else {
+                // Single code
+                if ($statusCode == (int)$item) {
+                    return true;
                 }
             }
-
-            // The status code isn't in any defined error range
-            return false;
-        } else {
-            // Default behavior (500-599 are errors)
-            return ($statusCode >= 500 && $statusCode <= 599);
         }
+
+        // No matching error status codes found
+        return false;
     }
 
     public static function setClientError($span, $statusCode, $reasonPhrase = null) {
@@ -117,26 +117,24 @@ $span->meta[Tag::ERROR] = 1;
 $result = HttpClientIntegrationHelper::setClientError($span, 403);
 echo "\nPre-marked span with status 403: " . ($result ? "Marked again" : "Not marked again") . "\n";
 
-// Now test default behavior without config
+// Test with empty configuration
 putenv('DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=');
 
-echo "\n-- Testing with default configuration (500-599) --\n";
+echo "\n-- Testing with empty configuration --\n";
 echo "Status 200: " . (HttpClientIntegrationHelper::isClientError(200) ? "Error" : "Not error") . "\n";
 echo "Status 404: " . (HttpClientIntegrationHelper::isClientError(404) ? "Error" : "Not error") . "\n";
 echo "Status 500: " . (HttpClientIntegrationHelper::isClientError(500) ? "Error" : "Not error") . "\n";
 echo "Status 599: " . (HttpClientIntegrationHelper::isClientError(599) ? "Error" : "Not error") . "\n";
 echo "Status 600: " . (HttpClientIntegrationHelper::isClientError(600) ? "Error" : "Not error") . "\n";
 
-// Test with default behavior
 $span = new SpanData();
 $result = HttpClientIntegrationHelper::setClientError($span, 500);
-echo "\nStatus 500 with default config: " . ($result ? "Marked as error" : "Not marked") . "\n";
-echo "Error message: " . ($span->meta[Tag::ERROR_MSG] ?? 'none') . "\n";
+echo "\nStatus 500 with empty config: " . ($result ? "Marked as error" : "Not marked") . "\n";
+echo "Has error tag: " . (isset($span->meta[Tag::ERROR]) ? 'Yes' : 'No') . "\n";
 
-// Test with default behavior - non-error status code
 $span = new SpanData();
 $result = HttpClientIntegrationHelper::setClientError($span, 404);
-echo "\nStatus 404 with default config: " . ($result ? "Marked as error" : "Not marked") . "\n";
+echo "\nStatus 404 with empty config: " . ($result ? "Marked as error" : "Not marked") . "\n";
 echo "Has error tag: " . (isset($span->meta[Tag::ERROR]) ? 'Yes' : 'No') . "\n";
 ?>
 --EXPECT--
@@ -164,15 +162,15 @@ Has error tag: No
 
 Pre-marked span with status 403: Not marked again
 
--- Testing with default configuration (500-599) --
+-- Testing with empty configuration --
 Status 200: Not error
 Status 404: Not error
-Status 500: Error
-Status 599: Error
+Status 500: Not error
+Status 599: Not error
 Status 600: Not error
 
-Status 500 with default config: Marked as error
-Error message: HTTP 500 Error
+Status 500 with empty config: Not marked
+Has error tag: No
 
-Status 404 with default config: Not marked
+Status 404 with empty config: Not marked
 Has error tag: No

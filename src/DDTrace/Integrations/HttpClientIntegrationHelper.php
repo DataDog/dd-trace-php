@@ -22,33 +22,32 @@ class HttpClientIntegrationHelper
         // Get configured status codes from environment
         $errorStatusCodes = \dd_trace_env_config("DD_TRACE_HTTP_CLIENT_ERROR_STATUSES");
 
-        if (!empty($errorStatusCodes)) {
-            // Custom configuration exists, use it
-            $codesList = explode(',', $errorStatusCodes);
+        if (empty($errorStatusCodes)) {
+                return false;
+        }
 
-            foreach ($codesList as $item) {
-                $item = trim($item);
+        // Custom configuration exists, use it
+        $codesList = explode(',', $errorStatusCodes);
 
-                if (strpos($item, '-') !== false) {
-                    // Range ("400-499")
-                    list($start, $end) = explode('-', $item);
-                    if ($statusCode >= (int)$start && $statusCode <= (int)$end) {
-                        return true;
-                    }
-                } else {
-                    // Single code ("404")
-                    if ($statusCode == (int)$item) {
-                        return true;
-                    }
+        foreach ($codesList as $item) {
+            $item = trim($item);
+
+            if (strpos($item, '-') !== false) {
+                // Range ("400-499")
+                list($start, $end) = explode('-', $item);
+                if ($statusCode >= (int)$start && $statusCode <= (int)$end) {
+                    return true;
+                }
+            } else {
+                // Single code ("404")
+                if ($statusCode == (int)$item) {
+                    return true;
                 }
             }
-
-            // The status code isn't in any defined error range
-            return false;
-        } else {
-            // Default behavior
-            return ($statusCode >= 400);
         }
+
+        // The status code isn't in any defined error range
+        return false;
     }
 
     /**
