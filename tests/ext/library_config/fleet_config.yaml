@@ -1,3 +1,4 @@
+config_id: 42_fleet_config
 apm_configuration_default:
   DD_SERVICE: service_from_fleet_config
   DD_ENV: env_from_fleet_config
