@@ -303,5 +303,5 @@ final class CurlIntegration extends Integration
         }
 
         return $info;
-   }
+    }
 }
