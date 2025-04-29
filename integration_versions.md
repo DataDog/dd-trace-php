@@ -1,8 +1,8 @@
 | Library                     | Min. Supported Version | Max. Supported Version |
 |-----------------------------|------------------------|------------------------|
-| cakephp/cakephp             | 3.10.5                 | 5.2.1                  |
+| cakephp/cakephp             | 3.10.5                 | 5.2.2                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
-| elasticsearch/elasticsearch | 1.2.2                  | 8.17.1                 |
+| elasticsearch/elasticsearch | 1.2.2                  | 9.0.0                  |
 | ext-PDO                     | 7.0.33                 | 8.3.19                 |
 | ext-curl                    | 7.0.33                 | 8.3.19                 |
 | ext-memcache                | 4.0.5                  | 8.2                    |
@@ -18,11 +18,11 @@
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.16.1                 | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 12.7.2                 |
+| laravel/framework           | 4.2.22                 | 12.9.2                 |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
-| laravel/octane              | 2.8.3                  | 2.8.3                  |
+| laravel/octane              | 2.9.1                  | 2.9.1                  |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
-| mongodb/mongodb             | 1.8.0                  | 1.21.1                 |
+| mongodb/mongodb             | 1.8.0                  | 2.0.0                  |
 | monolog/monolog             | 1.27.1                 | 3.9.0                  |
 | nette/application           | 2.4.17                 | 3.2.6                  |
 | openai-php/client           | 0.10.3                 | 0.10.3                 |

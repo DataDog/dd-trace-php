@@ -92,7 +92,9 @@ class Laravel8xTests {
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
-            assert re.body().contains('blocked')
+            assert re.body().contains('Sorry, you cannot access this page. Please contact the customer service team.')
+            assert re.body().contains('Security provided by Datadog')
+            assert !re.body().contains('Server Error')
         }
 
         Span span = trace.first()

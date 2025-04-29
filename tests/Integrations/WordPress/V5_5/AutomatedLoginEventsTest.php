@@ -10,6 +10,7 @@ use DDTrace\Tests\Integrations\WordPress\AutomatedLoginEventsTestSuite;
 class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
     public static $database = "wp55";
+    protected $users_table = 'wp55_users';
 
     public static function getAppIndexScript()
     {

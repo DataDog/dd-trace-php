@@ -12,11 +12,11 @@ use datadog\appsec\AppsecStatus;
  */
 class AutomatedLoginEventsTestSuite extends AppsecTestCase
 {
-    protected $users_table = 'wp55_users';
+    protected $users_table = 'wp_users';
     protected function ddSetUp()
     {
         parent::ddSetUp();
-        $this->connection()->exec("DELETE from users where email LIKE 'test-user%'");
+        $this->connection()->exec("DELETE from ".$this->users_table." where user_email LIKE 'test-user%'");
         AppsecStatus::getInstance()->setDefaults();
     }
 
