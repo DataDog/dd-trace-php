@@ -1,4 +1,5 @@
 <?php
+
 namespace DDTrace\Integrations\Psr18;
 
 use DDTrace\Http\Urls;
@@ -52,13 +53,17 @@ class Psr18Integration extends Integration
         /** @var \Psr\Http\Message\RequestInterface $request */
         $url = $request->getUri();
         $host = Urls::hostname($url);
+
         if ($host) {
             $span->meta[Tag::NETWORK_DESTINATION_NAME] = $host;
         }
+
         if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($url);
         }
+
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+
         if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
             $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
         }
