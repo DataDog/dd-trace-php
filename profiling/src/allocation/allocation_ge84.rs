@@ -57,23 +57,23 @@ struct ZendMMState {
 }
 
 unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
-    panic!("");
+    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
 unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
-    panic!("");
+    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
 unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
-    panic!("");
+    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
 unsafe fn alloc_prof_panic_gc() -> size_t {
-    panic!("");
+    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
 unsafe fn alloc_prof_panic_shutdown(_full: bool, _silent: bool) {
-    panic!("");
+    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
 impl ZendMMState {
