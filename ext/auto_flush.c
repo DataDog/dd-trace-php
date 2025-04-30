@@ -47,25 +47,31 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     char *url = ddtrace_agent_url();
 
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        ddog_SenderParameters parameters = {
-            .tracer_headers_tags = {
-                .container_id = ddtrace_get_container_id(),
-                .lang = DDOG_CHARSLICE_C_BARE("php"),
-                .lang_interpreter = (ddog_CharSlice) {.ptr = sapi_module.name, .len = strlen(sapi_module.name)},
-                .lang_vendor = DDOG_CHARSLICE_C_BARE(""),
-                .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
-                .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
-                .client_computed_top_level = false,
-                .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED(),
-            },
-            .transport = ddtrace_sidecar,
-            .instance_id = ddtrace_sidecar_instance_id,
-            .limit = limit,
-            .n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS(),
-            .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
-            .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
-        };
-        ddog_send_traces_to_sidecar(traces, &parameters);
+        if (ddtrace_sidecar) {
+            ddog_SenderParameters parameters = {
+                .tracer_headers_tags = {
+                    .container_id = ddtrace_get_container_id(),
+                    .lang = DDOG_CHARSLICE_C_BARE("php"),
+                    .lang_interpreter = (ddog_CharSlice) {.ptr = sapi_module.name, .len = strlen(sapi_module.name)},
+                    .lang_vendor = DDOG_CHARSLICE_C_BARE(""),
+                    .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
+                    .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
+                    .client_computed_top_level = false,
+                    .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED(),
+                },
+                .transport = ddtrace_sidecar,
+                .instance_id = ddtrace_sidecar_instance_id,
+                .limit = limit,
+                .n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS(),
+                .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
+                .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
+            };
+            ddog_send_traces_to_sidecar(traces, &parameters);
+        } else {
+            LOGEV(INFO, {
+                log("Skipping flushing trace as connection to sidecar failed");
+            });
+        }
     } else {
 #ifndef _WIN32
         success = true;

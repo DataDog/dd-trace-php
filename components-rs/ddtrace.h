@@ -280,13 +280,17 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
+extern void ddog_free_zend_string(struct _zend_string *s);
+
+extern void ddog_incr_refcount_zend_string(struct _zend_string *s);
+
 void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *slice);
+void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *slice);
+void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *slice);
+void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
 
 void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
                              struct _zend_string *key,

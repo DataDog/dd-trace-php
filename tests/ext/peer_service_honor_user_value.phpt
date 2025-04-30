@@ -49,12 +49,12 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
+      ["_dd.peer.service.source"]=>
+      string(12) "peer.service"
       ["db.instance"]=>
       string(3) "db1"
       ["peer.service"]=>
       string(3) "xyz"
-      ["_dd.peer.service.source"]=>
-      string(12) "peer.service"
     }
   }
   [1]=>
@@ -79,12 +79,12 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
+      ["_dd.peer.service.source"]=>
+      string(12) "peer.service"
       ["db.instance"]=>
       string(3) "db1"
       ["peer.service"]=>
       string(3) "xyz"
-      ["_dd.peer.service.source"]=>
-      string(12) "peer.service"
     }
   }
 }

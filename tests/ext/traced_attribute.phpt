@@ -65,6 +65,7 @@ spans(\DDTrace\SpanData) (3) {
       a => b
       data => dog
       _dd.base_service => traced_attribute.php
+      a => b
   recursion (traced_attribute.php, recursion, cli)
     _dd.p.dm => -0
     _dd.p.tid => %s

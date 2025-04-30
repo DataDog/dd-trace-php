@@ -42,11 +42,11 @@ static void dd_exception_to_error_msg(zend_object *exception, ddog_SpanBytes *sp
             ZSTR_VAL(exception->ce->name), status_line ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
             ZSTR_VAL(msg), ZSTR_VAL(file), line);
 
-    free(status_line);
-
     ddog_add_span_meta(span, DDOG_CHARSLICE_C("error.message"), (ddog_CharSlice){.ptr = error_text, .len = error_len});
 
     zend_string_release(file);
+    free(error_text);
+    free(status_line);
 }
 
 static void dd_exception_to_error_type(zend_object *exception, ddog_SpanBytes *span) {
@@ -84,6 +84,7 @@ static void dd_exception_to_error_type(zend_object *exception, ddog_SpanBytes *s
 
 static void dd_exception_trace_to_error_stack(zend_string *trace, ddog_SpanBytes *span) {
     ddog_add_CharSlice_span_meta_zstr(span, DDOG_CHARSLICE_C("error.stack"), trace);
+    zend_string_release(trace);
 }
 
 static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureValue *value, const ddog_CaptureConfiguration *config) {

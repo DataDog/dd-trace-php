@@ -2135,7 +2135,7 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddog_TracesBytes *traces = ddog_get_traces();
     ddtrace_serialize_closed_spans_with_cycle(traces);
 
-    zval traces_zv = dd_serialiaze_rust_traces_to_zval(traces);
+    zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
 
     if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
         ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));

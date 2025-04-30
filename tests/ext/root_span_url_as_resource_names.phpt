@@ -20,16 +20,16 @@ var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
 array(6) {
-  ["runtime-id"]=>
-  string(36) "%s"
-  ["http.url"]=>
-  string(26) "https://localhost:9999/foo"
-  ["http.method"]=>
-  string(3) "GET"
   ["_dd.p.dm"]=>
   string(2) "-0"
-  ["http.status_code"]=>
-  string(3) "200"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["http.method"]=>
+  string(3) "GET"
+  ["http.status_code"]=>
+  string(3) "200"
+  ["http.url"]=>
+  string(26) "https://localhost:9999/foo"
+  ["runtime-id"]=>
+  string(36) "%s"
 }
