@@ -7,7 +7,7 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval);
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
 
 ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace);
-zval dd_serialiaze_rust_traces_to_zval(ddog_TracesBytes *traces);
+zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces);
 
 void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_data *span);

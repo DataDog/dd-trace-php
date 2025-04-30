@@ -42,8 +42,6 @@ array(1) {
     array(3) {
       ["error.message"]=>
       string(%d) "Thrown RuntimeException: Some kind of message in %s:%d"
-      ["error.type"]=>
-      string(16) "RuntimeException"
       ["error.stack"]=>
       string(%d) "#0 {main}
 
@@ -54,6 +52,8 @@ Stack trace:
 Next Exception: This is a generic exception message in %s:%d
 Stack trace:
 #0 {main}"
+      ["error.type"]=>
+      string(16) "RuntimeException"
     }
   }
 }

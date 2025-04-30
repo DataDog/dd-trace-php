@@ -45,10 +45,10 @@ array(1) {
     array(3) {
       ["db.instance"]=>
       string(3) "db1"
-      ["net.peer.name"]=>
-      string(3) "xyz"
       ["foo"]=>
       string(3) "bar"
+      ["net.peer.name"]=>
+      string(3) "xyz"
     }
   }
 }

@@ -30,3 +30,4 @@ First
 [ddtrace] [span] Encoding span %s name='inner span',%sresource: 'datadogs are awesome'%s
 [ddtrace] [info] Flushing trace of size 2 to send-queue for %s
 [ddtrace] [info] No finished traces to be sent to the agent
+

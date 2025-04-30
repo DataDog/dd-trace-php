@@ -54,7 +54,7 @@ array(1) {
   int(42)
 }
 arg.0.0: float(42)
-arg.0.1: string(0) ""
+arg.0.1: float(0)
 
 int(42)
 arg.1: float(42)

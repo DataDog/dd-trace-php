@@ -96,3 +96,7 @@ void ddtrace_convert_to_string(zval *dst, zval *src) {
 void ddog_free_zend_string(zend_string *str) {
     zend_string_release(str);
 }
+
+void ddog_incr_refcount_zend_string(zend_string *str) {
+    zend_string_addref(str);
+}

@@ -331,7 +331,7 @@ struct ddog_AgentInfoReader *ddog_get_agent_info_reader(const struct ddog_Endpoi
  */
 ddog_CharSlice ddog_get_agent_info_env(struct ddog_AgentInfoReader *reader, bool *changed);
 
-void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces_ptr,
+void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
                                  struct ddog_SenderParameters *parameters);
 
 /**
