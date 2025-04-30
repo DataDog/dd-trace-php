@@ -35,9 +35,9 @@ dd_dump_spans();
 28
 spans(\DDTrace\SpanData) (1) {
   main (default_span_properties.php, main, cli)
-    max => 6
     _dd.p.dm => -0
     _dd.p.tid => %s
+    max => 6
     MyRange (default_span_properties.php, MyRange, cli)
     array_sum (default_span_properties.php, array_sum, cli)
       retval => 21

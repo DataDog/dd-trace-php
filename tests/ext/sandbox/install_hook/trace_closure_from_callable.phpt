@@ -36,16 +36,16 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (4) {
   foo (trace_closure_from_callable.php, foo, cli)
-    global => 1
     _dd.p.tid => %s
-  foo (trace_closure_from_callable.php, foo, cli)
     global => 1
+  foo (trace_closure_from_callable.php, foo, cli)
+    _dd.p.tid => %s
     fake => 1
-    _dd.p.tid => %s
-  foo (trace_closure_from_callable.php, foo, cli)
     global => 1
-    _dd.p.tid => %s
   foo (trace_closure_from_callable.php, foo, cli)
-    global => 1
     _dd.p.tid => %s
+    global => 1
+  foo (trace_closure_from_callable.php, foo, cli)
+    _dd.p.tid => %s
+    global => 1
 }

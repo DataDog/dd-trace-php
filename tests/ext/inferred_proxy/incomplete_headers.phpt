@@ -44,22 +44,22 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "aws-server",
         "type": "web",
         "meta": {
-            "runtime-id": "%s",
-            "http.url": "http:\/\/localhost:8888\/foo",
-            "http.method": "GET",
             "_dd.p.dm": "-0",
+            "_dd.p.tid": "%s",
             "env": "local-prod",
-            "version": "1.0",
+            "http.method": "GET",
             "http.status_code": "200",
-            "_dd.p.tid": "%s"
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "runtime-id": "%s",
+            "version": "1.0"
         },
         "metrics": {
-            "process_id": %d,
             "_dd.agent_psr": 1,
             "_sampling_priority_v1": 1,
             "php.compilation.total_time_ms": %f,
+            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "php.memory.peak_real_usage_bytes": %d
+            "process_id": %d
         }
     },
     {
