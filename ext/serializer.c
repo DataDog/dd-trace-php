@@ -1190,7 +1190,7 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
 
                     // Add error message and flag
                     zval error_msg_zv = {0}, *msg_value;
-                    if ((msg_value = zend_hash_str_add(meta, ZEND_STRL("error.msg"), &error_msg_zv))) {
+                    if ((msg_value = zend_hash_str_add(meta, ZEND_STRL("error.message"), &error_msg_zv))) {
                         ZVAL_STR(msg_value, zend_strpprintf(0, "HTTP %d Error", status));
                     }
                 }
