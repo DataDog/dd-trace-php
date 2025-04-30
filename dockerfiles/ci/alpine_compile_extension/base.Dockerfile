@@ -24,7 +24,7 @@ RUN set -eux; \
         libxml2-dev \
         gnu-libiconv-dev \
         oniguruma-dev \
-        cmake \
+        python3 \
         tar
 
 # Profiling deps

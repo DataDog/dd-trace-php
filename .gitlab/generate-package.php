@@ -251,19 +251,7 @@ if ($suffix == "-alpine") {
 ?>
     - apk add cmake gcc g++ git python3 autoconf coreutils
 <?php
-} else {
-?>
-    - |
-      if [ ! -d "/opt/cmake/3.24.4" ]
-      then
-        cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v3.24.4/cmake-3.24.4-Linux-$(uname -m).tar.gz
-        mkdir -p /opt/cmake/3.24.4
-        cd /opt/cmake/3.24.4 && tar -xf /tmp/cmake-3.24.4-Linux-$(uname -m).tar.gz --strip 1
-        echo 'export PATH="/opt/cmake/3.24.4/bin:$PATH"' >> "$BASH_ENV"
-        cd "${CI_PROJECT_DIR}"
-      fi
-<?php
-}
+ }
 ?>
     - .gitlab/build-appsec.sh <?= $suffix ?>
 
@@ -656,7 +644,7 @@ foreach ($asan_build_platforms as $platform) {
       artifacts: true
   artifacts:
     paths:
-      - "packages/datadog-setup.py"
+      - "packages/datadog-setup.php"
 
 "x-profiling phpt tests on Alpine":
   stage: verify
@@ -669,9 +657,9 @@ foreach ($asan_build_platforms as $platform) {
     - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
   before_script:
-    - apk update
-    - apk add autoconf coreutils gcc make
-    - installable_bundle=$(find . -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
+    - ls -l
+    - ls -l packages
+    - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
