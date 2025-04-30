@@ -46,6 +46,8 @@ ddog_SpanBytes *ddog_trace_new_span(ddog_TraceBytes *ptr);
 
 uintptr_t ddog_get_trace_size(ddog_TraceBytes *ptr);
 
+ddog_SpanBytes *ddog_get_span(ddog_TraceBytes *ptr, uintptr_t index);
+
 ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *ptr);
 
 void ddog_free_charslice(ddog_CharSlice slice);
@@ -70,9 +72,9 @@ void ddog_set_span_trace_id(ddog_SpanBytes *ptr, uint64_t value);
 
 uint64_t ddog_get_span_trace_id(ddog_SpanBytes *ptr);
 
-void ddog_set_span_span_id(ddog_SpanBytes *ptr, uint64_t value);
+void ddog_set_span_id(ddog_SpanBytes *ptr, uint64_t value);
 
-uint64_t ddog_get_span_span_id(ddog_SpanBytes *ptr);
+uint64_t ddog_get_span_id(ddog_SpanBytes *ptr);
 
 void ddog_set_span_parent_id(ddog_SpanBytes *ptr, uint64_t value);
 
@@ -112,6 +114,14 @@ ddog_CharSlice *ddog_span_metrics_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *
 
 void ddog_add_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key, ddog_CharSlice val);
 
+void ddog_del_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+ddog_CharSlice ddog_get_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+bool ddog_has_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key);
+
+ddog_CharSlice *ddog_span_meta_struct_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *out_count);
+
 void ddog_span_free_keys_ptr(ddog_CharSlice *keys_ptr, uintptr_t count);
 
 ddog_SpanLinkBytes *ddog_span_new_link(ddog_SpanBytes *span_ptr);
@@ -145,9 +155,6 @@ void ddog_add_event_attributes_int(ddog_SpanEventBytes *ptr, ddog_CharSlice key,
 void ddog_add_event_attributes_float(ddog_SpanEventBytes *ptr, ddog_CharSlice key, double val);
 
 ddog_CharSlice ddog_serialize_trace_into_c_string(ddog_TraceBytes *trace_ptr);
-
-void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces_ptr,
-                                 struct ddog_SenderParameters *parameters);
 
 void ddog_trace_exporter_config_new(struct ddog_TraceExporterConfig **out_handle);
 
