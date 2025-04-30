@@ -52,25 +52,6 @@ struct ZendMMState {
     free: unsafe fn(*mut c_void),
 }
 
-#[cfg(php_zts)]
-thread_local! {
-    /// Using an `UnsafeCell` here should be okay. There might not be any
-    /// synchronisation issues, as it is used in as thread local and only
-    /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
-        UnsafeCell::new(ZendMMState {
-            heap: None,
-            prev_custom_mm_alloc: None,
-            prev_custom_mm_realloc: None,
-            prev_custom_mm_free: None,
-            prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
-            alloc: alloc_prof_orig_alloc,
-            realloc: alloc_prof_orig_realloc,
-            free: alloc_prof_orig_free,
-        })
-    };
-}
-
 unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
     panic!("");
 }
@@ -83,19 +64,33 @@ unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
     panic!("");
 }
 
-#[cfg(not(php_zts))]
-static mut ZEND_MM_STATE: ZendMMState = {
-    ZendMMState {
-        heap: None,
-        prev_custom_mm_alloc: None,
-        prev_custom_mm_realloc: None,
-        prev_custom_mm_free: None,
-        prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
-        alloc: alloc_prof_panic_alloc,
-        realloc: alloc_prof_panic_realloc,
-        free: alloc_prof_panic_free,
+impl ZendMMState {
+    const fn new() -> ZendMMState {
+        ZendMMState {
+            heap: None,
+            prev_custom_mm_alloc: None,
+            prev_custom_mm_realloc: None,
+            prev_custom_mm_free: None,
+            prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
+            alloc: alloc_prof_panic_alloc,
+            realloc: alloc_prof_panic_realloc,
+            free: alloc_prof_panic_free,
+        }
     }
-};
+}
+
+#[cfg(php_zts)]
+thread_local! {
+    /// Using an `UnsafeCell` here should be okay. There might not be any
+    /// synchronisation issues, as it is used in as thread local and only
+    /// mutated in RINIT and RSHUTDOWN.
+    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
+        UnsafeCell::new(ZendMMState::new())
+    };
+}
+
+#[cfg(not(php_zts))]
+static mut ZEND_MM_STATE: ZendMMState = ZendMMState::new();
 
 #[cfg(php_zts)]
 macro_rules! tls_zend_mm_state {
