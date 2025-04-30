@@ -70,6 +70,19 @@ thread_local! {
         })
     };
 }
+
+unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
+    panic!("");
+}
+
+unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
+    panic!("");
+}
+
+unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
+    panic!("");
+}
+
 #[cfg(not(php_zts))]
 static mut ZEND_MM_STATE: ZendMMState = {
     ZendMMState {
@@ -78,9 +91,9 @@ static mut ZEND_MM_STATE: ZendMMState = {
         prev_custom_mm_realloc: None,
         prev_custom_mm_free: None,
         prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
-        alloc: alloc_prof_orig_alloc,
-        realloc: alloc_prof_orig_realloc,
-        free: alloc_prof_orig_free,
+        alloc: alloc_prof_panic_alloc,
+        realloc: alloc_prof_panic_realloc,
+        free: alloc_prof_panic_free,
     }
 };
 

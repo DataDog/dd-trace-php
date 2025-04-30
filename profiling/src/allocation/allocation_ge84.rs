@@ -56,6 +56,26 @@ struct ZendMMState {
     shutdown: unsafe fn(bool, bool),
 }
 
+unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
+    panic!("");
+}
+
+unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
+    panic!("");
+}
+
+unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
+    panic!("");
+}
+
+unsafe fn alloc_prof_panic_gc() -> size_t {
+    panic!("");
+}
+
+unsafe fn alloc_prof_panic_shutdown(_full: bool, _silent: bool) {
+    panic!("");
+}
+
 impl ZendMMState {
     const fn new() -> ZendMMState {
         ZendMMState {
@@ -71,11 +91,11 @@ impl ZendMMState {
             prev_custom_mm_free: None,
             prev_custom_mm_gc: None,
             prev_custom_mm_shutdown: None,
-            alloc: alloc_prof_orig_alloc,
-            realloc: alloc_prof_orig_realloc,
-            free: alloc_prof_orig_free,
-            gc: alloc_prof_orig_gc,
-            shutdown: alloc_prof_orig_shutdown,
+            alloc: alloc_prof_panic_alloc,
+            realloc: alloc_prof_panic_realloc,
+            free: alloc_prof_panic_free,
+            gc: alloc_prof_panic_gc,
+            shutdown: alloc_prof_panic_shutdown,
         }
     }
 }
@@ -168,6 +188,14 @@ pub fn alloc_prof_ginit() {
                 } else {
                     ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_prev_shutdown);
                 }
+            }
+        } else {
+            unsafe {
+                ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_orig_alloc);
+                ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_orig_free);
+                ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_orig_realloc);
+                ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_orig_gc);
+                ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_orig_shutdown);
             }
         }
 
