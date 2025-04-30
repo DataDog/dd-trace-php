@@ -3377,13 +3377,7 @@ jobs:
             set -u
             command -v switch-php && switch-php "${PHP_VERSION}"
             cd profiling
-            cargo test --all-features
-            if [ -d '/opt/rh/devtoolset-7' ] ; then
-              # Stupid CentOS failes in the next step if we do not cleanup or
-              # run the tests with `--release` flag which we can't for aarch64
-              # due to linking problems
-              cargo clean
-            fi
+            cargo test --release --all-features
       - run:
           name: phpt tests NTS
           command: |
