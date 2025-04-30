@@ -881,6 +881,16 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
 
+typedef struct ddog_SenderParameters {
+  struct ddog_TracerHeaderTags tracer_headers_tags;
+  struct ddog_SidecarTransport *transport;
+  struct ddog_InstanceId *instance_id;
+  uintptr_t limit;
+  int64_t n_requests;
+  int64_t buffer_size;
+  ddog_CharSlice url;
+} ddog_SenderParameters;
+
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,
   DDOG_CRASHT_BUILD_ID_TYPE_GO,
@@ -1531,16 +1541,6 @@ typedef struct ddog_Vec_TraceBytes {
 } ddog_Vec_TraceBytes;
 
 typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
-
-typedef struct ddog_SenderParameters {
-  ddog_TracerHeaderTags tracer_headers_tags;
-  ddog_SidecarTransport *transport;
-  ddog_InstanceId *instance_id;
-  uintptr_t limit;
-  int64_t n_requests;
-  int64_t buffer_size;
-  ddog_CharSlice url;
-} ddog_SenderParameters;
 
 /**
  * FFI compatible configuration for the TelemetryClient.

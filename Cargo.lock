@@ -1389,8 +1389,6 @@ dependencies = [
  "build_common 0.0.1",
  "data-pipeline",
  "datadog-ipc",
- "datadog-sidecar",
- "datadog-sidecar-ffi",
  "datadog-trace-utils",
  "ddcommon-ffi 0.0.1",
  "ddtelemetry-ffi",
@@ -1750,6 +1748,7 @@ dependencies = [
 name = "datadog-sidecar-ffi"
 version = "0.0.1"
 dependencies = [
+ "data-pipeline-ffi",
  "datadog-crashtracker-ffi",
  "datadog-ipc",
  "datadog-live-debugger",
@@ -1765,6 +1764,7 @@ dependencies = [
  "libc 0.2.173",
  "paste",
  "tempfile",
+ "tracing",
 ]
 
 [[package]]

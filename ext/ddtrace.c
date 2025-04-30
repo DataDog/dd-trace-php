@@ -1,5 +1,7 @@
 #include "components-rs/common.h"
 #include "components-rs/data-pipeline.h"
+#include "zend_API.h"
+#include "zend_hash.h"
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -2133,22 +2135,24 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddog_TracesBytes *traces = ddog_get_traces();
     ddtrace_serialize_closed_spans_with_cycle(traces);
 
-    // TODO: check how to proceed with this
-    /* if (zend_hash_num_elements(Z_ARR(traces)) == 1) { */
-    /*     ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces))); */
-    /* } else { */
-    /*     array_init(return_value); */
-    /*     zval *spans; */
-    /*     ZEND_HASH_FOREACH_VAL(Z_ARR(traces), spans) { */
-    /*         zval *span; */
-    /*         ZEND_HASH_FOREACH_VAL(Z_ARR_P(spans), span) { */
-    /*             Z_ADDREF_P(span); */
-    /*             zend_hash_next_index_insert_new(Z_ARR_P(return_value), span); */
-    /*         } ZEND_HASH_FOREACH_END(); */
-    /*     } ZEND_HASH_FOREACH_END(); */
-    /* } */
+    zval traces_zv = dd_serialiaze_rust_traces_to_zval(traces);
+
+    if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
+        ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));
+    } else {
+        array_init(return_value);
+        zval *spans;
+        ZEND_HASH_FOREACH_VAL(Z_ARR(traces_zv), spans) {
+            zval *span;
+            ZEND_HASH_FOREACH_VAL(Z_ARR_P(spans), span) {
+                Z_ADDREF_P(span);
+                zend_hash_next_index_insert_new(Z_ARR_P(return_value), span);
+            } ZEND_HASH_FOREACH_END();
+        } ZEND_HASH_FOREACH_END();
+    }
 
     ddog_free_traces(traces);
+    zval_ptr_dtor(&traces_zv);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
@@ -3492,3 +3496,4 @@ void dd_prepare_for_new_trace(void) {
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 #endif
 }
+

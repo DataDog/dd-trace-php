@@ -1563,7 +1563,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
 
     ddog_set_span_trace_id(rust_span, span->root->trace_id.low);
-    ddog_set_span_span_id(rust_span, span->span_id);
+    ddog_set_span_id(rust_span, span->span_id);
 
     if (inferred_span) {
         ddog_set_span_parent_id(rust_span, span->span_id);
@@ -1974,6 +1974,95 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     return rust_span;
 }
 
+zval dd_serialiaze_rust_traces_to_zval(ddog_TracesBytes *traces) {
+    zval traces_zv;
+    array_init(&traces_zv);
+
+    for (size_t i = 0; i < ddog_get_traces_size(traces); i++) {
+        ddog_TraceBytes *trace = ddog_get_trace(traces, i);
+        zval trace_zv;
+        array_init(&trace_zv);
+
+        for (size_t j = 0; j < ddog_get_trace_size(trace); j++) {
+            ddog_SpanBytes *span = ddog_get_span(trace, j);
+            zval span_zv;
+            array_init(&span_zv);
+
+            add_assoc_str(&span_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(ddog_get_span_trace_id(span)));
+            add_assoc_str(&span_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_get_span_id(span)));
+            add_assoc_str(&span_zv, KEY_PARENT_ID, ddtrace_span_id_as_string(ddog_get_span_parent_id(span)));
+
+            add_assoc_long(&span_zv, "start", ddog_get_span_start(span));
+            add_assoc_long(&span_zv, "duration", ddog_get_span_duration(span));
+            add_assoc_long(&span_zv, "error", ddog_get_span_error(span));
+
+            add_assoc_str(&span_zv, "name", dd_CharSlice_to_zend_string(ddog_get_span_name(span)));
+            add_assoc_str(&span_zv, "resource", dd_CharSlice_to_zend_string(ddog_get_span_resource(span)));
+            add_assoc_str(&span_zv, "service", dd_CharSlice_to_zend_string(ddog_get_span_service(span)));
+            add_assoc_str(&span_zv, "type", dd_CharSlice_to_zend_string(ddog_get_span_type(span)));
+
+            size_t meta_count = 0;
+            ddog_CharSlice *meta_keys = ddog_span_meta_get_keys(span, &meta_count);
+
+            zval meta_zv;
+            array_init(&meta_zv);
+
+            for (size_t k = 0; k < meta_count; k++) {
+                ddog_CharSlice key = meta_keys[k];
+                ddog_CharSlice value = ddog_get_span_meta(span, key);
+                if (key.len > 0) {
+                    add_assoc_str(&meta_zv, key.ptr, dd_CharSlice_to_zend_string(value));
+                }
+            }
+
+            add_assoc_zval(&span_zv, "meta", &meta_zv);
+
+            size_t metrics_count = 0;
+            ddog_CharSlice *metrics_keys = ddog_span_metrics_get_keys(span, &metrics_count);
+
+            zval metrics_zv;
+            array_init(&metrics_zv);
+
+            for (size_t k = 0; k < metrics_count; k++) {
+                ddog_CharSlice key = metrics_keys[k];
+                double value;
+                if (ddog_get_span_metrics(span, key, &value)) {
+                    add_assoc_double(&metrics_zv, key.ptr, value);
+                }
+            }
+
+            add_assoc_zval(&span_zv, "metrics", &metrics_zv);
+
+            size_t mata_struct_count = 0;
+            ddog_CharSlice *meta_struct_keys = ddog_span_meta_struct_get_keys(span, &mata_struct_count);
+
+            zval meta_struct_zv;
+            array_init(&meta_struct_zv);
+
+            for (size_t k = 0; k < mata_struct_count; k++) {
+                ddog_CharSlice key = meta_struct_keys[k];
+                ddog_CharSlice value = ddog_get_span_meta_struct(span, key);
+                if (key.len > 0) {
+                    add_assoc_str(&meta_struct_zv, key.ptr, dd_CharSlice_to_zend_string(value));
+                }
+            }
+
+            add_assoc_zval(&span_zv, "meta_struct", &meta_struct_zv);
+
+            zend_hash_next_index_insert_new(Z_ARR_P(&trace_zv), &span_zv);
+
+            ddog_span_free_keys_ptr(meta_keys, meta_count);
+            ddog_span_free_keys_ptr(metrics_keys, metrics_count);
+            ddog_span_free_keys_ptr(meta_struct_keys, mata_struct_count);
+        }
+
+        zend_hash_next_index_insert_new(Z_ARR_P(&traces_zv), &trace_zv);
+    }
+
+    return traces_zv;
+}
+
+
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
     const char uncaught[] = "Uncaught ";
     const char *data = ZSTR_VAL(msg);
@@ -2161,3 +2250,4 @@ void ddtrace_serializer_startup()
 {
     ddtrace_user_req_add_listeners(&ser_user_req_listeners);
 }
+
