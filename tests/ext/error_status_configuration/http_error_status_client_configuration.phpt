@@ -12,7 +12,7 @@ class SpanData {
 class Tag {
     const ERROR = 'error';
     const ERROR_TYPE = 'error.type';
-    const ERROR_MSG = 'error.msg';
+    const ERROR_MSG = 'error.message';
 }
 
 // Include the HttpClientIntegrationHelper class
