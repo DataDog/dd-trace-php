@@ -34,127 +34,127 @@ void ddog_trace_exporter_response_free(struct ddog_TraceExporterResponse *respon
 
 ddog_TracesBytes *ddog_get_traces(void);
 
-void ddog_free_traces(ddog_TracesBytes *ptr);
+void ddog_free_traces(ddog_TracesBytes *_traces);
 
-uintptr_t ddog_get_traces_size(ddog_TracesBytes *ptr);
+uintptr_t ddog_get_traces_size(ddog_TracesBytes *traces);
 
-ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *ptr, uintptr_t index);
+ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
 
-ddog_TraceBytes *ddog_traces_new_trace(ddog_TracesBytes *ptr);
+ddog_TraceBytes *ddog_traces_new_trace(ddog_TracesBytes *traces);
 
-ddog_SpanBytes *ddog_trace_new_span(ddog_TraceBytes *ptr);
+uintptr_t ddog_get_trace_size(ddog_TraceBytes *trace);
 
-uintptr_t ddog_get_trace_size(ddog_TraceBytes *ptr);
+ddog_SpanBytes *ddog_get_span(ddog_TraceBytes *trace, uintptr_t index);
 
-ddog_SpanBytes *ddog_get_span(ddog_TraceBytes *ptr, uintptr_t index);
+ddog_SpanBytes *ddog_trace_new_span(ddog_TraceBytes *trace);
 
-ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *ptr);
+ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *span);
 
 void ddog_free_charslice(ddog_CharSlice slice);
 
-void ddog_set_span_service(ddog_SpanBytes *ptr, ddog_CharSlice slice);
+void ddog_set_span_service(ddog_SpanBytes *span, ddog_CharSlice slice);
 
-ddog_CharSlice ddog_get_span_service(ddog_SpanBytes *ptr);
+ddog_CharSlice ddog_get_span_service(ddog_SpanBytes *span);
 
-void ddog_set_span_name(ddog_SpanBytes *ptr, ddog_CharSlice slice);
+void ddog_set_span_name(ddog_SpanBytes *span, ddog_CharSlice slice);
 
-ddog_CharSlice ddog_get_span_name(ddog_SpanBytes *ptr);
+ddog_CharSlice ddog_get_span_name(ddog_SpanBytes *span);
 
-void ddog_set_span_resource(ddog_SpanBytes *ptr, ddog_CharSlice slice);
+void ddog_set_span_resource(ddog_SpanBytes *span, ddog_CharSlice slice);
 
-ddog_CharSlice ddog_get_span_resource(ddog_SpanBytes *ptr);
+ddog_CharSlice ddog_get_span_resource(ddog_SpanBytes *span);
 
-void ddog_set_span_type(ddog_SpanBytes *ptr, ddog_CharSlice slice);
+void ddog_set_span_type(ddog_SpanBytes *span, ddog_CharSlice slice);
 
-ddog_CharSlice ddog_get_span_type(ddog_SpanBytes *ptr);
+ddog_CharSlice ddog_get_span_type(ddog_SpanBytes *span);
 
-void ddog_set_span_trace_id(ddog_SpanBytes *ptr, uint64_t value);
+void ddog_set_span_trace_id(ddog_SpanBytes *span, uint64_t value);
 
-uint64_t ddog_get_span_trace_id(ddog_SpanBytes *ptr);
+uint64_t ddog_get_span_trace_id(ddog_SpanBytes *span);
 
-void ddog_set_span_id(ddog_SpanBytes *ptr, uint64_t value);
+void ddog_set_span_id(ddog_SpanBytes *span, uint64_t value);
 
-uint64_t ddog_get_span_id(ddog_SpanBytes *ptr);
+uint64_t ddog_get_span_id(ddog_SpanBytes *span);
 
-void ddog_set_span_parent_id(ddog_SpanBytes *ptr, uint64_t value);
+void ddog_set_span_parent_id(ddog_SpanBytes *span, uint64_t value);
 
-uint64_t ddog_get_span_parent_id(ddog_SpanBytes *ptr);
+uint64_t ddog_get_span_parent_id(ddog_SpanBytes *span);
 
-void ddog_set_span_start(ddog_SpanBytes *ptr, int64_t value);
+void ddog_set_span_start(ddog_SpanBytes *span, int64_t value);
 
-int64_t ddog_get_span_start(ddog_SpanBytes *ptr);
+int64_t ddog_get_span_start(ddog_SpanBytes *span);
 
-void ddog_set_span_duration(ddog_SpanBytes *ptr, int64_t value);
+void ddog_set_span_duration(ddog_SpanBytes *span, int64_t value);
 
-int64_t ddog_get_span_duration(ddog_SpanBytes *ptr);
+int64_t ddog_get_span_duration(ddog_SpanBytes *span);
 
-void ddog_set_span_error(ddog_SpanBytes *ptr, int32_t value);
+void ddog_set_span_error(ddog_SpanBytes *span, int32_t value);
 
-int32_t ddog_get_span_error(ddog_SpanBytes *ptr);
+int32_t ddog_get_span_error(ddog_SpanBytes *span);
 
-void ddog_add_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key, ddog_CharSlice val);
+void ddog_add_span_meta(ddog_SpanBytes *span, ddog_CharSlice key, ddog_CharSlice value);
 
-void ddog_del_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key);
+void ddog_del_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
 
-ddog_CharSlice ddog_get_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key);
+ddog_CharSlice ddog_get_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
 
-bool ddog_has_span_meta(ddog_SpanBytes *ptr, ddog_CharSlice key);
+bool ddog_has_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
 
-ddog_CharSlice *ddog_span_meta_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *out_count);
+ddog_CharSlice *ddog_span_meta_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
 
-void ddog_add_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key, double val);
+void ddog_add_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key, double val);
 
-void ddog_del_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key);
+void ddog_del_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key);
 
-bool ddog_get_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key, double *result);
+bool ddog_get_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key, double *result);
 
-bool ddog_has_span_metrics(ddog_SpanBytes *ptr, ddog_CharSlice key);
+bool ddog_has_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key);
 
-ddog_CharSlice *ddog_span_metrics_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *out_count);
+ddog_CharSlice *ddog_span_metrics_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
 
-void ddog_add_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key, ddog_CharSlice val);
+void ddog_add_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key, ddog_CharSlice val);
 
-void ddog_del_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key);
+void ddog_del_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
 
-ddog_CharSlice ddog_get_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key);
+ddog_CharSlice ddog_get_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
 
-bool ddog_has_span_meta_struct(ddog_SpanBytes *ptr, ddog_CharSlice key);
+bool ddog_has_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
 
-ddog_CharSlice *ddog_span_meta_struct_get_keys(ddog_SpanBytes *span_ptr, uintptr_t *out_count);
+ddog_CharSlice *ddog_span_meta_struct_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
 
 void ddog_span_free_keys_ptr(ddog_CharSlice *keys_ptr, uintptr_t count);
 
-ddog_SpanLinkBytes *ddog_span_new_link(ddog_SpanBytes *span_ptr);
+ddog_SpanLinkBytes *ddog_span_new_link(ddog_SpanBytes *span);
 
-void ddog_set_link_tracestate(ddog_SpanLinkBytes *ptr, ddog_CharSlice slice);
+void ddog_set_link_tracestate(ddog_SpanLinkBytes *link, ddog_CharSlice slice);
 
-void ddog_set_link_trace_id(ddog_SpanLinkBytes *ptr, uint64_t val);
+void ddog_set_link_trace_id(ddog_SpanLinkBytes *link, uint64_t value);
 
-void ddog_set_link_trace_id_high(ddog_SpanLinkBytes *ptr, uint64_t val);
+void ddog_set_link_trace_id_high(ddog_SpanLinkBytes *link, uint64_t value);
 
-void ddog_set_link_span_id(ddog_SpanLinkBytes *ptr, uint64_t val);
+void ddog_set_link_span_id(ddog_SpanLinkBytes *link, uint64_t value);
 
-void ddog_set_link_flags(ddog_SpanLinkBytes *ptr, uint64_t val);
+void ddog_set_link_flags(ddog_SpanLinkBytes *link, uint64_t value);
 
-void ddog_add_link_attributes(ddog_SpanLinkBytes *ptr, ddog_CharSlice key, ddog_CharSlice val);
+void ddog_add_link_attributes(ddog_SpanLinkBytes *link, ddog_CharSlice key, ddog_CharSlice val);
 
-ddog_SpanEventBytes *ddog_span_new_event(ddog_SpanBytes *span_ptr);
+ddog_SpanEventBytes *ddog_span_new_event(ddog_SpanBytes *span);
 
-void ddog_set_event_name(ddog_SpanEventBytes *ptr, ddog_CharSlice slice);
+void ddog_set_event_name(ddog_SpanEventBytes *event, ddog_CharSlice slice);
 
-void ddog_set_event_time(ddog_SpanEventBytes *ptr, uint64_t val);
+void ddog_set_event_time(ddog_SpanEventBytes *event, uint64_t val);
 
-void ddog_add_event_attributes_str(ddog_SpanEventBytes *ptr,
+void ddog_add_event_attributes_str(ddog_SpanEventBytes *event,
                                    ddog_CharSlice key,
                                    ddog_CharSlice val);
 
-void ddog_add_event_attributes_bool(ddog_SpanEventBytes *ptr, ddog_CharSlice key, bool val);
+void ddog_add_event_attributes_bool(ddog_SpanEventBytes *event, ddog_CharSlice key, bool val);
 
-void ddog_add_event_attributes_int(ddog_SpanEventBytes *ptr, ddog_CharSlice key, int64_t val);
+void ddog_add_event_attributes_int(ddog_SpanEventBytes *event, ddog_CharSlice key, int64_t val);
 
-void ddog_add_event_attributes_float(ddog_SpanEventBytes *ptr, ddog_CharSlice key, double val);
+void ddog_add_event_attributes_float(ddog_SpanEventBytes *event, ddog_CharSlice key, double val);
 
-ddog_CharSlice ddog_serialize_trace_into_c_string(ddog_TraceBytes *trace_ptr);
+ddog_CharSlice ddog_serialize_trace_into_c_string(ddog_TraceBytes *trace);
 
 void ddog_trace_exporter_config_new(struct ddog_TraceExporterConfig **out_handle);
 
@@ -225,6 +225,12 @@ struct ddog_TraceExporterError *ddog_trace_exporter_config_enable_telemetry(stru
  */
 struct ddog_TraceExporterError *ddog_trace_exporter_config_set_compute_stats(struct ddog_TraceExporterConfig *config,
                                                                              bool is_enabled);
+
+/**
+ * Sets the `X-Datadog-Test-Session-Token` header. Only used for testing with the test agent.
+ */
+struct ddog_TraceExporterError *ddog_trace_exporter_config_set_test_session_token(struct ddog_TraceExporterConfig *config,
+                                                                                  ddog_CharSlice token);
 
 /**
  * Create a new TraceExporter instance.

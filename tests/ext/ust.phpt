@@ -43,28 +43,28 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(%d) {
-      ["runtime-id"]=>
-      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
-      ["env"]=>
-      string(8) "env_test"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["env"]=>
+      string(8) "env_test"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(%d) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }
@@ -88,30 +88,30 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(%d) {
-      ["runtime-id"]=>
-      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
-      ["env"]=>
-      string(8) "env_test"
-      ["version"]=>
-      string(5) "5.2.0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["env"]=>
+      string(8) "env_test"
+      ["runtime-id"]=>
+      string(36) "%s"
+      ["version"]=>
+      string(5) "5.2.0"
     }
     ["metrics"]=>
     array(%d) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }
