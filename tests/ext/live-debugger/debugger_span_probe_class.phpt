@@ -2,6 +2,7 @@
 Installing a live debugger span probe on a class
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow'); ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
