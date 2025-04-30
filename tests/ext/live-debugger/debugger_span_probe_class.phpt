@@ -50,11 +50,15 @@ $ordered = [];
 $events = 0;
 $time = time();
 do {
-    $log = $dlr->waitForDiagnosticsDataAndReplay();
-    foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
-        $diagnostic = $payload["debugger"]["diagnostics"];
-        $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
-        ++$events;
+    try {
+        $log = $dlr->waitForDiagnosticsDataAndReplay();
+        foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
+            $diagnostic = $payload["debugger"]["diagnostics"];
+            $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
+            ++$events;
+        }
+    } catch (Exception $e) {
+        // handle the timeout?
     }
 } while ($events < 5 && $time > time() - 10);
 ksort($ordered);
