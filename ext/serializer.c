@@ -1932,67 +1932,10 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         ddog_set_span_error(serialized_inferred_span, ddog_get_span_error(rust_span));
     }
 
-    /* LOGEV(SPAN, { */
-    /*     ddog_CharSlice span_log = ddog_span_debug_log(rust_span); */
-    /*     log("Encoding span: %s", span_log.ptr); */
-    /*     ddog_free_charslice(span_log); */
-    /* }); */
-
     LOGEV(SPAN, {
-        smart_str meta_str = {0};
-        size_t meta_count = 0;
-        ddog_CharSlice *meta_keys = ddog_span_meta_get_keys(rust_span, &meta_count);
-        if (meta_keys && meta_count > 0) {
-            for (size_t i = 0; i < meta_count; i++) {
-                ddog_CharSlice key = meta_keys[i];
-                ddog_CharSlice value = ddog_get_span_meta(rust_span, key);
-                if (meta_str.s) {
-                    smart_str_appends(&meta_str, ", ");
-                }
-                smart_str_appends(&meta_str, key.len ? key.ptr: "");
-                smart_str_appends(&meta_str, "='");
-                smart_str_appends(&meta_str, value.len ? value.ptr: "");
-                smart_str_appendc(&meta_str, '\'');
-                ddog_free_charslice(value);
-            }
-            smart_str_0(&meta_str);
-        }
-
-        smart_str metrics_str = {0};
-        size_t metrics_count = 0;
-        ddog_CharSlice *metrics_keys = ddog_span_metrics_get_keys(rust_span, &metrics_count);
-        if (metrics_keys && metrics_count > 0) {
-            for (size_t i = 0; i < metrics_count; i++) {
-                ddog_CharSlice key = metrics_keys[i];
-                double value;
-                ddog_get_span_metrics(rust_span, key, &value);
-                if (metrics_str.s) {
-                    smart_str_appends(&metrics_str, ", ");
-                }
-                smart_str_appends(&metrics_str, key.len ? key.ptr: "");
-                smart_str_appends(&metrics_str, "='");
-                smart_str_append_double(&metrics_str, value, 12, false);
-                smart_str_appendc(&metrics_str, '\'');
-            }
-            smart_str_0(&metrics_str);
-        }
-
-        ddog_CharSlice span_name = ddog_get_span_name(rust_span);
-        log("Encoding span %" PRIu64 ": trace_id=%s, name='%s', service='%s', resource: '%s', type '%s' with tags: %s; and metrics: %s",
-            span->span_id,
-            Z_STRVAL(span->root->property_trace_id), span_name.ptr ? span_name.ptr : "",
-            Z_TYPE(prop_service_as_string) == IS_STRING ? Z_STRVAL(prop_service_as_string) : "",
-            Z_TYPE(prop_resource_as_string) == IS_STRING ? Z_STRVAL(prop_resource_as_string) : "",
-            Z_TYPE(prop_type_as_string) == IS_STRING ? Z_STRVAL(prop_type_as_string) : "",
-            meta_str.s ? ZSTR_VAL(meta_str.s) : "-",
-            metrics_str.s ? ZSTR_VAL(metrics_str.s) : "-"
-        );
-        ddog_free_charslice(span_name);
-        ddog_span_free_keys_ptr(meta_keys, meta_count);
-        ddog_span_free_keys_ptr(metrics_keys, metrics_count);
-
-        smart_str_free(&meta_str);
-        smart_str_free(&metrics_str);
+        ddog_CharSlice span_log = ddog_span_debug_log(rust_span);
+        log("Encoding span: %s", span_log.ptr);
+        ddog_free_charslice(span_log);
     });
 
     zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);
@@ -2054,6 +1997,11 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
                 add_assoc_long(&span_zv, "error", error);
             }
 
+            double error = ddog_get_span_error(span);
+            if (error != 0) {
+                add_assoc_long(&span_zv, "error", error);
+            }
+
             size_t meta_count = 0;
             ddog_CharSlice *meta_keys = ddog_span_meta_get_keys(span, &meta_count);
 
@@ -2068,8 +2016,6 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
                     zval value_zv;
                     ZVAL_STR(&value_zv, dd_CharSlice_to_zend_string(value));
                     zend_hash_str_update(Z_ARR(meta_zv), key.ptr, key.len, &value_zv);
-
-                    ddog_free_charslice(value);
                 }
 
                 add_assoc_zval(&span_zv, "meta", &meta_zv);

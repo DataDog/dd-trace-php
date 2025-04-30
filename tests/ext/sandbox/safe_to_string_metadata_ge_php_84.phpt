@@ -80,7 +80,6 @@ array(1) {
   string(9) "recursive"
 }
 arg.0.0: string(9) "recursive"
-arg.0.1: string(0) ""
 
 string(16) "already a string"
 arg.1: string(16) "already a string"
