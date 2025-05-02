@@ -657,8 +657,6 @@ foreach ($asan_build_platforms as $platform) {
     - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
   before_script:
-    - ls -l
-    - ls -l packages
     - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
