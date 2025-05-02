@@ -370,7 +370,7 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset,
                 count_value_offset: alloc_samples_offset,
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst),
             };
             let values_offset = [alloc_size_offset, alloc_samples_offset];
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
@@ -1582,6 +1582,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
+            profiling_allocation_sampling_distance: 4194304,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,

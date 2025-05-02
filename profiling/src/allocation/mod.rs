@@ -6,7 +6,7 @@ use log::{error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub mod allocation_ge84;
@@ -14,7 +14,7 @@ pub mod allocation_ge84;
 pub mod allocation_le83;
 
 /// take a sample every 4096 KiB
-pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
+pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 4096);
 
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
@@ -36,7 +36,8 @@ pub struct AllocationProfilingStats {
 impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
         // Safety: this will only error if lambda <= 0
-        let poisson = Poisson::new(ALLOCATION_PROFILING_INTERVAL).unwrap();
+        let poisson =
+            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
@@ -94,6 +95,32 @@ pub fn alloc_prof_startup() {
     allocation_le83::alloc_prof_startup();
 }
 
+pub fn alloc_prof_first_rinit() {
+    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_allocation_enabled)
+            .unwrap_or(false)
+    });
+
+    if !allocation_profiling {
+        return;
+    }
+
+    let sampling_distance = REQUEST_LOCALS.with(|cell| {
+        match cell.try_borrow() {
+            Ok(locals) => locals.system_settings().profiling_allocation_sampling_distance,
+            Err(_err) => {
+                error!("Allocation profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
+                1024 * 4096
+            }
+        }
+    });
+
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
+
+    trace!("Memory allocation profiling initialized with a sampling distance of {} bytes.", ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst));
+}
+
 pub fn alloc_prof_rinit() {
     let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
         match cell.try_borrow() {
@@ -116,8 +143,6 @@ pub fn alloc_prof_rinit() {
     allocation_le83::alloc_prof_rinit();
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_rinit();
-
-    trace!("Memory allocation profiling enabled.")
 }
 
 pub fn alloc_prof_rshutdown() {
