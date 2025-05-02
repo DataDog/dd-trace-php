@@ -175,3 +175,47 @@ impl Uploader {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_internal_metadata() {
+        // Set up all counters with known values
+        EXCEPTION_PROFILING_EXCEPTION_COUNT.store(42, Ordering::SeqCst);
+        ALLOCATION_PROFILING_COUNT.store(100, Ordering::SeqCst);
+        ALLOCATION_PROFILING_SIZE.store(1024, Ordering::SeqCst);
+
+        // Call the function under test
+        let metadata = Uploader::create_internal_metadata();
+
+        // Verify the result
+        #[cfg(not(any(feature = "exception_profiling", feature = "allocation_profiling")))]
+        {
+            assert!(metadata.is_none());
+            return;
+        }
+        assert!(metadata.is_some());
+        let metadata = metadata.unwrap();
+
+        // The metadata should contain all counts
+
+        #[cfg(feature = "exception_profiling")]
+        assert_eq!(
+            metadata.get("exceptions_count").and_then(|v| v.as_u64()),
+            Some(42)
+        );
+        #[cfg(feature = "allocation_profiling")]
+        {
+            assert_eq!(
+                metadata.get("allocations_count").and_then(|v| v.as_u64()),
+                Some(100)
+            );
+            assert_eq!(
+                metadata.get("allocations_size").and_then(|v| v.as_u64()),
+                Some(1024)
+            );
+        }
+    }
+}
