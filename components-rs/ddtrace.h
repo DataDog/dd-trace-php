@@ -199,8 +199,6 @@ bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remo
 void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
                               const struct ddog_LiveDebuggerSetup *setup);
 
-void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);
-
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
 void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
