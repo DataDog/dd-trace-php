@@ -49,22 +49,26 @@ impl Uploader {
     /// This function will not only create the internal metadata JSON representation, but is also
     /// in charge to reset all those counters back to 0.
     fn create_internal_metadata() -> Option<serde_json::Value> {
-        #[cfg(all(feature = "exception_profiling", feature = "allocation_profiling"))]
-        Some(json!({
-            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
-            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
-            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
-        }));
-        #[cfg(feature = "allocation_profiling")]
-        Some(json!({
-            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
-            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
-        }));
-        #[cfg(feature = "exception_profiling")]
-        Some(json!({
-            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
-        }));
-        None
+        cfg_if::cfg_if! {
+            if #[cfg(all(feature = "exception_profiling", feature = "allocation_profiling"))] {
+                Some(json!({
+                    "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
+                    "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
+                    "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+                }))
+            } else if #[cfg(feature = "allocation_profiling")] {
+                Some(json!({
+                    "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
+                    "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+                }))
+            } else if #[cfg(feature = "exception_profiling")] {
+                Some(json!({
+                    "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
+                }))
+            } else {
+                None
+            }
+        }
     }
 
     fn create_profiler_info(&self) -> Option<serde_json::Value> {
