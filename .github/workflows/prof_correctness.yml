@@ -101,7 +101,7 @@ jobs:
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
           php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
-          unset DD_PROFILING_ALLOCATIONS_SAMPLING_DISTANCE
+          unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run ZTS tests
         if: matrix.phpts == 'zts'
