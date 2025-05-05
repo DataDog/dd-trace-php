@@ -2,19 +2,6 @@
 
 include "generate-common.php";
 
-$php_versions_to_abi = [
-    "7.0" => "20151012",
-    "7.1" => "20160303",
-    "7.2" => "20170718",
-    "7.3" => "20180731",
-    "7.4" => "20190902",
-    "8.0" => "20200930",
-    "8.1" => "20210902",
-    "8.2" => "20220829",
-    "8.3" => "20230831",
-    "8.4" => "20240924",
-];
-
 $build_platforms = [
     [
         "triplet" => "x86_64-alpine-linux-musl",
@@ -73,8 +60,6 @@ $asan_build_platforms = [
     ]
 ];
 
-$asan_php_versions = array_values(array_filter(array_keys($php_versions_to_abi), function($v) { return version_compare($v, "7.4", ">="); }));
-
 $windows_build_platforms = [
     [
         "triplet" => "x86_64-pc-windows-msvc",
@@ -87,12 +72,7 @@ $windows_build_platforms = [
     ],
 ];
 
-$windows_php_versions = array_values(array_filter(array_keys($php_versions_to_abi), function($v) { return version_compare($v, "7.2", ">="); }));
-
-$profiler_php_versions = array_values(array_filter(array_keys($php_versions_to_abi), function($v) { return version_compare($v, "7.1", ">="); }));
-
 ?>
-
 
 stages:
   - prepare
@@ -180,7 +160,7 @@ foreach ($build_platforms as $platform) {
 }
 
 foreach ($build_platforms as $platform) {
-    foreach ($profiler_php_versions as $major_minor) {
+    foreach ($profiler_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor]
 ?>
 "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
@@ -414,7 +394,7 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
 
 <?php
 foreach ($asan_build_platforms as $platform) {
-    foreach ($asan_php_versions as $major_minor) {
+    foreach ($asan_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor];
         $image = sprintf($platform['image_template'], $major_minor);
 ?>
@@ -446,7 +426,7 @@ foreach ($asan_build_platforms as $platform) {
 
 <?php
 foreach ($windows_build_platforms as $platform) {
-    foreach ($windows_php_versions as $major_minor) {
+    foreach ($windows_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor];
         $image = sprintf($platform['image_template'], $major_minor);
 ?>
@@ -579,7 +559,7 @@ foreach ($build_platforms as $platform) {
       artifacts: true
 
 <?php
-    foreach ($profiler_php_versions as $major_minor) {
+    foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
     # Profiler extension
     - job: "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -594,14 +574,14 @@ foreach ($build_platforms as $platform) {
   variables:
     TRIPLET: "x86_64-pc-windows-msvc"
   script:
-    - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']) ?>
+    - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']), "\n" ?>
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
       artifacts: true
 <?php
-foreach ($windows_php_versions as $major_minor) {
+foreach ($windows_minor_major_targets as $major_minor) {
 ?>
     - job: "compile extension windows: [<?= $major_minor ?>]"
       artifacts: true
@@ -619,7 +599,7 @@ foreach ($windows_php_versions as $major_minor) {
       artifacts: true
 <?php
 foreach ($asan_build_platforms as $platform) {
-    foreach ($asan_php_versions as $major_minor) {
+    foreach ($asan_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor];
 ?>
     - job: "compile tracing extension asan: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -652,9 +632,11 @@ foreach ($asan_build_platforms as $platform) {
   tags: [ "arch:amd64" ]
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($profiler_php_versions), "\n" ?>
+      - PHP_VERSION: <?= json_encode($profiler_minor_major_targets), "\n" ?>
   needs:
     - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: datadog-setup.php
       artifacts: true
   before_script:
     - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
@@ -662,3 +644,514 @@ foreach ($asan_build_platforms as $platform) {
     - phpize # run phpize just to get run-tests.php
   script:
     - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+
+.randomized_tests:
+  stage: verify
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with make, php and git pre-installed
+  variables:
+    KUBERNETES_CPU_REQUEST: 7
+    KUBERNETES_MEMORY_REQUEST: 30Gi
+    KUBERNETES_MEMORY_LIMIT: 40Gi
+    RUST_BACKTRACE: 1
+  before_script:
+    - apt install -y php git make
+    - mkdir build
+    - mv packages build
+    - make -C tests/randomized library.local # Copy tracer package
+    - make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS NUMBER_OF_SCENARIOS=4
+  script:
+    - make -C tests/randomized test CONCURRENT_JOBS=2 DURATION=1m30s # Execute
+  after_script:
+  # - sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
+    - make -C tests/randomized analyze
+  artifacts:
+    paths:
+      - tests/randomized/.tmp.scenarios/.results
+
+
+<?php foreach (range(1, 5) as $i): ?>
+"randomized tests: [amd64, no-asan, <?= $i ?>]":
+  extends: .randomized_tests
+  tags: [ "docker-in-docker:amd64" ]
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+
+<?php endforeach; ?>
+
+<?php foreach (range(1, 5) as $i): ?>
+"randomized tests: [amd64, asan, <?= $i ?>]":
+  extends: .randomized_tests
+  tags: [ "docker-in-docker:amd64" ]
+  needs:
+    - job: "package extension asan"
+      artifacts: true
+
+<?php endforeach; ?>
+
+<?php foreach (range(1, 5) as $i): ?>
+"randomized tests: [arm64, no-asan, <?= $i ?>]":
+  extends: .randomized_tests
+  tags: [ "runner:docker-arm" ]
+  needs:
+    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+
+<?php endforeach; ?>
+
+<?php foreach (range(1, 5) as $i): ?>
+"randomized tests: [arm64, asan, <?= $i ?>]":
+  extends: .randomized_tests
+  tags: [ "runner:docker-arm" ]
+  needs:
+    - job: "package extension asan"
+      artifacts: true
+
+<?php endforeach; ?>
+
+"installer tests":
+  stage: verify
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  tags: [ "docker-in-docker:amd64" ]
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    RUST_BACKTRACE: 1
+  before_script:
+    - mkdir build
+    - mv packages build
+  script:
+    - make -C dockerfiles/verify_packages test_installer
+
+"test early PHP 8.1":
+  stage: verify
+  image: registry.ddbuild.io/images/mirror/ubuntu:jammy
+  tags: [ "arch:amd64" ]
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    RUST_BACKTRACE: 1
+  before_script:
+   - apt-get update -y
+   - DEBIAN_FRONTEND=noninteractive apt-get install -y php8.1 php8.1-dom php-pear
+   - rm /etc/php/8.1/cli/conf.d/10-opcache.ini
+  script:
+    - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
+    - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
+    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+
+"framework test":
+  stage: verify
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  tags: [ "docker-in-docker:amd64" ]
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+  parallel:
+    matrix:
+      - TESTSUITE:
+        - flow
+        - flow_no_ddtrace
+        - mongodb-driver
+        - mongodb-driver_no_ddtrace
+        - phpredis3
+        - phpredis3_no_ddtrace
+        - phpredis4
+        - phpredis4_no_ddtrace
+        - phpredis5
+        - phpredis5_no_ddtrace
+        - wordpress
+        - wordpress_no_ddtrace
+
+        # The dd-trace-ci:php-framework-laravel docker image needs to be modified to handle the laravel queue integration
+        # - laravel_no_ddtrace
+        # - laravel
+        # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
+        # - symfony_no_ddtrace
+        # - symfony
+  before_script:
+    - mkdir build
+    - mv packages build
+  script:
+    - make -f dockerfiles/frameworks/Makefile $TESTSUITE
+  artifacts:
+    paths:
+      - tests/randomized/.tmp.scenarios/.results
+
+.verify_job:
+  stage: verify
+  image: "registry.ddbuild.io/images/mirror/$IMAGE"
+  tags: [ "arch:amd64" ]
+  services:
+    - !reference [.services, request-replayer]
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    DD_AGENT_HOST: request-replayer
+    DD_TRACE_AGENT_PORT: 80
+    DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+    VERIFY_APACHE: yes
+  script:
+    - ./dockerfiles/verify_packages/verify.sh
+
+
+"verify alpine":
+  extends: .verify_job
+  variables:
+    VERIFY_APACHE: no
+  parallel:
+    matrix:
+      - INSTALL_PACKAGES: php7 php7-fpm php7-json
+        IMAGE:
+          - alpine:3.8
+          - alpine:3.9
+          - alpine:3.10
+          - alpine:3.11
+          - alpine:3.12
+          - alpine:3.15
+        INSTALL_TYPE: &verify_install_types
+        - php_installer
+        - native_package
+      - INSTALL_PACKAGES: php php-fpm php-json
+        IMAGE:
+          - alpine:3.15
+          - alpine:3.16
+          - alpine:3.17
+          - alpine:3.20
+          - alpine:latest
+        INSTALL_TYPE: *verify_install_types
+      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+        INSTALL_TYPE: *verify_install_types
+  needs:
+    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  before_script: &verify_alpine_before_script
+    - mkdir build
+    - mv packages build
+    - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+    - apk add curl ${INSTALL_PACKAGES:-}
+
+"verify centos":
+  extends: .verify_job
+  variables:
+    IMAGE: centos:7
+  parallel:
+    matrix:
+      - PHP_MINOR_MAJOR:
+          - 70
+          - 71
+          - 72
+          - 73
+          - 74
+          - 80
+          - 81
+          - 82
+          - 83
+        INSTALL_TYPE: *verify_install_types
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  before_script:
+    - mkdir build
+    - mv packages build
+    - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
+    - sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+    - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
+    - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
+    - yum update -y
+
+"verify debian":
+  extends: .verify_job
+  variables:
+    INSTALL_MODE: sury
+  parallel:
+    matrix:
+      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+        INSTALL_TYPE: *verify_install_types
+        IMAGE:
+          - "debian:bullseye"
+          - "debian:bookworm"
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  before_script:
+    - mkdir build
+    - mv packages build
+    - apt-get install -y curl
+
+<?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
+"verify .tar.gz: [<?= $arch ?>]":
+  stage: verify
+  image: debian:bullseye
+  tags: [ "arch:<?= $arch ?>" ]
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    PHP_VERSION: "<?= $major_minor ?>"
+  needs:
+    - job: "package extension: [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  before_script:
+    - mkdir build
+    - mv packages build
+  script:
+    - ./dockerfiles/verify_packages/verify_tar_gz_root.sh
+
+<?php endforeach; ?>
+
+"verify no json ext":
+  stage: verify
+  image: registry.ddbuild.io/images/mirror/alpine:3.12
+  tags: [ "arch:amd64" ]
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+  needs:
+    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+  before_script: *verify_alpine_before_script
+  script:
+    - ./dockerfiles/verify_packages/verify_no_ext_json.sh
+
+"verify windows":
+  stage: verify
+  tags: [ "windows-v2:2019"]
+  needs:
+    - job: "package extension windows"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  before_script:
+    - mkdir build
+    - move packages build
+  script:
+    - .\dockerfiles\verify_packages\verify_windows.ps1
+
+"pecl tests":
+  stage: verify
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_buster"
+  tags: [ "arch:amd64" ]
+  services:
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+  variables:
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 5Gi
+  parallel:
+    matrix:
+      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+  needs:
+    - job: "pecl build"
+      artifacts: true
+  script:
+    - cp ./pecl/datadog_trace-*.tgz ./datadog_trace.tgz
+    - sudo pecl install datadog_trace.tgz
+    - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
+    - php --ri=ddtrace
+    - sudo TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
+  after_script:
+    - mkdir artifacts
+    - find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' artifacts \;
+  artifacts:
+    paths:
+      - "artifacts/"
+    when: "always"
+
+"min install tests":
+  stage: verify
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.0-shared-ext
+  tags: [ "arch:amd64" ]
+  variables:
+    MAX_TEST_PARALLELISM: 8
+    DDAGENT_HOSTNAME: 127.0.0.1
+    DD_AGENT_HOST: 127.0.0.1
+    DATADOG_HAVE_DEV_ENV: 1
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+  services:
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+  before_script:
+    - switch-php debug
+  script:
+    - sudo dpkg -i packages/*amd64*.deb
+    - make run_tests TESTS="-d 'extension=/opt/datadog-php/extensions/ddtrace-$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')-debug.so' tests/ext" MAX_TEST_PARALLELISM=8
+    - make test_c
+  after_script:
+    - .gitlab/collect_artifacts.sh .
+  artifacts:
+    paths:
+      - "artifacts/"
+    when: "always"
+
+.system_tests:
+  stage: verify
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  tags: [ "docker-in-docker:amd64" ]
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    RUST_BACKTRACE: 1
+    BUILD_SH_ARGS: php
+    # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  before_script:
+    - apt-get install -y python3.12-full python3.12-dev python3.12-venv
+    - git clone https://github.com/DataDog/system-tests.git
+    - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
+    - cd system-tests
+    - ./build.sh $BUILD_SH_ARGS
+  artifacts:
+    paths:
+      - "system-tests/logs/"
+    when: "always"
+
+"System Tests: [default]":
+  extends: .system_tests
+  script:
+    - ./run.sh
+
+"System Tests":
+  extends: .system_tests
+  parallel:
+    matrix:
+      - TESTSUITE:
+        - APPSEC_API_SECURITY
+        - APPSEC_API_SECURITY_RC
+        - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - INTEGRATIONS
+        - CROSSED_TRACING_LIBRARIES
+  script:
+    - ./run.sh $TESTSUITE
+
+"System Tests: [parametric]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: "-i runner"
+  script:
+    - TEST_LIBRARY=php ./run.sh PARAMETRIC
+
+"Loader test on libc":
+  stage: verify
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_buster"
+  tags: [ "arch:$ARCH" ]
+  variables:
+    VALGRIND: false
+  needs: [] # umm, where are these packaged?
+  parallel:
+    matrix:
+      - MAJOR_MINOR:
+          - "5.6"
+          - "7.0"
+          - "7.1"
+          - "7.2"
+          - "7.3"
+        PHP_FLAVOUR: nts
+        ARCH: amd64
+      - MAJOR_MINOR:
+          - "7.0"
+          - "7.1"
+          - "7.2"
+          - "7.3"
+        PHP_FLAVOUR: nts
+        ARCH: arm64
+      - MAJOR_MINOR: <?= json_encode($asan_minor_major_targets), "\n" ?>
+        PHP_FLAVOUR:
+          - nts
+          - zts
+        ARCH: amd64
+        USE_VALGRIND: "true"
+      - MAJOR_MINOR: <?= json_encode($asan_minor_major_targets), "\n" ?>
+        PHP_FLAVOUR:
+          - nts
+          - zts
+        ARCH: arm64
+  before_script:
+    - |
+     if [[ "$MINOR_MAJOR" == "8.4" ]]; then
+       export XDEBUG_SO_NAME=xdebug-3.4.0.so
+     elif [[ "$MINOR_MAJOR" == "8.3" ]]; then
+       export XDEBUG_SO_NAME=xdebug-3.3.2.so
+     elif [[ "$MINOR_MAJOR" == "8.2" ]]; then
+       export XDEBUG_SO_NAME=xdebug-3.2.2.so
+     elif [[ "$MINOR_MAJOR" == "8.1" ]]; then
+       export XDEBUG_SO_NAME=xdebug-3.1.0.so
+     elif [[ "$MINOR_MAJOR" == "8.0" ]]; then
+       export XDEBUG_SO_NAME=xdebug-3.0.0.so
+     elif [[ "$MINOR_MAJOR" == "7.4" ]]; then
+       export XDEBUG_SO_NAME=xdebug-2.9.5.so
+     fi  
+    - switch-php $PHP_FLAVOUR
+    - tar -xzf dd-library-php-ssi-*-linux.tar.gz
+    - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
+
+    - cd loader
+    - mkdir -p modules
+    - cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
+  script:
+    - ./bin/test.sh
+
+    # FIXME: Now that we strip the symbols, our suppression file is useless
+    #if [[ "$MINOR_MAJOR" == "8.3" ]]; then
+    #  true
+    #  <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
+    #fi
+    - ./bin/check_glibc_version.sh
+
+"Loader test on alpine":
+  stage: verify
+  image: "registry.ddbuild.io/images/mirror/alpine:3.20"
+  tags: [ "arch:$ARCH" ]
+  needs: [] # umm, where are these packaged?
+  parallel:
+    matrix:
+      - ARCH:
+         - amd64
+         - arm64
+  before_script:
+    - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug
+    - export XDEBUG_SO_NAME=xdebug.so
+    - rm -rf dd-library-php-ssi
+    - tar -xzf dd-library-php-ssi-*-linux.tar.gz
+    - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
+    - cd loader
+    - mkdir -p modules
+    - cp ../dd-library-php-ssi/linux-musl/loader/dd_library_loader.so modules/
+  script:
+    - ./bin/test.sh

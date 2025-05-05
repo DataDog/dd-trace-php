@@ -23,7 +23,7 @@ do_retry yum install -y wget nginx httpd
 
 # Installing php
 do_retry rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm
-do_retry yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
+do_retry yum --enablerepo=remi-php${PHP_MINOR_MAJOR} install -y \
     php-cli \
     php-fpm \
     php-opcache \

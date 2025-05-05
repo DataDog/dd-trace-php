@@ -4969,7 +4969,6 @@ workflows:
                 - alpine:3.7
                 - alpine:3.8
                 - alpine:3.9
-                - alpine:3.9
                 - alpine:3.10
                 - alpine:3.11
                 - alpine:3.12
@@ -5003,15 +5002,15 @@ workflows:
                 - php_installer
                 - native_package
               configuration:
-                - PHP_MAJOR=7 PHP_MINOR=0
-                - PHP_MAJOR=7 PHP_MINOR=1
-                - PHP_MAJOR=7 PHP_MINOR=2
-                - PHP_MAJOR=7 PHP_MINOR=3
-                - PHP_MAJOR=7 PHP_MINOR=4
-                - PHP_MAJOR=8 PHP_MINOR=0
-                - PHP_MAJOR=8 PHP_MINOR=1
-                - PHP_MAJOR=8 PHP_MINOR=2
-                - PHP_MAJOR=8 PHP_MINOR=3
+                - PHP_MINOR_MAJOR=70
+                - PHP_MINOR_MAJOR=71
+                - PHP_MINOR_MAJOR=72
+                - PHP_MINOR_MAJOR=73
+                - PHP_MINOR_MAJOR=74
+                - PHP_MINOR_MAJOR=80
+                - PHP_MINOR_MAJOR=81
+                - PHP_MINOR_MAJOR=82
+                - PHP_MINOR_MAJOR=83
       - verify_debian:
           requires: [ "package extension" ]
           matrix:
