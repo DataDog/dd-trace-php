@@ -111,11 +111,18 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     config_key: CharSlice,
     config_value: CharSlice,
     origin: data::ConfigurationOrigin,
+    config_id: CharSlice,
 ) {
+    let config_id = if config_id.is_empty() {
+        None
+    } else {
+        Some(config_id.to_utf8_lossy().into_owned())
+    };
     let action = TelemetryActions::AddConfig(data::Configuration {
         name: config_key.to_utf8_lossy().into_owned(),
         value: config_value.to_utf8_lossy().into_owned(),
         origin,
+        config_id,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }

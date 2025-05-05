@@ -199,8 +199,6 @@ bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remo
 void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
                               const struct ddog_LiveDebuggerSetup *setup);
 
-void ddog_rinit_remote_config(struct ddog_RemoteConfigState *remote_config);
-
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
 void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
@@ -257,7 +255,8 @@ void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffe
 void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice config_key,
                                                  ddog_CharSlice config_value,
-                                                 enum ddog_ConfigurationOrigin origin);
+                                                 enum ddog_ConfigurationOrigin origin,
+                                                 ddog_CharSlice config_id);
 
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
