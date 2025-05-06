@@ -580,30 +580,30 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('internal', 'otel.trace1', null, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('internal', 'otel.trace1', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ->withExistingTagsNames(['foo1'])
                 ->withChildren(
                     SpanAssertion::exists('internal', 'otel.child1', null, 'my.service')
                         ->withExistingTagsNames(['foo2'])
                         ->withChildren(
-                            SpanAssertion::exists('internal', 'my.resource', null, 'datadog/dd-trace-tests')
+                            SpanAssertion::exists('internal', 'my.resource', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                                 ->withExistingTagsNames(['foo3'])
                         )
                 ),
-            SpanAssertion::exists('internal', 'otel.trace2', null, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('internal', 'otel.trace2', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ->withChildren(
-                    SpanAssertion::exists('dd.child2', 'dd.child2', null, 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('dd.child2', 'dd.child2', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ),
-            SpanAssertion::exists('dd.trace1', 'dd.trace1', null, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('dd.trace1', 'dd.trace1', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ->withExistingTagsNames(['foo1'])
                 ->withChildren(
-                    SpanAssertion::exists('dd.child1', 'dd.child1', null, 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('dd.child1', 'dd.child1', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ),
-            SpanAssertion::exists('dd.trace2', 'dd.trace2', null, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('dd.trace2', 'dd.trace2', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ->withChildren(
-                    SpanAssertion::exists('internal', 'otel.child2', null, 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('internal', 'otel.child2', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                         ->withChildren(
-                            SpanAssertion::exists('internal', 'otel.child4', null, 'datadog/dd-trace-tests')
+                            SpanAssertion::exists('internal', 'otel.child4', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                         )
                 ),
         ], true, false);
@@ -806,9 +806,9 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('1', $child['meta']['user.id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('server.request', 'parent', false, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('server.request', 'parent', false, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ->withChildren([
-                    SpanAssertion::exists('child', 'child', false, 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('child', 'child', false, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ])
         ], true, false);
     }
@@ -1186,12 +1186,12 @@ final class InteroperabilityTest extends BaseTestCase
             $span->name = "dd.span";
 
             $spanEvent = new SpanEvent(
-                "event-name", 
-                [ 
-                    'arg1' => 'value1', 
-                    'int_array' => [3, 4], 
+                "event-name",
+                [
+                    'arg1' => 'value1',
+                    'int_array' => [3, 4],
                     'string_array' => ["5", "6"]
-                ], 
+                ],
                 1720037568765201300
             );
             $span->events[] = $spanEvent;
@@ -1201,9 +1201,9 @@ final class InteroperabilityTest extends BaseTestCase
             $otelSpanEvent = $otelSpan->toSpanData()->getEvents()[0];
 
             $this->assertSame('event-name', $otelSpanEvent->getName());
-            $this->assertSame([ 
-                'arg1' => 'value1', 
-                'int_array' => [3, 4], 
+            $this->assertSame([
+                'arg1' => 'value1',
+                'int_array' => [3, 4],
                 'string_array' => ["5", "6"]
             ], $otelSpanEvent->getAttributes()->toArray());
             $this->assertSame(1720037568765201300, (int)$otelSpanEvent->getEpochNanos());
@@ -1221,21 +1221,21 @@ final class InteroperabilityTest extends BaseTestCase
             $otelSpan = self::getTracer()->spanBuilder("otel.span")
                 ->startSpan();
             $otelSpan->addEvent(
-                "event-name", 
-                [ 
-                    'arg1' => 'value1', 
-                    'int_array' => [3, 4], 
+                "event-name",
+                [
+                    'arg1' => 'value1',
+                    'int_array' => [3, 4],
                     'string_array' => ["5", "6"]
-                ], 
+                ],
                 1720037568765201300
             );
 
             $activeSpan = active_span();
             $spanEvent = $activeSpan->events[0];
             $this->assertSame("event-name", $spanEvent->name);
-            $this->assertSame([ 
-                'arg1' => 'value1', 
-                'int_array' => [3, 4], 
+            $this->assertSame([
+                'arg1' => 'value1',
+                'int_array' => [3, 4],
                 'string_array' => ["5", "6"]
             ], $spanEvent->attributes);
             $this->assertSame(1720037568765201300, (int)$spanEvent->timestamp);
@@ -1267,15 +1267,15 @@ final class InteroperabilityTest extends BaseTestCase
 
         $events = json_decode($traces[0][0]['meta']['events'], true);
         $this->assertCount(3, $events);
-    
+
         $event1 = $events[0];
         $this->assertSame('value', $event1['attributes']['string_val']);
         $this->assertSame('woof1', $event1['attributes']['exception.message']);
         $this->assertSame('stacktrace1', $event1['attributes']['exception.stacktrace']);
-    
+
         $event2 = $events[1];
         $this->assertSame('non-error', $event2['attributes']['exception.stacktrace']);
-    
+
         $event3 = $events[2];
         $this->assertSame('message override', $event3['attributes']['exception.message']);
 
@@ -1294,8 +1294,8 @@ final class InteroperabilityTest extends BaseTestCase
 
             $spanEvent = new ExceptionSpanEvent(
                 new \Exception("Test exception message"),
-                [ 
-                    'arg1' => 'value1', 
+                [
+                    'arg1' => 'value1',
                     'exception.stacktrace' => 'Stacktrace Override'
                 ]
             );
@@ -1307,7 +1307,7 @@ final class InteroperabilityTest extends BaseTestCase
             $otelSpanEvent = $otelSpan->toSpanData()->getEvents()[0];
 
             $this->assertSame('exception', $otelSpanEvent->getName());
-            $this->assertSame([ 
+            $this->assertSame([
                 'exception.message' => 'Test exception message',
                 'exception.type' => 'Exception',
                 'exception.stacktrace' => 'Stacktrace Override',
@@ -1329,7 +1329,7 @@ final class InteroperabilityTest extends BaseTestCase
         // //1. OpenTelemetry Baggage is Propagated to Datadog
         $otelToDatadog = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
-    
+
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_CLIENT)
                 ->startSpan();
@@ -1367,7 +1367,7 @@ final class InteroperabilityTest extends BaseTestCase
         // 3. Conflict Handling Between OpenTelemetry and Datadog Baggage Keys
         $datadogAndOtelSharingKeys = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
-    
+
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_SERVER)
                 ->startSpan();
@@ -1378,12 +1378,12 @@ final class InteroperabilityTest extends BaseTestCase
                 ->set('shared_key', 'first_value')
                 ->build();
             $baggageScope = $baggage->storeInContext(Context::getCurrent())->activate();
-    
+
             $span = start_span();
             $span->name = 'dd.span';
             $span->baggage['dd_key'] = 'dd_value';
             $span->baggage['shared_key'] = 'second_value';
-    
+
             $this->assertSame('otel_value', $span->baggage['otel_key']);
             $this->assertSame('dd_value', $span->baggage['dd_key']);
             $this->assertSame('second_value', $span->baggage['shared_key']);
@@ -1397,13 +1397,13 @@ final class InteroperabilityTest extends BaseTestCase
         // 4. OpenTelemetry Baggage Removal Reflects in Datadog
         $otelDeletedOnDatadog = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
-    
+
             $baggage = Baggage::getBuilder()
                 ->set('otel_key', 'otel_value')
                 ->set('to_be_deleted', 'should_be_deleted')
                 ->build();
             $baggageScope = $baggage->storeInContext(Context::getCurrent())->activate();
-    
+
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_SERVER)
                 ->startSpan();
@@ -1415,8 +1415,8 @@ final class InteroperabilityTest extends BaseTestCase
             $span = start_span();
             $span->name = 'dd.span';
 
-            $this->assertArrayNotHasKey("to_be_deleted", $span->baggage); 
-            $this->assertSame('otel_value', $span->baggage['otel_key']); 
+            $this->assertArrayNotHasKey("to_be_deleted", $span->baggage);
+            $this->assertSame('otel_value', $span->baggage['otel_key']);
 
             close_span();
             $baggageScope->detach();
@@ -1434,17 +1434,17 @@ final class InteroperabilityTest extends BaseTestCase
                 ->set('session', 'xyz')
                 ->build();
             $context = Context::getCurrent()->withContextValue($baggage);
-            
+
             // Step 2: Inject into Headers
             $carrier = [];
             BaggagePropagator::getInstance()->inject($carrier, null, $context);
-            
+
             // Step 3: Extract into a New Context
             $newContext = BaggagePropagator::getInstance()->extract($carrier);
-            
+
             // Step 4: Validate the Extracted Baggage Items
             $extractedBaggage = Baggage::fromContext($newContext);
-            
+
             $this->assertSame($extractedBaggage->getValue('user_id'), '12345');
             $this->assertSame($extractedBaggage->getValue('session'), 'xyz');
         });
