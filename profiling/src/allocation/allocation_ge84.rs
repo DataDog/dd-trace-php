@@ -108,6 +108,7 @@ macro_rules! tls_zend_mm_state_copy {
     };
 }
 
+#[cfg(not(php_zts))]
 macro_rules! tls_zend_mm_state_copy {
     () => {
         unsafe { (*ptr::addr_of_mut!(ZEND_MM_STATE)).get() }
