@@ -461,7 +461,7 @@ mod detail {
 
 pub use detail::*;
 
-#[cfg(all(test, stack_walking_tests))]
+#[cfg(all(test, feature = "stack_walking_tests"))]
 mod tests {
     use super::*;
     use crate::bindings as zend;

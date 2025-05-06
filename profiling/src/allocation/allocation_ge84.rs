@@ -420,7 +420,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr == prev_ptr {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr::eq(ptr, prev_ptr) {
         return ptr;
     }
 
