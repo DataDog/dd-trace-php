@@ -89,7 +89,7 @@ RUN set -eux; \
     curl -L "https://github.com/docker/compose/releases/download/v2.17.3/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose; \
     chmod +x /usr/local/bin/docker-compose; \
     which docker-compose; \
-    (docker-compose --version || true);
+    (docker compose --version || true);
 
 # symlink cmake
 RUN version=$(cmake --version | awk '/cmake version/ {print $3}') \

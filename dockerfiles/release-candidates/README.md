@@ -11,50 +11,50 @@
 
 ```bash
 # Alpine (PHP-FPM) on PHP 7.4
-$ docker-compose build alpine-7.4
-$ PHP_FPM_CONTAINER=alpine-7.4 docker-compose up -d nginx
+$ docker compose build alpine-7.4
+$ PHP_FPM_CONTAINER=alpine-7.4 docker compose up -d nginx
 
 # Debian (PHP-FPM) on PHP 7.4
-$ docker-compose build debian-7.4
-$ PHP_FPM_CONTAINER=debian-7.4 docker-compose up -d nginx
+$ docker compose build debian-7.4
+$ PHP_FPM_CONTAINER=debian-7.4 docker compose up -d nginx
 
 # Debian (PHP-FPM) on PHP 8.0
-$ docker-compose build debian-8.0
-$ PHP_FPM_CONTAINER=debian-8.0 docker-compose up -d nginx
+$ docker compose build debian-8.0
+$ PHP_FPM_CONTAINER=debian-8.0 docker compose up -d nginx
 
 # CentOS 7 (PHP-FPM) on PHP 7.2
-$ docker-compose build centos-7.2
-$ PHP_FPM_CONTAINER=centos-7.2 docker-compose up -d nginx
+$ docker compose build centos-7.2
+$ PHP_FPM_CONTAINER=centos-7.2 docker compose up -d nginx
 ```
 
 To view PHP-FPM logs:
 
 ```bash
-$ docker-compose logs -f <service-name>
+$ docker compose logs -f <service-name>
 ```
 
 ## Apache
 
 ```bash
 # Debian (Apache) on PHP 7.4
-$ docker-compose build apache-7.4
-$ PHP_FPM_CONTAINER=apache-7.4 docker-compose up -d apache-7.4
+$ docker compose build apache-7.4
+$ PHP_FPM_CONTAINER=apache-7.4 docker compose up -d apache-7.4
 ```
 
 ## PECL
 
 ```bash
 # Amazon Linux (PECL + PHP-FPM) on PHP 7.2
-$ docker-compose build pecl-7.2
-$ PHP_FPM_CONTAINER=pecl-7.2 docker-compose up -d nginx
+$ docker compose build pecl-7.2
+$ PHP_FPM_CONTAINER=pecl-7.2 docker compose up -d nginx
 
 # Alpine (PECL + PHP-FPM) on PHP 5.6
-$ docker-compose build pecl-5.6
-$ PHP_FPM_CONTAINER=pecl-5.6 docker-compose up -d nginx
+$ docker compose build pecl-5.6
+$ PHP_FPM_CONTAINER=pecl-5.6 docker compose up -d nginx
 
 # Amazon Linux (PECL + PHP-FPM) on PHP 5.5
-$ docker-compose build pecl-5.5
-$ PHP_FPM_CONTAINER=pecl-5.5 docker-compose up -d nginx
+$ docker compose build pecl-5.5
+$ PHP_FPM_CONTAINER=pecl-5.5 docker compose up -d nginx
 ```
 
 ## Wishlist

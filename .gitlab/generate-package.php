@@ -746,9 +746,10 @@ foreach ($asan_build_platforms as $platform) {
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
   before_script:
-   - apt-get update -y
-   - DEBIAN_FRONTEND=noninteractive apt-get install -y php8.1 php8.1-dom php-pear
-   - rm /etc/php/8.1/cli/conf.d/10-opcache.ini
+<?php unset_dd_runner_env_vars() ?>
+    - apt-get update -y
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y php8.1 php8.1-dom php-pear
+    - rm /etc/php/8.1/cli/conf.d/10-opcache.ini
   script:
     - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
     - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
@@ -893,7 +894,7 @@ foreach ($asan_build_platforms as $platform) {
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
         INSTALL_TYPE: *verify_install_types
         IMAGE:
-          - "debian:bullseye"
+          - "debian:bullseye-slim"
           - "debian:bookworm"
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
@@ -908,7 +909,7 @@ foreach ($asan_build_platforms as $platform) {
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
   stage: verify
-  image: registry.ddbuild.io/images/mirror/debian:bullseye
+  image: registry.ddbuild.io/images/mirror/debian:bullseye-slim
   tags: [ "arch:<?= $arch ?>" ]
   variables:
     KUBERNETES_CPU_REQUEST: 2
@@ -959,6 +960,7 @@ foreach ($asan_build_platforms as $platform) {
     - mkdir build
     - move packages build
   script:
+    - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
     - .\dockerfiles\verify_packages\verify_windows.ps1
 
 "pecl tests":
@@ -978,12 +980,14 @@ foreach ($asan_build_platforms as $platform) {
   needs:
     - job: "pecl build"
       artifacts: true
-  script:
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
     - cp ./pecl/datadog_trace-*.tgz ./datadog_trace.tgz
+  script:
     - sudo pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
-    - sudo TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
+    - sudo TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
   after_script:
     - mkdir artifacts
     - find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' artifacts \;

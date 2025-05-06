@@ -29,7 +29,7 @@ composer start
 Or you can use `docker-compose` to run the app with `docker`, so you can run these commands:
 ```bash
 cd [my-app-name]
-docker-compose up -d
+docker compose up -d
 ```
 After that, open `http://localhost:8080` in your browser.
 

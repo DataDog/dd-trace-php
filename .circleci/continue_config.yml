@@ -1152,7 +1152,7 @@ jobs:
       - run:
           name: Run tests
           command: |
-            docker-compose run --rm \
+            docker compose run --rm \
               -e DDAGENT_HOSTNAME=127.0.0.1 \
               -e DD_AGENT_HOST=127.0.0.1 \
               -e DATADOG_HAVE_DEV_ENV=1 \
@@ -4053,7 +4053,7 @@ jobs:
           name: versions
           command: |
             docker --version
-            docker-compose --version
+            docker compose --version
       - run:
           name: Clone System Tests repo
           command: git clone https://github.com/DataDog/system-tests.git

@@ -40,7 +40,7 @@ if (! file_exists('vendor/autoload.php')) {
         'Unable to load application.' . PHP_EOL
         . '- Type `composer install` if you are developing locally.' . PHP_EOL
         . '- Type `vagrant ssh -c \'composer install\'` if you are using Vagrant.' . PHP_EOL
-        . '- Type `docker-compose run api-tools composer install` if you are using Docker.'
+        . '- Type `docker compose run api-tools composer install` if you are using Docker.'
     );
 }
 

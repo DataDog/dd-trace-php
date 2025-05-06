@@ -21,9 +21,9 @@ In Apache + mod_php applications we have two different ways to set environment v
 From this directory
 
 ```
-docker-compose build
+docker compose build
 
-docker-compose up -d
+docker compose up -d
 ```
 
 Then you can access the sample `index.php` file at [http://localhost:8889](http://localhost:8889).

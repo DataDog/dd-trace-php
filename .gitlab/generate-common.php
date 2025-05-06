@@ -26,6 +26,17 @@ if (getenv('GITLAB_CI') === 'true') {
    $service_bind_address = "127.0.0.1";
 }
 
+function unset_dd_runner_env_vars() {
+?>
+
+    # DD env vars auto-added to GitLab runners for infra purposes
+    - unset DD_SERVICE
+    - unset DD_ENV
+    - unset DD_TAGS
+    - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+<?php
+}
+
 ?>
 default:
   retry:

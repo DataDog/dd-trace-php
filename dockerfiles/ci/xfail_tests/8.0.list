@@ -322,6 +322,7 @@ ext/sockets/tests/mcast_ipv6_recv_limited.phpt
 ext/sockets/tests/socket_addrinfo_bind.phpt
 ext/sockets/tests/socket_addrinfo_connect.phpt
 ext/sockets/tests/socket_create_pair.phpt
+ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_set_nonblock.phpt
 ext/sodium/tests/utils.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt

@@ -38,13 +38,9 @@ function sidecar_logs() {
 }
 
 function before_script_steps() {
+    unset_dd_runner_env_vars();
 ?>
 
-    # DD env vars auto-added to GitLab runners for infra purposes
-    - unset DD_SERVICE
-    - unset DD_ENV
-    - unset DD_TAGS
-    - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
     - switch-php "${SWITCH_PHP_VERSION}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
