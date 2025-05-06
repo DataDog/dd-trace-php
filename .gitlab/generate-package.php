@@ -655,8 +655,7 @@ foreach ($asan_build_platforms as $platform) {
     RUST_BACKTRACE: 1
   before_script:
     - apt install -y php git make
-    - mkdir build
-    - mv packages build
+    - mv packages/* .
     - make -C tests/randomized library.local # Copy tracer package
     - make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS NUMBER_OF_SCENARIOS=4
   script:
@@ -726,6 +725,7 @@ foreach ($asan_build_platforms as $platform) {
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
   before_script:
+    - apt install -y make
     - mkdir build
     - mv packages build
   script:
@@ -788,6 +788,7 @@ foreach ($asan_build_platforms as $platform) {
         # - symfony_no_ddtrace
         # - symfony
   before_script:
+    - apt install -y make
     - mkdir build
     - mv packages build
   script:
@@ -907,7 +908,7 @@ foreach ($asan_build_platforms as $platform) {
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
   stage: verify
-  image: debian:bullseye
+  image: registry.ddbuild.io/images/mirror/debian:bullseye
   tags: [ "arch:<?= $arch ?>" ]
   variables:
     KUBERNETES_CPU_REQUEST: 2
@@ -945,6 +946,10 @@ foreach ($asan_build_platforms as $platform) {
 "verify windows":
   stage: verify
   tags: [ "windows-v2:2019"]
+  variables:
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: core.longpaths
+    GIT_CONFIG_VALUE_0: true
   needs:
     - job: "package extension windows"
       artifacts: true

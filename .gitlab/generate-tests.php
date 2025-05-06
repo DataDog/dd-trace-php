@@ -2,16 +2,10 @@
 
 include "generate-common.php";
 
-// In GitLab CI we use k8s and have to bind to `127.0.0.1`
-$service_bind_address = "0.0.0.0";
-
-if (getenv('GITLAB_CI') === 'true') {
-   $service_bind_address = "127.0.0.1";
-}
-
 $arch_targets = ["amd64", "arm64"];
 
-preg_match('(^\.services(.*?)\n\S)ms', file_get_contents(__FILE__), $m);
+preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__DIR__ . "/generate-common.php"), $m);
+
 preg_match_all('(^  (\S*):)m', $m[1], $m, PREG_PATTERN_ORDER);
 $services = array_combine($m[1], $m[1]);
 
@@ -59,6 +53,7 @@ function before_script_steps() {
 <?php
 }
 ?>
+
 stages:
   - compile
   - test

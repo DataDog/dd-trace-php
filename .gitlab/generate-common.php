@@ -19,8 +19,14 @@ $asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, 
 $windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
 
-?>
+// In GitLab CI we use k8s and have to bind to `127.0.0.1`
+$service_bind_address = "0.0.0.0";
 
+if (getenv('GITLAB_CI') === 'true') {
+   $service_bind_address = "127.0.0.1";
+}
+
+?>
 default:
   retry:
     max: 2
