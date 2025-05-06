@@ -12,13 +12,13 @@ while true; do
         sleep 1
         # prevent race conditions
         if ! docker network ls | grep -q randomized-; then
-          docker compose down
+          docker-compose down
         fi
       fi
     else
       # while to make absolutely sure it's running
       while ! docker network ls | grep -q randomized_tests_baseservices || { sleep 1; ! docker network ls | grep -q randomized_tests_baseservices; }; do
-        docker compose up -d
+        docker-compose up -d
       done
     fi
     exit 0

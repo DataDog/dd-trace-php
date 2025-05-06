@@ -11,7 +11,7 @@ The post-install script is expected to be at the following location to run the t
 To run the tests from this directory:
 
 ```bash
-$ docker compose run --rm php bash
+$ docker-compose run --rm php bash
 # In the container...
 $ cd ~/datadog \
     && (supervisord) \

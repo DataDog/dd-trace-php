@@ -27,9 +27,9 @@ See PHP-FPM's [configuration page](https://www.php.net/manual/en/install.fpm.con
 From this directory
 
 ```
-docker compose build
+docker-compose build
 
-docker compose up -d
+docker-compose up -d
 ```
 
 Then you can access the sample `index.php` file at [http://localhost:8888](http://localhost:8888).

@@ -3,18 +3,18 @@
 #
 # Start the server using docker-compose:
 #
-#   docker compose build
-#   docker compose up
+#   docker-compose build
+#   docker-compose up
 #
 # You can install dependencies via the container:
 #
-#   docker compose run api-tools composer install
+#   docker-compose run api-tools composer install
 #
 # You can manipulate dev mode from the container:
 #
-#   docker compose run api-tools composer development-enable
-#   docker compose run api-tools composer development-disable
-#   docker compose run api-tools composer development-status
+#   docker-compose run api-tools composer development-enable
+#   docker-compose run api-tools composer development-disable
+#   docker-compose run api-tools composer development-status
 #
 # OR use plain old docker 
 #

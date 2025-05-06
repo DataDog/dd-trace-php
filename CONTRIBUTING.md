@@ -189,7 +189,7 @@ $ composer test-ext
 When you're done with development, you can stop and remove the containers with the following:
 
 ```bash
-$ docker compose down -v
+$ docker-compose down -v
 ```
 
 #### Snapshot Tests

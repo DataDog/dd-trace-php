@@ -23,14 +23,14 @@ nginx:
 	@docker build -t overhead-php-fpm-release -f dockerfiles/Dockerfile_73_fpm_release ../..
 
 start_env:
-	docker compose up -d
+	docker-compose up -d
 	@echo "Environment started: might take a few seconds!"
 
 shell_%:
-	docker compose exec php-fpm-$* bash
+	docker-compose exec php-fpm-$* bash
 
 down:
-	docker compose down -v
+	docker-compose down -v
 
 clear:
 	@rm -f ./callgrind-files/callgrind.*
@@ -45,34 +45,34 @@ request_hook: request_hook_notracer request_hook_master request_hook_head reques
 	@echo "Done Synthetic request!"
 
 clear_cache_%:
-	@docker compose exec php-fpm-$* sh -c 'rm -rf /tmp/php-cache/*'
+	@docker-compose exec php-fpm-$* sh -c 'rm -rf /tmp/php-cache/*'
 
 request_l57_%:
 	@echo "Laravel 5.7 request: $*"
-	@docker compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
+	@docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
 	@echo "\n------------"
 
 time_l57_%:
 	@echo "Benchmarking time for Laravel 5.7 app: $*"
-	@docker compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET multitime -n ${EXEC_REPETITIONS} -s 0 cgi-fcgi -bind -connect 127.0.0.1:9000'
+	@docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET multitime -n ${EXEC_REPETITIONS} -s 0 cgi-fcgi -bind -connect 127.0.0.1:9000'
 	@echo "\n------------"
 
 request_synthetic_%:
 	@echo "Synthetic request: $*"
-	@docker compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
 	@echo "\n------------"
 
 request_hook_%:
 	@echo "Request init hook: $*"
-	@docker compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
 	@echo "\n------------"
 
 time_hook_notracer:
 	@echo "Benchmarking time for script only: notracer"
-	@docker compose exec php-fpm-notracer sh -c 'multitime -n ${EXEC_REPETITIONS} -s 0 php /var/www/public/synthetic.php'
+	@docker-compose exec php-fpm-notracer sh -c 'multitime -n ${EXEC_REPETITIONS} -s 0 php /var/www/public/synthetic.php'
 	@echo "\n------------"
 
 time_hook_%:
 	@echo "Benchmarking time for init hook only: $*"
-	@docker compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true multitime -n ${EXEC_REPETITIONS} -s 0 php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_NO_AUTOLOADER=true multitime -n ${EXEC_REPETITIONS} -s 0 php -ddatadog.trace.soucres_path="" /var/www/public/dd-trace-sources'
 	@echo "\n------------"

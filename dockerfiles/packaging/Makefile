@@ -24,11 +24,11 @@ $(STRETCH_PHP_VERSIONS): %.stretch:
 
 $(CENTOS6_PHP_VERSIONS): %.centos6:
 	@echo Building Centos 6 - PHP $*
-	@docker compose -f $(ROOT_DIR)/docker-compose.yml run --rm ${*}-centos6 sh /build_src/dockerfiles/verify_packages/verify_rpm.sh
+	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run --rm ${*}-centos6 sh /build_src/dockerfiles/verify_packages/verify_rpm.sh
 
 $(CENTOS7_PHP_VERSIONS): %.centos7:
 	@echo Building Centos 7 - PHP $*
-	@docker compose -f $(ROOT_DIR)/docker-compose.yml run --rm ${*}-centos7 sh /build_src/dockerfiles/verify_packages/verify_rpm.sh
+	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run --rm ${*}-centos7 sh /build_src/dockerfiles/verify_packages/verify_rpm.sh
 
 $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 	@echo Building Centos 7 - PHP $*
