@@ -654,7 +654,9 @@ foreach ($asan_build_platforms as $platform) {
     KUBERNETES_MEMORY_LIMIT: 40Gi
     RUST_BACKTRACE: 1
   before_script:
-    - apt install -y php git make
+    - apt install -y php git make curl
+    - curl -L --fail https://github.com/docker/compose/releases/download/1.28.0/run.sh -o /usr/local/bin/docker-compose
+    - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - make -C tests/randomized library.local # Copy tracer package
     - make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS NUMBER_OF_SCENARIOS=4
@@ -789,7 +791,9 @@ foreach ($asan_build_platforms as $platform) {
         # - symfony_no_ddtrace
         # - symfony
   before_script:
-    - apt install -y make
+    - apt install -y make curl
+    - curl -L --fail https://github.com/docker/compose/releases/download/1.28.0/run.sh -o /usr/local/bin/docker-compose
+    - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
   script:
