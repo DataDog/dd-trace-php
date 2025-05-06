@@ -90,9 +90,9 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('internal', 'test.span1', null, 'datadog/dd-trace-tests'),
-            SpanAssertion::exists('internal', 'test.span2', null, 'datadog/dd-trace-tests'),
-            SpanAssertion::exists('internal', 'test.span3', null, 'datadog/dd-trace-tests'),
+            SpanAssertion::exists('internal', 'test.span1', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php'),
+            SpanAssertion::exists('internal', 'test.span2', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php'),
+            SpanAssertion::exists('internal', 'test.span3', null, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php'),
         ]);
     }
 
