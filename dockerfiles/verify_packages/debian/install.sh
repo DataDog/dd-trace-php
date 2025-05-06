@@ -15,6 +15,8 @@ apt install -y \
     procps \
     gnupg
 
+sed -i 's/:80/:8080/' /etc/apache2/sites-enabled/000-default.conf
+
 # Installing php
 if [ "${INSTALL_MODE}" = "native" ]; then
     apt-get install -y ${PHP_PACKAGE}

@@ -91,11 +91,11 @@ echo "##########################################################################
 echo "##########################################################################"
 echo "APACHE verification"
 
-if [ "${VERIFY_APACHE}" != "no" ]; then
+if [ "${VERIFY_APACHE:-yes}" != "no" ]; then
     curl -s -L request-replayer/clear-dumped-data
 
     # Request output
-    APACHE_OUTPUT=$(curl -s -L localhost/index.php)
+    APACHE_OUTPUT=$(curl -s -L localhost:8080/index.php)
     if [ "${APACHE_OUTPUT}" != "hi" ]; then
         echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
         exit 1

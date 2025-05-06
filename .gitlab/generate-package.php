@@ -811,7 +811,6 @@ foreach ($asan_build_platforms as $platform) {
     DD_AGENT_HOST: request-replayer
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
-    VERIFY_APACHE: yes
   script:
     - ./dockerfiles/verify_packages/verify.sh
 
