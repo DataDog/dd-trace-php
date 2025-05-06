@@ -13,8 +13,11 @@ pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
 
-/// take a sample every 4096 KiB
-pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 4096);
+/// Default sampling interval in bytes (4MB)
+pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
+
+/// Sampling distance feed into poison sampling algo
+pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL);
 
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
@@ -111,7 +114,7 @@ pub fn alloc_prof_first_rinit() {
             Ok(locals) => locals.system_settings().profiling_allocation_sampling_distance,
             Err(_err) => {
                 error!("Allocation profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                1024 * 4096
+                DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32
             }
         }
     });

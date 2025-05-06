@@ -964,7 +964,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute::<ConfigId, u16>(ProfilingAllocationSamplingDistance),
                     name: ProfilingAllocationSamplingDistance.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM,
-                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // 4194304 = 4 MB
+                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
                     aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
