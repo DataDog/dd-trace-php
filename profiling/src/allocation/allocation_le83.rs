@@ -12,11 +12,6 @@ use log::{debug, error, trace, warn};
 use std::ptr;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst};
 
-#[cfg(php_zts)]
-use std::cell::UnsafeCell;
-#[cfg(not(php_zts))]
-use std::ptr::addr_of_mut;
-
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
 type ZendHeapPrepareFn = unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int;
@@ -52,23 +47,6 @@ struct ZendMMState {
     free: unsafe fn(*mut c_void),
 }
 
-#[track_caller]
-fn initialization_panic() -> ! {
-    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
-}
-
-unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
-    initialization_panic();
-}
-
 impl ZendMMState {
     const fn new() -> ZendMMState {
         ZendMMState {
@@ -77,9 +55,9 @@ impl ZendMMState {
             prev_custom_mm_realloc: None,
             prev_custom_mm_free: None,
             prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
-            alloc: alloc_prof_panic_alloc,
-            realloc: alloc_prof_panic_realloc,
-            free: alloc_prof_panic_free,
+            alloc: super::alloc_prof_panic_alloc,
+            realloc: super::alloc_prof_panic_realloc,
+            free: super::alloc_prof_panic_free,
         }
     }
 }
@@ -87,10 +65,10 @@ impl ZendMMState {
 #[cfg(php_zts)]
 thread_local! {
     /// Using an `UnsafeCell` here should be okay. There might not be any
-    /// synchronisation issues, as it is used in as thread local and only
+    /// synchronization issues, as it is used in as thread local and only
     /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
-        UnsafeCell::new(ZendMMState::new())
+    static ZEND_MM_STATE: core::cell::UnsafeCell<ZendMMState> = const {
+        core::cell::UnsafeCell::new(ZendMMState::new())
     };
 }
 
@@ -202,7 +180,7 @@ pub fn alloc_prof_rinit() {
 
     #[cfg(not(php_zts))]
     unsafe {
-        zend_mm_state_init(addr_of_mut!(ZEND_MM_STATE));
+        zend_mm_state_init(ptr::addr_of_mut!(ZEND_MM_STATE));
     }
 
     // `is_zend_mm()` should be false now, as we installed our custom handlers
@@ -285,7 +263,7 @@ pub fn alloc_prof_rshutdown() {
 
     #[cfg(not(php_zts))]
     unsafe {
-        zend_mm_state_shutdown(addr_of_mut!(ZEND_MM_STATE));
+        zend_mm_state_shutdown(ptr::addr_of_mut!(ZEND_MM_STATE));
     }
 }
 

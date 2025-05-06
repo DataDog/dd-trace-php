@@ -9,11 +9,6 @@ use log::{debug, error, trace, warn};
 use std::ptr;
 use std::sync::atomic::Ordering::SeqCst;
 
-#[cfg(php_zts)]
-use std::cell::UnsafeCell;
-#[cfg(not(php_zts))]
-use std::ptr::addr_of_mut;
-
 struct ZendMMState {
     /// The heap we create and set as the current heap in ZendMM
     heap: *mut zend::zend_mm_heap,
@@ -61,18 +56,6 @@ fn initialization_panic() -> ! {
     panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
-unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
-    initialization_panic();
-}
-
 unsafe fn alloc_prof_panic_gc() -> size_t {
     initialization_panic();
 }
@@ -96,9 +79,9 @@ impl ZendMMState {
             prev_custom_mm_free: None,
             prev_custom_mm_gc: None,
             prev_custom_mm_shutdown: None,
-            alloc: alloc_prof_panic_alloc,
-            realloc: alloc_prof_panic_realloc,
-            free: alloc_prof_panic_free,
+            alloc: super::alloc_prof_panic_alloc,
+            realloc: super::alloc_prof_panic_realloc,
+            free: super::alloc_prof_panic_free,
             gc: alloc_prof_panic_gc,
             shutdown: alloc_prof_panic_shutdown,
         }
@@ -110,8 +93,8 @@ thread_local! {
     /// Using an `UnsafeCell` here should be okay. There might not be any
     /// synchronisation issues, as it is used in as thread local and only
     /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
-        UnsafeCell::new(ZendMMState::new())
+    static ZEND_MM_STATE: core::cell::UnsafeCell<ZendMMState> = const {
+        core::cell::UnsafeCell::new(ZendMMState::new())
     };
 }
 #[cfg(not(php_zts))]
@@ -230,7 +213,7 @@ pub fn alloc_prof_ginit() {
 
     #[cfg(not(php_zts))]
     unsafe {
-        zend_mm_state_init(addr_of_mut!(ZEND_MM_STATE));
+        zend_mm_state_init(ptr::addr_of_mut!(ZEND_MM_STATE));
     }
 }
 
@@ -282,7 +265,7 @@ pub fn alloc_prof_gshutdown() {
 
     #[cfg(not(php_zts))]
     unsafe {
-        zend_mm_state_shutdown(addr_of_mut!(ZEND_MM_STATE));
+        zend_mm_state_shutdown(ptr::addr_of_mut!(ZEND_MM_STATE));
     }
 }
 
@@ -383,7 +366,7 @@ pub fn alloc_prof_rshutdown() {
 
     #[cfg(not(php_zts))]
     unsafe {
-        zend_mm_state_shutdown(addr_of_mut!(ZEND_MM_STATE));
+        zend_mm_state_shutdown(ptr::addr_of_mut!(ZEND_MM_STATE));
     }
 }
 
@@ -428,7 +411,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
 
     #[cfg(not(php_zts))]
     unsafe {
-        alloc(addr_of_mut!(ZEND_MM_STATE))
+        alloc(ptr::addr_of_mut!(ZEND_MM_STATE))
     }
 }
 
@@ -465,7 +448,7 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
 
     #[cfg(not(php_zts))]
     unsafe {
-        free(addr_of_mut!(ZEND_MM_STATE));
+        free(ptr::addr_of_mut!(ZEND_MM_STATE));
     }
 }
 
@@ -514,7 +497,7 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
 
     #[cfg(not(php_zts))]
     unsafe {
-        realloc(addr_of_mut!(ZEND_MM_STATE))
+        realloc(ptr::addr_of_mut!(ZEND_MM_STATE))
     }
 }
 
@@ -547,7 +530,7 @@ unsafe fn alloc_prof_prev_gc() -> size_t {
 
     #[cfg(not(php_zts))]
     unsafe {
-        gc(addr_of_mut!(ZEND_MM_STATE))
+        gc(ptr::addr_of_mut!(ZEND_MM_STATE))
     }
 }
 
@@ -578,7 +561,7 @@ unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
     });
 
     #[cfg(not(php_zts))]
-    shutdown(addr_of_mut!(ZEND_MM_STATE))
+    shutdown(ptr::addr_of_mut!(ZEND_MM_STATE))
 }
 
 unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
