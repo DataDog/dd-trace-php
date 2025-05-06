@@ -907,7 +907,6 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
-	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
