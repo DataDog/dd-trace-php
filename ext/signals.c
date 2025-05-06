@@ -143,8 +143,8 @@ static void ddtrace_init_crashtracker() {
                 LOG(DEBUG, "Failed to push tag \"php.opcache.jit_buffer_size\": %.*s", (int) msg.len, msg.ptr);
                 ddog_Error_drop(&result.err);
             }
+            zend_string_release(value);
         }
-        zend_string_release(value);
         zend_string_release(str);
     }
     const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
