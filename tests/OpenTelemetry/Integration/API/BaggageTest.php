@@ -99,9 +99,9 @@ final class BaggageTest extends BaseTestCase
         $this->assertSame('1', $child['meta']['user.id']);
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::exists('server.request', 'parent', false, 'datadog/dd-trace-tests')
+            SpanAssertion::exists('server.request', 'parent', false, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ->withChildren([
-                    SpanAssertion::exists('internal', 'child', false, 'datadog/dd-trace-tests')
+                    SpanAssertion::exists('internal', 'child', false, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
                 ])
         ]);
     }
