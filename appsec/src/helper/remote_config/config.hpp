@@ -61,7 +61,7 @@ private:
 class parsed_config_key {
 public:
     template <typename Str>
-    requires std::convertible_to<Str, std::string_view>
+        requires std::convertible_to<Str, std::string_view>
     explicit parsed_config_key(Str &&key) : key_{std::forward<Str>(key)}
     {
         parse_config_key();
