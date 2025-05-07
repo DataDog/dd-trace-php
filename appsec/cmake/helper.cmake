@@ -20,7 +20,10 @@ set_target_properties(helper_objects PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED YES
     POSITION_INDEPENDENT_CODE 1)
-target_include_directories(helper_objects INTERFACE ${HELPER_INCLUDE_DIR})
+target_include_directories(helper_objects
+    INTERFACE ${HELPER_INCLUDE_DIR}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../libdatadog/datadog-sidecar/include
+)
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
   target_compile_options(helper_objects PRIVATE -Wall)

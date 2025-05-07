@@ -53,8 +53,8 @@ void engine::subscribe(std::unique_ptr<subscriber> sub)
     common_->subscribers.emplace_back(std::move(sub));
 }
 
-void engine::update(
-    const rapidjson::Document &doc, metrics::telemetry_submitter &submit_metric)
+void engine::update(const rapidjson::Document &doc,
+    telemetry::telemetry_submitter &submit_metric)
 {
     std::vector<std::unique_ptr<subscriber>> new_subscribers;
     auto old_common =
@@ -145,7 +145,7 @@ std::optional<engine::result> engine::context::publish(
     return res;
 }
 
-void engine::context::get_metrics(metrics::telemetry_submitter &msubmitter)
+void engine::context::get_metrics(telemetry::telemetry_submitter &msubmitter)
 {
     for (const auto &[subscriber, listener] : listeners_) {
         listener->submit_metrics(msubmitter);
@@ -154,7 +154,7 @@ void engine::context::get_metrics(metrics::telemetry_submitter &msubmitter)
 
 std::unique_ptr<engine> engine::from_settings(
     const dds::engine_settings &eng_settings,
-    metrics::telemetry_submitter &msubmitter)
+    telemetry::telemetry_submitter &msubmitter)
 {
     auto &&rules_path = eng_settings.rules_file_or_default();
     auto ruleset = read_file(rules_path);

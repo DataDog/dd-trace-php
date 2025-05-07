@@ -15,7 +15,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
         LINK_FLAGS "-fsanitize=address,leak${FUZZER_FLAGS} -fprofile-instr-generate -fcoverage-mapping"
         CXX_STANDARD 20
     )
-    target_include_directories(ddappsec_helper_fuzzer PRIVATE ${HELPER_INCLUDE_DIR})
+    target_include_directories(ddappsec_helper_fuzzer PRIVATE ${HELPER_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../libdatadog/datadog-sidecar/include)
 
     execute_process(
         COMMAND ${CMAKE_CXX_COMPILER} -print-runtime-dir
@@ -45,4 +46,5 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
 
     add_executable(corpus_generator corpus_generator.cpp)
     target_link_libraries(corpus_generator PRIVATE helper_objects libddwaf_objects pthread spdlog)
+    set_target_properties(corpus_generator PROPERTIES CXX_STANDARD 20)
 endif()
