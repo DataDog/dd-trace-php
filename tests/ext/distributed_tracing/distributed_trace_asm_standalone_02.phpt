@@ -47,28 +47,28 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(4) {
-      ["_dd.p.ts"]=>
-      string(2) "02"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["runtime-id"]=>
-      string(36) "%s"
       ["_dd.origin"]=>
       string(7) "datadog"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
+      ["_dd.p.ts"]=>
+      string(2) "02"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
+      ["_dd.apm.enabled"]=>
+      float(0)
       ["_sampling_priority_v1"]=>
       float(3)
-      ["_dd.apm.enabled"]=>
-      int(0)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

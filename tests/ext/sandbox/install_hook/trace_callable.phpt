@@ -62,13 +62,13 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (3) {
   test\foo (trace_callable.php, 0, cli)
+    _dd.p.tid => %s
     result => 1
-    _dd.p.tid => %s
   test\bar.foo (trace_callable.php, 1, cli)
-    result => 2
     _dd.p.tid => %s
+    result => 2
   test\closure.{closure} (trace_callable.php, 2, cli)
+    _dd.p.tid => %s
     closure.declaration => %s:%d
     result => 3
-    _dd.p.tid => %s
 }

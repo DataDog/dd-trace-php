@@ -6,6 +6,7 @@ pub mod log;
 pub mod remote_config;
 pub mod sidecar;
 pub mod telemetry;
+pub mod bytes;
 
 use std::borrow::Cow;
 use std::ffi::c_char;
@@ -22,6 +23,7 @@ use ddcommon_ffi::slice::AsBytes;
 pub use ddcommon_ffi::*;
 pub use ddtelemetry_ffi::*;
 pub use datadog_library_config_ffi::*;
+pub use data_pipeline_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]

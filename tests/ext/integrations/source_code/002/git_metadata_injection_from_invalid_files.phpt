@@ -54,42 +54,42 @@ rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
