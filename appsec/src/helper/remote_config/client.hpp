@@ -5,17 +5,12 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <atomic>
 #include <mutex>
 #include <set>
 #include <string>
-#include <thread>
 #include <vector>
 
-#include "../engine.hpp"
-#include "../engine_settings.hpp"
-#include "../service_config.hpp"
-#include "../utils.hpp"
+#include "../telemetry.hpp"
 #include "listeners/listener.hpp"
 #include "product.hpp"
 #include "settings.hpp"
@@ -37,7 +32,8 @@ struct config_path {
 
 class client {
     client(remote_config::settings settings,
-        std::vector<std::shared_ptr<listener_base>> listeners);
+        std::vector<std::shared_ptr<listener_base>> listeners,
+        std::shared_ptr<telemetry::telemetry_submitter> msubmitter);
 
 public:
     ~client() = default;
@@ -49,7 +45,8 @@ public:
 
     static std::unique_ptr<client> from_settings(
         const remote_config::settings &settings,
-        std::vector<std::shared_ptr<listener_base>> listeners);
+        std::vector<std::shared_ptr<listener_base>> listeners,
+        std::shared_ptr<telemetry::telemetry_submitter> msubmitter);
 
     bool poll();
 
@@ -68,6 +65,8 @@ protected:
 
     std::set<config> last_configs_;
     std::mutex mutex_;
+
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter_;
 };
 
 } // namespace dds::remote_config
