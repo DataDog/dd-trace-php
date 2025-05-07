@@ -1,5 +1,7 @@
 <?php
 
+$arch_targets = ["amd64", "arm64"];
+
 $php_versions_to_abi = [
     "7.0" => "20151012",
     "7.1" => "20160303",

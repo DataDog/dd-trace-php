@@ -2,8 +2,6 @@
 
 include "generate-common.php";
 
-$arch_targets = ["amd64", "arm64"];
-
 preg_match('(^\.services(.*?)\n(\S|\Z))ms', file_get_contents(__DIR__ . "/generate-common.php"), $m);
 
 preg_match_all('(^  (\S*):)m', $m[1], $m, PREG_PATTERN_ORDER);

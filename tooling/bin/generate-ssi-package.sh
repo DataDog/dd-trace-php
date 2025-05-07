@@ -13,7 +13,11 @@ release_version_sanitized=${release_version/+/-}
 tmp_folder=/tmp/ssi-bundle
 tmp_folder_final=$tmp_folder/final
 
-architectures=(x86_64 aarch64)
+if [[ -n "${ARCHTITECTURE:-}" ]]; then
+  architectures=(${ARCHTITECTURE})
+else
+  architectures=(x86_64 aarch64)
+fi
 
 if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
     exit 0

@@ -526,12 +526,6 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-    - job: "pecl build"
-      artifacts: true
-
-    # Loader
-    - job: "compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]"
-      artifacts: true
 
     # Link tracing extension
     - job: "link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
@@ -610,6 +604,52 @@ foreach ($asan_build_platforms as $platform) {
 ?>
   variables:
     DDTRACE_MAKE_PACKAGES_ASAN: 1
+
+<?php foreach ($arch_targets as $arch): ?>
+"package loader: [<?= $arch ?>]":
+  extends: .package_extension_base
+  variables:
+    ARCHITECTURE: "<?= $arch ?>"
+  script:
+    - ./tooling/bin/generate-ssi-package.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mv build/packages/ packages/
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $arch ?>"
+      artifacts: true
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+?>
+    - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            foreach ($all_minor_major_targets as $major_minor):
+?>
+    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            endforeach;
+?>
+
+<?php
+            foreach ($profiler_minor_major_targets as $major_minor):
+?>
+    # Profiler extension
+    - job: "cargo build release: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            endforeach;
+        endif;
+    endforeach;
+endforeach;
+?>
 
 "datadog-setup.php":
   stage: packaging
@@ -1080,15 +1120,20 @@ foreach ($asan_build_platforms as $platform) {
   script:
     - TEST_LIBRARY=php ./run.sh PARAMETRIC
 
-"Loader test on libc":
+<?php foreach ($arch_targets as $arch): ?>
+"Loader test on <?= $arch ?> libc":
   stage: verify
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_buster"
   tags: [ "arch:$ARCH" ]
   variables:
     VALGRIND: false
-  needs: [] # umm, where are these packaged?
+    ARCH: "<?= $arch ?>"
+  needs:
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
   parallel:
     matrix:
+<?php if ($arch == "amd64"): ?>
       - MAJOR_MINOR:
           - "5.6"
           - "7.0"
@@ -1096,25 +1141,25 @@ foreach ($asan_build_platforms as $platform) {
           - "7.2"
           - "7.3"
         PHP_FLAVOUR: nts
-        ARCH: amd64
-      - MAJOR_MINOR:
-          - "7.0"
-          - "7.1"
-          - "7.2"
-          - "7.3"
-        PHP_FLAVOUR: nts
-        ARCH: arm64
       - MAJOR_MINOR: <?= json_encode($asan_minor_major_targets), "\n" ?>
         PHP_FLAVOUR:
           - nts
           - zts
         ARCH: amd64
         USE_VALGRIND: "true"
+<?php else: ?>
+      - MAJOR_MINOR:
+          - "7.0"
+          - "7.1"
+          - "7.2"
+          - "7.3"
+        PHP_FLAVOUR: nts
       - MAJOR_MINOR: <?= json_encode($asan_minor_major_targets), "\n" ?>
         PHP_FLAVOUR:
           - nts
           - zts
         ARCH: arm64
+<?php endif; ?>
   before_script:
     - |
      if [[ "$MINOR_MAJOR" == "8.4" ]]; then
@@ -1147,16 +1192,13 @@ foreach ($asan_build_platforms as $platform) {
     #fi
     - ./bin/check_glibc_version.sh
 
-"Loader test on alpine":
+"Loader test on <?= $arch ?> alpine":
   stage: verify
   image: "registry.ddbuild.io/images/mirror/alpine:3.20"
   tags: [ "arch:$ARCH" ]
   needs: [] # umm, where are these packaged?
-  parallel:
-    matrix:
-      - ARCH:
-         - amd64
-         - arm64
+  variables:
+    ARCH: "<?= $arch ?>"
   before_script:
     - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug
     - export XDEBUG_SO_NAME=xdebug.so
@@ -1168,3 +1210,5 @@ foreach ($asan_build_platforms as $platform) {
     - cp ../dd-library-php-ssi/linux-musl/loader/dd_library_loader.so modules/
   script:
     - ./bin/test.sh
+
+<?php endforeach; ?>
