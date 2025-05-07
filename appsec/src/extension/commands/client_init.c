@@ -25,7 +25,7 @@ static void _process_meta_and_metrics(
 static const dd_command_spec _spec = {
     .name = "client_init",
     .name_len = sizeof("client_init") - 1,
-    .num_args = 6,
+    .num_args = 7,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -107,6 +107,28 @@ static dd_result _pack_command(
     dd_mpack_write_lstr(w, "shmem_path");
     dd_mpack_write_nullable_cstr(w, dd_trace_remote_config_get_path());
 
+    mpack_finish_map(w);
+
+    // Sidecar settings
+    mpack_start_map(w, 2);
+    {
+        dd_mpack_write_lstr(w, "session_id");
+        const uint8_t *session_id = dd_trace_get_formatted_session_id();
+#define SESSION_ID_LENGTH 36
+        if (session_id) {
+            mpack_write_str(w, (const char *)session_id, SESSION_ID_LENGTH);
+        } else {
+            mpack_write_str(w, "", 0);
+        }
+    }
+    {
+        dd_mpack_write_lstr(w, "runtime_id");
+        zend_string *runtime_id_zstr = dd_trace_get_formatted_runtime_id(false);
+        dd_mpack_write_nullable_zstr(w, runtime_id_zstr);
+        if (runtime_id_zstr) {
+            zend_string_release(runtime_id_zstr);
+        }
+    }
     mpack_finish_map(w);
 
     return dd_success;

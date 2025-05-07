@@ -8,7 +8,6 @@
 #include "../parameter.hpp"
 // NOLINTNEXTLINE: msgpack.hpp is buggy and needs an include of sstream before
 #include <msgpack.hpp>
-#include <sstream>
 
 namespace msgpack {
 MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {

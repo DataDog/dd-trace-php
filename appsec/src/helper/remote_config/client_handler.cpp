@@ -15,7 +15,7 @@ namespace dds::remote_config {
 
 client_handler::client_handler(std::unique_ptr<client> &&rc_client,
     std::shared_ptr<service_config> service_config,
-    std::shared_ptr<metrics::telemetry_submitter> msubmitter)
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter)
     : service_config_{std::move(service_config)},
       rc_client_{std::move(rc_client)}, msubmitter_{std::move(msubmitter)}
 {}
@@ -25,7 +25,7 @@ std::unique_ptr<client_handler> client_handler::from_settings(
     std::shared_ptr<dds::service_config> service_config,
     const remote_config::settings &rc_settings,
     const std::shared_ptr<engine> &engine_ptr,
-    std::shared_ptr<metrics::telemetry_submitter> msubmitter)
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter)
 {
     if (!rc_settings.enabled) {
         return {};
@@ -52,8 +52,8 @@ std::unique_ptr<client_handler> client_handler::from_settings(
         return {};
     }
 
-    auto rc_client =
-        remote_config::client::from_settings(rc_settings, std::move(listeners));
+    auto rc_client = remote_config::client::from_settings(
+        rc_settings, std::move(listeners), msubmitter);
 
     return std::make_unique<client_handler>(
         std::move(rc_client), std::move(service_config), std::move(msubmitter));
