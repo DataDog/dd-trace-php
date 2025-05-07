@@ -907,6 +907,7 @@ foreach ($asan_build_platforms as $platform) {
   before_script:
     - mkdir build
     - mv packages build
+    - apt update
     - apt-get install -y curl
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>

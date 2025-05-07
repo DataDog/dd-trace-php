@@ -203,7 +203,7 @@ foreach ($arch_targets as $arch_target) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
-  timeout: 20m
+  timeout: 30m
   variables:
     host_os: linux-gnu
     COMPOSER_MEMORY_LIMIT: "-1"
