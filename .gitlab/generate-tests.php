@@ -29,12 +29,10 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
 }
 
 function sidecar_logs() {
-/*
 ?>
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
 <?php
-*/
 }
 
 function before_script_steps() {
@@ -473,6 +471,7 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TEST: "1"
+<?php sidecar_logs(); ?>
   timeout: 40m
   script:
     - make install_all

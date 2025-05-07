@@ -11,8 +11,8 @@ uname=$(uname -a)
 arch=$(if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then echo aarch64; else echo x86_64; fi)
 version=$(cat VERSION)
 
-if [ "$CIRCLECI" != "true" ] && ! [ -f "build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz" ]; then
-    "SKIPPED: this test runs only in CI as it requires the .tar.gz at a specific path"
+if ! [ -f "build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz" ]; then
+    echo "SKIPPED: this test runs only in CI as it requires the .tar.gz at a specific path"
     exit 0
 fi
 

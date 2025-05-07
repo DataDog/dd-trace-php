@@ -898,7 +898,7 @@ foreach ($asan_build_platforms as $platform) {
         INSTALL_TYPE: *verify_install_types
         IMAGE:
           - "debian:bullseye-slim"
-          - "debian:bookworm"
+          - "debian:bookworm-slim"
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
