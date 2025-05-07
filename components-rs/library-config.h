@@ -34,12 +34,6 @@ struct ddog_Result_VecLibraryConfig ddog_library_configurator_get(const struct d
  * Returns a static null-terminated string, containing the name of the environment variable
  * associated with the library configuration
  */
-struct ddog_CStr ddog_library_config_name_to_env(enum ddog_LibraryConfigName name);
-
-/**
- * Returns a static null-terminated string, containing the name of the environment variable
- * associated with the library configuration
- */
 struct ddog_CStr ddog_library_config_source_to_string(enum ddog_LibraryConfigSource name);
 
 /**
