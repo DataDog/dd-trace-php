@@ -383,7 +383,6 @@ unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
     tls_zend_mm_state_get!(free)(ptr);
 }
 
-#[export_name = "ddog_php_prof_alloc_prof_prev_free"]
 unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
     // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
     // `alloc_prof_rinit()` and only point to this function when
