@@ -22,7 +22,7 @@ struct sidecar_settings {
         return session_id == other.session_id && runtime_id == other.runtime_id;
     }
 
-    MSGPACK_DEFINE_MAP(session_id, runtime_id);
+    MSGPACK_DEFINE_MAP(session_id, runtime_id)
 };
 
 } // namespace dds

@@ -408,8 +408,8 @@ void initialise_logging(spdlog::level::level_enum level)
 
 instance::listener::listener(ddwaf_context ctx,
     std::chrono::microseconds waf_timeout, std::string ruleset_version)
-    : handle_{ctx}, waf_timeout_{waf_timeout}, ruleset_version_{
-                                                   std::move(ruleset_version)}
+    : handle_{ctx}, waf_timeout_{waf_timeout},
+      ruleset_version_{std::move(ruleset_version)}
 {
     base_tags_.add("event_rules_version", ruleset_version_);
     base_tags_.add("waf_version", ddwaf_get_version());

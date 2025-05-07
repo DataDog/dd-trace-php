@@ -102,7 +102,7 @@ struct fmt::formatter<dds::telemetry::telemetry_submitter::log_level>
             break;
         case dds::telemetry::telemetry_submitter::log_level::Warn:
             name = "Warn";
-            
+
             break;
         case dds::telemetry::telemetry_submitter::log_level::Debug:
             name = "Debug";
