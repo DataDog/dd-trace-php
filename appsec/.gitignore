@@ -66,5 +66,3 @@ cscope.*
 
 #This file is only used for custom configurations on developer machines
 cmake/local.cmake
-
-hunter-cache.id

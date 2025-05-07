@@ -32,13 +32,15 @@ static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
-static uint8_t *_ddtrace_runtime_id = NULL;
+static uint8_t *_ddtrace_runtime_id;
 
 static void _setup_testing_telemetry_functions(void);
 static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
 
+static const uint8_t *(*nullable _ddtrace_get_formatted_session_id)(void);
+static uint64_t (*nullable _ddtrace_get_sidecar_queue_id)(void);
 static zend_object *(*nullable _ddtrace_get_root_span)(void);
 static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
@@ -94,6 +96,9 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         "ddtrace_close_all_spans_and_flush");
     ASSIGN_DLSYM(_ddtrace_get_root_span, "ddtrace_get_root_span");
     ASSIGN_DLSYM(_ddtrace_runtime_id, "ddtrace_runtime_id");
+    ASSIGN_DLSYM(
+        _ddtrace_get_formatted_session_id, "ddtrace_get_formatted_session_id");
+    ASSIGN_DLSYM(_ddtrace_get_sidecar_queue_id, "ddtrace_get_sidecar_queue_id");
     ASSIGN_DLSYM(_ddtrace_set_priority_sampling_on_span_zobj,
         "ddtrace_set_priority_sampling_on_span_zobj");
     ASSIGN_DLSYM(_ddtrace_get_priority_sampling_on_span_zobj,
@@ -348,6 +353,22 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
     return encoded_id;
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+
+const uint8_t *nullable dd_trace_get_formatted_session_id(void)
+{
+    if (_ddtrace_get_formatted_session_id == NULL) {
+        return NULL;
+    }
+    return _ddtrace_get_formatted_session_id();
+}
+
+uint64_t dd_trace_get_sidecar_queue_id(void)
+{
+    if (_ddtrace_get_sidecar_queue_id == NULL) {
+        return 0;
+    }
+    return _ddtrace_get_sidecar_queue_id();
+}
 
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
     zend_long priority, enum dd_sampling_mechanism mechanism)
