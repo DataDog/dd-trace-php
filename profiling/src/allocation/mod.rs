@@ -140,7 +140,7 @@ pub fn alloc_prof_rshutdown() {
 
 #[track_caller]
 fn initialization_panic() -> ! {
-    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
+    panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
 unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
