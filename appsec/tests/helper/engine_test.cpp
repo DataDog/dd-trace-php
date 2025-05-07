@@ -6,8 +6,8 @@
 
 #include "common.hpp"
 #include "ddwaf.h"
-#include "metrics.hpp"
 #include "remote_config/mocks.hpp"
+#include "telemetry.hpp"
 #include <engine.hpp>
 #include <gmock/gmock-nice-strict.h>
 #include <memory>
@@ -30,7 +30,7 @@ namespace dds {
 namespace mock {
 class listener : public dds::subscriber::listener {
 public:
-    MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
+    MOCK_METHOD1(submit_metrics, void(telemetry::telemetry_submitter &));
     MOCK_METHOD3(
         call, void(dds::parameter_view &, dds::event &, const std::string &));
     MOCK_METHOD2(
@@ -44,7 +44,7 @@ public:
     MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
     MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(const changeset &,
-                             metrics::telemetry_submitter &));
+                             telemetry::telemetry_submitter &));
 };
 } // namespace mock
 
@@ -540,7 +540,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
             msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
         EXPECT_CALL(msubmitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -570,7 +570,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
             msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
         EXPECT_CALL(msubmitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -615,7 +615,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
         // success is true because WAF is capable of generating a handle
         EXPECT_CALL(submitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));

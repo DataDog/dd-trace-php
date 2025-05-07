@@ -70,7 +70,7 @@ close_span(100.0);
 $c = $helper->get_commands();
 print_r($c[1]);
 print_r($c[2]);
---EXPECT--
+--EXPECTF--
 Result of notify_start:
 Array
 (
@@ -184,6 +184,7 @@ Array
                 )
 
             [1] => 0
+            [2] => %s
         )
 
 )
