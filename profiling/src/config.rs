@@ -27,6 +27,7 @@ pub struct SystemSettings {
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
+    pub profiling_allocation_sampling_distance: u32,
     pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
     pub profiling_exception_message_enabled: bool,
@@ -69,6 +70,7 @@ impl SystemSettings {
             profiling_endpoint_collection_enabled: profiling_endpoint_collection_enabled(),
             profiling_experimental_cpu_time_enabled: profiling_experimental_cpu_time_enabled(),
             profiling_allocation_enabled: profiling_allocation_enabled(),
+            profiling_allocation_sampling_distance: profiling_allocation_sampling_distance(),
             profiling_timeline_enabled: profiling_timeline_enabled(),
             profiling_exception_enabled: profiling_exception_enabled(),
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
@@ -142,6 +144,7 @@ impl SystemSettings {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
+            profiling_allocation_sampling_distance: 0,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
@@ -358,6 +361,7 @@ pub(crate) enum ConfigId {
     ProfilingEndpointCollectionEnabled,
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
+    ProfilingAllocationSamplingDistance,
     ProfilingTimelineEnabled,
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
@@ -387,6 +391,7 @@ impl ConfigId {
             ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
+            ProfilingAllocationSamplingDistance => b"DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\0",
             ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
@@ -431,6 +436,7 @@ lazy_static::lazy_static! {
         profiling_endpoint_collection_enabled: false,
         profiling_experimental_cpu_time_enabled: false,
         profiling_allocation_enabled: false,
+        profiling_allocation_sampling_distance: u32::MAX,
         profiling_timeline_enabled: false,
         profiling_exception_enabled: false,
         profiling_exception_message_enabled: false,
@@ -449,6 +455,7 @@ lazy_static::lazy_static! {
         profiling_endpoint_collection_enabled: true,
         profiling_experimental_cpu_time_enabled: true,
         profiling_allocation_enabled: true,
+        profiling_allocation_sampling_distance: 1024 * 4096,
         profiling_timeline_enabled: true,
         profiling_exception_enabled: true,
         profiling_exception_message_enabled: false,
@@ -512,6 +519,17 @@ unsafe fn profiling_allocation_enabled() -> bool {
             DEFAULT_SYSTEM_SETTINGS.profiling_allocation_enabled,
         )
 }
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+unsafe fn profiling_allocation_sampling_distance() -> u32 {
+    get_system_uint32(
+        ProfilingAllocationSamplingDistance,
+        DEFAULT_SYSTEM_SETTINGS.profiling_allocation_sampling_distance,
+    )
+}
+
 
 /// # Safety
 /// This function must only be called after config has been initialized in
@@ -702,8 +720,8 @@ unsafe fn profiling_log_level() -> LevelFilter {
     }
 }
 
-/// Parses the exception sampling distance and makes sure it is ℤ+ (positive integer > 0)
-unsafe extern "C" fn parse_exception_sampling_distance_filter(
+/// Parses the sampling distance and makes sure it is ℤ+ (positive integer > 0)
+unsafe extern "C" fn parse_sampling_distance_filter(
     value: ZaiStr,
     decoded_value: *mut zval,
     _persistent: bool,
@@ -949,6 +967,18 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
+                    id: transmute::<ConfigId, u16>(ProfilingAllocationSamplingDistance),
+                    name: ProfilingAllocationSamplingDistance.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_CUSTOM,
+                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: Some(parse_sampling_distance_filter),
+                    displayer: None,
+                    env_config_fallback: None,
+                },
+                zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingTimelineEnabled),
                     name: ProfilingTimelineEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
@@ -992,7 +1022,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases: EXCEPTION_SAMPLING_DISTANCE_ALIASES.as_ptr(),
                     aliases_count: EXCEPTION_SAMPLING_DISTANCE_ALIASES.len() as u8,
                     ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_exception_sampling_distance_filter),
+                    parser: Some(parse_sampling_distance_filter),
                     displayer: None,
                     env_config_fallback: None,
                 },

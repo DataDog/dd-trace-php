@@ -584,6 +584,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
         #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         io::io_prof_first_rinit();
+
+        #[cfg(feature = "allocation_profiling")]
+        allocation::alloc_prof_first_rinit();
     });
 
     Profiler::init(system_settings);

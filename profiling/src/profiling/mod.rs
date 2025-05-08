@@ -369,7 +369,7 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset,
                 count_value_offset: alloc_samples_offset,
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst),
             };
             let values_offset = [alloc_size_offset, alloc_samples_offset];
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
@@ -1558,7 +1558,7 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AgentEndpoint;
+    use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
@@ -1577,6 +1577,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
+            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
