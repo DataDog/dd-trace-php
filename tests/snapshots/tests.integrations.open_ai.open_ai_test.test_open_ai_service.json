@@ -9,7 +9,7 @@
     "type": "openai",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.p.tid": "6659d79b00000000",
+      "_dd.p.tid": "681cb57400000000",
       "env": "test",
       "openai.api_base": "https://api.openai.com/v1/",
       "openai.organization.name": "org-1234",
@@ -18,7 +18,7 @@
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "list",
       "openai.user.api_key": "sk-...9d5d",
-      "runtime-id": "0a784015-fb27-4c52-9df3-dedf7130fbcb",
+      "runtime-id": "87cccdb5-2d7c-453e-bc51-70997f55724c",
       "span.kind": "client"
     },
     "metrics": {
