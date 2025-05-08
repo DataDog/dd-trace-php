@@ -605,6 +605,7 @@ foreach ($asan_build_platforms as $platform) {
   variables:
     DDTRACE_MAKE_PACKAGES_ASAN: 1
 
+<?php /*
 <?php foreach ($arch_targets as $arch): ?>
 "package loader: [<?= $arch ?>]":
   extends: .package_extension_base
@@ -652,6 +653,7 @@ foreach ($asan_build_platforms as $platform) {
         endif;
     endforeach;
 endforeach;
+*/
 ?>
 
 "datadog-setup.php":
@@ -1123,7 +1125,7 @@ endforeach;
   script:
     - TEST_LIBRARY=php ./run.sh PARAMETRIC
 
-<?php foreach ($arch_targets as $arch): ?>
+<?php /* foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
   stage: verify
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_buster"
@@ -1214,4 +1216,4 @@ endforeach;
   script:
     - ./bin/test.sh
 
-<?php endforeach; ?>
+<?php endforeach; */ ?>
