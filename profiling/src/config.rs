@@ -90,7 +90,9 @@ impl SystemSettings {
     /// # Safety
     /// Must be called after [first_rinit] and before [shutdown].
     pub unsafe fn get() -> ptr::NonNull<SystemSettings> {
-        ptr::NonNull::from(SYSTEM_SETTINGS.assume_init_ref())
+        // SAFETY: required by this function's own safety requirements.
+        let addr = unsafe { (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut() };
+        ptr::NonNull::from(addr)
     }
 
     /// # Safety
@@ -118,21 +120,24 @@ impl SystemSettings {
         if allocation::allocation_ge84::first_rinit_should_disable_due_to_jit() {
             system_settings.profiling_allocation_enabled = false;
         }
-        swap(&mut system_settings, SYSTEM_SETTINGS.assume_init_mut());
+        swap(
+            &mut system_settings,
+            (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut(),
+        );
     }
 
     /// # Safety
     /// Must be called exactly once each startup in either minit or startup,
     /// whether profiling is enabled or not.
     unsafe fn on_startup() {
-        SYSTEM_SETTINGS.write(INITIAL_SYSTEM_SETTINGS.clone());
+        (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).write(INITIAL_SYSTEM_SETTINGS.clone());
     }
 
     /// # Safety
     /// Must be called exactly once per shutdown in either mshutdown or
     /// shutdown, before zai config is shutdown.
     unsafe fn on_shutdown() {
-        let system_settings = SYSTEM_SETTINGS.assume_init_mut();
+        let system_settings = (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut();
         *system_settings = SystemSettings {
             profiling_enabled: false,
             profiling_experimental_features_enabled: false,
@@ -153,7 +158,7 @@ impl SystemSettings {
     }
 
     unsafe fn on_fork_in_child() {
-        let system_settings = SYSTEM_SETTINGS.assume_init_mut();
+        let system_settings = (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut();
         system_settings.profiling_enabled = false;
         system_settings.profiling_experimental_features_enabled = false;
         system_settings.profiling_endpoint_collection_enabled = false;
@@ -210,7 +215,7 @@ impl TryFrom<&AgentEndpoint> for ddcommon::Endpoint {
 impl Display for AgentEndpoint {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AgentEndpoint::Uri(uri) => write!(f, "{}", uri),
+            AgentEndpoint::Uri(uri) => write!(f, "{uri}"),
             AgentEndpoint::Socket(path) => write!(f, "unix://{}", path.to_string_lossy()),
         }
     }
@@ -320,11 +325,12 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config
     let dest_suffix = &mut ini_name.ptr[dest_prefix.len()..];
     let src_suffix = &name[src_prefix.len()..];
     for (dest, src) in dest_suffix.iter_mut().zip(src_suffix.bytes()) {
-        *dest = transmute::<u8, c_char>(src.to_ascii_lowercase());
+        // Casting between same-sized integers is a no-op.
+        *dest = src.to_ascii_lowercase() as c_char;
     }
 
     // Add the null terminator.
-    dest_suffix[src_suffix.len()] = transmute::<u8, c_char>(b'\0');
+    dest_suffix[src_suffix.len()] = b'\0' as c_char;
 
     // Store the length without the null.
     ini_name.len = dest_prefix.len() + src_suffix.len();
@@ -1162,9 +1168,10 @@ pub(crate) fn minit(module_number: libc::c_int) {
             ]
         };
 
+        let entries = &mut *ptr::addr_of_mut!(ENTRIES);
         let tmp = zai_config_minit(
-            ENTRIES.as_mut_ptr(),
-            ENTRIES.len(),
+            entries.as_mut_ptr(),
+            entries.len(),
             Some(env_to_ini_name),
             module_number,
         );

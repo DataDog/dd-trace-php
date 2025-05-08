@@ -6,6 +6,7 @@ use log::{error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
+use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -163,4 +164,21 @@ pub fn alloc_prof_rshutdown() {
     allocation_le83::alloc_prof_rshutdown();
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_rshutdown();
+}
+
+#[track_caller]
+fn initialization_panic() -> ! {
+    panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
+}
+
+unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
+    initialization_panic();
+}
+
+unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
+    initialization_panic();
+}
+
+unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
+    initialization_panic();
 }
