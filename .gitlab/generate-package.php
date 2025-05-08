@@ -163,7 +163,7 @@ foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor]
 ?>
-"cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: profiler
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
@@ -330,9 +330,9 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     HOST_OS: "<?= $platform['host_os'] ?>"
-    CARGO_BUILD_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
+    CARGO_BUILD_JOBS: 16
+    KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
     - echo "" >> "$BASH_ENV"
@@ -556,7 +556,7 @@ foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
     # Profiler extension
-    - job: "cargo build release: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
     }
@@ -621,6 +621,10 @@ foreach ($asan_build_platforms as $platform) {
         matrix:
           - ARCH: "<?= $arch ?>"
       artifacts: true
+    - job: "compile loader: [linux-gnu, <?= $arch ?>]":
+      artifacts: true
+    - job: "compile loader: [linux-musl, <?= $arch ?>]":
+      artifacts: true
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
@@ -641,8 +645,7 @@ foreach ($asan_build_platforms as $platform) {
 <?php
             foreach ($profiler_minor_major_targets as $major_minor):
 ?>
-    # Profiler extension
-    - job: "cargo build release: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
             endforeach;
