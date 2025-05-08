@@ -2,6 +2,7 @@
 #include "auto_flush.h"
 #include "compat_string.h"
 #include "configuration.h"
+#include "ddtrace_export.h"
 #include "dogstatsd.h"
 #include "logging.h"
 #include <components-rs/common.h>
@@ -34,6 +35,17 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
+}
+
+DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
+    if (memcmp(dd_sidecar_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+        return NULL;
+    }
+    return dd_sidecar_formatted_session_id;
+}
+
+DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
+    return DDTRACE_G(sidecar_queue_id);
 }
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {

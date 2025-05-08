@@ -21,7 +21,7 @@ class client_handler {
 public:
     client_handler(std::unique_ptr<remote_config::client> &&rc_client,
         std::shared_ptr<service_config> service_config,
-        std::shared_ptr<metrics::telemetry_submitter> msubmitter);
+        std::shared_ptr<telemetry::telemetry_submitter> msubmitter);
     ~client_handler() = default;
 
     client_handler(const client_handler &) = delete;
@@ -35,7 +35,7 @@ public:
         std::shared_ptr<dds::service_config> service_config,
         const remote_config::settings &rc_settings,
         const std::shared_ptr<engine> &engine_ptr,
-        std::shared_ptr<metrics::telemetry_submitter> msubmitter);
+        std::shared_ptr<telemetry::telemetry_submitter> msubmitter);
 
     void poll();
 
@@ -50,7 +50,7 @@ protected:
 
     std::shared_ptr<service_config> service_config_;
     std::unique_ptr<remote_config::client> rc_client_;
-    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter_;
 
     std::mutex mutex_{};
     std::chrono::steady_clock::time_point creation_time_{

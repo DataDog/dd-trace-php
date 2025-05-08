@@ -53,15 +53,27 @@ public:
         return std::nullopt;
     }
 
-    void update(const dds::remote_config::changeset &cs, parameter &diagnostics)
+    void update(const dds::remote_config::changeset &cs, parameter &diagnostics,
+        telemetry::telemetry_submitter &submitter)
     {
         for (const auto &removed : cs.removed) {
             bool const res = ddwaf_builder_remove_config(builder_.get(),
                 removed.full_key().data(), removed.full_key().size());
             if (res) {
                 SPDLOG_DEBUG("Removed config: {}", removed.full_key());
+                submitter.submit_log(
+                    telemetry::telemetry_submitter::log_level::Debug,
+                    "waf_builder_remove_config_success",
+                    fmt::format("Removed config: {}", removed.full_key()),
+                    std::nullopt, std::nullopt, false);
             } else {
                 SPDLOG_WARN("Failed to remove config: {}", removed.full_key());
+                submitter.submit_log(
+                    telemetry::telemetry_submitter::log_level::Warn,
+                    "waf_builder_remove_config_failure",
+                    fmt::format(
+                        "Failed to remove config: {}", removed.full_key()),
+                    std::nullopt, std::nullopt, false);
             }
         }
 
@@ -80,8 +92,19 @@ public:
             diagnostics.merge(std::move(these_diags));
             if (res) {
                 SPDLOG_DEBUG("Added/updated config: {}", key.full_key());
+                submitter.submit_log(
+                    telemetry::telemetry_submitter::log_level::Debug,
+                    "waf_builder_add_or_update_config_success",
+                    fmt::format("Added/updated config: {}", key.full_key()),
+                    std::nullopt, std::nullopt, false);
             } else {
                 SPDLOG_WARN("Failed to add/update config: {}", key.full_key());
+                submitter.submit_log(
+                    telemetry::telemetry_submitter::log_level::Warn,
+                    "waf_builder_add_or_update_config_failure",
+                    fmt::format(
+                        "Failed to add/update config: {}", key.full_key()),
+                    std::nullopt, std::nullopt, false);
             }
         }
 
@@ -237,10 +260,10 @@ void log_cb(DDWAF_LOG_LEVEL level, const char *function, const char *file,
         std::string_view(message, message_len));
 }
 
-metrics::telemetry_tags waf_update_init_report_tags(
+telemetry::telemetry_tags waf_update_init_report_tags(
     bool success, std::optional<std::string> rules_version)
 {
-    metrics::telemetry_tags tags;
+    telemetry::telemetry_tags tags;
     if (success) {
         tags.add("success", "true");
     } else {
@@ -253,14 +276,14 @@ metrics::telemetry_tags waf_update_init_report_tags(
     return tags;
 }
 
-void waf_init_report(metrics::telemetry_submitter &msubmitter, bool success,
+void waf_init_report(telemetry::telemetry_submitter &msubmitter, bool success,
     std::optional<std::string> rules_version)
 {
     msubmitter.submit_metric(metrics::waf_init, 1.0,
         waf_update_init_report_tags(success, std::move(rules_version)));
 }
 
-void waf_update_report(metrics::telemetry_submitter &msubmitter, bool success,
+void waf_update_report(telemetry::telemetry_submitter &msubmitter, bool success,
     std::optional<std::string> rules_version)
 {
     msubmitter.submit_metric(metrics::waf_updates, 1.0,
@@ -268,7 +291,7 @@ void waf_update_report(metrics::telemetry_submitter &msubmitter, bool success,
 }
 
 void load_result_report(
-    parameter_view diagnostics, metrics::telemetry_submitter &msubmitter)
+    parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter)
 {
     const auto info = static_cast<parameter_view::map>(diagnostics);
 
@@ -303,14 +326,14 @@ void load_result_report(
         const parameter_view::map map = static_cast<parameter_view::map>(value);
 
         auto tags_common = [&]() {
-            metrics::telemetry_tags tags;
+            telemetry::telemetry_tags tags;
             tags.add("waf_version", ddwaf_get_version())
                 .add("event_rules_version", ruleset_version)
                 .add("config_key", k);
             return tags;
         };
         if (map.contains("error")) {
-            metrics::telemetry_tags tags{tags_common()};
+            telemetry::telemetry_tags tags{tags_common()};
             tags.add("scope", "top-level");
 
             msubmitter.submit_metric(
@@ -327,7 +350,7 @@ void load_result_report(
                 error_count += err.size();
             }
 
-            metrics::telemetry_tags tags{tags_common()};
+            telemetry::telemetry_tags tags{tags_common()};
             tags.add("scope", "item");
 
             msubmitter.submit_metric(metrics::waf_config_errors,
@@ -337,7 +360,7 @@ void load_result_report(
 }
 
 void load_result_report_legacy(parameter_view diagnostics, std::string &version,
-    metrics::telemetry_submitter &msubmitter)
+    telemetry::telemetry_submitter &msubmitter)
 {
     try {
         const parameter_view diagnostics_view{diagnostics};
@@ -514,9 +537,9 @@ void instance::listener::call(
 }
 
 void instance::listener::submit_metrics(
-    metrics::telemetry_submitter &msubmitter)
+    telemetry::telemetry_submitter &msubmitter)
 {
-    metrics::telemetry_tags tags = base_tags_;
+    telemetry::telemetry_tags tags = base_tags_;
     if (rule_triggered_) {
         tags.add("rule_triggered", "true");
     }
@@ -545,7 +568,7 @@ void instance::listener::submit_metrics(
         }
 
         for (auto const &rule : rasp_metrics_) {
-            metrics::telemetry_tags tags;
+            telemetry::telemetry_tags tags;
             tags.add("rule_type", rule.first);
             tags.add("waf_version", ddwaf_get_version());
             msubmitter.submit_metric(
@@ -575,7 +598,7 @@ void instance::listener::submit_metrics(
     }
 }
 
-instance::instance(parameter rules, metrics::telemetry_submitter &msubmit,
+instance::instance(parameter rules, telemetry::telemetry_submitter &msubmit,
     std::uint64_t waf_timeout_us, std::string_view key_regex,
     std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
@@ -611,8 +634,8 @@ instance::instance(parameter rules, metrics::telemetry_submitter &msubmit,
 }
 
 instance::instance(std::shared_ptr<waf_builder> builder, waf_handle_up handle,
-    metrics::telemetry_submitter &msubmitter, std::chrono::microseconds timeout,
-    std::string version)
+    telemetry::telemetry_submitter &msubmitter,
+    std::chrono::microseconds timeout, std::string version)
     : builder_{std::move(builder)}, handle_{std::move(handle)},
       waf_timeout_{timeout}, ruleset_version_{std::move(version)},
       msubmitter_{msubmitter}
@@ -655,10 +678,10 @@ std::unique_ptr<subscriber::listener> instance::get_listener()
 
 std::unique_ptr<subscriber> instance::update(
     const remote_config::changeset &changeset,
-    metrics::telemetry_submitter &msubmitter)
+    telemetry::telemetry_submitter &msubmitter)
 {
     parameter diagnostics;
-    builder_->update(changeset, diagnostics);
+    builder_->update(changeset, diagnostics, msubmitter);
 
     waf_handle_up new_handle = builder_->new_handle();
 
@@ -684,7 +707,7 @@ std::unique_ptr<subscriber> instance::update(
 
 std::unique_ptr<instance> instance::from_settings(
     const engine_settings &settings, parameter ruleset,
-    metrics::telemetry_submitter &msubmitter)
+    telemetry::telemetry_submitter &msubmitter)
 {
     return std::make_unique<instance>(std::move(ruleset), msubmitter,
         settings.waf_timeout_us, settings.obfuscator_key_regex,
@@ -692,7 +715,7 @@ std::unique_ptr<instance> instance::from_settings(
 }
 
 std::unique_ptr<instance> instance::from_string(std::string_view rule,
-    metrics::telemetry_submitter &msubmitter, std::uint64_t waf_timeout_us,
+    telemetry::telemetry_submitter &msubmitter, std::uint64_t waf_timeout_us,
     std::string_view key_regex, std::string_view value_regex)
 {
     rapidjson::Document doc;

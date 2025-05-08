@@ -3,12 +3,11 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
-#include "common.hpp"
-#include "remote_config/mocks.hpp"
-#include "remote_config/settings.hpp"
 #include <remote_config/client.hpp>
 #include <service.hpp>
-#include <stdexcept>
+extern "C" {
+#include <sidecar_ffi.h>
+}
 
 extern "C" {
 struct ddog_CharSlice {
@@ -39,6 +38,16 @@ __attribute__((visibility("default"))) void ddog_remote_config_reader_drop(
     struct ddog_RemoteConfigReader *reader)
 {
     delete reader;
+}
+
+__attribute__((visibility("default"))) enum FfiError
+ddog_sidecar_enqueue_telemetry_log(struct FfiString /*session_id_ffi*/,
+    struct FfiString /*runtime_id_ffi*/, uint64_t /*-queue_id*/,
+    struct FfiString /*identifier_ffi*/, enum CLogLevel /*level*/,
+    struct FfiString /*message_ffi*/, struct FfiString * /*stack_trace_ffi*/,
+    struct FfiString * /*tags_ffi*/, bool /*is_sensitive*/)
+{
+    return FfiError::Ok;
 }
 
 __attribute__((constructor)) void resolve_symbols()

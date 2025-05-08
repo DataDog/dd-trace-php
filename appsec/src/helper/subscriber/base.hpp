@@ -6,9 +6,9 @@
 #pragma once
 
 #include "../action.hpp"
-#include "../metrics.hpp"
 #include "../parameter_view.hpp"
 #include "../remote_config/changeset.hpp"
+#include "../telemetry.hpp"
 #include <memory>
 
 namespace dds {
@@ -30,7 +30,7 @@ public:
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void submit_metrics(
-            metrics::telemetry_submitter &msubmitter) = 0;
+            telemetry::telemetry_submitter &msubmitter) = 0;
     };
 
     subscriber() = default;
@@ -46,7 +46,7 @@ public:
     virtual std::unique_ptr<listener> get_listener() = 0;
     virtual std::unique_ptr<subscriber> update(
         const remote_config::changeset &changeset,
-        metrics::telemetry_submitter &submit_metric) = 0;
+        telemetry::telemetry_submitter &submit_metric) = 0;
 };
 
 } // namespace dds
