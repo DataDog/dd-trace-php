@@ -85,6 +85,7 @@
 - Fix assumptions around interned strings on PHP 7.3 #3224
 - Fix initial double remote config reading #3225
 - Fix dropped trace payloads for the sidecar Datadog/libdatadog#1047
+- Fix Windows VirtualProtect call #3229
 
 ### Internal
 - Store debug symbols in the SSI archive #3217
