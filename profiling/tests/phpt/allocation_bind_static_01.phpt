@@ -13,9 +13,8 @@ https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
 But there's an `zend_array_dup` operation which can occur before this the call
 to `SAVE_OPLINE()`, so if the allocation profiler triggers there, it will
 access the invalid opline (non-null and invalid).
-
-TODO: note that this probably will not fail, because we have to take a sample
-at exactly the right time, and currently we don't have a way to force this.
+--ENV--
+DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70400)
