@@ -46,6 +46,7 @@ default-features = false
 features = ["env-filter", "fmt", "smallvec", "std"]
 
 [dev-dependencies]
+allocator-api2 = { version = "0.2", default-features = false, features = ["alloc"] }
 criterion = { version = "0.5.1" }
 datadog-php-profiling = { path = ".", features = ["test"] }
 

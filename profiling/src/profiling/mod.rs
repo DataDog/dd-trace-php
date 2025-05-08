@@ -1467,7 +1467,7 @@ impl Profiler {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
         });
 
         labels.push(Label {
