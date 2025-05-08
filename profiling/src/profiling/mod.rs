@@ -1563,7 +1563,7 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AgentEndpoint;
+    use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
@@ -1582,7 +1582,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
-            profiling_allocation_sampling_distance: 4194304,
+            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
