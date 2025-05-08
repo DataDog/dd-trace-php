@@ -3,6 +3,7 @@
 
 use crate::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
 use crate::{profiling::Profiler, REQUEST_LOCALS};
+use core::ptr;
 use std::sync::atomic::Ordering;
 
 #[cfg(not(php_frameless))]
@@ -13,8 +14,8 @@ mod execute_internal {
     use zend::{zend_execute_internal, zval, ZEND_ACC_CALL_VIA_TRAMPOLINE};
 
     /// The engine's previous [zend::zend_execute_internal] value, or
-    /// [zend::execute_internal] if none. This is a highly active path, so although
-    /// it could be made safe with Mutex, the cost is too high.
+    /// [zend::execute_internal] if none. This is a highly active path, so
+    /// although it could be made safe with Mutex, the cost is too high.
     static mut PREV_EXECUTE_INTERNAL: MaybeUninit<
         unsafe extern "C" fn(execute_data: *mut zend_execute_data, return_value: *mut zval),
     > = MaybeUninit::uninit();
@@ -39,15 +40,27 @@ mod execute_internal {
         ((*(*execute_data).func).common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0
     }
 
-    /// Overrides the engine's zend_execute_internal hook in order to process pending VM interrupts
-    /// while the internal function is still on top of the call stack. The VM does not process the
-    /// interrupt until the call returns so that it could theoretically jump to a different opcode,
-    /// like a fiber scheduler.
-    /// For our particular case this is problematic. For example, when the user does something like
-    /// `sleep(seconds: 10)`, the normal interrupt handling will not trigger until sleep returns,
-    /// so we'd then attribute all that time spent sleeping to whatever runs next. This is why we
-    /// intercept `zend_execute_internal` and process our own VM interrupts, but it doesn't delegate
-    /// to the  previous VM interrupt hook, as it's not expecting to be called from this state.
+    /// Overrides the engine's zend_execute_internal hook to process pending
+    /// VM interrupts while the internal function is still on top of the call
+    /// stack.
+    ///
+    /// Before PHP 8.4, the VM does not process the interrupt until the call
+    /// returns so that it could theoretically jump to a different opcode,
+    /// like a fiber scheduler. However, in practice, this hasn't been
+    /// possible since PHP 8.0 when zend_call_function started calling
+    /// zend_interrupt_function, while the internal frame is still on the call
+    /// stack.
+    ///
+    /// Consider when the user does something like `sleep(seconds: 10)`. The
+    /// normal interrupt handling will not trigger until sleep returns, so
+    /// we'll attribute all the time spent sleeping to whatever runs next.
+    /// This is why we intercept `zend_execute_internal` and process our own
+    /// VM interrupts, but it doesn't delegate to the previous VM interrupt
+    /// hook, as the interrupt hooks weren't expected to be called from this
+    /// place.
+    ///
+    /// Levi changed this in 8.4: https://github.com/php/php-src/pull/14627,
+    /// which is why this isn't needed on 8.4+.
     extern "C" fn execute_internal(execute_data: *mut zend_execute_data, return_value: *mut zval) {
         // SAFETY: called before executing the trampoline.
         let leaf_frame = if unsafe { execute_data_func_is_trampoline(execute_data) } {
@@ -58,7 +71,8 @@ mod execute_internal {
         };
 
         // SAFETY: PREV_EXECUTE_INTERNAL was written during minit, doesn't change during runtime.
-        let prev_execute_internal = unsafe { *PREV_EXECUTE_INTERNAL.as_mut_ptr() };
+        let prev_execute_internal =
+            unsafe { (*ptr::addr_of_mut!(PREV_EXECUTE_INTERNAL)).assume_init_mut() };
 
         // SAFETY: calling prev_execute without modification will be safe.
         unsafe { prev_execute_internal(execute_data, return_value) };
@@ -68,8 +82,11 @@ mod execute_internal {
         ddog_php_prof_interrupt_function(leaf_frame);
     }
 
+    /// # Safety
+    /// Only call during extension MINIT.
     pub unsafe fn minit() {
-        PREV_EXECUTE_INTERNAL.write(zend_execute_internal.unwrap_or(zend::execute_internal));
+        (*ptr::addr_of_mut!(PREV_EXECUTE_INTERNAL))
+            .write(zend_execute_internal.unwrap_or(zend::execute_internal));
         zend_execute_internal = Some(execute_internal);
     }
 }
@@ -127,7 +144,8 @@ extern "C" fn ddog_php_prof_interrupt_function_wrapper(execute_data: *mut zend_e
     ddog_php_prof_interrupt_function(execute_data);
 
     // SAFETY: PREV_INTERRUPT_FUNCTION was written during minit, doesn't change during runtime.
-    if let Some(prev_interrupt) = unsafe { PREV_INTERRUPT_FUNCTION.as_ref() } {
+    if let Some(prev_interrupt) = unsafe { (*ptr::addr_of_mut!(PREV_INTERRUPT_FUNCTION)).as_ref() }
+    {
         // SAFETY: calling the interrupt handler with correct args at right place.
         unsafe { prev_interrupt(execute_data) };
     }
@@ -136,13 +154,14 @@ extern "C" fn ddog_php_prof_interrupt_function_wrapper(execute_data: *mut zend_e
 /// # Safety
 /// Only call during PHP's minit phase.
 pub unsafe fn minit() {
-    PREV_INTERRUPT_FUNCTION = zend_interrupt_function;
-    let function = if zend_interrupt_function.is_some() {
+    ptr::addr_of_mut!(PREV_INTERRUPT_FUNCTION).write(zend_interrupt_function);
+    let interrupt_function = ptr::addr_of_mut!(zend_interrupt_function);
+    let function = if interrupt_function.read().is_some() {
         ddog_php_prof_interrupt_function_wrapper
     } else {
         ddog_php_prof_interrupt_function
     };
-    zend_interrupt_function = Some(function);
+    interrupt_function.write(Some(function));
 
     #[cfg(not(php_frameless))]
     execute_internal::minit();

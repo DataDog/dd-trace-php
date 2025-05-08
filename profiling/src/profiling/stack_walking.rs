@@ -461,6 +461,8 @@ mod detail {
 
 pub use detail::*;
 
+// todo: this should be feature = "stack_walking_tests" but it seemed to
+//       cause a failure in CI to migrate it.
 #[cfg(all(test, stack_walking_tests))]
 mod tests {
     use super::*;

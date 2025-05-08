@@ -203,10 +203,10 @@ pub fn alloc_prof_rinit() {
 }
 
 pub fn alloc_prof_rshutdown() {
-    // If `is_zend_mm()` is true, the custom handlers have been reset to `None`
-    // already. This is unexpected, therefore we will not touch the ZendMM
+    // If `is_zend_mm()` is true, the custom handlers have already been reset
+    // to `None`. This is unexpected, therefore we will not touch the ZendMM
     // handlers anymore as resetting to prev handlers might result in segfaults
-    // and other undefined behaviour.
+    // and other undefined behavior.
     if is_zend_mm() {
         return;
     }
@@ -281,14 +281,17 @@ pub fn alloc_prof_startup() {
     }
 }
 
-/// Overrides the ZendMM heap's `use_custom_heap` flag with the default `ZEND_MM_CUSTOM_HEAP_NONE`
-/// (currently a `u32: 0`). This needs to be done, as the `zend_mm_gc()` and `zend_mm_shutdown()`
-/// functions alter behaviour in case custom handlers are installed.
+/// Overrides the ZendMM heap's `use_custom_heap` flag with the default
+/// `ZEND_MM_CUSTOM_HEAP_NONE` (currently a `u32: 0`). This needs to be done,
+/// as the `zend_mm_gc()` and `zend_mm_shutdown()` functions alter behavior
+/// in case custom handlers are installed.
+///
 /// - `zend_mm_gc()` will not do anything anymore.
-/// - `zend_mm_shutdown()` wont cleanup chunks anymore, leading to memory leaks
-/// The `_zend_mm_heap`-struct itself is private, but we are lucky, as the `use_custom_heap` flag
-/// is the first element and thus the first 4 bytes.
-/// Take care and call `restore_zend_heap()` afterwards!
+/// - `zend_mm_shutdown()` won't clean up chunks anymore (leaks memory)
+///
+/// The `_zend_mm_heap`-struct itself is private, but we are lucky, as the
+/// `use_custom_heap` flag is the first element and thus the first 4 bytes.
+/// Take care and call `restore_zend_heap()` afterward!
 unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
     let custom_heap: c_int = ptr::read(heap as *const c_int);
     ptr::write(heap as *mut c_int, zend::ZEND_MM_CUSTOM_HEAP_NONE as c_int);
@@ -374,7 +377,7 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 
 /// This function exists because when calling `zend_mm_set_custom_handlers()`,
 /// you need to pass a pointer to a `free()` function as well, otherwise your
-/// custom handlers won't be installed. We can not just point to the original
+/// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
     tls_zend_mm_state_get!(free)(ptr);
@@ -401,7 +404,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr == prev_ptr {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr::eq(ptr, prev_ptr) {
         return ptr;
     }
 

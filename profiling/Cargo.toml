@@ -75,4 +75,7 @@ trigger_time_sample = []
 bindgen = { version = "0.69.4" }
 cc = { version = "1.0" }
 
+# We can remove this when we're using Rust 1.80+
+rustc_version = "0.4"
+
 # profiling release options in root Cargo.toml
