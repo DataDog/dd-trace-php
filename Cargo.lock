@@ -768,8 +768,8 @@ dependencies = [
 
 [[package]]
 name = "build_common"
-version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
+version = "18.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "cbindgen",
  "serde",
@@ -1030,7 +1030,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8030735ecb0d128428b64cd379809817e620a40e5001c54465b99ec5feec2857"
 dependencies = [
  "futures-core",
- "prost 0.13.5",
+ "prost",
  "prost-types",
  "tonic",
  "tracing-core",
@@ -1049,7 +1049,7 @@ dependencies = [
  "hdrhistogram",
  "humantime",
  "hyper-util",
- "prost 0.13.5",
+ "prost",
  "prost-types",
  "serde",
  "serde_json",
@@ -1365,8 +1365,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v17.0.0#1faf409785c0f4e3079579c9faf4215de6eea7b6"
+version = "18.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1427,7 +1427,7 @@ dependencies = [
 name = "datadog-ddsketch"
 version = "0.0.1"
 dependencies = [
- "prost 0.13.5",
+ "prost",
  "prost-build",
  "protoc-bin-vendored",
 ]
@@ -1494,7 +1494,7 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "anyhow",
  "serde",
@@ -1517,14 +1517,14 @@ dependencies = [
 [[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "anyhow",
- "build_common 17.0.0",
+ "build_common 18.0.0",
  "constcat",
- "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
- "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
- "ddcommon-ffi 17.0.0",
+ "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?tag=v18.0.0)",
+ "ddcommon 18.0.0",
+ "ddcommon-ffi 18.0.0",
 ]
 
 [[package]]
@@ -1578,10 +1578,10 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
+ "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?tag=v18.0.0)",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?tag=v17.0.0)",
+ "ddcommon 18.0.0",
  "env_logger 0.11.6",
  "indexmap 2.7.1",
  "lazy_static",
@@ -1601,33 +1601,26 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v17.0.0#1faf409785c0f4e3079579c9faf4215de6eea7b6"
+version = "18.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "anyhow",
  "bitmaps",
  "byteorder",
  "bytes",
  "chrono",
- "const_format",
  "datadog-alloc",
- "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?tag=v17.0.0)",
+ "ddcommon 18.0.0",
  "derivative",
  "futures",
- "futures-core",
- "futures-util",
- "hashbrown 0.14.5",
  "http 1.2.0",
  "http-body-util",
  "hyper 1.6.0",
  "hyper-multipart-rfc7578",
  "indexmap 2.7.1",
- "libc 0.2.169",
  "lz4_flex",
  "mime",
- "mime_guess",
- "percent-encoding",
- "prost 0.12.6",
+ "prost",
  "rustc-hash 1.1.0",
  "serde",
  "serde_json",
@@ -1764,7 +1757,7 @@ dependencies = [
 name = "datadog-trace-protobuf"
 version = "0.0.1"
 dependencies = [
- "prost 0.13.5",
+ "prost",
  "prost-build",
  "protoc-bin-vendored",
  "serde",
@@ -1794,7 +1787,7 @@ dependencies = [
  "hyper 1.6.0",
  "hyper-http-proxy",
  "log",
- "prost 0.13.5",
+ "prost",
  "rand 0.8.5",
  "rmp",
  "rmp-serde",
@@ -1849,44 +1842,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v17.0.0#1faf409785c0f4e3079579c9faf4215de6eea7b6"
-dependencies = [
- "anyhow",
- "cc",
- "const_format",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http 1.2.0",
- "http-body 1.0.1",
- "http-body-util",
- "hyper 1.6.0",
- "hyper-rustls",
- "hyper-util",
- "libc 0.2.169",
- "log",
- "memfd",
- "pin-project",
- "rand 0.8.5",
- "regex",
- "rmp",
- "rmp-serde",
- "rustls",
- "rustls-native-certs 0.8.1",
- "serde",
- "static_assertions",
- "tokio",
- "tokio-rustls",
- "tower-service",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "ddcommon"
-version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
+version = "18.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "anyhow",
  "cc",
@@ -1936,14 +1893,14 @@ dependencies = [
 
 [[package]]
 name = "ddcommon-ffi"
-version = "17.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28#8c826205d139554166a5175fbeb16f9fee6a1a28"
+version = "18.0.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
 dependencies = [
  "anyhow",
- "build_common 17.0.0",
+ "build_common 18.0.0",
  "chrono",
  "crossbeam-queue",
- "ddcommon 17.0.0 (git+https://github.com/DataDog/libdatadog?rev=8c826205d139554166a5175fbeb16f9fee6a1a28)",
+ "ddcommon 18.0.0",
  "hyper 1.6.0",
  "serde",
 ]
@@ -4277,22 +4234,12 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
-dependencies = [
- "bytes",
- "prost-derive 0.12.6",
-]
-
-[[package]]
-name = "prost"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
 dependencies = [
  "bytes",
- "prost-derive 0.13.5",
+ "prost-derive",
 ]
 
 [[package]]
@@ -4308,24 +4255,11 @@ dependencies = [
  "once_cell",
  "petgraph",
  "prettyplease",
- "prost 0.13.5",
+ "prost",
  "prost-types",
  "regex",
  "syn 2.0.96",
  "tempfile",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
-dependencies = [
- "anyhow",
- "itertools 0.12.1",
- "proc-macro2",
- "quote",
- "syn 2.0.96",
 ]
 
 [[package]]
@@ -4347,7 +4281,7 @@ version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
 dependencies = [
- "prost 0.13.5",
+ "prost",
 ]
 
 [[package]]
@@ -5943,7 +5877,7 @@ dependencies = [
  "hyper-util",
  "percent-encoding",
  "pin-project",
- "prost 0.13.5",
+ "prost",
  "socket2",
  "tokio",
  "tokio-stream",

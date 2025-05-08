@@ -131,7 +131,7 @@ impl WallTime {
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
-    Num(i64, Option<&'static str>),
+    Num(i64, &'static str),
 }
 
 #[derive(Debug, Clone)]
@@ -143,18 +143,18 @@ pub struct Label {
 impl<'a> From<&'a Label> for ApiLabel<'a> {
     fn from(label: &'a Label) -> Self {
         let key = label.key;
-        match &label.value {
-            LabelValue::Str(str) => Self {
+        match label.value {
+            LabelValue::Str(ref str) => Self {
                 key,
-                str: Some(str),
+                str,
                 num: 0,
-                num_unit: None,
+                num_unit: "",
             },
             LabelValue::Num(num, num_unit) => Self {
                 key,
-                str: None,
-                num: *num,
-                num_unit: num_unit.as_deref(),
+                str: "",
+                num,
+                num_unit,
             },
         }
     }
@@ -1329,11 +1329,11 @@ impl Profiler {
         #[cfg(php_gc_status)]
         labels.push(Label {
             key: "gc runs",
-            value: LabelValue::Num(runs, Some("count")),
+            value: LabelValue::Num(runs, "count"),
         });
         labels.push(Label {
             key: "gc collected",
-            value: LabelValue::Num(collected, Some("count")),
+            value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
 
@@ -1488,12 +1488,12 @@ impl Profiler {
 
             labels.push(Label {
                 key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, None),
+                value: LabelValue::Num(local_root_span_id, ""),
             });
 
             labels.push(Label {
                 key: "span id",
-                value: LabelValue::Num(span_id, None),
+                value: LabelValue::Num(span_id, ""),
             });
         }
 
