@@ -90,6 +90,9 @@
 - Store debug symbols in the SSI archive #3217
 
 ## Profiling
+### Added
+- Configurable allocation sampling distance #3227
+
 ### Changed
 - Accept auto as valid value for DD_PROFILING_ENABLED #3166
 
