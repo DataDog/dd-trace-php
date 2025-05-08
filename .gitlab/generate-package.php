@@ -1075,27 +1075,51 @@ endforeach;
 
 .system_tests:
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
   tags: [ "docker-in-docker:amd64" ]
   variables:
+    TEST_LIBRARY: php
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
     BUILD_SH_ARGS: php
+    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+    APT_CACHE: $CI_PROJECT_DIR/.cache/apt
+    DOCKER_DEFAULT_PLATFORM: linux/amd64
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
+    - job: "prepare code"
+      artifacts: true
   before_script:
-    - apt update
-    - apt-get install -y python3.12-full python3.12-dev python3.12-venv
+    - |
+      # Setup cache dirs
+      mkdir -p $PIP_CACHE_DIR
+      mkdir -p $APT_CACHE/lists
+      mkdir -p $APT_CACHE/archives
+      chown -R $(id -u):$(id -g) $CI_PROJECT_DIR/.cache
+
+      # Install system dependencies
+      apt-get update -o dir::state::lists="$APT_CACHE/lists"
+      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" docker.io git
+
+      # Install Python dependencies
+      pip install -U pip virtualenv
     - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
+  afer_script:
+    - ls -hal /opt/php/nts/bin/php/
+  cache:
+    - key: v0-$CI_JOB_NAME_SLUG-cache
+      when: always
+      paths:
+        - .cache/
   artifacts:
     paths:
       - "system-tests/logs/"
@@ -1124,7 +1148,7 @@ endforeach;
   variables:
     BUILD_SH_ARGS: "-i runner"
   script:
-    - TEST_LIBRARY=php ./run.sh PARAMETRIC
+    - ./run.sh PARAMETRIC
 
 <?php /* foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
