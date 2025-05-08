@@ -28,10 +28,18 @@ class HttpClientIntegrationHelper
         }
 
         // Custom configuration exists, use it
-        $codesList = explode(',', $errorStatusCodes);
+        $codesList = is_array($errorStatusCodes) ? $errorStatusCodes : explode(',', $errorStatusCodes);
 
         foreach ($codesList as $item) {
-            $item = trim($item);
+            if ($item === null) {
+                continue;
+            }
+
+            $item = trim((string)$item);
+
+            if ($item === '') {
+                continue;
+            }
 
             if (strpos($item, '-') !== false) {
                 // Range ("400-499")

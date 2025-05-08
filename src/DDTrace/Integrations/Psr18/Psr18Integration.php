@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Psr18;
 
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -40,7 +41,6 @@ class Psr18Integration extends Integration
                     $statusCode = $retval->getStatusCode();
                     $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                     HttpClientIntegrationHelper::setClientError($span, $statusCode, $retval->getReasonPhrase());
-                    }
                 }
             }
         );

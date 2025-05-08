@@ -1186,7 +1186,7 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
             if (is_error) {
                 zval zv = {0}, *value;
                 if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
-                    ZVAL_STR(value, zend_string_init(ZEND_STRL("http_error"), 0));
+                    ZVAL_STR(value, zend_string_init(ZEND_STRL("HttpError"), 0));
                 }
             }
         }
