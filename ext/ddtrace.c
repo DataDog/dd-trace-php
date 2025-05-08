@@ -257,7 +257,7 @@ static void dd_patch_zend_call_known_function(void) {
 
 #ifdef _WIN32
     DWORD old_protection;
-    if (VirtualProtect(page, page_size, PAGE_READWRITE, &old_protection))
+    if (!VirtualProtect(page, page_size, PAGE_READWRITE, &old_protection))
 #else
     if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0)
 #endif
