@@ -91,14 +91,17 @@ impl ZendMMState {
 
 #[cfg(php_zts)]
 thread_local! {
-    /// Using an `UnsafeCell` here should be okay. There might not be any
-    /// synchronisation issues, as it is used in as thread local and only
+    /// Using a `Cell` here should be okay. There might not be any
+    /// synchronization issues, as it is used in as thread local and only
     /// mutated in RINIT and RSHUTDOWN.
     static ZEND_MM_STATE: Cell<ZendMMState> = const {
         Cell::new(ZendMMState::new())
     };
 }
+
 #[cfg(not(php_zts))]
+/// Using a `Cell` here should be okay. There might not be any
+/// synchronization issues, as it is only mutated in RINIT and RSHUTDOWN.
 static mut ZEND_MM_STATE: Cell<ZendMMState> = Cell::new(ZendMMState::new());
 
 #[cfg(php_zts)]
