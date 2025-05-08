@@ -1090,6 +1090,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+    - apt update
     - apt-get install -y python3.12-full python3.12-dev python3.12-venv
     - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
