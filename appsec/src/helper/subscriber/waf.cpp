@@ -549,7 +549,8 @@ void instance::listener::submit_metrics(
         for (auto const &rule : rasp_metrics_) {
             metrics::telemetry_tags tags = base_tags_;
             tags.add("rule_type", rule.first);
-            // TODO: missing rule_variant
+            // TODO: rule_variant will need to be added here when
+            // command_injection or shell_injection are implemented
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_rule_eval, rule.second.evaluated, tags);
             msubmitter.submit_metric(
