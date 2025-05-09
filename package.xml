@@ -83,7 +83,7 @@
 ### Fixed
 - Check server first before accessing in ddtrace_ip_extraction_find #3216
 - Fix assumptions around interned strings on PHP 7.3 #3224
-- Fix initial double remote config reading #3225
+- Fix initial double remote config reading #3225, #3238
 - Fix dropped trace payloads for the sidecar Datadog/libdatadog#1047
 - Fix Windows VirtualProtect call #3229
 
@@ -99,6 +99,10 @@
 
 ### Fixed
 - Fix empty internal metadata #3228
+- Follow PHP globals model in allocation profiler #3175
+
+### Internal changes
+- Bump libdatadog to version 18 #3229
 
 ## Application Security Management
 ### Added
