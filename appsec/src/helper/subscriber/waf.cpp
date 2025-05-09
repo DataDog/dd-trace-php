@@ -527,8 +527,10 @@ void instance::listener::submit_metrics(
         tags.add("waf_timeout", "true");
     }
     if (waf_run_error_) {
+        // TODO: Change this to be waf_error?
         tags.add("waf_run_error", "true");
     }
+    // TODO: missing input_truncated
     msubmitter.submit_metric(metrics::waf_requests, 1.0, std::move(tags));
 
     // span tags/metrics
@@ -544,10 +546,11 @@ void instance::listener::submit_metrics(
                 metrics::rasp_timeout, rasp_timeouts_);
         }
 
+        // missing metric appsec.rasp.error
         for (auto const &rule : rasp_metrics_) {
-            metrics::telemetry_tags tags;
+            metrics::telemetry_tags tags = base_tags_;
             tags.add("rule_type", rule.first);
-            tags.add("waf_version", ddwaf_get_version());
+            // TODO: missing rule_variant
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_rule_eval, rule.second.evaluated, tags);
             msubmitter.submit_metric(
