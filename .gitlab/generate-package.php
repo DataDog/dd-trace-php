@@ -1113,8 +1113,6 @@ endforeach;
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
-  afer_script:
-    - ls -hal /opt/php/nts/bin/php/
   cache:
     - key: v0-$CI_JOB_NAME_SLUG-cache
       when: always
