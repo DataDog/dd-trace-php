@@ -1167,6 +1167,24 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
     }
 }
 
+static bool should_track_error(zend_object *exception, ddtrace_span_data *span) {
+    if (Z_TYPE(span->property_exception) != IS_OBJECT || Z_OBJ(span->property_exception) != exception) {
+        return true;
+    }
+
+    zval *zv;
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    
+    // Check if error should be ignored or tracking is disabled
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
+        return false;
+    }
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zval_is_true(zv)) {
+        return false;
+    }
+    return true;
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *service_name) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
@@ -1230,8 +1248,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
 
     zval *exception_zv = &span->property_exception;
     bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-    if (has_exception) {
-        ignore_error = false;
+    if (has_exception && !ignore_error) {
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
@@ -1335,23 +1352,22 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
 
     zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
-    if (error && !ignore_error) {
+    if (error) {
         add_assoc_long(el, "error", 1);
-
-        if (Z_TYPE(span->property_exception) == IS_OBJECT) {
-            ddtrace_span_data *parent = span;
-            while (parent->parent) {
-                parent = SPANDATA(parent->parent);
-                if (Z_TYPE(parent->property_exception) == IS_OBJECT && Z_OBJ(parent->property_exception) == Z_OBJ(span->property_exception)) {
-                    zval *zv;
-                    if ((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta), ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
-                        add_assoc_string(meta, "track_error", "false");
-                        break;
-                    }
-                } else {
+        
+        if (!ignore_error && Z_TYPE(span->property_exception) == IS_OBJECT) {
+            zend_object *exception = Z_OBJ(span->property_exception);
+            ddtrace_span_data *current = span;
+            bool should_track;
+            
+            do {
+                should_track = should_track_error(exception, current);
+                if (!should_track) {
+                    add_assoc_string(meta, "track_error", "false");
                     break;
                 }
-            }
+                current = current->parent ? SPANDATA(current->parent) : NULL;
+            } while (current);
         }
     }
 
