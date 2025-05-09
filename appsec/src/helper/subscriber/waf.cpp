@@ -527,8 +527,7 @@ void instance::listener::submit_metrics(
         tags.add("waf_timeout", "true");
     }
     if (waf_run_error_) {
-        // TODO: Change this to be waf_error?
-        tags.add("waf_run_error", "true");
+        tags.add("waf_error", "true");
     }
     // TODO: missing input_truncated
     msubmitter.submit_metric(metrics::waf_requests, 1.0, std::move(tags));
