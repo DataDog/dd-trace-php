@@ -1150,7 +1150,6 @@ endforeach;
 
 "System Tests: [parametric]":
   extends: .system_tests
-  timeout: 10m
   variables:
     BUILD_SH_ARGS: "-i runner"
     PYTEST_XDIST_AUTO_NUM_WORKERS: 1
