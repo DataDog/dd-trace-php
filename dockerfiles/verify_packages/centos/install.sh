@@ -36,6 +36,7 @@ do_retry yum --enablerepo=remi-php${PHP_MINOR_MAJOR} install -y \
 mkdir -p /run/php-fpm
 # For cases when it defaults to UDS
 sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
+echo 'listen.allowed_clients = 127.0.0.1' >> ${WWW_CONF}
 # Passing envs to php-fpm process directly for simplicity. Note that on PHP 5.4 clear_env does not appear in www not
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' /etc/php-fpm.d/www.conf

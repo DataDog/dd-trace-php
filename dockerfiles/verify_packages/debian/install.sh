@@ -65,6 +65,7 @@ sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' ${WWW_CONF}
 echo 'clear_env = no' >> ${WWW_CONF}
+echo 'listen.allowed_clients = 127.0.0.1' >> ${WWW_CONF}
 sed -i 's/^;*catch_workers_output.*$/catch_workers_output = yes/g' ${WWW_CONF}
 
 echo "Starting ${PHP_FPM_BIN}"
