@@ -1153,6 +1153,7 @@ endforeach;
   timeout: 10m
   variables:
     BUILD_SH_ARGS: "-i runner"
+    PYTEST_XDIST_AUTO_NUM_WORKERS: 1
   script:
     - ./run.sh PARAMETRIC
 
