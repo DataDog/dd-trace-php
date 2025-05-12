@@ -700,7 +700,7 @@ endforeach;
     RUST_BACKTRACE: 1
   before_script:
     - apt install -y php git make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/1.28.0/run.sh -o /usr/local/bin/docker-compose
+    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - make -C tests/randomized library.local # Copy tracer package
