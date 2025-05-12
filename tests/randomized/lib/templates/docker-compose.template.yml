@@ -40,3 +40,4 @@ services:
 networks:
   randomized_tests:
     name: randomized_tests_baseservices
+    external: true
