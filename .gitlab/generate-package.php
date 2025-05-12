@@ -698,9 +698,10 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 30Gi
     KUBERNETES_MEMORY_LIMIT: 40Gi
     RUST_BACKTRACE: 1
+    DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
     - apt install -y php git make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - make -C tests/randomized library.local # Copy tracer package
@@ -739,6 +740,8 @@ endforeach;
 "randomized tests: [arm64, no-asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "runner:docker-arm" ]
+  variables:
+    DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
   needs:
     - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
       artifacts: true
@@ -749,6 +752,8 @@ endforeach;
 "randomized tests: [arm64, asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "runner:docker-arm" ]
+  variables:
+    DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
   needs:
     - job: "package extension asan"
       artifacts: true
