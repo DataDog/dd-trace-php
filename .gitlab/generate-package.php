@@ -841,6 +841,7 @@ endforeach;
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
+    - docker-compose --version
   script:
     - make -f dockerfiles/frameworks/Makefile $TESTSUITE
   artifacts:
