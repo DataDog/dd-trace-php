@@ -837,7 +837,7 @@ endforeach;
         # - symfony
   before_script:
     - apt install -y make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/1.28.0/run.sh -o /usr/local/bin/docker-compose
+    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -1210,7 +1210,7 @@ endforeach;
        export XDEBUG_SO_NAME=xdebug-3.0.0.so
      elif [[ "$MINOR_MAJOR" == "7.4" ]]; then
        export XDEBUG_SO_NAME=xdebug-2.9.5.so
-     fi  
+     fi
     - switch-php $PHP_FLAVOUR
     - tar -xzf dd-library-php-ssi-*-linux.tar.gz
     - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
