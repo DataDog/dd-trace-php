@@ -18,7 +18,7 @@
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.16.1                 | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 12.12.0                |
+| laravel/framework           | 4.2.22                 | 12.13.0                |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
 | laravel/octane              | 2.9.1                  | 2.9.1                  |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
