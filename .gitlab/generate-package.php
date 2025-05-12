@@ -1080,7 +1080,8 @@ endforeach;
   tags: [ "docker-in-docker:amd64" ]
   variables:
     TEST_LIBRARY: php
-    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_REQUEST: 8
+    PYTEST_XDIST_AUTO_NUM_WORKERS: 8
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
@@ -1152,7 +1153,6 @@ endforeach;
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i runner"
-    PYTEST_XDIST_AUTO_NUM_WORKERS: 4
   script:
     - ./run.sh PARAMETRIC
 
