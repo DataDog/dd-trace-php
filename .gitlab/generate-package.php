@@ -1149,6 +1149,7 @@ endforeach;
 
 "System Tests: [parametric]":
   extends: .system_tests
+  timeout: 10m
   variables:
     BUILD_SH_ARGS: "-i runner"
   script:
