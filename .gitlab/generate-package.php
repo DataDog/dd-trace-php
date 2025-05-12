@@ -1125,6 +1125,7 @@ endforeach;
         - .cache/
   artifacts:
     paths:
+      - "system-tests/logs_parametric/"
       - "system-tests/logs/"
     when: "always"
 
