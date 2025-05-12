@@ -1432,6 +1432,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         ddtrace_module = Z_PTR_P(ddtrace_module_zv);
     }
 
+    // Make sure it's available for appsec, before any early returns
+    dd_ip_extraction_startup();
+
     // config initialization needs to be at the top
     // This also initialiyzed logging, so no logs may be emitted before this.
     ddtrace_log_init();
@@ -1465,9 +1468,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
     mod_ptr->handle = NULL;
     /* }}} */
-
-    // Make sure it's available for appsec, i.e. before disabling
-    dd_ip_extraction_startup();
 
     if (ddtrace_disable) {
         return SUCCESS;
