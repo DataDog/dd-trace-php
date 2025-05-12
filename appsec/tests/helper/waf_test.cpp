@@ -119,13 +119,54 @@ TEST(WafTest, InitWithInvalidRules)
 
 TEST(WafTest, RunWithInvalidParam)
 {
-    NiceMock<mock::tel_submitter> submitm{};
-    std::shared_ptr<subscriber> wi{
-        waf::instance::from_string(waf_rule, submitm)};
-    auto ctx = wi->get_listener();
-    parameter_view pv;
-    dds::event e;
-    EXPECT_THROW(ctx->call(pv, e), invalid_object);
+    { // No rasp
+        NiceMock<mock::tel_submitter> submitm{};
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, submitm)};
+        auto ctx = wi->get_listener();
+        parameter_view pv;
+        dds::event e;
+        EXPECT_THROW(ctx->call(pv, e), invalid_object);
+    }
+    { // Rasp
+        NiceMock<mock::tel_submitter> submitm{};
+        std::shared_ptr<subscriber> wi(
+            waf::instance::from_string(waf_rule, submitm, 0));
+        auto ctx = wi->get_listener();
+
+        EXPECT_CALL(submitm,
+            submit_metric("waf.requests"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",waf_error:true"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.eval"sv, 1,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.match"sv, 0,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.timeout"sv, 0,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, -2,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+
+        parameter_view pv;
+        dds::event e;
+        std::string rasp = "lfi";
+        EXPECT_THROW(ctx->call(pv, e, rasp), invalid_object);
+        ctx->submit_metrics(submitm);
+        Mock::VerifyAndClearExpectations(&submitm);
+    }
 }
 
 TEST(WafTest, RunWithTimeout)

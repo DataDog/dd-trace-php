@@ -417,11 +417,10 @@ void instance::listener::call(
     dds::parameter_view &data, event &event, const std::string &rasp_rule)
 {
     ddwaf_result res;
-    DDWAF_RET_CODE code;
     auto run_waf = [&]() {
         dds::parameter_view *persistent = rasp_rule.empty() ? &data : nullptr;
         dds::parameter_view *ephemeral = rasp_rule.empty() ? nullptr : &data;
-        code = ddwaf_run(
+        code_ = ddwaf_run(
             handle_, persistent, ephemeral, &res, waf_timeout_.count());
     };
 
@@ -437,7 +436,7 @@ void instance::listener::call(
             parameter_to_json(parameter_view{res.events}),
             res.total_runtime / millis);
         SPDLOG_DEBUG("Waf response: code {} - actions {} - derivatives {}",
-            fmt::underlying(code),
+            fmt::underlying(code_),
             parameter_to_json(parameter_view{res.actions}),
             parameter_to_json(parameter_view{res.derivatives}));
     } else {
@@ -474,7 +473,7 @@ void instance::listener::call(
             rasp_metrics_[rasp_rule].timeouts++;
         }
         rasp_metrics_[rasp_rule].evaluated++;
-        if (code == DDWAF_MATCH) {
+        if (code_ == DDWAF_MATCH) {
             rasp_metrics_[rasp_rule].matches++;
         }
     }
@@ -489,7 +488,7 @@ void instance::listener::call(
         }
     }
 
-    switch (code) {
+    switch (code_) {
     case DDWAF_MATCH:
         rule_triggered_ = true;
         return format_waf_result(res, event);
@@ -529,7 +528,6 @@ void instance::listener::submit_metrics(
     if (waf_run_error_) {
         tags.add("waf_error", "true");
     }
-    // TODO: missing input_truncated
     msubmitter.submit_metric(metrics::waf_requests, 1.0, std::move(tags));
 
     // span tags/metrics
@@ -545,18 +543,19 @@ void instance::listener::submit_metrics(
                 metrics::rasp_timeout, rasp_timeouts_);
         }
 
-        // missing metric appsec.rasp.error
         for (auto const &rule : rasp_metrics_) {
             metrics::telemetry_tags tags = base_tags_;
             tags.add("rule_type", rule.first);
-            // TODO: rule_variant will need to be added here when
-            // command_injection or shell_injection are implemented
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_rule_eval, rule.second.evaluated, tags);
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_rule_match, rule.second.matches, tags);
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_timeout, rule.second.timeouts, tags);
+            if (waf_run_error_) {
+                msubmitter.submit_metric(
+                    metrics::telemetry_rasp_error, code_, tags);
+            }
         }
     }
 
