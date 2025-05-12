@@ -1152,7 +1152,7 @@ endforeach;
   extends: .system_tests
   variables:
     BUILD_SH_ARGS: "-i runner"
-    PYTEST_XDIST_AUTO_NUM_WORKERS: 1
+    PYTEST_XDIST_AUTO_NUM_WORKERS: 4
   script:
     - ./run.sh PARAMETRIC
 
