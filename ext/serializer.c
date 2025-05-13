@@ -1550,6 +1550,7 @@ void transfer_meta_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, ddo
     ddog_CharSlice value = ddog_get_span_meta(source, key);
     if (value.len > 0) {
         ddog_add_span_meta(destination, key, value);
+        ddog_free_charslice(value);
         if (delete_source) {
             ddog_del_span_meta(source, key);
         }
@@ -1952,6 +1953,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
                 smart_str_appends(&meta_str, "='");
                 smart_str_appends(&meta_str, value.len ? value.ptr: "");
                 smart_str_appendc(&meta_str, '\'');
+                ddog_free_charslice(value);
             }
             smart_str_0(&meta_str);
         }
@@ -1983,8 +1985,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
             Z_TYPE(prop_resource_as_string) == IS_STRING ? Z_STRVAL(prop_resource_as_string) : "",
             Z_TYPE(prop_type_as_string) == IS_STRING ? Z_STRVAL(prop_type_as_string) : "",
             meta_str.s ? ZSTR_VAL(meta_str.s) : "-",
-            metrics_str.s ? ZSTR_VAL(metrics_str.s) : "-");
-
+            metrics_str.s ? ZSTR_VAL(metrics_str.s) : "-"
+        );
+        ddog_free_charslice(span_name);
         ddog_span_free_keys_ptr(meta_keys, meta_count);
         ddog_span_free_keys_ptr(metrics_keys, metrics_count);
 
@@ -2030,10 +2033,21 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
             add_assoc_long(&span_zv, "start", ddog_get_span_start(span));
             add_assoc_long(&span_zv, "duration", ddog_get_span_duration(span));
 
-            add_assoc_str(&span_zv, "name", dd_CharSlice_to_zend_string(ddog_get_span_name(span)));
-            add_assoc_str(&span_zv, "resource", dd_CharSlice_to_zend_string(ddog_get_span_resource(span)));
-            add_assoc_str(&span_zv, "service", dd_CharSlice_to_zend_string(ddog_get_span_service(span)));
-            add_assoc_str(&span_zv, "type", dd_CharSlice_to_zend_string(ddog_get_span_type(span)));
+            ddog_CharSlice name = ddog_get_span_name(span);
+            add_assoc_str(&span_zv, "name", dd_CharSlice_to_zend_string(name));
+            ddog_free_charslice(name);
+
+            ddog_CharSlice resource = ddog_get_span_resource(span);
+            add_assoc_str(&span_zv, "resource", dd_CharSlice_to_zend_string(resource));
+            ddog_free_charslice(resource);
+
+            ddog_CharSlice service = ddog_get_span_service(span);
+            add_assoc_str(&span_zv, "service", dd_CharSlice_to_zend_string(service));
+            ddog_free_charslice(service);
+
+            ddog_CharSlice type = ddog_get_span_type(span);
+            add_assoc_str(&span_zv, "type", dd_CharSlice_to_zend_string(type));
+            ddog_free_charslice(type);
 
             double error = ddog_get_span_error(span);
             if (error != 0) {
@@ -2054,6 +2068,8 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
                     zval value_zv;
                     ZVAL_STR(&value_zv, dd_CharSlice_to_zend_string(value));
                     zend_hash_str_update(Z_ARR(meta_zv), key.ptr, key.len, &value_zv);
+
+                    ddog_free_charslice(value);
                 }
 
                 add_assoc_zval(&span_zv, "meta", &meta_zv);
@@ -2094,6 +2110,8 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
                     zval value_zv;
                     ZVAL_STR(&value_zv, dd_CharSlice_to_zend_string(value));
                     zend_hash_str_update(Z_ARR(meta_struct_zv), key.ptr, key.len, &value_zv);
+
+                    ddog_free_charslice(value);
                 }
 
                 add_assoc_zval(&span_zv, "meta_struct", &meta_struct_zv);
