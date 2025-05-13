@@ -245,30 +245,19 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
     let duration = start.elapsed();
 
     if !fds.is_null() {
+        let duration_nanos = duration.as_nanos() as u64;
         if (*fds).revents & 1 == 1 {
             // requested events contains reading
-            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(duration.as_nanos() as u64)
-            });
+            SOCKET_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration_nanos));
         } else if (*fds).revents & 4 == 4 {
             // requested events contains writing
-            SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(duration.as_nanos() as u64)
-            });
+            SOCKET_WRITE_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration_nanos));
         } else if (*fds).events & 1 == 1 {
             // socket became readable
-            SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(duration.as_nanos() as u64)
-            });
+            SOCKET_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration_nanos));
         } else if (*fds).events & 4 == 4 {
             // socket became writeable
-            SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(duration.as_nanos() as u64)
-            });
+            SOCKET_WRITE_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration_nanos));
         }
     }
 
@@ -287,15 +276,9 @@ unsafe extern "C" fn observed_recv(
     let len = ORIG_RECV(socket, buf, length, flags);
     let duration = start.elapsed();
 
-    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
+    SOCKET_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
     if len > 0 {
-        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        SOCKET_READ_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
     }
 
     len
@@ -313,15 +296,9 @@ unsafe extern "C" fn observed_recvmsg(
     let len = ORIG_RECVMSG(socket, msg, flags);
     let duration = start.elapsed();
 
-    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
+    SOCKET_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
     if len > 0 {
-        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64);
-        });
+        SOCKET_READ_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
     }
 
     len
@@ -348,15 +325,9 @@ unsafe extern "C" fn observed_recvfrom(
     let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
     let duration = start.elapsed();
 
-    SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
+    SOCKET_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
     if len > 0 {
-        SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        SOCKET_READ_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
     }
 
     len
@@ -374,15 +345,9 @@ unsafe extern "C" fn observed_send(
     let len = ORIG_SEND(socket, buf, length, flags);
     let duration = start.elapsed();
 
-    SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
+    SOCKET_WRITE_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
     if len > 0 {
-        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
     }
 
     len
@@ -399,15 +364,9 @@ unsafe extern "C" fn observed_sendmsg(
     let len = ORIG_SENDMSG(socket, msg, flags);
     let duration = start.elapsed();
 
-    SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
+    SOCKET_WRITE_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
     if len > 0 {
-        SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        SOCKET_WRITE_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
     }
 
     len
@@ -429,15 +388,9 @@ unsafe extern "C" fn observed_fwrite(
     let len = ORIG_FWRITE(ptr, size, nobj, stream);
     let duration = start.elapsed();
 
-    FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
+    FILE_WRITE_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
     if len > 0 {
-        FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(len as u64)
-        });
+        FILE_WRITE_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
     }
 
     len
@@ -450,26 +403,15 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     let duration = start.elapsed();
 
     if fd_is_socket(fd) {
-        SOCKET_WRITE_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
+        SOCKET_WRITE_TIME_PROFILING_STATS
+            .with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
         if len > 0 {
-            SOCKET_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(len as u64)
-            });
+            SOCKET_WRITE_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
         }
     } else {
-        FILE_WRITE_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
+        FILE_WRITE_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
         if len > 0 {
-            FILE_WRITE_SIZE_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(len as u64)
-            });
+            FILE_WRITE_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
         }
     }
 
@@ -491,14 +433,10 @@ unsafe extern "C" fn observed_fread(
     let len = ORIG_FREAD(ptr, size, nobj, stream);
     let duration = start.elapsed();
 
-    FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(duration.as_nanos() as u64)
-    });
-    FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-        let mut io = cell.borrow_mut();
-        io.track(len as u64)
-    });
+    FILE_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
+    if len > 0 {
+        FILE_READ_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
+    }
 
     len
 }
@@ -510,26 +448,14 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     let duration = start.elapsed();
 
     if fd_is_socket(fd) {
-        SOCKET_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
+        SOCKET_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
         if len > 0 {
-            SOCKET_READ_SIZE_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(len as u64)
-            });
+            SOCKET_READ_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
         }
     } else {
-        FILE_READ_TIME_PROFILING_STATS.with(|cell| {
-            let mut io = cell.borrow_mut();
-            io.track(duration.as_nanos() as u64)
-        });
+        FILE_READ_TIME_PROFILING_STATS.with_borrow_mut(|io| io.track(duration.as_nanos() as u64));
         if len > 0 {
-            FILE_READ_SIZE_PROFILING_STATS.with(|cell| {
-                let mut io = cell.borrow_mut();
-                io.track(len as u64)
-            });
+            FILE_READ_SIZE_PROFILING_STATS.with_borrow_mut(|io| io.track(len as u64));
         }
     }
 
@@ -723,11 +649,7 @@ impl<C: IOCollector> IOProfilingStats<C> {
     }
 
     fn track(&mut self, value: u64) {
-        let zend_thread = REQUEST_LOCALS.with(|cell| {
-            let locals = cell.borrow();
-            !locals.vm_interrupt_addr.is_null()
-        });
-        if !zend_thread {
+        if !REQUEST_LOCALS.with_borrow(|locals| !locals.vm_interrupt_addr.is_null()) {
             // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
             // follows threads and as such we might sample from another (non PHP) thread even in a
             // NTS build of PHP. We have observed crashes for these cases, so instead of crashing

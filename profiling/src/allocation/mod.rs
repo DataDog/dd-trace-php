@@ -18,7 +18,8 @@ pub mod allocation_le83;
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
 
 /// Sampling distance feed into poison sampling algo
-pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL);
+pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
+    AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL);
 
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
@@ -122,7 +123,10 @@ pub fn alloc_prof_first_rinit() {
 
     ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
 
-    trace!("Memory allocation profiling initialized with a sampling distance of {} bytes.", ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst));
+    trace!(
+        "Memory allocation profiling initialized with a sampling distance of {} bytes.",
+        ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst)
+    );
 }
 
 pub fn alloc_prof_rinit() {

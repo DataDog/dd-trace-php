@@ -530,7 +530,6 @@ unsafe fn profiling_allocation_sampling_distance() -> u32 {
     )
 }
 
-
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
