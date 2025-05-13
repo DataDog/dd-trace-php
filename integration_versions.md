@@ -1,6 +1,6 @@
 | Library                     | Min. Supported Version | Max. Supported Version |
 |-----------------------------|------------------------|------------------------|
-| cakephp/cakephp             | 3.10.5                 | 5.2.2                  |
+| cakephp/cakephp             | 3.10.5                 | 5.2.3                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 9.0.0                  |
 | ext-PDO                     | 7.0.33                 | 8.3.19                 |
@@ -13,28 +13,28 @@
 | ext-redis                   | 3.1.6                  | 5.3.7                  |
 | ext-sqlsrv                  | 5.3.0                  | 5.12.0                 |
 | ext-swoole                  | 5.1.6                  | 6.0.0                  |
-| google/cloud-spanner        | 1.98.0                 | 1.98.0                 |
+| google/cloud-spanner        | 1.99.0                 | 1.99.0                 |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.9.3                  |
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.16.1                 | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 12.9.2                 |
+| laravel/framework           | 4.2.22                 | 12.13.0                |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
 | laravel/octane              | 2.9.1                  | 2.9.1                  |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
 | mongodb/mongodb             | 1.8.0                  | 2.0.0                  |
 | monolog/monolog             | 1.27.1                 | 3.9.0                  |
 | nette/application           | 2.4.17                 | 3.2.6                  |
-| openai-php/client           | 0.10.3                 | 0.10.3                 |
+| openai-php/client           | 0.12.0                 | 0.12.0                 |
 | php-amqplib/php-amqplib     | 2.12.1                 | 3.7.3                  |
-| predis/predis               | 1.1.10                 | 2.3.0                  |
+| predis/predis               | 1.1.10                 | 3.0.0                  |
 | ratchet/pawl                | 0.4.1                  | 0.4.1                  |
 | shardj/zf1-future           | 1.21.4                 | 1.21.4                 |
 | slim/slim                   | 3.12.5                 | 4.14.0                 |
 | spiral/roadrunner           | 2.11.4                 | 2.11.4                 |
-| symfony/console             | 5.2.14                 | 7.2.5                  |
+| symfony/console             | 5.2.14                 | 7.2.6                  |
 | symfony/framework-bundle    | 2.3.42                 | 7.2.5                  |
-| symfony/messenger           | 4.4.49                 | 7.2.5                  |
+| symfony/messenger           | 4.4.49                 | 7.2.6                  |
 | wordpress                   | 4.8.10                 | 6.1.1                  |
 | yiisoft/yii2                | 2.0.49                 | 2.0.52                 |
 | zendframework/zf1           | 1.12.20                | 1.12.20                |

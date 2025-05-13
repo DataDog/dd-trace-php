@@ -97,6 +97,11 @@ jobs:
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
           done
+          mkdir -p profiling/tests/correctness/allocations_1byte/
+          export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
+          export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+          php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run ZTS tests
         if: matrix.phpts == 'zts'
@@ -119,6 +124,13 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations/
+
+      - name: Check profiler correctness for allocations with 1 byte sampling distance
+        if: matrix.phpts != 'zts'
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/allocations.json
+          pprof_path: profiling/tests/correctness/allocations_1byte/
 
       - name: Check profiler correctness for time
         uses: Datadog/prof-correctness/analyze@main

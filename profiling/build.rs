@@ -1,4 +1,5 @@
 use bindgen::callbacks::IntKind;
+use rustc_version::version_meta;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
@@ -13,7 +14,7 @@ fn main() {
 
     if !php_config_includes_output.status.success() {
         match String::from_utf8(php_config_includes_output.stderr) {
-            Ok(stderr) => panic!("`php-config failed: {}", stderr),
+            Ok(stderr) => panic!("`php-config failed: {stderr}"),
             Err(err) => panic!(
                 "`php-config` failed, not utf8: {}",
                 String::from_utf8_lossy(err.as_bytes())
@@ -26,7 +27,7 @@ fn main() {
         .expect("Failed to read VERSION file")
         .trim()
         .to_string();
-    println!("cargo:rustc-env=PROFILER_VERSION={}", version);
+    println!("cargo:rustc-env=PROFILER_VERSION={version}");
     println!("cargo:rerun-if-changed=../VERSION");
 
     let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
@@ -65,7 +66,7 @@ fn php_config_vernum() -> u64 {
 
     if !output.status.success() {
         match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php-config --vernum` failed: {}", stderr),
+            Ok(stderr) => panic!("`php-config --vernum` failed: {stderr}"),
             Err(err) => panic!(
                 "`php-config --vernum` failed, not utf8: {}",
                 String::from_utf8_lossy(err.as_bytes())
@@ -134,7 +135,7 @@ fn build_zend_php_ffis(
     ];
 
     for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {
-        println!("cargo:rerun-if-changed={}", *file);
+        println!("cargo:rerun-if-changed={file}");
     }
 
     let output = Command::new("php-config")
@@ -143,7 +144,10 @@ fn build_zend_php_ffis(
         .expect("Unable to run `php-config`. Is it in your PATH?");
 
     let prefix = String::from_utf8(output.stdout).expect("only utf8 chars work");
-    println!("cargo:rustc-link-search=native={}/lib", prefix.trim());
+    println!(
+        "cargo:rustc-link-search=native={prefix}/lib",
+        prefix = prefix.trim()
+    );
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
@@ -296,7 +300,18 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .expect("bindings to be written successfully");
 }
 
+// See https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html
+// We can remove this when we're on Rust 1.80+.
+fn has_check_cfg() -> bool {
+    let meta = version_meta().unwrap();
+    assert_eq!(1, meta.semver.major);
+    meta.semver.minor >= 80
+}
+
 fn cfg_post_startup_cb(vernum: u64) -> bool {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_post_startup_cb)");
+    }
     if vernum >= 70300 {
         println!("cargo:rustc-cfg=php_post_startup_cb");
         true
@@ -306,6 +321,9 @@ fn cfg_post_startup_cb(vernum: u64) -> bool {
 }
 
 fn cfg_preload(vernum: u64) -> bool {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_preload)");
+    }
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_preload");
         true
@@ -315,6 +333,9 @@ fn cfg_preload(vernum: u64) -> bool {
 }
 
 fn cfg_run_time_cache(vernum: u64) -> bool {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_run_time_cache)");
+    }
     if vernum >= 80000 {
         println!("cargo:rustc-cfg=php_run_time_cache");
         true
@@ -328,6 +349,9 @@ fn cfg_trigger_time_sample() -> bool {
 }
 
 fn cfg_zend_error_observer(vernum: u64) -> bool {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(zend_error_observer, zend_error_observer_80)");
+    }
     if vernum >= 80000 {
         println!("cargo:rustc-cfg=zend_error_observer");
         if vernum < 80100 {
@@ -340,6 +364,10 @@ fn cfg_zend_error_observer(vernum: u64) -> bool {
 }
 
 fn cfg_php_major_version(vernum: u64) {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php7, php8)");
+    }
+
     let major_version = match vernum {
         70000..=79999 => 7,
         80000..=89999 => 8,
@@ -354,6 +382,9 @@ fn cfg_php_major_version(vernum: u64) {
 }
 
 fn cfg_fibers(vernum: u64) -> bool {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_has_fibers)");
+    }
     if vernum >= 80100 {
         println!("cargo:rustc-cfg=php_has_fibers");
         true
@@ -363,6 +394,10 @@ fn cfg_fibers(vernum: u64) -> bool {
 }
 
 fn cfg_php_feature_flags(vernum: u64) {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex)");
+    }
+
     if vernum >= 70300 {
         println!("cargo:rustc-cfg=php_gc_status");
     }
@@ -380,6 +415,10 @@ fn cfg_php_feature_flags(vernum: u64) {
 }
 
 fn cfg_zts() {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_zts)");
+    }
+
     let output = Command::new("php")
         .arg("-n")
         .arg("-r")
@@ -389,8 +428,8 @@ fn cfg_zts() {
 
     if !output.status.success() {
         match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php failed: {}", stderr),
-            Err(err) => panic!("`php` failed, not utf8: {}", err),
+            Ok(stderr) => panic!("`php failed: {stderr}"),
+            Err(err) => panic!("`php` failed, not utf8: {err}"),
         }
     }
 

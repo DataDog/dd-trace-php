@@ -70,58 +70,48 @@
         <![CDATA[
 ## All products
 ### Added
-- Add support for file based configuration (library-config) #3068
+- Update config telemetry to support stable config #3198
 
 ## Tracer
 ### Added
-- Add DDTrace\try_drop_span() API #3136
-- Add support for PDO::connect #3125
-- Add span creation and close handlers #3123
-- API Gateway Tracing #3116
-- Add a Ratchet integration #3115
-- Baggage Header Propagation Support #3102
-- Crashtracking for windows #3099
+- Support DD_DOGSTATSD_HOST configuration #3167
+- Add referrer hostname as span tag #3196
 
 ### Changed
-- Enable 128 bit trace_id logging by default #3163
-- Allow whitespace as separator in DD_TAGS #3162
-- Implement Disable APM Tracing #3080
+- Capture key before first colon in DD_TAGS #3179
 
 ### Fixed
-- Support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
-- Handle flushing of multiple traces at once #3176
+- Check server first before accessing in ddtrace_ip_extraction_find #3216
+- Fix assumptions around interned strings on PHP 7.3 #3224
+- Fix initial double remote config reading #3225, #3238
+- Fix dropped trace payloads for the sidecar Datadog/libdatadog#1047
+- Fix Windows VirtualProtect call #3229
 
 ### Internal
-- Show actual file and line for occurrence of exceptions as well #3172
-- Support ZSTR_PARENT known_string #3106
+- Store debug symbols in the SSI archive #3217
 
 ## Profiling
 ### Added
-- Add profiling and appsec to SSI #3063
+- Configurable allocation sampling distance #3227
+
+### Changed
+- Accept auto as valid value for DD_PROFILING_ENABLED #3166
 
 ### Fixed
-- FrankenPHP idle phase #3169
-- Add active span null check #3164
-- Avoid some OOM panics and avoid long strings #3151
-- Fix upscaling of I/O profiles #3146
+- Fix empty internal metadata #3228
+- Follow PHP globals model in allocation profiler #3175
 
-### Internal
-- Add 'tracing' features to capture time spent walking the stack #3094
+### Internal changes
+- Bump libdatadog to version 18 #3229
 
 ## Application Security Management
 ### Added
-- Implement API Security Sampling RFC #3117
-- Add authenticated user tracking #3114
-- Add profiling and appsec to SSI #3063
-
-### Changed
-- Upgrade libddwaf #3126
+- AppSec support for Frankenphp #3165
+- Detection/blocking of SQL injections through libddwaf #3186
+- Add RASP_SQLI remote config capability #3203
 
 ### Fixed
-- Emit asm event on user events #3170
-
-### Internal
-- Add more logging around stack generation #3096
+- Make Appsec blocking compatible with Laravel error handler #3110
 ]]></notes>
     <contents>
         <dir name="/">

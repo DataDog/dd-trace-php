@@ -18,7 +18,6 @@ static void (*_ddog_library_configurator_with_fleet_path)(struct ddog_Configurat
 static void (*_ddog_library_configurator_with_detect_process_info)(struct ddog_Configurator *c);
 static struct ddog_Result_VecLibraryConfig (*_ddog_library_configurator_get)(const struct ddog_Configurator *configurator);
 static struct ddog_CStr (*_ddog_library_config_source_to_string)(enum ddog_LibraryConfigSource name);
-static struct ddog_CStr (*_ddog_library_config_name_to_env)(enum ddog_LibraryConfigName name);
 static void (*_ddog_library_config_drop)(struct ddog_Vec_LibraryConfig);
 static void (*_ddog_Error_drop)(struct ddog_Error *error);
 static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
@@ -58,7 +57,6 @@ void zai_config_stable_file_minit(void) {
         RESOLVE_SYMBOL(ddog_library_configurator_with_fleet_path);
         RESOLVE_SYMBOL(ddog_library_configurator_with_detect_process_info);
         RESOLVE_SYMBOL(ddog_library_configurator_get);
-        RESOLVE_SYMBOL(ddog_library_config_name_to_env);
         RESOLVE_SYMBOL(ddog_library_config_source_to_string);
         RESOLVE_SYMBOL(ddog_library_config_drop);
         RESOLVE_SYMBOL(ddog_Error_drop);
@@ -94,8 +92,7 @@ void zai_config_stable_file_minit(void) {
             entry->source = cfg->source;
             entry->config_id = zend_string_init(cfg->config_id.ptr, cfg->config_id.length, 1);
 
-            ddog_CStr env_name = _ddog_library_config_name_to_env(cfg->name);
-            zend_hash_str_add_ptr(stable_config, env_name.ptr, env_name.length, entry);
+            zend_hash_str_add_ptr(stable_config, cfg->name.ptr, cfg->name.length, entry);
         }
         _ddog_library_config_drop(configs);
     } else {

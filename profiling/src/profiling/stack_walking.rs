@@ -209,21 +209,26 @@ mod detail {
             debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });
 
-        CACHED_STRINGS.with(|cell| {
-            let set: &StringSet = &cell.borrow();
-            let arena_used_bytes = set.arena_used_bytes();
-            // A slow ramp up to 2 MiB is probably _not_ going to look like
-            // a memory leak, whereas a higher threshold could make a user
-            // suspect a leak.
-            let threshold = 2 * 1024 * 1024;
-            if arena_used_bytes > threshold {
-                debug!("string cache arena is using {arena_used_bytes} bytes which exceeds the {threshold} byte threshold, resetting");
+        // PANIC: panics if the string arena is already borrowed. However, it
+        // should not be borrowed at this point, so we're likely going to fail.
+        // It's probably better to fail in rshutdown.
+        // Maybe in a new PHP version, we can have the engine check rshutdown
+        // failures, and stop serving requests from that process, and go into
+        // module shutdown instead.
+        CACHED_STRINGS.with_borrow_mut(|string_set| {
+            // A slow ramp up to 2 MiB is probably _not_ going to look like a
+            // memory leak. A higher threshold may make a user suspect a leak.
+            const THRESHOLD: usize = 2 * 1024 * 1024;
+
+            let used_bytes = string_set.arena_used_bytes();
+            if used_bytes > THRESHOLD {
+                debug!("string cache arena is using {used_bytes} bytes which exceeds the {THRESHOLD} byte threshold, resetting");
                 // Note that this cannot be done _during_ a request. The
                 // ThinStrs inside the run time cache need to remain valid
                 // during the request.
-                cell.replace(StringSet::new());
+                *string_set = StringSet::new();
             } else {
-                trace!("string cache arena is using {arena_used_bytes} bytes which is less than the {threshold} byte threshold");
+                trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
             }
         });
     }
@@ -461,6 +466,8 @@ mod detail {
 
 pub use detail::*;
 
+// todo: this should be feature = "stack_walking_tests" but it seemed to
+//       cause a failure in CI to migrate it.
 #[cfg(all(test, stack_walking_tests))]
 mod tests {
     use super::*;

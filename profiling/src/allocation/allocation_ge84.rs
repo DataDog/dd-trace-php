@@ -3,13 +3,13 @@ use crate::allocation::ALLOCATION_PROFILING_SIZE;
 use crate::allocation::ALLOCATION_PROFILING_STATS;
 use crate::bindings::{self as zend};
 use crate::PROFILER_NAME;
+use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_void, size_t};
 use log::{debug, error, trace, warn};
-use std::cell::UnsafeCell;
-use std::ptr;
 use std::sync::atomic::Ordering::SeqCst;
 
+#[derive(Copy, Clone)]
 struct ZendMMState {
     /// The heap we create and set as the current heap in ZendMM
     heap: *mut zend::zend_mm_heap,
@@ -52,6 +52,19 @@ struct ZendMMState {
     shutdown: unsafe fn(bool, bool),
 }
 
+#[track_caller]
+fn initialization_panic() -> ! {
+    panic!("Allocation profiler was not initialised properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
+}
+
+unsafe fn alloc_prof_panic_gc() -> size_t {
+    initialization_panic();
+}
+
+unsafe fn alloc_prof_panic_shutdown(_full: bool, _silent: bool) {
+    initialization_panic();
+}
+
 impl ZendMMState {
     const fn new() -> ZendMMState {
         ZendMMState {
@@ -67,32 +80,61 @@ impl ZendMMState {
             prev_custom_mm_free: None,
             prev_custom_mm_gc: None,
             prev_custom_mm_shutdown: None,
-            alloc: alloc_prof_orig_alloc,
-            realloc: alloc_prof_orig_realloc,
-            free: alloc_prof_orig_free,
-            gc: alloc_prof_orig_gc,
-            shutdown: alloc_prof_orig_shutdown,
+            alloc: super::alloc_prof_panic_alloc,
+            realloc: super::alloc_prof_panic_realloc,
+            free: super::alloc_prof_panic_free,
+            gc: alloc_prof_panic_gc,
+            shutdown: alloc_prof_panic_shutdown,
         }
     }
 }
 
-impl ZendMMState {}
-
+#[cfg(php_zts)]
 thread_local! {
-    /// Using an `UnsafeCell` here should be okay. There might not be any
-    /// synchronisation issues, as it is used in as thread local and only
+    /// Using a `Cell` here should be okay. There might not be any
+    /// synchronization issues, as it is used in as thread local and only
     /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: UnsafeCell<ZendMMState> = const {
-        UnsafeCell::new(ZendMMState::new())
+    static ZEND_MM_STATE: Cell<ZendMMState> = const {
+        Cell::new(ZendMMState::new())
     };
 }
 
-macro_rules! tls_zend_mm_state {
+#[cfg(not(php_zts))]
+/// Using a `Cell` here should be okay. There might not be any
+/// synchronization issues, as it is only mutated in RINIT and RSHUTDOWN.
+static mut ZEND_MM_STATE: Cell<ZendMMState> = Cell::new(ZendMMState::new());
+
+#[cfg(php_zts)]
+macro_rules! tls_zend_mm_state_copy {
+    () => {
+        ZEND_MM_STATE.get()
+    };
+}
+
+#[cfg(not(php_zts))]
+macro_rules! tls_zend_mm_state_copy {
+    () => {
+        unsafe { (*ptr::addr_of_mut!(ZEND_MM_STATE)).get() }
+    };
+}
+
+macro_rules! tls_zend_mm_state_get {
     ($x:ident) => {
-        ZEND_MM_STATE.with(|cell| {
-            let zend_mm_state = cell.get();
-            (*zend_mm_state).$x
-        })
+        tls_zend_mm_state_copy!().$x
+    };
+}
+
+#[cfg(php_zts)]
+macro_rules! tls_zend_mm_state_set {
+    ($x:expr) => {
+        ZEND_MM_STATE.set($x)
+    };
+}
+
+#[cfg(not(php_zts))]
+macro_rules! tls_zend_mm_state_set {
+    ($x:expr) => {
+        unsafe { (*ptr::addr_of!(ZEND_MM_STATE)).set($x) }
     };
 }
 
@@ -116,19 +158,17 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
 /// This function may panic if called out of order!
 pub fn alloc_prof_ginit() {
     unsafe { zend::ddog_php_opcache_init_handle() };
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-
+    let zend_mm_state_init = |mut zend_mm_state: ZendMMState| -> ZendMMState {
         // Only need to create an observed heap once per thread. When we have it, we can just
         // install the observed heap via `zend::zend_mm_set_heap()`
-        if unsafe { !(*zend_mm_state).heap.is_null() } {
+        if !zend_mm_state.heap.is_null() {
             // This can only happen if either MINIT or GINIT is being called out of order.
             panic!("MINIT/GINIT was called with an already initialized allocation profiler. Most likely the SAPI did this without going through MSHUTDOWN/GSHUTDOWN before.");
         }
 
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
         let prev_heap = unsafe { zend::zend_mm_get_heap() };
-        unsafe { ptr::addr_of_mut!((*zend_mm_state).prev_heap).write(prev_heap) };
+        zend_mm_state.prev_heap = prev_heap;
 
         if !is_zend_mm() {
             // Neighboring custom memory handlers found in the currently used ZendMM heap
@@ -136,38 +176,44 @@ pub fn alloc_prof_ginit() {
             unsafe {
                 zend::zend_mm_get_custom_handlers_ex(
                     prev_heap,
-                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_alloc),
-                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_free),
-                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_realloc),
-                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_gc),
-                    ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_shutdown),
+                    ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_alloc),
+                    ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_free),
+                    ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_realloc),
+                    ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_gc),
+                    ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_shutdown),
                 );
-                ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_prev_alloc);
-                ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_prev_free);
-                ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_prev_realloc);
+                zend_mm_state.alloc = alloc_prof_prev_alloc;
+                zend_mm_state.free = alloc_prof_prev_free;
+                zend_mm_state.realloc = alloc_prof_prev_realloc;
                 // `gc` handler can be NULL
-                if (*zend_mm_state).prev_custom_mm_gc.is_none() {
-                    ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_orig_gc);
+                zend_mm_state.gc = if zend_mm_state.prev_custom_mm_gc.is_none() {
+                    alloc_prof_orig_gc
                 } else {
-                    ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_prev_gc);
-                }
+                    alloc_prof_prev_gc
+                };
                 // `shutdown` handler can be NULL
-                if (*zend_mm_state).prev_custom_mm_shutdown.is_none() {
-                    ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_orig_shutdown);
+                zend_mm_state.shutdown = if zend_mm_state.prev_custom_mm_shutdown.is_none() {
+                    alloc_prof_orig_shutdown
                 } else {
-                    ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_prev_shutdown);
+                    alloc_prof_prev_shutdown
                 }
             }
+        } else {
+            zend_mm_state.alloc = alloc_prof_orig_alloc;
+            zend_mm_state.free = alloc_prof_orig_free;
+            zend_mm_state.realloc = alloc_prof_orig_realloc;
+            zend_mm_state.gc = alloc_prof_orig_gc;
+            zend_mm_state.shutdown = alloc_prof_orig_shutdown;
         }
 
         // Create a new (to be observed) heap and prepare custom handlers
         let heap = unsafe { zend::zend_mm_startup() };
-        unsafe { ptr::addr_of_mut!((*zend_mm_state).heap).write(heap) };
+        zend_mm_state.heap = heap;
 
         // install our custom handler to ZendMM
         unsafe {
             zend::zend_mm_set_custom_handlers_ex(
-                (*zend_mm_state).heap,
+                zend_mm_state.heap,
                 Some(alloc_prof_malloc),
                 Some(alloc_prof_free),
                 Some(alloc_prof_realloc),
@@ -176,7 +222,11 @@ pub fn alloc_prof_ginit() {
             );
         }
         debug!("New observed heap created");
-    });
+        zend_mm_state
+    };
+
+    let mm_state = tls_zend_mm_state_copy!();
+    tls_zend_mm_state_set!(zend_mm_state_init(mm_state));
 }
 
 /// This resets the thread locale variable `ZEND_MM_STATE` and frees allocated memory. It
@@ -184,53 +234,45 @@ pub fn alloc_prof_ginit() {
 /// specifically for `ZendMMState::alloc`, `ZendMMState::realloc`, `ZendMMState::free`,
 /// `ZendMMState::gc` and `ZendMMState::shutdown`.
 pub fn alloc_prof_gshutdown() {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let zend_mm_state_shutdown = |mut zend_mm_state: ZendMMState| -> ZendMMState {
         unsafe {
             // Remove custom handlers to allow for ZendMM internal shutdown
-            zend::zend_mm_set_custom_handlers_ex(
-                (*zend_mm_state).heap,
-                None,
-                None,
-                None,
-                None,
-                None,
-            );
+            zend::zend_mm_set_custom_handlers_ex(zend_mm_state.heap, None, None, None, None, None);
 
             // Reset ZEND_MM_STATE to defaults, now that the pointer are not know to the observed
             // heap anymore.
-            ptr::addr_of_mut!((*zend_mm_state).alloc).write(alloc_prof_orig_alloc);
-            ptr::addr_of_mut!((*zend_mm_state).free).write(alloc_prof_orig_free);
-            ptr::addr_of_mut!((*zend_mm_state).realloc).write(alloc_prof_orig_realloc);
-            ptr::addr_of_mut!((*zend_mm_state).gc).write(alloc_prof_orig_gc);
-            ptr::addr_of_mut!((*zend_mm_state).shutdown).write(alloc_prof_orig_shutdown);
-            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_alloc).write(None);
-            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_free).write(None);
-            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_realloc).write(None);
-            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_gc).write(None);
-            ptr::addr_of_mut!((*zend_mm_state).prev_custom_mm_shutdown).write(None);
+            zend_mm_state.alloc = alloc_prof_orig_alloc;
+            zend_mm_state.free = alloc_prof_orig_free;
+            zend_mm_state.realloc = alloc_prof_orig_realloc;
+            zend_mm_state.gc = alloc_prof_orig_gc;
+            zend_mm_state.shutdown = alloc_prof_orig_shutdown;
+            zend_mm_state.prev_custom_mm_alloc = None;
+            zend_mm_state.prev_custom_mm_free = None;
+            zend_mm_state.prev_custom_mm_realloc = None;
+            zend_mm_state.prev_custom_mm_gc = None;
+            zend_mm_state.prev_custom_mm_shutdown = None;
 
             // This shutdown call will free the observed heap we created in `alloc_prof_custom_heap_init`
-            zend::zend_mm_shutdown((*zend_mm_state).heap, true, true);
+            zend::zend_mm_shutdown(zend_mm_state.heap, true, true);
 
             // Now that the heap is gone, we need to NULL the pointer
-            ptr::addr_of_mut!((*zend_mm_state).heap).write(ptr::null_mut());
-            ptr::addr_of_mut!((*zend_mm_state).prev_heap).write(ptr::null_mut());
+            zend_mm_state.heap = ptr::null_mut();
+            zend_mm_state.prev_heap = ptr::null_mut();
         }
         trace!("Observed heap was freed and `zend_mm_state` reset");
-    });
+        zend_mm_state
+    };
+
+    let mm_state = tls_zend_mm_state_copy!();
+    tls_zend_mm_state_set!(zend_mm_state_shutdown(mm_state));
 }
 
 pub fn alloc_prof_rinit() {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-        // Safety: `zend_mm_state.heap` got initialized in `MINIT` and is guaranteed to
-        // be a non null pointer to a valid `zend::zend_mm_heap` struct
-        unsafe {
-            // Install our observed heap into ZendMM
-            zend::zend_mm_set_heap((*zend_mm_state).heap);
-        }
-    });
+    let heap = tls_zend_mm_state_get!(heap);
+    // Install our observed heap into ZendMM
+    // Safety: `heap` got initialized in `MINIT` and is guaranteed to be a
+    // non-null pointer to a valid `zend::zend_mm_heap` struct.
+    unsafe { zend::zend_mm_set_heap(heap) };
 
     // `is_zend_mm()` should be false now, as we installed our custom handlers
     if is_zend_mm() {
@@ -250,9 +292,7 @@ pub fn alloc_prof_rshutdown() {
         return;
     }
 
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
-
+    let zend_mm_state_shutdown = |zend_mm_state: ZendMMState| {
         // Do a sanity check and see if something played with our heap
         let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
         let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
@@ -260,9 +300,7 @@ pub fn alloc_prof_rshutdown() {
         let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
         let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
 
-        // SAFETY: UnsafeCell::get() ensures non-null, and the object should
-        // be valid for reads during rshutdown.
-        let heap = unsafe { (*zend_mm_state).heap };
+        let heap = zend_mm_state.heap;
 
         // The heap ptr can be null if a fork happens outside the request.
         if heap.is_null() {
@@ -285,34 +323,35 @@ pub fn alloc_prof_rshutdown() {
             || custom_mm_gc != Some(alloc_prof_gc)
             || custom_mm_shutdown != Some(alloc_prof_shutdown)
         {
-            // Custom handlers are installed, but it's not us. Someone, somewhere might have
-            // function pointers to our custom handlers. Best bet to avoid segfaults is to not
-            // touch custom handlers in ZendMM and make sure our extension will not be
-            // `dlclose()`-ed so the pointers stay valid
+            // Custom handlers are installed, but it's not us. Someone,
+            // somewhere might have function pointers to our custom handlers.
+            // The best bet to avoid segfaults is to not touch custom handlers
+            // in ZendMM and make sure our extension will not be `dlclose()`-ed
+            // so the pointers stay valid.
             let zend_extension =
                 unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
             if !zend_extension.is_null() {
-                // Safety: Checked for null pointer above.
+                // Safety: Checked for a null pointer above.
                 unsafe { ptr::addr_of_mut!((*zend_extension).handle).write(ptr::null_mut()) };
             }
             warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
         } else {
-            // This is the happy path. Restore previous heap.
+            // This is the happy path. Restore the previous heap.
             unsafe {
-                zend::zend_mm_set_heap(
-                    (*zend_mm_state).prev_heap
-                );
+                zend::zend_mm_set_heap(zend_mm_state.prev_heap);
             }
             trace!("Memory allocation profiling shutdown gracefully.");
         }
-    });
+    };
+
+    zend_mm_state_shutdown(tls_zend_mm_state_copy!());
 }
 
 unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let ptr = tls_zend_mm_state!(alloc)(len);
+    let ptr = tls_zend_mm_state_get!(alloc)(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -329,22 +368,23 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let alloc = |zend_mm_state: ZendMMState| {
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
+        zend::zend_mm_set_heap(zend_mm_state.prev_heap);
         // Safety: `ZEND_MM_STATE.prev_custom_mm_alloc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_alloc` is also initialised
-        let ptr = ((*zend_mm_state).prev_custom_mm_alloc.unwrap_unchecked())(len);
+        let ptr = zend_mm_state.prev_custom_mm_alloc.unwrap_unchecked()(len);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).heap);
+        zend::zend_mm_set_heap(zend_mm_state.heap);
         ptr
-    })
+    };
+
+    alloc(tls_zend_mm_state_copy!())
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
-    let ptr: *mut c_void = zend::_zend_mm_alloc(tls_zend_mm_state!(prev_heap), len);
+    let ptr: *mut c_void = zend::_zend_mm_alloc(tls_zend_mm_state_get!(prev_heap), len);
     ptr
 }
 
@@ -353,36 +393,37 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We can not just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
-    tls_zend_mm_state!(free)(ptr);
+    tls_zend_mm_state_get!(free)(ptr);
 }
 
 unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let free = |zend_mm_state: ZendMMState| {
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
+        zend::zend_mm_set_heap(zend_mm_state.prev_heap);
         // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_free` is also initialised
-        ((*zend_mm_state).prev_custom_mm_free.unwrap_unchecked())(ptr);
+        (zend_mm_state.prev_custom_mm_free.unwrap_unchecked())(ptr);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).heap);
-    })
+        zend::zend_mm_set_heap(zend_mm_state.heap);
+    };
+
+    free(tls_zend_mm_state_copy!())
 }
 
 unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
-    zend::_zend_mm_free(tls_zend_mm_state!(prev_heap), ptr);
+    zend::_zend_mm_free(tls_zend_mm_state_get!(prev_heap), ptr);
 }
 
 unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    let ptr = tls_zend_mm_state!(realloc)(prev_ptr, len);
+    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr == prev_ptr {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr::eq(ptr, prev_ptr) {
         return ptr;
     }
 
@@ -395,67 +436,70 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 }
 
 unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let realloc = |zend_mm_state: ZendMMState| {
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
+        zend::zend_mm_set_heap(zend_mm_state.prev_heap);
         // Safety: `ZEND_MM_STATE.prev_custom_mm_realloc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_realloc` is also initialised
-        let ptr = ((*zend_mm_state).prev_custom_mm_realloc.unwrap_unchecked())(prev_ptr, len);
+        let ptr = zend_mm_state.prev_custom_mm_realloc.unwrap_unchecked()(prev_ptr, len);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).heap);
+        zend::zend_mm_set_heap(zend_mm_state.heap);
         ptr
-    })
+    };
+
+    realloc(tls_zend_mm_state_copy!())
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    zend::_zend_mm_realloc(tls_zend_mm_state!(prev_heap), prev_ptr, len)
+    zend::_zend_mm_realloc(tls_zend_mm_state_get!(prev_heap), prev_ptr, len)
 }
 
 unsafe extern "C" fn alloc_prof_gc() -> size_t {
-    tls_zend_mm_state!(gc)()
+    tls_zend_mm_state_get!(gc)()
 }
 
 unsafe fn alloc_prof_prev_gc() -> size_t {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let gc = |zend_mm_state: ZendMMState| {
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
+        zend::zend_mm_set_heap(zend_mm_state.prev_heap);
         // Safety: `ZEND_MM_STATE.prev_custom_mm_gc` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_gc` is also initialised
-        let freed = ((*zend_mm_state).prev_custom_mm_gc.unwrap_unchecked())();
+        let freed = zend_mm_state.prev_custom_mm_gc.unwrap_unchecked()();
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).heap);
+        zend::zend_mm_set_heap(zend_mm_state.heap);
         freed
-    })
+    };
+
+    gc(tls_zend_mm_state_copy!())
 }
 
 unsafe fn alloc_prof_orig_gc() -> size_t {
-    zend::zend_mm_gc(tls_zend_mm_state!(prev_heap))
+    zend::zend_mm_gc(tls_zend_mm_state_get!(prev_heap))
 }
 
 unsafe extern "C" fn alloc_prof_shutdown(full: bool, silent: bool) {
-    tls_zend_mm_state!(shutdown)(full, silent);
+    tls_zend_mm_state_get!(shutdown)(full, silent);
 }
 
 unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
-    ZEND_MM_STATE.with(|cell| {
-        let zend_mm_state = cell.get();
+    let shutdown = |zend_mm_state: ZendMMState| {
         // Safety: `ZEND_MM_STATE.prev_heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).prev_heap);
+        zend::zend_mm_set_heap(zend_mm_state.prev_heap);
         // Safety: `ZEND_MM_STATE.prev_custom_mm_shutdown` will be initialised in
         // `alloc_prof_rinit()` and only point to this function when
         // `prev_custom_mm_shutdown` is also initialised
-        ((*zend_mm_state).prev_custom_mm_shutdown.unwrap_unchecked())(full, silent);
+        zend_mm_state.prev_custom_mm_shutdown.unwrap_unchecked()(full, silent);
         // Safety: `ZEND_MM_STATE.heap` got initialised in `alloc_prof_rinit()`
-        zend::zend_mm_set_heap((*zend_mm_state).heap);
-    })
+        zend::zend_mm_set_heap(zend_mm_state.heap);
+    };
+
+    shutdown(tls_zend_mm_state_copy!())
 }
 
 unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
-    zend::zend_mm_shutdown(tls_zend_mm_state!(prev_heap), full, silent)
+    zend::zend_mm_shutdown(tls_zend_mm_state_get!(prev_heap), full, silent)
 }
 
 /// safe wrapper for `zend::is_zend_mm()`.
