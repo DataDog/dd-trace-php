@@ -15,6 +15,9 @@
 #include "php_objects.h"
 
 static const int MAX_DEPTH = 32;
+static const int MAX_STR_LEN = 4096;
+static const int MAX_ARRAY_SIZE = 256;
+static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 
 static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv);
 
@@ -31,6 +34,10 @@ void dd_mpack_write_nullable_str(
     mpack_writer_t *nonnull w, const char *nullable str, size_t len)
 {
     if (str) {
+        if (len > MAX_STR_LEN) {
+            data_truncated_ = true;
+            len = MAX_STR_LEN;
+        }
         mpack_write_str(w, str, len);
     } else {
         mpack_write_str(w, "", 0);
@@ -40,7 +47,12 @@ void dd_mpack_write_nullable_str(
 void dd_mpack_write_zstr(
     mpack_writer_t *nonnull w, const zend_string *nonnull zstr)
 {
-    mpack_write_str(w, ZSTR_VAL(zstr), ZSTR_LEN(zstr));
+    size_t len = ZSTR_LEN(zstr);
+    if (len > MAX_STR_LEN) {
+        data_truncated_ = true;
+        len = MAX_STR_LEN;
+    }
+    mpack_write_str(w, ZSTR_VAL(zstr), len);
 }
 
 void dd_mpack_write_nullable_zstr(
@@ -75,6 +87,10 @@ void dd_mpack_write_array(
     }
 
     uint32_t num_elems = zend_hash_num_elements(arr);
+    if (num_elems > MAX_ARRAY_SIZE) {
+        data_truncated_ = true;
+        num_elems = MAX_ARRAY_SIZE;
+    }
     dd_php_array_type arr_type = dd_php_determine_array_type(arr);
     if (arr_type == php_array_type_sequential) {
         mpack_start_array(w, num_elems);
@@ -82,6 +98,10 @@ void dd_mpack_write_array(
         ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
         {
             _mpack_write_zval(w, val);
+            num_elems--;
+            if (num_elems == 0) {
+                break;
+            }
         }
         ZEND_HASH_FOREACH_END();
         mpack_finish_array(w);
@@ -94,13 +114,17 @@ void dd_mpack_write_array(
         ZEND_HASH_FOREACH_KEY_VAL((zend_array *)arr, key_i, key_s, val)
         {
             if (key_s) {
-                mpack_write_str(w, ZSTR_VAL(key_s), ZSTR_LEN(key_s));
+                dd_mpack_write_zstr(w, key_s);
             } else {
                 char buf[ZEND_LTOA_BUF_LEN];
                 ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
                 mpack_write(w, buf);
             }
             _mpack_write_zval(w, val);
+            num_elems--;
+            if (num_elems == 0) {
+                break;
+            }
         }
         ZEND_HASH_FOREACH_END();
         mpack_finish_map(w);
@@ -139,7 +163,7 @@ static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
         break;
 
     case IS_STRING:
-        mpack_write_str(w, Z_STRVAL_P(zv), Z_STRLEN_P(zv));
+        dd_mpack_write_zstr(w, Z_STR_P(zv));
         break;
 
     case IS_ARRAY: {
@@ -393,3 +417,9 @@ static void _register_testing_objects(void)
 }
 
 void dd_msgpack_helpers_startup(void) { _register_testing_objects(); }
+
+void dd_msgpack_helpers_rinit(void) { 
+    data_truncated_ = false;
+}
+
+bool dd_msgpack_helpers_is_data_truncated(void) { return data_truncated_; }
