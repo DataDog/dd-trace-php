@@ -649,7 +649,8 @@ impl<C: IOCollector> IOProfilingStats<C> {
     }
 
     fn track(&mut self, value: u64) {
-        if !REQUEST_LOCALS.with_borrow(|locals| !locals.vm_interrupt_addr.is_null()) {
+        let zend_thread = REQUEST_LOCALS.with_borrow(|locals| !locals.vm_interrupt_addr.is_null());
+        if !zend_thread {
             // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
             // follows threads and as such we might sample from another (non PHP) thread even in a
             // NTS build of PHP. We have observed crashes for these cases, so instead of crashing
