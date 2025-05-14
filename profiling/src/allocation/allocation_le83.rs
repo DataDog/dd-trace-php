@@ -350,10 +350,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with(|cell| {
-        let mut allocations = cell.borrow_mut();
-        allocations.track_allocation(len)
-    });
+    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
 
     ptr
 }
@@ -408,10 +405,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with(|cell| {
-        let mut allocations = cell.borrow_mut();
-        allocations.track_allocation(len)
-    });
+    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
 
     ptr
 }
