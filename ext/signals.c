@@ -130,22 +130,37 @@ static void ddtrace_init_crashtracker() {
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
-    {
-        zend_string *str = zend_string_init(ZEND_STRL("opcache.jit_buffer_size"), true);
-        zend_string *value = zend_ini_get_value(str);
-        if (value && ZSTR_LEN(value) > 0 && !zend_string_equals_literal(value, "0")) {
-            ddog_CharSlice key = DDOG_CHARSLICE_C("php.opcache.jit_buffer_size");
-            // todo: don't set the value to avoid cardinality issues
-            ddog_CharSlice val = { .ptr = ZSTR_VAL(value), .len = ZSTR_LEN(value) };
-            ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(&tags, key, val);
-            if (result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK) {
-                ddog_CharSlice msg = ddog_Error_message(&result.err);
-                LOG(DEBUG, "Failed to push tag \"php.opcache.jit_buffer_size\": %.*s", (int) msg.len, msg.ptr);
-                ddog_Error_drop(&result.err);
-            }
+
+#if PHP_VERSION_ID >= 80000
+    zend_string *str = zend_string_init(ZEND_STRL("opcache.jit_buffer_size"), true);
+    zend_string *value = zend_ini_get_value(str);
+    do {
+        if (!value || ZSTR_LEN(value) == 0) break;
+        if (zend_string_equals_literal(value, "0")) break;
+
+        // The INI value is at least 1 char and isn't "0". Parse the quantity
+        // similarly to OnUpdateLong.
+#if PHP_VERSION_ID >= 80200
+        zend_long quantity = zend_ini_parse_quantity(value, NULL);
+#else
+        zend_long quantity = zend_atol(ZSTR_VAL(value), ZSTR_LEN(value));
+#endif
+        if (quantity <= 0) break;
+
+        // The quantity is > 0, so attach the tag.
+        ddog_CharSlice key = DDOG_CHARSLICE_C("php.opcache.jit_buffer_size");
+        // todo: don't set the INI value to avoid cardinality issues.
+        ddog_CharSlice val = { .ptr = ZSTR_VAL(value), .len = ZSTR_LEN(value) };
+        ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(&tags, key, val);
+        if (result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK) {
+            ddog_CharSlice msg = ddog_Error_message(&result.err);
+            LOG(DEBUG, "Failed to push tag \"php.opcache.jit_buffer_size\": %.*s", (int) msg.len, msg.ptr);
+            ddog_Error_drop(&result.err);
         }
-        zend_string_release(str);
-    }
+    } while (false);
+    zend_string_release(str);
+#endif
+
     const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
 
     ddtrace_crashtracker_check_result(
