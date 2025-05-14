@@ -177,17 +177,63 @@ static void ddtrace_crasht_add_opcache_tags(ddog_Vec_Tag *tags) {
         return;
     }
 
-    // Most of these are INI_ALL, so it's possible that they are changed after
-    // this point.
-    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable"));
+    // opcache.jit_buffer_size is INI_SYSTEM, so we can check it now. If it's
+    // zero, then JIT won't operate.
+    ddog_CharSlice jit_buffer_size = DDOG_CHARSLICE_C("[not found]");
+    {
+        ddog_CharSlice ini = DDOG_CHARSLICE_C("opcache.jit_buffer_size");
+        zend_string *value = ddtrace_crasht_ini_get_value(ini);
+        if (!value) {
+            return;
+        }
 
-    // The CLI SAPI has an additional configuration for being enabled.
-    if (strcmp("cli", sapi_module.name) == 0) {
-        ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable_cli"));
+        // Parse the quantity similarly to OnUpdateLong.
+#if PHP_VERSION_ID >= 80200
+        zend_string *errstr = NULL;
+        zend_long quantity = zend_ini_parse_quantity(value, &errstr);
+        if (errstr) zend_string_release(errstr);
+#else
+        zend_long quantity = zend_atol(ZSTR_VAL(value), ZSTR_LEN(value));
+#endif
+        if (quantity <= 0) {
+            return;
+        }
+        jit_buffer_size.ptr = ZSTR_VAL(value);
+        jit_buffer_size.len = ZSTR_LEN(value);
+    }
+
+    // The CLI SAPI has an additional configuration for being enabled. This is
+    // INI_SYSTEM so we can check it here.
+    bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
+    ddog_CharSlice enable_cli = DDOG_CHARSLICE_C("[not found]");
+    if (is_cli_sapi) {
+        ddog_CharSlice ini = DDOG_CHARSLICE_C("opcache.enable_cli");
+        zend_string *value = ddtrace_crasht_ini_get_value(ini);
+        if (!value || !zend_ini_parse_bool(value)) {
+            return;
+        }
+        enable_cli.ptr = ZSTR_VAL(value);
+        enable_cli.len = ZSTR_LEN(value);
+    }
+
+
+    // The others are INI_ALL, so it's possible that they change at runtime.
+    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable"));
+    if (is_cli_sapi) {
+        ddog_CharSlice key = DDOG_CHARSLICE_C("php.opcache.enable_cli");
+        ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(tags, key, enable_cli);
+        if (UNEXPECTED(result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK)) {
+            ddtrace_crasht_failed_tag_push(&result.err, key);
+        }
     }
 
     ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit"));
-    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit_buffer_size"));
+
+    ddog_CharSlice key = DDOG_CHARSLICE_C("php.opcache.jit_buffer_size");
+    ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(tags, key, jit_buffer_size);
+    if (UNEXPECTED(result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK)) {
+        ddtrace_crasht_failed_tag_push(&result.err, key);
+    }
 #endif
 }
 
