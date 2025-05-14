@@ -26,6 +26,11 @@
 #include <components-rs/ddtrace.h>
 #include <components-rs/crashtracker.h>
 
+#if PHP_VERSION_ID >= 80000
+#include <SAPI.h>
+#include <Zend/zend_extensions.h>
+#endif
+
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
 #define DDTRACE_HAVE_BACKTRACE 1
 #else
@@ -102,6 +107,90 @@ static bool ddtrace_crashtracker_check_result(ddog_VoidResult result, const char
     return true;
 }
 
+#if PHP_VERSION_ID >= 80000
+static zend_never_inline ZEND_COLD void ddtrace_crasht_failed_tag_push(
+    ddog_Error *err,
+    ddog_CharSlice key
+) {
+    ddog_CharSlice msg = ddog_Error_message(err);
+    LOG(DEBUG,
+        "Failed to push tag \"%.*s\": %.*s",
+        (int) key.len, key.ptr,
+        (int) msg.len, msg.ptr);
+    ddog_Error_drop(err);
+}
+
+ // This doesn't increase the refcount of the returned string (no cleanup).
+static zend_always_inline zend_string *ddtrace_crasht_ini_get_value(ddog_CharSlice ini) {
+    zend_string *ini_zstr = zend_string_init(ini.ptr, ini.len, true);
+    zend_string *value = zend_ini_get_value(ini_zstr);
+    zend_string_release(ini_zstr);
+    return value;
+}
+
+// Pass in a key like "php.opcache.enable" and "php." will get stripped off,
+// and that's what the INI setting will be.
+static void ddtrace_crasht_add_opcache_tag(
+    ddog_Vec_Tag *tags,
+    ddog_CharSlice key
+) {
+    const ddog_CharSlice PREFIX = DDOG_CHARSLICE_C("php.");
+    ZEND_ASSERT(key.len > PREFIX.len && memcmp(key.ptr, PREFIX.ptr, PREFIX.len) == 0);
+
+    ddog_CharSlice ini = {
+        .ptr = key.ptr + PREFIX.len,
+        .len = key.len - PREFIX.len,
+    };
+    zend_string *value = ddtrace_crasht_ini_get_value(ini);
+    // On PHP 8.0+ these INI should all exist, but guard against the NULL case
+    // in case something goes wrong, or this changes in a future version.
+    ddog_CharSlice val = DDOG_CHARSLICE_C("[not found]");
+    if (value) {
+        val.ptr = ZSTR_VAL(value);
+        val.len = ZSTR_LEN(value);
+    }
+    ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(tags, key, val);
+    if (UNEXPECTED(result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK)) {
+        ddtrace_crasht_failed_tag_push(&result.err, key);
+    }
+}
+
+static zend_extension *ddtrace_crasht_find_zend_extension(const char *name) {
+    //if (maybe_opcache->name && strcmp(maybe_opcache->name, "Zend OPcache") == 0) {
+    const zend_llist *list = &zend_extensions;
+    zend_extension *maybe_opcache = NULL;
+    for (const zend_llist_element *item = list->head; item; item = item->next) {
+        maybe_opcache = (zend_extension *)item->data;
+        if (maybe_opcache->name && strcmp(maybe_opcache->name, name) == 0) {
+            return maybe_opcache;
+        }
+    }
+    return NULL;
+}
+#endif
+
+// Fetches certain opcache tags and adds them with the pattern of php.opcache.*.
+static void ddtrace_crasht_add_opcache_tags(ddog_Vec_Tag *tags) {
+#if PHP_VERSION_ID >= 80000
+    // If opcache isn't loaded, don't attach any opcache tags.
+    if (!ddtrace_crasht_find_zend_extension("Zend OPcache")) {
+        return;
+    }
+
+    // Most of these are INI_ALL, so it's possible that they are changed after
+    // this point.
+    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable"));
+
+    // The CLI SAPI has an additional configuration for being enabled.
+    if (strcmp("cli", sapi_module.name) == 0) {
+        ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable_cli"));
+    }
+
+    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit"));
+    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit_buffer_size"));
+#endif
+}
+
 static void ddtrace_init_crashtracker() {
     ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
     if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
@@ -130,38 +219,7 @@ static void ddtrace_init_crashtracker() {
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
-
-#if PHP_VERSION_ID >= 80000
-    zend_string *str = zend_string_init(ZEND_STRL("opcache.jit_buffer_size"), true);
-    zend_string *value = zend_ini_get_value(str);
-    do {
-        if (!value || ZSTR_LEN(value) == 0) break;
-        if (zend_string_equals_literal(value, "0")) break;
-
-        // The INI value is at least 1 char and isn't "0". Parse the quantity
-        // similarly to OnUpdateLong.
-#if PHP_VERSION_ID >= 80200
-        zend_string *errstr = NULL;
-        zend_long quantity = zend_ini_parse_quantity(value, &errstr);
-        if (errstr) zend_string_release(errstr);
-#else
-        zend_long quantity = zend_atol(ZSTR_VAL(value), ZSTR_LEN(value));
-#endif
-        if (quantity <= 0) break;
-
-        // The quantity is > 0, so attach the tag.
-        ddog_CharSlice key = DDOG_CHARSLICE_C("php.opcache.jit_buffer_size");
-        // todo: don't set the INI value to avoid cardinality issues.
-        ddog_CharSlice val = { .ptr = ZSTR_VAL(value), .len = ZSTR_LEN(value) };
-        ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(&tags, key, val);
-        if (result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK) {
-            ddog_CharSlice msg = ddog_Error_message(&result.err);
-            LOG(DEBUG, "Failed to push tag \"php.opcache.jit_buffer_size\": %.*s", (int) msg.len, msg.ptr);
-            ddog_Error_drop(&result.err);
-        }
-    } while (false);
-    zend_string_release(str);
-#endif
+    ddtrace_crasht_add_opcache_tags(&tags);
 
     const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
 

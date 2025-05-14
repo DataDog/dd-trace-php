@@ -18,7 +18,7 @@ DD_TRACE_AGENT_PORT=80
 opcache.enable=1
 opcache.enable_cli=1
 opcache.jit="tracing"
-opcache.jit_buffer_size=8M
+opcache.jit_buffer_size=32M
 zend_extension=opcache.so
 datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
 --FILE--
@@ -64,7 +64,10 @@ $rr->waitForRequest(function ($request) {
             "library_version": "%s",
             "family": "php",
             "tags": [
-                "php.opcache.jit_buffer_size:8M",
+                "php.opcache.enable:1",
+                "php.opcache.enable_cli:1",
+                "php.opcache.jit:tracing",
+                "php.opcache.jit_buffer_size:32M",
 %A
             ]
         },
