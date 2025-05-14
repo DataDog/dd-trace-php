@@ -141,7 +141,9 @@ static void ddtrace_init_crashtracker() {
         // The INI value is at least 1 char and isn't "0". Parse the quantity
         // similarly to OnUpdateLong.
 #if PHP_VERSION_ID >= 80200
-        zend_long quantity = zend_ini_parse_quantity(value, NULL);
+        zend_string *errstr = NULL;
+        zend_long quantity = zend_ini_parse_quantity(value, &errstr);
+        if (errstr) zend_string_release(errstr);
 #else
         zend_long quantity = zend_atol(ZSTR_VAL(value), ZSTR_LEN(value));
 #endif
