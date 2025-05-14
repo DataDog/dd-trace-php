@@ -7,10 +7,10 @@
 
 #include "action.hpp"
 #include "engine_settings.hpp"
-#include "metrics.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
+#include "telemetry.hpp"
 #include <atomic>
 #include <map>
 #include <memory>
@@ -67,7 +67,7 @@ public:
         std::optional<result> publish(
             parameter &&param, const std::string &rasp_rule = "");
         // NOLINTNEXTLINE(google-runtime-references)
-        void get_metrics(metrics::telemetry_submitter &msubmitter);
+        void get_metrics(telemetry::telemetry_submitter &msubmitter);
 
     protected:
         std::shared_ptr<shared_state> common_;
@@ -86,7 +86,7 @@ public:
 
     static std::unique_ptr<engine> from_settings(
         const dds::engine_settings &eng_settings,
-        metrics::telemetry_submitter &msubmitter);
+        telemetry::telemetry_submitter &msubmitter);
 
     static auto create(
         uint32_t trace_rate_limit = engine_settings::default_trace_rate_limit)
@@ -102,7 +102,7 @@ public:
     // Should not be called concurrently but safely publishes changes to common_
     // the rc client has a lock that ensures this
     virtual void update(const rapidjson::Document &doc,
-        metrics::telemetry_submitter &submit_metric);
+        telemetry::telemetry_submitter &submit_metric);
 
 protected:
     explicit engine(uint32_t trace_rate_limit)
@@ -113,7 +113,7 @@ protected:
     // should use only atomic operations (pre-c++20
     // std::atomic<std::shared_ptr>)
     std::shared_ptr<shared_state> common_;
-    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter_;
     rate_limiter<dds::timer> limiter_;
 };
 

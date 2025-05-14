@@ -5,13 +5,33 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "service.hpp"
+#include "sidecar_settings.hpp"
+
+#include <utility>
+
+extern "C" {
+#include <dlfcn.h>
+#include <sidecar_ffi.h>
+}
 
 namespace dds {
 
+namespace {
+inline FfiString to_ffi_string(std::string_view sv)
+{
+    return {sv.data(), sv.length()};
+}
+
+using ddog_sidecar_enqueue_telemetry_log_t =
+    decltype(&ddog_sidecar_enqueue_telemetry_log);
+ddog_sidecar_enqueue_telemetry_log_t fn_ddog_sidecar_enqueue_telemetry_log;
+} // namespace
+
 service::service(std::shared_ptr<engine> engine,
     std::shared_ptr<service_config> service_config,
-    std::unique_ptr<dds::remote_config::client_handler> &&client_handler,
+    std::unique_ptr<dds::remote_config::client_handler> client_handler,
     std::shared_ptr<metrics_impl> msubmitter, std::string rc_path,
+    sidecar_settings sc_settings,
     const schema_extraction_settings &schema_extraction_settings)
     : engine_{std::move(engine)}, service_config_{std::move(service_config)},
       client_handler_{std::move(client_handler)},
@@ -22,7 +42,8 @@ service::service(std::shared_ptr<engine> engine,
               ? std::make_optional<sampler>(static_cast<std::uint32_t>(
                     schema_extraction_settings.sampling_period))
               : std::nullopt},
-      rc_path_{std::move(rc_path)}, msubmitter_{std::move(msubmitter)}
+      rc_path_{std::move(rc_path)}, msubmitter_{std::move(msubmitter)},
+      sidecar_settings_{std::move(sc_settings)}
 {
     // The engine should always be valid
     if (!engine_) {
@@ -36,9 +57,10 @@ service::service(std::shared_ptr<engine> engine,
 
 std::shared_ptr<service> service::from_settings(
     const dds::engine_settings &eng_settings,
-    const remote_config::settings &rc_settings)
+    const remote_config::settings &rc_settings, sidecar_settings sc_settings)
 {
-    std::shared_ptr<metrics_impl> msubmitter = std::make_shared<metrics_impl>();
+    std::shared_ptr<metrics_impl> msubmitter =
+        std::make_shared<metrics_impl>(sc_settings);
 
     const std::shared_ptr<engine> engine_ptr =
         engine::from_settings(eng_settings, *msubmitter);
@@ -50,6 +72,77 @@ std::shared_ptr<service> service::from_settings(
 
     return create_shared(engine_ptr, std::move(service_config),
         std::move(client_handler), std::move(msubmitter),
-        rc_settings.shmem_path, eng_settings.schema_extraction);
+        rc_settings.shmem_path, std::move(sc_settings),
+        eng_settings.schema_extraction);
 }
+
+void service::metrics_impl::submit_log(
+    uint64_t queue_id, const tel_log &log) const
+{
+    SPDLOG_DEBUG("submit_log (ffi): [{}][{}]: {}", log.level, log.identifier,
+        log.message);
+
+    if (fn_ddog_sidecar_enqueue_telemetry_log == nullptr) {
+        SPDLOG_WARN(
+            "ddog_sidecar_enqueue_telemetry_log function pointer is null. "
+            "Symbol resolution likely failed.");
+        return;
+    }
+
+    FfiString session_id_ffi = to_ffi_string(sc_settings_.session_id);
+    FfiString runtime_id_ffi = to_ffi_string(sc_settings_.runtime_id);
+
+    FfiString identifier_ffi = to_ffi_string(log.identifier);
+    CLogLevel c_level = CLogLevel::Debug; // Default to Debug
+    switch (log.level) {
+    case telemetry::telemetry_submitter::log_level::Error:
+        c_level = CLogLevel::Error;
+        break;
+    case telemetry::telemetry_submitter::log_level::Warn:
+        c_level = CLogLevel::Warn;
+        break;
+    case telemetry::telemetry_submitter::log_level::Debug:
+        c_level = CLogLevel::Debug;
+        break;
+    }
+    FfiString message_ffi = to_ffi_string(log.message);
+
+    FfiString stack_trace_ffi_struct;
+    FfiString *stack_trace_ffi_ptr = nullptr;
+    if (log.stack_trace.has_value()) {
+        stack_trace_ffi_struct = to_ffi_string(*log.stack_trace);
+        stack_trace_ffi_ptr = &stack_trace_ffi_struct;
+    }
+
+    FfiString tags_ffi_struct;
+    FfiString *tags_ffi_ptr = nullptr;
+    if (log.tags.has_value()) {
+        tags_ffi_struct = to_ffi_string(*log.tags);
+        tags_ffi_ptr = &tags_ffi_struct;
+    }
+
+    FfiError result = fn_ddog_sidecar_enqueue_telemetry_log(session_id_ffi,
+        runtime_id_ffi, queue_id, identifier_ffi, c_level, message_ffi,
+        stack_trace_ffi_ptr, tags_ffi_ptr, log.is_sensitive);
+
+    if (result != FfiError::Ok) {
+        SPDLOG_INFO("Failed to enqueue telemetry log, error code: {}",
+            static_cast<int>(result));
+    }
+}
+
+void service::resolve_symbols()
+{
+    if (fn_ddog_sidecar_enqueue_telemetry_log == nullptr) {
+        fn_ddog_sidecar_enqueue_telemetry_log =
+            // NOLINTNEXTLINE
+            reinterpret_cast<ddog_sidecar_enqueue_telemetry_log_t>(
+                dlsym(RTLD_DEFAULT, "ddog_sidecar_enqueue_telemetry_log"));
+        if (fn_ddog_sidecar_enqueue_telemetry_log == nullptr) {
+            throw std::runtime_error{
+                "Failed to resolve ddog_sidecar_enqueue_telemetry_log"};
+        }
+    }
+}
+
 } // namespace dds

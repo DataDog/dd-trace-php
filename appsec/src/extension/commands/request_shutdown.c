@@ -7,6 +7,7 @@
 #include "request_shutdown.h"
 #include "../commands_helpers.h"
 #include "../ddappsec.h"
+#include "../ddtrace.h"
 #include "../entity_body.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
@@ -27,7 +28,7 @@ static const char *nullable _header_content_type_zend_array(
 static const dd_command_spec _spec = {
     .name = "request_shutdown",
     .name_len = sizeof("request_shutdown") - 1,
-    .num_args = 2, // a map and api sec sampling key
+    .num_args = 3, // a map, api sec sampling key, and sidecar queue id
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -90,6 +91,9 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
 
     // 2.
     mpack_write(w, req_info->api_sec_samp_key);
+
+    // 3.
+    mpack_write(w, dd_trace_get_sidecar_queue_id());
 
     return dd_success;
 }

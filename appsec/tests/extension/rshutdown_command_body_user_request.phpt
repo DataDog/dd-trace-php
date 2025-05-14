@@ -56,7 +56,7 @@ close_span(100.0);
 $c = $helper->get_commands();
 print_r($c[2]);
 ?>
---EXPECT--
+--EXPECTF--
 Result of notify_start:
 NULL
 Result of notify_commit:
@@ -106,6 +106,7 @@ test
                 )
 
             [1] => 0
+            [2] => %s
         )
 
 )
