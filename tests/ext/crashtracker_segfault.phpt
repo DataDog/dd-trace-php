@@ -14,6 +14,7 @@ DD_TRACE_LOG_LEVEL=0
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 --INI--
+opcache.jit_buffer_size=2M
 datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
 --FILE--
 <?php
@@ -74,6 +75,6 @@ $rr->waitForRequest(function ($request) {
     "level": "ERROR",
     "count": 1,
     "stack_trace": "%s",
-    "tags": "%ssi_signo_human_readable:SIGSEGV%S",
+    "tags": "%sjit_buffer_size=2097152%ssi_signo_human_readable:SIGSEGV%S",
     "is_sensitive": true
 }%A
