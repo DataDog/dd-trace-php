@@ -59,6 +59,17 @@ class TelemetryHelpers {
         String tags
         String stack_trace
         String is_sensitive
+
+        def getParsedTags() {
+            if (tags) {
+                tags.split(',').collectEntries { tag ->
+                    def parts = tag.split(':', 2)
+                    [(parts[0]): parts[1]]
+                }
+            } else {
+                [:]
+            }
+        }
     }
 
     static class WithConfiguration {

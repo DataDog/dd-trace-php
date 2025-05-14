@@ -10,6 +10,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/writer.h>
+#include <string>
 #include <string_view>
 
 #include "../compression.hpp"
@@ -24,6 +25,11 @@
 #include <type_traits>
 
 namespace dds::waf {
+
+namespace {
+void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
+    parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter);
+} // namespace
 
 class waf_builder {
     static constexpr auto BUNDLED_KEY = "datadog/0/ASM_DD/0/bundled"sv;
@@ -61,19 +67,31 @@ public:
                 removed.full_key().data(), removed.full_key().size());
             if (res) {
                 SPDLOG_DEBUG("Removed config: {}", removed.full_key());
+                std::string identifier = fmt::format(
+                    "rc::{}::diagnostic", removed.product().name_lower());
+                std::string tags = telemetry::telemetry_tags{}
+                                       .add("log_type", identifier)
+                                       .add("rc_config_id", removed.config_id())
+                                       .consume();
                 submitter.submit_log(
                     telemetry::telemetry_submitter::log_level::Debug,
-                    "waf_builder_remove_config_success",
+                    std::move(identifier),
                     fmt::format("Removed config: {}", removed.full_key()),
-                    std::nullopt, std::nullopt, false);
+                    std::nullopt, std::move(tags), false);
             } else {
                 SPDLOG_WARN("Failed to remove config: {}", removed.full_key());
+                std::string identifier = fmt::format(
+                    "rc::{}::exception", removed.product().name_lower());
+                std::string tags = telemetry::telemetry_tags{}
+                                       .add("log_type", identifier)
+                                       .add("rc_config_id", removed.config_id())
+                                       .consume();
                 submitter.submit_log(
                     telemetry::telemetry_submitter::log_level::Warn,
-                    "waf_builder_remove_config_failure",
+                    std::move(identifier),
                     fmt::format(
                         "Failed to remove config: {}", removed.full_key()),
-                    std::nullopt, std::nullopt, false);
+                    std::nullopt, std::move(tags), false);
             }
         }
 
@@ -89,23 +107,28 @@ public:
             bool const res = ddwaf_builder_add_or_update_config(builder_.get(),
                 key.full_key().data(), key.full_key().size(), &added.second,
                 &these_diags);
-            diagnostics.merge(std::move(these_diags));
             if (res) {
                 SPDLOG_DEBUG("Added/updated config: {}", key.full_key());
+                std::string identifier = fmt::format(
+                    "rc::{}::diagnostic", key.product().name_lower());
+                std::string tags = telemetry::telemetry_tags{}
+                                       .add("log_type", identifier)
+                                       .add("rc_config_id", key.config_id())
+                                       .consume();
                 submitter.submit_log(
                     telemetry::telemetry_submitter::log_level::Debug,
-                    "waf_builder_add_or_update_config_success",
+                    std::move(identifier),
                     fmt::format("Added/updated config: {}", key.full_key()),
-                    std::nullopt, std::nullopt, false);
+                    std::nullopt, std::move(tags), false);
             } else {
-                SPDLOG_WARN("Failed to add/update config: {}", key.full_key());
-                submitter.submit_log(
-                    telemetry::telemetry_submitter::log_level::Warn,
-                    "waf_builder_add_or_update_config_failure",
-                    fmt::format(
-                        "Failed to add/update config: {}", key.full_key()),
-                    std::nullopt, std::nullopt, false);
+                SPDLOG_WARN("Failed to add/update config {}: {}", key.full_key(),
+                    parameter_to_json(parameter_view{these_diags}));
             }
+
+            handle_config_diagnostics(
+                key, parameter_view{these_diags}, submitter);
+
+            diagnostics.merge(std::move(these_diags));
         }
 
         auto count_asm_dd = ddwaf_builder_get_config_paths(
@@ -289,6 +312,13 @@ void waf_update_report(telemetry::telemetry_submitter &msubmitter, bool success,
     msubmitter.submit_metric(metrics::waf_updates, 1.0,
         waf_update_init_report_tags(success, std::move(rules_version)));
 }
+constexpr std::array<std::string_view, 5> diagnostic_keys{
+        "custom_rules",
+        "exclusions",
+        "rules",
+        "rules_data",
+        "rules_override",
+    };
 
 void load_result_report(
     parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter)
@@ -303,15 +333,7 @@ void load_result_report(
             static_cast<std::string_view>(ruleset_version_it->second);
     }
 
-    static constexpr std::array<std::string_view, 5> keys{
-        "custom_rules",
-        "exclusions",
-        "rules",
-        "rules_data",
-        "rules_override",
-    };
-
-    for (auto k : keys) {
+    for (auto k : diagnostic_keys) {
         auto it = info.find(k);
         if (it == info.end()) {
             continue;
@@ -355,6 +377,75 @@ void load_result_report(
 
             msubmitter.submit_metric(metrics::waf_config_errors,
                 static_cast<double>(error_count), std::move(tags));
+        }
+    }
+}
+
+void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
+    parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter)
+{
+    using log_level = telemetry::telemetry_submitter::log_level;
+
+    const auto info = static_cast<parameter_view::map>(diagnostics);
+    for (auto k : diagnostic_keys) {
+        auto it = info.find(k);
+        if (it == info.end()) {
+            continue;
+        }
+
+        const parameter_view &value = it->second;
+        if (!value.is_map()) {
+            continue;
+        }
+
+        // map has "error", "loaded", "failed", "skipped", "errors", "warnings"
+        const parameter_view::map map = static_cast<parameter_view::map>(value);
+
+        if (map.contains("error")) {
+            auto message = static_cast<std::string>(map.at("error"));
+            std::string identifier = fmt::format(
+                "rc::{}::exception", cfg_key.product().name_lower());
+            std::string tags = telemetry::telemetry_tags{}
+                .add("log_type", identifier)
+                .add("appsec_config_key", k)
+                .add("rc_config_id", cfg_key.config_id()).consume();
+
+            msubmitter.submit_log(
+                log_level::Error,
+                std::move(identifier), std::move(message), std::nullopt,
+                std::move(tags), false);
+        }
+        if (map.contains("errors")) {
+            parameter_view errors = map.at("errors");
+            if (errors.type() == parameter_type::map && errors.size() > 0) {
+                std::string message = parameter_to_json(map.at("errors"));
+                std::string identifier = fmt::format(
+                    "rc::{}::exception", cfg_key.product().name_lower());
+                std::string tags = telemetry::telemetry_tags{}
+                                       .add("log_type", identifier)
+                                       .add("appsec_config_key", k)
+                                       .add("rc_config_id", cfg_key.config_id())
+                                       .consume();
+
+                msubmitter.submit_log(log_level::Error, std::move(identifier),
+                    std::move(message), std::nullopt, std::move(tags), false);
+            }
+        }
+        if (map.contains("warnings")) {
+            parameter_view warnings = map.at("warnings");
+            if (warnings.type() == parameter_type::map && warnings.size() > 0) {
+                std::string message = parameter_to_json(map.at("warnings"));
+                std::string identifier = fmt::format(
+                    "rc::{}::diagnostics", cfg_key.product().name_lower());
+                std::string tags = telemetry::telemetry_tags{}
+                                       .add("log_type", identifier)
+                                       .add("appsec_config_key", k)
+                                       .add("rc_config_id", cfg_key.config_id())
+                                       .consume();
+
+                msubmitter.submit_log(log_level::Debug, std::move(identifier),
+                    std::move(message), std::nullopt, std::move(tags), false);
+            }
         }
     }
 }

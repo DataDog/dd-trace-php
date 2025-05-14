@@ -154,7 +154,7 @@ bool client::process_response(std::set<config> new_configs)
 {
     using log_level = telemetry::telemetry_submitter::log_level;
     msubmitter_->submit_log(log_level::Debug,
-        "remote_config_client_process_response",
+        "rc::client::begin_processing",
         "Processing remote config response", std::nullopt, std::nullopt, false);
 
     for (auto &listener : listeners_) {
@@ -166,7 +166,7 @@ bool client::process_response(std::set<config> new_configs)
     }
 
     // unapply should happen first
-    for (const auto &cfg : last_configs_) {
+    for (const config &cfg : last_configs_) {
         if (new_configs.contains(cfg)) {
             continue;
         }
@@ -184,12 +184,20 @@ bool client::process_response(std::set<config> new_configs)
             } catch (const std::exception &e) {
                 SPDLOG_ERROR("Failed to unapply config {}: {}", cfg, e.what());
                 if (msubmitter_) {
+                    std::string identifier = fmt::format(
+                        "rc::{}::exception",
+                        cfg.config_key().product().name_lower());
+                    std::string tags =
+                        telemetry::telemetry_tags{}
+                            .add("log_type", identifier)
+                            .add("rc_config_id", cfg.config_key().config_id())
+                            .consume();
                     msubmitter_->submit_log(
                         telemetry::telemetry_submitter::log_level::Error,
-                        "remote_config_client_unapply_error",
+                        std::move(identifier),
                         fmt::format("Failed to unapply config {}: {}",
                             cfg.rc_path, e.what()),
-                        std::nullopt, std::nullopt, false);
+                        std::nullopt, std::move(tags), false);
                 }
             }
         }
@@ -216,11 +224,19 @@ bool client::process_response(std::set<config> new_configs)
             } catch (const std::exception &e) {
                 SPDLOG_ERROR("Failed to apply config {}: {}", cfg, e.what());
                 if (msubmitter_) {
+                    std::string identifier =
+                        fmt::format("rc::{}::exception",
+                            cfg.config_key().product().name_lower());
+                    std::string tags =
+                        telemetry::telemetry_tags{}
+                            .add("log_type", identifier)
+                            .add("rc_config_id", cfg.config_key().config_id())
+                            .consume();
                     msubmitter_->submit_log(log_level::Error,
-                        "remote_config_client_apply_error",
+                        std::move(identifier),
                         fmt::format("Failed to apply config {}: {}",
                             cfg.rc_path, e.what()),
-                        std::nullopt, std::nullopt, false);
+                        std::nullopt, std::move(tags), false);
                 }
             }
         }
@@ -233,7 +249,7 @@ bool client::process_response(std::set<config> new_configs)
             SPDLOG_ERROR("Failed to commit listener: {}", e.what());
             if (msubmitter_) {
                 msubmitter_->submit_log(log_level::Error,
-                    "remote_config_client_commit_error",
+                    "rc::client::exception",
                     fmt::format("Failed to commit listener: {}", e.what()),
                     std::nullopt, std::nullopt, false);
             }
