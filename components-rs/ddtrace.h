@@ -1,3 +1,6 @@
+struct _zend_string;
+
+
 #ifndef DDTRACE_PHP_H
 #define DDTRACE_PHP_H
 
@@ -276,5 +279,31 @@ void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActi
 void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
+
+extern void ddog_free_zend_string(struct _zend_string *s);
+
+extern void ddog_incr_refcount_zend_string(struct _zend_string *s);
+
+void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
+                             struct _zend_string *key,
+                             struct _zend_string *val);
+
+void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
+                                       ddog_CharSlice key,
+                                       struct _zend_string *val);
+
+void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+
+void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
+
+void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
 
 #endif  /* DDTRACE_PHP_H */
