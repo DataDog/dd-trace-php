@@ -749,6 +749,21 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             if (mpack_node_error(metrics) != mpack_ok) {
                 break;
             }
+            if (dd_msgpack_helpers_is_data_truncated() && strncmp("waf.requests", key_str, 12) == 0) {
+                const char truncated_tag[] = "truncated=true";
+                size_t truncated_tag_len = sizeof(truncated_tag);
+                char *new_tags = malloc(tags_len + truncated_tag_len + 2);
+                if (new_tags) {
+                    memcpy(new_tags, tags_str, tags_len);
+                }
+                if (new_tags) {
+                    new_tags[tags_len] = ',';
+                    memcpy(new_tags + tags_len + 1, truncated_tag, truncated_tag_len);
+                    new_tags[tags_len + truncated_tag_len] = '\0';
+                    tags_len += truncated_tag_len;
+                }
+                tags_str = new_tags;
+            }
 
             _handle_telemetry_metric(
                 key_str, key_len, dval, tags_str, tags_len);
