@@ -583,9 +583,7 @@ pub(crate) fn timeline_ginit() {
     // During GINIT in "this" thread, the request locals are not initialized, which happens in
     // RINIT, so we currently do not know if profile is enabled at all and if, if timeline is
     // enabled. That's why we raise this flag here and read it in RINIT.
-    IS_NEW_THREAD.with(|cell| {
-        cell.set(true);
-    });
+    IS_NEW_THREAD.set(true);
 }
 
 #[cfg(php_zts)]
