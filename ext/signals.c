@@ -234,6 +234,8 @@ static void ddtrace_crasht_add_opcache_tags(ddog_Vec_Tag *tags) {
     if (UNEXPECTED(result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK)) {
         ddtrace_crasht_failed_tag_push(&result.err, key);
     }
+#else
+    (void)tags;
 #endif
 }
 
