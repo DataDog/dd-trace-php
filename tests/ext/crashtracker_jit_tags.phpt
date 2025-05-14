@@ -10,15 +10,17 @@ if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
 if (PHP_VERSION_ID < 80000) die("skip: requires PHP 8 for the JIT INI settings");
 include __DIR__ . '/includes/skipif_no_dev_env.inc';
 ?>
+--ENV--
+DD_TRACE_LOG_LEVEL=0
+DD_AGENT_HOST=request-replayer
+DD_TRACE_AGENT_PORT=80
 --INI--
 opcache.enable=1
 opcache.enable_cli=1
 opcache.jit="tracing"
 opcache.jit_buffer_size=8M
 zend_extension=opcache.so
-datadog.trace.agent_url="http://request-replayer"
 datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
-datadog.trace.log_level=0
 --FILE--
 <?php
 
