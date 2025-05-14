@@ -475,11 +475,6 @@ pub unsafe extern "C" fn ddog_setup_remote_config(
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_rinit_remote_config(remote_config: &mut RemoteConfigState) {
-    ddog_process_remote_configs(remote_config);
-}
-
-#[no_mangle]
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
     remote_config.dynamic_config.old_config_values.clear();

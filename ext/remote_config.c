@@ -121,7 +121,6 @@ void ddtrace_mshutdown_remote_config(void) {
 void ddtrace_rinit_remote_config(void) {
     zend_hash_init(&DDTRACE_G(active_rc_hooks), 8, NULL, NULL, 0);
     DDTRACE_G(reread_remote_configuration) = 0;
-    ddog_rinit_remote_config(DDTRACE_G(remote_config_state));
 }
 
 void ddtrace_rshutdown_remote_config(void) {

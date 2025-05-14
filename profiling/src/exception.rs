@@ -200,10 +200,8 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
     if exception_profiling && !exception.is_null() {
-        EXCEPTION_PROFILING_STATS.with(|cell| {
-            let mut exceptions = cell.borrow_mut();
-            exceptions.track_exception(exception)
-        });
+        EXCEPTION_PROFILING_STATS
+            .with_borrow_mut(|exceptions| exceptions.track_exception(exception));
     }
 
     if let Some(prev) = PREV_ZEND_THROW_EXCEPTION_HOOK {
