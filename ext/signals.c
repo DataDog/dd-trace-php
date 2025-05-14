@@ -120,14 +120,6 @@ static zend_never_inline ZEND_COLD void ddtrace_crasht_failed_tag_push(
     ddog_Error_drop(err);
 }
 
- // This doesn't increase the refcount of the returned string (no cleanup).
-static zend_always_inline zend_string *ddtrace_crasht_ini_get_value(ddog_CharSlice ini) {
-    zend_string *ini_zstr = zend_string_init(ini.ptr, ini.len, true);
-    zend_string *value = zend_ini_get_value(ini_zstr);
-    zend_string_release(ini_zstr);
-    return value;
-}
-
 // Pushes a tag and logs a failure.
 static zend_always_inline void ddtrace_crasht_push_tag(
     ddog_Vec_Tag *tags,
@@ -149,14 +141,10 @@ static void ddtrace_crasht_add_opcache_tag(
     const ddog_CharSlice PREFIX = DDOG_CHARSLICE_C("php.");
     ZEND_ASSERT(key.len > PREFIX.len && memcmp(key.ptr, PREFIX.ptr, PREFIX.len) == 0);
 
-    ddog_CharSlice ini = {
-        .ptr = key.ptr + PREFIX.len,
-        .len = key.len - PREFIX.len,
-    };
-    zend_string *value = ddtrace_crasht_ini_get_value(ini);
+    zend_string *value = zend_ini_str(key.ptr + PREFIX.len, key.len - PREFIX.len, false);
     // On PHP 8.0+ these INI should all exist, but guard against the NULL case
     // in case something goes wrong, or this changes in a future version.
-    ddog_CharSlice val = value != NULL
+    ddog_CharSlice val = (value != NULL)
         ? dd_zend_string_to_CharSlice(value)
         : DDOG_CHARSLICE_C("[not found]");
     ddtrace_crasht_push_tag(tags, key, val);
@@ -175,8 +163,7 @@ static void ddtrace_crasht_add_opcache_tags(ddog_Vec_Tag *tags) {
     // zero, then JIT won't operate.
     ddog_CharSlice jit_buffer_size = DDOG_CHARSLICE_C("[not found]");
     {
-        ddog_CharSlice ini = DDOG_CHARSLICE_C("opcache.jit_buffer_size");
-        zend_string *value = ddtrace_crasht_ini_get_value(ini);
+        zend_string *value = zend_ini_str(ZEND_STRL("opcache.jit_buffer_size"), 0);
         if (!value) {
             return;
         }
@@ -200,8 +187,7 @@ static void ddtrace_crasht_add_opcache_tags(ddog_Vec_Tag *tags) {
     bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
     ddog_CharSlice enable_cli = DDOG_CHARSLICE_C("[not found]");
     if (is_cli_sapi) {
-        ddog_CharSlice ini = DDOG_CHARSLICE_C("opcache.enable_cli");
-        zend_string *value = ddtrace_crasht_ini_get_value(ini);
+        zend_string *value = zend_ini_str(ZEND_STRL("opcache.enable_cli"), 0);
         if (!value || !zend_ini_parse_bool(value)) {
             return;
         }
