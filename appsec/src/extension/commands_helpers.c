@@ -17,6 +17,13 @@
 #include <mpack.h>
 #include <stdatomic.h>
 
+static const char WAF_REQUEST_TAG[] = "waf.requests";
+static const size_t WAF_REQUEST_TAG_LEN = sizeof(WAF_REQUEST_TAG) - 1;
+static const char TRUNCATED_TAG[] = "input_truncated=true";
+static const size_t TRUNCATED_TAG_LEN = sizeof(TRUNCATED_TAG);
+static const char TAG_SEPARATOR = ',';
+static const size_t TAG_SEPARATOR_LEN = sizeof(TAG_SEPARATOR);
+
 typedef struct _dd_omsg {
     zend_llist iovecs;
     mpack_writer_t writer;
@@ -749,18 +756,23 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             if (mpack_node_error(metrics) != mpack_ok) {
                 break;
             }
-            if (dd_msgpack_helpers_is_data_truncated() && strncmp("waf.requests", key_str, 12) == 0) {
-                const char truncated_tag[] = "truncated=true";
-                size_t truncated_tag_len = sizeof(truncated_tag);
-                char *new_tags = malloc(tags_len + truncated_tag_len + 2);
+            if (dd_msgpack_helpers_is_data_truncated() &&
+                strncmp(WAF_REQUEST_TAG, key_str, WAF_REQUEST_TAG_LEN) == 0) {
+                size_t separator = 0;
+                if (tags_len > 0) {
+                    separator = TAG_SEPARATOR_LEN;
+                }
+                char *new_tags =
+                    malloc(tags_len + TRUNCATED_TAG_LEN + 1 + separator);
                 if (new_tags) {
                     memcpy(new_tags, tags_str, tags_len);
-                }
-                if (new_tags) {
-                    new_tags[tags_len] = ',';
-                    memcpy(new_tags + tags_len + 1, truncated_tag, truncated_tag_len);
-                    new_tags[tags_len + truncated_tag_len] = '\0';
-                    tags_len += truncated_tag_len;
+                    if (separator > 0) {
+                        new_tags[tags_len] = TAG_SEPARATOR;
+                    }
+                    memcpy(new_tags + tags_len + separator, TRUNCATED_TAG,
+                        TRUNCATED_TAG_LEN);
+                    new_tags[tags_len + TRUNCATED_TAG_LEN + separator] = '\0';
+                    tags_len += TRUNCATED_TAG_LEN + separator;
                 }
                 tags_str = new_tags;
             }
