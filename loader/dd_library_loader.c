@@ -212,7 +212,7 @@ static injected_ext injected_ext_config[] = {
     DECLARE_INJECTED_EXT("datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
     DECLARE_INJECTED_EXT("ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
-                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_END})),
+                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("ddappsec") ZEND_MOD_END})),
 };
 
 void ddloader_logv(log_level level, const char *format, va_list va) {
