@@ -128,6 +128,7 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
         zval *value;
         ZEND_HASH_FOREACH_STR_KEY_VAL(def->tags, key, value) {
             if (key) {
+                Z_TRY_ADDREF_P(value);
                 zend_hash_update(meta, key, value);
             }
         } ZEND_HASH_FOREACH_END();
