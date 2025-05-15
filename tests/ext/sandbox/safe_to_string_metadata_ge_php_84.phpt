@@ -80,6 +80,7 @@ array(1) {
   string(9) "recursive"
 }
 arg.0.0: string(9) "recursive"
+arg.0.1: string(0) ""
 
 string(16) "already a string"
 arg.1: string(16) "already a string"
@@ -131,6 +132,16 @@ arg.5: string(5) "false"
 
 NULL
 arg.6: string(4) "null"
+
+object(Closure)#%d (3) {
+  ["name"]=>
+  string(%d) "{closure%s}"
+  ["file"]=>
+  string(%d) "%s"
+  ["line"]=>
+  int(%d)
+}
+arg.7: string(0) ""
 
 object(DateTime)#%d (3) {
   ["date"]=>

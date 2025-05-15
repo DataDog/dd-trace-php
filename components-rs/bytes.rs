@@ -1,10 +1,10 @@
 use datadog_trace_utils::span::SpanBytes;
 use ddcommon_ffi::slice::{AsBytes, CharSlice};
 use std::borrow::Cow;
-use tinybytes::{Bytes, BytesString, UnderlyingBytes};
+use std::ptr::NonNull;
+use tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
 
 /// cbindgen:no-export
-
 #[repr(C)]
 pub struct ZendString {
     pub refcount: u32,
@@ -14,54 +14,33 @@ pub struct ZendString {
     pub val: [u8; 1],
 }
 
-struct ZendStringWrapper(*mut ZendString);
-
-unsafe impl Send for ZendStringWrapper {}
-unsafe impl Sync for ZendStringWrapper {}
-
 extern "C" {
-    fn ddog_free_zend_string(s: *mut ZendString);
-    fn ddog_incr_refcount_zend_string(s: *mut ZendString);
+    fn ddog_free_zend_string(s: &mut ZendString);
+    fn ddog_incr_refcount_zend_string(s: &mut ZendString);
 }
 
-impl AsRef<[u8]> for ZendStringWrapper {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { (*self.0).as_ref() }
+fn convert_to_bytes(zend_str: &mut ZendString) -> Bytes {
+    const VTABLE: &RefCountedCellVTable = &RefCountedCellVTable {
+        clone,
+        drop: unsafe { std::mem::transmute(ddog_free_zend_string as *const fn(s: NonNull<()>)) },
+    };
+
+    unsafe fn clone(data: NonNull<()>) -> RefCountedCell {
+        ddog_incr_refcount_zend_string(data.cast().as_mut());
+        RefCountedCell::from_raw(data, VTABLE)
     }
-}
 
-impl AsRef<[u8]> for ZendString {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts((*self).val.as_ptr(), (*self).len) }
-    }
-}
-
-impl Drop for ZendStringWrapper {
-    fn drop(&mut self) {
-        unsafe {
-            ddog_free_zend_string(self.0);
-        }
-    }
-}
-
-impl UnderlyingBytes for ZendStringWrapper {}
-
-fn convert_to_bytes(zend_str: *mut ZendString) -> Bytes {
     unsafe {
         ddog_incr_refcount_zend_string(zend_str); // Increment the reference count to prevent double free
-        Bytes::from_underlying(ZendStringWrapper(zend_str))
+        Bytes::from_raw_refcount((&zend_str.val.as_slice()[0]).into(), zend_str.len, RefCountedCell::from_raw(NonNull::from(zend_str).cast(), VTABLE))
     }
 }
 
-fn convert_zend_to_bytes_string(zend_str: *mut ZendString) -> BytesString {
+fn convert_zend_to_bytes_string(zend_str: &mut ZendString) -> BytesString {
     unsafe {
-        ddog_incr_refcount_zend_string(zend_str); // Increment the reference count to prevent double free
-
-        match String::from_utf8_lossy((*zend_str).as_ref()) {
+        match String::from_utf8_lossy(std::slice::from_raw_parts(zend_str.val.as_ptr(), zend_str.len)) {
             Cow::Owned(s) => s.into(),
-            Cow::Borrowed(_) => BytesString::from_bytes_unchecked(Bytes::from_underlying(
-                ZendStringWrapper(zend_str),
-            )),
+            Cow::Borrowed(_) => BytesString::from_bytes_unchecked(convert_to_bytes(zend_str)),
         }
     }
 }
@@ -70,7 +49,7 @@ fn convert_char_slice_to_bytes_string(slice: CharSlice) -> BytesString {
     match String::from_utf8_lossy(slice.as_bytes().as_ref()) {
         Cow::Owned(s) => s.into(),
         Cow::Borrowed(_) => unsafe {
-            BytesString::from_bytes_unchecked(Bytes::from_underlying(slice.as_bytes().to_vec()))
+            BytesString::from_bytes_unchecked(slice.as_bytes().to_vec().into())
         },
     }
 }

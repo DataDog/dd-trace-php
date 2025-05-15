@@ -2110,8 +2110,6 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
                     zval value_zv;
                     ZVAL_STR(&value_zv, dd_CharSlice_to_zend_string(value));
                     zend_hash_str_update(Z_ARR(meta_struct_zv), key.ptr, key.len, &value_zv);
-
-                    ddog_free_charslice(value);
                 }
 
                 add_assoc_zval(&span_zv, "meta_struct", &meta_struct_zv);
