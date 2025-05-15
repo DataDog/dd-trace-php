@@ -14,12 +14,13 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 
-static const int MAX_DEPTH = 32;
+static const int MAX_DEPTH_READING = 32;
+static const int MAX_DEPTH_WRITING = 20;
 static const int MAX_STR_LEN = 4096;
 static const int MAX_ARRAY_SIZE = 256;
 static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 
-static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv);
+static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv, int depth);
 
 void dd_mpack_write_nullable_cstr(
     mpack_writer_t *nonnull w, const char *nullable cstr)
@@ -75,15 +76,21 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
         return;
     }
 
-    _mpack_write_zval(w, zv);
+    _mpack_write_zval(w, zv, 0);
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-void dd_mpack_write_array(
-    mpack_writer_t *nonnull w, const zend_array *nullable arr)
+void _dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr, int depth)
 {
     if (!arr) {
         mpack_write_nil(w);
+    }
+
+    if (depth > MAX_DEPTH_WRITING) {
+        data_truncated_ = true;
+        mpack_write_nil(w);
+        return;
     }
 
     uint32_t num_elems = zend_hash_num_elements(arr);
@@ -97,7 +104,7 @@ void dd_mpack_write_array(
         zval *val;
         ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
         {
-            _mpack_write_zval(w, val);
+            _mpack_write_zval(w, val, depth);
             num_elems--;
             if (num_elems == 0) {
                 break;
@@ -120,7 +127,7 @@ void dd_mpack_write_array(
                 ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
                 mpack_write(w, buf);
             }
-            _mpack_write_zval(w, val);
+            _mpack_write_zval(w, val, depth);
             num_elems--;
             if (num_elems == 0) {
                 break;
@@ -131,8 +138,14 @@ void dd_mpack_write_array(
     }
 }
 
+void dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr)
+{
+    _dd_mpack_write_array(w, arr, 0);
+}
+
 // NOLINTNEXTLINE
-static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
+static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv, int depth)
 {
 
     if (zv == NULL) {
@@ -168,13 +181,13 @@ static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
 
     case IS_ARRAY: {
         zend_array *arr = Z_ARRVAL_P(zv);
-        dd_mpack_write_array(w, arr);
+        _dd_mpack_write_array(w, arr, depth + 1);
         break;
     }
 
     case IS_REFERENCE: {
         zval *referent = Z_REFVAL_P(zv);
-        _mpack_write_zval(w, referent);
+        _mpack_write_zval(w, referent, depth);
         break;
     }
 
@@ -296,7 +309,7 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
 static bool parse_element(
     mpack_reader_t *nonnull reader, int depth, zval *nonnull output)
 {
-    if (depth >= MAX_DEPTH) { // critical check!
+    if (depth >= MAX_DEPTH_READING) { // critical check!
         mpack_reader_flag_error(reader, mpack_error_too_big);
         mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
         return false;
@@ -397,7 +410,7 @@ static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     void_ret_array_arginfo, 0, 1, IS_ARRAY, 0)
-ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 // clang-format off
