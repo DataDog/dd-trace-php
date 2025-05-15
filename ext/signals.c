@@ -132,76 +132,94 @@ static zend_always_inline void ddtrace_crasht_push_tag(
     }
 }
 
-// Pass in a key like "php.opcache.enable" and "php." will get stripped off,
-// and that's what the INI setting will be.
-static void ddtrace_crasht_add_opcache_tag(
-    ddog_Vec_Tag *tags,
-    ddog_CharSlice key
-) {
+static zend_always_inline zend_string *ddtrace_crasht_find_ini_by_tag(ddog_CharSlice tag) {
     const ddog_CharSlice PREFIX = DDOG_CHARSLICE_C("php.");
-    ZEND_ASSERT(key.len > PREFIX.len && memcmp(key.ptr, PREFIX.ptr, PREFIX.len) == 0);
+    ZEND_ASSERT(tag.len > PREFIX.len && memcmp(tag.ptr, PREFIX.ptr, PREFIX.len) == 0);
 
-    zend_string *value = zend_ini_str(key.ptr + PREFIX.len, key.len - PREFIX.len, false);
+    ddog_CharSlice ini = { .ptr = tag.ptr + PREFIX.len, .len = tag.len - PREFIX.len };
+    zend_string *value = zend_ini_str(ini.ptr, ini.len, false);
     // On PHP 8.0+ these INI should all exist, but guard against the NULL case
     // in case something goes wrong, or this changes in a future version.
-    ddog_CharSlice val = (value != NULL)
-        ? dd_zend_string_to_CharSlice(value)
-        : DDOG_CHARSLICE_C("[not found]");
-    ddtrace_crasht_push_tag(tags, key, val);
+    if (UNEXPECTED(!value)) {
+        LOG(WARN,
+            "crashtracker setup failed to find INI \"%.*s\"--is it removed in a newer version?",
+            (int) ini.len, ini.ptr);
+    }
+    return value;
+}
+
+// Pass in a key like "php.opcache.enable" and "php." will get stripped off,
+// and that's what the INI setting will be.
+static void ddtrace_crasht_add_ini_by_tag(ddog_Vec_Tag *tags, ddog_CharSlice key) {
+    zend_string *value = ddtrace_crasht_find_ini_by_tag(key);
+    if (EXPECTED(value)) {
+        ddtrace_crasht_push_tag(tags, key, dd_zend_string_to_CharSlice(value));
+    }
 }
 #endif
 
+const ddog_CharSlice ZERO = DDOG_CHARSLICE_C("0");
+const ddog_CharSlice ONE = DDOG_CHARSLICE_C("1");
+const ddog_CharSlice PHP_OPCACHE_ENABLE = DDOG_CHARSLICE_C("php.opcache.enable");
+
 // Fetches certain opcache tags and adds them with the pattern of php.opcache.*.
-static void ddtrace_crasht_add_opcache_tags(ddog_Vec_Tag *tags) {
+static void ddtrace_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
 #if PHP_VERSION_ID >= 80000
-    // If opcache isn't loaded, don't attach any opcache tags.
-    if (!zend_get_extension("Zend OPcache")) {
-        return;
+    // We'll push php.opcache.enabled:0 whenever we detect we're disabled.
+
+    bool loaded = zend_get_extension("Zend OPcache");
+    if (UNEXPECTED(!loaded)) {
+        goto opcache_disabled;
     }
 
     // opcache.jit_buffer_size is INI_SYSTEM, so we can check it now. If it's
     // zero, then JIT won't operate.
-    ddog_CharSlice jit_buffer_size = DDOG_CHARSLICE_C("[not found]");
     {
-        zend_string *value = zend_ini_str(ZEND_STRL("opcache.jit_buffer_size"), 0);
-        if (!value) {
-            return;
-        }
-
-        // Parse the quantity similarly to OnUpdateLong.
+        ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.jit_buffer_size");
+        zend_string *value = ddtrace_crasht_find_ini_by_tag(tag);
+        if (EXPECTED(value)) {
+            // Parse the quantity similarly to OnUpdateLong.
 #if PHP_VERSION_ID >= 80200
-        zend_string *errstr = NULL;
-        zend_long quantity = zend_ini_parse_quantity(value, &errstr);
-        if (errstr) zend_string_release(errstr);
+            zend_string *errstr = NULL;
+            zend_long quantity = zend_ini_parse_quantity(value, &errstr);
+            if (errstr) zend_string_release(errstr);
 #else
-        zend_long quantity = zend_atol(ZSTR_VAL(value), ZSTR_LEN(value));
+            zend_long quantity = zend_atol(ZSTR_VAL(value), ZSTR_LEN(value));
 #endif
-        if (quantity <= 0) {
-            return;
+            bool is_positive = quantity > 0;
+            ddog_CharSlice val = is_positive
+                ? dd_zend_string_to_CharSlice(value)
+                : ZERO;
+            ddtrace_crasht_push_tag(tags, tag, val);
+            if (UNEXPECTED(!is_positive)) {
+                goto opcache_disabled;
+            }
         }
-        jit_buffer_size = dd_zend_string_to_CharSlice(value);
     }
 
     // The CLI SAPI has an additional configuration for being enabled. This is
     // INI_SYSTEM so we can check it here.
     bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
-    ddog_CharSlice enable_cli = DDOG_CHARSLICE_C("[not found]");
     if (is_cli_sapi) {
-        zend_string *value = zend_ini_str(ZEND_STRL("opcache.enable_cli"), 0);
-        if (!value || !zend_ini_parse_bool(value)) {
-            return;
+        ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.enable_cli");
+        zend_string *value = ddtrace_crasht_find_ini_by_tag(tag);
+        if (EXPECTED(value)) {
+            bool is_enabled = zend_ini_parse_bool(value);
+            ddog_CharSlice val = is_enabled ? ONE : ZERO;
+            ddtrace_crasht_push_tag(tags, tag, val);
+            if (UNEXPECTED(!is_enabled)) {
+                goto opcache_disabled;
+            }
         }
-        enable_cli = dd_zend_string_to_CharSlice(value);
     }
 
     // The others are INI_ALL, so it's possible that they change at runtime.
-    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable"));
-    if (is_cli_sapi) {
-        ddtrace_crasht_push_tag(tags, DDOG_CHARSLICE_C("php.opcache.enable_cli"), enable_cli);
-    }
+    ddtrace_crasht_add_ini_by_tag(tags, PHP_OPCACHE_ENABLE);
+    ddtrace_crasht_add_ini_by_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit"));
+    return;
 
-    ddtrace_crasht_add_opcache_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit"));
-    ddtrace_crasht_push_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit_buffer_size"), jit_buffer_size);
+opcache_disabled:
+    ddtrace_crasht_push_tag(tags, PHP_OPCACHE_ENABLE, ZERO);
 #else
     (void)tags;
 #endif
@@ -235,7 +253,7 @@ static void ddtrace_init_crashtracker() {
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
-    ddtrace_crasht_add_opcache_tags(&tags);
+    ddtrace_crasht_add_opcache_inis(&tags);
 
     const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
 

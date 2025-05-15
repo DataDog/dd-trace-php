@@ -64,10 +64,10 @@ $rr->waitForRequest(function ($request) {
             "library_version": "%s",
             "family": "php",
             "tags": [
-                "php.opcache.enable:1",
-                "php.opcache.enable_cli:1",
-                "php.opcache.jit:tracing",
                 "php.opcache.jit_buffer_size:32M",
+                "php.opcache.enable_cli:1",
+                "php.opcache.enable:1",
+                "php.opcache.jit:tracing",
 %A
             ]
         },
