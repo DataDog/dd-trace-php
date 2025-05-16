@@ -14,13 +14,14 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 
-static const int MAX_DEPTH_READING = 32;
-static const int MAX_DEPTH_WRITING = 20;
-static const int MAX_STR_LEN = 4096;
-static const int MAX_ARRAY_SIZE = 256;
+static const size_t MAX_DEPTH_READING = 32;
+static const size_t MAX_DEPTH_WRITING = 20;
+static const size_t MAX_STR_LEN = 4096;
+static const size_t MAX_ARRAY_SIZE = 256;
 static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 
-static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv, int depth);
+static void _mpack_write_zval(
+    mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth);
 
 void dd_mpack_write_nullable_cstr(
     mpack_writer_t *nonnull w, const char *nullable cstr)
@@ -81,10 +82,11 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
 
 // NOLINTNEXTLINE(misc-no-recursion)
 void _dd_mpack_write_array(
-    mpack_writer_t *nonnull w, const zend_array *nullable arr, int depth)
+    mpack_writer_t *nonnull w, const zend_array *nullable arr, size_t depth)
 {
     if (!arr) {
         mpack_write_nil(w);
+        return;
     }
 
     if (depth > MAX_DEPTH_WRITING) {
@@ -145,7 +147,8 @@ void dd_mpack_write_array(
 }
 
 // NOLINTNEXTLINE
-static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv, int depth)
+static void _mpack_write_zval(
+    mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth)
 {
 
     if (zv == NULL) {
@@ -307,7 +310,7 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static bool parse_element(
-    mpack_reader_t *nonnull reader, int depth, zval *nonnull output)
+    mpack_reader_t *nonnull reader, size_t depth, zval *nonnull output)
 {
     if (depth >= MAX_DEPTH_READING) { // critical check!
         mpack_reader_flag_error(reader, mpack_error_too_big);
@@ -410,7 +413,7 @@ static PHP_FUNCTION(datadog_appsec_testing_decode_msgpack)
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     void_ret_array_arginfo, 0, 1, IS_ARRAY, 0)
-    ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
+ZEND_ARG_TYPE_INFO(0, encoded, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 // clang-format off
@@ -431,8 +434,6 @@ static void _register_testing_objects(void)
 
 void dd_msgpack_helpers_startup(void) { _register_testing_objects(); }
 
-void dd_msgpack_helpers_rinit(void) { 
-    data_truncated_ = false;
-}
+void dd_msgpack_helpers_rinit(void) { data_truncated_ = false; }
 
 bool dd_msgpack_helpers_is_data_truncated(void) { return data_truncated_; }
