@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Psr18;
 
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -37,7 +38,9 @@ class Psr18Integration extends Integration
 
                 if (isset($retval)) {
                     /** @var \Psr\Http\Message\ResponseInterface $retval */
-                    $span->meta[Tag::HTTP_STATUS_CODE] = $retval->getStatusCode();
+                    $statusCode = $retval->getStatusCode();
+                    $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                    HttpClientIntegrationHelper::setClientError($span, $statusCode, $retval->getReasonPhrase());
                 }
             }
         );
@@ -58,6 +61,7 @@ class Psr18Integration extends Integration
         if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($url);
         }
+
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
 
         if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
