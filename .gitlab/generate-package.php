@@ -738,27 +738,29 @@ endforeach;
 <?php endforeach; ?>
 
 <?php foreach (range(1, 5) as $i): ?>
-"randomized tests: [arm64, no-asan, <?= $i ?>]":
-  extends: .randomized_tests
-  tags: [ "runner:docker-arm" ]
-  variables:
-    DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
-  needs:
-    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
-      artifacts: true
 
+# Skip until docker-in-docker:arm64 runner is available
+# "randomized tests: [arm64, no-asan, <?= $i ?>]":
+#   extends: .randomized_tests
+#   tags: [ "docker-in-docker:arm64" ]
+#   variables:
+#     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#   needs:
+#     - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+#       artifacts: true
 <?php endforeach; ?>
 
 <?php foreach (range(1, 5) as $i): ?>
-"randomized tests: [arm64, asan, <?= $i ?>]":
-  extends: .randomized_tests
-  tags: [ "runner:docker-arm" ]
-  variables:
-    DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
-  needs:
-    - job: "package extension asan"
-      artifacts: true
 
+# Skip until docker-in-docker:arm64 runner is available
+# "randomized tests: [arm64, asan, <?= $i ?>]":
+#   extends: .randomized_tests
+#   tags: [ "docker-in-docker:arm64" ]
+#   variables:
+#     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#   needs:
+#     - job: "package extension asan"
+#       artifacts: true
 <?php endforeach; ?>
 
 "installer tests":
