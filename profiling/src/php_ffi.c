@@ -11,7 +11,8 @@
 #include <dlfcn.h> // for dlsym
 #endif
 
-#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80400
+// todo: not all things are fixed upstream yet e.g. ZEND_INIT_ARRAY
+#if PHP_VERSION_ID >= 70400
 #define CFG_NEED_OPCODE_HANDLERS 1
 #else
 #define CFG_NEED_OPCODE_HANDLERS 0
@@ -168,6 +169,11 @@ static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
         zend_set_user_opcode_handler(ZEND_FUNC_GET_ARGS, dispatch_handler);
     }
 #endif
+
+    // this is not yet patched upstream
+    if (zend_get_user_opcode_handler(ZEND_INIT_ARRAY) == NULL) {
+        zend_set_user_opcode_handler(ZEND_INIT_ARRAY, dispatch_handler);
+    }
 }
 #endif
 
