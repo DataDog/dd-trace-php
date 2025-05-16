@@ -15,6 +15,7 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
+#include <Zend/zend_extensions.h>
 
 void (*nullable ddtrace_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -61,16 +62,23 @@ static void _test_ddtrace_metric_register_buffer(
 static bool _test_ddtrace_metric_add_point(
     zend_string *nonnull name, double value, zend_string *nonnull tags);
 
-static void dd_trace_load_symbols(void)
+static void dd_trace_load_symbols(zend_module_entry *module)
 {
     bool testing = get_global_DD_APPSEC_TESTING();
-    void *handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
-    if (handle == NULL) {
-        if (!testing) {
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            mlog(dd_log_error, "Failed load process symbols: %s", dlerror());
+    // prefer loading directly from the ddtrace zend_extension
+    zend_extension *ddtrace = zend_get_extension("ddtrace");
+    DL_HANDLE handle = ddtrace ? ddtrace->handle : module->handle;
+    bool manually_opened = false;
+    if (!handle) {
+        // fallback, e.g. with static build
+        handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
+        manually_opened = true;
+        if (!handle) {
+            if (!testing) {
+                mlog(dd_log_error, "Failed to acquire handle for ddtrace");
+            }
+            return;
         }
-        return;
     }
 
 #define ASSIGN_DLSYM(var, export)                                              \
@@ -102,7 +110,9 @@ static void dd_trace_load_symbols(void)
     ASSIGN_DLSYM(ddtrace_metric_add_point, "ddtrace_metric_add_point");
     ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
 
-    dlclose(handle);
+    if (manually_opened) {
+        dlclose(handle);
+    }
 }
 
 void dd_trace_startup(void)
@@ -131,7 +141,7 @@ void dd_trace_startup(void)
     _mod_number = mod->module_number;
     _mod_version = mod->version;
 
-    dd_trace_load_symbols();
+    dd_trace_load_symbols(mod);
 
     if (get_global_DD_APPSEC_TESTING()) {
         _orig_ddtrace_shutdown = mod->request_shutdown_func;
