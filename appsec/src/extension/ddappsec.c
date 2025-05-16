@@ -274,6 +274,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
+    dd_msgpack_helpers_rinit();
 
     dd_req_lifecycle_rinit(false);
 
