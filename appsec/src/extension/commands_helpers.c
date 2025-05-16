@@ -747,6 +747,7 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             double dval = mpack_node_double(dval_node);
 
             const char *tags_str = "";
+            char *modified_tags_str = NULL;
             size_t tags_len = 0;
             if (mpack_node_array_length(value) >= 2) {
                 mpack_node_t tags = mpack_node_array_at(value, 1);
@@ -762,23 +763,27 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
                 if (tags_len > 0) {
                     separator = TAG_SEPARATOR_LEN;
                 }
-                char *new_tags =
-                    malloc(tags_len + TRUNCATED_TAG_LEN + 1 + separator);
-                if (new_tags) {
-                    memcpy(new_tags, tags_str, tags_len);
+                modified_tags_str =
+                    emalloc(tags_len + TRUNCATED_TAG_LEN + 1 + separator);
+                if (modified_tags_str) {
+                    memcpy(modified_tags_str, tags_str, tags_len);
                     if (separator > 0) {
-                        new_tags[tags_len] = TAG_SEPARATOR;
+                        modified_tags_str[tags_len] = TAG_SEPARATOR;
                     }
-                    memcpy(new_tags + tags_len + separator, TRUNCATED_TAG,
-                        TRUNCATED_TAG_LEN);
-                    new_tags[tags_len + TRUNCATED_TAG_LEN + separator] = '\0';
+                    memcpy(modified_tags_str + tags_len + separator,
+                        TRUNCATED_TAG, TRUNCATED_TAG_LEN);
+                    modified_tags_str[tags_len + TRUNCATED_TAG_LEN +
+                                      separator] = '\0';
                     tags_len += TRUNCATED_TAG_LEN + separator;
                 }
-                tags_str = new_tags;
+                tags_str = modified_tags_str;
             }
 
             _handle_telemetry_metric(
                 key_str, key_len, dval, tags_str, tags_len);
+            if (modified_tags_str) {
+                efree(modified_tags_str);
+            }
         }
     }
 
