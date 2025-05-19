@@ -1,5 +1,5 @@
 {
     "require": {
-        "predis/predis": "3.0.0"
+        "predis/predis": "3.0.1"
     }
 }
