@@ -57,6 +57,7 @@ public:
             unsigned evaluated = 0;
             unsigned matches = 0;
             unsigned timeouts = 0;
+            unsigned errors = 0;
         };
         std::unordered_map<std::string, rasp_telemetry_metrics> rasp_metrics_ =
             {};

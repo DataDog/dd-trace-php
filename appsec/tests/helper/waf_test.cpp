@@ -155,7 +155,7 @@ TEST(WafTest, RunWithInvalidParam)
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
         EXPECT_CALL(submitm,
-            submit_metric("rasp.error"sv, -2,
+            submit_metric("rasp.error"sv, 1,
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
@@ -277,6 +277,11 @@ TEST(WafTest, ValidRunGood)
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
         EXPECT_CALL(submitm,
             submit_metric("rasp.timeout"sv, 0,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 0,
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
@@ -792,6 +797,12 @@ TEST(WafTest, TelemetryIsSent)
         parameter_view pv3(p3);
         ctx->call(pv3, e, "lfi");
 
+        parameter_view pv4;
+        EXPECT_THROW(ctx->call(pv4, e, "lfi"), invalid_object);
+
+        parameter_view pv5;
+        EXPECT_THROW(ctx->call(pv5, e, "lfi"), invalid_object);
+
         EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
                                  std::string{"1.2.3"}));
         EXPECT_CALL(submitm,
@@ -799,7 +810,7 @@ TEST(WafTest, TelemetryIsSent)
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() +
-                    std::string{",rule_triggered:true"})));
+                    std::string{",rule_triggered:true,waf_error:true"})));
 
         // SSRF
         EXPECT_CALL(submitm,
@@ -817,10 +828,15 @@ TEST(WafTest, TelemetryIsSent)
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:ssrf"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 0,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:ssrf"})));
 
         // // LFI
         EXPECT_CALL(submitm,
-            submit_metric("rasp.rule.eval"sv, 1,
+            submit_metric("rasp.rule.eval"sv, 3,
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
@@ -834,8 +850,13 @@ TEST(WafTest, TelemetryIsSent)
                 metrics::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 2,
+                metrics::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
 
-        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 3));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 5));
         EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
         ctx->submit_metrics(submitm);
@@ -884,6 +905,11 @@ TEST(WafTest, TelemetryTimeoutMetric)
                          ddwaf_get_version() + std::string{",rule_type:lfi"})));
     EXPECT_CALL(
         submitm, submit_metric("rasp.timeout"sv, 1,
+                     metrics::telemetry_tags::from_string(
+                         std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + std::string{",rule_type:lfi"})));
+    EXPECT_CALL(
+        submitm, submit_metric("rasp.error"sv, 0,
                      metrics::telemetry_tags::from_string(
                          std::string{"event_rules_version:1.2.3,waf_version:"} +
                          ddwaf_get_version() + std::string{",rule_type:lfi"})));
