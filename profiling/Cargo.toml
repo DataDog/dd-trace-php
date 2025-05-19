@@ -19,10 +19,10 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
-datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
+datadog-alloc = { git = "https://github.com/DataDog/libdatadog", rev = "0d6cabcba390128ae6ccdb47145c5b1b6d4c3975" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "0d6cabcba390128ae6ccdb47145c5b1b6d4c3975" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "0d6cabcba390128ae6ccdb47145c5b1b6d4c3975" }
+datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "0d6cabcba390128ae6ccdb47145c5b1b6d4c3975" }
 env_logger = { version = "0.11", default-features = false }
 indexmap = { version = "2.2" }
 lazy_static = { version = "1.4" }

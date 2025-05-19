@@ -53,15 +53,15 @@ use crate::io::{
     SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
 
+#[cfg(feature = "exception_profiling")]
+use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(any(
     feature = "allocation_profiling",
     feature = "exception_profiling",
     feature = "io_profiling"
 ))]
 use datadog_profiling::api::UpscalingInfo;
-
-#[cfg(feature = "exception_profiling")]
-use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use datadog_profiling::serializer::UploadCompression;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -700,10 +700,23 @@ impl Profiler {
             upload_period: UPLOAD_PERIOD,
         };
 
+        let compression_type = system_settings.profiling_upload_compression.as_ref();
+        let upload_compression = match compression_type {
+            "off" => UploadCompression::Off,
+            "on" => UploadCompression::On,
+            "lz4" => UploadCompression::Lz4,
+            "zstd" => UploadCompression::Zstd,
+            _ => {
+                warn!("unknown profiling upload compression type \"{compression_type}\", defaulting to on");
+                UploadCompression::On
+            }
+        };
+
         let uploader = Uploader::new(
             fork_barrier.clone(),
             upload_receiver,
             system_settings.output_pprof.clone(),
+            upload_compression,
             system_settings.uri.clone(),
             Utc::now(),
         );

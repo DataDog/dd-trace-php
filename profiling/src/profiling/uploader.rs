@@ -7,6 +7,7 @@ use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
+use datadog_profiling::serializer::UploadCompression;
 use ddcommon::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
@@ -25,6 +26,7 @@ pub struct Uploader {
     fork_barrier: Arc<Barrier>,
     receiver: Receiver<UploadMessage>,
     output_pprof: Option<Cow<'static, str>>,
+    upload_compression: UploadCompression,
     endpoint: AgentEndpoint,
     start_time: String,
 }
@@ -34,6 +36,7 @@ impl Uploader {
         fork_barrier: Arc<Barrier>,
         receiver: Receiver<UploadMessage>,
         output_pprof: Option<Cow<'static, str>>,
+        upload_compression: UploadCompression,
         endpoint: AgentEndpoint,
         start_time: DateTime<Utc>,
     ) -> Self {
@@ -41,6 +44,7 @@ impl Uploader {
             fork_barrier,
             receiver,
             output_pprof,
+            upload_compression,
             endpoint,
             start_time: start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         }
@@ -98,8 +102,11 @@ impl Uploader {
             endpoint,
         )?;
 
-        let serialized =
-            profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
+        let serialized = profile.serialize_into_compressed_pprof(
+            Some(message.end_time),
+            message.duration,
+            self.upload_compression,
+        )?;
         exporter.set_timeout(10000); // 10 seconds in milliseconds
         let request = exporter.build(
             serialized,
@@ -121,6 +128,8 @@ impl Uploader {
         let pprof_filename = &self.output_pprof;
         let mut i = 0;
 
+        let upload_compression = self.upload_compression;
+
         loop {
             /* Since profiling uploads are going over the Internet and not just
              * the local network, it would be ideal if they were the lowest
@@ -140,7 +149,7 @@ impl Uploader {
                         match pprof_filename {
                             Some(filename) => {
                                 let filename_prefix = filename.as_ref();
-                                let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
+                                let r = request.profile.serialize_into_compressed_pprof(None, None, upload_compression).unwrap();
                                 i += 1;
                                 let name = format!("{filename_prefix}.{i}.lz4");
                                 std::fs::write(&name, r.buffer).expect("write to succeed");

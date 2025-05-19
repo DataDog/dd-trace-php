@@ -769,7 +769,7 @@ dependencies = [
 [[package]]
 name = "build_common"
 version = "18.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "cbindgen",
  "serde",
@@ -1366,7 +1366,7 @@ dependencies = [
 [[package]]
 name = "datadog-alloc"
 version = "18.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "allocator-api2",
  "libc 0.2.169",
@@ -1494,7 +1494,7 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "anyhow",
  "serde",
@@ -1517,12 +1517,12 @@ dependencies = [
 [[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.1"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "anyhow",
  "build_common 18.0.0",
  "constcat",
- "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?tag=v18.0.0)",
+ "datadog-library-config 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975)",
  "ddcommon 18.0.0",
  "ddcommon-ffi 18.0.0",
 ]
@@ -1579,7 +1579,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?tag=v18.0.0)",
+ "datadog-library-config-ffi 0.0.1 (git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975)",
  "datadog-php-profiling",
  "datadog-profiling",
  "ddcommon 18.0.0",
@@ -1604,7 +1604,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "18.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1629,6 +1629,7 @@ dependencies = [
  "target-triple",
  "tokio",
  "tokio-util",
+ "zstd",
 ]
 
 [[package]]
@@ -1845,7 +1846,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "18.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "anyhow",
  "cc",
@@ -1896,7 +1897,7 @@ dependencies = [
 [[package]]
 name = "ddcommon-ffi"
 version = "18.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v18.0.0#60583218a8de6768f67d04fcd5bc6443f67f516b"
+source = "git+https://github.com/DataDog/libdatadog?rev=0d6cabcba390128ae6ccdb47145c5b1b6d4c3975#0d6cabcba390128ae6ccdb47145c5b1b6d4c3975"
 dependencies = [
  "anyhow",
  "build_common 18.0.0",

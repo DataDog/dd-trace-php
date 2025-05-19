@@ -33,6 +33,7 @@ pub struct SystemSettings {
     pub profiling_exception_message_enabled: bool,
     pub profiling_wall_time_enabled: bool,
     pub profiling_io_enabled: bool,
+    pub profiling_upload_compression: Cow<'static, str>,
 
     // todo: can't this be Option<String>? I don't think the string can ever be static.
     pub output_pprof: Option<Cow<'static, str>>,
@@ -76,6 +77,7 @@ impl SystemSettings {
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
             profiling_wall_time_enabled: profiling_wall_time_enabled(),
             profiling_io_enabled: profiling_io_enabled(),
+            profiling_upload_compression: profiling_upload_compression(),
             output_pprof: profiling_output_pprof(),
             profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
             profiling_log_level: profiling_log_level(),
@@ -150,6 +152,7 @@ impl SystemSettings {
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: false,
             profiling_io_enabled: false,
+            profiling_upload_compression: Cow::from("on"),
             output_pprof: None,
             profiling_exception_sampling_distance: 0,
             profiling_log_level: LevelFilter::Off,
@@ -369,6 +372,7 @@ pub(crate) enum ConfigId {
     ProfilingExperimentalIOEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
+    ProfilingUploadCompression,
     ProfilingWallTimeEnabled,
 
     // todo: do these need to be kept in sync with the tracer?
@@ -402,6 +406,7 @@ impl ConfigId {
             // Note: this group is meant only for debugging and testing. Please
             // don't advertise this group of settings in the docs.
             ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
+            ProfilingUploadCompression => b"DD_PROFILING_UPLOAD_COMPRESSION\0",
             ProfilingWallTimeEnabled => b"DD_PROFILING_WALLTIME_ENABLED\0",
 
             AgentHost => b"DD_AGENT_HOST\0",
@@ -442,6 +447,7 @@ lazy_static::lazy_static! {
         profiling_exception_message_enabled: false,
         profiling_wall_time_enabled: false,
         profiling_io_enabled: false,
+        profiling_upload_compression: Cow::from("on"),
         output_pprof: None,
         profiling_exception_sampling_distance: u32::MAX,
         profiling_log_level: LevelFilter::Off,
@@ -461,6 +467,7 @@ lazy_static::lazy_static! {
         profiling_exception_message_enabled: false,
         profiling_wall_time_enabled: true,
         profiling_io_enabled: false,
+        profiling_upload_compression: Cow::from("on"),
         output_pprof: None,
         profiling_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
@@ -589,6 +596,13 @@ unsafe fn profiling_io_enabled() -> bool {
 /// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
     get_system_str(ProfilingOutputPprof)
+}
+
+unsafe fn profiling_upload_compression() -> Cow<'static, str> {
+    match get_system_str(ProfilingUploadCompression) {
+        Some(str) => str,
+        None => Cow::Borrowed("on"),
+    }
 }
 
 /// # Safety
@@ -782,7 +796,7 @@ unsafe extern "C" fn parse_level_filter(
 }
 
 /// This function is used to parse the profiling enabled config value.
-/// It behaves similarlry to the "zai_config_decode_bool" but also accepts "auto" as true.
+/// It behaves similarly to the "zai_config_decode_bool" but also accepts "auto" as true.
 unsafe extern "C" fn parse_profiling_enabled(
     value: ZaiStr,
     decoded_value: *mut zval,
@@ -805,6 +819,36 @@ unsafe extern "C" fn parse_profiling_enabled(
             } else {
                 decoded_value.u1.type_info = IS_FALSE as u32;
             }
+            true
+        }
+        _ => false,
+    }
+}
+
+unsafe extern "C" fn parse_profiling_upload_compression(
+    value: ZaiStr,
+    decoded_value: *mut zval,
+    persistent: bool,
+) -> bool {
+    if decoded_value.is_null() {
+        return false;
+    }
+
+    let decoded_value = &mut *decoded_value;
+    match value.into_utf8() {
+        Ok(utf8) => {
+            let view = if utf8.eq_ignore_ascii_case("off") {
+                ZaiStr::literal(b"off\0")
+            } else if utf8.eq_ignore_ascii_case("on") {
+                ZaiStr::literal(b"on\0")
+            } else if utf8.eq_ignore_ascii_case("lz4") {
+                ZaiStr::literal(b"lz4\0")
+            } else if utf8.eq_ignore_ascii_case("zstd") {
+                ZaiStr::literal(b"zstd\0")
+            } else {
+                return false;
+            };
+            datadog_php_profiling_copy_string_view_into_zval(decoded_value, view, persistent);
             true
         }
         _ => false,
@@ -1061,6 +1105,18 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     displayer: None,
                     env_config_fallback: None,
                 },
+                zai_config_entry {
+                    id: transmute::<ConfigId, u16>(ProfilingUploadCompression),
+                    name: ProfilingOutputPprof.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
+                    default_encoded_value: ZaiStr::literal(b"on\0"),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: Some(parse_profiling_upload_compression),
+                    displayer: None,
+                    env_config_fallback: None,
+                },
                 // At the moment, wall-time cannot be fully disabled. This only
                 // controls automatic collection (manual collection is still
                 // possible).
@@ -1231,6 +1287,10 @@ mod tests {
             (
                 b"DD_PROFILING_ALLOCATION_ENABLED\0",
                 "datadog.profiling.allocation_enabled",
+            ),
+            (
+                b"DD_PROFILING_UPLOAD_COMPRESSION\0",
+                "datadog.profiling.upload_compression",
             ),
             #[cfg(feature = "timeline")]
             (
