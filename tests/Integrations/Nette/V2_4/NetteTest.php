@@ -157,7 +157,7 @@ final class NetteTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette'
                     ])
-                        ->setError('Internal Server Error')
+                        ->setError('HttpError')
                         ->withChildren([
                             SpanAssertion::build(
                                 'nette.configurator.createRobotLoader',

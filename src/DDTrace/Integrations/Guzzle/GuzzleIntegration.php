@@ -50,14 +50,20 @@ class GuzzleIntegration extends Integration
                     $response = $retval;
                     if (\is_a($response, 'GuzzleHttp\Message\ResponseInterface')) {
                         /** @var \GuzzleHttp\Message\ResponseInterface $response */
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                        $statusCode = $response->getStatusCode();
+                        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                        HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                     } elseif (\is_a($response, 'Psr\Http\Message\ResponseInterface')) {
                         /** @var \Psr\Http\Message\ResponseInterface $response */
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                        $statusCode = $response->getStatusCode();
+                        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                        HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
                         /** @var \GuzzleHttp\Promise\PromiseInterface $response */
                         $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                            $statusCode = $response->getStatusCode();
+                            $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                            HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                         });
                     }
                 }
@@ -84,7 +90,9 @@ class GuzzleIntegration extends Integration
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
                         /** @var \GuzzleHttp\Promise\PromiseInterface $response */
                         $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                            $statusCode = $response->getStatusCode();
+                            $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                            HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                         });
                     }
                 }
