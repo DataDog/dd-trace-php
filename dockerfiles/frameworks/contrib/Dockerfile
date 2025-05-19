@@ -67,7 +67,7 @@ RUN set -xe; \
     for V in 7.2 7.3; do \
       switch_php ${V}; \
       rm /usr/share/php/.registry/.channel.pecl.php.net/redis.reg || true; \
-      pecl install redis; \
+      pecl install redis-6.0.1; \
     done
 
 ENV COMPOSER_MEMORY_LIMIT -1
@@ -117,17 +117,18 @@ RUN set -xe; \
 CMD ["php", "./vendor/bin/phpunit", "-v"]
 
 FROM base AS flow
-ARG FLOW_VERSION_TAG=5.2.6
-ARG FLOW_BUILD_TOOLS_VERISON=5.2
+ARG FLOW_VERSION_TAG=5.2
+ARG FLOW_BUILD_TOOLS_VERSION=5.2
 RUN set -xe; \
-    git clone https://github.com/neos/flow-development-distribution.git -b ${FLOW_BUILD_TOOLS_VERISON} /home/flow; \
+    git clone https://github.com/neos/flow-development-distribution.git -b ${FLOW_BUILD_TOOLS_VERSION} /home/flow; \
     cd /home/flow; \
+    composer config allow-plugins.neos/composer-plugin true; \
     composer update --no-progress --no-interaction
 
 WORKDIR /home/flow
 RUN set -xe; \
     mkdir -p ../../neos/; \
-    git clone --depth 1 --branch ${FLOW_VERSION_TAG} https://github.com/neos/flow-development-collection ../../neos/flow-development-collection; \
+    git clone --branch ${FLOW_VERSION_TAG} https://github.com/neos/flow-development-collection ../../neos/flow-development-collection; \
     export NEOS_TARGET_REPOSITORY=neos/flow-development-collection; \
     export NEOS_TARGET_VERSION=5.2; \
     export TRAVIS_REPO_SLUG=neos/flow-development-collection; \
