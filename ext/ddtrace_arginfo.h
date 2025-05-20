@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a0151c34f00ffc69945f366d81cafd27e9e1167d */
+ * Stub hash: abb47173f5082dcfce009ef52ceb1e6f812321db */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -196,6 +196,12 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_handle_fork arginfo_DDTrace_flush
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ATO_V2_track_user_login_success, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, login, IS_STRING, 0)
+	ZEND_ARG_TYPE_MASK(0, user, MAY_BE_STRING|MAY_BE_ARRAY|MAY_BE_NULL, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, metadata, IS_ARRAY, 0, "[]")
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, envName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -356,6 +362,7 @@ ZEND_FUNCTION(DDTrace_Testing_trigger_error);
 ZEND_FUNCTION(DDTrace_Testing_emit_asm_event);
 ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
+ZEND_FUNCTION(DDTrace_ATO_V2_track_user_login_success);
 ZEND_FUNCTION(dd_trace_env_config);
 ZEND_FUNCTION(dd_trace_disable_in_request);
 ZEND_FUNCTION(dd_trace_reset);
@@ -441,6 +448,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "emit_asm_event"), zif_DDTrace_Testing_emit_asm_event, arginfo_DDTrace_Testing_emit_asm_event, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "add_span_flag"), zif_DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\ATO\\V2", "track_user_login_success"), zif_DDTrace_ATO_V2_track_user_login_success, arginfo_DDTrace_ATO_V2_track_user_login_success, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
 	ZEND_FE(dd_trace_disable_in_request, arginfo_dd_trace_disable_in_request)
 	ZEND_FE(dd_trace_reset, arginfo_dd_trace_reset)
