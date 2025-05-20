@@ -83,13 +83,13 @@ array(1) {
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
-      ["process_id"]=>
-      float(%f)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }
@@ -128,13 +128,13 @@ array(1) {
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
-      ["process_id"]=>
-      float(%f)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }
@@ -173,13 +173,13 @@ array(1) {
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
-      ["process_id"]=>
-      float(%f)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

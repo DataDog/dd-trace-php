@@ -133,7 +133,7 @@ arg.5: string(5) "false"
 NULL
 arg.6: string(4) "null"
 
-object(Closure)#6 (0) {
+object(Closure)#%d (0) {
 }
 arg.7: string(0) ""
 
