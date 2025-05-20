@@ -1,5 +1,5 @@
 --TEST--
-Test baggage span tags default behavior
+Test baggage span tags wildcard
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_PROPAGATION_STYLE=baggage
