@@ -1550,7 +1550,6 @@ void transfer_meta_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, ddo
     ddog_CharSlice value = ddog_get_span_meta(source, key);
     if (value.len > 0) {
         ddog_add_span_meta(destination, key, value);
-        ddog_free_charslice(value);
         if (delete_source) {
             ddog_del_span_meta(source, key);
         }
@@ -1978,24 +1977,15 @@ zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
 
             ddog_CharSlice name = ddog_get_span_name(span);
             add_assoc_str(&span_zv, "name", dd_CharSlice_to_zend_string(name));
-            ddog_free_charslice(name);
 
             ddog_CharSlice resource = ddog_get_span_resource(span);
             add_assoc_str(&span_zv, "resource", dd_CharSlice_to_zend_string(resource));
-            ddog_free_charslice(resource);
 
             ddog_CharSlice service = ddog_get_span_service(span);
             add_assoc_str(&span_zv, "service", dd_CharSlice_to_zend_string(service));
-            ddog_free_charslice(service);
 
             ddog_CharSlice type = ddog_get_span_type(span);
             add_assoc_str(&span_zv, "type", dd_CharSlice_to_zend_string(type));
-            ddog_free_charslice(type);
-
-            double error = ddog_get_span_error(span);
-            if (error != 0) {
-                add_assoc_long(&span_zv, "error", error);
-            }
 
             double error = ddog_get_span_error(span);
             if (error != 0) {
