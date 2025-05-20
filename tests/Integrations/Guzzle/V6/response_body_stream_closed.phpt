@@ -19,7 +19,7 @@ $client  = new \GuzzleHttp\Client();
 $request = new \GuzzleHttp\Psr7\Request('GET', 'https://httpbin.org/json');
 for ($i = 1; $i <= 3; $i++) {
     echo 'Request ' . $i . PHP_EOL;
-    $response = $client->sendRequest($request);
+    $response = $client->send($request);
     unset($response);
     sleep(1);
 }
