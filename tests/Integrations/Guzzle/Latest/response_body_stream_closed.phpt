@@ -1,5 +1,7 @@
 --TEST--
 GH#3254: Guzzle tracing causes response body stream to stay open
+--SKIPIF--
+<?php if (getenv('PHPUNIT_COVERAGE')) die("No code coverage driver available"); ?>
 --ENV--
 DD_TRACE_DEBUG=0
 --FILE--
