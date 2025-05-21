@@ -1,7 +1,7 @@
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
 #include "components-rs/common.h"
-#include "components-rs/data-pipeline.h"
+#include "components-rs/sidecar.h"
 #include "ddtrace.h"
 #include "configuration.h"
 #include "exception_serialize.h"

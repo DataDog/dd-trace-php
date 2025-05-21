@@ -1,5 +1,5 @@
 #include "components-rs/common.h"
-#include "components-rs/data-pipeline.h"
+#include "components-rs/sidecar.h"
 #include "zend_API.h"
 #include "zend_hash.h"
 #ifdef HAVE_CONFIG_H
