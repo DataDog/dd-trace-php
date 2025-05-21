@@ -192,24 +192,31 @@ static void dd_patched_zend_call_known_function(
 
     // If current_execute_data is on the stack, move it to the VM stack
     zend_execute_data *execute_data = EG(current_execute_data);
-    if (execute_data && (uintptr_t)&retval > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func)) {
-        zend_execute_data *call = zend_vm_stack_push_call_frame_ex(
-                ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_execute_data), sizeof(zval)) +
-                ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_op), sizeof(zval)) +
-                ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_function), sizeof(zval)),
-                0, EX(func), 0, NULL);
+    if (execute_data) {
+        bool is_stack_ex = (uintptr_t)&retval + 0xfffff > (uintptr_t)execute_data && (uintptr_t)&retval - 0xfffff < (uintptr_t)execute_data;
+        bool is_stack_func = (uintptr_t)&retval + 0xfffff > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func);
+        if (is_stack_ex || is_stack_func) {
+            zend_execute_data *call = zend_vm_stack_push_call_frame_ex(
+                    ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_execute_data), sizeof(zval)) +
+                    (is_stack_func ? ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_op), sizeof(zval)) + ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_function), sizeof(zval)) : 0),
+                    0, EX(func), 0, NULL);
 
-        memcpy(call, execute_data, sizeof(zend_execute_data));
-        zend_op *opline = (zend_op *)(call + 1);
-        memcpy(opline, EX(opline), sizeof(zend_op));
-        zend_function *func = (zend_function *)(opline + 1);
-        func->common.fn_flags |= ZEND_ACC_CALL_VIA_TRAMPOLINE; // See https://github.com/php/php-src/commit/2f6a06ccb0ef78e6122bb9e67f9b8b1ad07776e1
-        memcpy((zend_op *)(call + 1) + 1, EX(func), sizeof(zend_function));
+            memcpy(call, execute_data, sizeof(zend_execute_data));
+            if (is_stack_func) {
+                zend_op *opline = (zend_op *)(call + 1);
+                memcpy(opline, EX(opline), sizeof(zend_op));
+                zend_function *func = (zend_function *)(opline + 1);
+                memcpy(func, EX(func), sizeof(zend_function));
+                func->common.fn_flags |= ZEND_ACC_CALL_VIA_TRAMPOLINE; // See https://github.com/php/php-src/commit/2f6a06ccb0ef78e6122bb9e67f9b8b1ad07776e1
 
-        call->opline = opline;
-        call->func = func;
+                call->opline = opline;
+                call->func = func;
+            } else {
+                call->opline = EX(opline);
+            }
 
-        EG(current_execute_data) = call;
+            EG(current_execute_data) = call;
+        }
     }
 
     // here follows the original implementation of zend_call_known_function
