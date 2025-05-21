@@ -1403,6 +1403,7 @@ void ddtrace_init_known_strings(void) {
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
+    ddog_init_span_func((void *)zend_string_release, (void *)zend_string_addref);
 
     ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
 
