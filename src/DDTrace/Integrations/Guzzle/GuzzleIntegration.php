@@ -14,6 +14,29 @@ class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
+    private function handlePromiseResponse($response, SpanData $span)
+    {
+        if (\is_a($response, 'GuzzleHttp\Message\ResponseInterface')) {
+            /** @var \GuzzleHttp\Message\ResponseInterface $response */
+            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+        } elseif (\is_a($response, 'Psr\Http\Message\ResponseInterface')) {
+            /** @var \Psr\Http\Message\ResponseInterface $response */
+            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+        } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
+            if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
+                $fulfilledResponse = $response->wait();
+                if ($fulfilledResponse instanceof \Psr\Http\Message\ResponseInterface) {
+                    $span->meta[Tag::HTTP_STATUS_CODE] = $fulfilledResponse->getStatusCode();
+                }
+            } else {
+                /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+                $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+                    $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                });
+            }
+        }
+    }
+
     public function init(): int
     {
         $integration = $this;
@@ -47,19 +70,7 @@ class GuzzleIntegration extends Integration
                 }
 
                 if (isset($retval)) {
-                    $response = $retval;
-                    if (\is_a($response, 'GuzzleHttp\Message\ResponseInterface')) {
-                        /** @var \GuzzleHttp\Message\ResponseInterface $response */
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                    } elseif (\is_a($response, 'Psr\Http\Message\ResponseInterface')) {
-                        /** @var \Psr\Http\Message\ResponseInterface $response */
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                    } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                        });
-                    }
+                    $integration->handlePromiseResponse($retval, $span);
                 }
             }
         );
@@ -80,20 +91,7 @@ class GuzzleIntegration extends Integration
                     $integration->addRequestInfo($span, $args[0]);
                 }
                 if (isset($retval)) {
-                    $response = $retval;
-                    if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
-                            $fulfilledResponse = $response->wait();
-                            if ($fulfilledResponse instanceof \Psr\Http\Message\ResponseInterface) {
-                                $span->meta[Tag::HTTP_STATUS_CODE] = $fulfilledResponse->getStatusCode();
-                            }
-                        } else {
-                            /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-                            $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                                $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                            });
-                        }
-                    }
+                    $integration->handlePromiseResponse($retval, $span);
                 }
             }
         );
