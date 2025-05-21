@@ -917,9 +917,18 @@ namespace DDTrace\ATO\V2 {
      * @param string|array $user when string, it represents the user id. When array it represents the user information.
      *  The array should at least contain the following keys:
      * - id: string, Unique identifier of the user. Should be the same id and format used on set_user
-     * @param array $metadata User monitoring tags (usr.<TAG_NAME>) applied to the 'meta' section of the root span
+     * @param array $metadata User metadata added to the root span
      */
     function track_user_login_success(string $login, string|array|null $user = null, array $metadata = []): void {}
+
+    /**
+     * Track a user login failure event.
+     *
+     * @param string $login is the data used by the user to authenticate
+     * @param bool $exists Whether the user exists in the system
+     * @param array $metadata User metadata added to the root span
+     */
+    function track_user_login_failure(string $login, bool $exists, array $metadata = []): void {}
     
 }
 

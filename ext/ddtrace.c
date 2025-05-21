@@ -2145,7 +2145,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
         RETURN_NULL();
     }
 
-#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN "appsec.events.users.login.success"
+#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS "appsec.events.users.login.success"
     zend_string *user_id = NULL;
     if (user != NULL && Z_TYPE_P(user) == IS_STRING) {
         user_id = Z_STR_P(user);
@@ -2168,7 +2168,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
                 continue;
             }
 
-            zend_string *key = zend_strpprintf(0, "%s.usr.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN, ZSTR_VAL(user_key));
+            zend_string *key = zend_strpprintf(0, "%s.usr.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, ZSTR_VAL(user_key));
             zval value_copy;
             ZVAL_COPY(&value_copy, user_value);
             zend_hash_update(target_table, key, &value_copy);
@@ -2184,34 +2184,34 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
     }
 
     // appsec.events.users.login.success.usr.login
-    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN, "usr.login");
+    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, "usr.login");
     zval value_zv;
     ZVAL_STR_COPY(&value_zv, login);
     zend_hash_update(target_table, prefixed_key, &value_zv);
     zend_string_release(prefixed_key);
 
     // appsec.events.users.login.success.track
-    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN);
+    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
     zval true_value_zv;
     ZVAL_STRING(&true_value_zv, "true");
     zend_hash_update(target_table, prefixed_key, &true_value_zv);
     zend_string_release(prefixed_key);
 
     //_dd.appsec.events.users.login.success.sdk
-    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN);
+    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
     zend_hash_update(target_table, prefixed_key, &true_value_zv);
     zend_string_release(prefixed_key);
 
     if (user_id != NULL) {
         //_dd.appsec.user.collection_mode: "sdk"
-        prefixed_key = zend_strpprintf(0, "_dd.appsec.user.collection_mode", DDTRACE_ATO_V2_EVENT_USERS_LOGIN);
+        prefixed_key = zend_strpprintf(0, "_dd.appsec.user.collection_mode", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
         zval collection_mode_zv;
         ZVAL_STRING(&collection_mode_zv, "sdk");
         zend_hash_update(target_table, prefixed_key, &collection_mode_zv);
         zend_string_release(prefixed_key);
 
         // appsec.events.users.login.success.usr.id
-        prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN, "usr.id");
+        prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, "usr.id");
         zval user_id_zv;
         ZVAL_STR_COPY(&user_id_zv, user_id);
         zend_hash_update(target_table, prefixed_key, &user_id_zv);
@@ -2226,7 +2226,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
                 continue;
             }
 
-            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN, ZSTR_VAL(key));
+            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, ZSTR_VAL(key));
             zval value_copy;
             ZVAL_COPY(&value_copy, value);
             zend_hash_update(target_table, prefixed_key, &value_copy);
@@ -2238,6 +2238,80 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
 
     if (user_id != NULL) {
         _ddtrace_set_user(user_id, metadata, false);
+    }
+}
+
+PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_failure) {
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+    }
+
+    UNUSED(execute_data);
+
+    zend_string *login = NULL;
+    zend_bool exists;
+    zend_array *metadata = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    if (ZSTR_LEN(login) == 0) {
+        LOG_LINE(WARN, "Unexpected empty login in DDTrace\\ATO\\V2\\track_user_login_failure");
+        RETURN_NULL();
+    }
+
+#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE "appsec.events.users.login.failure"
+
+    // appsec.events.users.login.failure.usr.login: <login>
+    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, "usr.login");
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, login);
+    zend_hash_update(target_table, prefixed_key, &value_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.failure.usr.exists: <"true"|"false">
+    prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, "usr.exists");
+    zval exists_zv;
+    ZVAL_STRING(&exists_zv, exists ? "true" : "false");
+    zend_hash_update(target_table, prefixed_key, &exists_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.failure.track: "true"
+    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    zval true_value_zv;
+    ZVAL_STRING(&true_value_zv, "true");
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    //_dd.appsec.events.users.login.failure.sdk: "true"
+    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    if (metadata != NULL) {
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value) {
+            if (!key || Z_TYPE_P(value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, ZSTR_VAL(key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, value);
+            zend_hash_update(target_table, prefixed_key, &value_copy);
+
+            zend_string_release(prefixed_key);
+        }
+        ZEND_HASH_FOREACH_END();
     }
 }
 
