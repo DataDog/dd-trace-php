@@ -2199,6 +2199,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
 
     //_dd.appsec.events.users.login.success.sdk
     prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
+    Z_TRY_ADDREF_P(&true_value_zv);
     zend_hash_update(target_table, prefixed_key, &true_value_zv);
     zend_string_release(prefixed_key);
 
@@ -2293,6 +2294,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_failure) {
 
     //_dd.appsec.events.users.login.failure.sdk: "true"
     prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    Z_TRY_ADDREF_P(&true_value_zv);
     zend_hash_update(target_table, prefixed_key, &true_value_zv);
     zend_string_release(prefixed_key);
 
