@@ -1,5 +1,3 @@
-ddog_incr_refcount_zend_string
-ddog_free_zend_string
 ddog_setup_crashtracking
 OutOfProcessExceptionEventCallback
 OutOfProcessExceptionEventSignatureCallback

@@ -14,31 +14,48 @@ pub struct ZendString {
     pub val: [u8; 1],
 }
 
-extern "C" {
-    fn ddog_free_zend_string(s: &mut ZendString);
-    fn ddog_incr_refcount_zend_string(s: &mut ZendString);
+static mut DDOG_ADDREF_ZEND_STRING: Option<extern "C" fn(&mut ZendString)> = None;
+
+static mut REFCOUNTED_CELL_VTABLE: Option<RefCountedCellVTable> = None;
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_init_span_func(
+    free_func: extern "C" fn(&mut ZendString),
+    addref_func: extern "C" fn(&mut ZendString),
+) {
+    DDOG_ADDREF_ZEND_STRING = Some(addref_func);
+
+    REFCOUNTED_CELL_VTABLE = Some(RefCountedCellVTable {
+        clone,
+        drop: unsafe { std::mem::transmute(free_func as *const fn(s: NonNull<()>)) },
+    });
+
+    unsafe fn clone(data: NonNull<()>) -> RefCountedCell {
+        DDOG_ADDREF_ZEND_STRING.unwrap_unchecked()(data.cast().as_mut());
+        RefCountedCell::from_raw(data, REFCOUNTED_CELL_VTABLE.as_ref().unwrap_unchecked())
+    }
 }
 
 fn convert_to_bytes(zend_str: &mut ZendString) -> Bytes {
-    const VTABLE: &RefCountedCellVTable = &RefCountedCellVTable {
-        clone,
-        drop: unsafe { std::mem::transmute(ddog_free_zend_string as *const fn(s: NonNull<()>)) },
-    };
-
-    unsafe fn clone(data: NonNull<()>) -> RefCountedCell {
-        ddog_incr_refcount_zend_string(data.cast().as_mut());
-        RefCountedCell::from_raw(data, VTABLE)
-    }
-
     unsafe {
-        ddog_incr_refcount_zend_string(zend_str); // Increment the reference count to prevent double free
-        Bytes::from_raw_refcount((&zend_str.val.as_slice()[0]).into(), zend_str.len, RefCountedCell::from_raw(NonNull::from(zend_str).cast(), VTABLE))
+        DDOG_ADDREF_ZEND_STRING.unwrap_unchecked()(zend_str); // Increment the reference count to prevent double free
+        Bytes::from_raw_refcount(
+            (&zend_str.val.as_slice()[0]).into(),
+            zend_str.len,
+            RefCountedCell::from_raw(
+                NonNull::from(zend_str).cast(),
+                REFCOUNTED_CELL_VTABLE.as_ref().unwrap_unchecked(),
+            ),
+        )
     }
 }
 
 fn convert_zend_to_bytes_string(zend_str: &mut ZendString) -> BytesString {
     unsafe {
-        match String::from_utf8_lossy(std::slice::from_raw_parts(zend_str.val.as_ptr(), zend_str.len)) {
+        match String::from_utf8_lossy(std::slice::from_raw_parts(
+            zend_str.val.as_ptr(),
+            zend_str.len,
+        )) {
             Cow::Owned(s) => s.into(),
             Cow::Borrowed(_) => BytesString::from_bytes_unchecked(convert_to_bytes(zend_str)),
         }

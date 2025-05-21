@@ -227,6 +227,23 @@ struct ddog_TraceExporterError *ddog_trace_exporter_config_set_compute_stats(str
                                                                              bool is_enabled);
 
 /**
+ * Sets `Datadog-Client-Computed-Stats` header to `true`.
+ * This indicates that the upstream system has already computed the stats,
+ * and no further stats computation should be performed.
+ *
+ * <div class="warning">
+ * This method must not be used when `compute_stats` is enabled, as it could
+ * result in duplicate stats computation.
+ * </div>
+ *
+ * A common use case is in Application Security Monitoring (ASM) scenarios:
+ * when APM is disabled but ASM is enabled, setting this header to `true`
+ * ensures that no stats are computed at any level (exporter or agent).
+ */
+struct ddog_TraceExporterError *ddog_trace_exporter_config_set_client_computed_stats(struct ddog_TraceExporterConfig *config,
+                                                                                     bool client_computed_stats);
+
+/**
  * Sets the `X-Datadog-Test-Session-Token` header. Only used for testing with the test agent.
  */
 struct ddog_TraceExporterError *ddog_trace_exporter_config_set_test_session_token(struct ddog_TraceExporterConfig *config,
