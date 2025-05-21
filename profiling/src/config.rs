@@ -33,7 +33,7 @@ pub struct SystemSettings {
     pub profiling_exception_message_enabled: bool,
     pub profiling_wall_time_enabled: bool,
     pub profiling_io_enabled: bool,
-    pub profiling_upload_compression: Cow<'static, str>,
+    pub profiling_debug_upload_compression: Cow<'static, str>,
 
     // todo: can't this be Option<String>? I don't think the string can ever be static.
     pub output_pprof: Option<Cow<'static, str>>,
@@ -77,7 +77,7 @@ impl SystemSettings {
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
             profiling_wall_time_enabled: profiling_wall_time_enabled(),
             profiling_io_enabled: profiling_io_enabled(),
-            profiling_upload_compression: profiling_upload_compression(),
+            profiling_debug_upload_compression: profiling_upload_compression(),
             output_pprof: profiling_output_pprof(),
             profiling_exception_sampling_distance: profiling_exception_sampling_distance(),
             profiling_log_level: profiling_log_level(),
@@ -152,7 +152,7 @@ impl SystemSettings {
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: false,
             profiling_io_enabled: false,
-            profiling_upload_compression: Cow::from("on"),
+            profiling_debug_upload_compression: Cow::from("on"),
             output_pprof: None,
             profiling_exception_sampling_distance: 0,
             profiling_log_level: LevelFilter::Off,
@@ -359,20 +359,20 @@ unsafe fn get_system_value(id: ConfigId) -> &'static mut zval {
 #[repr(u16)]
 #[derive(Clone, Copy)]
 pub(crate) enum ConfigId {
-    ProfilingEnabled = 0,
-    ProfilingExperimentalFeaturesEnabled,
-    ProfilingEndpointCollectionEnabled,
-    ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
     ProfilingAllocationSamplingDistance,
-    ProfilingTimelineEnabled,
+    ProfilingDebugUploadCompression,
+    ProfilingEnabled,
+    ProfilingEndpointCollectionEnabled,
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
     ProfilingExceptionSamplingDistance,
+    ProfilingExperimentalCpuTimeEnabled,
+    ProfilingExperimentalFeaturesEnabled,
     ProfilingExperimentalIOEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
-    ProfilingUploadCompression,
+    ProfilingTimelineEnabled,
     ProfilingWallTimeEnabled,
 
     // todo: do these need to be kept in sync with the tracer?
@@ -406,7 +406,7 @@ impl ConfigId {
             // Note: this group is meant only for debugging and testing. Please
             // don't advertise this group of settings in the docs.
             ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
-            ProfilingUploadCompression => b"DD_PROFILING_UPLOAD_COMPRESSION\0",
+            ProfilingDebugUploadCompression => b"DD_PROFILING_DEBUG_UPLOAD_COMPRESSION\0",
             ProfilingWallTimeEnabled => b"DD_PROFILING_WALLTIME_ENABLED\0",
 
             AgentHost => b"DD_AGENT_HOST\0",
@@ -447,7 +447,7 @@ lazy_static::lazy_static! {
         profiling_exception_message_enabled: false,
         profiling_wall_time_enabled: false,
         profiling_io_enabled: false,
-        profiling_upload_compression: Cow::from("on"),
+        profiling_debug_upload_compression: Cow::from("on"),
         output_pprof: None,
         profiling_exception_sampling_distance: u32::MAX,
         profiling_log_level: LevelFilter::Off,
@@ -467,7 +467,7 @@ lazy_static::lazy_static! {
         profiling_exception_message_enabled: false,
         profiling_wall_time_enabled: true,
         profiling_io_enabled: false,
-        profiling_upload_compression: Cow::from("on"),
+        profiling_debug_upload_compression: Cow::from("on"),
         output_pprof: None,
         profiling_exception_sampling_distance: 100,
         profiling_log_level: LevelFilter::Off,
@@ -599,7 +599,7 @@ unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
 }
 
 unsafe fn profiling_upload_compression() -> Cow<'static, str> {
-    match get_system_str(ProfilingUploadCompression) {
+    match get_system_str(ProfilingDebugUploadCompression) {
         Some(str) => str,
         None => Cow::Borrowed("on"),
     }
@@ -1106,7 +1106,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingUploadCompression),
+                    id: transmute::<ConfigId, u16>(ProfilingDebugUploadCompression),
                     name: ProfilingOutputPprof.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_STRING,
                     default_encoded_value: ZaiStr::literal(b"on\0"),
@@ -1289,8 +1289,8 @@ mod tests {
                 "datadog.profiling.allocation_enabled",
             ),
             (
-                b"DD_PROFILING_UPLOAD_COMPRESSION\0",
-                "datadog.profiling.upload_compression",
+                b"DD_PROFILING_DEBUG_UPLOAD_COMPRESSION\0",
+                "datadog.profiling.debug_upload_compression",
             ),
             #[cfg(feature = "timeline")]
             (

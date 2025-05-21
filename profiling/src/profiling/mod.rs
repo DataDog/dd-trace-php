@@ -700,7 +700,7 @@ impl Profiler {
             upload_period: UPLOAD_PERIOD,
         };
 
-        let compression_type = system_settings.profiling_upload_compression.as_ref();
+        let compression_type = system_settings.profiling_debug_upload_compression.as_ref();
         let upload_compression = match compression_type {
             "off" => UploadCompression::Off,
             "on" => UploadCompression::On,
@@ -1596,7 +1596,7 @@ mod tests {
             profiling_exception_message_enabled: false,
             profiling_wall_time_enabled: true,
             profiling_io_enabled: false,
-            profiling_upload_compression: Cow::from("on"),
+            profiling_debug_upload_compression: Cow::from("on"),
             output_pprof: None,
             profiling_exception_sampling_distance: 100,
             profiling_log_level: LevelFilter::Off,
