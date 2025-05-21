@@ -836,6 +836,13 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_SpanBytes ddog_SpanBytes;
+typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
+typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
+typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
+typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
+
+
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
@@ -880,6 +887,30 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_top_level;
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_SpanBytes {
+  const ddog_SpanBytes *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_SpanBytes;
+
+typedef struct ddog_Vec_SpanBytes ddog_TraceBytes;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_TraceBytes {
+  const ddog_TraceBytes *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_TraceBytes;
+
+typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
 
 typedef struct ddog_SenderParameters {
   struct ddog_TracerHeaderTags tracer_headers_tags;
@@ -1411,6 +1442,7 @@ typedef struct ddog_Result_VecLibraryConfig {
 } ddog_Result_VecLibraryConfig;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 /**
  * C-compatible representation of an anonymous file handle
  */
@@ -1586,6 +1618,8 @@ typedef struct ddog_Slice_U8 {
 typedef struct ddog_Slice_U8 ddog_ByteSlice;
 >>>>>>> 76da9713a (feat(component-rs): add data-pipeline header)
 
+=======
+>>>>>>> 51ae46aae (feat: move rust span code to sidecar-ffi)
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus

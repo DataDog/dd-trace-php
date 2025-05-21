@@ -15,7 +15,7 @@
 #include "ddshared.h"
 #include "standalone_limiter.h"
 #include <main/SAPI.h>
-#include <components-rs/data-pipeline.h>
+#include <components-rs/sidecar.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

@@ -1,7 +1,7 @@
 #include "span.h"
 
 #include <SAPI.h>
-#include "components-rs/data-pipeline.h"
+#include "components-rs/sidecar.h"
 #include "priority_sampling/priority_sampling.h"
 #include <time.h>
 #include "zend_hrtime.h"

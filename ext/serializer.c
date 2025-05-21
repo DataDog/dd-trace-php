@@ -16,7 +16,7 @@
 #include "zend_portability.h"
 #include "zend_variables.h"
 #include <components-rs/ddtrace.h>
-#include <components-rs/data-pipeline.h>
+#include <components-rs/sidecar.h>
 #include <components-rs/ddtrace.h>
 // comment to prevent clang from reordering these headers
 #include <SAPI.h>
