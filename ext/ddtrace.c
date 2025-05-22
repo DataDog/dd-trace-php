@@ -2119,13 +2119,6 @@ PHP_FUNCTION(DDTrace_set_user) {
 }
 
 PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
-    zend_array *target_table;
-    if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
-    } else {
-        target_table = &DDTRACE_G(root_span_tags_preset);
-    }
-
     UNUSED(execute_data);
 
     zend_string *login;
@@ -2138,6 +2131,13 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
 
     if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
     }
 
     if (ZSTR_LEN(login) == 0) {
@@ -2205,7 +2205,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
 
     if (user_id != NULL) {
         //_dd.appsec.user.collection_mode: "sdk"
-        prefixed_key = zend_strpprintf(0, "_dd.appsec.user.collection_mode", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
+        prefixed_key = zend_strpprintf(0, "_dd.appsec.user.collection_mode");
         zval collection_mode_zv;
         ZVAL_STRING(&collection_mode_zv, "sdk");
         zend_hash_update(target_table, prefixed_key, &collection_mode_zv);
@@ -2243,13 +2243,6 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
 }
 
 PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_failure) {
-    zend_array *target_table;
-    if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
-    } else {
-        target_table = &DDTRACE_G(root_span_tags_preset);
-    }
-
     UNUSED(execute_data);
 
     zend_string *login = NULL;
@@ -2262,6 +2255,13 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_failure) {
 
     if (!get_DD_TRACE_ENABLED()) {
         RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
     }
 
     if (ZSTR_LEN(login) == 0) {
