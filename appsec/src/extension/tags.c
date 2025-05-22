@@ -1065,6 +1065,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     dd_trace_emit_asm_event();
 }
 
+void set_user_event_triggered(void) { _user_event_triggered = true; }
+
 static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
 {
     UNUSED(return_value);

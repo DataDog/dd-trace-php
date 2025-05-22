@@ -48,4 +48,5 @@ Array
     [appsec.events.users.login.failure.value] => something
     [appsec.events.users.login.failure.metadata] => some other metadata
     [appsec.events.users.login.failure.email] => noneofyour@business.com
+    [_dd.p.ts] => 02
 )
