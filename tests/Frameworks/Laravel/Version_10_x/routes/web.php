@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('simple', [CommonSpecsController::class, 'simple'])->name('simple_route');
 Route::get('simple_view', [CommonSpecsController::class, 'simple_view']);
 Route::get('error', [CommonSpecsController::class, 'error']);
+Route::get('ignored_exception', [CommonSpecsController::class, 'ignored_exception'])->name('ignored_exception');
 Route::get('login/auth', [LoginTestController::class, 'auth'])->name('login');
 Route::get('login/signup', [LoginTestController::class, 'register']);
 Route::get('/behind_auth', [LoginTestController::class, 'behind_auth'])->name('behind_auth')->middleware('auth');
