@@ -14,7 +14,7 @@ class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
-    private function handlePromiseResponse($response, SpanData $span)
+    protected function handlePromiseResponse($response, SpanData $span)
     {
         if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
             $fulfilledResponse = $response->wait();
