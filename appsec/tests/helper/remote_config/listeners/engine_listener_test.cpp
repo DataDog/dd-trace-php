@@ -62,7 +62,7 @@ TEST(RemoteConfigEngineListener, NoUpdates)
     EXPECT_CALL(*engine, update(_, _)).Times(0);
 
     auto msubmitter =
-        std::shared_ptr<metrics::telemetry_submitter>(new tel_submitter());
+        std::shared_ptr<telemetry::telemetry_submitter>(new tel_submitter());
     remote_config::engine_listener listener(engine, msubmitter);
     listener.init();
     listener.commit();
@@ -71,7 +71,7 @@ TEST(RemoteConfigEngineListener, NoUpdates)
 TEST(RemoteConfigEngineListener, UnknownConfig)
 {
     auto msubmitter =
-        std::shared_ptr<metrics::telemetry_submitter>(new tel_submitter());
+        std::shared_ptr<telemetry::telemetry_submitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
@@ -88,7 +88,7 @@ TEST(RemoteConfigEngineListener, UnknownConfig)
 TEST(RemoteConfigEngineListener, RuleUpdate)
 {
     auto msubmitter =
-        std::shared_ptr<metrics::telemetry_submitter>(new tel_submitter());
+        std::shared_ptr<telemetry::telemetry_submitter>(new tel_submitter());
     auto engine = mock::engine::create();
 
     rapidjson::Document doc;
@@ -112,7 +112,7 @@ TEST(RemoteConfigEngineListener, RuleUpdate)
 
 TEST(RemoteConfigEngineListener, EngineRuleUpdate)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
     std::map<std::string, std::string> meta;
     std::map<std::string_view, double> metrics;
@@ -170,7 +170,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
 
 TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
 
     std::map<std::string, std::string> meta;
@@ -233,7 +233,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
 
 TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
@@ -280,7 +280,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
 
 TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
@@ -331,7 +331,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
 
 TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
@@ -384,7 +384,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
 
 TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
@@ -432,7 +432,7 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
 
 TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
 {
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
 
     std::shared_ptr engine{dds::engine::create()};
@@ -545,7 +545,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
             [{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},
             "operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
-    auto msubmitter = std::shared_ptr<metrics::telemetry_submitter>(
+    auto msubmitter = std::shared_ptr<telemetry::telemetry_submitter>(
         new NiceMock<tel_submitter>());
     std::shared_ptr<engine> e{engine::create()};
     e->subscribe(waf::instance::from_string(waf_rule_with_data, *msubmitter));

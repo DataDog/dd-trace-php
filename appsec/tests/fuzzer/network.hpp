@@ -8,7 +8,6 @@
 #include "helpers.hpp"
 #include <atomic>
 #include <condition_variable>
-#include <iostream>
 #include <mutex>
 #include <network/acceptor.hpp>
 #include <network/msgpack_helpers.hpp>
