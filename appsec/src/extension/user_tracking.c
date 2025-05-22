@@ -67,70 +67,73 @@ static PHP_FUNCTION(set_user_wrapper)
 
 static PHP_FUNCTION(v2_track_user_login_success_wrapper)
 {
+    _ddtrace_v2_track_user_login_success(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
     zend_string *login;
     zval *user = NULL;
     zend_array *metadata = NULL;
     zend_string *user_id = NULL;
-    if (DDAPPSEC_G(active) && UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
-        if (zend_parse_parameters(
-                ZEND_NUM_ARGS(), "S|zh", &login, &user, &metadata) == FAILURE) {
-            return;
-        }
-
-        if (_ddtrace_v2_track_user_login_success == NULL) {
-            mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_success, "
-                               "this shouldn't happen");
-            return;
-        }
-
-        if (user != NULL && Z_TYPE_P(user) == IS_STRING) {
-            user_id = Z_STR_P(user);
-        } else if (user != NULL && Z_TYPE_P(user) == IS_ARRAY) {
-            zval *user_id_zv =
-                zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
-            if (user_id_zv == NULL) {
-                mlog(dd_log_warning,
-                    "Id not found in user object in "
-                    "DDTrace\\ATO\\V2\\track_user_login_success");
-                return;
-            }
-            if (Z_TYPE_P(user_id_zv) != IS_STRING) {
-                mlog(dd_log_warning,
-                    "Unexpected id type in "
-                    "DDTrace\\ATO\\V2\\track_user_login_success");
-                return;
-            }
-            user_id = Z_STR_P(user_id_zv);
-        }
-
-        dd_find_and_apply_verdict_for_user(user_id, login);
+    if (!DDAPPSEC_G(active) || UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
+        return;
+    }
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(), "S|zh", &login, &user, &metadata) == FAILURE) {
+        return;
+    }
+    set_user_event_triggered();
+    dd_trace_emit_asm_event();
+    if (_ddtrace_v2_track_user_login_success == NULL) {
+        mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_success, "
+                           "this shouldn't happen");
+        return;
     }
 
-    _ddtrace_v2_track_user_login_success(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    if (user != NULL && Z_TYPE_P(user) == IS_STRING) {
+        user_id = Z_STR_P(user);
+    } else if (user != NULL && Z_TYPE_P(user) == IS_ARRAY) {
+        zval *user_id_zv = zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
+        if (user_id_zv == NULL) {
+            mlog(dd_log_warning, "Id not found in user object in "
+                                 "DDTrace\\ATO\\V2\\track_user_login_success");
+            return;
+        }
+        if (Z_TYPE_P(user_id_zv) != IS_STRING) {
+            mlog(dd_log_warning, "Unexpected id type in "
+                                 "DDTrace\\ATO\\V2\\track_user_login_success");
+            return;
+        }
+        user_id = Z_STR_P(user_id_zv);
+    }
+
+    dd_find_and_apply_verdict_for_user(user_id, login);
 }
 
 static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
 {
+    _ddtrace_v2_track_user_login_failure(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
     zend_string *login = NULL;
     zend_bool exists;
     zend_array *metadata = NULL;
 
-    if (DDAPPSEC_G(active) && UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sb|h", &login, &exists,
-                &metadata) == FAILURE) {
-            return;
-        }
-
-        if (_ddtrace_v2_track_user_login_failure == NULL) {
-            mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_failure, "
-                               "this shouldn't happen");
-            return;
-        }
-
-        dd_find_and_apply_verdict_for_user(ZSTR_EMPTY_ALLOC(), login);
+    if (!DDAPPSEC_G(active) || UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
+        return;
     }
 
-    _ddtrace_v2_track_user_login_failure(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    if (zend_parse_parameters(
+            ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {
+        return;
+    }
+
+    if (_ddtrace_v2_track_user_login_failure == NULL) {
+        mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_failure, "
+                           "this shouldn't happen");
+        return;
+    }
+
+    set_user_event_triggered();
+    dd_trace_emit_asm_event();
+    dd_find_and_apply_verdict_for_user(ZSTR_EMPTY_ALLOC(), login);
 }
 
 void dd_user_tracking_startup(void)
