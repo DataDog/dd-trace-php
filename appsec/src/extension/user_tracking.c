@@ -215,7 +215,7 @@ void dd_user_tracking_shutdown(void)
 }
 
 void dd_find_and_apply_verdict_for_user(
-    zend_string *nonnull user_id, zend_string *nonnull user_login)
+    zend_string *nullable user_id, zend_string *nullable user_login)
 {
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
@@ -228,7 +228,7 @@ void dd_find_and_apply_verdict_for_user(
     }
     zval data_zv;
 
-    if (ZSTR_LEN(user_login) > 0) {
+    if (user_login != NULL && ZSTR_LEN(user_login) > 0) {
         array_init_size(&data_zv, 2);
 
         zval user_login_zv;
@@ -240,7 +240,7 @@ void dd_find_and_apply_verdict_for_user(
         array_init_size(&data_zv, 1);
     }
 
-    if (ZSTR_LEN(user_id) > 0) {
+    if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
         zval user_id_zv;
         ZVAL_STR_COPY(&user_id_zv, user_id);
         zend_hash_str_add_new(
@@ -256,7 +256,9 @@ void dd_find_and_apply_verdict_for_user(
 
     zval_ptr_dtor(&data_zv);
 
-    dd_tags_set_event_user_id(user_id);
+    if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
+        dd_tags_set_event_user_id(user_id);
+    }
 
     if (dd_req_is_user_req()) {
         if (res == dd_should_block || res == dd_should_redirect) {
