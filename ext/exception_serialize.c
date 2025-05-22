@@ -38,11 +38,11 @@ static void dd_exception_to_error_msg(zend_object *exception, ddog_SpanBytes *sp
         default: exception_type = "Thrown"; break;
     }
 
-    int error_len = asprintf(&error_text, "%s %s%s%s%s in %s:" ZEND_LONG_FMT, exception_type,
+    int len = asprintf(&error_text, "%s %s%s%s%s in %s:" ZEND_LONG_FMT, exception_type,
             ZSTR_VAL(exception->ce->name), status_line ? status_line : "", ZSTR_LEN(msg) > 0 ? ": " : "",
             ZSTR_VAL(msg), ZSTR_VAL(file), line);
 
-    ddog_add_span_meta(span, DDOG_CHARSLICE_C("error.message"), (ddog_CharSlice){.ptr = error_text, .len = error_len});
+    ddog_add_str_span_meta_CharSlice(span, "error.message", (ddog_CharSlice){.ptr = error_text, .len = len});
 
     zend_string_release(file);
     free(error_text);
@@ -52,21 +52,21 @@ static void dd_exception_to_error_msg(zend_object *exception, ddog_SpanBytes *sp
 static void dd_exception_to_error_type(zend_object *exception, ddog_SpanBytes *span) {
     if (instanceof_function(exception->ce, ddtrace_ce_fatal_error)) {
         zval *code = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_CODE));
-        ddog_CharSlice error_type_string = DDOG_CHARSLICE_C_BARE("{unknown error}");
+        const char *error_type_string = "{unknown error}";
 
         if (Z_TYPE_P(code) == IS_LONG) {
             switch (Z_LVAL_P(code)) {
                 case E_ERROR:
-                    error_type_string = DDOG_CHARSLICE_C("E_ERROR");
+                    error_type_string = "E_ERROR";
                     break;
                 case E_CORE_ERROR:
-                    error_type_string = DDOG_CHARSLICE_C("E_CORE_ERROR");
+                    error_type_string = "E_CORE_ERROR";
                     break;
                 case E_COMPILE_ERROR:
-                    error_type_string = DDOG_CHARSLICE_C("E_COMPILE_ERROR");
+                    error_type_string = "E_COMPILE_ERROR";
                     break;
                 case E_USER_ERROR:
-                    error_type_string = DDOG_CHARSLICE_C("E_USER_ERROR");
+                    error_type_string = "E_USER_ERROR";
                     break;
                 default:
                     LOG_UNREACHABLE("Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
@@ -76,14 +76,14 @@ static void dd_exception_to_error_type(zend_object *exception, ddog_SpanBytes *s
             LOG_UNREACHABLE("Exception was a DDTrace\\FatalError but failed to get an exception code");
         }
 
-        ddog_add_span_meta(span, DDOG_CHARSLICE_C("error.type"), error_type_string);
+        ddog_add_str_span_meta_str(span, "error.type", error_type_string);
     } else {
-        ddog_add_CharSlice_span_meta_zstr(span, DDOG_CHARSLICE_C("error.type"), exception->ce->name);
+        ddog_add_str_span_meta_zstr(span, "error.type", exception->ce->name);
     }
 }
 
 static void dd_exception_trace_to_error_stack(zend_string *trace, ddog_SpanBytes *span) {
-    ddog_add_CharSlice_span_meta_zstr(span, DDOG_CHARSLICE_C("error.stack"), trace);
+    ddog_add_str_span_meta_zstr(span, "error.stack", trace);
     zend_string_release(trace);
 }
 
@@ -285,7 +285,7 @@ static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_
     char *snapshot_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])snapshot_id);
 
-    char msg[40];
+    char *msg = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 40);
     int len = sprintf(msg, "_dd.debug.error.%d.snapshot_id", frame_num);
     ddog_add_span_meta(span, (ddog_CharSlice){.ptr = msg, .len = len}, (ddog_CharSlice){.ptr = snapshot_id, .len = uuid_len});
 
@@ -379,8 +379,8 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
     zend_ulong exception_long_hash = ddtrace_compute_exception_hash(exception);
     php_hash_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
 
-    ddog_add_span_meta(span, DDOG_CHARSLICE_C("error.debug_info_captured"), DDOG_CHARSLICE_C("true"));
-    ddog_add_span_meta(span, DDOG_CHARSLICE_C("_dd.debug.error.exception_hash"), (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});
+    ddog_add_str_span_meta_str(span, "error.debug_info_captured", "true");
+    ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_hash", (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});
 
     if (!ddog_exception_hash_limiter_inc(ddtrace_sidecar, (uint64_t)exception_long_hash, get_DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS())) {
         LOG(TRACE, "Skipping exception replay capture due to hash %.*s already recently hit", hash_len, exception_hash);
@@ -390,7 +390,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
     char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])exception_id);
 
-    ddog_add_span_meta(span, DDOG_CHARSLICE_C("_dd.debug.error.exception_capture_id"), (ddog_CharSlice){.ptr = exception_id, .len = uuid_len});
+    ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_capture_id", (ddog_CharSlice){.ptr = exception_id, .len = uuid_len});
 
     memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
 
