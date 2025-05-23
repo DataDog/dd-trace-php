@@ -2,6 +2,7 @@
 Test \DDTrace\ATO\V2\track_user_login_success no user id given
 --INI--
 extension=ddtrace.so
+datadog.appsec.enabled=1
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -15,7 +16,7 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["runtime-id"]=>
   string(%d) %s
   ["appsec.events.users.login.success.usr.login"]=>
@@ -26,4 +27,6 @@ array(5) {
   string(%d) "true"
   ["appsec.events.users.login.success.metakey1"]=>
   string(%d) "meta value"
+  ["_dd.p.ts"]=>
+  string(2) "02"
 }

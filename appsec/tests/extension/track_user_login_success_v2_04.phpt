@@ -2,6 +2,7 @@
 Test \DDTrace\ATO\V2\track_user_login_success id should be present on user object when given user object
 --INI--
 extension=ddtrace.so
+datadog.appsec.enabled=1
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -21,7 +22,10 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(1) {
+Warning: DDTrace\ATO\V2\track_user_login_success(): [ddappsec] Id not found in user object in DDTrace\ATO\V2\track_user_login_success in %s on line %d
+array(2) {
   ["runtime-id"]=>
   string(%s) %s
+  ["_dd.p.ts"]=>
+  string(2) "02"
 }

@@ -2,6 +2,7 @@
 Test \DDTrace\ATO\V2\track_user_login_success login parameter takes precedence over login value on user object
 --INI--
 extension=ddtrace.so
+datadog.appsec.enabled=1
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -22,7 +23,7 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(11) {
+array(12) {
   ["runtime-id"]=>
   string(%s) %s
   ["appsec.events.users.login.success.usr.id"]=>
@@ -45,4 +46,6 @@ array(11) {
   string(%s) "metavalue"
   ["usr.metakey2"]=>
   string(%s) "metavalue02"
+  ["_dd.p.ts"]=>
+  string(2) "02"
 }
