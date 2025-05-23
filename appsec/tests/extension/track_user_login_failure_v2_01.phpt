@@ -2,6 +2,7 @@
 Test \DDTrace\ATO\V2\track_user_login_failure
 --INI--
 extension=ddtrace.so
+datadog.appsec.enabled=1
 --FILE--
 <?php
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -19,7 +20,7 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(7) {
+array(8) {
   ["runtime-id"]=>
   string(%d) %s
   ["appsec.events.users.login.failure.usr.login"]=>
@@ -34,4 +35,6 @@ array(7) {
   string(%d) "metavalue"
   ["appsec.events.users.login.failure.metakey2"]=>
   string(%d) "metavalue02"
+  ["_dd.p.ts"]=>
+  string(2) "02"
 }
