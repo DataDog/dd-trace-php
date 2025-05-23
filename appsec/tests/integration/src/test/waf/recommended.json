@@ -184,6 +184,31 @@
       ]
     },
     {
+      "id": "blk-001-005",
+      "name": "Block User Addresses by login",
+      "tags": {
+        "type": "block_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.login"
+              }
+            ],
+            "data": "blocked_users_by_login"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },    
+    {
       "id": "redirect-001-001",
       "name": "Redirected IP Addresses",
       "tags": {
@@ -6914,6 +6939,16 @@
         }
       ]
     },
+    {
+      "id": "blocked_users_by_login",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "login2020",
+          "expiration": 0
+        }
+      ]
+    },    
     {
       "id": "blocked_users_with_stack",
       "type": "data_with_expiration",
