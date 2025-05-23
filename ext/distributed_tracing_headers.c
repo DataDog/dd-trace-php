@@ -566,6 +566,17 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
     return result;
 }
 
+void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
+    if (!zend_hash_exists(get_DD_TRACE_BAGGAGE_TAG_KEYS(), key) && (zend_hash_num_elements(get_DD_TRACE_BAGGAGE_TAG_KEYS()) != 1 || !zend_string_equals_literal(Z_STR_P(zend_hash_get_current_data(get_DD_TRACE_BAGGAGE_TAG_KEYS())), "*"))) {
+        return;
+    }
+
+    key = zend_strpprintf(0, "baggage.%s", ZSTR_VAL(key));
+    zend_hash_update(meta, key, val);
+    zend_string_release(key);
+    Z_TRY_ADDREF_P(val);
+}
+
 void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result *result, ddtrace_root_span_data *span) {
     zval zv;
 
@@ -608,6 +619,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         ZEND_HASH_FOREACH_KEY_VAL(&result->baggage, key_i, key, val) {
             if (key) {
                 zend_hash_update(existing_baggage, key, val);
+                apply_baggage_span_tags(key, val, root_meta);
             } else {
                 zend_hash_index_update(existing_baggage, key_i, val);
             }
@@ -636,7 +648,14 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         DDTRACE_G(tracestate) = result->tracestate;  
         zend_hash_destroy(&DDTRACE_G(baggage));
         DDTRACE_G(baggage) = result->baggage;
-        
+        zend_string *key;
+        zval *val;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(&result->baggage, key, val) {
+            if (key) {
+                apply_baggage_span_tags(key, val, &DDTRACE_G(root_span_tags_preset));
+            }
+        } ZEND_HASH_FOREACH_END();
+
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
