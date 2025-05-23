@@ -23,9 +23,7 @@ var_dump($root->meta);
 ?>
 --EXPECTF--
 Warning: DDTrace\ATO\V2\track_user_login_success(): [ddappsec] Id not found in user object in DDTrace\ATO\V2\track_user_login_success in %s on line %d
-array(2) {
+array(1) {
   ["runtime-id"]=>
   string(%s) %s
-  ["_dd.p.ts"]=>
-  string(2) "02"
 }
