@@ -14,6 +14,21 @@ class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
+    public function handlePromiseResponse($response, SpanData $span)
+    {
+        if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
+            $fulfilledResponse = $response->wait();
+            if ($fulfilledResponse instanceof \Psr\Http\Message\ResponseInterface) {
+                $span->meta[Tag::HTTP_STATUS_CODE] = $fulfilledResponse->getStatusCode();
+            }
+        } else {
+            /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+            $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+                $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+            });
+        }
+    }
+
     public function init(): int
     {
         $integration = $this;
@@ -55,10 +70,7 @@ class GuzzleIntegration extends Integration
                         /** @var \Psr\Http\Message\ResponseInterface $response */
                         $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                        });
+                        $integration->handlePromiseResponse($response, $span);
                     }
                 }
             }
@@ -82,10 +94,7 @@ class GuzzleIntegration extends Integration
                 if (isset($retval)) {
                     $response = $retval;
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                        });
+                        $integration->handlePromiseResponse($response, $span);
                     }
                 }
             }
