@@ -52,7 +52,8 @@ static PHP_FUNCTION(set_user_wrapper)
         zend_bool propagate = false;
         if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(),
                 "S|hb", &user_id, &metadata, &propagate) == SUCCESS) {
-            dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
+            dd_find_and_apply_verdict_for_user(
+                user_id, ZSTR_EMPTY_ALLOC(), user_event_none);
         }
     }
 
@@ -80,8 +81,6 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
             ZEND_NUM_ARGS(), "S|zh", &login, &user, &metadata) == FAILURE) {
         return;
     }
-    set_user_event_triggered();
-    dd_trace_emit_asm_event();
     if (_ddtrace_v2_track_user_login_success == NULL) {
         mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_success, "
                            "this shouldn't happen");
@@ -105,7 +104,11 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
         user_id = Z_STR_P(user_id_zv);
     }
 
-    dd_find_and_apply_verdict_for_user(user_id, login);
+    set_user_event_triggered();
+    dd_trace_emit_asm_event();
+    dd_tags_set_sampling_priority();
+    dd_find_and_apply_verdict_for_user(
+        user_id, login, user_event_login_success);
 }
 
 static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
@@ -133,7 +136,9 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
 
     set_user_event_triggered();
     dd_trace_emit_asm_event();
-    dd_find_and_apply_verdict_for_user(ZSTR_EMPTY_ALLOC(), login);
+    dd_tags_set_sampling_priority();
+    dd_find_and_apply_verdict_for_user(
+        ZSTR_EMPTY_ALLOC(), login, user_event_login_failure);
 }
 
 void dd_user_tracking_startup(void)
@@ -220,8 +225,8 @@ void dd_user_tracking_shutdown(void)
     }
 }
 
-void dd_find_and_apply_verdict_for_user(
-    zend_string *nullable user_id, zend_string *nullable user_login)
+void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
+    zend_string *nullable user_login, user_event event)
 {
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
@@ -232,18 +237,28 @@ void dd_find_and_apply_verdict_for_user(
         mlog(dd_log_debug, "No connection; unable to check user");
         return;
     }
+
     zval data_zv;
+    size_t data_size = 0;
+    data_size += user_login != NULL && ZSTR_LEN(user_login) > 0 ? 1 : 0;
+    data_size += user_id != NULL && ZSTR_LEN(user_id) > 0 ? 1 : 0;
+    data_size += event != user_event_none ? 1 : 0;
+    array_init_size(&data_zv, data_size);
+
+    if (event == user_event_login_success) {
+        zend_hash_str_add_empty_element(Z_ARRVAL(data_zv),
+            LSTRARG("server.business_logic.users.login.success"));
+    } else if (event == user_event_login_failure) {
+        zend_hash_str_add_empty_element(Z_ARRVAL(data_zv),
+            LSTRARG("server.business_logic.users.login.failure"));
+    }
 
     if (user_login != NULL && ZSTR_LEN(user_login) > 0) {
-        array_init_size(&data_zv, 2);
-
         zval user_login_zv;
         ZVAL_STR_COPY(&user_login_zv, user_login);
 
         zend_hash_str_add_new(Z_ARRVAL(data_zv), "usr.login",
             sizeof("usr.login") - 1, &user_login_zv);
-    } else {
-        array_init_size(&data_zv, 1);
     }
 
     if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
