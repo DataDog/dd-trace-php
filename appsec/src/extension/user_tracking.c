@@ -74,7 +74,7 @@ void dd_fire_user_event(char *event_type, size_t event_type_len)
     dd_tags_set_sampling_priority();
 
     char *tags = NULL;
-    size_t tags_len = asprintf(&tags, "event_type=%.*s,sdk_version=v2", (int)event_type_len, event_type);
+    size_t tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2", (int)event_type_len, event_type);
 
     dd_add_telemetry_metric(LSTRARG("sdk.event"), 1, tags, tags_len, DDTRACE_METRIC_TYPE_COUNT);
 

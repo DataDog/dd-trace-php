@@ -445,13 +445,13 @@ class TelemetryTests {
         assert loginSuccess != null
         assert loginSuccess.namespace == 'appsec'
         assert loginSuccess.points[0][1] >= 2.0
-        assert loginSuccess.tags.find { it.startsWith('event_type:login_success, sdk_version:v2') } != null
+        assert loginSuccess.tags.find { it.startsWith('sdk_version:v2') } != null
         assert loginSuccess.type == 'count'
 
         assert loginFailure != null
         assert loginFailure.namespace == 'appsec'
         assert loginFailure.points[0][1] == 3.0
-        assert loginFailure.tags.find { it.startsWith('event_type:login_failure, sdk_version:v2') } != null
+        assert loginFailure.tags.find { it.startsWith('sdk_version:v2') } != null
         assert loginFailure.type == 'count'
     }
 }

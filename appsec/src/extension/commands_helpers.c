@@ -16,7 +16,6 @@
 #include "telemetry.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
-#include <stdatomic.h>
 
 typedef struct _dd_omsg {
     zend_llist iovecs;
