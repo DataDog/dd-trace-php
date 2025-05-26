@@ -16,7 +16,6 @@
 #include "telemetry.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
-#include <stdatomic.h>
 
 static const char WAF_REQUEST_METRIC[] = "waf.requests";
 static const size_t WAF_REQUEST_METRIC_LEN = sizeof(WAF_REQUEST_METRIC) - 1;
