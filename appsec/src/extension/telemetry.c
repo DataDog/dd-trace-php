@@ -13,6 +13,7 @@ void dd_add_telemetry_metric(const char *nonnull name, size_t name_len,
         name_zstr, type, DDTRACE_METRIC_NAMESPACE_APPSEC);
     ddtrace_metric_add_point(name_zstr, value, tags_zstr);
     zend_string_release(tags_zstr);
+    zend_string_release(name_zstr);
     mlog_g(dd_log_debug,
         "Telemetry metric %.*s added with tags %.*s and value %f",
         (int)name_len, name, (int)tags_len, tags_str, value);
