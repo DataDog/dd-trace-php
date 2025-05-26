@@ -398,4 +398,60 @@ class TelemetryTests {
         assert ssrfTimeout.type == 'count'
         assert ssrfTimeout.tags.find { it.startsWith('waf_version:') } != null
     }
+
+    /**
+     * This test takes a long time (around 10-12 seconds) because the metric
+     * interval is hardcoded to 10 seconds in the metrics.rs.
+     */
+    @Test
+    @Order(5)
+    void 'User tracking telemetry is generated'() {
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // first request to start helper
+        // Generally won't be covered by appsec because it doesn't receive RC data in time
+        // for the response to config_sync
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        RemoteConfigRequest rcReq = requestSup.get()
+        assert rcReq != null, 'No RC request received'
+
+        // request covered by Appsec
+        trace = CONTAINER.traceFromRequest('/multiple_user_tracking_events.php?success=2&failure=3') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.traceId != null
+
+        TelemetryHelpers.Metric loginSuccess
+        TelemetryHelpers.Metric loginFailure
+
+        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            println allSeries
+            loginSuccess = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_success' in it.tags}
+            loginFailure = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_failure' in it.tags}
+
+             loginSuccess && loginFailure
+        }
+
+        assert loginSuccess != null
+        assert loginSuccess.namespace == 'appsec'
+        assert loginSuccess.points[0][1] >= 2.0
+        assert loginSuccess.tags.find { it.startsWith('event_type:login_success, sdk_version:v2') } != null
+        assert loginSuccess.type == 'count'
+
+        assert loginFailure != null
+        assert loginFailure.namespace == 'appsec'
+        assert loginFailure.points[0][1] == 3.0
+        assert loginFailure.tags.find { it.startsWith('event_type:login_failure, sdk_version:v2') } != null
+        assert loginFailure.type == 'count'
+    }
 }
