@@ -67,25 +67,17 @@ static PHP_FUNCTION(set_user_wrapper)
     _ddtrace_set_user(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-void dd_fire_user_event(char *event_type, size_t event_type_len)
+void dd_fire_user_event(void)
 {
     set_user_event_triggered();
     dd_trace_emit_asm_event();
     dd_tags_set_sampling_priority();
-
-    char *tags = NULL;
-    size_t tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2",
-        (int)event_type_len, event_type);
-
-    dd_add_telemetry_metric(
-        LSTRARG("sdk.event"), 1, tags, tags_len, DDTRACE_METRIC_TYPE_COUNT);
-
-    free(tags);
 }
 
 static PHP_FUNCTION(v2_track_user_login_success_wrapper)
 {
     _ddtrace_v2_track_user_login_success(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_telemetry_add_sdk_event(LSTRARG("login_success"));
 
     zend_string *login;
     zval *user = NULL;
@@ -121,7 +113,7 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
         user_id = Z_STR_P(user_id_zv);
     }
 
-    dd_fire_user_event(LSTRARG("login_success"));
+    dd_fire_user_event();
     dd_find_and_apply_verdict_for_user(
         user_id, login, user_event_login_success);
 }
@@ -129,6 +121,7 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
 static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
 {
     _ddtrace_v2_track_user_login_failure(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_telemetry_add_sdk_event(LSTRARG("login_failure"));
 
     zend_string *login = NULL;
     zend_bool exists;
@@ -149,7 +142,7 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
         return;
     }
 
-    dd_fire_user_event(LSTRARG("login_failure"));
+    dd_fire_user_event();
     dd_find_and_apply_verdict_for_user(
         ZSTR_EMPTY_ALLOC(), login, user_event_login_failure);
 }
