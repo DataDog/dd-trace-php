@@ -10,3 +10,5 @@
 
 void dd_add_telemetry_metric(const char *nonnull name, size_t name_len,
     double value, const char *nonnull tags_str, size_t tags_len, ddtrace_metric_type type);
+
+void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len);
