@@ -324,22 +324,28 @@ class LaravelIntegration extends Integration
         );
 
         // Used by Laravel >= 5.0
+        // If multiple handlers are involved (e.g., Dingo wrapping Laravel's handler),
+        // the last one to run wins — so the parent handler's decision takes precedence.
         \DDTrace\hook_method(
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
-            function ($exceptionHandler, $scope, $args) use ($integration) {
-                $rootSpan = \DDTrace\root_span();
-                if ($rootSpan === null) {
-                    return;
-                }
+            [
+                'prehook' => function ($exceptionHandler, $scope, $args) use ($integration) {
+                    $rootSpan = \DDTrace\root_span();
+                    if ($rootSpan === null) {
+                        return;
+                    }
 
-                if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
-                    $rootSpan->exception = $args[0];
-                    $rootSpan->meta['error.ignored'] = 0;
-                } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
-                    $rootSpan->meta['error.ignored'] = 1;
-                }
-            }
+                    if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
+                        $rootSpan->exception = $args[0];
+                        $rootSpan->meta['error.ignored'] = 0;
+                    } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
+                        $rootSpan->exception = $args[0];
+                        $rootSpan->meta['error.ignored'] = 1;
+                    }
+                },
+                'recurse' => true,
+            ]
         );
 
         // Used by Laravel >= 5.0
