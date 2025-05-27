@@ -20,7 +20,7 @@
         <name>Luca Abbati</name>
         <user>labbati</user>
         <email>luca.abbati@gmail.com</email>
-        <active>yes</active>
+        <active>no</active>
     </lead>
     <lead>
         <name>Bob Weinand</name>
@@ -70,48 +70,49 @@
         <![CDATA[
 ## All products
 ### Added
-- Update config telemetry to support stable config #3198
+- Add injection information to phpinfo output for the SSI loader #3271
+- Allow specifying datadog.loader.force_inject=1 in loader #3278
+
+### Fixed
+- Add missing dep to injected ddappsec #3252
+- Filter SSI paths from installer ini paths #3275
 
 ## Tracer
 ### Added
-- Support DD_DOGSTATSD_HOST configuration #3167
-- Add referrer hostname as span tag #3196
+- Add http status error configuration #3223 (Thanks @scott-shields-github)
+- Baggage span tags #3262
 
 ### Changed
-- Capture key before first colon in DD_TAGS #3179
+- Avoid retrieving all the roots all the time in remote config DataDog/libdatadog#1069
 
 ### Fixed
-- Check server first before accessing in ddtrace_ip_extraction_find #3216
-- Fix assumptions around interned strings on PHP 7.3 #3224
-- Fix initial double remote config reading #3225, #3238
-- Fix dropped trace payloads for the sidecar Datadog/libdatadog#1047
-- Fix Windows VirtualProtect call #3229
+- Fix Laravel error reporting #3185
+- Fix crash with non-interned string in Trace attribute tags #3251
+- Init ddtrace_coms_globals.tmp_stack #3256 (Thanks @junjihashimoto)
+- Enhance Guzzle integration to handle promise fulfillment state #3260
+- Block signals for mysqli_real_connect too #3264
+- Fix exception serialize arena cleanup #3272
+- Handle stack-allocated execute_data but outside of stack allocated func #3273
+- Fix WordPress integration hook handling for "static" and object methods #3274
 
 ### Internal
-- Store debug symbols in the SSI archive #3217
+- Remove non actionnable telemetry logs #3270
 
 ## Profiling
-### Added
-- Configurable allocation sampling distance #3227
-
 ### Changed
-- Accept auto as valid value for DD_PROFILING_ENABLED #3166
+- Re-enable allocation profiling with JIT for PHP 8.4.7 #3277
 
 ### Fixed
-- Fix empty internal metadata #3228
-- Follow PHP globals model in allocation profiler #3175
+- Fix borrow error in request shutdown #3247
+- Fix crash in ZEND_INIT_ARRAY #3255
 
 ### Internal changes
-- Bump libdatadog to version 18 #3229
+- Add opcache tags in crash report #3231
+- Use local_key_cell_methods #3248
 
 ## Application Security Management
-### Added
-- AppSec support for Frankenphp #3165
-- Detection/blocking of SQL injections through libddwaf #3186
-- Add RASP_SQLI remote config capability #3203
-
 ### Fixed
-- Make Appsec blocking compatible with Laravel error handler #3110
+- Use the ddtrace handle instead of dlopen(NULL) #3244, #3249
 ]]></notes>
     <contents>
         <dir name="/">
