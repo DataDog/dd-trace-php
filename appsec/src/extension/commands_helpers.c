@@ -12,8 +12,8 @@
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "tags.h"
-#include "user_tracking.h"
 #include "telemetry.h"
+#include "user_tracking.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
 
