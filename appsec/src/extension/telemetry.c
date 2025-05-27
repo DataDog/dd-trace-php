@@ -3,7 +3,8 @@
 #include "logging.h"
 #include "string_helpers.h"
 
-void dd_add_telemetry_metric(const char *nonnull name, size_t name_len,
+void dd_add_telemetry_metric(const char *nonnull name,
+    size_t name_len, // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     double value, const char *nonnull tags_str, size_t tags_len,
     ddtrace_metric_type type)
 {
@@ -17,4 +18,16 @@ void dd_add_telemetry_metric(const char *nonnull name, size_t name_len,
     mlog_g(dd_log_debug,
         "Telemetry metric %.*s added with tags %.*s and value %f",
         (int)name_len, name, (int)tags_len, tags_str, value);
+}
+
+void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
+{
+    char *tags = NULL;
+    size_t tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2",
+        (int)event_type_len, event_type);
+
+    dd_add_telemetry_metric(
+        LSTRARG("sdk.event"), 1, tags, tags_len, DDTRACE_METRIC_TYPE_COUNT);
+
+    free(tags);
 }
