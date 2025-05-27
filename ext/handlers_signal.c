@@ -71,6 +71,7 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(ftp_ssl_connect) \
     x(ftp_systype) \
     x(mysqli_connect) \
+    x(mysqli_real_connect) \
     x(mysql_connect) \
     x(pg_connect) \
     x(oci_connect) \
@@ -81,6 +82,7 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
 #define BLOCKMETH(x) \
     x(PDO, connect) \
     x(mysqli, __construct) \
+    x(mysqli, real_connect)
 
 BLOCK(BLOCKSIGFN)
 

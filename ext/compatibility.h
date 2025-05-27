@@ -578,6 +578,35 @@ static zend_always_inline zend_result zend_call_function_with_return_value(zend_
     return zend_call_function(fci, fci_cache);
 }
 
+static inline zend_string *zend_ini_str_ex(const char *name, size_t len, bool orig, bool *exists) {
+    zend_ini_entry *ini_entry = zend_hash_str_find_ptr(EG(ini_directives), name, len);
+    if (ini_entry) {
+        if (exists) {
+            *exists = true;
+        }
+
+        if (orig && ini_entry->modified) {
+            return ini_entry->orig_value ? ini_entry->orig_value : NULL;
+        }
+        return ini_entry->value ? ini_entry->value : NULL;
+    }
+    if (exists) {
+        *exists = false;
+    }
+    return NULL;
+}
+
+static inline zend_string *zend_ini_str(const char *name, size_t name_length, bool orig) {
+    bool exists = false;
+    zend_string *return_value = zend_ini_str_ex(name, name_length, orig, &exists);
+    if (!exists) {
+        return NULL;
+    } else if (!return_value) {
+        return_value = ZSTR_EMPTY_ALLOC();
+    }
+    return return_value;
+}
+
 #define zend_zval_value_name zend_zval_type_name
 
 #define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
