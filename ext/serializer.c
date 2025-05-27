@@ -1152,10 +1152,42 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
         ZVAL_STR(&status_zv, status_str);
         zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_zv);
 
-        if (status >= 500 && !ignore_error) {
-            zval zv = {0}, *value;
-            if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
-                ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
+        // Only check status codes if not ignoring errors
+        if (!ignore_error) {
+            bool is_error = false;
+
+            // Get server error configuration
+            zend_array *cfg = get_DD_TRACE_HTTP_SERVER_ERROR_STATUSES();
+
+            // Loop through configuration if any
+            zend_string *str_key;
+            ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
+                if (str_key) {
+                    const char *s = ZSTR_VAL(str_key);
+
+                    // Range like "500-599"
+                    int start, end;
+                    if (sscanf(s, "%d-%d", &start, &end) == 2) {
+                        if (status >= start && status <= end) {
+                            is_error = true;
+                            break;
+                        }
+                    } else {
+                        // Single status code
+                        int code = atoi(s);
+                        if (status == code) {
+                            is_error = true;
+                            break;
+                        }
+                    }
+                }
+            } ZEND_HASH_FOREACH_END();
+
+            if (is_error) {
+                zval zv = {0}, *value;
+                if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
+                    ZVAL_STR(value, zend_string_init(ZEND_STRL("HttpError"), 0));
+                }
             }
         }
     }
@@ -1491,7 +1523,6 @@ void transfer_data(zend_array *source, zend_array *destination, const char *key,
         }
     }
 }
-
 
 zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
