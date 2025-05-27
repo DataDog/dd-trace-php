@@ -17,8 +17,8 @@
 #include <mpack.h>
 #include <stdatomic.h>
 
-static const char WAF_REQUEST_TAG[] = "waf.requests";
-static const size_t WAF_REQUEST_TAG_LEN = sizeof(WAF_REQUEST_TAG) - 1;
+static const char WAF_REQUEST_METRIC[] = "waf.requests";
+static const size_t WAF_REQUEST_METRIC_LEN = sizeof(WAF_REQUEST_METRIC) - 1;
 static const char TRUNCATED_TAG[] = "input_truncated=true";
 static const size_t TRUNCATED_TAG_LEN = sizeof(TRUNCATED_TAG);
 static const char TAG_SEPARATOR = ',';
@@ -758,7 +758,9 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
                 break;
             }
             if (dd_msgpack_helpers_is_data_truncated() &&
-                strncmp(WAF_REQUEST_TAG, key_str, WAF_REQUEST_TAG_LEN) == 0) {
+                WAF_REQUEST_METRIC_LEN == key_len &&
+                memcmp(WAF_REQUEST_METRIC, key_str, WAF_REQUEST_METRIC_LEN) ==
+                    0) {
                 size_t separator = 0;
                 if (tags_len > 0) {
                     separator = TAG_SEPARATOR_LEN;
@@ -775,8 +777,8 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
                     modified_tags_str[tags_len + TRUNCATED_TAG_LEN +
                                       separator] = '\0';
                     tags_len += TRUNCATED_TAG_LEN + separator;
+                    tags_str = modified_tags_str;
                 }
-                tags_str = modified_tags_str;
             }
 
             _handle_telemetry_metric(

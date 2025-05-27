@@ -81,7 +81,7 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-void _dd_mpack_write_array(
+static void _dd_mpack_write_array(
     mpack_writer_t *nonnull w, const zend_array *nullable arr, size_t depth)
 {
     if (!arr) {
@@ -107,8 +107,7 @@ void _dd_mpack_write_array(
         ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
         {
             _mpack_write_zval(w, val, depth);
-            num_elems--;
-            if (num_elems == 0) {
+            if (--num_elems == 0) {
                 break;
             }
         }
@@ -130,8 +129,7 @@ void _dd_mpack_write_array(
                 mpack_write(w, buf);
             }
             _mpack_write_zval(w, val, depth);
-            num_elems--;
-            if (num_elems == 0) {
+            if (--num_elems == 0) {
                 break;
             }
         }
