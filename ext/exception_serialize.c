@@ -379,7 +379,8 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
     zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
     zval *locals = zai_exception_read_property(exception, key_locals);
 
-    if (!DDTRACE_G(debugger_capture_arena)) {
+    bool has_arena = DDTRACE_G(debugger_capture_arena);
+    if (!has_arena) {
         DDTRACE_G(debugger_capture_arena) = zend_arena_create(65536);
     }
 
@@ -394,7 +395,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
 
     if (!ddog_exception_hash_limiter_inc(ddtrace_sidecar, (uint64_t)exception_long_hash, get_DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS())) {
         LOG(TRACE, "Skipping exception replay capture due to hash %.*s already recently hit", hash_len, exception_hash);
-        return;
+        goto cleanup;
     }
 
     char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
@@ -478,7 +479,9 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
 
     // Note: We MUST immediately send this, and not defer, as stuff may be freed during span processing. Including stuff potentially contained within the exception debugger payload.
     ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));
-    if (DDTRACE_G(debugger_capture_arena)) {
+
+cleanup:
+    if (!has_arena) {
         zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
         DDTRACE_G(debugger_capture_arena) = NULL;
     }
