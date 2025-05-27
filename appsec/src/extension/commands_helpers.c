@@ -619,6 +619,7 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
     }
 
     size_t count = mpack_node_map_count(root);
+    bool has_schemas = false;
 
     for (size_t i = 0; i < count; i++) {
         mpack_node_t key = mpack_node_map_key_at(root, i);
@@ -639,6 +640,12 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             key_len = INT_MAX;
         }
 
+        if (!has_schemas && dd_string_starts_with_lc(
+                key_str, key_len, ZEND_STRL("_dd.appsec.s"))) {
+            // There is schemas extrated
+            has_schemas = true;
+        }
+
         bool res = dd_trace_span_add_tag_str(span, key_str, key_len,
             mpack_node_str(value), mpack_node_strlen(value));
 
@@ -647,6 +654,11 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
                 key_str);
             return;
         }
+    }
+
+    if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
+        dd_trace_emit_asm_event();
+        dd_tags_set_sampling_priority();
     }
 }
 
