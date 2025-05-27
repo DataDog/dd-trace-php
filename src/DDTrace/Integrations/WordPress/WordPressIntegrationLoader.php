@@ -690,43 +690,51 @@ class WordPressIntegrationLoader
                 $callback = $args[1];
                 $pluginName = end($plugins);
                 if (isset($interestingActions[$action]) && dd_trace_env_config('DD_TRACE_WORDPRESS_CALLBACKS')) {
-                    install_hook(
-                        (
-                        is_array($callback) && is_string($callback[0])
-                            ? "{$callback[0]}::{$callback[1]}"
-                            : $callback
-                        ),
-                        function (HookData $hook) use (
-                            $integration,
-                            $callback,
-                            $action,
-                            &$actionHookToPlugin,
-                            $pluginName
-                        ) {
-                            $span = $hook->span();
-
-                            $callbackName = WordPressIntegrationLoader::getPrettyCallbackName($callback);
-                            WordPressIntegrationLoader::setCommonTags(
-                                $integration,
-                                $span,
-                                'callback',
-                                $callbackName . ' (callback)'
-                            );
-                            $span->meta['wordpress.callback'] = $callbackName;
-                            $span->meta['wordpress.hook'] = $action;
-
-                            $file = $hook->getSourceFile();
-                            if ($plugin = WordPressIntegrationLoader::extractPluginNameFromFile($file)) {
-                                $span->meta['wordpress.plugin'] = $plugin;
-                            } elseif ($themeName = WordPressIntegrationLoader::extractThemeNameFromFile($file)) {
-                                $span->meta['wordpress.theme'] = $themeName;
-                            } elseif ($pluginName) {
-                                $span->meta['wordpress.plugin'] = $pluginName;
-                            }
-
-                            remove_hook($hook->id);
+                    if (\is_array($callback)) {
+                        if (!method_exists($callback[0], $callback[1])) {
+                            $hookTarget = null; // Invalid callback
+                        } else {
+                            $hookTarget = (is_string($callback[0]) ? $callback[0] : get_class($callback[0])) . '::' . $callback[1]; // Static or instance method
                         }
-                    );
+                    } else {
+                        $hookTarget = $callback; // Function or Closure
+                    }
+
+                    if ($hookTarget) {
+                        install_hook(
+                            $hookTarget,
+                            function (HookData $hook) use (
+                                $integration,
+                                $callback,
+                                $action,
+                                &$actionHookToPlugin,
+                                $pluginName
+                            ) {
+                                $span = $hook->span();
+
+                                $callbackName = WordPressIntegrationLoader::getPrettyCallbackName($callback);
+                                WordPressIntegrationLoader::setCommonTags(
+                                    $integration,
+                                    $span,
+                                    'callback',
+                                    $callbackName . ' (callback)'
+                                );
+                                $span->meta['wordpress.callback'] = $callbackName;
+                                $span->meta['wordpress.hook'] = $action;
+
+                                $file = $hook->getSourceFile();
+                                if ($plugin = WordPressIntegrationLoader::extractPluginNameFromFile($file)) {
+                                    $span->meta['wordpress.plugin'] = $plugin;
+                                } elseif ($themeName = WordPressIntegrationLoader::extractThemeNameFromFile($file)) {
+                                    $span->meta['wordpress.theme'] = $themeName;
+                                } elseif ($pluginName) {
+                                    $span->meta['wordpress.plugin'] = $pluginName;
+                                }
+
+                                remove_hook($hook->id);
+                            }
+                        );
+                    }
                 }
 
                 return false; // Don't trace 'add_action'; we're only interested in the origin
