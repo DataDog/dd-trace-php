@@ -690,11 +690,12 @@ class WordPressIntegrationLoader
                 $callback = $args[1];
                 $pluginName = end($plugins);
                 if (isset($interestingActions[$action]) && dd_trace_env_config('DD_TRACE_WORDPRESS_CALLBACKS')) {
-                    if (\is_array($callback)) {
-                        if (!method_exists($callback[0], $callback[1])) {
-                            $hookTarget = null; // Invalid callback
-                        } else {
-                            $hookTarget = (is_string($callback[0]) ? $callback[0] : get_class($callback[0])) . '::' . $callback[1]; // Static or instance method
+                    $hookTarget = null;
+                    if (is_array($callback)) {
+                        if (is_string($callback[0])) {
+                            $hookTarget = "{$callback[0]}::{$callback[1]}";
+                        } elseif (method_exists($callback[0], $callback[1])) {
+                            $hookTarget = $callback; // object method
                         }
                     } else {
                         $hookTarget = $callback; // Function or Closure
