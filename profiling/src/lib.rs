@@ -493,8 +493,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let mut system_settings = unsafe { SystemSettings::get() };
 
     // initialize the thread local storage and cache some items
-    REQUEST_LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
+    REQUEST_LOCALS.with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
         locals.interrupt_count.store(0, Ordering::SeqCst);
@@ -592,13 +591,12 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     Profiler::init(system_settings);
 
     if system_settings.profiling_enabled {
-        REQUEST_LOCALS.with(|cell| {
-            let locals = cell.borrow();
+        REQUEST_LOCALS.with_borrow(|locals| {
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
-            CLOCKS.with(|cell| cell.borrow_mut().initialize(cpu_time_enabled));
+            CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
-            TAGS.with(|cell| {
+            TAGS.set({
                 let mut tags = LAZY_STATICS_TAGS.clone();
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
@@ -619,7 +617,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 };
                 add_tag(&mut tags, "runtime_engine", runtime_engine);
                 tags.extend_from_slice(&locals.tags);
-                cell.replace(Arc::new(tags));
+                Arc::new(tags)
             });
 
             // Only add interrupt if cpu- or wall-time is enabled.
@@ -636,7 +634,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             }
         });
     } else {
-        TAGS.with(|cell| cell.replace(Arc::default()));
+        TAGS.set(Arc::default());
     }
 
     #[cfg(feature = "allocation_profiling")]
@@ -684,8 +682,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     profiling::stack_walking::rshutdown();
 
-    REQUEST_LOCALS.with(|cell| {
-        let locals = cell.borrow();
+    REQUEST_LOCALS.with_borrow(|locals| {
         let system_settings = locals.system_settings();
 
         // The interrupt is only added if CPU- or wall-time are enabled BUT
@@ -721,8 +718,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
     let module = &*module_ptr;
 
-    REQUEST_LOCALS.with(|cell| {
-        let locals = cell.borrow();
+    REQUEST_LOCALS.with_borrow(|locals| {
         let system_settings = locals.system_settings();
         let yes = c"true".as_ptr();
         let yes_exp = c"true (all experimental features enabled)".as_ptr();
@@ -1004,8 +1000,7 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
 /// Notifies the profiler a trace has finished so it can update information
 /// for Endpoint Profiling.
 fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
-    REQUEST_LOCALS.with(|cell| {
-        let locals = cell.borrow();
+    REQUEST_LOCALS.with_borrow(|locals| {
         let system_settings = locals.system_settings();
         if system_settings.profiling_enabled && system_settings.profiling_endpoint_collection_enabled {
             // Only gather Endpoint Profiling data for web spans, partly for PII reasons.

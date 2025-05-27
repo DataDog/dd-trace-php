@@ -14,6 +14,23 @@ class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
+    public function handlePromiseResponse($response, SpanData $span)
+    {
+        if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
+            $fulfilledResponse = $response->wait();
+            if ($fulfilledResponse instanceof \Psr\Http\Message\ResponseInterface) {
+                $span->meta[Tag::HTTP_STATUS_CODE] = $fulfilledResponse->getStatusCode();
+            }
+        } else {
+            /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+            $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+                $statusCode = $response->getStatusCode();
+                $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+                HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
+            });
+        }
+    }
+
     public function init(): int
     {
         $integration = $this;
@@ -59,12 +76,7 @@ class GuzzleIntegration extends Integration
                         $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                         HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $statusCode = $response->getStatusCode();
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
-                            HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
-                        });
+                        $integration->handlePromiseResponse($response, $span);
                     }
                 }
             }
@@ -88,12 +100,7 @@ class GuzzleIntegration extends Integration
                 if (isset($retval)) {
                     $response = $retval;
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                            $statusCode = $response->getStatusCode();
-                            $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
-                            HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
-                        });
+                        $integration->handlePromiseResponse($response, $span);
                     }
                 }
             }

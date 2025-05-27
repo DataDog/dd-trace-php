@@ -203,27 +203,31 @@ mod detail {
 
     #[inline]
     pub fn rshutdown() {
-        FUNCTION_CACHE_STATS.with(|cell| {
-            let stats = cell.borrow();
+        FUNCTION_CACHE_STATS.with_borrow(|stats| {
             let hit_rate = stats.hit_rate();
             debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });
 
-        CACHED_STRINGS.with(|cell| {
-            let set: &StringSet = &cell.borrow();
-            let arena_used_bytes = set.arena_used_bytes();
-            // A slow ramp up to 2 MiB is probably _not_ going to look like
-            // a memory leak, whereas a higher threshold could make a user
-            // suspect a leak.
-            let threshold = 2 * 1024 * 1024;
-            if arena_used_bytes > threshold {
-                debug!("string cache arena is using {arena_used_bytes} bytes which exceeds the {threshold} byte threshold, resetting");
+        // PANIC: panics if the string arena is already borrowed. However, it
+        // should not be borrowed at this point, so we're likely going to fail.
+        // It's probably better to fail in rshutdown.
+        // Maybe in a new PHP version, we can have the engine check rshutdown
+        // failures, and stop serving requests from that process, and go into
+        // module shutdown instead.
+        CACHED_STRINGS.with_borrow_mut(|string_set| {
+            // A slow ramp up to 2 MiB is probably _not_ going to look like a
+            // memory leak. A higher threshold may make a user suspect a leak.
+            const THRESHOLD: usize = 2 * 1024 * 1024;
+
+            let used_bytes = string_set.arena_used_bytes();
+            if used_bytes > THRESHOLD {
+                debug!("string cache arena is using {used_bytes} bytes which exceeds the {THRESHOLD} byte threshold, resetting");
                 // Note that this cannot be done _during_ a request. The
                 // ThinStrs inside the run time cache need to remain valid
                 // during the request.
-                cell.replace(StringSet::new());
+                *string_set = StringSet::new();
             } else {
-                trace!("string cache arena is using {arena_used_bytes} bytes which is less than the {threshold} byte threshold");
+                trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
             }
         });
     }
@@ -235,8 +239,7 @@ mod detail {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
-        CACHED_STRINGS.with(|cell| {
-            let string_set: &mut StringSet = &mut cell.borrow_mut();
+        CACHED_STRINGS.with_borrow_mut(|string_set| {
             let max_depth = 512;
             let mut samples = Vec::with_capacity(max_depth >> 3);
             let mut execute_data_ptr = top_execute_data;
@@ -317,8 +320,7 @@ mod detail {
                 let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
 
                 let cache_slots = string_cache.cache_slots;
-                FUNCTION_CACHE_STATS.with(|cell| {
-                    let mut stats = cell.borrow_mut();
+                FUNCTION_CACHE_STATS.with_borrow_mut(|stats| {
                     if cache_slots[0] == 0 {
                         stats.missed += 1;
                     } else {
@@ -330,10 +332,7 @@ mod detail {
             }
 
             None => {
-                FUNCTION_CACHE_STATS.with(|cell| {
-                    let mut stats = cell.borrow_mut();
-                    stats.not_applicable += 1;
-                });
+                FUNCTION_CACHE_STATS.with_borrow_mut(|stats| stats.not_applicable += 1);
                 let function = extract_function_name(func);
                 let (file, line) = extract_file_and_line(execute_data);
                 (function, file, line)

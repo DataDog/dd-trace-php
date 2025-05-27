@@ -17,7 +17,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
-use crate::{CLOCKS, TAGS};
+use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
@@ -916,7 +916,7 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let (wall_time, cpu_time) = CLOCKS.with(|cell| cell.borrow_mut().rotate_clocks());
+                let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
@@ -1537,7 +1537,7 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
+        let tags = TAGS.with_borrow(Arc::clone);
 
         SampleMessage {
             key: ProfileIndex { sample_types, tags },
