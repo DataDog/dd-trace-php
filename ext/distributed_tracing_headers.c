@@ -567,8 +567,15 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
 }
 
 void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
-    if (!zend_hash_exists(get_DD_TRACE_BAGGAGE_TAG_KEYS(), key) && (zend_hash_num_elements(get_DD_TRACE_BAGGAGE_TAG_KEYS()) != 1 || !zend_string_equals_literal(Z_STR_P(zend_hash_get_current_data(get_DD_TRACE_BAGGAGE_TAG_KEYS())), "*"))) {
-        return;
+    if (!zend_hash_exists(get_DD_TRACE_BAGGAGE_TAG_KEYS(), key)) {
+        if (zend_hash_num_elements(get_DD_TRACE_BAGGAGE_TAG_KEYS()) != 1) {
+            return;
+        }
+        zend_string *only_key;
+        zend_ulong num_key;
+        if (zend_hash_get_current_key(get_DD_TRACE_BAGGAGE_TAG_KEYS(), &only_key, &num_key) != HASH_KEY_IS_STRING || !zend_string_equals_literal(only_key, "*")) {
+            return;
+        }
     }
 
     key = zend_strpprintf(0, "baggage.%s", ZSTR_VAL(key));
