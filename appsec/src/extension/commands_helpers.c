@@ -641,7 +641,7 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
         }
 
         if (!has_schemas && dd_string_starts_with_lc(
-                key_str, key_len, ZEND_STRL("_dd.appsec.s"))) {
+                                key_str, key_len, ZEND_STRL("_dd.appsec.s"))) {
             // There is schemas extrated
             has_schemas = true;
         }
