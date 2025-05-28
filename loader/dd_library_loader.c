@@ -20,6 +20,7 @@
 
 #define PHP_70_VERSION 20151012
 #define PHP_71_VERSION 20160303
+#define PHP_72_VERSION 20170718
 #define PHP_80_VERSION 20200930
 
 #define MIN_PHP_VERSION "7.0"
@@ -58,6 +59,10 @@ static ZEND_INI_MH(ddloader_OnUpdateForceInject) {
 }
 
 PHP_INI_BEGIN()
+    ZEND_INI_ENTRY("datadog.loader.force_inject", "0", PHP_INI_SYSTEM, ddloader_OnUpdateForceInject)
+PHP_INI_END()
+
+static const php7_0_to_2_zend_ini_entry_def ini_entries_7_0_to_2[] = {
     ZEND_INI_ENTRY("datadog.loader.force_inject", "0", PHP_INI_SYSTEM, ddloader_OnUpdateForceInject)
 PHP_INI_END()
 
@@ -812,7 +817,7 @@ static int ddloader_api_no_check(int api_no) {
     }
 
     zend_module_entry *mod = zend_register_internal_module(&dd_library_loader_mod);
-    zend_register_ini_entries(ini_entries, mod->module_number);
+    zend_register_ini_entries((api_no % 100000000) <= PHP_72_VERSION ? (zend_ini_entry_def *) ini_entries_7_0_to_2 : ini_entries, mod->module_number);
 
     if (api_no > MAX_API_VERSION) {
         if (!force_load) {
