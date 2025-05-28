@@ -25,6 +25,8 @@
 #define MIN_PHP_VERSION "7.0"
 #define MAX_PHP_VERSION "8.4"
 
+extern zend_module_entry dd_library_loader_mod;
+
 static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
@@ -44,7 +46,7 @@ static bool already_done = false;
 
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
 
-static char *ddtrace_pre_load_hook(void) {
+static char *ddtrace_pre_load_hook(injected_ext *config) {
     char *libddtrace_php;
     int res = asprintf(&libddtrace_php, "%s/%sloader/libddtrace_php.so", package_path, OS_PATH);
     if (res == -1) {
@@ -61,12 +63,12 @@ static char *ddtrace_pre_load_hook(void) {
 
         if (access(libddtrace_php, F_OK)) {
             free(libddtrace_php);
-            LOG(INFO, "libddtrace_php.so not found during 'ddtrace' pre-load hook.")
+            LOG(config, INFO, "libddtrace_php.so not found during 'ddtrace' pre-load hook.")
             return NULL;
         }
     }
 
-    LOG(INFO, "Found %s during 'ddtrace' pre-load hook. Load it.", libddtrace_php)
+    LOG(config, INFO, "Found %s during 'ddtrace' pre-load hook. Load it.", libddtrace_php)
     void *handle = DL_LOAD(libddtrace_php);
     free(libddtrace_php);
     if (!handle) {
@@ -94,10 +96,28 @@ static zval *ddloader_ini_get_configuration(const char *name, size_t name_len) {
     return val;
 }
 
-static void ddloader_ini_set_configuration(const char *name, size_t name_len, const char *value, size_t value_len) {
+size_t safe_str_append(char *dst, size_t dst_size, const char *src) {
+    size_t len = strlen(dst);
+    if (len >= dst_size - 1) {
+        return len;
+    }
+    size_t remaining = dst_size - len;
+    int written = snprintf(dst + len, remaining, "%s", src);
+    if (written < 0) return len;
+    return len + (size_t)written;
+}
+
+static void ddloader_ini_set_configuration(injected_ext *config, const char *name, size_t name_len, const char *value, size_t value_len) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (!configuration_hash) {
         return;
+    }
+
+    if (config) {
+        safe_str_append(config->extra_config, sizeof(config->extra_config), name);
+        safe_str_append(config->extra_config, sizeof(config->extra_config), "=");
+        safe_str_append(config->extra_config, sizeof(config->extra_config), value);
+        safe_str_append(config->extra_config, sizeof(config->extra_config), "\n");
     }
 
     zend_string *zstr_name = ddloader_zend_string_init(php_api_no, name, name_len, 1);
@@ -144,7 +164,7 @@ static bool ddloader_is_opcache_jit_enabled() {
     return true;
 }
 
-static void ddtrace_pre_minit_hook(void) {
+static void ddtrace_pre_minit_hook(injected_ext *config) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *sources_path;
@@ -153,7 +173,7 @@ static void ddtrace_pre_minit_hook(void) {
         }
 
         // Set 'datadog.trace.sources_path' setting
-        ddloader_ini_set_configuration(ZEND_STRL("datadog.trace.sources_path"), sources_path, strlen(sources_path));
+        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.trace.sources_path"), sources_path, strlen(sources_path));
         free(sources_path);
     }
 
@@ -164,9 +184,9 @@ static void ddtrace_pre_minit_hook(void) {
     for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
         if (ddloader_is_ext_loaded(incompatible_exts[i])) {
             if (force_load) {
-                LOG(WARN, "Potentially incompatible extension detected: %s. Ignoring as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
+                LOG(config, WARN, "Potentially incompatible extension detected: %s. Ignoring as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
             } else {
-                LOG(WARN, "Potentially incompatible extension detected: %s. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'", incompatible_exts[i]);
+                LOG(config, WARN, "Potentially incompatible extension detected: %s. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'", incompatible_exts[i]);
                 disable_tracer = true;
             }
         }
@@ -174,52 +194,48 @@ static void ddtrace_pre_minit_hook(void) {
 
     if (ddloader_is_opcache_jit_enabled()) {
         if (force_load) {
-            LOG(WARN, "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled");
+            LOG(config, WARN, "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled");
         } else {
-            LOG(WARN, "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'");
+            LOG(config, WARN, "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'");
             disable_tracer = true;
         }
     }
 
     if (disable_tracer) {
-        ddloader_ini_set_configuration(ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
+        ddloader_ini_set_configuration(config, ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
 }
 
-static void appsec_pre_minit_hook(void) {
+static void appsec_pre_minit_hook(injected_ext *config) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *helper_path;
         if (asprintf(&helper_path, "%s/appsec/lib/libddappsec-helper.so", package_path) == -1) {
             return;
         }
-        ddloader_ini_set_configuration(ZEND_STRL("datadog.appsec.helper_path"), helper_path, strlen(helper_path));
+        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.appsec.helper_path"), helper_path, strlen(helper_path));
         free(helper_path);
     }
 }
 
-static void profiling_pre_minit_hook(void) {
+static void profiling_pre_minit_hook(injected_ext *config) {
     if (!ddloader_ini_get_configuration(ZEND_STRL("datadog.profiling.enabled"))) {
-        ddloader_ini_set_configuration(ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
+        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
     }
 }
 
 // Declare the extension we want to load
-static injected_ext injected_ext_config[] = {
+injected_ext ddloader_injected_ext_config[EXT_COUNT] = {
     // Tracer must be the first
-    DECLARE_INJECTED_EXT("ddtrace", "trace", PHP_70_VERSION, ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
+    [EXT_DDTRACE] = DECLARE_INJECTED_EXT("ddtrace", "trace", PHP_70_VERSION, ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
                          ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    DECLARE_INJECTED_EXT("datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
+    [EXT_DATADOG_PROFILING] = DECLARE_INJECTED_EXT("datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
-    DECLARE_INJECTED_EXT("ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
+    [EXT_DDAPPSEC] = DECLARE_INJECTED_EXT("ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("ddappsec") ZEND_MOD_END})),
 };
 
-void ddloader_logv(log_level level, const char *format, va_list va) {
-    if (!debug_logs) {
-        return;
-    }
-
+void ddloader_logv(injected_ext *config, log_level level, const char *format, va_list va) {
     char msg[384];
     vsnprintf(msg, sizeof(msg), format, va);
 
@@ -236,15 +252,24 @@ void ddloader_logv(log_level level, const char *format, va_list va) {
             break;
     }
 
+    if (config) {
+        safe_str_append(config->logs, sizeof(config->logs), msg);
+        safe_str_append(config->logs, sizeof(config->logs), "\n");
+    }
+
+    if (!debug_logs) {
+        return;
+    }
+
     char full[512];
     snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level_str, msg);
     _php_error_log(0, full, NULL, NULL);
 }
 
-void ddloader_logf(log_level level, const char *format, ...) {
+void ddloader_logf(injected_ext *config, log_level level, const char *format, ...) {
     va_list va;
     va_start(va, format);
-    ddloader_logv(level, format, va);
+    ddloader_logv(config, level, format, va);
     va_end(va);
 }
 
@@ -255,17 +280,40 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     log_level level = ERROR;
     switch (reason) {
         case REASON_ERROR:
-            LOG(ERROR, "Error during instrumentation of application. Aborting.");
+            if (config) {
+                config->injection_error = error;
+                config->injection_success = false;
+            }
+            LOG(config, ERROR, "Error during instrumentation of application. Aborting.");
             break;
         case REASON_EOL_RUNTIME:
-            LOG(ERROR, "Aborting application instrumentation due to an incompatible runtime (end-of-life)");
+            if (config) {
+                config->injection_error = "Incompatible runtime (end-of-life)";
+                config->injection_success = false;
+            }
+            LOG(config, ERROR, "Aborting application instrumentation due to an incompatible runtime (end-of-life)");
             break;
         case REASON_INCOMPATIBLE_RUNTIME:
-            LOG(ERROR, "Aborting application instrumentation due to an incompatible runtime");
+            if (config) {
+                config->injection_error = "Incompatible runtime";
+                config->injection_success = false;
+            }
+            LOG(config, ERROR, "Aborting application instrumentation due to an incompatible runtime");
+            break;
+        case REASON_ALREADY_LOADED:
+            if (config) {
+                config->injection_error = "Already loaded";
+                config->injection_success = false;
+            }
+            level = INFO;
+            break;
+        case REASON_COMPLETE:
+            if (config) {
+                config->injection_success = true;
+            }
+            level = INFO;
             break;
         case REASON_START:
-        case REASON_COMPLETE:
-        case REASON_ALREADY_LOADED:
             level = INFO;
             break;
         default:
@@ -274,22 +322,27 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
     va_list va;
     va_start(va, format);
-    ddloader_logv(level, format, va);
+    ddloader_logv(config,level, format, va);
     va_end(va);
 
+    // Skip COMPLETE telemetry except for ddtrace
+    if (reason == REASON_COMPLETE && config && strcmp(config->ext_name, "ddtrace") != 0) {
+        return;
+    }
+
     if (!telemetry_forwarder_path) {
-        LOG(INFO, "Telemetry disabled: environment variable 'DD_TELEMETRY_FORWARDER_PATH' is not set")
+        LOG(config, INFO, "Telemetry disabled: environment variable 'DD_TELEMETRY_FORWARDER_PATH' is not set")
         return;
     }
     if (access(telemetry_forwarder_path, X_OK)) {
-        LOG(ERROR, "Telemetry error: forwarder not found or not executable at '%s'", telemetry_forwarder_path)
+        LOG(config, ERROR, "Telemetry error: forwarder not found or not executable at '%s'", telemetry_forwarder_path)
         return;
     }
 
     pid_t loader_pid = getpid();
     pid_t pid = fork();
     if (pid < 0) {
-        LOG(ERROR, "Telemetry error: cannot fork")
+        LOG(config, ERROR, "Telemetry error: cannot fork")
         return;
     }
     if (pid > 0) {
@@ -370,7 +423,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     \"points\": [%s]\
 }\
 ";
-    char *tracer_version = injected_ext_config[0].version ?: "unknown";
+    char *tracer_version = ddloader_injected_ext_config[0].version ?: "unknown";
 
     char payload[1024];
     snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, points);
@@ -378,7 +431,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
 
     execv(telemetry_forwarder_path, argv);
-    LOG(ERROR, "Telemetry: cannot execv: %s", strerror(errno))
+    LOG(config, ERROR, "Telemetry: cannot execv: %s", strerror(errno))
 
     // If execv failed, exit immediately
     // Return 127 for the most likely case of a missing file
@@ -469,9 +522,9 @@ static void ddloader_unregister_module(const char *name) {
 static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     // Find the injected extension config using the module_number set by the engine
     injected_ext *config = NULL;
-    for (unsigned int i = 0; i < sizeof(injected_ext_config) / sizeof(injected_ext_config[0]); ++i) {
-        if (injected_ext_config[i].module_number == module_number) {
-            config = &injected_ext_config[i];
+    for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
+        if (ddloader_injected_ext_config[i].module_number == module_number) {
+            config = &ddloader_injected_ext_config[i];
             break;
         }
     }
@@ -488,7 +541,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         return SUCCESS;
     }
 
-    LOG(INFO, "Extension '%s' is not loaded, checking its dependencies", config->ext_name);
+    LOG(config, INFO, "Extension '%s' is not loaded, checking its dependencies", config->ext_name);
 
     // Normally done by zend_startup_module_ex, but we temporarily replaced these to skip potential errors. Check it ourselves here.
     if (!ddloader_check_deps(config->orig_module_deps)) {
@@ -498,7 +551,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
         return SUCCESS;
     }
 
-    LOG(INFO, "Rename extension '%s' to '%s'", config->tmp_name, config->ext_name);
+    LOG(config, INFO, "Rename extension '%s' to '%s'", config->tmp_name, config->ext_name);
 
     /**
      * Rename the "key" of the module_registry to access the module.
@@ -529,16 +582,14 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     }
 
     if (config->pre_minit_hook) {
-        config->pre_minit_hook();
+        config->pre_minit_hook(config);
     }
 
     zend_result ret = module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
     if (ret == FAILURE) {
         TELEMETRY(REASON_ERROR, config, "error_minit", "'%s' MINIT function failed", config->ext_name);
     } else {
-        if (strcmp(config->ext_name, "ddtrace") == 0) {
-            TELEMETRY(REASON_COMPLETE, config, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
-        }
+        TELEMETRY(REASON_COMPLETE, config, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
     }
 
     return ret;
@@ -564,11 +615,11 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     // The code below basically comes from the function "php_load_extension" in "ext/standard/dl.c",
     // but we need to rename the extension before passing it into the module_registry.
 
-    LOG(INFO, "Found extension file: %s", ext_path);
+    LOG(config, INFO, "Found extension file: %s", ext_path);
 
     if (config->pre_load_hook) {
-        LOG(INFO, "Running '%s' pre-load hook", config->ext_name);
-        char *err = config->pre_load_hook();
+        LOG(config, INFO, "Running '%s' pre-load hook", config->ext_name);
+        char *err = config->pre_load_hook(config);
         if (err) {
             TELEMETRY(REASON_ERROR, config, "error_ext_pre_load", "An error occurred while running '%s' pre-load hook: %s", config->ext_name, err);
             goto abort;
@@ -632,14 +683,14 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
     config->module_number = module_entry->module_number;
     config->version = (char *)module_entry->version;
 
-    LOG(INFO, "Extension '%s' loaded", config->ext_name);
+    LOG(config, INFO, "Extension '%s' loaded", config->ext_name);
     goto ok;
 
 abort_and_unload:
-    LOG(INFO, "Unloading the library");
+    LOG(config, INFO, "Unloading the library");
     DL_UNLOAD(handle);
 abort:
-    LOG(INFO, "Abort the loader");
+    LOG(config, INFO, "Abort the loader");
 ok:
     free(ext_path);
 
@@ -697,7 +748,7 @@ static int ddloader_api_no_check(int api_no) {
     }
 
     if (already_done) {
-        LOG(WARN, "dd_library_loader has been loaded multiple times, aborting");
+        LOG(NULL, WARN, "dd_library_loader has been loaded multiple times, aborting");
         return SUCCESS;
     }
 
@@ -748,7 +799,7 @@ static int ddloader_api_no_check(int api_no) {
             return SUCCESS;
         }
         injection_forced = true;
-        LOG(WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
+        LOG(NULL, WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
     }
 
     // api_no is the Zend extension API number, similar to "420220829"
@@ -784,9 +835,9 @@ static int ddloader_build_id_check(const char *build_id) {
         return SUCCESS;
     }
 
-    // Load the extensions declared in injected_ext_config
-    for (unsigned int i = 0; i < sizeof(injected_ext_config) / sizeof(injected_ext_config[0]); ++i) {
-        ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &injected_ext_config[i]);
+    // Load the extensions declared in ddloader_injected_ext_config
+    for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
+        ddloader_load_extension(php_api_no, module_build_id, is_zts, is_debug, &ddloader_injected_ext_config[i]);
     }
 
     return SUCCESS;
@@ -795,6 +846,7 @@ static int ddloader_build_id_check(const char *build_id) {
 // Required. Otherwise the zend_extension is not loaded
 static int ddloader_zend_extension_startup(zend_extension *ext) {
     UNUSED(ext);
+    zend_register_internal_module(&dd_library_loader_mod);
     return SUCCESS;
 }
 
