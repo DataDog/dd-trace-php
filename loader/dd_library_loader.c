@@ -17,9 +17,11 @@
 
 #define MIN_API_VERSION 320151012
 #define MAX_API_VERSION 420240924
+#define MAX_INI_API_VERSION MAX_API_VERSION + 1
 
 #define PHP_70_VERSION 20151012
 #define PHP_71_VERSION 20160303
+#define PHP_72_VERSION 20170718
 #define PHP_80_VERSION 20200930
 
 #define MIN_PHP_VERSION "7.0"
@@ -43,6 +45,28 @@ static bool already_done = false;
 #else
 # define OS_PATH "linux-gnu/"
 #endif
+
+static ZEND_INI_MH(ddloader_OnUpdateForceInject) {
+    (void)entry;
+    (void)mh_arg1;
+    (void)mh_arg2;
+    (void)mh_arg3;
+    (void)stage;
+
+    if (!force_load) {
+        force_load = ddloader_zend_ini_parse_bool(new_value);
+    }
+    return SUCCESS;
+}
+
+PHP_INI_BEGIN()
+    ZEND_INI_ENTRY("datadog.loader.force_inject", "0", PHP_INI_SYSTEM, ddloader_OnUpdateForceInject)
+PHP_INI_END()
+
+static const php7_0_to_2_zend_ini_entry_def ini_entries_7_0_to_2[] = {
+    ZEND_INI_ENTRY("datadog.loader.force_inject", "0", PHP_INI_SYSTEM, ddloader_OnUpdateForceInject)
+PHP_INI_END()
+
 
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
 
@@ -752,6 +776,9 @@ static int ddloader_api_no_check(int api_no) {
         return SUCCESS;
     }
 
+    // api_no is the Zend extension API number, similar to "420220829"
+    // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
+    unsigned int module_api_no = api_no % 100000000;
     ddloader_configure();
 
     TELEMETRY(REASON_START, NULL, NULL, "Starting injection");
@@ -793,6 +820,11 @@ static int ddloader_api_no_check(int api_no) {
         return SUCCESS;
     }
 
+    if (force_load || api_no <= MAX_INI_API_VERSION) {
+        zend_module_entry *mod = zend_register_internal_module(&dd_library_loader_mod);
+        zend_register_ini_entries(module_api_no <= PHP_72_VERSION ? (zend_ini_entry_def *) ini_entries_7_0_to_2 : ini_entries, mod->module_number);
+    }
+
     if (api_no > MAX_API_VERSION) {
         if (!force_load) {
             TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP " MIN_PHP_VERSION " to " MAX_PHP_VERSION, api_no);
@@ -802,9 +834,7 @@ static int ddloader_api_no_check(int api_no) {
         LOG(NULL, WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
     }
 
-    // api_no is the Zend extension API number, similar to "420220829"
-    // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
-    php_api_no = api_no % 100000000;
+    php_api_no = module_api_no;
 
     return SUCCESS;
 }
@@ -846,7 +876,6 @@ static int ddloader_build_id_check(const char *build_id) {
 // Required. Otherwise the zend_extension is not loaded
 static int ddloader_zend_extension_startup(zend_extension *ext) {
     UNUSED(ext);
-    zend_register_internal_module(&dd_library_loader_mod);
     return SUCCESS;
 }
 
