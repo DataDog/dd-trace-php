@@ -32,6 +32,20 @@ trait RetryTraitVersionGeneric
             } catch (SkippedTestError $e) {
                 throw $e;
             } catch (\Exception $e) {
+                // If this is a web framework test and we have a server, try to restart it
+                if ($this instanceof \DDTrace\Tests\Common\WebFrameworkTestCase) {
+                    $reflection = new \ReflectionClass(\DDTrace\Tests\Common\WebFrameworkTestCase::class);
+                    $property = $reflection->getProperty('appServer');
+                    $property->setAccessible(true);
+                    $appServer = $property->getValue(null);
+
+                    if ($appServer) {
+                        echo "[RetryTrait] Attempting to restart web server before retry" . PHP_EOL;
+                        $appServer->stop();
+                        usleep(500000); // Wait 500ms for ports to be freed
+                        \DDTrace\Tests\Common\WebFrameworkTestCase::setUpWebServer();
+                    }
+                }
             }
             if (!$this->checkShouldRetryForException($e)) {
                 throw $e;
