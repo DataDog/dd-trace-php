@@ -229,7 +229,33 @@ final class WebServer
         }
 
         $this->sapi->start();
-        usleep(500000);
+        
+        // Wait for server to be ready with exponential backoff
+        $maxAttempts = 10;
+        $attempt = 0;
+        $baseDelay = 100000; // 100ms
+        $maxDelay = 1000000; // 1s
+        
+        while ($attempt < $maxAttempts) {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                error_log("[WebServer] Server is ready after " . ($attempt + 1) . " attempts");
+                return;
+            }
+            
+            $delay = min($baseDelay * pow(2, $attempt), $maxDelay);
+            usleep($delay);
+            $attempt++;
+            
+            // Check for errors in the server process
+            if ($error = $this->sapi->checkErrors()) {
+                error_log("[WebServer] Server error detected: " . $error);
+                throw new \RuntimeException("Server failed to start: " . $error);
+            }
+        }
+        
+        throw new \RuntimeException("Server failed to start after $maxAttempts attempts");
     }
 
     public function reload()
