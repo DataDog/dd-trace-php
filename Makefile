@@ -46,7 +46,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{alloc,build-common,crashtracker,crashtracker-ffi,data-pipeline,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,dynamic-configuration,ipc,library-config,library-config-ffi,live-debugger,live-debugger-ffi,remote-config,sidecar,sidecar-ffi,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/ipc/build.rs" -not -path "*/sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{datadog-alloc,build-common,datadog-crashtracker,datadog-crashtracker-ffi,data-pipeline,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,datadog-dynamic-configuration,datadog-ipc,datadog-ipc-macros,datadog-library-config,datadog-library-config-ffi,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},datadog-trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -419,19 +419,19 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			--config ddcommon-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
-			--config live-debugger-ffi/cbindgen.toml \
+			--config datadog-live-debugger-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
 			--config ddtelemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
-			--config sidecar-ffi/cbindgen.toml \
+			--config datadog-sidecar-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-crashtracker-ffi  \
-			--config crashtracker-ffi/cbindgen.toml \
+			--config datadog-crashtracker-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-library-config-ffi  \
-			--config library-config-ffi/cbindgen.toml \
+			--config datadog-library-config-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/library-config.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
@@ -665,6 +665,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
@@ -726,6 +727,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
@@ -788,6 +790,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_roadrunner \
@@ -856,6 +859,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pcntl \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
@@ -901,7 +905,6 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_monolog2 \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
-	test_integrations_openai_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -912,6 +915,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_elasticsearch8 \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
@@ -972,6 +976,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_ratchet \
@@ -1039,6 +1044,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_elasticsearch_latest \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_ratchet \
@@ -1098,6 +1104,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
 	test_integrations_elasticsearch_latest \
+	test_integrations_predis_2 \
 	test_integrations_predis_latest \
 	test_integrations_frankenphp \
 	test_integrations_ratchet \
@@ -1359,6 +1366,8 @@ test_integrations_phpredis5: global_test_run_dependencies
 	$(eval TEST_EXTRA_ENV=)
 test_integrations_predis_1: global_test_run_dependencies tests/Integrations/Predis/V1/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis/V1)
+test_integrations_predis_2: global_test_run_dependencies tests/Integrations/Predis/V2/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Predis/V2)
 test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis/Latest)
 test_integrations_frankenphp: global_test_run_dependencies

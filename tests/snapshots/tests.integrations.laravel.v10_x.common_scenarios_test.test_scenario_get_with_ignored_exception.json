@@ -1,0 +1,271 @@
+[[
+  {
+    "name": "laravel.request",
+    "service": "my_service",
+    "resource": "App\\Http\\Controllers\\CommonSpecsController@ignored_exception ignored_exception",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 7179569673601556206,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "682dda1200000000",
+      "component": "laravel",
+      "http.method": "GET",
+      "http.route": "ignored_exception",
+      "http.status_code": "408",
+      "http.url": "http://localhost/ignored_exception?key=value&<redacted>",
+      "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@ignored_exception",
+      "laravel.route.name": "ignored_exception",
+      "runtime-id": "38d8a6bc-b702-4773-a31d-c9b97b4678e1",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadEnvironmentVariables",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+       "trace_id": 0,
+       "span_id": 4,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\LoadConfiguration",
+       "trace_id": 0,
+       "span_id": 5,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+       "trace_id": 0,
+       "span_id": 6,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\HandleExceptions",
+       "trace_id": 0,
+       "span_id": 7,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+       "trace_id": 0,
+       "span_id": 8,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterFacades",
+       "trace_id": 0,
+       "span_id": 9,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+       "trace_id": 0,
+       "span_id": 10,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.provider.load",
+       "service": "my_service",
+       "resource": "Illuminate\\Foundation\\ProviderRepository::load",
+       "trace_id": 0,
+       "span_id": 11,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\RegisterProviders",
+       "trace_id": 0,
+       "span_id": 12,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapping: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "trace_id": 0,
+       "span_id": 13,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Database\\Events\\ConnectionEstablished",
+       "trace_id": 0,
+       "span_id": 14,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "bootstrapped: Illuminate\\Foundation\\Bootstrap\\BootProviders",
+       "trace_id": 0,
+       "span_id": 15,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Routing\\Events\\Routing",
+       "trace_id": 0,
+       "span_id": 16,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Routing\\Events\\RouteMatched",
+       "trace_id": 0,
+       "span_id": 17,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.action",
+       "service": "my_service",
+       "resource": "ignored_exception",
+       "trace_id": 0,
+       "span_id": 18,
+       "parent_id": 1,
+       "type": "web",
+       "error": 1,
+       "meta": {
+         "component": "laravel",
+         "error.message": "Thrown Symfony\\Component\\HttpKernel\\Exception\\HttpException: Sample Exception in {path}/tests/Frameworks/Laravel/Version_10_x/app/Http/Controllers/CommonSpecsController.php:27",
+         "error.stack": "#0 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Controller.php(54): App\\Http\\Controllers\\CommonSpecsController->ignored_exception()\n#1 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction()\n#2 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Route.php(259): Illuminate\\Routing\\ControllerDispatcher->dispatch()\n#3 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Route.php(205): Illuminate\\Routing\\Route->runController()\n#4 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Router.php(806): Illuminate\\Routing\\Route->run()\n#5 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(144): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}()\n#6 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Middleware/SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#7 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle()\n#8 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#9 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle()\n#10 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/View/Middleware/ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#11 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle()\n#12 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#13 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Session/Middleware/StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest()\n#14 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Session\\Middleware\\StartSession->handle()\n#15 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Cookie/Middleware/AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#16 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle()\n#17 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Cookie/Middleware/EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#18 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle()\n#19 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(119): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#20 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Router.php(805): Illuminate\\Pipeline\\Pipeline->then()\n#21 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Router.php(784): Illuminate\\Routing\\Router->runRouteWithinStack()\n#22 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Router.php(748): Illuminate\\Routing\\Router->runRoute()\n#23 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Routing/Router.php(737): Illuminate\\Routing\\Router->dispatchToRoute()\n#24 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(200): Illuminate\\Routing\\Router->dispatch()\n#25 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(144): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}()\n#26 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#27 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle()\n#28 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle()\n#29 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#30 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle()\n#31 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle()\n#32 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#33 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle()\n#34 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/PreventRequestsDuringMaintenance.php(99): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#35 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle()\n#36 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Http/Middleware/HandleCors.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#37 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Http\\Middleware\\HandleCors->handle()\n#38 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Http/Middleware/TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#39 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(183): Illuminate\\Http\\Middleware\\TrustProxies->handle()\n#40 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php(119): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}()\n#41 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(175): Illuminate\\Pipeline\\Pipeline->then()\n#42 {path}/tests/Frameworks/Laravel/Version_10_x/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php(144): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter()\n#43 {path}/tests/Frameworks/Laravel/Version_10_x/public/index.php(51): Illuminate\\Foundation\\Http\\Kernel->handle()\n#44 {main}",
+         "error.type": "Symfony\\Component\\HttpKernel\\Exception\\HttpException",
+         "track_error": "false"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Routing\\Events\\PreparingResponse",
+       "trace_id": 0,
+       "span_id": 19,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Routing\\Events\\ResponsePrepared",
+       "trace_id": 0,
+       "span_id": 20,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     },
+     {
+       "name": "laravel.event.handle",
+       "service": "my_service",
+       "resource": "Illuminate\\Foundation\\Http\\Events\\RequestHandled",
+       "trace_id": 0,
+       "span_id": 21,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "laravel"
+       }
+     }]]

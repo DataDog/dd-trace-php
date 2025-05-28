@@ -799,6 +799,11 @@ function install($options)
     }
 }
 
+function filter_ssi_ini_paths(array $iniFilePaths)
+{
+    return array_filter($iniFilePaths, function ($path) { return strpos($path, 'datadog-apm-library-php') === false; });
+}
+
 /**
  * Returns a list of all INI files found for the `$phpProperties` given.
  *
@@ -852,7 +857,7 @@ function find_all_ini_files(array $phpProperties)
         $iniFilePaths = [$phpProperties[INI_MAIN]];
     }
 
-    return $iniFilePaths;
+    return filter_ssi_ini_paths($iniFilePaths);
 }
 
 /**
@@ -916,7 +921,8 @@ function find_main_ini_files(array $phpProperties)
         $iniFileName = $phpProperties[INI_MAIN];
         $iniFilePaths = [$iniFileName];
     }
-    return $iniFilePaths;
+
+    return filter_ssi_ini_paths($iniFilePaths);
 }
 
 /**
@@ -1763,7 +1769,7 @@ function search_php_binaries($prefix = '')
     }
 
     foreach ($pathsFound as $path) {
-        $resolved = realpath($path);
+        $resolved = realpath($path) ?: $path;
         if (in_array($resolved, $resolvedPaths)) {
             continue;
         }
@@ -1810,7 +1816,7 @@ function resolve_command_full_path($command)
     }
 
     // Resolving symlinks
-    return realpath($path);
+    return realpath($path) ?: $path;
 }
 
 function build_known_command_names_matrix()

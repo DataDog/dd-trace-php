@@ -11,7 +11,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 include __DIR__ . '/sandbox/dd_dumper.inc';
 
 class Foo {
-    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", 1 => "ignored"])]
+    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", "data" => "dog", 1 => "ignored"])]
     static function simple($arg) {}
 /*
     #[DDTrace\Trace(saveArgs: ["foo"])]
@@ -63,6 +63,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.p.tid => %s
     simplename (test, rsrc, typeee)
       a => b
+      data => dog
       _dd.base_service => traced_attribute.php
   recursion (traced_attribute.php, recursion, cli)
     _dd.p.dm => -0

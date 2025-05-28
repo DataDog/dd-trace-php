@@ -161,28 +161,28 @@ static void ddloader_php_70_71_zend_error_cb(int type, const char *error_filenam
     UNUSED(type);
     UNUSED(error_filename);
     UNUSED(error_lineno);
-    ddloader_logv(WARN, format, args);
+    ddloader_logv(NULL, WARN, format, args);
 }
 
 static void ddloader_php_72_73_74_zend_error_cb(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args) {
     UNUSED(type);
     UNUSED(error_filename);
     UNUSED(error_lineno);
-    ddloader_logv(WARN, format, args);
+    ddloader_logv(NULL, WARN, format, args);
 }
 
 static void ddloader_php_80_error_zend_error_cb(int type, const char *error_filename, const uint32_t error_lineno, zend_string *message) {
     UNUSED(type);
     UNUSED(error_filename);
     UNUSED(error_lineno);
-    LOG(WARN, "Error while registering the module: %s", ZSTR_VAL(message));
+    LOG(NULL, WARN, "Error while registering the module: %s", ZSTR_VAL(message));
 }
 
 static void ddloader_php_error_zend_error_cb(int type, zend_string *error_filename, const uint32_t error_lineno, zend_string *message) {
     UNUSED(type);
     UNUSED(error_filename);
     UNUSED(error_lineno);
-    LOG(WARN, "Error while registering the module: %s)", ZSTR_VAL(message));
+    LOG(NULL, WARN, "Error while registering the module: %s)", ZSTR_VAL(message));
 }
 
 void (*old_zend_error_cb)(void);

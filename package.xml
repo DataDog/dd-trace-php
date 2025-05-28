@@ -20,7 +20,7 @@
         <name>Luca Abbati</name>
         <user>labbati</user>
         <email>luca.abbati@gmail.com</email>
-        <active>yes</active>
+        <active>no</active>
     </lead>
     <lead>
         <name>Bob Weinand</name>
@@ -70,58 +70,49 @@
         <![CDATA[
 ## All products
 ### Added
-- Add support for file based configuration (library-config) #3068
+- Add injection information to phpinfo output for the SSI loader #3271
+- Allow specifying datadog.loader.force_inject=1 in loader #3278
+
+### Fixed
+- Add missing dep to injected ddappsec #3252
+- Filter SSI paths from installer ini paths #3275
 
 ## Tracer
 ### Added
-- Add DDTrace\try_drop_span() API #3136
-- Add support for PDO::connect #3125
-- Add span creation and close handlers #3123
-- API Gateway Tracing #3116
-- Add a Ratchet integration #3115
-- Baggage Header Propagation Support #3102
-- Crashtracking for windows #3099
+- Add http status error configuration #3223 (Thanks @scott-shields-github)
+- Baggage span tags #3262
 
 ### Changed
-- Enable 128 bit trace_id logging by default #3163
-- Allow whitespace as separator in DD_TAGS #3162
-- Implement Disable APM Tracing #3080
+- Avoid retrieving all the roots all the time in remote config DataDog/libdatadog#1069
 
 ### Fixed
-- Support both ENOTSUP and ENOSYS in shm_open fallback Datadog/libdatadog#969
-- Handle flushing of multiple traces at once #3176
+- Fix Laravel error reporting #3185
+- Fix crash with non-interned string in Trace attribute tags #3251
+- Init ddtrace_coms_globals.tmp_stack #3256 (Thanks @junjihashimoto)
+- Enhance Guzzle integration to handle promise fulfillment state #3260
+- Block signals for mysqli_real_connect too #3264
+- Fix exception serialize arena cleanup #3272
+- Handle stack-allocated execute_data but outside of stack allocated func #3273
+- Fix WordPress integration hook handling for "static" and object methods #3274
 
 ### Internal
-- Show actual file and line for occurrence of exceptions as well #3172
-- Support ZSTR_PARENT known_string #3106
+- Remove non actionnable telemetry logs #3270
 
 ## Profiling
-### Added
-- Add profiling and appsec to SSI #3063
+### Changed
+- Re-enable allocation profiling with JIT for PHP 8.4.7 #3277
 
 ### Fixed
-- FrankenPHP idle phase #3169
-- Add active span null check #3164
-- Avoid some OOM panics and avoid long strings #3151
-- Fix upscaling of I/O profiles #3146
+- Fix borrow error in request shutdown #3247
+- Fix crash in ZEND_INIT_ARRAY #3255
 
-### Internal
-- Add 'tracing' features to capture time spent walking the stack #3094
+### Internal changes
+- Add opcache tags in crash report #3231
+- Use local_key_cell_methods #3248
 
 ## Application Security Management
-### Added
-- Implement API Security Sampling RFC #3117
-- Add authenticated user tracking #3114
-- Add profiling and appsec to SSI #3063
-
-### Changed
-- Upgrade libddwaf #3126
-
 ### Fixed
-- Emit asm event on user events #3170
-
-### Internal
-- Add more logging around stack generation #3096
+- Use the ddtrace handle instead of dlopen(NULL) #3244, #3249
 ]]></notes>
     <contents>
         <dir name="/">

@@ -1,0 +1,209 @@
+[[
+  {
+    "name": "symfony.request",
+    "service": "test_symfony_latest",
+    "resource": "GET /does_not_exist",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 1383186707831285799,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "67ee79c900000000",
+      "component": "symfony",
+      "http.method": "GET",
+      "http.status_code": "404",
+      "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
+      "runtime-id": "56aa9a5c-9099-448e-a56a-53e3bceaf195",
+      "span.kind": "server"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "symfony.httpkernel.kernel.handle",
+       "service": "test_symfony_latest",
+       "resource": "App\\Kernel",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony",
+         "span.kind": "server"
+       }
+     },
+        {
+          "name": "symfony.httpkernel.kernel.boot",
+          "service": "test_symfony_latest",
+          "resource": "App\\Kernel",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+        {
+          "name": "symfony.kernel.handle",
+          "service": "test_symfony_latest",
+          "resource": "symfony.kernel.handle",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+           {
+             "name": "symfony.kernel.request",
+             "service": "test_symfony_latest",
+             "resource": "symfony.kernel.request",
+             "trace_id": 0,
+             "span_id": 6,
+             "parent_id": 5,
+             "type": "web",
+             "error": 1,
+             "meta": {
+               "component": "symfony",
+               "error.message": "Thrown Symfony\\Component\\Routing\\Exception\\ResourceNotFoundException: No routes found for \"/does_not_exist/\". in {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/routing/Matcher/Dumper/CompiledUrlMatcherTrait.php:70",
+               "error.stack": "#0 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/routing/Matcher/UrlMatcher.php(89): Symfony\\Component\\Routing\\Matcher\\CompiledUrlMatcher->match()\n#1 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/routing/Router.php(188): Symfony\\Component\\Routing\\Matcher\\UrlMatcher->matchRequest()\n#2 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/EventListener/RouterListener.php(101): Symfony\\Component\\Routing\\Router->matchRequest()\n#3 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/Debug/WrappedListener.php(115): Symfony\\Component\\HttpKernel\\EventListener\\RouterListener->onKernelRequest()\n#4 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/EventDispatcher.php(206): Symfony\\Component\\EventDispatcher\\Debug\\WrappedListener->__invoke()\n#5 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/EventDispatcher.php(56): Symfony\\Component\\EventDispatcher\\EventDispatcher->callListeners()\n#6 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/Debug/TraceableEventDispatcher.php(122): Symfony\\Component\\EventDispatcher\\EventDispatcher->dispatch()\n#7 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/HttpKernel.php(159): Symfony\\Component\\EventDispatcher\\Debug\\TraceableEventDispatcher->dispatch()\n#8 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/HttpKernel.php(76): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#9 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/Kernel.php(182): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#10 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/runtime/Runner/Symfony/HttpKernelRunner.php(35): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#11 {path}/tests/Frameworks/Symfony/Latest/vendor/autoload_runtime.php(29): Symfony\\Component\\Runtime\\Runner\\Symfony\\HttpKernelRunner->run()\n#12 {path}/tests/Frameworks/Symfony/Latest/public/index.php(5): require_once()\n#13 {main}\n\nNext Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException: No route found for \"GET http://localhost/does_not_exist\" in {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/EventListener/RouterListener.php:149\nStack trace:\n#0 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/Debug/WrappedListener.php(115): Symfony\\Component\\HttpKernel\\EventListener\\RouterListener->onKernelRequest()\n#1 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/EventDispatcher.php(206): Symfony\\Component\\EventDispatcher\\Debug\\WrappedListener->__invoke()\n#2 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/EventDispatcher.php(56): Symfony\\Component\\EventDispatcher\\EventDispatcher->callListeners()\n#3 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/event-dispatcher/Debug/TraceableEventDispatcher.php(122): Symfony\\Component\\EventDispatcher\\EventDispatcher->dispatch()\n#4 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/HttpKernel.php(159): Symfony\\Component\\EventDispatcher\\Debug\\TraceableEventDispatcher->dispatch()\n#5 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/HttpKernel.php(76): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#6 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/http-kernel/Kernel.php(182): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#7 {path}/tests/Frameworks/Symfony/Latest/vendor/symfony/runtime/Runner/Symfony/HttpKernelRunner.php(35): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#8 {path}/tests/Frameworks/Symfony/Latest/vendor/autoload_runtime.php(29): Symfony\\Component\\Runtime\\Runner\\Symfony\\HttpKernelRunner->run()\n#9 {path}/tests/Frameworks/Symfony/Latest/public/index.php(5): require_once()\n#10 {main}",
+               "error.type": "Symfony\\Component\\Routing\\Exception\\ResourceNotFoundException",
+               "track_error": "false"
+             }
+           },
+           {
+             "name": "symfony.kernel.handleException",
+             "service": "test_symfony_latest",
+             "resource": "symfony.kernel.handleException",
+             "trace_id": 0,
+             "span_id": 7,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+              {
+                "name": "symfony.kernel.exception",
+                "service": "test_symfony_latest",
+                "resource": "symfony.kernel.exception",
+                "trace_id": 0,
+                "span_id": 8,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+                 {
+                   "name": "symfony.kernel.request",
+                   "service": "test_symfony_latest",
+                   "resource": "symfony.kernel.request",
+                   "trace_id": 0,
+                   "span_id": 11,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.controller",
+                   "service": "test_symfony_latest",
+                   "resource": "symfony.kernel.controller",
+                   "trace_id": 0,
+                   "span_id": 12,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.controller_arguments",
+                   "service": "test_symfony_latest",
+                   "resource": "symfony.kernel.controller_arguments",
+                   "trace_id": 0,
+                   "span_id": 13,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.controller",
+                   "service": "test_symfony_latest",
+                   "resource": "Symfony\\Component\\HttpKernel\\Controller\\ErrorController::__invoke",
+                   "trace_id": 0,
+                   "span_id": 14,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.response",
+                   "service": "test_symfony_latest",
+                   "resource": "symfony.kernel.response",
+                   "trace_id": 0,
+                   "span_id": 15,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+                 {
+                   "name": "symfony.kernel.finish_request",
+                   "service": "test_symfony_latest",
+                   "resource": "symfony.kernel.finish_request",
+                   "trace_id": 0,
+                   "span_id": 16,
+                   "parent_id": 8,
+                   "type": "web",
+                   "meta": {
+                     "component": "symfony"
+                   }
+                 },
+              {
+                "name": "symfony.kernel.response",
+                "service": "test_symfony_latest",
+                "resource": "symfony.kernel.response",
+                "trace_id": 0,
+                "span_id": 9,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+              {
+                "name": "symfony.kernel.finish_request",
+                "service": "test_symfony_latest",
+                "resource": "symfony.kernel.finish_request",
+                "trace_id": 0,
+                "span_id": 10,
+                "parent_id": 7,
+                "type": "web",
+                "meta": {
+                  "component": "symfony"
+                }
+              },
+     {
+       "name": "symfony.kernel.terminate",
+       "service": "test_symfony_latest",
+       "resource": "symfony.kernel.terminate",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony"
+       }
+     }]]

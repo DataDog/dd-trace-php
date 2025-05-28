@@ -255,7 +255,8 @@ void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffe
 void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice config_key,
                                                  ddog_CharSlice config_value,
-                                                 enum ddog_ConfigurationOrigin origin);
+                                                 enum ddog_ConfigurationOrigin origin,
+                                                 ddog_CharSlice config_id);
 
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
