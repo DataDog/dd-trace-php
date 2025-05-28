@@ -695,7 +695,7 @@ class WordPressIntegrationLoader
                         if (is_string($callback[0])) {
                             $hookTarget = "{$callback[0]}::{$callback[1]}";
                         } elseif (method_exists($callback[0], $callback[1])) {
-                            $hookTarget = $callback; // object method
+                            $hookTarget = get_class($callback[0]) . "::{$callback[1]}";
                         }
                     } else {
                         $hookTarget = $callback; // Function or Closure
