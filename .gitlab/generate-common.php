@@ -50,6 +50,34 @@ default:
       - scheduler_failure
       - api_failure
 
+.all_targets: &all_minor_major_targets
+<?php
+foreach ($all_minor_major_targets as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.asan_targets: &asan_minor_major_targets
+<?php
+foreach ($asan_minor_major_targets as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.no_asan_targets: &no_asan_minor_major_targets
+<?php
+foreach (array_diff($all_minor_major_targets, $asan_minor_major_targets) as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.arch_targets: &arch_targets
+<?php
+foreach ($arch_targets as $arch_target) {
+    echo "- \"{$arch_target}\"\n";
+}
+?>
+
 .services:
   test-agent:
     name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.22.1

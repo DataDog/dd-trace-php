@@ -117,6 +117,7 @@ generate-templates:
   script:
     - php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
     - php ./.gitlab/generate-tests.php | tee .gitlab/tests-gen.yml
+    - php ./.gitlab/generate-appsec.php | tee .gitlab/appsec-gen.yml
   variables:
     GIT_SUBMODULE_STRATEGY: none
   artifacts:
@@ -124,6 +125,17 @@ generate-templates:
       - .gitlab/*-gen.yml
 
 tests-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/tests-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+appsec-trigger:
   stage: tests
   needs: [ "generate-templates" ]
   trigger:

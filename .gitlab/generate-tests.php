@@ -55,27 +55,6 @@ stages:
 #variables:
 #  CI_DEBUG_SERVICES: "true"
 
-.all_targets: &all_minor_major_targets
-<?php
-foreach ($all_minor_major_targets as $version) {
-    echo "  - \"{$version}\"\n";
-}
-?>
-
-.asan_targets: &asan_minor_major_targets
-<?php
-foreach ($asan_minor_major_targets as $version) {
-    echo "  - \"{$version}\"\n";
-}
-?>
-
-.arch_targets: &arch_targets
-<?php
-foreach ($arch_targets as $arch_target) {
-    echo "- \"{$arch_target}\"\n";
-}
-?>
-
 <?php function agent_httpbin_service() { ?>
     - !reference [.services, test-agent]
     - !reference [.services, request-replayer]
