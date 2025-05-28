@@ -17,6 +17,7 @@
 
 #define MIN_API_VERSION 320151012
 #define MAX_API_VERSION 420240924
+#define MAX_INI_API_VERSION MAX_API_VERSION + 1
 
 #define PHP_70_VERSION 20151012
 #define PHP_71_VERSION 20160303
@@ -775,6 +776,9 @@ static int ddloader_api_no_check(int api_no) {
         return SUCCESS;
     }
 
+    // api_no is the Zend extension API number, similar to "420220829"
+    // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
+    unsigned int module_api_no = api_no % 100000000;
     ddloader_configure();
 
     TELEMETRY(REASON_START, NULL, NULL, "Starting injection");
@@ -816,8 +820,10 @@ static int ddloader_api_no_check(int api_no) {
         return SUCCESS;
     }
 
-    zend_module_entry *mod = zend_register_internal_module(&dd_library_loader_mod);
-    zend_register_ini_entries((api_no % 100000000) <= PHP_72_VERSION ? (zend_ini_entry_def *) ini_entries_7_0_to_2 : ini_entries, mod->module_number);
+    if (force_load || api_no <= MAX_INI_API_VERSION) {
+        zend_module_entry *mod = zend_register_internal_module(&dd_library_loader_mod);
+        zend_register_ini_entries(module_api_no <= PHP_72_VERSION ? (zend_ini_entry_def *) ini_entries_7_0_to_2 : ini_entries, mod->module_number);
+    }
 
     if (api_no > MAX_API_VERSION) {
         if (!force_load) {
@@ -828,9 +834,7 @@ static int ddloader_api_no_check(int api_no) {
         LOG(NULL, WARN, "DD_INJECT_FORCE enabled, allowing unsupported runtimes and continuing (api no: %d).", api_no);
     }
 
-    // api_no is the Zend extension API number, similar to "420220829"
-    // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
-    php_api_no = api_no % 100000000;
+    php_api_no = module_api_no;
 
     return SUCCESS;
 }
