@@ -7,6 +7,7 @@ use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_void, size_t};
 use log::{debug, error, trace, warn};
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::atomic::Ordering::SeqCst;
 
 #[derive(Copy, Clone)]
@@ -143,7 +144,10 @@ lazy_static! {
 }
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
-    if *JIT_ENABLED && zend::PHP_VERSION_ID >= 80400 && zend::PHP_VERSION_ID < 80407 {
+    if *JIT_ENABLED
+        && zend::PHP_VERSION_ID >= 80400
+        && (80400..80406).contains(&crate::RUNTIME_PHP_VERSION_ID.load(Relaxed))
+    {
         error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
         true
     } else {
