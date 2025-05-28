@@ -44,6 +44,24 @@ static bool already_done = false;
 # define OS_PATH "linux-gnu/"
 #endif
 
+static ZEND_INI_MH(ddloader_OnUpdateForceInject) {
+    (void)entry;
+    (void)mh_arg1;
+    (void)mh_arg2;
+    (void)mh_arg3;
+    (void)stage;
+
+    if (!force_load) {
+        force_load = ddloader_zend_ini_parse_bool(new_value);
+    }
+    return SUCCESS;
+}
+
+PHP_INI_BEGIN()
+    ZEND_INI_ENTRY("datadog.loader.force_inject", "0", PHP_INI_SYSTEM, ddloader_OnUpdateForceInject)
+PHP_INI_END()
+
+
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
@@ -793,6 +811,9 @@ static int ddloader_api_no_check(int api_no) {
         return SUCCESS;
     }
 
+    zend_module_entry *mod = zend_register_internal_module(&dd_library_loader_mod);
+    zend_register_ini_entries(ini_entries, mod->module_number);
+
     if (api_no > MAX_API_VERSION) {
         if (!force_load) {
             TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, NULL, NULL, "Found incompatible runtime (api no: %d). Supported runtimes: PHP " MIN_PHP_VERSION " to " MAX_PHP_VERSION, api_no);
@@ -846,7 +867,6 @@ static int ddloader_build_id_check(const char *build_id) {
 // Required. Otherwise the zend_extension is not loaded
 static int ddloader_zend_extension_startup(zend_extension *ext) {
     UNUSED(ext);
-    zend_register_internal_module(&dd_library_loader_mod);
     return SUCCESS;
 }
 
