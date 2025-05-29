@@ -178,6 +178,14 @@ static void _pack_headers(
         } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
             dd_mpack_write_lstr(w, "content-length");
             dd_mpack_write_zval(w, val);
+        } else if (zend_string_equals_literal(key, "PHP_AUTH_DIGEST")) {
+            if (Z_TYPE_P(val) == IS_STRING) {
+                dd_mpack_write_lstr(w, "authorization");
+                zend_string *auth_str =
+                    strpprintf(0, "digest %s", Z_STRVAL_P(val));
+                dd_mpack_write_zstr(w, auth_str);
+                zend_string_release(auth_str);
+            }
         } else if (_is_relevant_header(key)) {
             zend_string *transf_header_name = _transform_header_name(key);
             dd_mpack_write_zstr(w, transf_header_name);
