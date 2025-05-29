@@ -171,6 +171,7 @@ static void _pack_headers(
         if (!key) {
             continue;
         }
+
         if (zend_string_equals_literal(key, "CONTENT_TYPE")) {
             dd_mpack_write_lstr(w, "content-type");
             dd_mpack_write_zval(w, val);
