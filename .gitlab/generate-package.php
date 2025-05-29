@@ -633,9 +633,9 @@ foreach ($asan_build_platforms as $platform) {
         matrix:
           - ARCH: "<?= $arch ?>"
       artifacts: true
-    - job: "compile loader: [linux-gnu, <?= $arch ?>]":
+    - job: "compile loader: [linux-gnu, <?= $arch ?>]"
       artifacts: true
-    - job: "compile loader: [linux-musl, <?= $arch ?>]":
+    - job: "compile loader: [linux-musl, <?= $arch ?>]"
       artifacts: true
 <?php
     foreach ($build_platforms as $platform):
