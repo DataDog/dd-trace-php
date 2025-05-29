@@ -880,13 +880,13 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     }
 
     // check sampling priority: must be >=1. o/wise return 0
-    // zend_long sampling_priority =
-    //     dd_trace_get_priority_sampling_on_span_zobj(root_span);
-    // if (sampling_priority < 1) {
-    //     mlog_g(dd_log_debug, "Sampling priority is %ld; not sampling",
-    //         sampling_priority);
-    //     return 0;
-    // }
+    zend_long sampling_priority =
+        dd_trace_get_priority_sampling_on_span_zobj(root_span);
+    if (get_DD_APM_TRACING_ENABLED() && sampling_priority < 1) {
+        mlog_g(dd_log_debug, "Sampling priority is %ld; not sampling",
+            sampling_priority);
+        return 0;
+    }
 
     zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
     if (!route || Z_TYPE_P(route) != IS_STRING) {
