@@ -100,7 +100,8 @@ configure_system_tests:
 <?php
 foreach ($build_platforms as $platform) {
 ?>
-    - "compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]"
+    - job: "compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]"
+      artifacts: true
 <?php
 }
 ?>
