@@ -1268,3 +1268,15 @@ endforeach;
     - ./bin/test.sh
 
 <?php endforeach; */ ?>
+
+
+"publish to public s3":
+  stage: release
+  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
+  tags: [ "arch:amd64" ]
+  when: manual
+  interruptible: false
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - aws s3 cp --recursive packages/* "s3://dd-trace-php-builds/$(cat VERSION)/"
