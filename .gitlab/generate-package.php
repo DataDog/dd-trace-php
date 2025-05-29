@@ -98,9 +98,9 @@ configure_system_tests:
 package-oci:
   needs:
 <?php
-foreach ($build_platforms as $platform) {
+foreach ($arch_targets as $arch) {
 ?>
-    - job: "compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]"
+    - job: "package loader: [<?= $arch ?>]"
       artifacts: true
 <?php
 }
@@ -617,7 +617,6 @@ foreach ($asan_build_platforms as $platform) {
   variables:
     DDTRACE_MAKE_PACKAGES_ASAN: 1
 
-<?php /*
 <?php foreach ($arch_targets as $arch): ?>
 "package loader: [<?= $arch ?>]":
   extends: .package_extension_base
@@ -665,7 +664,6 @@ foreach ($asan_build_platforms as $platform) {
         endif;
     endforeach;
 endforeach;
-*/
 ?>
 
 "datadog-setup.php":
