@@ -95,7 +95,7 @@ configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
 
-"package oci":
+package-oci:
   needs:
 <?php
 foreach ($build_platforms as $platform) {
