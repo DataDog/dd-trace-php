@@ -82,17 +82,28 @@ stages:
   - packaging
   - verify
   - shared-pipeline # OCI packaging
+  - release
 
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
 include:
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
+  - local: .gitlab/one-pipeline.locked.yml
 
 # One pipeline job overrides
 configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
+
+"package oci":
+  needs:
+<?php
+foreach ($build_platforms as $platform) {
+?>
+    - "compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]"
+<?php
+}
+?>
 
 requirements_json_test:
   rules:
