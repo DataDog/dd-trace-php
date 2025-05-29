@@ -670,10 +670,12 @@ foreach ($asan_build_platforms as $platform) {
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
-            foreach ($all_minor_major_targets as $major_minor):
 ?>
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
+<?php
+            foreach ($all_minor_major_targets as $major_minor):
+?>
     - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
