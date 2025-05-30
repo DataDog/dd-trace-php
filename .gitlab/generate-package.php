@@ -653,7 +653,7 @@ foreach ($asan_build_platforms as $platform) {
   variables:
     ARCHITECTURE: "<?= ($arch == 'amd64') ? 'x86_64' : 'aarch64' ?>"
   script:
-    - mkdir -p build/packages tmp/    
+    - mkdir -p build/packages tmp/
     - ./tooling/bin/generate-ssi-package.sh $(<VERSION) "build/packages"
     - mv build/packages/ packages/
   needs:
@@ -1288,7 +1288,7 @@ endforeach;
     ARCH: "<?= $arch ?>"
   before_script:
     - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug bash
-    - unset DD_SERVICE
+    - unset DD_SERVICE DD_ENV
     - export XDEBUG_SO_NAME=xdebug.so
     - rm -rf dd-library-php-ssi
     - tar -xzf packages/dd-library-php-ssi-*-linux.tar.gz
