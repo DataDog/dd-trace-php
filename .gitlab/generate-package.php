@@ -653,7 +653,8 @@ foreach ($asan_build_platforms as $platform) {
   variables:
     ARCHITECTURE: "<?= $arch ?>"
   script:
-    - ./tooling/bin/generate-ssi-package.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mkdir -p build/packages tmp/    
+    - ./tooling/bin/generate-ssi-package.sh $(<VERSION) "build/packages"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
