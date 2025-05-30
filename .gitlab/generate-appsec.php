@@ -26,7 +26,7 @@ stages:
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
         SWITCH_PHP_VERSION: debug-zts-asan
-  steps:
+  script:
     # TODO: caching?
     - switch-php $SWITCH_PHP_VERSION
     - |
@@ -37,7 +37,7 @@ stages:
     - make -j 4 xtest
 
 "appsec integration tests":
-  stage: tests
+  stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with make, php and git pre-installed?
   tags: [ "docker-in-docker:amd64" ]
   variables:
@@ -50,7 +50,7 @@ stages:
           - test7.0-release test7.0-release-zts test7.1-release test7.1-release-zts test7.2-release test7.2-release-zts
           - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
           - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
-  steps:
+  script:
     - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
 
 "appsec code coverage":
@@ -64,7 +64,7 @@ stages:
   parallel:
     matrix:
       - ARCH: *arch_targets
-  steps:
+  script:
     - apt install gcovr
     # TODO: caching?
     - mkdir -p appsec/build; cd appsec/build
@@ -92,7 +92,7 @@ stages:
   parallel:
     matrix:
       - ARCH: *arch_targets
-  steps:
+  script:
    - apt install clang-tidy-17 clang-format-17
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
@@ -110,7 +110,7 @@ stages:
   parallel:
     matrix:
       - ARCH: *arch_targets
-  steps:
+  script:
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
    - make -j $(nproc) ddappsec_helper_test
@@ -129,7 +129,7 @@ stages:
   parallel:
     matrix:
       - ARCH: *arch_targets
-  steps:
+  script:
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
    - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
