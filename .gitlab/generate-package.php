@@ -1261,7 +1261,7 @@ endforeach;
        export XDEBUG_SO_NAME=xdebug-2.9.5.so
      fi
     - switch-php $PHP_FLAVOUR
-    - tar -xzf dd-library-php-ssi-*-linux.tar.gz
+    - tar -xzf packages/dd-library-php-ssi-*-linux.tar.gz
     - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
 
     - cd loader
@@ -1290,7 +1290,7 @@ endforeach;
     - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug
     - export XDEBUG_SO_NAME=xdebug.so
     - rm -rf dd-library-php-ssi
-    - tar -xzf dd-library-php-ssi-*-linux.tar.gz
+    - tar -xzf packages/dd-library-php-ssi-*-linux.tar.gz
     - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
     - cd loader
     - mkdir -p modules
