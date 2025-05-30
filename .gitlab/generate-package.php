@@ -651,7 +651,7 @@ foreach ($asan_build_platforms as $platform) {
 "package loader: [<?= $arch ?>]":
   extends: .package_extension_base
   variables:
-    ARCHITECTURE: "<?= $arch ?>"
+    ARCHITECTURE: "<?= ($arch == 'amd64') ? 'x86_64' : 'aarch64' ?>"
   script:
     - mkdir -p build/packages tmp/    
     - ./tooling/bin/generate-ssi-package.sh $(<VERSION) "build/packages"
