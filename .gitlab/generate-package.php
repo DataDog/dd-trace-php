@@ -1280,7 +1280,9 @@ endforeach;
   stage: verify
   image: "registry.ddbuild.io/images/mirror/alpine:3.20"
   tags: [ "arch:$ARCH" ]
-  needs: [] # umm, where are these packaged?
+  needs:
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
   variables:
     ARCH: "<?= $arch ?>"
   before_script:
