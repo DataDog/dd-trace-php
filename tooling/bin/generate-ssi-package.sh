@@ -13,8 +13,8 @@ release_version_sanitized=${release_version/+/-}
 tmp_folder="${CI_PROJECT_DIR:-}/tmp/ssi-bundle"
 tmp_folder_final=$tmp_folder/final
 
-if [[ -n "${ARCHTITECTURE:-}" ]]; then
-  architectures=(${ARCHTITECTURE})
+if [[ -n "${ARCHITECTURE:-}" ]]; then
+  architectures=(${ARCHITECTURE})
 else
   architectures=(x86_64 aarch64)
 fi
