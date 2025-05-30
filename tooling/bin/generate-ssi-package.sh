@@ -120,14 +120,14 @@ for architecture in "${architectures[@]}"; do
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
     stripto "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
-    ln "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
+    cp "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
 
     ########################
     # Final archives
     ########################
 
     echo "$release_version_sanitized" > ${root}/version
-    ln ./loader/packaging/requirements.json ${root}/requirements.json
+    cp ./loader/packaging/requirements.json ${root}/requirements.json
 
     tar -czv \
         -f ${packages_build_dir}/dd-library-php-ssi-${release_version}-$architecture-linux.tar.gz \
