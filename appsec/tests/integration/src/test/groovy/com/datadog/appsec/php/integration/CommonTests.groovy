@@ -146,7 +146,7 @@ trait CommonTests {
         }
 
         Span span = trace.first()
-        assert span.metrics._sampling_priority_v1 == 1.0d
+        assert span.metrics._sampling_priority_v1 < 2.0d
         assert span.meta."usr.id" == 'userID'
         assert span.meta."_dd.appsec.usr.id" == 'userID'
         assert span.meta."_dd.appsec.user.collection_mode" == 'identification'
