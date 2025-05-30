@@ -140,7 +140,7 @@ appsec-trigger:
   needs: [ "generate-templates" ]
   trigger:
     include:
-      - artifact: .gitlab/tests-gen.yml
+      - artifact: .gitlab/appsec-gen.yml
         job: "generate-templates"
     strategy: depend
   variables:
