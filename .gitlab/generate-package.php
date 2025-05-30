@@ -329,6 +329,8 @@ foreach ($build_platforms as $platform) {
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
   tags: [ "arch:amd64" ]
   script: ls ./
+  variables:
+    GIT_STRATEGY: none
   needs:
 <?php
     foreach ($build_platforms as $platform):
