@@ -646,19 +646,6 @@ trait CommonTests {
     }
 
     @Test
-    void 'Set authorization header'() {
-        HttpRequest req = container.buildReq('/hello.php')
-                .header('authorization', 'digest 1234567890')
-                .GET().build()
-        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
-            assert resp.body() == 'Hello world!'
-        }
-
-        Span span = trace.first()
-        assert span.meta['http.request.headers.authorization'] == 'digest 1234567890'
-    }
-
-    @Test
     void 'module does not have STATIC_TLS flag'() {
         Container.ExecResult res = container.execInContainer(
                 'bash', '-c',

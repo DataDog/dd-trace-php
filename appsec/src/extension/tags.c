@@ -767,7 +767,7 @@ static void _dd_request_headers(
             _try_add_tag(meta_ht, _dd_tag_content_type, val);
         } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
             _try_add_tag(meta_ht, _dd_tag_content_length, val);
-        } else if (zend_string_equals_literal(key, "PHP_AUTH_DIGEST") && Z_TYPE_P(val) == IS_STRING) {
+        } else if (zend_string_equals_literal(key, "PHP_AUTH_DIGEST")) {
             zend_string *auth_str = strpprintf(0, "digest %s", Z_STRVAL_P(val));
             zval zv;
             ZVAL_STR(&zv, auth_str);
