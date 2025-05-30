@@ -57,6 +57,7 @@ public:
             unsigned evaluated = 0;
             unsigned matches = 0;
             unsigned timeouts = 0;
+            unsigned errors = 0;
         };
         std::unordered_map<std::string, rasp_telemetry_metrics> rasp_metrics_ =
             {};
@@ -68,6 +69,7 @@ public:
         double rasp_runtime_{0.0};
         unsigned rasp_calls_{0};
         unsigned rasp_timeouts_{0};
+        DDWAF_RET_CODE code_{DDWAF_OK};
         std::map<std::string, std::string> derivatives_;
         metrics::telemetry_tags base_tags_;
         bool rule_triggered_{};
