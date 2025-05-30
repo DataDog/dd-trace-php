@@ -10,7 +10,7 @@ packages_build_dir=$2
 # '+' char is not allowed
 release_version_sanitized=${release_version/+/-}
 
-tmp_folder=/tmp/ssi-bundle
+tmp_folder="${CI_PROJECT_DIR:-/tmp}/ssi-bundle"
 tmp_folder_final=$tmp_folder/final
 
 if [[ -n "${ARCHTITECTURE:-}" ]]; then
