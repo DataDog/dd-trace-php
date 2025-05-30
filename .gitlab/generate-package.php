@@ -327,9 +327,7 @@ foreach ($build_platforms as $platform) {
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
-  tags: [ "arch:amd64" ]  
-  variables:
-    GIT_STRATEGY: none
+  tags: [ "arch:amd64" ]
   script: ls ./
   needs:
 <?php
@@ -343,13 +341,15 @@ foreach ($build_platforms as $platform) {
             endforeach;
         endif;
     endforeach;
-endforeach;
 ?>
   artifacts:
     paths:
       - "extensions_*"
       - "standalone_*"
       - "ddtrace_*.ldflags"
+<?php
+endforeach;
+?>
 
 <?php
 foreach ($build_platforms as $platform) {
@@ -1202,7 +1202,7 @@ endforeach;
   script:
     - ./run.sh PARAMETRIC
 
-<?php /* foreach ($arch_targets as $arch): ?>
+<?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
   stage: verify
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_buster"
@@ -1293,8 +1293,7 @@ endforeach;
   script:
     - ./bin/test.sh
 
-<?php endforeach; */ ?>
-
+<?php endforeach; ?>
 
 "publish to public s3":
   stage: release
