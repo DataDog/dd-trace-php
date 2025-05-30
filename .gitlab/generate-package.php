@@ -1287,7 +1287,7 @@ endforeach;
   variables:
     ARCH: "<?= $arch ?>"
   before_script:
-    - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug
+    - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug bash
     - export XDEBUG_SO_NAME=xdebug.so
     - rm -rf dd-library-php-ssi
     - tar -xzf packages/dd-library-php-ssi-*-linux.tar.gz
