@@ -15,6 +15,11 @@
 #include "components/log/log.h"
 #include "agent_info.h"
 
+/* Sampling constants */
+const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
+const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
+const uint64_t UINT_64_MODULO = 1ULL << 64;  // 2^64 - This value is used to avoid uint64_t overflow
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_try_read_agent_rate(void) {
@@ -295,7 +300,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     }
 
     // this must be stable on re-evaluation
-    bool sampling = (double)span->trace_id.low < sample_rate * (double)~0ULL;
+    bool sampling = ((span->trace_id.low * KNUTH_FACTOR) % UINT_64_MODULO) < (sample_rate * MAX_TRACE_ID);
     bool limited = false;
     if (result.mechanism != DD_MECHANISM_MANUAL && ddtrace_limiter_active() && sampling) {
         if (span->trace_is_limited == DD_TRACE_LIMIT_UNCHECKED) {
