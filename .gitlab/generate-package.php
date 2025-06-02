@@ -1261,7 +1261,7 @@ endforeach;
        export XDEBUG_SO_NAME=xdebug-2.9.5.so
      fi
     - switch-php $PHP_FLAVOUR
-    - tar -xzf packages/dd-library-php-ssi-*-linux.tar.gz
+    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz
     - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
 
     - cd loader
