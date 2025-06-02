@@ -68,6 +68,19 @@ download_artifacts:
       - 'dd-library-php-ssi-x86_64-linux.tar.gz'
       - 'dd-library-php-ssi-aarch64-linux.tar.gz'
 
+test_s3:
+  stage: build
+  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
+  tags: [ "arch:amd64" ]
+  script:
+    - aws s3 ls s3://dd-trace-php-builds
+    - touch somefile.tmp
+    - aws s3 cp somefile.tmp s3://dd-trace-php-builds
+    - aws s3 ls s3://dd-trace-php-builds
+    - aws s3 rm s3://dd-trace-php-builds/somefile.tmp
+    - aws s3 ls s3://dd-trace-php-builds
+
+
 deploy_to_reliability_env:
   stage: deploy
   needs: [ build ]
