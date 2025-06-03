@@ -1246,6 +1246,7 @@ endforeach;
         ARCH: arm64
 <?php endif; ?>
   before_script:
+<?php unset_dd_runner_env_vars() ?>
     - |
      if [[ "$MINOR_MAJOR" == "8.4" ]]; then
        export XDEBUG_SO_NAME=xdebug-3.4.0.so
@@ -1288,8 +1289,8 @@ endforeach;
   variables:
     ARCH: "<?= $arch ?>"
   before_script:
+<?php unset_dd_runner_env_vars() ?>
     - apk add --no-cache curl-dev php83 php83-dev php83-pecl-xdebug bash
-    - unset DD_SERVICE DD_ENV
     - export XDEBUG_SO_NAME=xdebug.so
     - rm -rf dd-library-php-ssi
     - tar -xzf packages/dd-library-php-ssi-*-linux.tar.gz
