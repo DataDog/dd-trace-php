@@ -1261,12 +1261,13 @@ endforeach;
        export XDEBUG_SO_NAME=xdebug-2.9.5.so
      fi
     - switch-php $PHP_FLAVOUR
-    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz
-    - export DD_LOADER_PACKAGE_PATH=${PWD}/dd-library-php-ssi
+    - mkdir extracted/
+    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz -C extracted/
+    - export DD_LOADER_PACKAGE_PATH=${PWD}/extracted/dd-library-php-ssi
 
     - cd loader
     - mkdir -p modules
-    - cp ../dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so modules/
+    - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
   script:
     - ./bin/test.sh
 
