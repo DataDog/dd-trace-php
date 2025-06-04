@@ -74,10 +74,8 @@ test_s3:
   tags: [ "arch:amd64" ]
   script:
     - aws s3 ls s3://dd-trace-php-builds
-    - echo "SOME CONTENT" > somefile.tmp
     - aws s3 rm s3://dd-trace-php-builds/somefile.tmp || true
-    - aws s3 cp somefile.tmp s3://dd-trace-php-builds
-#    - aws s3 ls s3://dd-trace-php-builds
+    - aws s3 ls s3://dd-trace-php-builds
 #    - aws s3 rm s3://dd-trace-php-builds/somefile.tmp
 #    - aws s3 ls s3://dd-trace-php-builds
 
