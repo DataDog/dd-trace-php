@@ -73,9 +73,10 @@ test_s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   tags: [ "arch:amd64" ]
   script:
-    - aws s3 ls s3://dd-trace-php-builds
-    - aws s3 rm s3://dd-trace-php-builds/somefile.tmp || true
-    - aws s3 ls s3://dd-trace-php-builds
+    - aws s3api list-object-versions --bucket dd-trace-php-builds --output json
+    - |
+      aws s3api delete-objects --bucket dd-trace-php-builds --delete "$(aws s3api list-object-versions --bucket dd-trace-php-builds --output json --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}')"
+    - aws s3api list-object-versions --bucket dd-trace-php-builds --output json
 #    - aws s3 rm s3://dd-trace-php-builds/somefile.tmp
 #    - aws s3 ls s3://dd-trace-php-builds
 
