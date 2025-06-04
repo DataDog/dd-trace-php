@@ -213,5 +213,5 @@ review the snapshot file to maintain the accuracy of the tests.
 There are a number of checks that are run automatically with [CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master) when a PR is submitted. To ensure your PHP code changes pass the CircleCI checks, make sure to run all the same checks before submitting a PR.
 
 ```bash
-$ composer composer lint && test-all-<php-version>
+$ composer lint && test-all-<php-version>
 ```
