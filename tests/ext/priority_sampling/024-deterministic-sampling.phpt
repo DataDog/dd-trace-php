@@ -9,6 +9,12 @@ DD_TRACE_GENERATE_ROOT_SPAN=1
 $trace_ids = [
     ["9223372036854775808", true], // lands exactly on the threshold
     // Test random very large traceIDs
+    ["1", true],
+    ["10", false],
+    ["100", true],
+    ["1000", true],
+    ["18444899399302180861", false],
+    // Test random very large traceIDs
     ["18444899399302180860", false],
     ["18444899399302180861", false],
     ["18444899399302180862", true],
@@ -58,6 +64,16 @@ foreach ($trace_ids as $trace_id_and_expected_sampling) {
 --EXPECT--
 sampling for trace 9223372036854775808 is 2 expected 2
 _dd.p.dm = -3
+sampling for trace 1 is 2 expected 2
+_dd.p.dm = -3
+sampling for trace 10 is -1 expected -1
+_dd.p.dm = -
+sampling for trace 100 is 2 expected 2
+_dd.p.dm = -3
+sampling for trace 1000 is 2 expected 2
+_dd.p.dm = -3
+sampling for trace 18444899399302180861 is -1 expected -1
+_dd.p.dm = -
 sampling for trace 18444899399302180860 is -1 expected -1
 _dd.p.dm = -
 sampling for trace 18444899399302180861 is -1 expected -1
