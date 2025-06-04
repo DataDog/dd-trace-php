@@ -61,7 +61,7 @@ fi
 
 # PHP-FPM setup
 # For cases when it defaults to UDS
-sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}
+sed -i 's/^listen = .*$/listen = 127.0.0.1:9000/g' ${WWW_CONF}
 # Passing envs to php-fpm process directly for simplicity. Note that on PHP 5.4 clear_env does not appear in www not
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' ${WWW_CONF}
