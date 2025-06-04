@@ -30,11 +30,11 @@ function doMulti($url)
 {
     $mh = curl_multi_init();
 
-    $ch1 = curl_init();
+    $ch1 = curl_init_no_dns_cache();
     curl_setopt($ch1, CURLOPT_URL, $url);
     curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 
-    $ch2 = curl_init();
+    $ch2 = curl_init_no_dns_cache();
     curl_setopt($ch2, CURLOPT_URL, $url);
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
 
