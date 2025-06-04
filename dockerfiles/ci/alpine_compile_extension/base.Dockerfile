@@ -9,6 +9,7 @@ RUN set -eux; \
     apk add --no-cache \
         bash \
         autoconf \
+        catch2 \
         coreutils \
         g++ \
         gcc \

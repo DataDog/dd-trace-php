@@ -119,6 +119,7 @@ generate-templates:
     - php ./.gitlab/generate-tests.php | tee .gitlab/tests-gen.yml
     - php ./.gitlab/generate-appsec.php | tee .gitlab/appsec-gen.yml
     - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
+    - php ./.gitlab/generate-shared.php | tee .gitlab/shared-gen.yml
   variables:
     GIT_SUBMODULE_STRATEGY: none
   artifacts:
@@ -153,6 +154,17 @@ profiler-trigger:
   trigger:
     include:
       - artifact: .gitlab/profiler-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+shared-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/shared-gen.yml
         job: "generate-templates"
     strategy: depend
   variables:

@@ -27,6 +27,7 @@ stages:
         ARCH: *arch_targets
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
+    - apt install clang-tidy
     # TODO: caching?
     - switch-php $SWITCH_PHP_VERSION
     - |
@@ -51,6 +52,7 @@ stages:
           - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
           - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
   script:
+    - apt install java
     - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
 
 "appsec code coverage":
@@ -65,7 +67,7 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-    - apt install gcovr
+    - sudo apt install gcovr
     # TODO: caching?
     - mkdir -p appsec/build; cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
@@ -84,7 +86,7 @@ stages:
 "appsec lint":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -93,7 +95,7 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-   - apt install clang-tidy-17 clang-format-17
+   - sudo apt install clang-tidy-17 clang-format-17
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
    - make -j $(nproc) extension ddappsec-helper
@@ -102,7 +104,7 @@ stages:
 "test appsec helper asan":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -119,7 +121,7 @@ stages:
 "fuzz appsec helper":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi

@@ -28,7 +28,7 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: *arch_targets
         IMAGE_PREFIX: php-compile-extension-alpine-
-        IMAGE_SUFFIX: ""
+        IMAGE_SUFFIX: [""]
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: *arch_targets
         IMAGE_PREFIX: php-
