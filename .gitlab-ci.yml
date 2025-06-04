@@ -75,9 +75,9 @@ test_s3:
   script:
     - aws s3api list-object-versions --bucket dd-trace-php-builds --output json
     - aws s3api list-object-versions --bucket dd-trace-php-builds
-#    - |
-#      aws s3api delete-objects --bucket dd-trace-php-builds --delete "$(aws s3api list-object-versions --bucket dd-trace-php-builds --output json --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}')"
-#    - aws s3api list-object-versions --bucket dd-trace-php-builds --output json
+    - |
+      aws s3api delete-objects --bucket dd-trace-php-builds --delete "$(aws s3api list-object-versions --bucket dd-trace-php-builds --output json --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}')"
+    - aws s3api list-object-versions --bucket dd-trace-php-builds --output json
 #    - aws s3api list-object-versions --bucket dd-trace-php-builds
 #    - aws s3 rm s3://dd-trace-php-builds/somefile.tmp
 #    - aws s3 ls s3://dd-trace-php-builds
