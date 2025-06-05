@@ -91,10 +91,9 @@ std::string parameter_to_json(const parameter_view &pv)
 }
 
 // TODO: we should limit the recursion
-template <typename T,
-    typename = std::enable_if_t<std::disjunction_v<
-        std::is_same<rapidjson::Document, std::remove_cv_t<std::decay_t<T>>>,
-        std::is_same<rapidjson::Value, std::remove_cv_t<std::decay_t<T>>>>>>
+template <typename T, typename = std::enable_if_t<std::disjunction_v<
+                          std::is_same<rapidjson::Document, std::decay_t<T>>,
+                          std::is_same<rapidjson::Value, std::decay_t<T>>>>>
 // NOLINTNEXTLINE(misc-no-recursion)
 void json_to_object(ddwaf_object *object, T &doc)
 {

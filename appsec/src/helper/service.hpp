@@ -128,6 +128,12 @@ protected:
                 const std::lock_guard<std::mutex> lock(pending_logs_mutex_);
                 logs.swap(pending_logs_);
             }
+            if (queue_id == 0) {
+                SPDLOG_INFO(
+                    "Discarding {} telemetry logs: no queue_id available",
+                    logs.size());
+                return;
+            }
             for (auto &log : logs) { submit_log(queue_id, std::move(log)); }
         }
 

@@ -14,8 +14,8 @@
 namespace {
 template <typename T>
 concept StrictDDwafObjectSubtype =
-    std::is_base_of_v<ddwaf_object, std::remove_cv_t<std::decay_t<T>>> &&
-    !std::is_same_v<ddwaf_object, std::remove_cv_t<std::decay_t<T>>>;
+    std::is_base_of_v<ddwaf_object, std::decay_t<T>> &&
+    !std::is_same_v<ddwaf_object, std::decay_t<T>>;
 }
 
 namespace dds {

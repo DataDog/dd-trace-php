@@ -282,13 +282,12 @@ class TelemetryTests {
         ])
 
         def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
-            logs.any { it.logs.any { it.level == 'DEBUG' && it.message == "Processing remote config response"} }
+            logs.any { it.logs.any { it.tags.contains('log_type:rc::') && it.level == 'ERROR' } }
         }.collectMany { it.logs }
 
         assert requestSup.get() != null
 
-        assert messages.size() >= 4
-        assert messages.any { it .level == 'DEBUG' && it.message == "Processing remote config response" }
+        assert messages.size() >= 3
         assert messages.any {
             it.level == 'ERROR' &&
                     it.message == "bad cast, expected 'array', obtained 'string'" &&

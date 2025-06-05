@@ -368,9 +368,7 @@ bool client::handle_command(network::config_sync::request &command)
         "received command config_sync with rem cfg path {} and queue id {}",
         command.rem_cfg_path, command.queue_id);
 
-    if (command.queue_id != 0) {
-        service_->drain_logs(command.queue_id);
-    }
+    service_->drain_logs(command.queue_id);
 
     update_remote_config_path(command.rem_cfg_path);
 

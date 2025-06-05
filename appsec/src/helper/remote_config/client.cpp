@@ -153,9 +153,6 @@ bool client::poll()
 bool client::process_response(std::set<config> new_configs)
 {
     using log_level = telemetry::telemetry_submitter::log_level;
-    msubmitter_->submit_log(log_level::Debug,
-        "rc::client::begin_processing",
-        "Processing remote config response", std::nullopt, std::nullopt, false);
 
     for (auto &listener : listeners_) {
         try {
@@ -184,8 +181,7 @@ bool client::process_response(std::set<config> new_configs)
             } catch (const std::exception &e) {
                 SPDLOG_ERROR("Failed to unapply config {}: {}", cfg, e.what());
                 if (msubmitter_) {
-                    std::string identifier = fmt::format(
-                        "rc::{}::exception",
+                    std::string identifier = fmt::format("rc::{}::exception",
                         cfg.config_key().product().name_lower());
                     std::string tags =
                         telemetry::telemetry_tags{}
@@ -224,9 +220,8 @@ bool client::process_response(std::set<config> new_configs)
             } catch (const std::exception &e) {
                 SPDLOG_ERROR("Failed to apply config {}: {}", cfg, e.what());
                 if (msubmitter_) {
-                    std::string identifier =
-                        fmt::format("rc::{}::exception",
-                            cfg.config_key().product().name_lower());
+                    std::string identifier = fmt::format("rc::{}::exception",
+                        cfg.config_key().product().name_lower());
                     std::string tags =
                         telemetry::telemetry_tags{}
                             .add("log_type", identifier)

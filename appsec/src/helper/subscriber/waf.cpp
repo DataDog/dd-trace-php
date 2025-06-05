@@ -121,7 +121,8 @@ public:
                     fmt::format("Added/updated config: {}", key.full_key()),
                     std::nullopt, std::move(tags), false);
             } else {
-                SPDLOG_WARN("Failed to add/update config {}: {}", key.full_key(),
+                SPDLOG_WARN("Failed to add/update config {}: {}",
+                    key.full_key(),
                     parameter_to_json(parameter_view{these_diags}));
             }
 
@@ -313,12 +314,12 @@ void waf_update_report(telemetry::telemetry_submitter &msubmitter, bool success,
         waf_update_init_report_tags(success, std::move(rules_version)));
 }
 constexpr std::array<std::string_view, 5> diagnostic_keys{
-        "custom_rules",
-        "exclusions",
-        "rules",
-        "rules_data",
-        "rules_override",
-    };
+    "custom_rules",
+    "exclusions",
+    "rules",
+    "rules_data",
+    "rules_override",
+};
 
 void load_result_report(
     parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter)
@@ -406,14 +407,13 @@ void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
             std::string identifier = fmt::format(
                 "rc::{}::exception", cfg_key.product().name_lower());
             std::string tags = telemetry::telemetry_tags{}
-                .add("log_type", identifier)
-                .add("appsec_config_key", k)
-                .add("rc_config_id", cfg_key.config_id()).consume();
+                                   .add("log_type", identifier)
+                                   .add("appsec_config_key", k)
+                                   .add("rc_config_id", cfg_key.config_id())
+                                   .consume();
 
-            msubmitter.submit_log(
-                log_level::Error,
-                std::move(identifier), std::move(message), std::nullopt,
-                std::move(tags), false);
+            msubmitter.submit_log(log_level::Error, std::move(identifier),
+                std::move(message), std::nullopt, std::move(tags), false);
         }
         if (map.contains("errors")) {
             parameter_view errors = map.at("errors");
