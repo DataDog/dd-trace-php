@@ -39,6 +39,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - export TEST_PHP_EXECUTABLE=$(which php)
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
+    - unset DD_SERVICE; unset DD_ENV
 
     - '# NTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
@@ -55,7 +56,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "clippy NTS":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-${PHP_MAJOR_MINOR}
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -66,10 +67,7 @@ foreach ($profiler_minor_major_targets as $version) {
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
-    - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - cd profiling
-
-    - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
     - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
     - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
 

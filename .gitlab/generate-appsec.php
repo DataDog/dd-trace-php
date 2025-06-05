@@ -27,7 +27,7 @@ stages:
         ARCH: *arch_targets
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
-    - apt install clang-tidy
+    - sudo apt install -y clang-tidy
     # TODO: caching?
     - switch-php $SWITCH_PHP_VERSION
     - |
@@ -52,7 +52,7 @@ stages:
           - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
           - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
   script:
-    - apt install java
+    - sudo apt install -y java
     - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
 
 "appsec code coverage":
@@ -67,7 +67,7 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-    - sudo apt install gcovr
+    - sudo apt install -y clang-tidy-17 gcovr
     # TODO: caching?
     - mkdir -p appsec/build; cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
@@ -95,7 +95,7 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-   - sudo apt install clang-tidy-17 clang-format-17
+   - sudo apt install -y clang-tidy-17 clang-format-17
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
    - make -j $(nproc) extension ddappsec-helper
@@ -113,6 +113,8 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
+   - sudo apt install -y clang-tidy-17
+
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
    - make -j $(nproc) ddappsec_helper_test
@@ -132,6 +134,8 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
+   - sudo apt install -y clang-tidy-17
+
    - mkdir -p appsec/build ; cd appsec/build
    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
    - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
