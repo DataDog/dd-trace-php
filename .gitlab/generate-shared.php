@@ -96,7 +96,7 @@ foreach ($all_minor_major_targets as $major_minor):
 "Zend Abstract Interface Tests: [<?= $major_minor ?>, <?= $switch_php_version ?>]":
   extends: .tea_test
   needs:
-    - job: "Build Tea"
+    - job: "Build & Test Tea"
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
@@ -123,7 +123,7 @@ foreach ($all_minor_major_targets as $major_minor):
 "Extension Tea Tests: [<?= $major_minor ?>, <?= $switch_php_version ?>]":
   extends: .tea_test
   needs:
-    - job: "Build Tea"
+    - job: "Build & Test Tea"
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"

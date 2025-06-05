@@ -15,6 +15,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -52,7 +55,7 @@ stages:
           - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
           - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
   script:
-    - sudo apt install -y java
+    - apt install -y java
     - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
 
 "appsec code coverage":
@@ -63,6 +66,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -91,6 +97,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -109,6 +118,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -128,6 +140,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: "*"
     CC: /usr/bin/clang-17
     CXX: /usr/bin/clang++-17
   parallel:
