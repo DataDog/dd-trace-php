@@ -27,12 +27,12 @@ stages:
         ARCH: *arch_targets
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
-    - sudo apt install -y clang-tidy
+    - sudo apt install -y clang-tidy-17
     # TODO: caching?
     - switch-php $SWITCH_PHP_VERSION
     - |
       mkdir -p appsec/build ; cd appsec/build
-      cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+      cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
       find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
     - make -j 4 xtest
@@ -70,7 +70,7 @@ stages:
     - sudo apt install -y clang-tidy-17 gcovr
     # TODO: caching?
     - mkdir -p appsec/build; cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - PATH=$PATH:$HOME/.cargo/bin make -j $(nproc) xtest ddappsec_helper_test
     - ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
@@ -86,7 +86,7 @@ stages:
 "appsec lint":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -116,7 +116,7 @@ stages:
    - sudo apt install -y clang-tidy-17
 
    - mkdir -p appsec/build ; cd appsec/build
-   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
    - make -j $(nproc) ddappsec_helper_test
    - ./appsec/build/tests/helper/ddappsec_helper_test
 
@@ -137,7 +137,7 @@ stages:
    - sudo apt install -y clang-tidy-17
 
    - mkdir -p appsec/build ; cd appsec/build
-   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache
+   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
    - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
    - cd ..
    - mkdir -p tests/fuzzer/{corpus,results,logs}
