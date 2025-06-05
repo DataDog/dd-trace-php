@@ -1308,6 +1308,27 @@ endforeach;
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
   tags: [ "arch:amd64" ]
   when: manual
+  needs:
+    - job: "datadog-setup.php"
+      artifacts: true
+    - job: "package extension asan"
+      artifacts: true
+    - job: "package extension windows"
+      artifacts: true
+<?php
+foreach ($build_platforms as $platform) {
+?>
+    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+      artifactsL true
+<?php
+}
+foreach ($arch_targets as $arch) {
+?>
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
+<?php
+}
+?>
   interruptible: false
   variables:
     GIT_STRATEGY: none
