@@ -20,7 +20,7 @@ do_retry yum install -y epel-release
 
 # Installing pre-requisites
 do_retry yum install -y wget nginx httpd
-sed -i "s/Listen 80/Listen 0.0.0.0:8080/" /etc/httpd/conf/httpd.conf
+sed -i "s/Listen 80/Listen 127.0.0.1:8080/" /etc/httpd/conf/httpd.conf
 
 # Installing php
 do_retry rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm

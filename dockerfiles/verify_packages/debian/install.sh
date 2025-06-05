@@ -16,7 +16,7 @@ apt install -y \
     gnupg
 
 sed -i 's/80/8080/' /etc/apache2/ports.conf
-sed -i 's/:80/:8080/' /etc/apache2/sites-enabled/000-default.conf
+sed -i 's/*:80/127.0.0.1:8080/' /etc/apache2/sites-enabled/000-default.conf
 
 # Installing php
 if [ "${INSTALL_MODE}" = "native" ]; then
