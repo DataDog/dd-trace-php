@@ -917,7 +917,7 @@ endforeach;
 "verify alpine":
   extends: .verify_job
   variables:
-    VERIFY_APACHE: no
+    VERIFY_APACHE: "no"
   parallel:
     matrix:
       - INSTALL_PACKAGES: php7 php7-fpm php7-json
