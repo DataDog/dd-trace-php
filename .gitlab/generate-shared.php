@@ -7,8 +7,8 @@ $switch_php_versions = ["debug", "debug-zts-asan", "nts", "zts"];
 ?>
 
 stages:
-  - test
   - build
+  - test
 
 
 "C components ASAN":
@@ -76,7 +76,7 @@ stages:
 
 .tea_test:
   tags: [ "arch:amd64" ]
-  stage: build
+  stage: test
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster"
   after_script:
     - mkdir -p tmp/artifacts

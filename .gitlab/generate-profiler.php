@@ -67,6 +67,7 @@ foreach ($profiler_minor_major_targets as $version) {
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
+    - switch-php nts # not compatible with debug
     - cd profiling
     - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
     - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
