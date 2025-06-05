@@ -20,7 +20,8 @@ do_retry yum install -y epel-release
 
 # Installing pre-requisites
 do_retry yum install -y wget nginx httpd
-sed -i "s/Listen 80/Listen 127.0.0.1:8080/" /etc/httpd/conf/httpd.conf
+# In GitLab k8s something is already binding to :8080
+sed -i "s/Listen 80/Listen 127.0.0.1:8081/" /etc/httpd/conf/httpd.conf
 
 # Installing php
 do_retry rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm

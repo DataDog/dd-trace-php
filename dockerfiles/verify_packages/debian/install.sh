@@ -15,8 +15,9 @@ apt install -y \
     procps \
     gnupg
 
-sed -i 's/80/8080/' /etc/apache2/ports.conf
-sed -i 's/*:80/127.0.0.1:8080/' /etc/apache2/sites-enabled/000-default.conf
+# In GitLab k8s something is already binding to :8080
+sed -i 's/80/127.0.0.1:8081/' /etc/apache2/ports.conf
+sed -i 's/*:80/127.0.0.1:8081/' /etc/apache2/sites-enabled/000-default.conf
 
 # Installing php
 if [ "${INSTALL_MODE}" = "native" ]; then

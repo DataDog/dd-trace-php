@@ -64,7 +64,7 @@ echo "PHP-FPM/NGINX verification"
 curl -s -L request-replayer/clear-dumped-data
 
 # Request output
-NGINX_OUTPUT=$(curl -s -L localhost:8080)
+NGINX_OUTPUT=$(curl -s -L localhost:8081)
 if [ "${NGINX_OUTPUT}" != "hi" ]; then
     echo "Error: expected request output is 'hi'. Actual:\n${NGINX_OUTPUT}"
     exit 1
@@ -95,7 +95,7 @@ if [ "${VERIFY_APACHE:-yes}" != "no" ]; then
     curl -s -L request-replayer/clear-dumped-data
 
     # Request output
-    APACHE_OUTPUT=$(curl -s -L localhost:8080/index.php)
+    APACHE_OUTPUT=$(curl -s -L localhost:8081/index.php)
     if [ "${APACHE_OUTPUT}" != "hi" ]; then
         echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
         exit 1
