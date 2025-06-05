@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-set -ex
+set -e
 
 OS_VERSION=$(source /etc/os-release; echo $VERSION_ID)
 
