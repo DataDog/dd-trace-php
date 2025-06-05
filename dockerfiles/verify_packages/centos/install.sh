@@ -20,7 +20,7 @@ do_retry yum install -y epel-release
 
 # Installing pre-requisites
 do_retry yum install -y wget nginx httpd
-# In GitLab k8s something is already binding to :8080
+# Nginx listens on 8080, apache on 8081
 sed -i "s/Listen 80/Listen 127.0.0.1:8081/" /etc/httpd/conf/httpd.conf
 
 # Installing php

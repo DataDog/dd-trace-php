@@ -15,7 +15,7 @@ apt install -y \
     procps \
     gnupg
 
-# In GitLab k8s something is already binding to :8080
+# Nginx listens on 8080, apache on 8081
 sed -i 's/80/127.0.0.1:8081/' /etc/apache2/ports.conf
 sed -i 's/*:80/127.0.0.1:8081/' /etc/apache2/sites-enabled/000-default.conf
 
