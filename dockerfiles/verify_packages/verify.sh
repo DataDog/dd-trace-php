@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-set -e
+set -ex
 
 export DD_REMOTE_CONFIG_ENABLED=false
 
