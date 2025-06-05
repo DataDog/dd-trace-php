@@ -1318,8 +1318,8 @@ endforeach;
 <?php
 foreach ($build_platforms as $platform) {
 ?>
-    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-      artifactsL true
+    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
 <?php
 }
 foreach ($arch_targets as $arch) {
