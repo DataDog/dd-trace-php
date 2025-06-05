@@ -15,9 +15,6 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
-    GIT_CONFIG_COUNT: 1
-    GIT_CONFIG_KEY_0: safe.directory
-    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -30,6 +27,7 @@ stages:
         ARCH: *arch_targets
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
+    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
     - sudo apt install -y clang-tidy-17
     # TODO: caching?
     - switch-php $SWITCH_PHP_VERSION
@@ -55,7 +53,7 @@ stages:
           - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
           - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
   script:
-    - apt install -y java
+    - apt update && apt install -y java
     - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
 
 "appsec code coverage":
@@ -66,13 +64,11 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
-    GIT_CONFIG_COUNT: 1
-    GIT_CONFIG_KEY_0: safe.directory
-    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - ARCH: *arch_targets
   script:
+    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
     - sudo apt install -y clang-tidy-17 gcovr
     # TODO: caching?
     - mkdir -p appsec/build; cd appsec/build
@@ -97,18 +93,16 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
-    GIT_CONFIG_COUNT: 1
-    GIT_CONFIG_KEY_0: safe.directory
-    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - ARCH: *arch_targets
   script:
-   - sudo apt install -y clang-tidy-17 clang-format-17
-   - mkdir -p appsec/build ; cd appsec/build
-   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
-   - make -j $(nproc) extension ddappsec-helper
-   - make format tidy
+    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
+    - sudo apt install -y clang-tidy-17 clang-format-17
+    - mkdir -p appsec/build ; cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
+    - make -j $(nproc) extension ddappsec-helper
+    - make format tidy
 
 "test appsec helper asan":
   stage: test
@@ -118,19 +112,17 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
-    GIT_CONFIG_COUNT: 1
-    GIT_CONFIG_KEY_0: safe.directory
-    GIT_CONFIG_VALUE_0: "*"
   parallel:
     matrix:
       - ARCH: *arch_targets
   script:
-   - sudo apt install -y clang-tidy-17
+    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
+    - sudo apt install -y clang-tidy-17
 
-   - mkdir -p appsec/build ; cd appsec/build
-   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-   - make -j $(nproc) ddappsec_helper_test
-   - ./appsec/build/tests/helper/ddappsec_helper_test
+    - mkdir -p appsec/build ; cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - make -j $(nproc) ddappsec_helper_test
+    - ./appsec/build/tests/helper/ddappsec_helper_test
 
 "fuzz appsec helper":
   stage: test
@@ -149,33 +141,34 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-   - sudo apt install -y clang-tidy-17
+    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
+    - sudo apt install -y clang-tidy-17
 
-   - mkdir -p appsec/build ; cd appsec/build
-   - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-   - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
-   - cd ..
-   - mkdir -p tests/fuzzer/{corpus,results,logs}
-   - rm -f tests/fuzzer/corpus/*
+    - mkdir -p appsec/build ; cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
+    - cd ..
+    - mkdir -p tests/fuzzer/{corpus,results,logs}
+    - rm -f tests/fuzzer/corpus/*
 
-   - '# Run fuzzer in nop mode'
-   - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-   - LLVM_PROFILE_FILE=off.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-   - rm -f tests/fuzzer/corpus/*
+    - '# Run fuzzer in nop mode'
+    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+    - LLVM_PROFILE_FILE=off.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+    - rm -f tests/fuzzer/corpus/*
 
-   - '# Run fuzzer in raw mode'
-   - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-   - LLVM_PROFILE_FILE=raw.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-   - rm -f tests/fuzzer/corpus/*
+    - '# Run fuzzer in raw mode'
+    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+    - LLVM_PROFILE_FILE=raw.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+    - rm -f tests/fuzzer/corpus/*
 
-   - '# Run fuzzer in body mode'
-   - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-   - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+    - '# Run fuzzer in body mode'
+    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+    - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
 
-   - '# Generate coverage'
-   - llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-   - llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
-   - llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+    - '# Generate coverage'
+    - llvm-profdata-17 merge -sparse *.profraw -o default.profdata
+    - llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
+    - llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
   artifacts:
     paths:
      - appsec/fuzzer-coverage.html

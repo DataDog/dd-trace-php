@@ -26,7 +26,7 @@ stages:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
     - mkdir -p tmp/build_php_components_asan && cd tmp/build_php_components_asan
-    -  cmake $([ -f "/etc/debian_version" ] && echo "-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake") -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON ../../components
+    - cmake $([ -f "/etc/debian_version" ] && echo "-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake") -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON ../../components
     - make -j all
     - make test
   after_script:
@@ -63,12 +63,12 @@ stages:
       - PHP_MAJOR_MINOR: <?= json_encode($all_minor_major_targets), "\n" ?>
         SWITCH_PHP_VERSION: <?= json_encode($switch_php_versions), "\n" ?>
   script:
-    - .gitlab/build-tea.sh $SWITCH_PHP_VERSION
+    - sh .gitlab/build-tea.sh $SWITCH_PHP_VERSION
     - cd /tmp/build/tea-${$SWITCH_PHP_VERSION}
     - make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
   after_script:
-    - cp /tmp/build/tea-${$SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTestASan.log
+    - cp /tmp/build/tea-${SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTestASan.log
   artifacts:
     paths:
       - /opt/tea
