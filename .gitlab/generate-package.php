@@ -1335,4 +1335,4 @@ foreach ($arch_targets as $arch) {
   variables:
     GIT_STRATEGY: none
   script:
-    - aws s3 cp --recursive packages/* "s3://dd-trace-php-builds/$(cat VERSION)/"
+    - cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/$(cat VERSION)/"
