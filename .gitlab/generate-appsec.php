@@ -14,8 +14,7 @@ stages:
     - sudo mkdir -p /hunter-cache && sudo chmod 777 /hunter-cache
     - mkdir -p appsec/build
   cache:
-    - key:
-        prefix: "appsec hunter cache"
+    - key: "appsec hunter cache"
       paths:
         - /hunter-cache
 
