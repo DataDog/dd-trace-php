@@ -6,10 +6,26 @@ include "generate-common.php";
 stages:
   - test
 
+.appsec_test:
+  tags: [ "arch:${ARCH}" ]
+  before_script:
+    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
+    - sudo apt install -y clang-tidy-17 libc++-17-dev libc++abi-17-dev
+    - sudo mkdir -p /hunter-cache
+    - mkdir -p appsec/build
+  cache:
+    - key:
+        prefix: "appsec hunter cache"
+        files:
+          - Cargo.lock
+          - Cargo.toml
+      paths:
+        - /hunter-cache
+
 
 "test appsec extension":
   stage: test
-  tags: [ "arch:${ARCH}" ]
+  extends: .appsec_test
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
@@ -27,15 +43,8 @@ stages:
         ARCH: *arch_targets
         SWITCH_PHP_VERSION: debug-zts-asan
   script:
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17
-    # TODO: caching?
     - switch-php $SWITCH_PHP_VERSION
-    - |
-      mkdir -p appsec/build ; cd appsec/build
-      cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=~/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-      find ~/datadog/hunter-cache -name "*.a"  -printf "%f\n" | sort -u | sha256sum | awk '{print "Dependencies-ID: "$1}' >> ../hunter-cache.id
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=~/datadog/hunter-cache
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/hunter-cache
     - make -j 4 xtest
 
 "appsec integration tests":
@@ -58,7 +67,7 @@ stages:
 
 "appsec code coverage":
   stage: test
-  tags: [ "arch:${ARCH}" ]
+  extends: .appsec_test
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
@@ -68,11 +77,9 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17 gcovr
-    # TODO: caching?
-    - mkdir -p appsec/build; cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - sudo apt install -y gcovr
+    - cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - PATH=$PATH:$HOME/.cargo/bin make -j $(nproc) xtest ddappsec_helper_test
     - ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
@@ -87,7 +94,7 @@ stages:
 
 "appsec lint":
   stage: test
-  tags: [ "arch:${ARCH}" ]
+  extends: .appsec_test
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
@@ -97,16 +104,15 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17 clang-format-17
-    - mkdir -p appsec/build ; cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
+    - sudo apt install -y clang-format-17
+    - cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
     - make -j $(nproc) extension ddappsec-helper
     - make format tidy
 
 "test appsec helper asan":
   stage: test
-  tags: [ "arch:${ARCH}" ]
+  extends: .appsec_test
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
@@ -116,36 +122,27 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17
-
-    - mkdir -p appsec/build ; cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - make -j $(nproc) ddappsec_helper_test
     - ./appsec/build/tests/helper/ddappsec_helper_test
 
 "fuzz appsec helper":
   stage: test
-  tags: [ "arch:${ARCH}" ]
+  extends: .appsec_test
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
-    GIT_CONFIG_COUNT: 1
-    GIT_CONFIG_KEY_0: safe.directory
-    GIT_CONFIG_VALUE_0: "*"
     CC: /usr/bin/clang-17
     CXX: /usr/bin/clang++-17
   parallel:
     matrix:
       - ARCH: *arch_targets
   script:
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17
-
-    - mkdir -p appsec/build ; cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/home/circleci/datadog/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - cd appsec/build
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
     - cd ..
     - mkdir -p tests/fuzzer/{corpus,results,logs}
