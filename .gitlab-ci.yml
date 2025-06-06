@@ -20,7 +20,7 @@ variables:
 
 include:
   - project: DataDog/apm-reliability/libdatadog-build
-    ref: daef7446f589874309fd7aebf033370018d2fa04
+    ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
