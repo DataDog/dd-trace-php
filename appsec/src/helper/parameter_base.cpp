@@ -70,9 +70,13 @@ void debug_str_helper(std::string &res, const ddwaf_object &p)
 
 std::string parameter_base::debug_str() const noexcept
 {
-    std::string res;
-    debug_str_helper(res, *this);
-    return res;
+    try {
+        std::string res;
+        debug_str_helper(res, *this);
+        return res;
+    } catch (...) {} // NOLINT(bugprone-empty-catch)
+
+    return {};
 }
 
 } // namespace dds
