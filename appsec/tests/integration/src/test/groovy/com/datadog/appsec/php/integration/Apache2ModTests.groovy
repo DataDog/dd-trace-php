@@ -4,18 +4,23 @@ import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Trace
+import com.datadog.appsec.php.model.Span
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.condition.DisabledIf
 import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
+import java.io.InputStream
+import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getTracerVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 import static org.testcontainers.containers.Container.ExecResult
+
 
 @Testcontainers
 @Slf4j
@@ -35,6 +40,19 @@ class Apache2ModTests implements CommonTests {
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
+    }
+
+    @Test
+    void 'Set authorization header'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('authorization', 'digest 1234567890')
+                .GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+        assert span.meta['http.request.headers.authorization'] == 'digest 1234567890'
     }
 
     @Test
