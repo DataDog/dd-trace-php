@@ -20,7 +20,7 @@ variables:
 
 include:
   - project: DataDog/apm-reliability/libdatadog-build
-    ref: 0f677257308e1c379af490b754febfb40fa2c06d
+    ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
@@ -30,7 +30,7 @@ include:
 build:
   extends: .ci_authenticated_job
   stage: build
-  image: registry.ddbuild.io/images/ci_docker_base
+  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
   tags: [ "runner:main", "size:large" ]
   script:
     - |
@@ -54,7 +54,7 @@ build:
 download_artifacts:
   extends: .ci_authenticated_job
   stage: build
-  image: registry.ddbuild.io/images/ci_docker_base
+  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
   tags: [ "runner:main", "size:large" ]
   script:
     - |
