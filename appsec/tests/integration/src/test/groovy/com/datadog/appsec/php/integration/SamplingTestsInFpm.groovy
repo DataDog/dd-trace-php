@@ -1,11 +1,16 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
 
 import java.net.http.HttpResponse
 
 trait SamplingTestsInFpm {
+
+    void assertSamplingPriority(Trace trace, boolean schemaExtracted) {
+        //Nothing to do here. The work will be done on overrides
+    }
 
     @Test
     void 'default sampling behavior of extract-schema'() {
@@ -16,6 +21,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
+        assertSamplingPriority(trace, true);
 
         // the second time we should not see it
         trace = container.traceFromRequest('/api_security.php') {
@@ -24,6 +30,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == null
+        assertSamplingPriority(trace, false);
 
         // however, if we change the endpoint, we should again see something
         trace = container.traceFromRequest('/api_security.php?route=/another/route') {
@@ -32,6 +39,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
+        assertSamplingPriority(trace, true);
     }
 
     @Test
@@ -47,6 +55,7 @@ trait SamplingTestsInFpm {
                 }
                 assert trace != null
                 assert trace.first().meta."_dd.appsec.s.res.body" != null
+                assertSamplingPriority(trace, true);
             }
         } finally {
             resetFpm()
@@ -73,6 +82,7 @@ trait SamplingTestsInFpm {
             }, true /* ignore other traces */)
             assert trace != null
             assert trace.first().meta."_dd.appsec.s.res.body" == null
+            assertSamplingPriority(trace, false);
 
             // now wait a bit and check that we see the trace again
             Thread.sleep(3500)
@@ -83,6 +93,7 @@ trait SamplingTestsInFpm {
             }
             assert trace != null
             assert trace.first().meta."_dd.appsec.s.res.body" != null
+            assertSamplingPriority(trace, true);
         } finally {
             resetFpm()
         }
