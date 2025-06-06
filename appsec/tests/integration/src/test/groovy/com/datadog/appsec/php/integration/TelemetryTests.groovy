@@ -292,7 +292,7 @@ class TelemetryTests {
             it.level == 'ERROR' &&
                     it.message == "bad cast, expected 'array', obtained 'string'" &&
                     it.parsedTags == [
-                    log_type: 'rc::asm_data::exception',
+                    log_type: 'rc::asm_data::diagnostic',
                     appsec_config_key: 'rules_data',
                     rc_config_id: 'bad_config',
             ]
@@ -301,16 +301,16 @@ class TelemetryTests {
             it.level == 'ERROR' &&
                     it.message == "{\"missing key 'conditions'\":[\"bad_rule\"]}" &&
                     it.parsedTags == [
-                    log_type: 'rc::asm_dd::exception',
+                    log_type: 'rc::asm_dd::diagnostic',
                     appsec_config_key: 'rules',
                     rc_config_id: 'bad_rule',
             ]
         }
         assert messages.any {
-            it.level == 'DEBUG' &&
+            it.level == 'WARN' &&
                     it.message == "{\"unknown operator: 'unknown_operator'\":[\"bad_condition_rule\"]}" &&
                     it.parsedTags == [
-                    log_type: 'rc::asm_dd::diagnostics',
+                    log_type: 'rc::asm_dd::diagnostic',
                     appsec_config_key: 'rules',
                     rc_config_id: 'warning_rule',
             ]

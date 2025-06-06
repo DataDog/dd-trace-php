@@ -67,6 +67,8 @@ public:
                 removed.full_key().data(), removed.full_key().size());
             if (res) {
                 SPDLOG_DEBUG("Removed config: {}", removed.full_key());
+            } else {
+                SPDLOG_WARN("Failed to remove config: {}", removed.full_key());
                 std::string identifier = fmt::format(
                     "rc::{}::diagnostic", removed.product().name_lower());
                 std::string tags = telemetry::telemetry_tags{}
@@ -74,21 +76,8 @@ public:
                                        .add("rc_config_id", removed.config_id())
                                        .consume();
                 submitter.submit_log(
-                    telemetry::telemetry_submitter::log_level::Debug,
-                    std::move(identifier),
-                    fmt::format("Removed config: {}", removed.full_key()),
-                    std::nullopt, std::move(tags), false);
-            } else {
-                SPDLOG_WARN("Failed to remove config: {}", removed.full_key());
-                std::string identifier = fmt::format(
-                    "rc::{}::exception", removed.product().name_lower());
-                std::string tags = telemetry::telemetry_tags{}
-                                       .add("log_type", identifier)
-                                       .add("rc_config_id", removed.config_id())
-                                       .consume();
-                submitter.submit_log(
-                    telemetry::telemetry_submitter::log_level::Warn,
-                    std::move(identifier),
+                    telemetry::telemetry_submitter::log_level::Error,
+                    std::move(identifier) + "::fail_to_remove",
                     fmt::format(
                         "Failed to remove config: {}", removed.full_key()),
                     std::nullopt, std::move(tags), false);
@@ -109,17 +98,6 @@ public:
                 &these_diags);
             if (res) {
                 SPDLOG_DEBUG("Added/updated config: {}", key.full_key());
-                std::string identifier = fmt::format(
-                    "rc::{}::diagnostic", key.product().name_lower());
-                std::string tags = telemetry::telemetry_tags{}
-                                       .add("log_type", identifier)
-                                       .add("rc_config_id", key.config_id())
-                                       .consume();
-                submitter.submit_log(
-                    telemetry::telemetry_submitter::log_level::Debug,
-                    std::move(identifier),
-                    fmt::format("Added/updated config: {}", key.full_key()),
-                    std::nullopt, std::move(tags), false);
             } else {
                 SPDLOG_WARN("Failed to add/update config {}: {}",
                     key.full_key(),
@@ -405,30 +383,32 @@ void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
         if (map.contains("error")) {
             auto message = static_cast<std::string>(map.at("error"));
             std::string identifier = fmt::format(
-                "rc::{}::exception", cfg_key.product().name_lower());
+                "rc::{}::diagnostic", cfg_key.product().name_lower());
             std::string tags = telemetry::telemetry_tags{}
                                    .add("log_type", identifier)
                                    .add("appsec_config_key", k)
                                    .add("rc_config_id", cfg_key.config_id())
                                    .consume();
 
-            msubmitter.submit_log(log_level::Error, std::move(identifier),
-                std::move(message), std::nullopt, std::move(tags), false);
+            msubmitter.submit_log(log_level::Error,
+                std::move(identifier) + "::error", std::move(message),
+                std::nullopt, std::move(tags), false);
         }
         if (map.contains("errors")) {
             parameter_view errors = map.at("errors");
             if (errors.type() == parameter_type::map && errors.size() > 0) {
                 std::string message = parameter_to_json(map.at("errors"));
                 std::string identifier = fmt::format(
-                    "rc::{}::exception", cfg_key.product().name_lower());
+                    "rc::{}::diagnostic", cfg_key.product().name_lower());
                 std::string tags = telemetry::telemetry_tags{}
                                        .add("log_type", identifier)
                                        .add("appsec_config_key", k)
                                        .add("rc_config_id", cfg_key.config_id())
                                        .consume();
 
-                msubmitter.submit_log(log_level::Error, std::move(identifier),
-                    std::move(message), std::nullopt, std::move(tags), false);
+                msubmitter.submit_log(log_level::Error,
+                    std::move(identifier) + "::errors", std::move(message),
+                    std::nullopt, std::move(tags), false);
             }
         }
         if (map.contains("warnings")) {
@@ -436,15 +416,16 @@ void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
             if (warnings.type() == parameter_type::map && warnings.size() > 0) {
                 std::string message = parameter_to_json(map.at("warnings"));
                 std::string identifier = fmt::format(
-                    "rc::{}::diagnostics", cfg_key.product().name_lower());
+                    "rc::{}::diagnostic", cfg_key.product().name_lower());
                 std::string tags = telemetry::telemetry_tags{}
                                        .add("log_type", identifier)
                                        .add("appsec_config_key", k)
                                        .add("rc_config_id", cfg_key.config_id())
                                        .consume();
 
-                msubmitter.submit_log(log_level::Debug, std::move(identifier),
-                    std::move(message), std::nullopt, std::move(tags), false);
+                msubmitter.submit_log(log_level::Warn,
+                    std::move(identifier) + "::warnings", std::move(message),
+                    std::nullopt, std::move(tags), false);
             }
         }
     }
