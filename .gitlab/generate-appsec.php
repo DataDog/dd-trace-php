@@ -16,9 +16,6 @@ stages:
   cache:
     - key:
         prefix: "appsec hunter cache"
-        files:
-          - Cargo.lock
-          - Cargo.toml
       paths:
         - /hunter-cache
 
@@ -99,8 +96,8 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_REQUEST: 5Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -117,8 +114,8 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_REQUEST: 5Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -144,7 +141,7 @@ stages:
   script:
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-    - make -C -j $(nproc) ddappsec_helper_fuzzer corpus_generator
+    - make -j $(nproc) ddappsec_helper_fuzzer corpus_generator
     - cd ..
     - mkdir -p tests/fuzzer/{corpus,results,logs}
     - rm -f tests/fuzzer/corpus/*
