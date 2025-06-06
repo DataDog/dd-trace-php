@@ -75,7 +75,8 @@ test_s3:
   script:
     - echo "SOME CONTENT" > somefile.tmp
     - aws s3 cp somefile.tmp s3://dd-trace-php-builds
-    - aws s3 ls s3://dd-trace-php-builds
+    - aws s3 rm s3://dd-trace-php-builds/somefile.tmp
+    - aws s3api list-object-versions --bucket dd-trace-php-builds --output json
 
 
 
