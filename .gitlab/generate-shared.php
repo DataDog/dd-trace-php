@@ -92,12 +92,14 @@ foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
         $toolchain = "";
         if (version_compare($major_minor, "7.4", "<") && $switch_php_version == "debug-zts-asan") $switch_php_version = "debug-zts";
-        if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/asan.cmake";
+        if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake";
         # PHP itself is only really ubsan compatible since 7.4
-        if ($switch_php_version == "debug" && version_compare($switch_php_version, "7.4", ">=")) $toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/ubsan.cmake";
+        if ($switch_php_version == "debug" && version_compare($switch_php_version, "7.4", ">=")) $toolchain="-DCMAKE_TOOLCHAIN_FILE=../../cmake/ubsan.cmake";
 ?>
 "Zend Abstract Interface Tests: [<?= $major_minor ?>, <?= $switch_php_version ?>]":
   extends: .tea_test
+  variables:
+    - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
   needs:
     - job: "Build & Test Tea"
       parallel:
@@ -118,14 +120,40 @@ endforeach;
 ?>
 
 <?php
+foreach (["7.4", "8.0"] as $major_minor):
+?>
+"ZAI Shared Tests: [<?= $major_minor ?>]":
+  extends: .tea_test
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-<?= $major_minor ?>-shared-ext"
+  needs:
+    - job: "Build & Test Tea"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            SWITCH_PHP_VERSION: nts
+      artifacts: true
+  script:
+    - mkdir -p tmp/build_zai && cd tmp/build_zai
+    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=/opt/tea/nts cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DRUN_SHARED_EXTS_TESTS=1 -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
+    - make -j all
+    - make test
+    - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
+<?php
+    endforeach;
+endforeach;
+?>
+
+<?php
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
         $toolchain = "";
         if (version_compare($major_minor, "7.4", "<") && $switch_php_version == "debug-zts-asan") $switch_php_version = "debug-zts";
-        if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/asan.cmake";
+        if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake";
 ?>
 "Extension Tea Tests: [<?= $major_minor ?>, <?= $switch_php_version ?>]":
   extends: .tea_test
+  variables:
+    - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
   needs:
     - job: "Build & Test Tea"
       parallel:

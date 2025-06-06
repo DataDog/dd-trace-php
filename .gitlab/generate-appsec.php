@@ -46,7 +46,7 @@ stages:
 
 "appsec integration tests":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with make, php and git pre-installed?
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with java pre-installed?
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_CPU_REQUEST: 8
@@ -77,7 +77,7 @@ stages:
     - sudo apt install -y gcovr
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-    - PATH=$PATH:$HOME/.cargo/bin make -j $(nproc) xtest ddappsec_helper_test
+    - PATH=$PATH:$HOME/.cargo/bin make -j 4 xtest ddappsec_helper_test
     - ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
     - mkdir coverage
@@ -95,16 +95,14 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
-  parallel:
-    matrix:
-      - ARCH: *arch_targets
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    ARCH: amd64
   script:
     - sudo apt install -y clang-format-17
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
-    - make -j $(nproc) extension ddappsec-helper
+    - make -j 4 extension ddappsec-helper
     - make format tidy
 
 "test appsec helper asan":
@@ -113,16 +111,16 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
   parallel:
     matrix:
       - ARCH: *arch_targets
   script:
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-    - make -j $(nproc) ddappsec_helper_test
-    - ./appsec/build/tests/helper/ddappsec_helper_test
+    - make -j 4 ddappsec_helper_test
+    - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
 
 "fuzz appsec helper":
   stage: test
@@ -140,7 +138,7 @@ stages:
   script:
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-    - make -j $(nproc) ddappsec_helper_fuzzer corpus_generator
+    - make -j 4 ddappsec_helper_fuzzer corpus_generator
     - cd ..
     - mkdir -p tests/fuzzer/{corpus,results,logs}
     - rm -f tests/fuzzer/corpus/*
