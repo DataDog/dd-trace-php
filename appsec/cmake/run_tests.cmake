@@ -13,7 +13,7 @@ add_custom_target(xtest-prepare
     COMMAND mkdir -p /tmp/appsec-ext-test)
 
 add_custom_target(xtest
-    COMMAND ${CMAKE_COMMAND} -E env "DD_TRACE_GIT_METADATA_ENABLED=0" "LSAN_OPTIONS=fast_unwind_on_malloc=0"
+    COMMAND ${CMAKE_COMMAND} ${CMAKE_CLI_ARGS} -E env "DD_TRACE_GIT_METADATA_ENABLED=0" "LSAN_OPTIONS=fast_unwind_on_malloc=0"
         ${CMAKE_SOURCE_DIR}/cmake/run-tests-wrapper.sh
         "${CMAKE_BINARY_DIR}" "$<TARGET_FILE:mock_helper>" "${DD_APPSEC_TRACER_EXT_FILE}"
         "${PhpConfig_PHP_BINARY}" -n -d variables_order=EGPCS
