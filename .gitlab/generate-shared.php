@@ -60,9 +60,9 @@ stages:
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster"
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: *no_asan_targets
+      - PHP_MAJOR_MINOR: *no_asan_minor_major_targets
         SWITCH_PHP_VERSION: <?= str_replace("-asan", "", json_encode($switch_php_versions)), "\n" ?>
-      - PHP_MAJOR_MINOR: *asan_targets
+      - PHP_MAJOR_MINOR: *asan_minor_major_targets
         SWITCH_PHP_VERSION: <?= json_encode($switch_php_versions), "\n" ?>
   script:
     - sh .gitlab/build-tea.sh $SWITCH_PHP_VERSION

@@ -1,6 +1,7 @@
 server {
-    listen 80 default_server;
+    # listen 80 default_server;
     # listen [::]:80 default_server;
+    listen 0.0.0.0.0:80 default_server;
 
     index index.php index.html;
     server_name phpfpm.local;
