@@ -139,7 +139,6 @@ foreach (["7.4", "8.0"] as $major_minor):
     - make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 <?php
-    endforeach;
 endforeach;
 ?>
 
