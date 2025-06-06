@@ -8,7 +8,7 @@ cd /tmp/build/tea-${phpBuild}
 
 toolchain=""
 if [ "${phpBuild}" = "debug-zts-asan" ]; then
-  toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/asan.cmake"
+  toolchain="-DCMAKE_TOOLCHAIN_FILE=$source_root/cmake/asan.cmake"
 fi
 CMAKE_PREFIX_PATH=/opt/catch2 \
 cmake \

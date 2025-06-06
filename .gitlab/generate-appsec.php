@@ -41,7 +41,7 @@ stages:
   script:
     - switch-php $SWITCH_PHP_VERSION
     - cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/hunter-cache
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=/hunter-cache
     - make -j 4 xtest
 
 "appsec integration tests":
@@ -76,7 +76,7 @@ stages:
   script:
     - sudo apt install -y gcovr
     - cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - PATH=$PATH:$HOME/.cargo/bin make -j 4 xtest ddappsec_helper_test
     - ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
@@ -101,7 +101,7 @@ stages:
   script:
     - sudo apt install -y clang-format-17
     - cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 -DCLANG_FORMAT=/usr/bin/clang-format-17
     - make -j 4 extension ddappsec-helper
     - make format tidy
 
@@ -137,7 +137,7 @@ stages:
       - ARCH: *arch_targets
   script:
     - cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - make -j 4 ddappsec_helper_fuzzer corpus_generator
     - cd ..
     - mkdir -p tests/fuzzer/{corpus,results,logs}
