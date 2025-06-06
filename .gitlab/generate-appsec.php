@@ -11,7 +11,7 @@ stages:
   before_script:
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
     - sudo apt install -y clang-tidy-17 libc++-17-dev libc++abi-17-dev
-    - sudo mkdir -p /hunter-cache
+    - sudo mkdir -p /hunter-cache && sudo chmod 777 /hunter-cache
     - mkdir -p appsec/build
   cache:
     - key:

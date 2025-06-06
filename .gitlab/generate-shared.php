@@ -60,7 +60,9 @@ stages:
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster"
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: <?= json_encode($all_minor_major_targets), "\n" ?>
+      - PHP_MAJOR_MINOR: *no_asan_targets
+        SWITCH_PHP_VERSION: <?= str_replace("-asan", "", json_encode($switch_php_versions)), "\n" ?>
+      - PHP_MAJOR_MINOR: *asan_targets
         SWITCH_PHP_VERSION: <?= json_encode($switch_php_versions), "\n" ?>
   script:
     - sh .gitlab/build-tea.sh $SWITCH_PHP_VERSION
@@ -89,6 +91,7 @@ stages:
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
         $toolchain = "";
+        if (version_compare($switch_php_version, "7.4", "<") && $switch_php_version == "debug-zts-asan") $switch_php_version = "debug-zts";
         if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/asan.cmake";
         # PHP itself is only really ubsan compatible since 7.4
         if ($switch_php_version == "debug" && version_compare($switch_php_version, "7.4", ">=")) $toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/ubsan.cmake";
@@ -118,6 +121,7 @@ endforeach;
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
         $toolchain = "";
+        if (version_compare($switch_php_version, "7.4", "<") && $switch_php_version == "debug-zts-asan") $switch_php_version = "debug-zts";
         if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=cmake/asan.cmake";
 ?>
 "Extension Tea Tests: [<?= $major_minor ?>, <?= $switch_php_version ?>]":
