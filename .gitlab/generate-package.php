@@ -1309,6 +1309,8 @@ endforeach;
   tags: [ "arch:amd64" ]
   when: manual
   needs:
+    - job: "prepare code"
+      artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
     - job: "package extension asan"
