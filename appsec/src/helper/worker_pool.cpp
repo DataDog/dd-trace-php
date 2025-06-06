@@ -12,13 +12,17 @@ namespace dds::worker {
 
 namespace {
 
+constexpr std::chrono::microseconds producer_exit_wait = 100us;
+constexpr std::chrono::seconds consumer_timeout = 60s;
+
 // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 void work_handler(queue_consumer &&q, std::optional<runnable> &&opt_r)
 {
     while (q.running() && opt_r) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         opt_r.value()(q);
-        opt_r = q.pop(60s);
+
+        opt_r = q.pop(consumer_timeout);
     }
 }
 
@@ -44,7 +48,8 @@ void queue_producer::wait()
     std::unique_lock<std::mutex> lock(rc_.mtx);
     while (rc_.count > 0) {
         q_.cv.notify_all();
-        rc_.cv.wait_for(lock, 100us);
+
+        rc_.cv.wait_for(lock, producer_exit_wait);
     }
 }
 
