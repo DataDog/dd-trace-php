@@ -476,6 +476,8 @@ void instance::listener::call(
         rasp_metrics_[rasp_rule].evaluated++;
         if (code == DDWAF_MATCH) {
             rasp_metrics_[rasp_rule].matches++;
+        } else if (code != DDWAF_OK) {
+            rasp_metrics_[rasp_rule].errors++;
         }
     }
 
@@ -527,7 +529,7 @@ void instance::listener::submit_metrics(
         tags.add("waf_timeout", "true");
     }
     if (waf_run_error_) {
-        tags.add("waf_run_error", "true");
+        tags.add("waf_error", "true");
     }
     msubmitter.submit_metric(metrics::waf_requests, 1.0, std::move(tags));
 
@@ -545,15 +547,16 @@ void instance::listener::submit_metrics(
         }
 
         for (auto const &rule : rasp_metrics_) {
-            metrics::telemetry_tags tags;
+            metrics::telemetry_tags tags = base_tags_;
             tags.add("rule_type", rule.first);
-            tags.add("waf_version", ddwaf_get_version());
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_rule_eval, rule.second.evaluated, tags);
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_rule_match, rule.second.matches, tags);
             msubmitter.submit_metric(
                 metrics::telemetry_rasp_timeout, rule.second.timeouts, tags);
+            msubmitter.submit_metric(
+                metrics::telemetry_rasp_error, rule.second.errors, tags);
         }
     }
 
