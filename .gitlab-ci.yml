@@ -48,23 +48,6 @@ build:
       - 'upstream.env'
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
-download_artifacts:
-  extends: .ci_authenticated_job
-  stage: build
-  image: registry.ddbuild.io/images/ci_docker_base
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - |
-      sleep 2m # Let time for the CircleCI pipeline to start
-      source .gitlab/download-circleci_artifact.sh
-
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
-  artifacts:
-    paths:
-      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
-      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
-
 deploy_to_reliability_env:
   stage: deploy
   needs: [ build ]
