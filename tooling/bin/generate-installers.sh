@@ -10,7 +10,7 @@ packages_build_dir=$2
 ########################
 if echo "${release_version}" | grep -qE '\+' && [ -n ${CI_JOB_ID:-} ]; then
   replacement="define('RELEASE_VERSION', urlencode('${release_version}'))"
-  sed -ri "s|const RELEASE_VERSION[^;]+|${replacement}|" "${packages_build_dir}/datadog-setup.php"
+  sed "s|const RELEASE_VERSION[^;]+|${replacement}|" ./datadog-setup.php > "${packages_build_dir}/datadog-setup.php"
 
   replacement="define('RELEASE_URL_PREFIX', 'https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/' . RELEASE_VERSION . '/')"
   sed -ri "s|define\('RELEASE_URL_PREFIX'[^;]+|${replacement}|" "${packages_build_dir}/datadog-setup.php"
