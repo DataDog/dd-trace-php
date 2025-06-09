@@ -8,8 +8,12 @@ packages_build_dir=$2
 ########################
 # Installers
 ########################
+
+# urlencode any '+' in the release version, necessary for S3 URLs
+release_version=$(echo "${release_version}" | sed -e 's/+/%2B/')
+
 sed "s|@release_version@|${release_version}|g" ./datadog-setup.php > "${packages_build_dir}/datadog-setup.php"
 if echo "${release_version}" | grep -qE '\+' && [ -n ${CI_JOB_ID:-} ]; then
-  replacement="const RELEASE_URL_PREFIX = 'https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/' . urlencode(RELEASE_VERSION) . '/'"
+  replacement="const RELEASE_URL_PREFIX = 'https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/' . RELEASE_VERSION . '/'"
   sed -ri "s|define\('RELEASE_URL_PREFIX'[^;]+|${replacement}|" "${packages_build_dir}/datadog-setup.php"
 fi
