@@ -774,8 +774,6 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
                     }
                     memcpy(modified_tags_str + tags_len + separator,
                         TRUNCATED_TAG, TRUNCATED_TAG_LEN);
-                    modified_tags_str[tags_len + TRUNCATED_TAG_LEN +
-                                      separator] = '\0';
                     tags_len += TRUNCATED_TAG_LEN + separator;
                     tags_str = modified_tags_str;
                 }
