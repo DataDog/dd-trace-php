@@ -94,6 +94,7 @@ include:
 configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
+    ALLOW_MULTIPLE_CHILD_LEVELS: "false"
 
 package-oci:
   needs:
