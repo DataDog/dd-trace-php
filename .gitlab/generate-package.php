@@ -1340,3 +1340,6 @@ foreach ($arch_targets as $arch) {
     [[ -z "${VERSION}" ]] && echo "VERSION file is empty or not present" && exit 1
     cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/${VERSION}/"
     echo "https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/$(echo VERSION | sed 's/+/%2B/')/datadog-setup.php"
+  artifacts:
+    paths:
+      - packages/datadog-setup.php
