@@ -4097,11 +4097,6 @@ workflows:
           resource_class: "arm.medium"
 
       - compile_rust_test:
-          name: "Compile rust code for testing"
-          resource_class: xlarge
-          triplet: "x86_64-unknown-linux-gnu"
-
-      - compile_rust_test:
           name: "medium: Compile ASAN rust code for testing"
           resource_class: xlarge
           triplet: "x86_64-unknown-linux-gnu"
