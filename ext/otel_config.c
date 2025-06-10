@@ -11,11 +11,11 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *dd_cfg, bool pre_rinit) {
     if (!pre_rinit && ddtrace_sidecar && get_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
-        ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("tracers.otel.env.invalid"), DDOG_METRIC_TYPE_COUNT,
+        ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("otel.env.invalid"), DDOG_METRIC_TYPE_COUNT,
                                                       DDOG_METRIC_NAMESPACE_TRACERS);
         ddog_CharSlice tags;
         tags.len = asprintf((char **)&tags.ptr, "config_opentelemetry:%s,config_datadog:%s", otel_cfg, dd_cfg);
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("tracers.otel.env.invalid"), 1, tags);
+        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("otel.env.invalid"), 1, tags);
         free((char *)tags.ptr);
     }
 }
