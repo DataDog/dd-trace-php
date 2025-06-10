@@ -17,6 +17,13 @@
 #include <mpack.h>
 #include <stdatomic.h>
 
+static const char WAF_REQUEST_METRIC[] = "waf.requests";
+static const size_t WAF_REQUEST_METRIC_LEN = sizeof(WAF_REQUEST_METRIC) - 1;
+static const char TRUNCATED_TAG[] = "input_truncated=true";
+static const size_t TRUNCATED_TAG_LEN = sizeof(TRUNCATED_TAG);
+static const char TAG_SEPARATOR = ',';
+static const size_t TAG_SEPARATOR_LEN = sizeof(TAG_SEPARATOR);
+
 typedef struct _dd_omsg {
     zend_llist iovecs;
     mpack_writer_t writer;
@@ -740,6 +747,7 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             double dval = mpack_node_double(dval_node);
 
             const char *tags_str = "";
+            char *modified_tags_str = NULL;
             size_t tags_len = 0;
             if (mpack_node_array_length(value) >= 2) {
                 mpack_node_t tags = mpack_node_array_at(value, 1);
@@ -749,9 +757,33 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             if (mpack_node_error(metrics) != mpack_ok) {
                 break;
             }
+            if (dd_msgpack_helpers_is_data_truncated() &&
+                WAF_REQUEST_METRIC_LEN == key_len &&
+                memcmp(WAF_REQUEST_METRIC, key_str, WAF_REQUEST_METRIC_LEN) ==
+                    0) {
+                size_t separator = 0;
+                if (tags_len > 0) {
+                    separator = TAG_SEPARATOR_LEN;
+                }
+                modified_tags_str =
+                    emalloc(tags_len + TRUNCATED_TAG_LEN + 1 + separator);
+                if (modified_tags_str) {
+                    memcpy(modified_tags_str, tags_str, tags_len);
+                    if (separator > 0) {
+                        modified_tags_str[tags_len] = TAG_SEPARATOR;
+                    }
+                    memcpy(modified_tags_str + tags_len + separator,
+                        TRUNCATED_TAG, TRUNCATED_TAG_LEN);
+                    tags_len += TRUNCATED_TAG_LEN + separator;
+                    tags_str = modified_tags_str;
+                }
+            }
 
             _handle_telemetry_metric(
                 key_str, key_len, dval, tags_str, tags_len);
+            if (modified_tags_str) {
+                efree(modified_tags_str);
+            }
         }
     }
 
