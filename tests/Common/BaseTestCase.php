@@ -87,6 +87,9 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
             ]));
             if (count($val) > 1) {
                 \ini_set($name, $val[1]);
+            } elseif ($name == "datadog.trace.auto_flush_enabled") {
+                // bootstrap_phpunit.php defaults to false, so we consider this the default
+                \ini_set($name, "false");
             } else {
                 \ini_restore($name);
             }

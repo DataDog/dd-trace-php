@@ -8,7 +8,7 @@ use RdKafka\Producer;
 use RdKafka\TopicConf;
 
 $conf = new Conf();
-$conf->set('bootstrap.servers', 'kafka_integration:9092');
+$conf->set('bootstrap.servers', 'kafka-integration:9092');
 $conf->set('socket.timeout.ms', (string) 50);
 $conf->set('queue.buffering.max.messages', (string) 1000);
 $conf->set('max.in.flight.requests.per.connection', (string) 1);

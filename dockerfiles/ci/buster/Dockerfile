@@ -46,7 +46,8 @@ ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang-format \
+    clang-format-17 \
+    clang-tidy-17 \
     curl \
     debian-goodies \
     git \

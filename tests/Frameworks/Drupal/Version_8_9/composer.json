@@ -97,7 +97,7 @@
         "drupal-phpunit-upgrade": "@composer update phpunit/phpunit symfony/phpunit-bridge phpspec/prophecy symfony/yaml --with-dependencies --no-progress",
         "post-update-cmd": [
             "Drupal\\Composer\\Composer::generateMetapackages",
-            "chmod a+w sites/default/ && rm -rf sites/default/files/ && rm -f sites/default/settings.php && php scripts/erase_drupal_db.php && php core/scripts/drupal install minimal"
+            "(chmod a+w sites/default || sudo chmod a+w sites/default) && rm -rf sites/default/files && rm -f sites/default/settings.php && php scripts/erase_drupal_db.php && php core/scripts/drupal install minimal"
         ],
         "phpcs": "phpcs --standard=core/phpcs.xml.dist --runtime-set installed_paths $($COMPOSER_BINARY config vendor-dir)/drupal/coder/coder_sniffer --",
         "phpcbf": "phpcbf --standard=core/phpcs.xml.dist --runtime-set installed_paths $($COMPOSER_BINARY config vendor-dir)/drupal/coder/coder_sniffer --"

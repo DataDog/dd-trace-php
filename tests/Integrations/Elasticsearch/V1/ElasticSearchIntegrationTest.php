@@ -40,8 +40,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
     protected static $lockedResource = "elasticsearch";
 
-    const HOST2 = 'elasticsearch2_integration';
-    const HOST7 = 'elasticsearch7_integration';
+    const HOST2 = 'elasticsearch2-integration';
+    const HOST7 = 'elasticsearch7-integration';
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {

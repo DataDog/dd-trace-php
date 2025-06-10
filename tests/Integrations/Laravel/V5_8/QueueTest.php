@@ -231,7 +231,7 @@ class QueueTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
+        return new \PDO('mysql:host=mysql-integration;dbname=' . static::$database, 'test', 'test');
     }
 
     protected function spanEventJobProcessing()

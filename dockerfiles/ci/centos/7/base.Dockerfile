@@ -104,6 +104,15 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../bootstrap && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
+# Install Catch2
+RUN set -eux; \
+    /root/download-src.sh catch2 https://github.com/catchorg/Catch2/archive/v2.13.10.tar.gz; \
+    cd "${SRC_DIR}/catch2"; \
+    cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
+    cmake --build build/ --target install; \
+    cd - && rm -fr build
+
+
 # Required: libzip >= 0.11 (default version is 0.9)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh libzip https://libzip.org/download/libzip-1.7.3.tar.gz; \

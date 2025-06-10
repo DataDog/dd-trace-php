@@ -2143,7 +2143,7 @@
                    "parent_id": 130,
                    "type": "web",
                    "meta": {
-                     "closure.declaration": "/home/circleci/app/tests/Frameworks/WordPress/Version_5_9/wp-includes/block-supports/duotone.php:464",
+                     "closure.declaration": "{path}/tests/Frameworks/WordPress/Version_5_9/wp-includes/block-supports/duotone.php:464",
                      "component": "wordpress",
                      "wordpress.callback": "Closure",
                      "wordpress.hook": "wp_footer"

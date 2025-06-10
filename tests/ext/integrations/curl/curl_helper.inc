@@ -16,6 +16,18 @@ namespace {
             echo 'curl multi error (' . $status . '): ' . curl_multi_strerror($status) . PHP_EOL;
         }
     }
+
+    function curl_init_no_dns_cache()
+    {
+        $ch = curl_init();
+        if ($ch === false) {
+            throw new \RuntimeException('Failed to initialize cURL');
+        }
+
+        // Disable DNS caching
+        curl_setopt($ch, CURLOPT_DNS_CACHE_TIMEOUT, 0);
+        return $ch;
+    }
 }
 
 namespace DDTrace\Integrations\Curl {

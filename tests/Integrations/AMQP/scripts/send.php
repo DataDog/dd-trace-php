@@ -11,7 +11,7 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
-$connection = new AMQPStreamConnection('rabbitmq_integration', 5672, 'guest', 'guest');
+$connection = new AMQPStreamConnection('rabbitmq-integration', 5672, 'guest', 'guest');
 $channel = $connection->channel();
 
 $channel->queue_declare('queue_scripts', false, false, false, false);
