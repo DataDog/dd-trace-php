@@ -1,8 +1,8 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success when user is an array
+Test \datadog\appsec\v2\track_user_login_success when user is an array
 --FILE--
 <?php
-\DDTrace\ATO\V2\track_user_login_success(
+\datadog\appsec\v2\track_user_login_success(
   "login",
   [
     "id" => "1234",

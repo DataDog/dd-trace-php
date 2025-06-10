@@ -1,8 +1,8 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success no user id or metadata given
+Test \datadog\appsec\v2\track_user_login_success no user id or metadata given
 --FILE--
 <?php
-\DDTrace\ATO\V2\track_user_login_success("login");
+\datadog\appsec\v2\track_user_login_success("login");
 $root = \DDTrace\root_span();
 var_dump($root->meta);
 

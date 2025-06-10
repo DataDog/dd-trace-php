@@ -1,5 +1,5 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success collects headers
+Test \datadog\appsec\v2\track_user_login_success collects headers
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -56,7 +56,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); //ignore
 
-\DDTrace\ATO\V2\track_user_login_success("login");
+\datadog\appsec\v2\track_user_login_success("login");
 
 rshutdown();
 $helper->get_commands(); //ignore

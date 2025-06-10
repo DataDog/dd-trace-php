@@ -22,7 +22,7 @@ $helper = Helper::createInitedRun([
 rinit();
 $helper->get_commands(); // Ignore
 
-\DDTrace\ATO\V2\track_user_login_success("some login", "some id",
+\datadog\appsec\v2\track_user_login_success("some login", "some id",
 [
     "value" => "something",
     "metadata" => "some other metadata",
