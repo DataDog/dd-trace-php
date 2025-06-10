@@ -1,13 +1,12 @@
 stages:
   - build
-  - shared-pipeline # OCI packaging
+  - tests
   - deploy
   - benchmarks
   - ci-build
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 12
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
   LATEST_LIBRARY_x86_64_LINUX_GNU:
@@ -22,10 +21,8 @@ include:
   - project: DataDog/apm-reliability/libdatadog-build
     ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
-  - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
-  - local: .gitlab/compile.yml
 
 build:
   extends: .ci_authenticated_job
@@ -50,23 +47,6 @@ build:
     paths:
       - 'upstream.env'
       - 'datadog-setup-x86_64-linux-gnu.tar'
-
-download_artifacts:
-  extends: .ci_authenticated_job
-  stage: build
-  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - |
-      sleep 2m # Let time for the CircleCI pipeline to start
-      source .gitlab/download-circleci_artifact.sh
-
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
-  artifacts:
-    paths:
-      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
-      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
 
 deploy_to_reliability_env:
   stage: deploy
@@ -112,13 +92,76 @@ tracer-base-image:
     - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
     - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
 
-configure_system_tests:
+generate-templates:
+  stage: build
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  needs: []
+  script:
+    - php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
+    - php ./.gitlab/generate-tests.php | tee .gitlab/tests-gen.yml
+    - php ./.gitlab/generate-appsec.php | tee .gitlab/appsec-gen.yml
+    - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
+    - php ./.gitlab/generate-shared.php | tee .gitlab/shared-gen.yml
   variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling"
+    GIT_SUBMODULE_STRATEGY: none
+  artifacts:
+    paths:
+      - .gitlab/*-gen.yml
 
-requirements_json_test:
-  rules:
-    - when: on_success
+tests-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/tests-gen.yml
+        job: "generate-templates"
+    strategy: depend
   variables:
-    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
-    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+appsec-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/appsec-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
+
+profiler-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/profiler-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+shared-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/shared-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+package-trigger:
+  stage: build
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/package-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c

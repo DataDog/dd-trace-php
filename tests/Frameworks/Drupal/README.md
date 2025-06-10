@@ -16,7 +16,7 @@ Modify the library `/Drupal/Core/Command/InstallCommand::install` for the `mysql
         'database' => 'test',
         'username' => 'test',
         'password' => 'test',
-        'host' => 'mysql_integration',
+        'host' => 'mysql-integration',
         'prefix' => '',
         ],
     ]

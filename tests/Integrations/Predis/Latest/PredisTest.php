@@ -11,7 +11,7 @@ class PredisTest extends IntegrationTestCase
 {
     protected static $lockedResource = "redis";
 
-    protected $host = 'redis_integration';
+    protected $host = 'redis-integration';
     private $port = '6379';
 
     public static function ddSetUpBeforeClass()
@@ -315,9 +315,9 @@ class PredisTest extends IntegrationTestCase
             $this->assertSame('value', $client->get('key'));
         });
 
-        $this->assertSame('redis-redis_integration', $traces[0][0]['service']);
-        $this->assertSame('redis-redis_integration', $traces[0][1]['service']);
-        $this->assertSame('redis-redis_integration', $traces[0][2]['service']);
+        $this->assertSame('redis-redis-integration', $traces[0][0]['service']);
+        $this->assertSame('redis-redis-integration', $traces[0][1]['service']);
+        $this->assertSame('redis-redis-integration', $traces[0][2]['service']);
     }
 
     public function testSplitByHostForErrorSpans()

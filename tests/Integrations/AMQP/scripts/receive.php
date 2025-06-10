@@ -9,7 +9,7 @@ require_once $argv[1];
 
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 
-$connection = new AMQPStreamConnection('rabbitmq_integration', 5672, 'guest', 'guest');
+$connection = new AMQPStreamConnection('rabbitmq-integration', 5672, 'guest', 'guest');
 $channel = $connection->channel();
 
 $channel->queue_declare('queue_scripts', false, false, false, false);

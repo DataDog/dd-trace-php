@@ -16,7 +16,7 @@ final class MemcacheTest extends IntegrationTestCase
      */
     private $client;
 
-    private static $host = 'memcached_integration';
+    private static $host = 'memcached-integration';
     private static $port = '11211';
 
 
@@ -333,7 +333,7 @@ final class MemcacheTest extends IntegrationTestCase
         ];
 
         if ($expectPeerService) {
-            $tags['peer.service'] = 'memcached_integration';
+            $tags['peer.service'] = 'memcached-integration';
             $tags['_dd.peer.service.source'] = 'out.host';
         }
 

@@ -8,7 +8,7 @@ use RdKafka\TopicConf;
 
 
 $conf = new Conf();
-$conf->set('bootstrap.servers', 'kafka_integration:9092');
+$conf->set('bootstrap.servers', 'kafka-integration:9092');
 $conf->set('group.id', 'consumer-lowlevel');
 $conf->set('enable.partition.eof', 'true');
 //$conf->set('log_level', (string) LOG_DEBUG);

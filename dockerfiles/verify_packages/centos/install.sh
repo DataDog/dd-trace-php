@@ -20,10 +20,12 @@ do_retry yum install -y epel-release
 
 # Installing pre-requisites
 do_retry yum install -y wget nginx httpd
+# Nginx listens on 8080, apache on 8081
+sed -i "s/Listen 80/Listen 127.0.0.1:8081/" /etc/httpd/conf/httpd.conf
 
 # Installing php
 do_retry rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm
-do_retry yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
+do_retry yum --enablerepo=remi-php${PHP_MINOR_MAJOR} install -y \
     php-cli \
     php-fpm \
     php-opcache \
@@ -34,7 +36,8 @@ do_retry yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
 # Where php-fpm PID will be stored
 mkdir -p /run/php-fpm
 # For cases when it defaults to UDS
-sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
+sed -i 's/^listen = .*$/listen = 127.0.0.1:9000/g' /etc/php-fpm.d/*.conf
+echo 'listen.allowed_clients = 127.0.0.1' >> /etc/php-fpm.d/www.conf
 # Passing envs to php-fpm process directly for simplicity. Note that on PHP 5.4 clear_env does not appear in www not
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' /etc/php-fpm.d/www.conf

@@ -14,7 +14,7 @@ elif [[ "$arch" == "amd64" ]]; then
 fi
 
 rm -rf dd-library-php-ssi
-tar xvzf ../dd-library-php-ssi-${arch}-linux.tar.gz
+tar xvzf ../packages/dd-library-php-ssi-*-${arch}-linux.tar.gz
 
 # Remove all debug files
 find dd-library-php-ssi -name "*.debug" -delete

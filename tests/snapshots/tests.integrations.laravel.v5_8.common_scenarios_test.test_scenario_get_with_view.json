@@ -243,7 +243,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_5_8/resources/views/simple_view.blade.php",
+          "resource": "{path}/tests/Frameworks/Laravel/Version_5_8/resources/views/simple_view.blade.php",
           "trace_id": 0,
           "span_id": 21,
           "parent_id": 17,

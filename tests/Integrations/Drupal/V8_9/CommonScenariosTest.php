@@ -35,7 +35,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public function ddSetUp()
     {
         parent::ddSetUp();
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=' . static::$database, 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql-integration;dbname=' . static::$database, 'test', 'test');
         $cacheTables = $pdo->query("SHOW TABLES LIKE 'cache%'");
         while ($table = $cacheTables->fetchColumn()) {
             //fwrite(STDERR, "Truncating table $table" . PHP_EOL);

@@ -14,7 +14,7 @@ class MongoDBTest extends IntegrationTestCase
 {
     protected static $lockedResource = "mongodb";
 
-    const HOST = 'mongodb_integration';
+    const HOST = 'mongodb-integration';
     const PORT = '27017';
     const USER = 'test';
     const PASSWORD = 'test';

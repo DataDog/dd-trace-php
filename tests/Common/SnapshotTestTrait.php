@@ -164,8 +164,7 @@ trait SnapshotTestTrait
         // Relevant logs are assumed to be in JSON format. If they're not, shame on you.
         $lines = array_values(array_filter(array_map('json_decode', $lines)));
 
-        $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
-        $expectedLogsFile = $basePath . '/tests/snapshots/logs/' . $token . '.txt';
+        $expectedLogsFile = realpath(__DIR__ . '/../..') . '/tests/snapshots/logs/' . $token . '.txt';
         if (file_exists($expectedLogsFile)) {
             $expectedLogs = file_get_contents($expectedLogsFile);
             $expectedLogs = explode("\n", $expectedLogs);
@@ -207,8 +206,7 @@ trait SnapshotTestTrait
             return $metric["name"] !== "tracer-snapshot-end." . $token;
         });
 
-        $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
-        $expectedMetricsFile = $basePath . '/tests/snapshots/metrics/' . $token . '.txt';
+        $expectedMetricsFile = realpath(__DIR__ . '/../..') . '/tests/snapshots/metrics/' . $token . '.txt';
         if (file_exists($expectedMetricsFile)) {
             $expectedMetrics = file_get_contents($expectedMetricsFile);
             $this->compareMetrics($expectedMetrics, $receivedMetrics, $fieldsToIgnore);

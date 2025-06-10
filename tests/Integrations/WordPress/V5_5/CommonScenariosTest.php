@@ -21,7 +21,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        $pdo = new \PDO('mysql:host=mysql_integration;dbname=wp55', 'test', 'test');
+        $pdo = new \PDO('mysql:host=mysql-integration;dbname=wp55', 'test', 'test');
         $pdo->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_5_5/wp_2020-10-21.sql'));
     }
 

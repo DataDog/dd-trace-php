@@ -193,6 +193,8 @@ ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/soap/tests/bug71610.phpt
+ext/soap/tests/bugs/bug76348.phpt
 ext/sockets/tests/socket_connect_params.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_create_pair.phpt
@@ -322,6 +324,11 @@ tests/classes/clone_004.phpt
 tests/lang/bug45392.phpt
 tests/lang/type_hints_002.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt
 
 Zend/tests/dval_to_lval_64.phpt
 Zend/tests/int_overflow_64bit.phpt

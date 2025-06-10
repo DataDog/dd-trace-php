@@ -4,7 +4,7 @@ services:
   app:
     image: datadog/dd-trace-ci:php-8.2_buster
     depends_on:
-      - mysql_integration
+      - mysql-integration
       - agent
     environment:
       - DD_TRACE_AGENT_HOST=agent
@@ -21,7 +21,7 @@ services:
       - -t
       - .
 
-  mysql_integration:
+  mysql-integration:
     image: mysql:8.0
     ports:
       - "3306:3306"

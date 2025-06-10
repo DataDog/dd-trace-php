@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
 
+get_cmake_property(vars CACHE_VARIABLES)
+foreach(var ${vars})
+    get_property(helpString CACHE "${var}" PROPERTY HELPSTRING)
+    if("${helpString}" MATCHES "No help, variable specified on the command line." OR "${helpString}" STREQUAL "")
+        list(APPEND CMAKE_CLI_ARGS "-D${var}=${${var}}")
+    endif()
+endforeach()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/Modules")
 
 option(HUNTER_STATUS_DEBUG "Print Hunter debug info" OFF)

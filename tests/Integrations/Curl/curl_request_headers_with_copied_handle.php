@@ -1,6 +1,9 @@
 <?php
 
-$ch1 = curl_init('http://httpbin_integration/headers');
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
+
+$ch1 = curl_init($url);
 \curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
 \curl_setopt($ch1, CURLOPT_HTTPHEADER, [
     'honored: preserved_value',

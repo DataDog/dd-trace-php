@@ -8,12 +8,12 @@ function my_app()
     static $runCount = 0;
     echo 'Run #' . ($runCount++) . PHP_EOL;
 
-    $ch = curl_init('http://httpbin_integration/status/200');
+    $ch = curl_init('http://httpbin-integration/status/200');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_exec($ch);
     curl_close($ch);
 
-    $mysqli = \mysqli_connect('mysql_integration', 'test', 'test', 'test');
+    $mysqli = \mysqli_connect('mysql-integration', 'test', 'test', 'test');
     if ($mysqli) {
         $mysqli->close();
     }
