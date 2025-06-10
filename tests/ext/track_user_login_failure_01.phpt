@@ -1,8 +1,8 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_failure
+Test \datadog\appsec\v2\track_user_login_failure
 --FILE--
 <?php
-\DDTrace\ATO\V2\track_user_login_failure(
+\datadog\appsec\v2\track_user_login_failure(
   "login",
   true,
   [

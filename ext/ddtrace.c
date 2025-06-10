@@ -2118,7 +2118,7 @@ PHP_FUNCTION(DDTrace_set_user) {
     RETURN_NULL();
 }
 
-PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
+PHP_FUNCTION(datadog_appsec_v2_track_user_login_success) {
     UNUSED(execute_data);
 
     zend_string *login;
@@ -2141,7 +2141,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
     }
 
     if (ZSTR_LEN(login) == 0) {
-        LOG_LINE(WARN, "Unexpected empty login in DDTrace\\ATO\\V2\\track_user_login_success");
+        LOG_LINE(WARN, "Unexpected empty login in datadog\\appsec\\v2\\track_user_login_success");
         RETURN_NULL();
     }
 
@@ -2153,11 +2153,11 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
         // This is required to avoid writting to metadata if no id
         zval *user_id_zv = zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
         if (user_id_zv == NULL) {
-            LOG_LINE(WARN, "Id not found in user object in DDTrace\\ATO\\V2\\track_user_login_success");
+            LOG_LINE(WARN, "Id not found in user object in datadog\\appsec\\v2\\track_user_login_success");
             RETURN_NULL();
         }
         if (Z_TYPE_P(user_id_zv) != IS_STRING) {
-            LOG_LINE(WARN, "Unexpected id type in DDTrace\\ATO\\V2\\track_user_login_success");
+            LOG_LINE(WARN, "Unexpected id type in datadog\\appsec\\v2\\track_user_login_success");
             RETURN_NULL();
         }
         user_id = Z_STR_P(user_id_zv);
@@ -2179,7 +2179,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
     }
 
     if (user != NULL && Z_TYPE_P(user) != IS_NULL && user_id == NULL) {
-        LOG_LINE(WARN, "Unexpected id in DDTrace\\ATO\\V2\\track_user_login_success");
+        LOG_LINE(WARN, "Unexpected id in datadog\\appsec\\v2\\track_user_login_success");
         RETURN_NULL();
     }
 
@@ -2242,7 +2242,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_success) {
     }
 }
 
-PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_failure) {
+PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
     UNUSED(execute_data);
 
     zend_string *login = NULL;
@@ -2265,7 +2265,7 @@ PHP_FUNCTION(DDTrace_ATO_V2_track_user_login_failure) {
     }
 
     if (ZSTR_LEN(login) == 0) {
-        LOG_LINE(WARN, "Unexpected empty login in DDTrace\\ATO\\V2\\track_user_login_failure");
+        LOG_LINE(WARN, "Unexpected empty login in datadog\\appsec\\v2\\track_user_login_failure");
         RETURN_NULL();
     }
 

@@ -1,5 +1,5 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success no user id given
+Test \datadog\appsec\v2\track_user_login_success no user id given
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -8,7 +8,7 @@ datadog.appsec.enabled=1
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.85.0');
-\DDTrace\ATO\V2\track_user_login_success("login", NULL, [
+\datadog\appsec\v2\track_user_login_success("login", NULL, [
   'metakey1' => 'meta value'
 ]);
 $root = \DDTrace\root_span();

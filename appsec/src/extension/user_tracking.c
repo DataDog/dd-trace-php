@@ -102,12 +102,12 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
         zval *user_id_zv = zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
         if (user_id_zv == NULL) {
             mlog(dd_log_warning, "Id not found in user object in "
-                                 "DDTrace\\ATO\\V2\\track_user_login_success");
+                                 "datadog\\appsec\\v2\\track_user_login_success");
             return;
         }
         if (Z_TYPE_P(user_id_zv) != IS_STRING) {
             mlog(dd_log_warning, "Unexpected id type in "
-                                 "DDTrace\\ATO\\V2\\track_user_login_success");
+                                 "datadog\\appsec\\v2\\track_user_login_success");
             return;
         }
         user_id = Z_STR_P(user_id_zv);
@@ -187,7 +187,7 @@ void dd_user_tracking_startup(void)
 
     zend_function *v2_track_user_login_success =
         zend_hash_str_find_ptr(CG(function_table),
-            LSTRARG("ddtrace\\ato\\v2\\track_user_login_success"));
+            LSTRARG("datadog\\appsec\\v2\\track_user_login_success"));
     if (v2_track_user_login_success != NULL) {
         _ddtrace_v2_track_user_login_success =
             v2_track_user_login_success->internal_function.handler;
@@ -198,13 +198,13 @@ void dd_user_tracking_startup(void)
         if (!testing) {
             // Avoid logging on MINIT during tests
             mlog(dd_log_warning,
-                "DDTrace\\ATO\\V2\\track_user_login_success not found");
+                "datadog\\appsec\\v2\\track_user_login_success not found");
         }
     }
 
     zend_function *v2_track_user_login_failure =
         zend_hash_str_find_ptr(CG(function_table),
-            LSTRARG("ddtrace\\ato\\v2\\track_user_login_failure"));
+            LSTRARG("datadog\\appsec\\v2\\track_user_login_failure"));
     if (v2_track_user_login_failure != NULL) {
         _ddtrace_v2_track_user_login_failure =
             v2_track_user_login_failure->internal_function.handler;
@@ -215,7 +215,7 @@ void dd_user_tracking_startup(void)
         if (!testing) {
             // Avoid logging on MINIT during tests
             mlog(dd_log_warning,
-                "DDTrace\\ATO\\V2\\track_user_login_failure not found");
+                "datadog\\appsec\\v2\\track_user_login_failure not found");
         }
     }
 }

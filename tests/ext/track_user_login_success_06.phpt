@@ -1,8 +1,8 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success no user id given
+Test \datadog\appsec\v2\track_user_login_success no user id given
 --FILE--
 <?php
-\DDTrace\ATO\V2\track_user_login_success("login", NULL, [
+\datadog\appsec\v2\track_user_login_success("login", NULL, [
   'metakey1' => 'meta value'
 ]);
 $root = \DDTrace\root_span();

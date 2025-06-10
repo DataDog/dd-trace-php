@@ -1,5 +1,5 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success id should be present on user object when given user object with appsec disabled
+Test \datadog\appsec\v2\track_user_login_success id should be present on user object when given user object with appsec disabled
 --INI--
 extension=ddtrace.so
 datadog.appsec.testing=0
@@ -10,7 +10,7 @@ DD_APPSEC_ENABLED=0
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.85.0');
-\DDTrace\ATO\V2\track_user_login_success(
+\datadog\appsec\v2\track_user_login_success(
   "login",
   [
     "some_key" => "some value",

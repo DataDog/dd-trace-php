@@ -1,6 +1,6 @@
 <?php
 
-\DDTrace\ATO\V2\track_user_login_success(
+\datadog\appsec\v2\track_user_login_success(
     $_GET['login'],
     $_GET['id'],
     [

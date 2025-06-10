@@ -1,5 +1,5 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_failure invalid login
+Test \datadog\appsec\v2\track_user_login_failure invalid login
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -9,7 +9,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.85.0');
 $emptyLogin = "";
-\DDTrace\ATO\V2\track_user_login_failure(
+\datadog\appsec\v2\track_user_login_failure(
   $emptyLogin,
   false
 );

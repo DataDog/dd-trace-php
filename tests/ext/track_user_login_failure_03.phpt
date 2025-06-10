@@ -1,9 +1,9 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_failure invalid login
+Test \datadog\appsec\v2\track_user_login_failure invalid login
 --FILE--
 <?php
 $emptyLogin = "";
-\DDTrace\ATO\V2\track_user_login_failure(
+\datadog\appsec\v2\track_user_login_failure(
   $emptyLogin,
   false
 );

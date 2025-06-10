@@ -1,8 +1,8 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success login parameter takes precedence over login value on user object
+Test \datadog\appsec\v2\track_user_login_success login parameter takes precedence over login value on user object
 --FILE--
 <?php
-\DDTrace\ATO\V2\track_user_login_success(
+\datadog\appsec\v2\track_user_login_success(
   "login",
   [
     "id" => "1234",

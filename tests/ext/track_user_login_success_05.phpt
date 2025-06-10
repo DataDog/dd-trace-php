@@ -1,8 +1,8 @@
 --TEST--
-Test \DDTrace\ATO\V2\track_user_login_success id should be string
+Test \datadog\appsec\v2\track_user_login_success id should be string
 --FILE--
 <?php
-\DDTrace\ATO\V2\track_user_login_success(
+\datadog\appsec\v2\track_user_login_success(
   "login",
   [
     "id" => 1234,
