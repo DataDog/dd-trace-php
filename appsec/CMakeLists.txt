@@ -20,12 +20,7 @@ include("cmake/HunterGate.cmake")
 HunterGate(
     URL "https://github.com/cpp-pm/hunter/archive/v${HUNTER_GATE_VERSION}.tar.gz"
     SHA1 ${HUNTER_GATE_SHA1}
-)
-
-# Replace the flaky URL with a more stable one
-execute_process(
-    COMMAND sed -i "s@https://boostorg.jfrog.io/artifactory/main/release/\\([^/]*\\)/source/boost_\\([^.]*\\).tar.bz2@https://archives.boost.io/release/\\1/source/boost_\\2.tar.bz2@g" "_Base/Download/Hunter/${HUNTER_GATE_VERSION}/${HUNTER_GATE_SHORT_SHA1}/Unpacked/cmake/projects/Boost/hunter.cmake"
-    WORKING_DIRECTORY "${HUNTER_CACHED_ROOT}"
+    LOCAL
 )
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id.in ${CMAKE_CURRENT_SOURCE_DIR}/hunter-cache.id)

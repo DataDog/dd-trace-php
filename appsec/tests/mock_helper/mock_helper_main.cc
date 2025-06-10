@@ -484,6 +484,8 @@ class Dispatcher {
         spawn(iocontext, [client = std::move(client)](auto yield) {
             client->run_loop(yield);
             iocontext.stop();
+        }, [](std::exception_ptr e) {
+            if (e) std::rethrow_exception(e);
         });
     }
 
@@ -672,19 +674,25 @@ int main(int argc, char *argv[])
     spawn(iocontext, [&](auto yield) {
         Dispatcher dispatcher{echo_pipe, std::move(responses)};
         dispatcher.accept_one(yield);
+    }, [](std::exception_ptr e) {
+        if (e) std::rethrow_exception(e);
     });
 
     spawn(iocontext, [&](auto yield) {
         HttpServerDispatcher dispatcher{echo_pipe, 18126 /* port */};
         dispatcher.start();
         dispatcher.run_loop(yield);
+    }, [](std::exception_ptr e) {
+        if (e) std::rethrow_exception(e);
     });
 
     std::optional<SignallingLock> signal_lock;
     if (opt_vm.count("lock") != 0U) {
         signal_lock.emplace(opt_vm["lock"].as<std::string>());
         spawn(iocontext,
-            [&signal_lock](auto yield) { signal_lock->lock(yield); });
+            [&signal_lock](auto yield) { signal_lock->lock(yield); }, [](std::exception_ptr e) {
+                    if (e) std::rethrow_exception(e);
+                });
     }
 
     asio::signal_set signals{iocontext, SIGINT, SIGTERM};

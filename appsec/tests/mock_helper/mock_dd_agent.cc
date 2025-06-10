@@ -313,7 +313,9 @@ void HttpServerDispatcher::run_loop(const yield_context& yield)
                 auto yield) mutable {
                 HttpClient client{pipe, std::move(sock)};
                 client.do_request(yield);
-            });
+            }, [](std::exception_ptr e) {
+                    if (e) std::rethrow_exception(e);
+                });
     }
     SPDLOG_INFO("Finished HttpServerDispatcher loop");
 }
