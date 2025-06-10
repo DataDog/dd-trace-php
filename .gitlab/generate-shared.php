@@ -66,11 +66,12 @@ stages:
         SWITCH_PHP_VERSION: <?= json_encode($switch_php_versions), "\n" ?>
   script:
     - sh .gitlab/build-tea.sh $SWITCH_PHP_VERSION
-    - cd /tmp/build/tea-${SWITCH_PHP_VERSION}
+    - cd tmp/build-tea-${SWITCH_PHP_VERSION}
     - make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
   after_script:
-    - cp /tmp/build/tea-${SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTestASan.log
+    - mkdir -p tmp/artifacts/
+    - cp tmp/build-tea-${SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTestASan.log
   artifacts:
     paths:
       - tmp/tea
