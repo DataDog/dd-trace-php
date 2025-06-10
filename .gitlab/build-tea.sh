@@ -13,7 +13,7 @@ fi
 CMAKE_PREFIX_PATH=/opt/catch2 \
 cmake \
   ${toolchain} \
-  "-DCMAKE_INSTALL_PREFIX=$source_root/tea/${phpBuild}" \
+  "-DCMAKE_INSTALL_PREFIX=$source_root/tmp/tea/${phpBuild}" \
   -DCMAKE_BUILD_TYPE=Debug \
   -DBUILD_TEA_TESTING=ON \
   "$source_root/tea"
