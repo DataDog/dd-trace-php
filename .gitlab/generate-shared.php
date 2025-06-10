@@ -10,6 +10,9 @@ stages:
   - build
   - test
 
+variables:
+  GIT_SUBMODULE_PATHS: "libdatadog tea/benchmarks/google-benchmark"
+
 
 "C components ASAN":
   tags: [ "arch:amd64" ]
