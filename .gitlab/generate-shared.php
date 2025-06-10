@@ -74,7 +74,7 @@ stages:
     - cp tmp/build-tea-${SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTestASan.log
   artifacts:
     paths:
-      - tmp/tea
+      - tmp/build-tea-*
       - tmp/artifacts
 
 .tea_test:
@@ -111,7 +111,7 @@ foreach ($all_minor_major_targets as $major_minor):
   script:
     - switch-php "<?= $switch_php_version ?>"
     - mkdir -p tmp/build_zai && cd tmp/build_zai
-    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
+    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/build-tea-<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
     - make -j all
     - make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
@@ -135,7 +135,7 @@ foreach (["7.4", "8.0"] as $major_minor):
       artifacts: true
   script:
     - mkdir -p tmp/build_zai && cd tmp/build_zai
-    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/nts cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DRUN_SHARED_EXTS_TESTS=1 -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
+    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/build-tea-nts cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DRUN_SHARED_EXTS_TESTS=1 -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
     - make -j all
     - make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
@@ -165,7 +165,7 @@ foreach ($all_minor_major_targets as $major_minor):
     - switch-php "<?= $switch_php_version ?>"
     - make install # build ddtrace.so
     - mkdir -p tmp/build_ext-tea && cd tmp/build_ext-tea
-    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -S ../../tests/tea
+    - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/build-tea-<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -S ../../tests/tea
     - cmake --build . --parallel
     - make test ARGS="--output-on-failure"
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
