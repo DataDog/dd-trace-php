@@ -797,7 +797,7 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
 #define HANDLE_METRIC(name, type)                                              \
     do {                                                                       \
         if (key_len == LSTRLEN(name) && memcmp(key_str, name, key_len) == 0) { \
-            dd_add_telemetry_metric(                                           \
+            dd_telemetry_add_metric(                                           \
                 name, LSTRLEN(name), value, tags_str, tags_len, type);         \
             return;                                                            \
         }                                                                      \
