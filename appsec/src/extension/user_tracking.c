@@ -101,13 +101,15 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
     } else if (user != NULL && Z_TYPE_P(user) == IS_ARRAY) {
         zval *user_id_zv = zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
         if (user_id_zv == NULL) {
-            mlog(dd_log_warning, "Id not found in user object in "
-                                 "datadog\\appsec\\v2\\track_user_login_success");
+            mlog(dd_log_warning,
+                "Id not found in user object in "
+                "datadog\\appsec\\v2\\track_user_login_success");
             return;
         }
         if (Z_TYPE_P(user_id_zv) != IS_STRING) {
-            mlog(dd_log_warning, "Unexpected id type in "
-                                 "datadog\\appsec\\v2\\track_user_login_success");
+            mlog(dd_log_warning,
+                "Unexpected id type in "
+                "datadog\\appsec\\v2\\track_user_login_success");
             return;
         }
         user_id = Z_STR_P(user_id_zv);
