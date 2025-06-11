@@ -118,7 +118,7 @@ static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
 
 // If there is one rule matching in *ANY* span, then all further rules are ignored.
 // Thus we check only rules until a specific index then.
-static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_root, int skip_at) {
+static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, int skip_at) {
     int index = -3;
 
     if (++index >= skip_at) {
@@ -149,13 +149,6 @@ static ddtrace_rule_result dd_match_rules(ddtrace_span_data *span, bool eval_roo
                 continue;
             }
 
-            if (!eval_root) {
-                zval *applies = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("target_span"));
-                if (!applies || Z_TYPE_P(applies) != IS_STRING || !zend_string_equals_literal(Z_STR_P(applies), "any")) {
-                    continue;
-                }
-            }
-
             if (dd_check_sampling_rule(Z_ARR_P(rule), span)) {
                 zval *sample_rate_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("sample_rate"));
                 zval *provenance_zv = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("_provenance"));
@@ -182,7 +175,7 @@ void ddtrace_decide_on_closed_span_sampling(ddtrace_span_data *span) {
         return;
     }
 
-    ddtrace_rule_result result = dd_match_rules(span, &root->span == span && !root->parent_id, root->sampling_rule.rule);
+    ddtrace_rule_result result = dd_match_rules(span, root->sampling_rule.rule);
     if (result.rule != INT32_MAX) {
         LOGEV(DEBUG, {
             smart_str buf = {0};
@@ -215,7 +208,7 @@ static ddtrace_rule_result dd_decide_on_open_span_sampling(ddtrace_root_span_dat
     do {
         ddtrace_span_data *span = SPANDATA(span_props);
 
-        ddtrace_rule_result new_result = dd_match_rules(span, &root->span == span && !root->parent_id, result.rule);
+        ddtrace_rule_result new_result = dd_match_rules(span, result.rule);
         if (new_result.rule != INT32_MAX) {
             result = new_result;
         }
@@ -224,78 +217,63 @@ static ddtrace_rule_result dd_decide_on_open_span_sampling(ddtrace_root_span_dat
     return result;
 }
 
-// When the priority is inherited from distributed tracing, and then only when drop, *only* target_span: any rule sampling (with limiter) is applied (no agent sampling)
 static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     int priority;
-    bool is_trace_root = !span->parent_id;
     enum dd_sampling_mechanism mechanism;
 
     ddtrace_rule_result result = dd_decide_on_open_span_sampling(span);
     double sample_rate = 0;
     bool explicit_rule = true;
 
-    if (is_trace_root) {
-        // when we sample, we need to fetch the env first
-        ddtrace_check_agent_info_env();
+    // when we sample, we need to fetch the env first
+    ddtrace_check_agent_info_env();
 
-        double default_sample_rate = get_DD_TRACE_SAMPLE_RATE();
-        sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;
+    double default_sample_rate = get_DD_TRACE_SAMPLE_RATE();
+    sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;
 
-        if (result.rule != INT32_MAX) {
-            sample_rate = result.sampling_rate;
-        } else if (default_sample_rate >= 0) {
-            result.mechanism = DD_MECHANISM_RULE;
-        } else {
-            explicit_rule = false;
-
-            zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
-            if (!env) {
-                env = &span->property_env;
-            }
-
-            ddtrace_try_read_agent_rate();
-            // if we have an empty env... we can default to the cluster env.
-            if (ZSTR_LEN(get_DD_ENV()) && Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) == 0) {
-                zval_ptr_dtor(env);
-                ZVAL_STR_COPY(env, get_DD_ENV());
-            }
-
-            if (DDTRACE_G(agent_rate_by_service)) {
-                zval *sample_rate_zv = NULL;
-                zval *service = &span->property_service;
-                if (Z_TYPE_P(service) == IS_STRING && Z_TYPE_P(env) == IS_STRING) {
-                    zend_string *sample_key = zend_strpprintf(0, "service:%.*s,env:%.*s", (int) Z_STRLEN_P(service), Z_STRVAL_P(service),
-                                                              (int) Z_STRLEN_P(env), Z_STRVAL_P(env));
-                    sample_rate_zv = zend_hash_find(DDTRACE_G(agent_rate_by_service), sample_key);
-                    zend_string_release(sample_key);
-                }
-                if (!sample_rate_zv) {
-                    // Default rate if no service+env pair matches
-                    sample_rate_zv = zend_hash_str_find(DDTRACE_G(agent_rate_by_service), ZEND_STRL("service:,env:"));
-                    if (sample_rate_zv) {
-                        LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s and applied a default sample_rate of %f",
-                            Z_STRVAL(span->property_trace_id), zval_get_double(sample_rate_zv));
-                    }
-                } else {
-                    LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s (service: %s, env: %s) and found a sample_rate of %f",
-                        Z_STRVAL(span->property_trace_id), Z_STR_P(service), Z_STR_P(env), zval_get_double(sample_rate_zv));
-                }
-                if (sample_rate_zv) {
-                    sample_rate = zval_get_double(sample_rate_zv);
-                }
-            }
-        }
-    } else if (result.rule == INT32_MAX) {
-        // If we are in propagated mode, we only consider rules applying to all spans, hence default handling is not active
-        // But let's restore the sampling priority to reject in case it was reset to avoid invalid values
-        if (zval_get_long(&span->property_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
-            zval priority_zv;
-            ZVAL_LONG(&priority_zv, PRIORITY_SAMPLING_AUTO_REJECT);
-            ddtrace_assign_variable(&span->property_sampling_priority, &priority_zv);
-        }
-        return;
-    } else {
+    if (result.rule != INT32_MAX) {
         sample_rate = result.sampling_rate;
+    } else if (default_sample_rate >= 0) {
+        result.mechanism = DD_MECHANISM_RULE;
+    } else {
+        explicit_rule = false;
+
+        zval *env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
+        if (!env) {
+            env = &span->property_env;
+        }
+
+        ddtrace_try_read_agent_rate();
+        // if we have an empty env... we can default to the cluster env.
+        if (ZSTR_LEN(get_DD_ENV()) && Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) == 0) {
+            zval_ptr_dtor(env);
+            ZVAL_STR_COPY(env, get_DD_ENV());
+        }
+
+        if (DDTRACE_G(agent_rate_by_service)) {
+            zval *sample_rate_zv = NULL;
+            zval *service = &span->property_service;
+            if (Z_TYPE_P(service) == IS_STRING && Z_TYPE_P(env) == IS_STRING) {
+                zend_string *sample_key = zend_strpprintf(0, "service:%.*s,env:%.*s", (int) Z_STRLEN_P(service), Z_STRVAL_P(service),
+                                                            (int) Z_STRLEN_P(env), Z_STRVAL_P(env));
+                sample_rate_zv = zend_hash_find(DDTRACE_G(agent_rate_by_service), sample_key);
+                zend_string_release(sample_key);
+            }
+            if (!sample_rate_zv) {
+                // Default rate if no service+env pair matches
+                sample_rate_zv = zend_hash_str_find(DDTRACE_G(agent_rate_by_service), ZEND_STRL("service:,env:"));
+                if (sample_rate_zv) {
+                    LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s and applied a default sample_rate of %f",
+                        Z_STRVAL(span->property_trace_id), zval_get_double(sample_rate_zv));
+                }
+            } else {
+                LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s (service: %s, env: %s) and found a sample_rate of %f",
+                    Z_STRVAL(span->property_trace_id), Z_STR_P(service), Z_STR_P(env), zval_get_double(sample_rate_zv));
+            }
+            if (sample_rate_zv) {
+                sample_rate = zval_get_double(sample_rate_zv);
+            }
+        }
     }
 
     // this must be stable on re-evaluation

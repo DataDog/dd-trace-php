@@ -652,7 +652,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (DDTRACE_G(tracestate)) {
             zend_string_release(DDTRACE_G(tracestate));
         }
-        DDTRACE_G(tracestate) = result->tracestate;  
+        DDTRACE_G(tracestate) = result->tracestate;
         zend_hash_destroy(&DDTRACE_G(baggage));
         DDTRACE_G(baggage) = result->baggage;
         zend_string *key;

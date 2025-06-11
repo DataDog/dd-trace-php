@@ -49,6 +49,7 @@ foreach ($trace_ids as $trace_id_and_expected_sampling) {
     DDTrace\consume_distributed_tracing_headers(function ($header) use ($trace_id) {
         return [
              "x-datadog-trace-id" => $trace_id,
+             "x-datadog-parent-id" => "1234567890",
             ][$header] ?? null;
     });
 
