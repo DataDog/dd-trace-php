@@ -16,6 +16,7 @@
 #include "user_tracking.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
+#include <stdatomic.h>
 
 static const char WAF_REQUEST_METRIC[] = "waf.requests";
 static const size_t WAF_REQUEST_METRIC_LEN = sizeof(WAF_REQUEST_METRIC) - 1;
@@ -790,6 +791,21 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
     return true;
 }
 
+static void _init_zstr(
+    zend_string *_Atomic *nonnull zstr, const char *nonnull str, size_t len)
+{
+    zend_string *zstr_cur = atomic_load_explicit(zstr, memory_order_acquire);
+    if (zstr_cur != NULL) {
+        return;
+    }
+    zend_string *zstr_new = zend_string_init(str, len, 1);
+    if (atomic_compare_exchange_strong_explicit(zstr, &(zend_string *){NULL},
+            zstr_new, memory_order_release, memory_order_relaxed)) {
+        return;
+    }
+    zend_string_release(zstr_new);
+}
+
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
     double value, const char *nonnull tags_str, size_t tags_len)
@@ -797,8 +813,14 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
 #define HANDLE_METRIC(name, type)                                              \
     do {                                                                       \
         if (key_len == LSTRLEN(name) && memcmp(key_str, name, key_len) == 0) { \
-            dd_telemetry_add_metric(                                           \
-                name, LSTRLEN(name), value, tags_str, tags_len, type);         \
+            static zend_string *_Atomic key_zstr;                              \
+            _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
+            zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 1);  \
+            dd_telemetry_add_metric(key_zstr, value, tags_zstr, type);         \
+            zend_string_release(tags_zstr);                                    \
+            mlog_g(dd_log_debug,                                               \
+                "Telemetry metric %.*s added with tags %.*s and value %f",     \
+                (int)key_len, key_str, (int)tags_len, tags_str, value);        \
             return;                                                            \
         }                                                                      \
     } while (0)

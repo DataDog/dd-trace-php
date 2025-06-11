@@ -8,7 +8,7 @@
 #include "ddtrace.h"
 #include <stddef.h>
 
-void dd_telemetry_add_metric(const char *nonnull name, size_t name_len,
-    double value, const char *nonnull tags_str, size_t tags_len, ddtrace_metric_type type);
+void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
+    zend_string *nonnull tags_zstr, ddtrace_metric_type type);
 
 void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len);
