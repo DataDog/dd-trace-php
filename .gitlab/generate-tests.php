@@ -222,7 +222,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     KUBERNETES_CPU_LIMIT: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-    MAX_TEST_PARALLELISM: 4
+    MAX_TEST_PARALLELISM: 2
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
   script:
