@@ -179,7 +179,6 @@ stages:
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
   timeout: 30m
-  retry: 2
   variables:
     host_os: linux-gnu
     COMPOSER_MEMORY_LIMIT: "-1"
@@ -216,12 +215,13 @@ foreach ($asan_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "<?= $arch ?>"
       artifacts: true
+  retry: 2
   variables:
     WAIT_FOR: test-agent:9126
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_CPU_LIMIT: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_CPU_REQUEST: 6
+    KUBERNETES_CPU_LIMIT: 6
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
     MAX_TEST_PARALLELISM: 2
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
