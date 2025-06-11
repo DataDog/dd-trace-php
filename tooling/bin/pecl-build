@@ -10,6 +10,7 @@ composer -dtooling/generation verify
 # PECL doesn't like the "+$gitsha1" part of the non-release version number.
 # Currently these aren't published, so truncating it is fine.
 dd_version=$(cat VERSION | grep -Eo '^[^+]*')
+dd_changelog=$(tail -n +2 CHANGELOG.md)
 
 configuration_placeholder='
                 <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
@@ -34,6 +35,7 @@ pkg_xml=${pkg_xml//'${version}'/${dd_version}}
 pkg_xml=${pkg_xml//'${date}'/$(date +%Y-%m-%d)}
 pkg_xml=${pkg_xml//'${codefiles}'/${codefiles}}
 pkg_xml=${pkg_xml//'${filelist}'/${filelist}}
+pkg_xml=${pkg_xml//'${changelog}'/${dd_changelog}}
 
 echo "$pkg_xml" > package.xml
 
