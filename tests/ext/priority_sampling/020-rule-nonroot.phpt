@@ -1,7 +1,7 @@
 --TEST--
 priority_sampling rule with match on non-root spans
 --ENV--
-DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.9, "tags": {"end": "true"}},{"sample_rate": 0.7, "service": "bar"},{"sample_rate": 0.3, "service": "foo"}]
+DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.9, "tags": {"end": "true"}},{"sample_rate": 0.7, "service": "bar", "target_span": "any"},{"sample_rate": 0.3, "service": "foo"}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
 --SKIPIF--
 <?php
