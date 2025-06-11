@@ -145,7 +145,7 @@ CONFIG
         $rootSpanMeta = $traces[0][0]['meta'];
 
         $gitCommitSha = trim(`git rev-parse HEAD`);
-        $gitRepositoryURL = trim(`git config --get remote.origin.url`);
+        $gitRepositoryURL = preg_replace('((?<=//)[^@]+@)', '', trim(`git config --get remote.origin.url`));
 
         $this->assertEquals($gitCommitSha, $rootSpanMeta['_dd.git.commit.sha']);
         $this->assertEquals($gitRepositoryURL, $rootSpanMeta['_dd.git.repository_url']);

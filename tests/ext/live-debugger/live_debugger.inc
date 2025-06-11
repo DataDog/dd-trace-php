@@ -126,7 +126,7 @@ function await_probe_installation($trigger, $num = 1) {
     $last_id = \DDtrace\install_hook("_dummy", function () {});
     $ret = $trigger();
 
-    for ($i = 0; $i < 6000; ++$i) {
+    for ($i = 0; $i < 15000; ++$i) {
         usleep(1000);
 
         $id = \DDtrace\install_hook("_dummy", function () {});

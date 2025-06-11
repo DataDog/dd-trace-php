@@ -14,9 +14,14 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 
-static const int MAX_DEPTH = 32;
+static const size_t MAX_DEPTH_READING = 32;
+static const size_t MAX_DEPTH_WRITING = 20;
+static const size_t MAX_STR_LEN = 4096;
+static const size_t MAX_ARRAY_SIZE = 256;
+static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 
-static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv);
+static void _mpack_write_zval(
+    mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth);
 
 void dd_mpack_write_nullable_cstr(
     mpack_writer_t *nonnull w, const char *nullable cstr)
@@ -31,6 +36,10 @@ void dd_mpack_write_nullable_str(
     mpack_writer_t *nonnull w, const char *nullable str, size_t len)
 {
     if (str) {
+        if (len > MAX_STR_LEN) {
+            data_truncated_ = true;
+            len = MAX_STR_LEN;
+        }
         mpack_write_str(w, str, len);
     } else {
         mpack_write_str(w, "", 0);
@@ -40,7 +49,12 @@ void dd_mpack_write_nullable_str(
 void dd_mpack_write_zstr(
     mpack_writer_t *nonnull w, const zend_string *nonnull zstr)
 {
-    mpack_write_str(w, ZSTR_VAL(zstr), ZSTR_LEN(zstr));
+    size_t len = ZSTR_LEN(zstr);
+    if (len > MAX_STR_LEN) {
+        data_truncated_ = true;
+        len = MAX_STR_LEN;
+    }
+    mpack_write_str(w, ZSTR_VAL(zstr), len);
 }
 
 void dd_mpack_write_nullable_zstr(
@@ -63,25 +77,39 @@ void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv)
         return;
     }
 
-    _mpack_write_zval(w, zv);
+    _mpack_write_zval(w, zv, 0);
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-void dd_mpack_write_array(
-    mpack_writer_t *nonnull w, const zend_array *nullable arr)
+static void _dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr, size_t depth)
 {
     if (!arr) {
         mpack_write_nil(w);
+        return;
+    }
+
+    if (depth > MAX_DEPTH_WRITING) {
+        data_truncated_ = true;
+        mpack_write_nil(w);
+        return;
     }
 
     uint32_t num_elems = zend_hash_num_elements(arr);
+    if (num_elems > MAX_ARRAY_SIZE) {
+        data_truncated_ = true;
+        num_elems = MAX_ARRAY_SIZE;
+    }
     dd_php_array_type arr_type = dd_php_determine_array_type(arr);
     if (arr_type == php_array_type_sequential) {
         mpack_start_array(w, num_elems);
         zval *val;
         ZEND_HASH_FOREACH_VAL((zend_array *)arr, val)
         {
-            _mpack_write_zval(w, val);
+            _mpack_write_zval(w, val, depth);
+            if (--num_elems == 0) {
+                break;
+            }
         }
         ZEND_HASH_FOREACH_END();
         mpack_finish_array(w);
@@ -94,21 +122,31 @@ void dd_mpack_write_array(
         ZEND_HASH_FOREACH_KEY_VAL((zend_array *)arr, key_i, key_s, val)
         {
             if (key_s) {
-                mpack_write_str(w, ZSTR_VAL(key_s), ZSTR_LEN(key_s));
+                dd_mpack_write_zstr(w, key_s);
             } else {
                 char buf[ZEND_LTOA_BUF_LEN];
                 ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
                 mpack_write(w, buf);
             }
-            _mpack_write_zval(w, val);
+            _mpack_write_zval(w, val, depth);
+            if (--num_elems == 0) {
+                break;
+            }
         }
         ZEND_HASH_FOREACH_END();
         mpack_finish_map(w);
     }
 }
 
+void dd_mpack_write_array(
+    mpack_writer_t *nonnull w, const zend_array *nullable arr)
+{
+    _dd_mpack_write_array(w, arr, 0);
+}
+
 // NOLINTNEXTLINE
-static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
+static void _mpack_write_zval(
+    mpack_writer_t *nonnull w, zval *nonnull zv, size_t depth)
 {
 
     if (zv == NULL) {
@@ -139,18 +177,18 @@ static void _mpack_write_zval(mpack_writer_t *nonnull w, zval *nonnull zv)
         break;
 
     case IS_STRING:
-        mpack_write_str(w, Z_STRVAL_P(zv), Z_STRLEN_P(zv));
+        dd_mpack_write_zstr(w, Z_STR_P(zv));
         break;
 
     case IS_ARRAY: {
         zend_array *arr = Z_ARRVAL_P(zv);
-        dd_mpack_write_array(w, arr);
+        _dd_mpack_write_array(w, arr, depth + 1);
         break;
     }
 
     case IS_REFERENCE: {
         zval *referent = Z_REFVAL_P(zv);
-        _mpack_write_zval(w, referent);
+        _mpack_write_zval(w, referent, depth);
         break;
     }
 
@@ -270,9 +308,9 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static bool parse_element(
-    mpack_reader_t *nonnull reader, int depth, zval *nonnull output)
+    mpack_reader_t *nonnull reader, size_t depth, zval *nonnull output)
 {
-    if (depth >= MAX_DEPTH) { // critical check!
+    if (depth >= MAX_DEPTH_READING) { // critical check!
         mpack_reader_flag_error(reader, mpack_error_too_big);
         mlog(dd_log_error, "decode_msgpack error: msgpack object too big");
         return false;
@@ -393,3 +431,7 @@ static void _register_testing_objects(void)
 }
 
 void dd_msgpack_helpers_startup(void) { _register_testing_objects(); }
+
+void dd_msgpack_helpers_rinit(void) { data_truncated_ = false; }
+
+bool dd_msgpack_helpers_is_data_truncated(void) { return data_truncated_; }

@@ -20,19 +20,19 @@ endif
 
 .PHONY: build_file_server publish_file_server
 build_file_server: $(DDTRACE_DEB)
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml build --no-cache nginx_file_server
+	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml build --no-cache nginx_file_server
 publish_file_server: $(DDTRACE_DEB)
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml push nginx_file_server
+	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml push nginx_file_server
 
 build: build_file_server $(addprefix build_framework_,$(DDTRACE_TARGETS))
 
 publish: build $(addprefix publish_framework_,$(DDTRACE_TARGETS)) publish_file_server
 
 build_framework_%:
-	@docker-compose -f $(ROOT_DIR)/$(*).yml build $(*)
+	docker-compose --log-level debug -f $(ROOT_DIR)/$(*).yml build $(*)
 
 publish_framework_%:
-	@docker-compose -f $(ROOT_DIR)/$(*).yml push $(*)
+	docker-compose --log-level debug -f $(ROOT_DIR)/$(*).yml push $(*)
 
 .PHONY: clean
 clean:
@@ -41,13 +41,13 @@ clean:
 .PHONY: $(TARGETS)
 $(DDTRACE_TARGETS): build_file_server
 	@echo Running $@
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run $@
+	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
+	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run $@
 
 $(NO_DDTRACE_TARGETS): build_file_server
 	@echo Running without ddtrace enabled $(@:_no_ddtrace=)
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml pull
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml run -e NO_DDTRACE=true $(@:_no_ddtrace=)
+	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml pull
+	docker-compose --log-level debug -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml run -e NO_DDTRACE=true $(@:_no_ddtrace=)
 
 .PHONY: help
 help:

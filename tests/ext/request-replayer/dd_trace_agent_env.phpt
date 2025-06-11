@@ -30,12 +30,19 @@ datadog.trace.agent_test_session_token=dd_trace_agent_env
 --FILE--
 <?php
 
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+
 $span = \DDTrace\start_span();
-if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) {
-    sleep(3); // timing sensitive
-} else {
-    sleep(1);
-}
+
+// make sure sidecar keeps up with us
+$start = microtime(true);
+\DDTrace\start_trace_span();
+\DDTrace\close_span();
+$rr->waitForDataAndReplay();
+usleep(floor(microtime(true) - $start) * 100000);
+
 \DDTrace\close_span();
 var_dump($span->env);
 

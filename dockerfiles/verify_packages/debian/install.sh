@@ -15,6 +15,10 @@ apt install -y \
     procps \
     gnupg
 
+# Nginx listens on 8080, apache on 8081
+sed -i 's/80/127.0.0.1:8081/' /etc/apache2/ports.conf
+sed -i 's/*:80/127.0.0.1:8081/' /etc/apache2/sites-enabled/000-default.conf
+
 # Installing php
 if [ "${INSTALL_MODE}" = "native" ]; then
     apt-get install -y ${PHP_PACKAGE}
@@ -58,11 +62,12 @@ fi
 
 # PHP-FPM setup
 # For cases when it defaults to UDS
-sed -i 's/^listen = .*$/listen = 9000/g' ${WWW_CONF}
+sed -i 's/^listen = .*$/listen = 127.0.0.1:9000/g' $(dirname -- ${WWW_CONF})/*.conf
 # Passing envs to php-fpm process directly for simplicity. Note that on PHP 5.4 clear_env does not appear in www not
 # even commented, so we remove potential existing line and add it at the end of the config file.
 sed -i 's/^;*clear_env.*$//g' ${WWW_CONF}
 echo 'clear_env = no' >> ${WWW_CONF}
+echo 'listen.allowed_clients = 127.0.0.1' >> ${WWW_CONF}
 sed -i 's/^;*catch_workers_output.*$/catch_workers_output = yes/g' ${WWW_CONF}
 
 echo "Starting ${PHP_FPM_BIN}"

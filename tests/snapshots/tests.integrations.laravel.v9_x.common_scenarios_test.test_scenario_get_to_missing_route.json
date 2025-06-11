@@ -239,7 +239,7 @@
         {
           "name": "laravel.view",
           "service": "my_service",
-          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_9_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "{path}/tests/Frameworks/Laravel/Version_9_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
           "span_id": 21,
           "parent_id": 18,

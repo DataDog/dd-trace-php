@@ -111,7 +111,7 @@
         "post-update-cmd": [
             "Drupal\\Composer\\Composer::generateMetapackages",
             "Drupal\\Composer\\Composer::generateComponentPackages",
-            "chmod a+w sites/default && rm -rf sites/default/files && rm -f sites/default/settings.php && php scripts/erase_drupal_db.php && php core/scripts/drupal install minimal"
+            "(chmod a+w sites/default || sudo chmod a+w sites/default) && rm -rf sites/default/files && rm -f sites/default/settings.php && php scripts/erase_drupal_db.php && php core/scripts/drupal install minimal"
         ],
         "phpcs": "phpcs --standard=core/phpcs.xml.dist --parallel=$(nproc) --",
         "phpcbf": "phpcbf --standard=core/phpcs.xml.dist --parallel=$(nproc) --"

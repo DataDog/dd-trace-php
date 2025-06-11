@@ -28,7 +28,7 @@ LDFLAGS ?=
 PHP_EXTENSION_DIR = $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -r 'print ini_get("extension_dir");')
 PHP_MAJOR_MINOR = $(shell ASAN_OPTIONS=detect_leaks=0 php -n -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 ARCHITECTURE = $(shell uname -m)
-QUIET_TESTS := ${CIRCLE_SHA1}
+QUIET_TESTS := ${CI_COMMIT_SHA}
 RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
@@ -42,7 +42,7 @@ INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | aw
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
 # shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
-RUN_TESTS_CMD := REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
+RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -474,10 +474,10 @@ $(PACKAGES_BUILD_DIR):
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
 .tar.gz.%: $(PACKAGES_BUILD_DIR)
-	mkdir -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)
-	rm -rf /tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
-	fpm -p /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
-	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C /tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
+	mkdir -p $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)
+	rm -rf $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)/*
+	fpm -p $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) -t dir $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
+	tar -zcf $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).$(*).tar.gz -C $(PROJECT_ROOT)/tmp/$(PACKAGES_BUILD_DIR)-$(*)/$(PACKAGE_NAME)-$(VERSION) . --owner=0 --group=0
 
 bundle.tar.gz: $(PACKAGES_BUILD_DIR)
 	bash ./tooling/bin/generate-final-artifact.sh \
@@ -495,7 +495,7 @@ build_pecl_package:
 	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock"; \
 	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
 
-dbgsym.tar.gz:
+dbgsym.tar.gz: $(PACKAGES_BUILD_DIR)
 	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)
 
 installer_packages: .apk.x86_64 .apk.aarch64 .rpm.x86_64 .rpm.aarch64 .deb.x86_64 .deb.arm64 .tar.gz.x86_64 .tar.gz.aarch64 bundle.tar.gz dbgsym.tar.gz
@@ -524,8 +524,6 @@ generate_stubs:
 
 tested_versions:
 	@composer -dtooling/tested_versions generate
-	mkdir -p /tmp/artifacts
-	cp tests/tested_versions/tested_versions.json /tmp/artifacts/tested_versions.json
 
 # Find all generated core dumps, sorted by date descending
 cores:
@@ -1139,7 +1137,7 @@ MAX_RETRIES := 3
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
-		$(COMPOSER) --working-dir=$1 update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
+		$(COMPOSER) --working-dir=$(if $1,$1,.) update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
 	done \
 
 	mkdir -p /tmp/artifacts
@@ -1220,12 +1218,13 @@ test: global_test_run_dependencies
 
 test_unit: global_test_run_dependencies
 	$(call run_tests,--testsuite=unit $(TESTS))
-	DD_TRACE_AGENT_RETRIES=3 DD_TRACE_AGENT_FLUSH_INTERVAL=333 DD_TRACE_AGENT_URL=http://request-replayer:80 $(call run_tests,tests/Unit/Util/OrphansTest.php)
 test_unit_coverage: global_test_run_dependencies
 	PHPUNIT_COVERAGE=1 $(MAKE) test_unit
 
 test_integration: global_test_run_dependencies
+	$(eval TEST_EXTRA_ENV=DD_TRACE_AGENT_RETRIES=3 DD_TRACE_AGENT_FLUSH_INTERVAL=333 DD_TRACE_AGENT_PORT=9126 DD_AGENT_HOST=test-agent)
 	$(call run_tests,--testsuite=integration $(TESTS))
+	$(eval TEST_EXTRA_ENV=)
 test_integration_coverage:
 	PHPUNIT_COVERAGE=1 $(MAKE) test_integration
 
@@ -1277,7 +1276,7 @@ define run_opentelemetry_tests
 endef
 
 test_opentelemetry_beta: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer-beta$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
-	$(call run_opentelemetry_tests, TESTSUITE_VENDOR_DIR=vendor-beta)
+	$(call run_opentelemetry_tests, OTEL_SERVICE_NAME=datadog/dd-trace-tests TESTSUITE_VENDOR_DIR=vendor-beta)
 
 tests/OpenTelemetry/composer-%.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-%.json
 	$(call run_composer_with_lock,tests/OpenTelemetry,composer-$(*).json)

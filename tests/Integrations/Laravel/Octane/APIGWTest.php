@@ -9,7 +9,7 @@ class APIGWTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Octane/Latest/artisan';
+        return REPOSITORY_ROOT_DIR . '/tests/Frameworks/Laravel/Octane/Latest/artisan';
     }
 
     protected static function isOctane()
@@ -20,11 +20,7 @@ class APIGWTest extends WebFrameworkTestCase
     public static function ddSetUpBeforeClass()
     {
         $swooleIni = file_get_contents(__DIR__ . '/swoole.ini');
-
-        $currentDir = getcwd();
-        $isLocalDevEnv = strpos($currentDir, 'datadog') === false;
-        $replacement = $isLocalDevEnv ? '/home/circleci/app' : '/home/circleci/datadog';
-        $swooleIni = str_replace('{{path}}', $replacement, $swooleIni);
+        $swooleIni = str_replace('{{path}}', REPOSITORY_ROOT_DIR, $swooleIni);
 
         $autoloadNoCompile = getenv('DD_AUTOLOAD_NO_COMPILE');
         if (!$autoloadNoCompile || !filter_var($autoloadNoCompile, FILTER_VALIDATE_BOOLEAN)) {

@@ -13,8 +13,10 @@ datadog.trace.agent_test_session_token=remote-config/dynamic_config_update
 <?php
 
 require __DIR__ . "/remote_config.inc";
+include __DIR__ . '/../includes/request_replayer.inc';
 
 reset_request_replayer();
+$rr = new RequestReplayer();
 
 put_dynamic_config_file([
     "tracing_sample_rate" => 0.5,
@@ -44,7 +46,10 @@ put_dynamic_config_file([
 
 // submit span data
 \DDTrace\start_span();
-usleep(getenv("USE_ZEND_ALLOC") === "0" ? 2000000 : 500000);
+
+if (ini_get("datadog.trace.sample_rate") != 0.5) {
+    sleep(20); // signal interrupts interrupt the sleep().
+}
 
 var_dump(ini_get("datadog.trace.sample_rate"));
 $tags = explode(",", ini_get("datadog.trace.header_tags"));

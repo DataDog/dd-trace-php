@@ -13,7 +13,7 @@
       "_dd.p.tid": "67cb015300000000",
       "component": "aws-apigateway",
       "env": "local-test",
-      "error.message": "Uncaught Exception: Error page in /home/circleci/app/tests/Frameworks/Roadrunner/Version_2/worker.php:26",
+      "error.message": "Uncaught Exception: Error page in {path}/tests/Frameworks/Roadrunner/Version_2/worker.php:26",
       "error.stack": "#0 {main}",
       "error.type": "Exception",
       "http.method": "GET",
@@ -38,7 +38,7 @@
        "meta": {
          "component": "roadrunner",
          "env": "local-test",
-         "error.message": "Uncaught Exception: Error page in /home/circleci/app/tests/Frameworks/Roadrunner/Version_2/worker.php:26",
+         "error.message": "Uncaught Exception: Error page in {path}/tests/Frameworks/Roadrunner/Version_2/worker.php:26",
          "error.stack": "#0 {main}",
          "error.type": "Exception",
          "http.method": "GET",

@@ -1459,7 +1459,7 @@
           "parent_id": 10,
           "type": "web",
           "meta": {
-            "closure.declaration": "/home/circleci/app/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
+            "closure.declaration": "{path}/tests/Frameworks/WordPress/Version_6_1/wp-includes/script-loader.php:3398",
             "component": "wordpress",
             "wordpress.callback": "Closure",
             "wordpress.hook": "wp_loaded"

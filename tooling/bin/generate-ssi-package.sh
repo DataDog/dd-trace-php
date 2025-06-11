@@ -10,10 +10,14 @@ packages_build_dir=$2
 # '+' char is not allowed
 release_version_sanitized=${release_version/+/-}
 
-tmp_folder=/tmp/ssi-bundle
+tmp_folder="${CI_PROJECT_DIR:-}/tmp/ssi-bundle"
 tmp_folder_final=$tmp_folder/final
 
-architectures=(x86_64 aarch64)
+if [[ -n "${ARCHITECTURE:-}" ]]; then
+  architectures=(${ARCHITECTURE})
+else
+  architectures=(x86_64 aarch64)
+fi
 
 if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
     exit 0
@@ -116,14 +120,14 @@ for architecture in "${architectures[@]}"; do
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
     stripto "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
-    ln "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
+    cp "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
 
     ########################
     # Final archives
     ########################
 
     echo "$release_version_sanitized" > ${root}/version
-    ln ./loader/packaging/requirements.json ${root}/requirements.json
+    cp ./loader/packaging/requirements.json ${root}/requirements.json
 
     tar -czv \
         -f ${packages_build_dir}/dd-library-php-ssi-${release_version}-$architecture-linux.tar.gz \

@@ -55,7 +55,7 @@ abstract class IntegrationTestCase extends BaseTestCase
         file_put_contents($artifactsDir . "/composer_versions.csv", $csv, FILE_APPEND);
 
         if (isset(static::$database) && !isset(self::$createdDatabases[static::$database])) {
-            $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+            $pdo = new \PDO('mysql:host=mysql-integration', 'test', 'test');
             $pdo->exec("CREATE DATABASE IF NOT EXISTS " . static::$database);
             self::$createdDatabases[static::$database] = true;
         }
@@ -172,7 +172,7 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     protected static function recordVersion($testedLibrary, $version)
     {
-        $projectRoot = preg_replace('/^\/([^\/]+)\/([^\/]+)\/([^\/]+).*/', '/$1/$2/$3', \getcwd());
+        $projectRoot = __DIR__ . "/../..";
         $testsRoot = "$projectRoot/tests";
         $class = \get_called_class();
         echo "Recording tested version $version of $testedLibrary for $class\n";

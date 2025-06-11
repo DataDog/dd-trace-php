@@ -9,6 +9,7 @@ RUN set -eux; \
     apk add --no-cache \
         bash \
         autoconf \
+        catch2 \
         coreutils \
         g++ \
         gcc \
@@ -24,7 +25,7 @@ RUN set -eux; \
         libxml2-dev \
         gnu-libiconv-dev \
         oniguruma-dev \
-        cmake \
+        python3 \
         tar
 
 # Profiling deps

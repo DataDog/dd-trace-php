@@ -63,7 +63,7 @@ verify_tar_root:
 global_test_dependencies: ../../build/packages/datadog-setup.php
 
 test_legacy_installer_no_ext_json: global_test_dependencies
-	docker run --rm -ti -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/verify_no_ext_json.sh
+	docker run --rm -i -v $(shell pwd)/../../:/app --workdir=/app alpine:3.12 sh dockerfiles/verify_packages/verify_no_ext_json.sh
 
 test_installer: $(shell find installer -name 'test_*.sh' -exec basename {} \;)
 
@@ -93,30 +93,30 @@ test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
 test_profiler_install_unsupported_debug.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_zts.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_install_non_binary.sh \
 test_fpm.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_profiler_install_unsupported.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
@@ -126,17 +126,17 @@ test_alpine_install_no_ext_curl_no_curl_cli.sh \
 test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_zts_no_zend_signals.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libexecinfo.sh: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
 
 test_install_on_plesk.sh: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -ti -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)
+	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)
