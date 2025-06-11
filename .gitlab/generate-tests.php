@@ -219,6 +219,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_LIMIT: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
