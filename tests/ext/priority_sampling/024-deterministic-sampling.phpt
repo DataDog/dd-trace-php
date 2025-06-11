@@ -2,7 +2,7 @@
 run sampling algorithm on multiple trace IDs and ensure that the results are deterministic
 --ENV--
 DD_TRACE_SAMPLE_RATE=0.5
-DD_TRACE_GENERATE_ROOT_SPAN=1
+DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
@@ -44,11 +44,12 @@ foreach ($trace_ids as $trace_id_and_expected_sampling) {
     $trace_id = $trace_id_and_expected_sampling[0];
     $expected_sampling = $trace_id_and_expected_sampling[1] ? 2 : -1;
 
-    $root = \DDTrace\root_span();
+    $root = \DDTrace\start_span();
 
     DDTrace\consume_distributed_tracing_headers(function ($header) use ($trace_id) {
         return [
              "x-datadog-trace-id" => $trace_id,
+             "x-datadog-parent-id" => "1234567890",
             ][$header] ?? null;
     });
 
@@ -58,6 +59,8 @@ foreach ($trace_ids as $trace_id_and_expected_sampling) {
     // The decision maker tag is not applied when the trace is not sampled,
     // we should check if this is the case in other tracers.
     printf("_dd.p.dm = %s\n", $root->meta["_dd.p.dm"] ?? "-");
+
+    \DDTrace\close_span();
 }
 
 ?>
