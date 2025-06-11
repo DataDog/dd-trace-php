@@ -16,11 +16,12 @@ DDTrace\SpanLink Object
 (
     [traceId] => 0000000000000000000000000000002a
     [spanId] => %s
-    [traceState] => dd=o:datadog;t.custom_tag:inherited;t.second_tag:bar
+    [traceState] => dd=o:datadog;t.custom_tag:inherited;t.second_tag:bar;t.dm:-0
     [attributes] => Array
         (
             [_dd.p.custom_tag] => inherited
             [_dd.p.second_tag] => bar
+            [_dd.p.dm] => -0
         )
 
 )
