@@ -208,6 +208,11 @@ static ddtrace_rule_result dd_decide_on_open_span_sampling(ddtrace_root_span_dat
     ddtrace_span_properties *span_props = root->stack->active;
 
     if (!span_props) {
+        ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(root);
+        if (inferred_span) {
+            ddtrace_rule_result result = dd_match_rules(inferred_span, true, INT32_MAX);
+            return result;
+        }
         return root->sampling_rule;
     }
 
