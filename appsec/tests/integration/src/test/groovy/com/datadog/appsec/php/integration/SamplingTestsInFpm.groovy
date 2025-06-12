@@ -8,7 +8,7 @@ import java.net.http.HttpResponse
 
 trait SamplingTestsInFpm {
 
-    void assertSamplingPriority(Trace trace, boolean schemaExtracted) {
+    void assertSamplingPriority(Trace trace) {
         //Nothing to do here. The work will be done on overrides
     }
 
@@ -21,7 +21,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
-        assertSamplingPriority(trace, true);
+        assertSamplingPriority(trace);
 
         // the second time we should not see it
         trace = container.traceFromRequest('/api_security.php') {
@@ -30,7 +30,6 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == null
-        assertSamplingPriority(trace, false);
 
         // however, if we change the endpoint, we should again see something
         trace = container.traceFromRequest('/api_security.php?route=/another/route') {
@@ -39,7 +38,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
-        assertSamplingPriority(trace, true);
+        assertSamplingPriority(trace);
     }
 
     @Test
@@ -55,7 +54,7 @@ trait SamplingTestsInFpm {
                 }
                 assert trace != null
                 assert trace.first().meta."_dd.appsec.s.res.body" != null
-                assertSamplingPriority(trace, true);
+                assertSamplingPriority(trace);
             }
         } finally {
             resetFpm()
@@ -82,7 +81,6 @@ trait SamplingTestsInFpm {
             }, true /* ignore other traces */)
             assert trace != null
             assert trace.first().meta."_dd.appsec.s.res.body" == null
-            assertSamplingPriority(trace, false);
 
             // now wait a bit and check that we see the trace again
             Thread.sleep(3500)
@@ -93,7 +91,7 @@ trait SamplingTestsInFpm {
             }
             assert trace != null
             assert trace.first().meta."_dd.appsec.s.res.body" != null
-            assertSamplingPriority(trace, true);
+            assertSamplingPriority(trace);
         } finally {
             resetFpm()
         }
