@@ -9,6 +9,7 @@ stages:
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
   before_script:
+<?php unset_dd_runner_env_vars() ?>
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
     - sudo apt install -y clang-tidy-17 libc++-17-dev libc++abi-17-dev
     - sudo mkdir -p /hunter-cache && sudo chmod 777 /hunter-cache
@@ -78,7 +79,7 @@ stages:
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - PATH=$PATH:$HOME/.cargo/bin make -j 4 xtest ddappsec_helper_test
-    - ./appsec/build/tests/helper/ddappsec_helper_test
+    - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
     - mkdir coverage
     - gcovr -f '.*src/extension/.*' -x -o coverage.xml
@@ -130,14 +131,20 @@ stages:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
-    CC: /usr/bin/clang-17
-    CXX: /usr/bin/clang++-17
   parallel:
     matrix:
       - ARCH: *arch_targets
   script:
+    - curl -LO https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-17.0.6.tar.gz
+    - tar xzf llvmorg-17.0.6.tar.gz
+    - cd llvm-project-llvmorg-17.0.6/compiler-rt
+    - cmake . -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
+    - make -j 4 fuzzer
+    - fuzzer=$(pwd)/lib/linux/libclang_rt.fuzzer_no_main-aarch64.a
+    - cd -
+
     - cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - make -j 4 ddappsec_helper_fuzzer corpus_generator
     - cd ..
     - mkdir -p tests/fuzzer/{corpus,results,logs}
