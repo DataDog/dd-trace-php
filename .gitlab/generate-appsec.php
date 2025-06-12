@@ -96,8 +96,8 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 25Gi
-    KUBERNETES_MEMORY_LIMIT: 26Gi
+    KUBERNETES_MEMORY_REQUEST: 9Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   script:
     - sudo apt install -y clang-format-17
@@ -129,8 +129,8 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_REQUEST: 5Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -140,7 +140,7 @@ stages:
     - cd llvm-project-llvmorg-17.0.6/compiler-rt
     - cmake . -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
     - make -j 4 fuzzer
-    - fuzzer=$(pwd)/lib/linux/libclang_rt.fuzzer_no_main-aarch64.a
+    - fuzzer=$(realpath lib/linux/libclang_rt.fuzzer_no_main-*.a)
     - cd -
 
     - cd appsec/build

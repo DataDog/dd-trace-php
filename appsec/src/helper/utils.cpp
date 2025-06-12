@@ -19,11 +19,9 @@ std::string read_file(std::string_view filename)
         throw std::system_error(errno, std::generic_category());
     }
 
-    // Create a buffer equal to the file size
-    file.seekg(0, std::ios::end);
-    std::string buffer(file.tellg(), '\0');
-    buffer.resize(file.tellg());
-    file.seekg(0, std::ios::beg);
+    auto file_size = std::filesystem::file_size(filename.data());
+    std::string buffer(file_size, '\0');
+    buffer.resize(file_size);
 
     auto buffer_size = buffer.size();
     if (buffer_size > static_cast<decltype(buffer_size)>(
