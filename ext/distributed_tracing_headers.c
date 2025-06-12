@@ -672,11 +672,13 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
     result->meta_tags.pDestructor = NULL; // we moved values directly
     zend_hash_destroy(&result->meta_tags);
 
-    if (span) {
-        ZVAL_LONG(&zv, result->priority_sampling);
-        ddtrace_assign_variable(&span->property_propagated_sampling_priority, &zv);
-    } else {
-        DDTRACE_G(propagated_priority_sampling) = result->priority_sampling;
+    if (result->trace_id.low || result->trace_id.high || result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        if (span) {
+            ZVAL_LONG(&zv, result->priority_sampling);
+            ddtrace_assign_variable(&span->property_propagated_sampling_priority, &zv);
+        } else {
+            DDTRACE_G(propagated_priority_sampling) = result->priority_sampling;
+        }
     }
 
     if (result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
