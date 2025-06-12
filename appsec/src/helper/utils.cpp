@@ -10,6 +10,7 @@
 #include <rapidjson/error/en.h>
 #include <string>
 #include <string_view>
+#include <sys/stat.h>
 
 namespace dds {
 std::string read_file(std::string_view filename)
@@ -19,7 +20,9 @@ std::string read_file(std::string_view filename)
         throw std::system_error(errno, std::generic_category());
     }
 
-    auto file_size = std::filesystem::file_size(filename.data());
+    struct stat statbuf {};
+    auto rc = stat(std::string{filename}.c_str(), &statbuf);
+    auto file_size = rc == 0 ? statbuf.st_size : 0;
     std::string buffer(file_size, '\0');
     buffer.resize(file_size);
 

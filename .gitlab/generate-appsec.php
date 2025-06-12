@@ -82,9 +82,9 @@ stages:
     - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
     - mkdir coverage
-    - (cd coverage; gcovr -f '.*src/extension/.*' -x -o coverage.xml)
-    - gcovr --gcov-ignore-parse-errors --html-details coverage/coverage.html -f ".*src/.*" -d
-    - tar -cvzf appsec-extension-coverage.tar.gz coverage/
+    - gcovr -f '.*src/extension/.*' -x -o coverage.xml
+    #- gcovr --gcov-ignore-parse-errors --html-details coverage/coverage.html -f ".*src/.*" -d
+    #- tar -cvzf appsec-extension-coverage.tar.gz coverage/
     # TODO: umm, how to do codecov uploading on gitlab?
   artifacts:
     paths:
