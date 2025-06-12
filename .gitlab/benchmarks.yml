@@ -92,14 +92,17 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
+.macrobenchmarks_rules: &macrobenchmarks_rules
+  - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
+    when: always
+  - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
+    when: always
+  - when: manual
 
 download_circle_ci_release:
   stage: benchmarks
   needs: []
-  rules:
-    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
-      when: always
-    - when: manual
+  rules: *macrobenchmarks_rules
   tags: [ "arch:amd64" ]
   interruptible: true
   timeout: 45m
@@ -117,10 +120,7 @@ download_circle_ci_release:
 
 .macrobenchmarks:
   stage: benchmarks
-  rules:
-    - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
-      when: always
-    - when: manual
+  rules: *macrobenchmarks_rules
   tags: ["runner:apm-k8s-same-cpu"]
   needs: ["download_circle_ci_release"]
   interruptible: true
@@ -171,7 +171,7 @@ macrobenchmarks:
 check-slo-breaches:
   stage: gate
   needs: ["macrobenchmarks"]
-  when: always
+  rules: *macrobenchmarks_rules
   tags: ["runner:apm-k8s-same-cpu"]
   image: $MACROBENCHMARKS_CI_IMAGE
   interruptible: true
@@ -189,8 +189,8 @@ check-slo-breaches:
 notify-slo-breaches:
   stage: notify
   needs: ["check-slo-breaches"]
+  rules: *macrobenchmarks_rules
   tags: ["runner:apm-k8s-same-cpu"]
-  when: always
   image: registry.ddbuild.io/slack-notifier:v27936653-9a2a7db-sdm-gbi-jammy@sha256:c9d1145319d1904fa72ea97904a15200d3cb684324723f9e1700bc02cc85065c
   variables:
     CHANNEL: "guild-dd-php"
