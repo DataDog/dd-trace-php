@@ -39,10 +39,8 @@ class StandaloneTests implements CommonTests, SamplingTestsInFpm {
     }
 
     @Override
-    void assertSamplingPriority(Trace trace, boolean schemaExtracted) {
+    void assertSamplingPriority(Trace trace) {
         Span span = trace.first()
-        if (schemaExtracted) {
-            assert span.metrics._sampling_priority_v1 == 2.0d
-        }
+        assert span.metrics._sampling_priority_v1 == 2.0d
     }
 }
