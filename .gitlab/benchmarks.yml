@@ -93,7 +93,9 @@ benchmarks-appsec:
     SCENARIO: "appsec"
 
 .macrobenchmarks_rules: &macrobenchmarks_rules
-  - if: ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule") && $CI_COMMIT_REF_NAME == "master"
+  - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
+    when: always
+  - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
     when: always
   - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
     when: always
