@@ -1,10 +1,6 @@
-stages:
-  - benchmarks
-  - gate
-  - notify
-
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
+  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
 
@@ -107,7 +103,7 @@ download_circle_ci_release:
   tags: [ "arch:amd64" ]
   interruptible: true
   timeout: 45m
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
+  image: $MACROBENCHMARKS_CI_IMAGE
   script:
     - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - ./steps/download-circle-ci-release.sh
@@ -129,7 +125,7 @@ download_circle_ci_release:
   needs: ["download_circle_ci_release"]
   interruptible: true
   timeout: 1h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
+  image: $MACROBENCHMARKS_CI_IMAGE
   script:
     - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - ./steps/run-benchmarks.sh
@@ -177,7 +173,7 @@ check-slo-breaches:
   needs: ["macrobenchmarks"]
   when: always
   tags: ["runner:apm-k8s-same-cpu"]
-  image: $BASE_CI_IMAGE
+  image: $MACROBENCHMARKS_CI_IMAGE
   interruptible: true
   timeout: 1h
   script:

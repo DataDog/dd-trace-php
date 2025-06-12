@@ -3,6 +3,8 @@ stages:
   - tests
   - deploy
   - benchmarks
+  - gate
+  - notify
   - ci-build
 
 variables:
