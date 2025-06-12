@@ -52,46 +52,50 @@ impl ExceptionProfilingStats {
 
     fn track_exception(
         &mut self,
-        #[cfg(php7)] exception: *mut zend::zval,
-        #[cfg(php8)] exception: *mut zend::zend_object,
-    ) {
+    ) -> bool {
         if let Some(next_sample) = self.next_sample.checked_sub(1) {
             self.next_sample = next_sample;
-            return;
+            return false;
         }
-
-        #[cfg(php7)]
-        let exception = unsafe { (*exception).value.obj };
-
-        let exception_name = unsafe { (*exception).class_name() };
-
-        let collect_message = REQUEST_LOCALS.with(|cell| {
-            cell.try_borrow()
-                .map(|locals| locals.system_settings().profiling_exception_message_enabled)
-                .unwrap_or(false)
-        });
-
-        let message = if collect_message {
-            Some(unsafe {
-                zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut())
-                    .into_string()
-            })
-        } else {
-            None
-        };
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_exception(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    exception_name,
-                    message,
-                )
-            };
-        }
+        true
+    }
+}
+
+fn collect_exception(
+    #[cfg(php7)] exception: *mut zend::zval,
+    #[cfg(php8)] exception: *mut zend::zend_object,
+) {
+    #[cfg(php7)]
+    let exception = unsafe { (*exception).value.obj };
+
+    let exception_name = unsafe { (*exception).class_name() };
+
+    let collect_message = REQUEST_LOCALS.with(|cell| {
+        cell.try_borrow()
+            .map(|locals| locals.system_settings().profiling_exception_message_enabled)
+            .unwrap_or(false)
+    });
+
+    let message = if collect_message {
+        Some(unsafe {
+            zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut()).into_string()
+        })
+    } else {
+        None
+    };
+
+    if let Some(profiler) = Profiler::get() {
+        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+        unsafe {
+            profiler.collect_exception(
+                zend::ddog_php_prof_get_current_execute_data(),
+                exception_name,
+                message,
+            )
+        };
     }
 }
 
@@ -199,9 +203,9 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     // This process involved calling this hook for each stack frame or try...catch block it
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
-    if exception_profiling && !exception.is_null() {
-        EXCEPTION_PROFILING_STATS
-            .with_borrow_mut(|exceptions| exceptions.track_exception(exception));
+    if exception_profiling && !exception.is_null() && EXCEPTION_PROFILING_STATS
+            .with_borrow_mut(|exceptions| exceptions.track_exception()) {
+        collect_exception(exception);
     }
 
     if let Some(prev) = PREV_ZEND_THROW_EXCEPTION_HOOK {
