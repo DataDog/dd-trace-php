@@ -82,7 +82,7 @@ stages:
     - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
     - cd appsec
     - mkdir coverage
-    - gcovr -f '.*src/extension/.*' -x -o coverage.xml
+    - (cd coverage; gcovr -f '.*src/extension/.*' -x -o coverage.xml)
     - gcovr --gcov-ignore-parse-errors --html-details coverage/coverage.html -f ".*src/.*" -d
     - tar -cvzf appsec-extension-coverage.tar.gz coverage/
     # TODO: umm, how to do codecov uploading on gitlab?
@@ -123,51 +123,52 @@ stages:
     - make -j 4 ddappsec_helper_test
     - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
 
-"fuzz appsec helper":
-  stage: test
-  extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
-  variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
-  parallel:
-    matrix:
-      - ARCH: *arch_targets
-  script:
-    - curl -LO https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-17.0.6.tar.gz
-    - tar xzf llvmorg-17.0.6.tar.gz
-    - cd llvm-project-llvmorg-17.0.6/compiler-rt
-    - cmake . -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
-    - make -j 4 fuzzer
-    - fuzzer=$(realpath lib/linux/libclang_rt.fuzzer_no_main-*.a)
-    - cd -
-
-    - cd appsec/build
-    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-    - make -j 4 ddappsec_helper_fuzzer corpus_generator
-    - cd ..
-    - mkdir -p tests/fuzzer/{corpus,results,logs}
-    - rm -f tests/fuzzer/corpus/*
-
-    - '# Run fuzzer in nop mode'
-    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-    - LLVM_PROFILE_FILE=off.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-    - rm -f tests/fuzzer/corpus/*
-
-    - '# Run fuzzer in raw mode'
-    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-    - LLVM_PROFILE_FILE=raw.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-    - rm -f tests/fuzzer/corpus/*
-
-    - '# Run fuzzer in body mode'
-    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-    - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-
-    - '# Generate coverage'
-    - llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-    - llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
-    - llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
-  artifacts:
-    paths:
-     - appsec/fuzzer-coverage.html
+### Disabled: "we don't rely on the fuzzer these days as the protocol has been stable for a long time, so feel free to disable those jobs for now"
+#"fuzz appsec helper":
+#  stage: test
+#  extends: .appsec_test
+#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:buster
+#  variables:
+#    KUBERNETES_CPU_REQUEST: 3
+#    KUBERNETES_MEMORY_REQUEST: 5Gi
+#    KUBERNETES_MEMORY_LIMIT: 6Gi
+#  parallel:
+#    matrix:
+#      - ARCH: *arch_targets
+#  script:
+#    - curl -LO https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-17.0.6.tar.gz
+#    - tar xzf llvmorg-17.0.6.tar.gz
+#    - cd llvm-project-llvmorg-17.0.6/compiler-rt
+#    - cmake . -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
+#    - make -j 4 fuzzer
+#    - fuzzer=$(realpath lib/linux/libclang_rt.fuzzer_no_main-*.a)
+#    - cd -
+#
+#    - cd appsec/build
+#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+#    - make -j 4 ddappsec_helper_fuzzer corpus_generator
+#    - cd ..
+#    - mkdir -p tests/fuzzer/{corpus,results,logs}
+#    - rm -f tests/fuzzer/corpus/*
+#
+#    - '# Run fuzzer in nop mode'
+#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+#    - LLVM_PROFILE_FILE=off.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+#    - rm -f tests/fuzzer/corpus/*
+#
+#    - '# Run fuzzer in raw mode'
+#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+#    - LLVM_PROFILE_FILE=raw.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+#    - rm -f tests/fuzzer/corpus/*
+#
+#    - '# Run fuzzer in body mode'
+#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
+#    - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
+#
+#    - '# Generate coverage'
+#    - llvm-profdata-17 merge -sparse *.profraw -o default.profdata
+#    - llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
+#    - llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+#  artifacts:
+#    paths:
+#     - appsec/fuzzer-coverage.html

@@ -93,7 +93,7 @@ TEST(ServiceManagerTest, BadRulesFile)
             engine_settings.waf_timeout_us = 42;
             manager.create_service(engine_settings, {});
         },
-        dds::parsing_error);
+        std::filesystem::filesystem_error);
 }
 
 TEST(ServiceManagerTest, UniqueServices)
