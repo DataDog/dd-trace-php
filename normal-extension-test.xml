@@ -1,0 +1,1397 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="php" tests="605" failures="9" errors="0" skip="15" time="438.5129">
+<testsuite name="php.tmp.build_extension.tests.ext.sandbox.install_hook" tests="29" failures="0" errors="0" skip="2" time="0.5153">
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/replace_hook_retval.phpt (Overriding function return value via install_hook())' time='0.0201'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_function.phpt (Tracing Functions via install_hook())' time='0.0209'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_file.phpt (Test file inclusion hooking)' time='0.0168'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_generator.phpt (Tracing Closures via install_hook())' time='0.0276'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/replace_hook_args_internal.phpt (Adding additional function arguments on internal functions via install_hook())' time='0.0143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_generator_ge_php_84.phpt (Tracing Closures via install_hook())' time='0.0136'>
+<skipped>: test only stable on PHP &gt;= 8.4</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/override_exception.phpt (overrideException())' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure.phpt (Tracing Closures via install_hook())' time='0.0271'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/allow_nested_hook.phpt (allowNestedHook())' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/replace_hook_args.phpt (Overriding function arguments via install_hook())' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_generator_jit.phpt (generator hooking works with JIT)' time='0.0288'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/remove_hook_null_logger.phpt (Remove hook)' time='0.0167'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/replace_generator.phpt (Replacing the return value of a generator instantiation in the begin hook)' time='0.0250'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/override_argument_jit.phpt (overrideArguments() works with JIT (Issue #2174))' time='0.0290'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/hook_scoped_file.phpt (Test class scoped file inclusion hooking)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/remove_executing_hook.phpt (Ensure proper interoperability with multiple observers installed on observer removal)' time='0.0247'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/hook_internal_inherited_constructor.phpt (Test hooking inherited internal constructors via install_hook())' time='0.0119'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/get_source_file.phpt (Retrieve the filename where the function/method originated from)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/install_hook_return_by_ref.phpt (Test install_hook() on functions returning by reference)' time='0.0254'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/hook_not_invoked_if_tracer_disabled.phpt (Ensure hooks are not invoked after the tracer has been disabled)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/override_default_argument.phpt (Override arguments of a function with default arguments)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/hook_internal_fake_closure.phpt (Test hooking fake closures of internal functions via install_hook())' time='0.0266'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/suppress_call_jit.phpt (suppressCall() works with JIT)' time='0.0155'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure_ge_php_84.phpt (Tracing Closures via install_hook())' time='0.0143'>
+<skipped>: test only stable on PHP &gt;= 8.4</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/hook_file.phpt (Test file inclusion hooking)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/exclude_inherited_hook.phpt (remove_hook() with class argument)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_closure_from_callable.phpt (Tracing Fake Closures via install_hook())' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/suppress_call.phpt (Suppress function call via suppressCall())' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/install_hook/trace_callable.phpt (Tracing generic callables via install_hook())' time='0.0131'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.sandbox.hook_function" tests="32" failures="0" errors="0" skip="0" time="0.5227">
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_exceptions_01.phpt (DDTrace\hook_function posthook is called with an exception; args are still good)' time='0.0196'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_02.phpt (DDTrace\hook_function prehook is passed the correct args (variadic))' time='0.0175'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_exceptions_02.phpt (DDTrace\hook_function posthook exception is sandboxed)' time='0.0263'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_01.phpt (DDTrace\hook_function posthook basic functionality)' time='0.0321'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_variadic.phpt (DDTrace\hook_function posthook works with variadic functions)' time='0.0261'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/dropping_trace_hook.phpt (Test dropping spans from multiple trace hooks)' time='0.0190'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_exceptions_04.phpt (DDTrace\hook_function posthook exception is sandboxed (debug internal))' time='0.0177'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_error_01.phpt (DDTrace\hook_function posthook error is sandboxed)' time='0.0195'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/02.phpt (DDTrace\hook_function returns false quietly when no hook is passed)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_exceptions_04.phpt (DDTrace\hook_function prehook exception is sandboxed (debug internal))' time='0.0161'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_03.phpt (DDTrace\hook_function posthook is passed the correct args)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_limited_01.phpt (hook_function posthook should ignore limited mode)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_03.phpt (DDTrace\hook_function prehook is passed the correct args)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_error_02.phpt (DDTrace\hook_function prehook error is sandboxed (debug))' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_exceptions_03.phpt (DDTrace\hook_function posthook exception is sandboxed (internal))' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_exit_02.phpt (DDTrace\hook_function posthook is called at exit (shutdown handler))' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_error_01.phpt (DDTrace\hook_function prehook error is sandboxed)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_access_01.phpt (hook_function posthook should have access only to public members)' time='0.0144'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_access_01.phpt (hook_function posthook should have access only to public members)' time='0.0144'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/hook_internal_fake_closure.phpt (Test hooking fake closures of internal functions)' time='0.0266'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/hook_does_not_leak_error.phpt (Check that sandboxed hooks do not invoke error handlers or set the error code)' time='0.0277'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_variadic.phpt (DDTrace\hook_function prehook works with variadic functions)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_error_02.phpt (DDTrace\hook_function posthook error is sandboxed (debug))' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_exceptions_01.phpt (DDTrace\hook_function prehook exception is sandboxed)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/recursion.phpt (DDTrace\hook_function supports recursion)' time='0.0147'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/03.phpt (DDTrace\hook_function returns false with diagnostic when no hook is passed)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_02.phpt (DDTrace\hook_function posthook is passed the correct args (variadic))' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_01.phpt (DDTrace\hook_function prehook basic functionality)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_exceptions_02.phpt (DDTrace\hook_function prehook exception is sandboxed (debug))' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/posthook_exit_01.phpt (DDTrace\hook_function posthook is called at exit)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/01.phpt (DDTrace\hook_function supports both hooks simultaneously)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_function/prehook_exceptions_03.phpt (DDTrace\hook_function prehook exception is sandboxed (internal))' time='0.0130'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.sandbox.prehook" tests="20" failures="0" errors="0" skip="0" time="0.2707">
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/exception_error_log.phpt ([Prehook Regression] Exception in tracing closure gets logged)' time='0.0164'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/args_copy_before_mutation.phpt ([Prehook] Arguments are copied before mutation can occur)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/dd_trace_function_internal.phpt ([Prehook Regression] DDTrace\trace_function() can trace internal functions with internal spans)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/dd_trace_method.phpt ([Prehook Regression] DDTrace\trace_method() can trace with internal spans)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/exception_handling.phpt ([Prehook Regression] Exceptions get attached to spans)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/dd_trace_function_userland.phpt ([Prehook Regression] DDTrace\trace_function() can trace userland functions with internal spans)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/drop_spans.phpt ([Prehook Regression] Span is dropped when tracing closure returns false)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/access_modifier_method_access_hook.phpt ([Prehook regression] Private and protected methods are called from a tracing closure)' time='0.0190'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/exit_and_drop_span.phpt ([Prehook Regression] Exit gracefully handles a dropped span)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/exceptions_and_errors_are_ignored_in_tracing_closure.phpt ([Prehook Regression] Exceptions and errors are ignored when inside a tracing closure)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/trace_static_method.phpt ([Prehook regression] Trace public static method)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/close_on_exit.phpt ([Prehook Regression] Run sandbox closures for open spans on exit)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/keep_spans_in_limited_tracing_userland_functions.phpt ([Prehook Regression] Keep spans in limited mode (userland functions))' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/closure_arg_exception.phpt ([Prehook] Tracing closure does not have access to thrown exception)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/closure_arg_retval.phpt ([Prehook] Tracing closure does not have access to return value)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/new_static.phpt ([Prehook Regression] New static instantiates from expected class)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/access_modifier_property_access_hook.phpt ([Prehook regression] Private and protected properties are accessed from a tracing closure)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/variadic_args_internal.phpt ([Prehook] Variadic arguments are passed to tracing closure for internal functions)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/variable_length_parameter_list.phpt ([Prehook regression] Trace variadic functions and methods)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-prehook/dd_trace_method_binds_called_object.phpt ([Prehook Regression] DDTrace\trace_method() binds the called object to the tracing closure)' time='0.0137'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.sandbox" tests="91" failures="0" errors="0" skip="3" time="2.4187">
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_are_tracked_001.phpt (E_ERROR fatal errors are tracked from internal function)' time='0.0257'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_function_alias_overwrite.phpt (Calling DDTrace\trace_method() overwrites previous tracing functions in unresolved aliases)' time='0.0188'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_is_defined.phpt (Exceptions in the tracing closure callback are always defined)' time='0.0215'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/close-on-exit.phpt (Run sandbox closures for open spans on exit)' time='0.0236'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/span_clone.phpt (Clone DDTrace\SpanData)' time='0.0395'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/safe_to_string_metrics.phpt (Span metrics is safely converted to numerics without errors or exceptions)' time='0.0175'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/spans_out_of_sync_05.phpt (Gracefully handle out-of-sync spans in closure itself [user])' time='0.0223'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/errors_are_flagged_from_userland.phpt (Errors from userland will be flagged on span)' time='0.0162'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_function_alias.phpt (dd_trace_function() is aliased to DDTrace\trace_function())' time='0.0147'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/span_resource_serialization.phpt (Resource is replaced by name if null-ish)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/spans_out_of_sync_03.phpt (Gracefully handle out-of-sync spans from traced function [user])' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/keep_spans_in_limited_tracing_userland_methods.phpt (Keep spans in limited mode (userland methods))' time='0.0142'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_from_user_error_handler_internal.phpt (Exceptions from user error handler are tracked for instrumented internal functions)' time='0.0120'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/auto_flush_userland_root_span.phpt (Userland root spans are automatically flushed when auto-flushing enabled)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/non-zero_duration.phpt (Test that the sandbox API has non-zero durations)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/spans_out_of_sync_01.phpt (Gracefully handle out-of-sync spans from traced function [internal])' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/vm_var_types_return.phpt (VM variable types are handled properly for return)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_are_tracked_002.phpt (E_ERROR fatal errors are tracked from hitting the memory limit)' time='0.0276'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/deferred_load_using_function.phpt (deferred loading dispatch can be overridden)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/auto_flush.phpt (Spans are automatically flushed when auto-flushing enabled)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/return_by_ref.phpt (Functions that return by reference are instrumented)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/keep_spans_in_limited_tracing_userland_functions.phpt (Keep spans in limited mode (userland functions))' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/abstract_trait_hook.phpt ([Sandbox] Hook implementations of abstract trait methods are not supported)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/internal_hook_jit.phpt (Test internal functions are hooked within JIT)' time='0.0290'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/spans_out_of_sync_06.phpt (Gracefully handle out-of-sync spans in closure itself [user][default properties])' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_does_not_close_span_that_catches.phpt (Exceptions do not close the span that catches it)' time='0.0120'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/auto_flush_disables_tracing.phpt (Auto-flushing will not instrument while flushing)' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exit_and_drop_span.phpt (Exit gracefully handles a dropped span)' time='0.0167'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/default_span_properties.phpt (Span properties defaults to values if not explicitly set (functions))' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/auto_flush_sandbox_exception.phpt (Auto-flushing will sandbox an exception thrown from the tracer flush)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/drop_spans.phpt (Span is dropped when tracing closure returns false)' time='0.0234'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_function_internal.phpt (DDTrace\trace_function() can trace internal functions with internal spans)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/interface_inherit_hook_explicit_reimplement.phpt ([Sandbox] Hook implementations of interface methods on all direct implementors)' time='0.0158'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/close-on-exit-retval.phpt (Ensure tracing closure&#039;s $retval arg is null if invoked due to exit())' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_method_alias.phpt (dd_trace_method() is aliased to DDTrace\trace_method())' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/get_last_error.phpt (Existing errors are kept)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exceptions_in_tracing_closure_and_original_call.phpt (Exceptions thrown in tracing closure and original call)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/deferred_load_missing_interface.phpt (deferred loading doesn&#039;t crash if integration loading fails)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_method_binds_called_object.phpt (DDTrace\trace_method() binds the called object to the tracing closure)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_method.phpt (DDTrace\trace_method() can trace with internal spans)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/preinitialized_tracing_of_method.phpt ([Prehook regression] Trace public static method)' time='0.0135'>
+<skipped>: Not a supported scenario anymore</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure.phpt (Exceptions from original call rethrown in tracing closure)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_handled_in_multicatch.phpt (Exceptions are handled with multi-catch syntax)' time='0.0280'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt (Invalid (non-string) keys in span metadata are dropped)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_closed_spans_count.phpt (dd_trace_closed_spans_count() tracks closed spans from userland and C-level)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/default_span_properties_method.phpt (Span properties defaults to values if not explicitly set (methods))' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_error_log.phpt (Exception in tracing closure gets logged)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/keep_spans_in_limited_tracing_internal_functions.phpt (Keep spans in limited mode (internal functions))' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/variadic_no_args.phpt (Variadic arguments are passed to tracing closure when no arguments exist in function signature)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/generator_yield_from.phpt (Functions that return generators with &#039;yield from&#039; are instrumented)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/memory_limit_graceful_bailout.phpt (The tracer bails out gracefully when memory_limit INI is reached in shutdown hook)' time='0.0263'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/generator_in_object.phpt (Test tracing generators within objects)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_are_tracked_003.phpt (E_ERROR fatal errors are tracked from hitting the max execution time)' time='1.0254'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_handled_with_finally.phpt (Return value from finally block is passed to tracing closure)' time='0.0264'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/cake_02.phpt (Test that we don&#039;t leak in a set-up similar to CakePHP)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/new_static.phpt (New static instantiates from expected class)' time='0.0119'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/generator.phpt (Functions that return generators are instrumented)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure.phpt (Fatal errors are ignored inside a tracing closure (PHP 7+))' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/spans_out_of_sync_02.phpt (Gracefully handle out-of-sync spans from traced function [internal][default properties])' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/auto_flush_attach_exception.phpt (Auto-flushing will attach an exception during exception cleanup)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/deferred_load_fatal.phpt (deferred loading doesn&#039;t crash if integration loading fails)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_are_tracked_005.phpt (All open internal spans are marked with the fatal error)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/interface_inherit_hook.phpt ([Sandbox] Hook implementations of interface methods on direct implementor only)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/generator_with_exception.phpt (Exceptions are handled from a generator context)' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/keep_spans_in_limited_tracing_internal_methods.phpt (Keep spans in limited mode (internal methods))' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/manual_flush.phpt (Spans are not automatically flushed when auto-flushing disabled)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/die_in_sandbox.phpt (Die()&#039;ing in the sandbox is properly caught)' time='0.0274'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/cake_01.phpt (Test that we don&#039;t have a sigsegv in a set-up similar to CakePHP)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure.phpt (Exceptions from original call are passed to tracing closure)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/interface_hook_internal.phpt ([Sandbox] Hook implementations of internal interface methods)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_limit.phpt (Ensure the hook limit is not exceeded)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/retval_is_null_with_exception.phpt (The return value is null when an exception is thrown in the original call)' time='0.0143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_handling.phpt (Exceptions get attached to spans)' time='0.0119'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/static_tracing_closures_will_not_bind_this.phpt (Static tracing closures will not bind $this)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/abstract_trait_hook_inherit.phpt ([Sandbox] Hook implementations of abstract trait methods are not supported)' time='0.0120'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_handled_for_correct_catch_block.phpt (Exceptions are handled for the correct catch block)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/deferred_load_attempt_loading_once.phpt (deferred loading only happens once, even if dispatch is not overwritten)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/safe_to_string_metadata_ge_php_84.phpt (Span metadata is safely converted to strings without errors or exceptions)' time='0.0130'>
+<skipped>: test only stable on PHP &gt;= 8.4</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_are_tracked_004.phpt (E_USER_ERROR fatal errors are tracked from userland)' time='0.0184'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/interface_inherit_hook_multiple.phpt ([Sandbox] Hook implementations of interface methods with multiple parent abstract methods of the same name)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_function_userland.phpt (DDTrace\trace_function() can trace userland functions with internal spans)' time='0.0119'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt (Fatal errors are ignored in shutdown handler)' time='0.0249'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/safe_to_string_properties.phpt (Span properties are safely converted to strings without errors or exceptions)' time='0.0120'>
+<skipped>: test only works before 7.4</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure.phpt (Exceptions and errors are ignored when inside a tracing closure)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/exception_handled_in_correct_catch_frame.phpt (Exceptions are handled in the correct catch frame)' time='0.0161'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/safe_to_string_metadata.phpt (Span metadata is safely converted to strings without errors or exceptions)' time='0.0258'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/variadic_args_internal.phpt (Variadic arguments are passed to tracing closure for internal functions)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/dd_trace_function_complex.phpt (DDTrace\trace_function() can trace with internal spans)' time='0.0140'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/interface_hook.phpt ([Sandbox] Hook implementations of interface methods)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/generator_with_return.phpt (Functions that use return with yield are instrumented)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/spans_out_of_sync_04.phpt (Gracefully handle out-of-sync spans from traced function [user][default properties])' time='0.0169'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.sandbox.regression" tests="42" failures="0" errors="0" skip="0" time="0.8639">
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/trace_method_or_function_that_will_exist_later.phpt ([Sandbox regression] Methods and functions are traced before definedx)' time='0.0235'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/closure_accessing_outside_variables.phpt ([Sandbox regression] Tracing closure safely uses variables from outside scope)' time='0.0213'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/protected_method_hook.phpt ([Sandbox regression] Trace protected method)' time='0.0181'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/very_nested_functions.phpt ([Sandbox regression] Trace deeply-nested function calls (PHP 7))' time='0.0376'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/uncaught_exception_with_finally.phpt (Finally block should only be entered once)' time='0.0211'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/abstract_method_hook.phpt ([Sandbox regression] Hook implementations of abstract methods)' time='0.0176'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/closure_set_inside_object_methods.phpt ([Sandbox regression] Tracing closure set from inside non-static method)' time='0.0204'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/reset_configured_overrides.phpt ([Sandbox regression] Traced functions and methods are untraced with reset)' time='0.0145'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/class_resolver_bailout_hook.phpt (Assert bailouts are gracefully handled within class autoloading)' time='0.0324'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/trace_static_method.phpt ([Sandbox regression] Trace public static method)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/access_modifier_property_access_hook.phpt ([Sandbox regression] Private and protected properties are accessed from a tracing closure)' time='0.0249'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/dd_trace_tracer_is_limited_hard.phpt ([Sandbox regression] dd_trace_tracer_is_limited() limits the tracer with a hard span limit)' time='0.2143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/trampoline_install_fake_closure_hook.phpt (Test installing hook on trampoline fake closure)' time='0.0240'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/throw_exception.phpt ([Sandbox regression] Traced userland function catches and rethrows exception)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/nested_dropped_spans.phpt ([regression] Properly skip nested dropped spans)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/method_invoked_via_reflection.phpt ([Sandbox regression] Method invoked via reflection correctly returns created object)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/overriding_construct.phpt ([Sandbox regression] Trace class constructor)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/dd_trace_tracer_limiter_reset_flush.phpt ([regression] The limiter must reset after a flush)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/with_params_method_hook.phpt ([Sandbox regression] Trace method with params)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/extension_disabled.phpt ([Sandbox regression] Tracing closures do not run when extension is disabled)' time='0.0118'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/with_params_function_hook.phpt ([Sandbox regression] Trace function with params)' time='0.0120'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/return_value_passed.phpt ([Sandbox regression] Return value passed to tracing closure)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/private_self_access.phpt ([Sandbox regression] Tracing closure accesses private static method)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/recursion.phpt ([Sandbox regression] Recursive calls will trace only outermost invocation)' time='0.0143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/used_dispatch_should_not_free.phpt ([Sandbox regression] Override traced function from within itself)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/method_returning_array.phpt ([Sandbox regression] Method can be traced and called from tracing closure)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/variable_length_parameter_list.phpt ([Sandbox regression] Trace variadic functions and methods)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/handle_many_hooks.phpt (The tracer should not crash when many hooks are installed)' time='0.0161'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/limiter_reset_flush_with_open_spans.phpt (Starting a trace in a prehook and closing it in the posthook while an active one exists does not confuse the limiter)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/multiple_instrumentations.phpt ([Sandbox regression] Multiple functions and methods are traced)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/private_method_hook.phpt ([Sandbox regression] Trace private method)' time='0.0145'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/access_modifier_method_access_hook.phpt ([Sandbox regression] Private and protected methods are called from a tracing closure)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/disable_tracing_disables_tracing.phpt ([Sandbox regression] Disable tracing disables all tracing from happening)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/overriding_method_defined_in_parent.phpt ([Sandbox regression] Trace extended method when called from parent class)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/allow_overriding_before_overrided_methods_functions_are_defined.phpt ([Sandbox regression] Trace a function and method before it is defined)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/namespaces.phpt ([Sandbox regression] Namespaced functions and methods are traced)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/reset_function_tracing.phpt ([Sandbox regression] Untrace a function)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/do_not_check_if_class_or_function_exists_by_default.phpt ([Sandbox regression] Do not throw exceptions when verifying if method or function exists)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/case_insensitive_method_hook.phpt ([Sandbox regression] Trace case-insensitive method from a child class)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/destructor_called_when_this_gets_out_of_scope.phpt ([Sandbox regression] Destructor is called when object goes out of scope)' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/simple_function_hook.phpt ([Sandbox regression] Userland function is traced)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox-regression/simple_method_hook.phpt ([Sandbox regression] Userland method is traced)' time='0.0124'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext" tests="136" failures="0" errors="0" skip="3" time="30.1509">
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_only_allowed_params.phpt (Only param whose name is in DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED shouldn&#039;t be redacted)' time='0.0263'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/otel_http_response_status_code_remapping.phpt (Remap http.response.status_code to http.status_code - OTel HTTP Semantic Convention &gt;= 1.21.0)' time='0.0272'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_http_client_ip.phpt (Verify the client ip is added from the peer IP  when no XFF header is available.)' time='0.0278'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_no_param.phpt (Empty post request)' time='0.0195'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/set_user_with_propagation_override_default.phpt (Test \DDTrace\set_user with metadata and with usr.id as a distributed tag)' time='0.0232'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_http_client_ip_duplicate_ip_headers.phpt (Verify the right span tags are present when multiple XFF headers are provided.)' time='0.0239'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_as_resource_names.phpt (root span with DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED)' time='0.0308'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/flush-autofinish.phpt (Negative duration for dropped spans)' time='0.0236'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/set_distributed_tracing_context_wrong_param.phpt (Wrong tags parameter passed to set_distributed_tracing_context)' time='0.0416'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_simple_whitelist.phpt (Post fields parameters should be retrieved and redacted if needed v2)' time='0.0327'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/check_memory_under_limit_high_user_limit.phpt (Test dd_trace_check_memory_under_limit() returning correct values)' time='0.0324'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/generate_128_bit_trace_id.phpt (Test 128 bit generation)' time='0.0237'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/traced_attribute.phpt (Test tracing via attributes)' time='0.0389'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_array_allowed.phpt (Values of an array are not redacted when the array base is in the DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED env var)' time='0.0232'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_tracer_is_limited_memory.phpt (dd_trace_tracer_is_limited() limits the tracer with a memory limit)' time='0.0322'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/traced_internal_functions_override_02.phpt (Ensure that if a user adds an internal function we already trace to traced internal functions list that it doesn&#039;t misbehave)' time='0.0191'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/segfault_backtrace_enabled.phpt (Dump backtrace when segmentation fault signal is raised and config enables it)' time='0.1072'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt (Test get_memory_limit() returning correct values)' time='0.0154'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_current_context_noenv.phpt (Test the output of \DDTrace\current_context without env variables.)' time='0.0154'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/startup_logging.phpt (Startup logging is enabled by default)' time='0.0597'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/from_php_7_3_test_user_streams_consumed_bug.phpt (Testing user filter on streams)' time='0.0297'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/try_drop_span_root.phpt (Test try_drop_span() on root span)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/force_flush_traces.phpt (Force flush the traces mid-way through a trace)' time='0.0263'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt (Coms test no memory leaks with empty data store)' time='0.0170'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_sources_not_serialized_when_set.phpt (Value of internal span&#039;s peerServiceSource is not added to the serialized version of the span when set)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ip_collection_03.phpt (Client IP should be collected if env DD_TRACE_CLIENT_IP_ENABLED is set to true)' time='0.0159'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_no_param_set.phpt (Empty post request without whitelisting)' time='0.0149'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_disabled_default.phpt (Assesses the opt-in behavior of peer service)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/traced_attribute_delayed.phpt (Test delayed resolution of tracing attributes)' time='0.0248'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_with_removed_exception.phpt (Unset, nulled and generally invalid data in exception property is ignored)' time='0.0128'>
+<skipped>: test only works before 7.4</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/check_memory_under_limit_low_user_limit.phpt (Test dd_trace_check_memory_under_limit() returning correct values)' time='0.0502'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/show_actual_active_span_in_hook.phpt (Test hooking preserves the active span)' time='0.0198'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_send_traces_via_thread_001.phpt (background sender happy path)' time='0.0276'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/test_special_attributes.phpt (Reserved OTel attributes that have special meaning)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_http_client_ip_x_forwarded_for.phpt (Verify the client ip is added when x-forwarded-for header is present.)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_span_data_serialization_with_links.phpt (Serialization of a span with multiple span links)' time='0.0250'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/crashtracker_segfault.phpt (Send crashtracker report when segmentation fault signal is raised and config enables it)' time='5.3013'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_default.phpt (Test get_memory_limit() returning correct values for default)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/test_special_attributes_bis.phpt (Reserved OTel attributes that have special meaning)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/segfault_backtrace_disabled.phpt (Don&#039;t dump backtrace when segmentation fault signal is raised and config is default)' time='0.0829'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_implicit_array_key.phpt (Post fields with a implicit array keys)' time='0.0143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_with_parent_property_access.phpt (Test DDTrace\SpanData::$parent)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/retrieve_128_bit_trace_id.phpt (Test 128-bit trace id retrieval)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dropped_spans_have_negative_duration.phpt (Negative duration for dropped spans)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_0_percent.phpt (Test get_memory_limit() returning correct values)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/request_timeout_01.phpt (A PHP request timeout does not leak/segfault (run with leak detection))' time='1.0269'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/check_memory_under_limit_high_limit.phpt (Test dd_trace_check_memory_under_limit() returning correct values)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_use_first_available_tag.phpt (Use the first available tag from peerServiceSources to set peer.service)' time='0.0140'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/base_service.phpt (Properly set _dd.base_service when service name is manually changed)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/active_span.phpt (DDTrace\active_span basic functionality)' time='0.0589'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_http_useragent.phpt (Verify the user agent is added to the root span on serialization.)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/startup_logging_json.phpt (Startup logging from JSON fetched at runtime)' time='0.0207'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ust_via_ddtags.phpt (Test that service tags in DD_TAGS are ignored but version and env tags are set)' time='0.0155'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_http_client_ip_custom_header.phpt (Verify the client ip is added when x-forwarded-for header is present.)' time='0.0153'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extract_ip_addr_header_ini.phpt (Extract client IP address (ip header set))' time='0.0196'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/traced_internal_functions_override_01.phpt (Ensure that if a user adds an internal function we already trace to traced internal functions list that it doesn&#039;t misbehave)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_array.phpt (Decoding nested array POST data)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_span_data_get_link.phpt (DDTrace\SpanData::getLink basic functionality)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/startup_logging_diagnostics.phpt (Startup logging diagnostics)' time='0.0589'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extract_ip_addr.phpt (Extract client IP address (no ip header set))' time='0.0144'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_sources_not_serialized_when_unset.phpt (Value of internal span&#039;s peerServiceSource is not added to the serialized version of the span when not set)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/meta_struct.phpt (Add meta struct string)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_serialize_msgpack_id_in_meta.phpt (dd_trace_serialize_msgpack() properly handles span_id, trace_id and parent_id, but only outside of nested arrays)' time='0.0264'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ip_collection_02.phpt (Client IP should not be collected if env DD_TRACE_CLIENT_IP_ENABLED is set to true)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/referrer_extraction_01.phpt (Invalid referrer hostname from HTTP headers)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ust_precedence_over_ddtags.phpt (Test that individual environment variables take precedence over DD_TAGS)' time='0.0313'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt (Test get_memory_limit() returning correct values)' time='0.0250'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/crashtracker_segfault_windows.phpt (Send crashtracker report when segmentation fault signal is raised and config enables it)' time='0.0210'>
+<skipped>: test only runs on Windows</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_honor_user_value.phpt (If peer.service is already set by the user, honor it)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/start_span_without_closing_autofinish.phpt (Use DDTrace\close_span() on span started within internal span)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_query_params_whitelist.phpt (Root span with query params whitelist)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/alias_logs.phpt (Logs aliases are correctly handled)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/referrer_extraction_03.phpt (URL without host part in referrer)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_remapping.phpt (Properly remap peer service&#039;s sources based on DD_TRACE_PEER_SERVICE_MAPPING)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_send_traces_via_thread_002.phpt (background sender should reject msgpack array prefix that does not match expected number of traces)' time='0.0259'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/disabling_root_span_generation_at_runtime.phpt (Disabling root span removes the root span properly)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/read_c_configuration.phpt (Ensure we can read C configuration data)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extract_ip_addr_precedence.phpt (Ensure the ip header priority is followed)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/otel_config_remapping.phpt (Test OpenTelemetry config remapping)' time='0.0271'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inherit_meta_from_parent.phpt (Inherit some global metadata from parent span)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/check_memory_under_limit_default.phpt (Test dd_trace_check_memory_under_limit() returning correct values for default)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/referrer_extraction_05.phpt (IPv6 address in referrer header)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ip_collection_04.phpt (Client IP should not be collected if ini dd_trace.client_ip_header_disabled is set to true)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_set_by_absolute.phpt (Test get_memory_limit() returning correct values)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_query_params_obfuscation.phpt (Root span with http.url and obfuscated query string)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_serialize_header_to_meta.phpt (Headers values are mapped to expected tag key)' time='0.0148'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/runtime_ini_env_version_change.phpt (Change the env and version INIs at runtime)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extract_ip_addr_header_env.phpt (Extract client IP address (ip header set))' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_query_params.phpt (root span with DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/startup_logging_json_config.phpt (Startup logging config from JSON fetched at runtime)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracestate_consumption.phpt (Distributed tracestate consumption should produce valid tracestate header)' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/start_span_with_all_properties.phpt (Set DDTrace\start_span() properties)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/try_drop_span.phpt (Test try_drop_span())' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/set_user_without_propagation_override_default.phpt (Test \DDTrace\set_user doesn&#039;t propagate when overriding configuration)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extract_server_values.phpt (Test invalid $_SERVER values are properly ignored)' time='0.0344'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/crashtracker_jit_tags.phpt ([crasht] opcache tags are attached to crash report)' time='5.2622'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/close_spans_until.phpt (Test DDTrace\close_spans_until)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/set_user_with_metadata.phpt (Test \DDTrace\set_user with metadata)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_without_query_params.phpt (Root span without query string in http.url)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/otel_http_status_code_remapping.phpt (Remap http.status_code metric to http.status_code meta - OTel HTTP Semantic Convention &lt; 1.21.0)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_serialize_msgpack_reference.phpt (dd_trace_serialize_msgpack() with references)' time='0.0257'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/start_span_without_closing.phpt (Use DDTrace\close_span() on span started within internal span)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_serialize_msgpack_error.phpt (dd_trace_serialize_msgpack() error conditions)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_as_resource_names_no_host.phpt (root span with DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED (variant using SERVER_NAME))' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_unlimited_default.phpt (Test get_memory_limit() returning correct values)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/from_php_7_3_bug61728.phpt (Bug #61728 (PHP crash when calling ob_start in request_shutdown phase))' time='0.0252'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/referrer_extraction_04.phpt (Empty referrer hostname from HTTP headers)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/otel_http_response_status_code_remapping_precedence.phpt (http.response.status_code takes precedence over http.status_code)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/crashtracker_and_backtrace_are_mutually_exclusive.phpt (Settings &#039;datadog.log_backtrace&#039; and &#039;datadog.crashtracking_enabled&#039; are mutually exclusive)' time='0.0266'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_current_context.phpt (Test the output of \DDTrace\current_context)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/set_user_with_propagation_by_default.phpt (Test \DDTrace\set_user with propagation enabled by default through configuration)' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/get_memory_limit_set_by_percentage.phpt (Test get_memory_limit() returning correct values)' time='0.0117'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/add_global_tag_on_userland_and_internal_spans.phpt (DDTrace\add_global_tag() on all sorts of spans)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ust.phpt (Foo)' time='0.0163'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/startup_logging_disabled.phpt (Startup logging is disabled)' time='0.0499'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/startup_logging_config.phpt (Startup logging config)' time='0.0274'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sidecar_enabled.phpt (Sidecar should be enabled by default on PHP 8.4)' time='0.0123'>
+<skipped>: This tests is only for PHP 8.4</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_on_close.phpt (Test onClose SpanData handler)' time='0.0155'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_query_params_obfuscation_empty.phpt (Root span with http.url and unobfuscated query string with empty regex)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_create_observer.phpt (Test observing span creation)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/root_span_url_with_post_fields.phpt (Post fields parameters should be retrieved and redacted if needed)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ip_collection_05.phpt (Client IP should not be collected if ini dd_trace.client_ip_header_disabled is set to true)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_multiple_write.phpt (Ensure caching does not bypass the span data write handler)' time='0.0171'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extension_disabled.phpt (Sanity check when extension is disabled)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/set_user_no_metadata.phpt (Test \DDTrace\set_user with no metadata)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/do_not_check_if_class_or_function_exists_by_default.phpt (Do not throw exceptions when veryfying if class/method and function exists.)' time='0.0142'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_serialize_msgpack.phpt (Basic functionality of dd_trace_serialize_msgpack())' time='0.0285'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/nested_exceptions.phpt (Nested exceptions are recorded (GH2498))' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/crashtracker_segfault_disabled.phpt (Don&#039;t send crashtracker report when segmentation fault signal is raised and config disables it)' time='15.8497'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/ip_collection_01.phpt (Client IP should not be collected if DD_TRACE_CLIENT_IP_ENABLED/dd_trace.client_ip_enabled is not set)' time='0.0149'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/referrer_extraction_02.phpt (URL with special characters in host part)' time='0.0164'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dd_trace_log_file.phpt (Using DD_TRACE_LOG_FILE)' time='0.0246'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/logging_default_value.phpt (Assess that the log integration is disabled by default)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/extension_no_static_tls.phpt (Extension is not compiled with STATIC_TLS)' time='0.0294'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/peer_service_wrong_values.phpt (Using a wrongly formatted DD_TRACE_PEER_SERVICE_MAPPING doesn&#039;t break the tracer)' time='0.0230'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sidecar_disabled_when_telemetry_disabled.phpt (Sidecar should be disabled when telemetry is disabled)' time='0.0455'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.sandbox.hook_method" tests="38" failures="0" errors="0" skip="0" time="0.5576">
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_span_ids_02.phpt (DDTrace\hook_method posthook does not mess up spans with children)' time='0.0216'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_scope_03.phpt (hook_method posthook is called with the correct scope (parent))' time='0.0209'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_07.phpt (Nested closure targeting method call 02 (posthook))' time='0.0179'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_access_01.phpt (hook_method prehook should have access only to public members)' time='0.0298'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_exceptions_01.phpt (DDTrace\hook_method posthook is called with an exception; args are still good)' time='0.0149'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_scope_02.phpt (hook_method prehook is called with the correct scope (parent))' time='0.0140'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_error_02.phpt (DDTrace\hook_method prehook error is sandboxed (debug))' time='0.0143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/hook_extended_internal_class.phpt (Extended internal classes are hookable)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_span_ids_01.phpt (DDTrace\hook_method prehook does not mess up span ids)' time='0.0160'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/01.phpt (DDTrace\hook_method supports both hooks simultaneously)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_scope_03.phpt (hook_method prehook is called with the correct scope (parent))' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_05.phpt (DDTrace\hook_method posthook is passed the correct retval)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_span_ids_01.phpt (DDTrace\hook_method posthook does not mess up span ids)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/02.phpt (DDTrace\hook_method returns false quietly when no hook is passed)' time='0.0140'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_04.phpt (DDTrace\hook_method posthook is passed the correct args with inheritance)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_03.phpt (DDTrace\hook_method posthook is passed the correct args)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_02.phpt (DDTrace\hook_method prehook is passed the correct args (variadic))' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_error_02.phpt (DDTrace\hook_method posthook error is sandboxed (debug))' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_scope_01.phpt (hook_method posthook is called with the correct scope (no override))' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_scope_01.phpt (hook_method prehook is called with the correct scope (no override))' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_exceptions_02.phpt (DDTrace\hook_method posthook exception is sandboxed)' time='0.0137'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_03.phpt (DDTrace\hook_method prehook is passed the correct args)' time='0.0143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_exceptions_02.phpt (DDTrace\hook_method prehook exception is sandboxed (debug))' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_02.phpt (DDTrace\hook_method posthook is passed the correct args (variadic))' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_scope_02.phpt (hook_method posthook is called with the correct scope (parent))' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_exceptions_01.phpt (DDTrace\hook_method prehook exception is sandboxed)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_01.phpt (DDTrace\hook_method posthook)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_01.phpt (DDTrace\hook_method prehook)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_exit_02.phpt (DDTrace\hook_method posthook is called at exit (shutdown handler))' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/03.phpt (DDTrace\hook_method returns false with diagnostic when no hook is passed)' time='0.0165'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_exit_01.phpt (DDTrace\hook_method posthook is called at exit)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_06.phpt (Nested closure targeting method call 01 (posthook))' time='0.0119'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_access_01.phpt (hook_method posthook should have access only to public members)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_span_ids_02.phpt (DDTrace\hook_method prehook does not mess up spans with children)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_05.phpt (A call to trace_method from hook_method prehook has non-static closure)' time='0.0235'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_04.phpt (DDTrace\hook_method prehook is passed the correct args with inheritance)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/prehook_error_01.phpt (DDTrace\hook_method prehook error is sandboxed)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/sandbox/hook_method/posthook_error_01.phpt (DDTrace\hook_method posthook error is sandboxed)' time='0.0140'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.autoload.php.files" tests="10" failures="0" errors="0" skip="1" time="0.1515">
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/legacy_autoloader.phpt (Execute __autoload() if present)' time='0.0175'>
+<skipped>: __autoload was removed in PHP 8</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/default_spl_autoloader.phpt (Execute the default spl_autoload implementation if spl_autoload_register() is called without args)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/error_get_last_is_unaffected.phpt (Errors in ddtrace autoloader do not affect error_get_last())' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/skip_registered_autoloader_match.phpt (Skip previously registered autoloader on match)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/ignores_exceptions.phpt (Request init hook ignores exceptions)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/file_not_found.phpt (Do not fail when PHP code couldn&#039;t be loaded)' time='0.0146'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/dd_init_open_basedir.phpt (Calling dd_init.php is confined to open_basedir settings)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/file_contains_non_printable_character.phpt (Request init hook loads files without using multibyte flag)' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/skip_default_autoloader.phpt (Do not execute the default spl_autoload implementation if no autoloader is specified)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/autoload-php-files/ignores_fatal_errors.phpt (Request init hook ignores fatal errors)' time='0.0279'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.priority_sampling" tests="29" failures="0" errors="0" skip="0" time="0.5014">
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/gh-1828.phpt (priority_sampling regression for GH-1828)' time='0.0207'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/008-rule-service-reject.phpt (priority_sampling rule with service reject)' time='0.0545'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/010-rule-name-service-reject.phpt (priority_sampling rule with name and service reject)' time='0.0267'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/007-rule-service.phpt (priority_sampling rule with service match)' time='0.0262'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/014-rule-resource.phpt (priority_sampling rule with resource match)' time='0.0271'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/009-rule-name-service.phpt (priority_sampling rule with name and service match)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/013-rule-service-mapped.phpt (priority_sampling service mapping)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/001-default-sampling.phpt (priority_sampling default sampling)' time='0.0122'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/006-rule-name-reject.phpt (priority_sampling rule with name reject)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/020-rule-nonroot.phpt (priority_sampling rule with match on non-root spans)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/011-preset.phpt (priority_sampling preset decision retained)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/018-manual.drop.phpt (priority_sampling with manual.drop)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/asm-standalone.phpt (priority_sampling is ignored when asm standalone is enabled)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/015-rule-resource-reject.phpt (priority_sampling rule with resource reject)' time='0.0261'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/021-rule-name-as-glob-with-question-mark.phpt (priority_sampling rule with name match, using glob)' time='0.0160'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/invalid-regex-rule.phpt (Invalid regex: default sampling rate applies)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/023-manual.keep-distributed_overwrite.phpt (manual.keep will overwrite a rejected distributed sampling decision)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/019-manual.keep.phpt (priority_sampling with manual.keep)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/invalid-json-rule.phpt (Invalid rule json: default sampling rate applies)' time='0.0142'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/004-rule-basic.phpt (priority_sampling basic rule)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/002-user-reject.phpt (priority_sampling user reject)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/012-default.phpt (priority_sampling default decision retained)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/024-deterministic-sampling.phpt (run sampling algorithm on multiple trace IDs and ensure that the results are deterministic)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/005-rule-name.phpt (priority_sampling rule with name match)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/manual_global_override.phpt (Global explicitly set priority sampling must be respected)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/017-rule-tag-reject.phpt (priority_sampling rule with tag reject)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/016-rule-tag.phpt (priority_sampling rule with tag match)' time='0.0270'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/003-user-keep.phpt (priority_sampling user keep)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/priority_sampling/022-rule-name-as-glob-with-multiple-criterias.phpt (priority_sampling rule with name match, using glob)' time='0.0155'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.background.sender" tests="17" failures="6" errors="0" skip="4" time="109.3316">
+<testcase name='tmp/build_extension/tests/ext/background-sender/background_sender_survives_setuid.phpt (background sender survives setuid)' time='0.0375'>
+<skipped>: background-sender only test</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/background_sender_restores_capabilities.phpt (background sender restores effective capabilities from permitted set)' time='0.0192'>
+<skipped>: background-sender only test</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_headers_container_id.phpt (The container ID is sent via HTTP headers to the Agent)' time='5.1060'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_headers_unix_domain_socket.phpt (HTTP headers are sent to the Agent from the background sender over an unix domain socket)' time='5.3772'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_headers_ignore_userland.phpt (HTTP Agent headers are ignored from userland)' time='0.0139'>
+<skipped>: background-sender only test</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_02.phpt (Sample rate is not changed to 0 after first call during a minute when STANDALONE ASM is enabled and there is asm events)' time='12.2865'>
+<failure type='FAILED' message=''>     First call it is used as heartbeat: 1
+002- This call has the same sample rate: 2
+003- This call also has the same sample rate: 2
+002+ 
+003+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+004+ Stack trace:
+005+ #0 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_02.php(7): RequestReplayer-&gt;waitForDataAndReplay()
+006+ #1 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_02.php(21): {closure}()
+007+ #2 {main}
+008+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_03.phpt (Sample rate is not changed to 0 after first call during a minute when there is appsec upstream)' time='12.1675'>
+<failure type='FAILED' message=''>001- First call it is used as heartbeat: 3
+002- This call has the same sample rate: 3
+003- This call also has the same sample rate: 3
+001+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+002+ Stack trace:
+003+ #0 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_03.php(7): RequestReplayer-&gt;waitForDataAndReplay()
+004+ #1 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_03.php(14): {closure}()
+005+ #2 {main}
+006+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_sampling_sidecar.phpt (The sidecar trace flusher sender informs about changes to the agent sample rate)' time='9.3119'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_sampling.phpt (The background sender informs about changes to the agent sample rate)' time='12.2197'>
+<failure type='FAILED' message=''>     [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+     Initial sampling: 1
+     [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+004- Generic sampling: 0
+005- [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+006- Specific sampling: 1
+004+ 
+005+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+006+ Stack trace:
+007+ #0 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling.php(7): RequestReplayer-&gt;waitForDataAndReplay()
+008+ #1 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling.php(25): {closure}()
+009+ #2 {main}
+010+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+     [ddtrace] [info] No finished traces to be sent to the agent
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/sidecar_handles_invalid_agent_url.phpt (The sidecar properly handles invalid agent urls)' time='0.0256'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/default_unix_domain_socket_agent.phpt (If an agent unix domain socket exists it will try to connect to it)' time='0.0135'>
+<skipped>: no permissions to create a /var/run/datadog/apm.socket</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/background_sender_ipv6_support.phpt (DD_AGENT_HOST with IPv6 works)' time='0.0424'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/sidecar_fallback.phpt (Send telemetry about the sidecar being disabled)' time='10.0777'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_headers.phpt (HTTP headers are sent to the Agent from the background sender)' time='5.1008'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_headers_container_id_empty.phpt (An empty container ID is not sent via HTTP headers to the Agent)' time='12.3537'>
+<failure type='FAILED' message=''>     [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+     
+003- datadog-meta-lang: php
+     
+005- Done.
+004+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+005+ Stack trace:
+006+ #0 /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc(107): RequestReplayer-&gt;waitForDataAndReplay()
+007+ #1 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_headers_container_id_empty.php(10): RequestReplayer-&gt;replayHeaders(Array)
+008+ #2 {main}
+009+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+     [ddtrace] [info] No finished traces to be sent to the agent
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_01.phpt (Sample rate is changed to 0 after first call during a minute when STANDALONE ASM is enabled and no asm events)' time='12.7113'>
+<failure type='FAILED' message=''>001- All good
+002- Done
+001+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+002+ Stack trace:
+003+ #0 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_sampling-standalone-asm_01.php(13): RequestReplayer-&gt;waitForDataAndReplay()
+004+ #1 {main}
+005+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/background-sender/agent_headers_container_id_fargate.phpt (The Fargate 1.4+ container ID is sent via HTTP headers to the Agent)' time='12.4672'>
+<failure type='FAILED' message=''>     [ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+     
+003- datadog-container-id:%s34dc0b5e626f2c5c4c5170e34b10e765-1234567890
+004- datadog-meta-lang: php
+005- 
+006- Done.
+003+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+004+ Stack trace:
+005+ #0 /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc(107): RequestReplayer-&gt;waitForDataAndReplay()
+006+ #1 /home/circleci/app/tmp/build_extension/tests/ext/background-sender/agent_headers_container_id_fargate.php(9): RequestReplayer-&gt;replayHeaders()
+007+ #2 {main}
+008+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+     [ddtrace] [info] No finished traces to be sent to the agent
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.distributed_tracing" tests="24" failures="0" errors="0" skip="0" time="0.34">
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_02.phpt (Sampling priority is kept from distributed when asm upstream and asm standalone enabled)' time='0.0268'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_04.phpt (Invalid _dd.p.ts - More bits than allowed)' time='0.0164'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_overwrite.phpt (Setting custom distributed header information)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_bogus_ids.phpt (Transmit distributed header information to spans)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_03.phpt (Invalid _dd.p.ts - Non hexadecimal)' time='0.0120'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_overwrite_active_span.phpt (Setting a distributed tracing context if a span is already active)' time='0.0258'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_generate.phpt (Test generate_distributed_tracing_headers())' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_inherit_b3.phpt (Transmit distributed header information to spans via B3 headers)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_span_link_from_headers.phpt (Setting custom distributed header information)' time='0.0140'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_09.phpt (_dd.p.ts is not manipulated when no asm event)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_conflicting_span_ids_dd_tracecontext.phpt (Test consume_distributed_tracing_headers() with conflicting span_ids in datadog and tracecontext headers)' time='0.0124'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_inherit_b3-single-span_no_sampling.phpt (Transmit distributed header information to spans via single B3 header without sampling decision)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_06.phpt (Test ts is only added to traces with ASM events)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_inherit_b3-single-span.phpt (Transmit distributed header information to spans via single B3 header)' time='0.0142'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_conflicting_span_ids_tracecontext.phpt (Test consume_distributed_tracing_headers() with conflicting span_ids in tracestate and traceparent headers)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_consume_func.phpt (Test consume_distributed_tracing_headers() with function argument)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_07.phpt (Test two traces get trace source from tags)' time='0.0117'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_08.phpt (For now, even when trace was generated by APM the produced output on standalone is 02 on _dd.p.ts)' time='0.0118'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_consume_array.phpt (Test consume_distributed_tracing_headers() with array argument)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_reset_context_on_init.phpt (Reset distributed tracing context on request init)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_01.phpt (Sampling priority is changed to user keep if no asm upstream and asm standalone enabled. Also apm disabled tag is added)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_asm_standalone_05.phpt (Invalid _dd.p.ts - It requires at least 2 bits instead of 1)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_span_link_from_headers_invalid_tags.phpt (Setting custom distributed header information with invalid propagated tags)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/distributed_trace_inherit.phpt (Transmit distributed header information to spans)' time='0.0130'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.wrong.parameter.errors" tests="7" failures="0" errors="0" skip="0" time="0.1033">
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/DDTrace_trace_method.phpt (DDTrace_trace_method is passed wrong parameters)' time='0.0222'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/set_distributed_tracing_context.phpt (DDTrace_set_distributed_tracing_context is passed wrong parameters)' time='0.0151'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/DDTrace_trace_function.phpt (DDTrace_trace_function is passed wrong parameters)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/DDTrace_hook_method.phpt (DDTrace_hook_method is passed wrong parameters)' time='0.0134'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/DDTrace_trace_id.phpt (DDTrace_trace_id is passed wrong parameters)' time='0.0136'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/dd_trace_send_traces_via_thread.phpt (dd_trace_send_traces_via_thread is passed wrong parameters)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/wrong-parameter-errors/DDTrace_hook_function.phpt (DDTrace_hook_function is passed wrong parameters)' time='0.0131'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.integrations.curl" tests="25" failures="0" errors="0" skip="0" time="35.7852">
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/curl_release_on_shutdown.phpt (Curl multi objects release order does not crash on shutdown)' time='0.0433'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_002.phpt (Distributed tracing headers propagate with existing headers set with curl_setopt_array())' time='0.0379'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_propagate_asm_event.phpt (Distributed tracing header tags propagate asm events with curl_exec())' time='0.0398'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_drop_dm.phpt (Explicitly drop dd.p.dm if provided in propagated tags when the incoming sampling priority is reject)' time='0.0189'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_sampling_priority.phpt (Distributed tracing headers propagate with curl_exec())' time='0.0313'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_tracestate.phpt (Distributed tracing headers propagate with curl_exec())' time='0.0147'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_propagate_custom_tags.phpt (Distributed tracing header tags propagate with curl_exec())' time='0.0332'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_copy_handle.phpt (Distributed tracing headers propagate with curl_multi_exec() after curl_copy_handle())' time='5.0231'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_003.phpt (Distributed tracing headers propagate existing headers on error: curl_setopt_array())' time='0.0312'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_007.phpt (When ASM tracing is disabled and there is asm event, trace source tags is populated)' time='0.0146'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_invalid_tags.phpt (Distributed tracing headers contain properly escaped values)' time='0.0293'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_copy_handle.phpt (Distributed tracing headers propagate after curl_copy_handle())' time='0.0312'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_006.phpt (When APM tracing is disabled, if not asm event, no tags are sent)' time='5.1205'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_001.phpt (Distributed tracing headers propagate with existing headers set with curl_setopt())' time='0.0318'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_002.phpt (Distributed tracing headers propagate with curl_multi_exec() and headers set with curl_setopt_array())' time='5.0331'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_001.phpt (Distributed tracing headers propagate with curl_multi_exec() and headers set with curl_setopt())' time='0.0151'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_005.phpt (Verify trace source tag is not sent when no asm event)' time='0.0142'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_propagate_tags.phpt (Distributed tracing header tags propagate with curl_exec())' time='0.0145'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_disabled_baggage.phpt (Baggage headers should not be propagated when curl integration is disabled)' time='0.0269'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl.phpt (Distributed tracing headers propagate with curl_exec())' time='0.0298'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_004.phpt (Verify trace source tag is sent on asm event)' time='0.0276'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_disable.phpt (Distributed tracing headers do not propagate with curl_multi_exec() after dd_trace_disable_in_request())' time='5.0455'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_003.phpt (Test CurlMulti during garbage collection)' time='5.0294'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_002.phpt (Distributed tracing headers propagate when curl_multi_init() is called before curl_init())' time='5.0192'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_001.phpt (Distributed tracing headers propagate with curl_multi_exec())' time='5.0291'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.inferred_proxy" tests="11" failures="0" errors="0" skip="0" time="0.1746">
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/alter_service.phpt (Inferred span&#039;s service shouldn&#039;t change on ini_change of datadog.service)' time='0.0165'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/distributed_tracing.phpt (Span creation with distributed context)' time='0.0248'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/basic_test.phpt (Should create parent and child spans for a 200)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/incomplete_headers.phpt (An Inferred Span should not be created on missing headers)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/propagated_tags_before_span_start.phpt (Span creation with distributed context set before starting span)' time='0.0142'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/propagated_tags_after_span_start.phpt (Span creation with distributed context set after starting span)' time='0.0148'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/error_propagated.phpt (Should create parent and child spans for error)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/consume_distributed_tracing_headers.phpt (API Gateway span should be created from consuming distributed tracing headers)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/sampling_rules.phpt (Priority sampling rules should use the inferred span&#039;s service &amp; resource)' time='0.0135'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/fallback_service_name.phpt (The AWS API Gateway proxy service name should fallback to global config)' time='0.0140'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/inferred_proxy/multiple_traces.phpt (API Gateway span should only be created once)' time='0.0226'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.error_status_configuration" tests="2" failures="0" errors="0" skip="0" time="0.0292">
+<testcase name='tmp/build_extension/tests/ext/error_status_configuration/http_error_status_client_configuration.phpt (HTTP client status code error configuration and helper functions)' time='0.0158'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/error_status_configuration/http_error_status_parsing.phpt (HTTP server error status configuration parsing test)' time='0.0134'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.fibers" tests="4" failures="0" errors="0" skip="0" time="0.1108">
+<testcase name='tmp/build_extension/tests/ext/fibers/fiber_observer_bailout.phpt (Test fiber observing with bailout)' time='0.0285'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/fibers/fiber_stack_switch.phpt (Test fiber observing)' time='0.0269'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/fibers/enable_tracer_in_fiber.phpt (Ensure the tracer can also be enabled or disabled in fibers)' time='0.0294'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/fibers/fiber_switch_tracer_disabled.phpt (Test executing fibers with tracer fully disabled)' time='0.0260'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.dogstatsd" tests="3" failures="0" errors="0" skip="0" time="0.1813">
+<testcase name='tmp/build_extension/tests/ext/dogstatsd/metrics_over_uds.phpt (Send DogStatsD metrics over an Unix Domain Socket)' time='0.0352'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dogstatsd/metrics_over_udp.phpt (Send DogStatsD metrics over a UDP socket)' time='0.0303'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/dogstatsd/disabled_if_agentless.phpt (DogStatsD is disabled in agentlessmode)' time='0.1158'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.single.span_sampling" tests="6" failures="0" errors="0" skip="0" time="0.4722">
+<testcase name='tmp/build_extension/tests/ext/single-span_sampling/limited-single-span-with-match.phpt (Test max_per_second single span limiting with multiple buckets)' time='0.0310'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/single-span_sampling/check-sample-rate.phpt (Check sample rate is in effect)' time='0.3779'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/single-span_sampling/accept-single-span.phpt (Ingest all spans)' time='0.0129'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/single-span_sampling/name-matching-single-span.phpt (Ingest all spans)' time='0.0126'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/single-span_sampling/read-single-span-sampling-config-from-file.phpt (Check sample rate is in effect)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/single-span_sampling/limited-single-span.phpt (Test max_per_second single span limiting)' time='0.0247'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.integrations.source_code" tests="5" failures="0" errors="0" skip="0" time="0.0666">
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/git_metadata_injection_remove_credentials_from_env.phpt (Remove credentials from repository URL)' time='0.0151'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/repository_url_env_var.phpt (When DD_GIT_REPOSITORY_URL is specified, _dd.git.repository_url is injected)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/commit_sha_env_var.phpt (When DD_GIT_COMMIT_SHA is specified, _dd.git_commit_sha is injected)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/git_metadata_injection_from_env.phpt (Basic Git Metadata Injection from env var (Repository URL &amp; Commit Sha))' time='0.0132'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/git_metadata_injection_from_global_tags.phpt (Basic Git Metadata Injection from global tags (Repository URL &amp; Commit Sha))' time='0.0127'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.pcntl" tests="6" failures="0" errors="0" skip="0" time="0.6094">
+<testcase name='tmp/build_extension/tests/ext/pcntl/pcntl_fork_long_running_autoflush.phpt (Long running autoflush)' time='0.0966'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/pcntl/pcntl_fork_short_running_nested.phpt (Short running nested forks)' time='0.1254'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/pcntl/pcntl_fork_short_running_multiple.phpt (Short running multiple forks)' time='0.1061'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/pcntl/pcntl_fork_long_running_manual.phpt (Long running manual flush)' time='0.0960'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/pcntl/pcntl_fork_reseed_span_id.phpt (Short running multiple forks)' time='0.1226'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/pcntl/pcntl_fork_short_running_single.phpt (Short running single fork)' time='0.0627'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.limiter" tests="3" failures="0" errors="0" skip="0" time="0.0706">
+<testcase name='tmp/build_extension/tests/ext/limiter/003-limiter-with-asm-standalone.phpt (rate limiter always allow when DD_EXPERIMENTAL_APPSEC_STANDALONE_ENABLED enabled)' time='0.0304'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/limiter/002-limiter-reached.phpt (rate limiter reached)' time='0.0262'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/limiter/001-limiter-disabled.phpt (rate limiter disabled)' time='0.0140'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.span_stack" tests="9" failures="0" errors="0" skip="0" time="0.1402">
+<testcase name='tmp/build_extension/tests/ext/span_stack/stack_dropped_parent.phpt (Span stacks are fully reset when the tracer is disabled and re-enabled)' time='0.0149'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/span_trace_swap.phpt (Test creating swapping traces)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/start_span_new_trace.phpt (Test creating a new trace)' time='0.0133'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/span_stack_swap.phpt (Test creating a switching span stacks)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/span_trace_stack_autoclose.phpt (Test autoclosing of spans on abandoned span stacks)' time='0.0266'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/start_top_level_span_stack.phpt (Test creating a new span stack on top level)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/span_stack_clone.phpt (Test cloning a span stack)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/span_stack_swap_traced_function.phpt (Test swapping span stacks due to auto-close of spans by functions)' time='0.0121'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/span_stack/start_span_stack.phpt (Test creating a new span stack)' time='0.0221'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.library_config" tests="6" failures="0" errors="0" skip="0" time="20.5986">
+<testcase name='tmp/build_extension/tests/ext/library_config/fleet_config_overloads_env.phpt (Check that the library config files overloads env vars)' time='0.0261'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/library_config/fleet_config_overloads_ini.phpt (Check that the library config files overloads ini settings)' time='0.0257'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/library_config/local_config_does_not_overload_env.phpt (Check the library config files)' time='0.0264'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/library_config/local_config_overloads_ini.phpt (Check the library config files)' time='0.0305'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/library_config/local_config.phpt (Check the library config files)' time='10.2420'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/library_config/fleet_config.phpt (Check the library config files)' time='10.2479'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.distributed_tracing.baggage" tests="11" failures="0" errors="0" skip="0" time="0.1413">
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_configured_bytes.phpt (Test baggage header interaction with bytes limits configured)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_alone.phpt (Test baggage header behavior when configured by itself)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_context_propagated.phpt (Test baggage round-trip propagation and multiple header handling)' time='0.0141'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_configured_items.phpt (Test baggage header interaction with items limit configured)' time='0.0127'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_default.phpt (Test baggage header interaction with default configurations)' time='0.0116'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/baggage_span_tags_wildcard.phpt (Test baggage span tags wildcard)' time='0.0128'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_first.phpt (Test baggage header interaction when is configured as first)' time='0.0123'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/distributed_trace_baggage_decoding_encoding.phpt (Test baggage header behavior with encoding and decoding)' time='0.0130'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/baggage_span_tags_empty.phpt (Test baggage span tags empty config)' time='0.0138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/baggage_span_tags.phpt (Test baggage span tags default behavior)' time='0.0131'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/distributed_tracing/baggage/baggage_span_tags_keys.phpt (Test baggage span tags specifying keys)' time='0.0131'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.profiling" tests="2" failures="0" errors="0" skip="2" time="0.0248">
+<testcase name='tmp/build_extension/tests/ext/profiling/runtime_id_01.phpt (runtime-id exists in meta when profiling is enabled)' time='0.0120'>
+<skipped>: requires profiling</skipped>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/profiling/runtime_id_02.phpt (runtime-id exists in meta when profiling is disabled)' time='0.0128'>
+<skipped>: requires profiling</skipped>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.live.debugger" tests="8" failures="0" errors="0" skip="0" time="51.8194">
+<testcase name='tmp/build_extension/tests/ext/live-debugger/exception-replay_001.phpt (Test exception replay)' time='5.1901'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/debugger_log_probe.phpt (Installing a live debugger log probe)' time='17.4556'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/debugger_span_probe.phpt (Installing a live debugger span probe)' time='7.7928'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/exception-replay_002.phpt (Test exception replay capture limits)' time='5.0862'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/debugger_span_decoration_probe.phpt (Installing a live debugger span decoration probe)' time='5.5634'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/debugger_metric_probe.phpt (Installing a live debugger metric probe)' time='0.0322'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/debugger_span_probe_class.phpt (Installing a live debugger span probe on a class)' time='5.5590'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/live-debugger/exception-replay_non_regression_2989_mysqli.phpt (Non regression test for use-after-free segfault in exception replay)' time='5.1401'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.telemetry" tests="12" failures="0" errors="0" skip="0" time="92.8794">
+<testcase name='tmp/build_extension/tests/ext/telemetry/integration_filesystem_01.phpt (Filesystem integration depends on RASP. If RASP is not enabled, integration is disabled)' time='10.3178'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/metrics_logs_created.phpt (&#039;logs_created&#039; internal metric)' time='10.3218'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/composer.phpt (Read telemetry via composer)' time='10.2736'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/integration_filesystem_04.phpt (Filesystem integration can also be disabled with default integrations flag)' time='10.3031'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/integration_filesystem_02.phpt (Filesystem integration depends on RASP. If RASP is enabled but wrapped functions are not used, it is not enabled)' time='10.2940'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/integration_runtime_error.phpt (Send logs from integration)' time='10.2513'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/integration.phpt (Signal integration telemetry)' time='10.2731'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/metrics_spans_created.phpt (&#039;spans_created&#039; internal metric)' time='10.2462'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/config.phpt (Report user config telemetry)' time='0.1138'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/integration_filesystem_03.phpt (Filesystem integration depends on RASP. If RASP is enabled and wrapped function are used, then it is enabled)' time='10.2402'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/disabled.phpt (Disabled telemetry test)' time='0.1286'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/telemetry/simple.phpt (Simple telemetry test)' time='0.1159'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.call_user_func" tests="4" failures="0" errors="0" skip="0" time="0.0551">
+<testcase name='tmp/build_extension/tests/ext/call_user_func/namespaced.phpt (Test that call_user_func can trace inside a namespace)' time='0.0152'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/call_user_func/namespaced-array.phpt (Test that call_user_func_array can trace inside a namespace)' time='0.0125'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/call_user_func/not-namespaced.phpt (Test that call_user_func can trace in global scope)' time='0.0139'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/call_user_func/not-namespaced-array.phpt (Test that call_user_func_array can trace in global scope)' time='0.0135'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.request.replayer" tests="4" failures="3" errors="0" skip="0" time="37.8033">
+<testcase name='tmp/build_extension/tests/ext/request-replayer/dd_trace_exception_span_event.phpt (DDTrace\ExceptionSpanEvent serialization with overridden attributes)' time='12.1938'>
+<failure type='FAILED' message=''>     Caught exception: Exception in method
+002- string(%d) &quot;[{&quot;name&quot;:&quot;exception&quot;,&quot;time_unix_nano&quot;:%d,&quot;attributes&quot;:{&quot;exception.message&quot;:&quot;override message&quot;,&quot;exception.type&quot;:&quot;Exception&quot;,&quot;exception.stacktrace&quot;:&quot;#0 %s(%d): ExceptionClass-&gt;{%s}()\n#1 %s(%d): ExceptionClass-&gt;exceptionMethod()\n#2 {main}&quot;,&quot;custom.attribute&quot;:&quot;custom value&quot;}}]&quot;
+002+ 
+003+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+004+ Stack trace:
+005+ #0 /home/circleci/app/tmp/build_extension/tests/ext/request-replayer/dd_trace_exception_span_event.php(34): RequestReplayer-&gt;waitForDataAndReplay()
+006+ #1 {main}
+007+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/request-replayer/dd_trace_agent_env.phpt (Assert that the default environment can be read from agent info)' time='1.0278'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/request-replayer/dd_trace_span_event.phpt (DDTrace\SpanEvent serialization with attributes)' time='12.1463'>
+<failure type='FAILED' message=''>     In testMethod
+002- string(134) &quot;[{&quot;name&quot;:&quot;event-name&quot;,&quot;time_unix_nano&quot;:1720037568765201300,&quot;attributes&quot;:{&quot;arg1&quot;:&quot;value1&quot;,&quot;int_array&quot;:[3,4],&quot;string_array&quot;:[&quot;5&quot;,&quot;6&quot;]}}]&quot;
+002+ 
+003+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+004+ Stack trace:
+005+ #0 /home/circleci/app/tmp/build_extension/tests/ext/request-replayer/dd_trace_span_event.php(27): RequestReplayer-&gt;waitForDataAndReplay()
+006+ #1 {main}
+007+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+</failure>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/request-replayer/dd_trace_span_link_with_exception.phpt (Span Link serialization with non-null EG(exception) doesn&#039;t fail)' time='12.4354'>
+<failure type='FAILED' message=''>     Caught exception: Oops!
+002- string(%d) &quot;Uncaught Exception: Oops! in %sdd_trace_span_link_with_exception.php:17&quot;
+003- string(9) &quot;Exception&quot;
+004- string(%d) &quot;#0 %sdd_trace_span_link_with_exception.php(12): Foo-&gt;doException()
+005- #1 %sdd_trace_span_link_with_exception.php(33): Foo-&gt;bar()
+006- #2 {main}&quot;
+007- string(33) &quot;[{&quot;trace_id&quot;:&quot;42&quot;,&quot;span_id&quot;:&quot;6&quot;}]&quot;
+002+ 
+003+ Fatal error: Uncaught Exception: wait for replay timeout in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc:78
+004+ Stack trace:
+005+ #0 /home/circleci/app/tmp/build_extension/tests/ext/request-replayer/dd_trace_span_link_with_exception.php(38): RequestReplayer-&gt;waitForDataAndReplay()
+006+ #1 {main}
+007+   thrown in /home/circleci/app/tmp/build_extension/tests/ext/includes/request_replayer.inc on line 78
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.remote_config" tests="2" failures="0" errors="0" skip="0" time="10.5994">
+<testcase name='tmp/build_extension/tests/ext/remote_config/dynamic_config_update.phpt (Test dynamic config update)' time='5.5379'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/remote_config/dynamic_config_auto_update.phpt (Test dynamic config update)' time='5.0615'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.integrations.source_code.002" tests="1" failures="0" errors="0" skip="0" time="0.0262">
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/002/git_metadata_injection_from_invalid_files.phpt (Basic Git Metadata Injection from invalid .git files (Repository URL &amp; Commit Sha))' time='0.0262'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.appsec" tests="5" failures="0" errors="0" skip="0" time="41.1727">
+<testcase name='tmp/build_extension/tests/ext/appsec/sca_flag_is_sent_01.phpt (DD_APPSEC_SCA_ENABLED flag is sent to via telemetry with default value)' time='10.2554'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/appsec/sca_flag_is_sent_05.phpt (DD_APPSEC_SCA_ENABLED is set by INI)' time='10.2413'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/appsec/sca_flag_is_sent_04.phpt (DD_APPSEC_SCA_ENABLED is set by INI)' time='0.1143'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/appsec/sca_flag_is_sent_02.phpt (DD_APPSEC_SCA_ENABLED flag is sent to via telemetry with true)' time='10.2685'>
+</testcase>
+<testcase name='tmp/build_extension/tests/ext/appsec/sca_flag_is_sent_03.phpt (DD_APPSEC_SCA_ENABLED flag is sent to via telemetry with false)' time='10.2932'>
+</testcase>
+</testsuite>
+<testsuite name="php.tmp.build_extension.tests.ext.integrations.source_code.001" tests="1" failures="0" errors="0" skip="0" time="0.025">
+<testcase name='tmp/build_extension/tests/ext/integrations/source_code/001/git_metadata_injection_from_valid_files.phpt (Basic Git Metadata Injection from valid .git files (Repository URL &amp; Commit Sha))' time='0.0250'>
+</testcase>
+</testsuite>
+</testsuites>
