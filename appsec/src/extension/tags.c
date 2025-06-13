@@ -41,6 +41,7 @@
 #define DD_PREFIX_TAG_REQUEST_HEADER "http.request.headers."
 #define DD_TAG_HTTP_REQH_CONTENT_TYPE "http.request.headers.content-type"
 #define DD_TAG_HTTP_REQH_CONTENT_LENGTH "http.request.headers.content-length"
+#define DD_TAG_HTTP_REQH_AUTHORIZATION "http.request.headers.authorization"
 #define DD_TAG_HTTP_RH_CONTENT_LENGTH "http.response.headers.content-length"
 #define DD_TAG_HTTP_RH_CONTENT_TYPE "http.response.headers.content-type"
 #define DD_TAG_HTTP_RH_CONTENT_ENCODING "http.response.headers.content-encoding"
@@ -97,6 +98,7 @@ static zend_string *_dd_tag_network_client_ip_zstr;
 static zend_string *_dd_tag_http_client_ip_zstr;
 static zend_string *_dd_tag_content_type;
 static zend_string *_dd_tag_content_length;
+static zend_string *_dd_tag_authorization;
 static zend_string *_dd_tag_rh_content_length;   // response
 static zend_string *_dd_tag_rh_content_type;     // response
 static zend_string *_dd_tag_rh_content_encoding; // response
@@ -192,6 +194,8 @@ void dd_tags_startup(void)
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_CONTENT_TYPE), 1);
     _dd_tag_content_length =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_CONTENT_LENGTH), 1);
+    _dd_tag_authorization =
+        zend_string_init_interned(LSTRARG(DD_TAG_HTTP_REQH_AUTHORIZATION), 1);
 
     _dd_tag_rh_content_length =
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LENGTH), 1);
