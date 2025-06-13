@@ -41,10 +41,11 @@ use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
-use std::cell::RefCell;
-use std::ops::Deref;
+use std::cell::{BorrowError, BorrowMutError, RefCell};
+use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Once};
+use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
@@ -429,6 +430,48 @@ impl Default for RequestLocals {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum RefCellExtError {
+    #[error(transparent)]
+    AccessError(#[from] AccessError),
+
+    #[error("non-mutable borrow while mutably borrowed")]
+    BorrowError(#[from] BorrowError),
+
+    #[error("mutable borrow while mutably borrowed")]
+    BorrowMutError(#[from] BorrowMutError),
+}
+
+trait RefCellExt<T> {
+    fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
+    where
+        F: FnOnce(&T) -> R;
+
+    fn try_with_borrow_mut<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
+    where
+        F: FnOnce(&mut T) -> R;
+}
+
+impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
+    fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
+    where
+        F: FnOnce(&T) -> R,
+    {
+        Ok(self.try_with(|cell| -> Result<R, BorrowError> {
+            cell.try_borrow().map(|t| f(t.deref()))
+        })??)
+    }
+
+    fn try_with_borrow_mut<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        Ok(self.try_with(|cell| -> Result<R, BorrowMutError> {
+            cell.try_borrow_mut().map(|mut t| f(t.deref_mut()))
+        })??)
+    }
+}
+
 thread_local! {
     static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
         cpu_time: None,
@@ -493,7 +536,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let mut system_settings = unsafe { SystemSettings::get() };
 
     // initialize the thread local storage and cache some items
-    REQUEST_LOCALS.with_borrow_mut(|locals| {
+    let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
         locals.interrupt_count.store(0, Ordering::SeqCst);
@@ -525,6 +568,11 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         }
         locals.system_settings = system_settings;
     });
+
+    if let Err(err) = result {
+        error!("failed to borrow request locals in rinit: {err}");
+        return ZendResult::Failure;
+    }
 
     // Preloading happens before zend_post_startup_cb is called for the first
     // time. When preloading is enabled and a non-root user is used for
@@ -591,7 +639,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     Profiler::init(system_settings);
 
     if system_settings.profiling_enabled {
-        REQUEST_LOCALS.with_borrow(|locals| {
+        // Not logging, rinit could be quite spammy.
+        _ = REQUEST_LOCALS.try_with_borrow(|locals| {
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
@@ -682,7 +731,8 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     profiling::stack_walking::rshutdown();
 
-    REQUEST_LOCALS.with_borrow(|locals| {
+    // Not logging, rshutdown could be quite spammy.
+    _ = REQUEST_LOCALS.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();
 
         // The interrupt is only added if CPU- or wall-time are enabled BUT
@@ -718,7 +768,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
     let module = &*module_ptr;
 
-    REQUEST_LOCALS.with_borrow(|locals| {
+    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();
         let yes = c"true".as_ptr();
         let yes_exp = c"true (all experimental features enabled)".as_ptr();
@@ -914,6 +964,10 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::display_ini_entries(module_ptr);
     });
+
+    if let Err(err) = result {
+        error!("minfo failed to borrow request locals: {err}");
+    }
 }
 
 extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
@@ -1000,7 +1054,7 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
 /// Notifies the profiler a trace has finished so it can update information
 /// for Endpoint Profiling.
 fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
-    REQUEST_LOCALS.with_borrow(|locals| {
+    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();
         if system_settings.profiling_enabled && system_settings.profiling_endpoint_collection_enabled {
             // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
@@ -1026,4 +1080,8 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
             }
         }
     });
+
+    if let Err(err) = result {
+        debug!("tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}");
+    }
 }

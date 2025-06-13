@@ -6,7 +6,7 @@ use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
 };
-use crate::{PROFILER_NAME, REQUEST_LOCALS};
+use crate::{RefCellExt, RefCellExtError, PROFILER_NAME, REQUEST_LOCALS};
 use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
@@ -318,12 +318,10 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_allocation_enabled)
-            // Not logging here to avoid potentially overwhelming logs.
-            .unwrap_or(false)
-    });
+    let allocation_profiling: bool = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+        // Not logging here to avoid potentially overwhelming logs.
+        .unwrap_or(false);
 
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
