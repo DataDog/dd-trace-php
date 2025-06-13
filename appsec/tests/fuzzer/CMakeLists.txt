@@ -3,10 +3,16 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
     find_package(RapidJSON CONFIG REQUIRED)
     set_target_properties(RapidJSON::rapidjson PROPERTIES INTERFACE_COMPILE_DEFINITIONS "RAPIDJSON_HAS_STDSTRING=1")
 
+    if(FUZZER_ARCHIVE_PATH)
+        set(FUZZER_FLAGS " ${FUZZER_ARCHIVE_PATH}")
+    else()
+        set(FUZZER_FLAGS ",fuzzer-no-link")
+    endif()
+
     add_executable(ddappsec_helper_fuzzer ${HELPER_SOURCE} main.cpp mutators.cpp)
     set_target_properties(ddappsec_helper_fuzzer PROPERTIES
         COMPILE_FLAGS "-fsanitize=fuzzer-no-link,address,leak -fprofile-instr-generate -fcoverage-mapping"
-        LINK_FLAGS "-fsanitize=fuzzer-no-link,address,leak -fprofile-instr-generate -fcoverage-mapping"
+        LINK_FLAGS "-fsanitize=address,leak${FUZZER_FLAGS} -fprofile-instr-generate -fcoverage-mapping"
         CXX_STANDARD 20
     )
     target_include_directories(ddappsec_helper_fuzzer PRIVATE ${HELPER_INCLUDE_DIR})

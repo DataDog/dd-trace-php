@@ -20,6 +20,9 @@ chown root:adm "${LOGS_NGINX[@]}"
 enable_extensions.sh
 
 php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini
-service nginx start
+if ! service nginx start; then
+    cat /var/log/nginx/error.log
+    false
+fi
 
 exec tail -n +1 -F "${LOGS_PHP[@]}" "${LOGS_NGINX[@]}"
