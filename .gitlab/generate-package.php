@@ -1344,3 +1344,23 @@ foreach ($arch_targets as $arch) {
   artifacts:
     paths:
       - packages/datadog-setup.php
+
+"publish release to github":
+  stage: release
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  only:
+    refs:
+      - /^ddtrace-.*$/
+  needs:
+    - job: "datadog-setup.php"
+      artifacts: true
+    - job: "package extension windows"
+      artifacts: true
+<?php foreach ($build_platforms as $platform): ?>
+    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php endforeach; ?>
+  script:
+    - if [ -z ${GITHUB_RELEASE_PAT} ]; then export GITHUB_RELEASE_PAT=$(aws ssm get-parameter --region us-east-1 --name ci.$CI_PROJECT_NAME.gh_token --with-decryption --query "Parameter.Value" --out text); fi
+    - php tooling/bin/create_release.php packages
