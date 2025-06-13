@@ -1,5 +1,6 @@
 use crate::allocation::{
-    ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE, ALLOCATION_PROFILING_STATS,
+    collect_allocation, ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE,
+    ALLOCATION_PROFILING_STATS,
 };
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
@@ -351,7 +352,11 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
+    if ALLOCATION_PROFILING_STATS
+        .with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
+    {
+        collect_allocation(len);
+    }
 
     ptr
 }
@@ -406,7 +411,11 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
+    if ALLOCATION_PROFILING_STATS
+        .with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
+    {
+        collect_allocation(len);
+    }
 
     ptr
 }
