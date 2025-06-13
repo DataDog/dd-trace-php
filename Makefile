@@ -1276,7 +1276,7 @@ define run_opentelemetry_tests
 endef
 
 test_opentelemetry_beta: global_test_run_dependencies tests/Frameworks/Custom/OpenTelemetry/composer.lock-php$(PHP_MAJOR_MINOR) tests/OpenTelemetry/composer-beta$(shell [ $(PHP_MAJOR_MINOR) -le 81 ] && echo "-pre-8.1" || echo '').lock-php$(PHP_MAJOR_MINOR)
-	$(call run_opentelemetry_tests, OTEL_SERVICE_NAME=datadog/dd-trace-tests TESTSUITE_VENDOR_DIR=vendor-beta)
+	$(call run_opentelemetry_tests, TESTSUITE_VENDOR_DIR=vendor-beta)
 
 tests/OpenTelemetry/composer-%.lock-php$(PHP_MAJOR_MINOR): tests/OpenTelemetry/composer-%.json
 	$(call run_composer_with_lock,tests/OpenTelemetry,composer-$(*).json)

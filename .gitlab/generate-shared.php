@@ -141,7 +141,7 @@ foreach (["7.4", "8.0"] as $major_minor):
     - mkdir -p tmp/build_zai && cd tmp/build_zai
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/nts cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_ZAI_TESTING=ON -DRUN_SHARED_EXTS_TESTS=1 -DPhpConfig_ROOT=$(php-config --prefix) ../../zend_abstract_interface
     - make -j all
-    - make test
+    - TEA_INI_IGNORE=0 make test
     - grep -e "=== Total [0-9]+ memory leaks detected ===" Testing/Temporary/LastTest.log && exit 1 || true
 <?php
 endforeach;
