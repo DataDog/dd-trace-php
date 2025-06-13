@@ -8,20 +8,12 @@ variables:
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
 
-services:
-  mysql:
-    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-mysql-dev-5.6
-    alias: mysql-integration
-    variables:
-      MYSQL_ROOT_PASSWORD: test
-      MYSQL_PASSWORD: test
-      MYSQL_USER: test
-      MYSQL_DATABASE: test
-
 .microbenchmarks:
   stage: benchmarks
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
+  services:
+    - !reference [.services]
   image:
     name: $BASE_CI_IMAGE
   interruptible: true
