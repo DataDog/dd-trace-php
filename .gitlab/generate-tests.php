@@ -469,9 +469,10 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     SWITCH_PHP_VERSION: debug
+    COMPOSER_VERSION: 2
   before_script:
 <?php before_script_steps() ?>
-    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --2 --no-interaction; fi
+    - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
@@ -536,7 +537,10 @@ foreach ($jobs as $type => $type_jobs):
     ARCH: "amd64"
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
-<? endif; ?>
+<?php endif; ?>
+<?php if (preg_match("(test_web_symfony_(2|30|33|40))")): ?>
+    COMPOSER_VERSION: 2.2
+<?php endif; ?>
 
 <?php
             endforeach;
