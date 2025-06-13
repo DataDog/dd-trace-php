@@ -50,9 +50,7 @@ impl ExceptionProfilingStats {
         self.next_sample = self.poisson.sample(&mut self.rng) as u32;
     }
 
-    fn track_exception(
-        &mut self,
-    ) -> bool {
+    fn should_collect_exception(&mut self) -> bool {
         if let Some(next_sample) = self.next_sample.checked_sub(1) {
             self.next_sample = next_sample;
             return false;
@@ -203,8 +201,11 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     // This process involved calling this hook for each stack frame or try...catch block it
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
-    if exception_profiling && !exception.is_null() && EXCEPTION_PROFILING_STATS
-            .with_borrow_mut(|exceptions| exceptions.track_exception()) {
+    if exception_profiling
+        && !exception.is_null()
+        && EXCEPTION_PROFILING_STATS
+            .with_borrow_mut(|exceptions| exceptions.should_collect_exception())
+    {
         collect_exception(exception);
     }
 
