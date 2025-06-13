@@ -16,6 +16,11 @@ variables:
       MYSQL_PASSWORD: test
       MYSQL_USER: test
       MYSQL_DATABASE: test
+  - name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
+    alias: request-replayer
+    command: ["php", "-S", "127.0.0.1:80", "index.php"]
+    variables:
+      DD_REQUEST_DUMPER_FILE: dump.json
 
 .microbenchmarks:
   stage: benchmarks
