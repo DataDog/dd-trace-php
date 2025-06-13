@@ -1,6 +1,6 @@
 use crate::profiling::Profiler;
 use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
-use crate::REQUEST_LOCALS;
+use crate::{RefCellExt, REQUEST_LOCALS};
 use log::{error, info};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
@@ -15,10 +15,13 @@ use rand_distr::{Distribution, Poisson};
 /// (in ZTS), so we do not need a thread local for this function pointer.
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
-/// Take a sample every 100 exceptions
-/// Will be initialized on first RINIT and is controlled by a INI_SYSTEM, so we do not need a
-/// thread local for the profiling interval.
-pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
+const EXCEPTION_PROFILING_INTERVAL_DEFAULT: u32 = 100;
+
+/// Take a sample every N exceptions.
+/// Will be initialized on first RINIT and is controlled by a system INI, so
+/// we do not need a thread local for the profiling interval.
+pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 =
+    AtomicU32::new(EXCEPTION_PROFILING_INTERVAL_DEFAULT);
 
 /// This will store the number of exceptions thrown during a profiling period. It will overflow
 /// when throwing more then 4_294_967_295 exceptions during this period which we currently
@@ -72,11 +75,9 @@ fn collect_exception(
 
     let exception_name = unsafe { (*exception).class_name() };
 
-    let collect_message = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_exception_message_enabled)
-            .unwrap_or(false)
-    });
+    let collect_message = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_exception_message_enabled)
+        .unwrap_or(false);
 
     let message = if collect_message {
         Some(unsafe {
@@ -154,25 +155,19 @@ pub fn exception_profiling_minit() {
 /// This initializes the `EXCEPTION_PROFILING_INTERVAL` atomic on first RINIT with the value from
 /// the INI / ENV variable.
 pub fn exception_profiling_first_rinit() {
-    let exception_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_exception_enabled)
-            .unwrap_or(false)
-    });
+    let (exception_profiling, sampling_distance) = REQUEST_LOCALS
+        .try_with_borrow(|locals| {
+            let settings = locals.system_settings();
+            (settings.profiling_exception_enabled, settings.profiling_exception_sampling_distance)
+        })
+        .unwrap_or_else(|err| {
+            error!("Exception profiling was not initialized correctly due to an error. Please report this to Datadog. Error: {err:?}");
+            (false, EXCEPTION_PROFILING_INTERVAL_DEFAULT)
+        });
 
     if !exception_profiling {
         return;
     }
-
-    let sampling_distance = REQUEST_LOCALS.with(|cell| {
-        match cell.try_borrow() {
-            Ok(locals) => locals.system_settings().profiling_exception_sampling_distance,
-            Err(_err) => {
-                error!("Exception profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                100
-            }
-        }
-    });
 
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
@@ -192,11 +187,9 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
 ) {
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
 
-    let exception_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_exception_enabled)
-            .unwrap_or(false)
-    });
+    let exception_profiling = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_exception_enabled)
+        .unwrap_or(false);
 
     // Up to PHP 7.1, when PHP propagated exceptions up the call stack, it would re-throw them.
     // This process involved calling this hook for each stack frame or try...catch block it

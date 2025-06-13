@@ -3,7 +3,7 @@ use crate::bindings::{
     DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
 };
 use crate::profiling::Profiler;
-use crate::{zend, REQUEST_LOCALS};
+use crate::{zend, RefCellExt, REQUEST_LOCALS};
 use ahash::{HashMap, HashMapExt};
 use libc::{c_char, c_int, c_void, dl_phdr_info, fstat, stat, S_IFMT, S_IFSOCK};
 use log::{error, trace};
@@ -725,7 +725,9 @@ impl IOProfilingStats {
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
-        let zend_thread = REQUEST_LOCALS.with_borrow(|locals| !locals.vm_interrupt_addr.is_null());
+        let zend_thread = REQUEST_LOCALS
+            .try_with_borrow(|locals| !locals.vm_interrupt_addr.is_null())
+            .unwrap_or(false);
         if !zend_thread {
             // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
             // follows threads and as such we might sample from another (non PHP) thread even in a
@@ -786,11 +788,9 @@ thread_local! {
 }
 
 pub fn io_prof_first_rinit() {
-    let io_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_io_enabled)
-            .unwrap_or(false)
-    });
+    let io_profiling = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_io_enabled)
+        .unwrap_or(false);
 
     if io_profiling {
         unsafe {
