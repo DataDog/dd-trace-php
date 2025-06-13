@@ -62,6 +62,7 @@ impl ExceptionProfilingStats {
     }
 }
 
+#[cold]
 fn collect_exception(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,

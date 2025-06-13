@@ -596,6 +596,7 @@ pub static SOCKET_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024
 pub static FILE_READ_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 100);
 pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 * 100);
 
+#[cold]
 fn collect_socket_read_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -608,6 +609,7 @@ fn collect_socket_read_time(value: u64) {
     }
 }
 
+#[cold]
 fn collect_socket_write_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -620,6 +622,7 @@ fn collect_socket_write_time(value: u64) {
     }
 }
 
+#[cold]
 fn collect_file_read_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -632,6 +635,7 @@ fn collect_file_read_time(value: u64) {
     }
 }
 
+#[cold]
 fn collect_file_write_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -644,6 +648,7 @@ fn collect_file_write_time(value: u64) {
     }
 }
 
+#[cold]
 fn collect_socket_read_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -656,6 +661,7 @@ fn collect_socket_read_size(value: u64) {
     }
 }
 
+#[cold]
 fn collect_socket_write_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -668,6 +674,7 @@ fn collect_socket_write_size(value: u64) {
     }
 }
 
+#[cold]
 fn collect_file_read_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
@@ -680,6 +687,7 @@ fn collect_file_read_size(value: u64) {
     }
 }
 
+#[cold]
 fn collect_file_write_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
