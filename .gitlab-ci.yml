@@ -25,6 +25,8 @@ include:
     file: templates/ci_authenticated_job.yml
   - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
 
 build:
   extends: .ci_authenticated_job
