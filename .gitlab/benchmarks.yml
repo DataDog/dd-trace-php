@@ -118,6 +118,12 @@ benchmarks-appsec:
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
+    - ls -laR .
+    - echo "Verifying artifacts..."
+    - ls -la packages/
+    - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz')
+    - echo "Found bundle: $installable_bundle"
+    - php datadog-setup.php --php-bin all --file "$installable_bundle"
     - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - ./steps/run-benchmarks.sh
   artifacts:
