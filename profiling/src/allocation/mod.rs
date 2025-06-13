@@ -69,6 +69,7 @@ impl AllocationProfilingStats {
     }
 }
 
+#[cold]
 pub fn collect_allocation(len: size_t) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
