@@ -2,6 +2,7 @@ stages:
   - build
   - tests
   - deploy
+  - benchmarks
   - gate
   - notify
   - ci-build
