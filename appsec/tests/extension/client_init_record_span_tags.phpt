@@ -86,7 +86,7 @@ Array
 (
     [_dd.appsec.json] => {"triggers":[{"found":"attack"},{"another":"attack"},{"yet another":"attack"}]}
     [_dd.p.appsec] => 1
-    [_dd.p.dm] => -0
+    [_dd.p.dm] => -4
     [_dd.p.tid] => %s
     [_dd.p.ts] => 02
     [_dd.runtime_family] => php
@@ -108,8 +108,7 @@ Array
     [metric_1] => 2
     [metric_2] => 10
     [_dd.appsec.enabled] => 1
-    [_dd.agent_psr] => 1
-    [_sampling_priority_v1] => 1
+    [_sampling_priority_v1] => 2
     [php.compilation.total_time_ms] => %f
     [php.memory.peak_usage_bytes] => %f
     [php.memory.peak_real_usage_bytes] => %f

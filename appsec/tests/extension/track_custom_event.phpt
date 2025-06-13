@@ -32,4 +32,5 @@ Array
     [appsec.events.myevent.metadata] => some other metadata
     [appsec.events.myevent.email] => noneofyour@business.com
     [_dd.p.ts] => 02
+    [_dd.p.dm] => -4
 )

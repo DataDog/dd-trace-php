@@ -470,7 +470,7 @@ dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t force_keep = mpack_node_array_at(root, RESP_INDEX_FORCE_KEEP);
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
-        dd_tags_set_sampling_priority();
+        dd_trace_emit_asm_event();
     }
 
     if (mpack_node_array_length(root) >= RESP_INDEX_SETTINGS + 1) {
@@ -641,7 +641,7 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
         }
 
         if (!has_schemas && dd_string_starts_with_lc(
-                                key_str, key_len, ZEND_STRL("_dd.appsec.s"))) {
+                                key_str, key_len, ZEND_STRL("_dd.appsec.s."))) {
             // There is schemas extrated
             has_schemas = true;
         }
@@ -658,7 +658,6 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
 
     if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
         dd_trace_emit_asm_event();
-        dd_tags_set_sampling_priority();
     }
 }
 
