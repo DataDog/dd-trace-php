@@ -29,4 +29,6 @@ class Type
     const REDIS = 'redis';
 
     const SYSTEM = 'system';
+
+    const GRAPHQL = 'graphql';
 }
