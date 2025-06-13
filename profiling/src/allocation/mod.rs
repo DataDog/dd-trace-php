@@ -1,8 +1,8 @@
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
-use crate::REQUEST_LOCALS;
+use crate::{RefCellExt, REQUEST_LOCALS};
 use libc::size_t;
-use log::{error, trace};
+use log::{debug, error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
@@ -106,25 +106,19 @@ pub fn alloc_prof_startup() {
 }
 
 pub fn alloc_prof_first_rinit() {
-    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_allocation_enabled)
-            .unwrap_or(false)
-    });
+    let (allocation_enabled, sampling_distance) = REQUEST_LOCALS
+        .try_with_borrow(|locals| {
+            let settings = locals.system_settings();
+            (settings.profiling_allocation_enabled, settings.profiling_allocation_sampling_distance)
+        })
+        .unwrap_or_else(|err| {
+            error!("Allocation profiling first rinit failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
+            (false, DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32)
+        });
 
-    if !allocation_profiling {
+    if !allocation_enabled {
         return;
     }
-
-    let sampling_distance = REQUEST_LOCALS.with(|cell| {
-        match cell.try_borrow() {
-            Ok(locals) => locals.system_settings().profiling_allocation_sampling_distance,
-            Err(_err) => {
-                error!("Allocation profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32
-            }
-        }
-    });
 
     ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
 
@@ -135,20 +129,16 @@ pub fn alloc_prof_first_rinit() {
 }
 
 pub fn alloc_prof_rinit() {
-    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        match cell.try_borrow() {
-            Ok(locals) => {
-                let system_settings = locals.system_settings();
-                system_settings.profiling_allocation_enabled
-            },
-            Err(_err) => {
-                error!("Memory allocation was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                false
-            }
-        }
-    });
+    let allocation_enabled = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+        .unwrap_or_else(|err| {
+            // Debug rather than error because this is every request, could
+            // be very spammy.
+            debug!("Allocation profiling rinit failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
+            false
+        });
 
-    if !allocation_profiling {
+    if !allocation_enabled {
         return;
     }
 
@@ -159,13 +149,16 @@ pub fn alloc_prof_rinit() {
 }
 
 pub fn alloc_prof_rshutdown() {
-    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_allocation_enabled)
-            .unwrap_or(false)
-    });
+    let allocation_enabled = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+        .unwrap_or_else(|err| {
+            // Debug rather than error because this is every request, could
+            // be very spammy.
+            debug!("Allocation profiling rshutdown failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
+            false
+        });
 
-    if !allocation_profiling {
+    if !allocation_enabled {
         return;
     }
 
