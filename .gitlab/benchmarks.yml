@@ -1,3 +1,8 @@
+stages:
+  - benchmarks
+  - gate
+  - notify
+
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
@@ -106,7 +111,7 @@ benchmarks-appsec:
   rules: *macrobenchmarks_rules
   tags: ["runner:apm-k8s-same-cpu"]
   needs:
-    - job: "build"
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   interruptible: true
   timeout: 1h

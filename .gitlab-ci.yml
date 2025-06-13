@@ -2,7 +2,6 @@ stages:
   - build
   - tests
   - deploy
-  - benchmarks
   - gate
   - notify
   - ci-build
@@ -165,6 +164,7 @@ package-trigger:
     include:
       - artifact: .gitlab/package-gen.yml
         job: "generate-templates"
+      - local: .gitlab/benchmarks.yml
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
