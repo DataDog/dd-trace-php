@@ -108,6 +108,8 @@ benchmarks-appsec:
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
   interruptible: true
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
