@@ -101,30 +101,21 @@ benchmarks-appsec:
     when: always
   - when: manual
 
-download_circle_ci_release:
-  stage: benchmarks
-  needs: []
-  rules: *macrobenchmarks_rules
-  tags: [ "arch:amd64" ]
-  interruptible: true
-  timeout: 45m
-  image: $MACROBENCHMARKS_CI_IMAGE
-  script:
-    - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
-    - ./steps/download-circle-ci-release.sh
-  artifacts:
-    name: "artifacts"
-    when: always
-    paths:
-      - circleci/artifacts/
-    expire_in: 3 months
-  allow_failure: true
-
 .macrobenchmarks:
   stage: benchmarks
   rules: *macrobenchmarks_rules
   tags: ["runner:apm-k8s-same-cpu"]
-  needs: ["download_circle_ci_release"]
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
+    - job: "datadog-setup.php"
+      artifacts: true
   interruptible: true
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
