@@ -106,15 +106,7 @@ benchmarks-appsec:
   rules: *macrobenchmarks_rules
   tags: ["runner:apm-k8s-same-cpu"]
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
-      artifacts: true
-    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
-      artifacts: true
-    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
-      artifacts: true
-    - job: "datadog-setup.php"
+    - job: "build"
       artifacts: true
   interruptible: true
   timeout: 1h
