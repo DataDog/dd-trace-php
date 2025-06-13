@@ -538,7 +538,7 @@ foreach ($jobs as $type => $type_jobs):
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
-<?php if (preg_match("(test_web_symfony_(2|30|33|40))")): ?>
+<?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2
 <?php endif; ?>
 
