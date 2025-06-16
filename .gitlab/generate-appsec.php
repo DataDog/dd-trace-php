@@ -56,9 +56,26 @@ stages:
   parallel:
     matrix:
       - targets:
-          - test7.0-release test7.0-release-zts test7.1-release test7.1-release-zts test7.2-release test7.2-release-zts
-          - test7.3-release test7.3-release-zts test7.4-release test7.4-release-zts test8.0-release test8.0-release-zts
-          - test8.1-release test8.1-release-zts test8.2-release test8.2-release-zts test8.3-release test8.3-release-zts test8.4-release test8.4-release-zts
+          - test7.0-release
+          - test7.0-release-zts
+          - test7.1-release
+          - test7.1-release-zts
+          - test7.2-release
+          - test7.2-release-zts
+          - test7.3-release
+          - test7.3-release-zts
+          - test7.4-release
+          - test7.4-release-zts
+          - test8.0-release
+          - test8.0-release-zts
+          - test8.1-release
+          - test8.1-release-zts
+          - test8.2-release
+          - test8.2-release-zts
+          - test8.3-release
+          - test8.3-release-zts
+          - test8.4-release
+          - test8.4-release-zts
   script:
     - apt update && apt install -y default-jre
     - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
