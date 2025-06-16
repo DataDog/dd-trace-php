@@ -6,7 +6,7 @@ use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
 };
-use crate::{RefCellExt, RefCellExtError, PROFILER_NAME, REQUEST_LOCALS};
+use crate::{RefCellExt, PROFILER_NAME, REQUEST_LOCALS};
 use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
