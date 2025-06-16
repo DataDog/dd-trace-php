@@ -1,5 +1,4 @@
 use crate::sidecar::MaybeShmLimiter;
-use datadog_dynamic_configuration::{data::TracingSamplingRuleProvenance, Configs};
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
 use datadog_live_debugger_ffi::data::Probe;
@@ -11,12 +10,11 @@ use datadog_remote_config::fetch::ConfigInvariants;
 use datadog_remote_config::{
     RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target,
 };
+use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
-use datadog_sidecar_ffi::{
-    ddog_sidecar_send_debugger_data, ddog_sidecar_send_debugger_diagnostics,
-};
+use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
 use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
@@ -284,6 +282,8 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigData::Ignored(_) => (),
+                RemoteConfigData::TracerFlareConfig(_) => {}
+                RemoteConfigData::TracerFlareTask(_) => {}
             },
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
