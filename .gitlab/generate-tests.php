@@ -641,7 +641,6 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     REPORT_EXIT_STATUS: "1"
   script:
     - make install_all
-    - sed -i 's/\bdl(/(bool)(/' /usr/local/src/php/run-tests.php
     - '# Run xdebug tests'
     - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
