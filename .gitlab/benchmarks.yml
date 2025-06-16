@@ -175,7 +175,7 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  when: always
+  when: on_success
   allow_failure: true
   before_script:
     - |
