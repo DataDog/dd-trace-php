@@ -187,7 +187,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
 ) {
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
 
-    let exception_profiling = REQUEST_LOCALS
+    let exception_enabled = REQUEST_LOCALS
         .try_with_borrow(|locals| locals.system_settings().profiling_exception_enabled)
         .unwrap_or(false);
 
@@ -195,10 +195,11 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     // This process involved calling this hook for each stack frame or try...catch block it
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
-    if exception_profiling
+    if exception_enabled
         && !exception.is_null()
         && EXCEPTION_PROFILING_STATS
-            .with_borrow_mut(|exceptions| exceptions.should_collect_exception())
+            .try_with_borrow_mut(|exceptions| exceptions.should_collect_exception())
+            .unwrap_or(false)
     {
         collect_exception(exception);
     }
