@@ -134,6 +134,7 @@ foreach (["7.4", "8.0"] as $major_minor):
             SWITCH_PHP_VERSION: nts
       artifacts: true
   script:
+    - switch-php nts
 <?php if (version_compare($major_minor, "7.4", "<=")): ?>
     - echo "extension=json.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/json.ini
 <?php endif; ?>
