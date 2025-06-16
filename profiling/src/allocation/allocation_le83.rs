@@ -318,10 +318,9 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
+    // Not logging here to avoid potentially overwhelming logs.
     let allocation_profiling: bool = REQUEST_LOCALS
-        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
-        // Not logging here to avoid potentially overwhelming logs.
-        .unwrap_or(false);
+        .borrow_or_false(|locals| locals.system_settings().profiling_allocation_enabled);
 
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
@@ -351,8 +350,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     }
 
     if ALLOCATION_PROFILING_STATS
-        .try_with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
-        .unwrap_or(false)
+        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
     {
         collect_allocation(len);
     }
@@ -411,8 +409,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
     }
 
     if ALLOCATION_PROFILING_STATS
-        .try_with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
-        .unwrap_or(false)
+        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
     {
         collect_allocation(len);
     }
