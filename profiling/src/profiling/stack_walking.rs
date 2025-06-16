@@ -1,6 +1,5 @@
 use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
 use crate::vec_ext::VecExt;
-use crate::RefCellExtError;
 use std::borrow::Cow;
 
 #[cfg(php_frameless)]
@@ -119,7 +118,7 @@ mod detail {
     use super::*;
     use crate::string_set::StringSet;
     use crate::thin_str::ThinStr;
-    use crate::RefCellExt;
+    use crate::{RefCellExt, RefCellExtError};
     use log::{debug, trace};
     use std::cell::RefCell;
     use std::ptr::NonNull;
