@@ -177,5 +177,12 @@ notify-slo-breaches:
   needs: ["check-slo-breaches"]
   when: always
   allow_failure: true
+  before_script:
+    - |
+      echo "Current directory: $(pwd)"
+      echo "Listing platform directory:"
+      ls -la platform/
+      echo "Listing platform/artifacts directory:"
+      ls -la platform/artifacts/
   variables:
     CHANNEL: "guild-dd-php"
