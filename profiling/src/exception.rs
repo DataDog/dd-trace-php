@@ -76,8 +76,7 @@ fn collect_exception(
     let exception_name = unsafe { (*exception).class_name() };
 
     let collect_message = REQUEST_LOCALS
-        .try_with_borrow(|locals| locals.system_settings().profiling_exception_message_enabled)
-        .unwrap_or(false);
+        .borrow_or_false(|locals| locals.system_settings().profiling_exception_message_enabled);
 
     let message = if collect_message {
         Some(unsafe {
@@ -188,8 +187,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
 
     let exception_enabled = REQUEST_LOCALS
-        .try_with_borrow(|locals| locals.system_settings().profiling_exception_enabled)
-        .unwrap_or(false);
+        .borrow_or_false(|locals| locals.system_settings().profiling_exception_enabled);
 
     // Up to PHP 7.1, when PHP propagated exceptions up the call stack, it would re-throw them.
     // This process involved calling this hook for each stack frame or try...catch block it
@@ -198,8 +196,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     if exception_enabled
         && !exception.is_null()
         && EXCEPTION_PROFILING_STATS
-            .try_with_borrow_mut(|exceptions| exceptions.should_collect_exception())
-            .unwrap_or(false)
+            .borrow_mut_or_false(|exceptions| exceptions.should_collect_exception())
     {
         collect_exception(exception);
     }
