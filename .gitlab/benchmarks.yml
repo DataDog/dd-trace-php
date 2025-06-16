@@ -176,5 +176,6 @@ notify-slo-breaches:
   stage: notify
   needs: ["check-slo-breaches"]
   when: always
+  allow_failure: true
   variables:
     CHANNEL: "guild-dd-php"
