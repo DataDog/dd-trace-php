@@ -158,11 +158,9 @@ macrobenchmarks:
 check-slo-breaches:
   stage: gate
   needs: ["macrobenchmarks"]
-  rules: *macrobenchmarks_rules
-  tags: ["runner:apm-k8s-same-cpu"]
-  image: $MACROBENCHMARKS_CI_IMAGE
-  interruptible: true
-  timeout: 1h
+  when: on_success
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   script:
     - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin php/laravel-realworld)
     - bp-runner bp-runner.fail-on-breach.yml --debug
@@ -177,6 +175,6 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  rules: *macrobenchmarks_rules
+  when: always
   variables:
     CHANNEL: "guild-dd-php"
