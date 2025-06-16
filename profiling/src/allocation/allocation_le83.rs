@@ -351,7 +351,8 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     }
 
     if ALLOCATION_PROFILING_STATS
-        .with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
+        .try_with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
+        .unwrap_or(false)
     {
         collect_allocation(len);
     }
@@ -410,7 +411,8 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
     }
 
     if ALLOCATION_PROFILING_STATS
-        .with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
+        .try_with_borrow_mut(|allocations| allocations.should_collect_allocation(len))
+        .unwrap_or(false)
     {
         collect_allocation(len);
     }
