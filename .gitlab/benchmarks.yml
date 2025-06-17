@@ -172,6 +172,7 @@ check-slo-breaches:
 
 notify-slo-breaches:
   extends: .notify-slo-breaches
+  allow_failure: false
   stage: notify
   needs: ["check-slo-breaches"]
   when: always
