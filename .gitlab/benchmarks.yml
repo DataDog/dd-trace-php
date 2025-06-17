@@ -64,11 +64,11 @@ benchmarks-tracer:
       when: on_success
     - when: manual
   artifacts:
-    name: "logs"
+    name: "reports"
+    when: always
     paths:
-      - candidate.tar.gz
-      - baseline.tar.gz
-    expire_in: 2 days
+      - reports/
+    expire_in: 3 months
   variables:
     SCENARIO: "tracer"
 
