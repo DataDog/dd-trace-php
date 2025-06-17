@@ -457,13 +457,13 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
         non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
         *non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
     }
-    return *non_const_func->op_array.run_time_cache__ptr;
+    return (uintptr_t *)*non_const_func->op_array.run_time_cache__ptr;
 #else
     if (non_const_func->common.run_time_cache__ptr == NULL) {
         non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
         *non_const_func->common.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
     }
-    return *non_const_func->common.run_time_cache__ptr;
+    return (uintptr_t *)*non_const_func->common.run_time_cache__ptr;
 #endif
 #else
     (void)func;

@@ -80,3 +80,6 @@ cc = { version = "1.0" }
 rustc_version = "0.4"
 
 # profiling release options in root Cargo.toml
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(stack_walking_tests)'] }
