@@ -4,10 +4,12 @@ include:
 
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
-  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
-
+  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld
+  # The Dockerfile to this image is located at:
+  # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
+  
 .microbenchmarks:
   stage: benchmarks
   tags: ["runner:apm-k8s-tweaked-metal"]
@@ -117,12 +119,9 @@ benchmarks-appsec:
   interruptible: true
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
-  script: |
-    echo "Verifying artifacts..."
-    installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-gnu.tar.gz')
-    echo "Found bundle: $installable_bundle"
-    git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
-    ./steps/run-benchmarks.sh
+  script:
+    - git clone --branch php/laravel-realworld https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - ./steps/run-benchmarks.sh
   artifacts:
     name: "artifacts"
     when: always
@@ -177,12 +176,5 @@ notify-slo-breaches:
   needs: ["check-slo-breaches"]
   when: on_success
   allow_failure: true
-  before_script:
-    - |
-      echo "Current directory: $(pwd)"
-      echo "Listing platform directory:"
-      ls -la platform/
-      echo "Listing platform/artifacts directory:"
-      ls -la platform/artifacts/
   variables:
     CHANNEL: "guild-dd-php"
