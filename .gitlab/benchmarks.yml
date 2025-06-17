@@ -91,6 +91,19 @@ benchmarks-appsec:
   variables:
     SCENARIO: "appsec"
 
+check-big-regressions:
+  stage: gate
+  needs: [ "benchmarks-tracer" ]
+  when: on_success
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  script:
+    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin dd-trace-php)
+    - bp-runner bp-runner.fail-on-regression.yml --debug
+  variables:
+    # Gitlab and BP specific env vars. Do not modify.
+    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
+
 
 download_circle_ci_release:
   stage: benchmarks
