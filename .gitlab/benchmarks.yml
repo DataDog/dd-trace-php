@@ -97,9 +97,15 @@ check-big-regressions:
   when: on_success
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
-  script:
-    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin dd-trace-php)
-    - bp-runner bp-runner.fail-on-regression.yml --debug
+  script: |
+    export ARTIFACTS_DIR="$(pwd)/reports/"
+    if [[ -n "$CI_JOB_TOKEN" ]];
+    then
+      git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    fi
+    git clone --branch dd-trace-cpp https://github.com/DataDog/benchmarking-platform /platform
+    export PATH="$PATH:/platform/steps"
+    bp-runner /platform/bp-runner.fail-on-regression.yml --debug
   variables:
     # Gitlab and BP specific env vars. Do not modify.
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
