@@ -94,3 +94,16 @@ pub extern "C" fn ddog_library_configurator_new_dummy(
 ) -> Box<Configurator> {
     datadog_library_config_ffi::ddog_library_configurator_new(debug_logs, language)
 }
+
+// Starting with https://github.com/rust-lang/rust/commit/7f74c894b0e31f370b5321d94f2ca2830e1d30fd
+// rust assumes posix_spawn_file_actions_addchdir_np exists. Thus we need to polyfill it here.
+#[no_mangle]
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(file_actions: *mut libc::c_void, path: *const libc::c_char) -> libc::c_int {
+    let sym = std::mem::transmute::<*mut libc::c_void, std::option::Option<extern "C" fn(*mut libc::c_void, *const libc::c_char) -> libc::c_int>>(libc::dlsym(null_mut(), c"posix_spawn_file_actions_addchdir_np".as_ptr()));
+    if let Some(sym) = sym {
+        sym(file_actions, path)
+    } else {
+        -libc::ENOSYS
+    }
+}
