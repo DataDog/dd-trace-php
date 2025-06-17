@@ -10,6 +10,11 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+// These globals are set by the SSI loader
+DDTRACE_PUBLIC bool ddtrace_loaded_by_ssi = false;
+DDTRACE_PUBLIC char *ddtrace_ssi_injection_enabled = NULL;
+DDTRACE_PUBLIC char *ddtrace_ssi_forced_injection_enabled = NULL;
+
 zend_long dd_composer_hook_id;
 ddog_QueueId dd_bgs_queued_id;
 
@@ -160,6 +165,16 @@ void ddtrace_telemetry_finalize(void) {
             ddog_CharSlice config_id = (ddog_CharSlice) {.len = cfg->config_id.len, .ptr = cfg->config_id.ptr};
             ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin, config_id);
         }
+    }
+
+    // Send extra internal configuration
+    ddog_CharSlice instrumentation_source = ddtrace_loaded_by_ssi ? DDOG_CHARSLICE_C("ssi") : DDOG_CHARSLICE_C("manual");
+    ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("instrumentation_source"), instrumentation_source, DDOG_CONFIGURATION_ORIGIN_DEFAULT, DDOG_CHARSLICE_C(""));
+    if (ddtrace_ssi_injection_enabled) {
+        ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_injection_enabled"), (ddog_CharSlice) {.ptr = ddtrace_ssi_injection_enabled, .len = strlen(ddtrace_ssi_injection_enabled)}, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+    }
+    if (ddtrace_ssi_forced_injection_enabled) {
+        ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_forced_injection_enabled"), (ddog_CharSlice) {.ptr = ddtrace_ssi_forced_injection_enabled, .len = strlen(ddtrace_ssi_forced_injection_enabled)}, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
     }
 
     // Send information about explicitly disabled integrations
