@@ -67,7 +67,7 @@ static PHP_FUNCTION(set_user_wrapper)
     _ddtrace_set_user(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-static void _fire_user_event(void)
+static void _emit_user_event(void)
 {
     dd_tags_set_user_event_triggered();
     dd_trace_emit_asm_event();
@@ -115,7 +115,7 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
         user_id = Z_STR_P(user_id_zv);
     }
 
-    _fire_user_event();
+    _emit_user_event();
     dd_find_and_apply_verdict_for_user(
         user_id, login, user_event_login_success);
 }
@@ -144,7 +144,7 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
         return;
     }
 
-    _fire_user_event();
+    _emit_user_event();
     dd_find_and_apply_verdict_for_user(
         ZSTR_EMPTY_ALLOC(), login, user_event_login_failure);
 }

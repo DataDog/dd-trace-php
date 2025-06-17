@@ -40,10 +40,6 @@ void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
         (int)event_type_len, event_type);
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 1);
     dd_telemetry_add_metric(key_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
-    mlog_g(dd_log_debug,
-        "Telemetry metric %.*s added with tags %.*s and value %d",
-        (int)ZSTR_LEN(key_zstr), ZSTR_VAL(key_zstr), (int)ZSTR_LEN(tags_zstr),
-        ZSTR_VAL(tags_zstr), 1);
     zend_string_release(tags_zstr);
 
     free(tags);
