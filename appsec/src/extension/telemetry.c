@@ -4,19 +4,12 @@
 #include "string_helpers.h"
 #include <stdatomic.h>
 
-static void _init_zstr(
-    zend_string *_Atomic *nonnull zstr, const char *nonnull str, size_t len)
+#define DD_SDK_EVENT "sdk.event"
+static zend_string *_dd_sdk_event_zstr;
+
+void dd_telemetry_startup(void)
 {
-    zend_string *zstr_cur = atomic_load_explicit(zstr, memory_order_acquire);
-    if (zstr_cur != NULL) {
-        return;
-    }
-    zend_string *zstr_new = zend_string_init(str, len, 1);
-    if (atomic_compare_exchange_strong_explicit(zstr, &(zend_string *){NULL},
-            zstr_new, memory_order_release, memory_order_relaxed)) {
-        return;
-    }
-    zend_string_release(zstr_new);
+    _dd_sdk_event_zstr = zend_string_init_interned(LSTRARG(DD_SDK_EVENT), 1);
 }
 
 void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
@@ -33,13 +26,12 @@ void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
 
 void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
 {
-    static zend_string *_Atomic key_zstr;
-    _init_zstr(&key_zstr, LSTRARG("sdk.event"));
     char *tags = NULL;
     size_t tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2",
         (int)event_type_len, event_type);
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 1);
-    dd_telemetry_add_metric(key_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
+    dd_telemetry_add_metric(
+        _dd_sdk_event_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
     zend_string_release(tags_zstr);
 
     free(tags);
