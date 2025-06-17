@@ -1252,7 +1252,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     dd_find_and_apply_verdict_for_user(
-        user_id, ZSTR_EMPTY_ALLOC(), user_event_login_success);
+        user_id, zend_empty_string, user_event_login_success);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);
@@ -1494,7 +1494,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     dd_find_and_apply_verdict_for_user(
-        user_id, ZSTR_EMPTY_ALLOC(), user_event_none);
+        user_id, zend_empty_string, user_event_none);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id,
@@ -1542,7 +1542,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     dd_find_and_apply_verdict_for_user(
-        user_id, ZSTR_EMPTY_ALLOC(), user_event_none);
+        user_id, zend_empty_string, user_event_none);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);

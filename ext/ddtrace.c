@@ -2246,7 +2246,7 @@ PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
     UNUSED(execute_data);
 
     zend_string *login = NULL;
-    zend_bool exists;
+    zend_bool exists = false;
     zend_array *metadata = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {

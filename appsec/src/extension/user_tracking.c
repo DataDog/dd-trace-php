@@ -54,7 +54,7 @@ static PHP_FUNCTION(set_user_wrapper)
         if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(),
                 "S|hb", &user_id, &metadata, &propagate) == SUCCESS) {
             dd_find_and_apply_verdict_for_user(
-                user_id, ZSTR_EMPTY_ALLOC(), user_event_none);
+                user_id, zend_empty_string, user_event_none);
         }
     }
 
@@ -146,7 +146,7 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
 
     _emit_user_event();
     dd_find_and_apply_verdict_for_user(
-        ZSTR_EMPTY_ALLOC(), login, user_event_login_failure);
+        zend_empty_string, login, user_event_login_failure);
 }
 
 void dd_user_tracking_startup(void)
