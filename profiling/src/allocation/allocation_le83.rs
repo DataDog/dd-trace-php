@@ -202,6 +202,7 @@ pub fn alloc_prof_rinit() {
     trace!("Memory allocation profiling enabled.")
 }
 
+#[allow(unpredictable_function_pointer_comparisons)]
 pub fn alloc_prof_rshutdown() {
     // If `is_zend_mm()` is true, the custom handlers have already been reset
     // to `None`. This is unexpected, therefore we will not touch the ZendMM

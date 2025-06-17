@@ -84,6 +84,7 @@ pub struct LiveDebuggerState {
 }
 
 #[no_mangle]
+#[allow(static_mut_refs)]
 pub unsafe extern "C" fn ddog_init_remote_config(
     live_debugging_enabled: bool,
     appsec_activation: bool,
