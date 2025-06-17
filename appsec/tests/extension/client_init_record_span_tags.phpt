@@ -86,7 +86,7 @@ Array
 (
     [_dd.appsec.json] => {"triggers":[{"found":"attack"},{"another":"attack"},{"yet another":"attack"}]}
     [_dd.p.appsec] => 1
-    [_dd.p.dm] => -4
+    [_dd.p.dm] => -5
     [_dd.p.tid] => %s
     [_dd.p.ts] => 02
     [_dd.runtime_family] => php

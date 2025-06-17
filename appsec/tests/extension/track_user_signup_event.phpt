@@ -43,7 +43,7 @@ Array
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null
     [_dd.p.ts] => 02
-    [_dd.p.dm] => -4
+    [_dd.p.dm] => -5
     [_dd.runtime_family] => php
 )
 root_span_get_metrics():

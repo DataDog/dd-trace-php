@@ -19,7 +19,7 @@ DDTRACE_PUBLIC void ddtrace_emit_asm_event() {
         DDTRACE_G(asm_event_emitted) = true;
     }
 
-    ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, get_DD_APM_TRACING_ENABLED() ? DD_MECHANISM_MANUAL : DD_MECHANISM_ASM);
+    ddtrace_set_priority_sampling_on_root(PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
 }
 
 PHP_FUNCTION(DDTrace_Testing_emit_asm_event) {
