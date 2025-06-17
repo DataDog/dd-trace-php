@@ -1,5 +1,5 @@
 --TEST--
-Test \datadog\appsec\v2\track_user_login_success id should be present on user object when given user object
+Test \datadog\appsec\v2\track_user_login_success id is not mandatory on user object
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -22,8 +22,21 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-Warning: datadog\appsec\v2\track_user_login_success(): [ddappsec] Id not found in user object in datadog\appsec\v2\track_user_login_success in %s on line %d
-array(1) {
+array(8) {
   ["runtime-id"]=>
   string(%s) %s
+  ["appsec.events.users.login.success.usr.some_key"]=>
+  string(10) "some value"
+  ["appsec.events.users.login.success.usr.login"]=>
+  string(5) "login"
+  ["appsec.events.users.login.success.track"]=>
+  string(4) "true"
+  ["_dd.appsec.events.users.login.success.sdk"]=>
+  string(4) "true"
+  ["appsec.events.users.login.success.metakey1"]=>
+  string(9) "metavalue"
+  ["appsec.events.users.login.success.metakey2"]=>
+  string(11) "metavalue02"
+  ["_dd.p.ts"]=>
+  string(2) "02"
 }
