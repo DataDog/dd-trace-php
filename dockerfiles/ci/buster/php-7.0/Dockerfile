@@ -13,9 +13,11 @@ RUN set -eux; \
     cd ${PHP_SRC_DIR}; \
     patch -p1 < /home/circleci/0001-fix-broken-sprintf-detection.patch; \
     patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
-    ./buildconf --force; \
     git apply /home/circleci/0001-Fix-stream_cookie_seeker-signature-under-musl.patch; \
-    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch;
+    patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
+    ./buildconf --force
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
 ARG phpVersion

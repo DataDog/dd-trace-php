@@ -50,6 +50,22 @@ struct ddog_CStr ddog_library_config_local_stable_config_path(void);
 
 void ddog_library_config_drop(struct ddog_Vec_LibraryConfig);
 
+/**
+ * Store tracer metadata to a file handle
+ *
+ * # Safety
+ *
+ * Accepts raw C-compatible strings
+ */
+struct ddog_Result_TracerMemfdHandle ddog_store_tracer_metadata(uint8_t schema_version,
+                                                                ddog_CharSlice runtime_id,
+                                                                ddog_CharSlice tracer_language,
+                                                                ddog_CharSlice tracer_version,
+                                                                ddog_CharSlice hostname,
+                                                                ddog_CharSlice service_name,
+                                                                ddog_CharSlice service_env,
+                                                                ddog_CharSlice service_version);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

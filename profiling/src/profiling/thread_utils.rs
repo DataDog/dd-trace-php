@@ -145,7 +145,7 @@ mod tests {
             libc::pthread_setname_np(
                 #[cfg(target_os = "linux")]
                 libc::pthread_self(),
-                b"\0".as_ptr() as *const c_char,
+                c"".as_ptr() as *const c_char,
             );
         }
         assert_eq!(get_current_thread_name(), "unknown");

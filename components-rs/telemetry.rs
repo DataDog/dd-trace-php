@@ -202,6 +202,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
             count: 1,
             tags: String::new(),
             is_sensitive: false,
+            is_crash: false,
         })
     );
     buffer.buffer.push(SidecarAction::Telemetry(action));

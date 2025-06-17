@@ -236,6 +236,7 @@ static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, u64, c_int) -> i32
 /// never when reading/writing to a file. There is two known cases in PHP:
 /// - the PHP stream layer (e.g. `file_get_contents("proto://url")`)
 /// - the curl extension in `curl_exec()`/`curl_multi_exec()`
+///
 /// The `nfds` argument is usually 1, in case of a `curl_multi_exec()` call it is >= 1 and exactly
 /// the number of concurrent requests. In rare cases the `nfds` argument is 0 and fds a
 /// NULL-pointer. This is basically and "old trick" to ms precision sleep() and currently ignored.

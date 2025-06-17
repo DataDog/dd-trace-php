@@ -12,7 +12,6 @@ ddcommon = { path = "../libdatadog/ddcommon", features = ["cgroup_testing"] }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
-datadog-dynamic-configuration = { path = "../libdatadog/datadog-dynamic-configuration" }
 datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/datadog-ipc" }
@@ -46,6 +45,10 @@ serde_json = "1.0.113"
 regex = "1.10.5"
 regex-automata = "0.4.5"
 http = "1.0"
+libc = "0.2"
 
 [build-dependencies]
 cbindgen = "0.27"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)'] }

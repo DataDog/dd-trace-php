@@ -292,9 +292,9 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.78.0"
-ARG RUST_SHA256_ARM="131eda738cd977fff2c912e5838e8e9b9c260ecddc1247c0fe5473bf09c594af"
-ARG RUST_SHA256_X86="1307747915e8bd925f4d5396ab2ae3d8d9c7fad564afbc358c081683d0f22e87"
+ARG RUST_VERSION="1.84.1"
+ARG RUST_SHA256_ARM="be89f6ad9b70cc4b25182ae299f94ab047a713a51fddf95284823c8afe4aef85"
+ARG RUST_SHA256_X86="106c89f23ce1c763fcbea8e2714b2ba869bf7af70804813987a4483896398933"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

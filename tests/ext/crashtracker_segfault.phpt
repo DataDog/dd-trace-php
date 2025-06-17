@@ -73,7 +73,8 @@ $rr->waitForRequest(function ($request) {
     },
     "level": "ERROR",
     "count": 1,
-    "stack_trace": "%s",
+    "stack_trace": %s,
     "tags": "%ssi_signo_human_readable:SIGSEGV%S",
-    "is_sensitive": true
+    "is_sensitive": true,
+    "is_crash": true
 }%A
