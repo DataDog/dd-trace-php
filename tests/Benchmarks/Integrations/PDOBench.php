@@ -153,8 +153,7 @@ class PDOBench
     private static function pdoInstance($opts = null): \PDO
     {
         $defaultOpts = [
-            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, // Use exceptions for better error messages
-            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC, // Fetch associative array
             \PDO::ATTR_EMULATE_PREPARES => false, // Use real prepared statements
             \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // Consistent buffering
         ];

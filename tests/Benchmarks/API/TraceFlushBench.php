@@ -25,10 +25,7 @@ class TraceFlushBench
         \dd_trace_serialize_closed_spans();
         Utils::putEnvAndReloadConfig([
             'DD_TRACE_GENERATE_ROOT_SPAN=0',
-            'DD_TRACE_AUTO_FLUSH_ENABLED=0',
-            'DD_TRACE_SIDECAR_TRACE_SENDER=0',
-            'DD_REMOTE_CONFIG_ENABLED=0',
-            'DD_INSTRUMENTATION_TELEMETRY_ENABLED=0',
+            'DD_TRACE_AUTO_FLUSH_ENABLED=0'
         ]);
 
         for ($i = 0; $i < 100; $i++) {
