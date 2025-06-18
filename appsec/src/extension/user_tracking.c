@@ -88,7 +88,6 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
     }
     _emit_user_event();
 
-
     zend_string *login;
     zval *user = NULL;
     zend_array *metadata = NULL;
