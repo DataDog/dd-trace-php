@@ -547,6 +547,10 @@ foreach ($jobs as $type => $type_jobs):
 <?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2
 <?php endif; ?>
+<?php if (preg_match("(test_web_laravel_octane)", $target)): ?>
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+<?php endif; ?>
 
 <?php
             endforeach;
