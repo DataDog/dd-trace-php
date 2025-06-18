@@ -342,13 +342,13 @@ ddog_TracesBytes *ddog_get_traces(void);
 
 void ddog_free_traces(ddog_TracesBytes *_traces);
 
-uintptr_t ddog_get_traces_size(ddog_TracesBytes *traces);
+uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
 
 ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
 
 ddog_TraceBytes *ddog_traces_new_trace(ddog_TracesBytes *traces);
 
-uintptr_t ddog_get_trace_size(ddog_TraceBytes *trace);
+uintptr_t ddog_get_trace_size(const ddog_TraceBytes *trace);
 
 ddog_SpanBytes *ddog_get_span(ddog_TraceBytes *trace, uintptr_t index);
 

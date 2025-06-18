@@ -1424,8 +1424,7 @@ static void _serialize_meta(ddog_SpanBytes *rust_span, ddtrace_span_data *span, 
                 } else {
                     break;
                 }
-                current = current->parent ? SPANDATA(current->parent) : NULL;
-            } while (current);
+            }
         }
     }
 
