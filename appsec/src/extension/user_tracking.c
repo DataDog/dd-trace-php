@@ -128,7 +128,6 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
     zend_bool exists;
     zend_array *metadata = NULL;
 
-
     if (zend_parse_parameters(
             ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {
         return;
