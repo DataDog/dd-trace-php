@@ -51,7 +51,6 @@ class FrankenphpIntegration extends Integration
                     $rootSpan->service = \ddtrace_config_app_name('frankenphp');
                     $rootSpan->type = Type::WEB_SERVLET;
                     $rootSpan->meta[Tag::COMPONENT] = FrankenphpIntegration::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
                     unset($rootSpan->meta["closure.declaration"]);
                     $integration->addTraceAnalyticsIfEnabled($rootSpan);
 

@@ -613,7 +613,7 @@ struct superglob_equiv {
 static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtrace_root_span_data *span) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
-    if (data->server){
+    if (data->server) {
         zend_string *http_url = dd_build_req_url(data->server);
         if (ZSTR_LEN(http_url) > 0) {
             zval http_url_zv;
@@ -636,6 +636,10 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         }
     }
     if (method) {
+        zval span_kind;
+        ZVAL_STRING(&span_kind, "server");
+        zend_hash_str_add_new(meta, ZEND_STRL("span.kind"), &span_kind);
+
         zval http_method;
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
         zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);

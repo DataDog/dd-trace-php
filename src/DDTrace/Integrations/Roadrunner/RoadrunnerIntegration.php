@@ -160,7 +160,6 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
-                $activeSpan->meta[Tag::SPAN_KIND] = 'server';
                 $integration->addTraceAnalyticsIfEnabled($activeSpan);
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;

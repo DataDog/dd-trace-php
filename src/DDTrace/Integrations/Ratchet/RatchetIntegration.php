@@ -182,7 +182,6 @@ class RatchetIntegration extends Integration
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
             $activeSpan->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
-            $activeSpan->meta[Tag::SPAN_KIND] = 'server';
             $integration->addTraceAnalyticsIfEnabled($activeSpan);
 
             ObjectKVStore::put($parentConn, "handshake", $activeSpan);

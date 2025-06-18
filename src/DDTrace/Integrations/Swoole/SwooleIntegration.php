@@ -39,7 +39,6 @@ class SwooleIntegration extends Integration
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;
                 $rootSpan->meta[Tag::COMPONENT] = SwooleIntegration::NAME;
-                $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
                 $integration->addTraceAnalyticsIfEnabled($rootSpan);
 
                 $args = $hook->args;

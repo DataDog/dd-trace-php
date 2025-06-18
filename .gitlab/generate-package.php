@@ -562,9 +562,7 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
   script:
-    - make -j 4 <?= implode(' ', $platform['targets']) ?>
-
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - make -j 4 bundle.tar.gz <?= implode(' ', $platform['targets']) ?>
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -611,8 +609,7 @@ foreach ($build_platforms as $platform) {
   variables:
     TRIPLET: "x86_64-pc-windows-msvc"
   script:
-    - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']), "\n" ?>
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - make -j 4 bundle.tar.gz <?= implode(' ', $windows_build_platforms[0]['targets']), "\n" ?>
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
