@@ -56,6 +56,7 @@ echo "tags:\n";
 ksort($tags);
 print_r($tags);
 echo "metrics:\n";
+ksort($metrics);
 print_r($metrics);
 
 $helper->finished_with_commands();
@@ -99,11 +100,11 @@ metrics:
 Array
 (
     [%s] => %d
-    [rshutdown_metric] => 2.1
     [_dd.appsec.enabled] => 1
-    [_dd.agent_psr] => 1
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
-    [php.memory.peak_usage_bytes] => %f
     [php.memory.peak_real_usage_bytes] => %f
+    [php.memory.peak_usage_bytes] => %f
+    [process_id] => %d
+    [rshutdown_metric] => 2.1
 )

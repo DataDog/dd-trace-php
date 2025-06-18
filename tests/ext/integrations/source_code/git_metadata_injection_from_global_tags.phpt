@@ -40,35 +40,35 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(7) {
-      ["runtime-id"]=>
-      string(36) "%s"
-      ["git.commit.sha"]=>
-      string(6) "123456"
-      ["git.repository_url"]=>
-      string(24) "github.com/user/env_repo"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
       ["_dd.git.repository_url"]=>
       string(24) "github.com/user/env_repo"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["git.commit.sha"]=>
+      string(6) "123456"
+      ["git.repository_url"]=>
+      string(24) "github.com/user/env_repo"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["process_id"]=>
+      float(%d)
     }
   }
   [1]=>
