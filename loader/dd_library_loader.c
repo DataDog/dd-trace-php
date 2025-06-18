@@ -240,7 +240,7 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
     char **ddtrace_ssi_forced_injection_enabled = (char **)DL_FETCH_SYMBOL(module->handle, "ddtrace_ssi_forced_injection_enabled");
     if (ddtrace_ssi_forced_injection_enabled) {
-        *ddtrace_ssi_forced_injection_enabled = getenv("DD_INJECTION_FORCE");
+        *ddtrace_ssi_forced_injection_enabled = force_load ? "True" : "False";
     }
 }
 
