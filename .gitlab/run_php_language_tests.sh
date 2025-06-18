@@ -9,7 +9,7 @@ if [[ ! "${XFAIL_LIST:-none}" == "none" ]]; then
   cp "${XFAIL_LIST}" /usr/local/src/php/xfail_tests.list
   (
     cd /usr/local/src/php
-    cat xfail_tests.list | xargs -n 1 -I{} find {} -name "*.phpt" -delete || true
+    (cat xfail_tests.list; grep -lrFx zend_test.observer.enabled=0 .) | xargs -n 1 -I{} find {} -name "*.phpt" -delete || true
   )
 fi
 

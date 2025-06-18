@@ -452,7 +452,9 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TEST: "1"
-    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: "4000000000"
+<?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
+<?php endif; ?>
 <?php sidecar_logs(); ?>
   timeout: 40m
   script:
