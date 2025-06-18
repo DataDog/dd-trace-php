@@ -1,6 +1,7 @@
 #include "telemetry.h"
 #include "ddtrace.h"
 #include "logging.h"
+#include "php_compat.h"
 #include "string_helpers.h"
 #include <stdatomic.h>
 
