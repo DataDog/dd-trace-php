@@ -120,6 +120,7 @@ ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
 ext/soap/tests/bug77088.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
+ext/sockets/tests/socket_import_stream-4.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
 ext/spl/tests/bug48493.phpt

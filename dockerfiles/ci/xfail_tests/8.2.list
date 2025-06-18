@@ -124,6 +124,7 @@ ext/soap/tests/bug77088.phpt
 ext/sockets/tests/mcast_ipv6_recv.phpt
 ext/sockets/tests/mcast_ipv6_send.phpt
 ext/sockets/tests/mcast_ipv6_recv_limited.phpt
+ext/sockets/tests/socket_import_stream-4.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
