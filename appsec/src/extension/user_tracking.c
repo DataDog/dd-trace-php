@@ -76,12 +76,18 @@ static void _emit_user_event(void)
 
 static PHP_FUNCTION(v2_track_user_login_success_wrapper)
 {
+    if (_ddtrace_v2_track_user_login_success == NULL) {
+        mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_success, "
+                           "this shouldn't happen");
+        return;
+    }
     _ddtrace_v2_track_user_login_success(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_telemetry_add_sdk_event(LSTRARG("login_success"));
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
     }
     _emit_user_event();
-    dd_telemetry_add_sdk_event(LSTRARG("login_success"));
+
 
     zend_string *login;
     zval *user = NULL;
@@ -89,11 +95,6 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
     zend_string *user_id = NULL;
     if (zend_parse_parameters(
             ZEND_NUM_ARGS(), "S|zh", &login, &user, &metadata) == FAILURE) {
-        return;
-    }
-    if (_ddtrace_v2_track_user_login_success == NULL) {
-        mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_success, "
-                           "this shouldn't happen");
         return;
     }
 
@@ -112,12 +113,17 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
 
 static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
 {
+    if (_ddtrace_v2_track_user_login_failure == NULL) {
+        mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_failure, "
+                           "this shouldn't happen");
+        return;
+    }
     _ddtrace_v2_track_user_login_failure(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    dd_telemetry_add_sdk_event(LSTRARG("login_failure"));
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
     }
     _emit_user_event();
-    dd_telemetry_add_sdk_event(LSTRARG("login_failure"));
 
     zend_string *login = NULL;
     zend_bool exists;
@@ -126,12 +132,6 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
 
     if (zend_parse_parameters(
             ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {
-        return;
-    }
-
-    if (_ddtrace_v2_track_user_login_failure == NULL) {
-        mlog(dd_log_debug, "Invalid DDTrace\\track_user_login_failure, "
-                           "this shouldn't happen");
         return;
     }
 
