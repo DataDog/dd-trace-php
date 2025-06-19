@@ -1065,6 +1065,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     dd_trace_emit_asm_event();
 }
 
+void dd_tags_set_user_event_triggered(void) { _user_event_triggered = true; }
+
 static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
 {
     UNUSED(return_value);
@@ -1179,7 +1181,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     }
 
     if (ZSTR_LEN(user_id) > 0) {
-        dd_find_and_apply_verdict_for_user(user_id, user_login);
+        dd_find_and_apply_verdict_for_user(
+            user_id, user_login, user_event_login_success);
 
         // usr.id = <user_id>
         _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id,
@@ -1248,7 +1251,8 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
+    dd_find_and_apply_verdict_for_user(
+        user_id, zend_empty_string, user_event_login_success);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);
@@ -1489,7 +1493,8 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
+    dd_find_and_apply_verdict_for_user(
+        user_id, zend_empty_string, user_event_none);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id,
@@ -1536,7 +1541,8 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
     _user_event_triggered = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
-    dd_find_and_apply_verdict_for_user(user_id, ZSTR_EMPTY_ALLOC());
+    dd_find_and_apply_verdict_for_user(
+        user_id, zend_empty_string, user_event_none);
 
     // usr.id = <user_id>
     _add_new_zstr_to_meta(meta_ht, _dd_tag_user_id, user_id, true, true);

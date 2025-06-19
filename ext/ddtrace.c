@@ -2050,25 +2050,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
     RETURN_NULL();
 }
 
-PHP_FUNCTION(DDTrace_set_user) {
-    UNUSED(execute_data);
-
-    zend_string *user_id;
-    HashTable *metadata = NULL;
-    zend_bool propagate = get_DD_TRACE_PROPAGATE_USER_ID_DEFAULT();
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata, &propagate) == FAILURE) {
-        RETURN_NULL();
-    }
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_NULL();
-    }
-
-    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
-        LOG_LINE(WARN, "Unexpected empty user id in DDTrace\\set_user");
-        RETURN_NULL();
-    }
-
+static void _ddtrace_set_user(zend_string *user_id, zend_array *metadata, zend_bool propagate) {
     zend_array *target_table, *propagated;
     if (DDTRACE_G(active_stack)->root_span) {
         target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
@@ -2110,8 +2092,218 @@ PHP_FUNCTION(DDTrace_set_user) {
         }
         ZEND_HASH_FOREACH_END();
     }
+}
+
+PHP_FUNCTION(DDTrace_set_user) {
+    UNUSED(execute_data);
+
+    zend_string *user_id;
+    HashTable *metadata = NULL;
+    zend_bool propagate = get_DD_TRACE_PROPAGATE_USER_ID_DEFAULT();
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata, &propagate) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
+        LOG_LINE(WARN, "Unexpected empty user id in DDTrace\\set_user");
+        RETURN_NULL();
+    }
+
+    _ddtrace_set_user(user_id, metadata, propagate);
 
     RETURN_NULL();
+}
+
+PHP_FUNCTION(datadog_appsec_v2_track_user_login_success) {
+    UNUSED(execute_data);
+
+    zend_string *login;
+    zval *user = NULL;
+    zend_array *metadata = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|zh", &login, &user, &metadata) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+    }
+
+    if (ZSTR_LEN(login) == 0) {
+        LOG_LINE(WARN, "Unexpected empty login in datadog\\appsec\\v2\\track_user_login_success");
+        RETURN_NULL();
+    }
+
+#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS "appsec.events.users.login.success"
+    zend_string *user_id = NULL;
+    if (user != NULL && Z_TYPE_P(user) == IS_STRING) {
+        user_id = Z_STR_P(user);
+    } else if (user != NULL && Z_TYPE_P(user) == IS_ARRAY) {
+        // This is required to avoid writting to metadata if no id
+        zval *user_id_zv = zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
+        if (user_id_zv != NULL && Z_TYPE_P(user_id_zv) == IS_STRING) {
+            user_id = Z_STR_P(user_id_zv);
+        }
+        zend_string *user_key;
+        zval *user_value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(user), user_key, user_value) {
+            if (!user_key || Z_TYPE_P(user_value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *key = zend_strpprintf(0, "%s.usr.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, ZSTR_VAL(user_key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, user_value);
+            zend_hash_update(target_table, key, &value_copy);
+
+            zend_string_release(key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    // appsec.events.users.login.success.usr.login
+    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, "usr.login");
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, login);
+    zend_hash_update(target_table, prefixed_key, &value_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.success.track
+    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
+    zval true_value_zv;
+    ZVAL_STRING(&true_value_zv, "true");
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    //_dd.appsec.events.users.login.success.sdk
+    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
+    Z_TRY_ADDREF_P(&true_value_zv);
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    if (user_id != NULL) {
+        //_dd.appsec.user.collection_mode: "sdk"
+        prefixed_key = zend_strpprintf(0, "_dd.appsec.user.collection_mode");
+        zval collection_mode_zv;
+        ZVAL_STRING(&collection_mode_zv, "sdk");
+        zend_hash_update(target_table, prefixed_key, &collection_mode_zv);
+        zend_string_release(prefixed_key);
+
+        // appsec.events.users.login.success.usr.id
+        prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, "usr.id");
+        zval user_id_zv;
+        ZVAL_STR_COPY(&user_id_zv, user_id);
+        zend_hash_update(target_table, prefixed_key, &user_id_zv);
+        zend_string_release(prefixed_key);
+    }
+
+    if (metadata != NULL) {
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value) {
+            if (!key || Z_TYPE_P(value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, ZSTR_VAL(key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, value);
+            zend_hash_update(target_table, prefixed_key, &value_copy);
+
+            zend_string_release(prefixed_key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    if (user_id != NULL) {
+        _ddtrace_set_user(user_id, metadata, false);
+    }
+}
+
+PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
+    UNUSED(execute_data);
+
+    zend_string *login = NULL;
+    zend_bool exists = false;
+    zend_array *metadata = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+    }
+
+    if (ZSTR_LEN(login) == 0) {
+        LOG_LINE(WARN, "Unexpected empty login in datadog\\appsec\\v2\\track_user_login_failure");
+        RETURN_NULL();
+    }
+
+#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE "appsec.events.users.login.failure"
+
+    // appsec.events.users.login.failure.usr.login: <login>
+    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, "usr.login");
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, login);
+    zend_hash_update(target_table, prefixed_key, &value_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.failure.usr.exists: <"true"|"false">
+    prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, "usr.exists");
+    zval exists_zv;
+    ZVAL_STRING(&exists_zv, exists ? "true" : "false");
+    zend_hash_update(target_table, prefixed_key, &exists_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.failure.track: "true"
+    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    zval true_value_zv;
+    ZVAL_STRING(&true_value_zv, "true");
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    //_dd.appsec.events.users.login.failure.sdk: "true"
+    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    Z_TRY_ADDREF_P(&true_value_zv);
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    if (metadata != NULL) {
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value) {
+            if (!key || Z_TYPE_P(value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, ZSTR_VAL(key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, value);
+            zend_hash_update(target_table, prefixed_key, &value_copy);
+
+            zend_string_release(prefixed_key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 }
 
 PHP_FUNCTION(dd_trace_serialize_closed_spans) {
