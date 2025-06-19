@@ -274,7 +274,6 @@ class LaravelIntegration extends Integration
 
                 Integration::handleOrphan($span);
 
-                usleep(100000);
                 $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
