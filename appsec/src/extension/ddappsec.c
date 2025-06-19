@@ -38,6 +38,7 @@
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
+#include "telemetry.h"
 #include "user_tracking.h"
 #include "version.h"
 
@@ -221,6 +222,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_entity_body_startup();
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();
+    dd_telemetry_startup();
 
     return SUCCESS;
 }

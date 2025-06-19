@@ -65,7 +65,7 @@ class PDOBench
             $pdo = self::pdoInstance();
             // Drop table if it exists (cleanup from previous failed runs)
             $pdo->exec("DROP TABLE IF EXISTS tests");
-            
+
             // Create table
             $pdo->exec("
                 CREATE TABLE tests (
@@ -73,7 +73,7 @@ class PDOBench
                     name varchar(100)
                 ) ENGINE=MEMORY
             ");
-            
+
             // Insert test data
             $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
         } catch (\Exception $e) {
@@ -99,13 +99,13 @@ class PDOBench
                 throw new \RuntimeException("Failed to create PDO instance");
             }
         }
-        
+
         if (!self::$sharedStmt) {
             self::$sharedStmt = self::$sharedPdo->prepare("SELECT * FROM tests WHERE id = ?");
             if (!self::$sharedStmt) {
                 throw new \RuntimeException("Failed to prepare statement");
             }
-            
+
             // Warm up the statement with a few executions
             for ($i = 0; $i < 10; $i++) {
                 self::$sharedStmt->execute([1]);
@@ -157,13 +157,13 @@ class PDOBench
             \PDO::ATTR_EMULATE_PREPARES => false, // Use real prepared statements
             \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // Consistent buffering
         ];
-        
+
         if ($opts) {
             $opts = array_merge($defaultOpts, $opts);
         } else {
             $opts = $defaultOpts;
         }
-        
+
         return new \PDO(self::mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD, $opts);
     }
 }

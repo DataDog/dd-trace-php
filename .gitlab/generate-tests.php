@@ -452,6 +452,9 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TEST: "1"
+<?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
+<?php endif; ?>
 <?php sidecar_logs(); ?>
   timeout: 40m
   script:
@@ -543,6 +546,10 @@ foreach ($jobs as $type => $type_jobs):
 <?php endif; ?>
 <?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2
+<?php endif; ?>
+<?php if (preg_match("(test_web_laravel_octane)", $target)): ?>
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
 <?php endif; ?>
 
 <?php
