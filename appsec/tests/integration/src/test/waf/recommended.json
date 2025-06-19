@@ -456,6 +456,31 @@
       "transformers": []
     },
     {
+      "id": "e2e-001-001",
+      "name": "This rule will be used to test authorization header gets pass to waf",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [ "authorization" ]
+              }
+            ]
+          },
+          "operator": "exists"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
       "id": "crs-921-160",
       "name": "HTTP Header Injection Attack via payload (CR/LF and header-name detected)",
       "tags": {
