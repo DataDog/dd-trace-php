@@ -150,15 +150,9 @@ ddog_MaybeError ddog_sidecar_telemetry_addIntegration(struct ddog_SidecarTranspo
                                                       ddog_CharSlice integration_version,
                                                       bool integration_enabled);
 
-/**
- * Registers a service and flushes any queued actions.
- */
-ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(struct ddog_SidecarTransport **transport,
-                                                        const struct ddog_InstanceId *instance_id,
-                                                        const ddog_QueueId *queue_id,
-                                                        const struct ddog_RuntimeMetadata *runtime_meta,
-                                                        ddog_CharSlice service_name,
-                                                        ddog_CharSlice env_name);
+char *ddog_telemetry_path(ddog_CharSlice service, ddog_CharSlice env, ddog_CharSlice version);
+
+void ddog_telemetry_path_free(char *path);
 
 /**
  * Enqueues a list of actions to be performed.
@@ -187,6 +181,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
                                                 ddog_CharSlice language,
+                                                ddog_CharSlice language_version,
                                                 ddog_CharSlice tracer_version,
                                                 uint32_t flush_interval_milliseconds,
                                                 uint32_t remote_config_poll_interval_millis,
@@ -200,6 +195,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
                                                 uintptr_t remote_config_capabilities_count,
+                                                bool remote_config_enabled,
                                                 bool is_fork);
 
 /**
