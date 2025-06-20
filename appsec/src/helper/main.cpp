@@ -30,7 +30,7 @@ constexpr std::chrono::seconds log_flush_interval{5};
 
 std::atomic<bool> interrupted; // NOLINT
 std::atomic<bool> finished;    // NOLINT
-pthread_t thread_id;
+std::thread runner_thread;
 
 bool ensure_unique(const std::string &lock_path)
 {
@@ -115,7 +115,7 @@ int appsec_helper_main_impl()
 
     auto runner = std::make_shared<dds::runner>(config, interrupted);
     SPDLOG_INFO("starting runner on new thread");
-    std::thread thr{[runner = std::move(runner)]() {
+    runner_thread = std::thread{[runner = std::move(runner)]() {
 #ifdef __linux__
         pthread_setname_np(pthread_self(), "appsec_helper runner");
 #elif defined(__APPLE__)
@@ -129,8 +129,6 @@ int appsec_helper_main_impl()
 
         finished.store(true, std::memory_order_release);
     }};
-    thread_id = thr.native_handle();
-    thr.detach();
 
     return 0;
 }
@@ -155,26 +153,11 @@ extern "C" __attribute__((visibility("default"))) int
 appsec_helper_shutdown() noexcept
 {
     interrupted.store(true, std::memory_order_release);
-    pthread_kill(thread_id, SIGUSR1);
+    pthread_kill(runner_thread.native_handle(), SIGUSR1);
 
-    // wait up to 1 second for the runner to finish
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
-    while (true) {
-        if (finished.load(std::memory_order_acquire)) {
-            SPDLOG_INFO("AppSec helper finished");
-            return 0;
-        }
-        if (std::chrono::steady_clock::now() >= deadline) {
-            // we need to call exit() to avoid a segfault in the still running
-            // helper threads after the helper shared library is unloaded by
-            // trampoline.c
-            SPDLOG_WARN("Could not finish AppSec helper before deadline. "
-                        "Calling exit().");
-            std::exit(EXIT_FAILURE); // NOLINT
-            __builtin_unreachable();
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds{10}); // NOLINT
-    }
+    runner_thread.join();
+
     spdlog::shutdown();
+
     return 0;
 }
