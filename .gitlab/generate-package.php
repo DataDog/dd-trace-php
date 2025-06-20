@@ -80,6 +80,8 @@ stages:
   - appsec
   - tracing
   - packaging
+  - benchmarks
+  - gate
   - verify
   - shared-pipeline # OCI packaging
   - release
@@ -89,6 +91,7 @@ variables:
 
 include:
   - local: .gitlab/one-pipeline.locked.yml
+  - local: .gitlab/benchmarks.yml
 
 # One pipeline job overrides
 configure_system_tests:

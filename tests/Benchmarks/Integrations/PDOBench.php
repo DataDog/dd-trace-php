@@ -21,7 +21,7 @@ class PDOBench
     public static $sharedStmt;
 
     /**
-     * @BeforeMethods({"initSharedPdoAndStmt","disablePDOIntegration"})
+     * @BeforeMethods({"disablePDOIntegration", "initSharedPdoAndStmt"})
      * @Revs(1000)
      * @Iterations(20)
      * @OutputTimeUnit("microseconds")
@@ -34,7 +34,7 @@ class PDOBench
     }
 
     /**
-     * @BeforeMethods({"initSharedPdoAndStmt", "enablePDOIntegration"})
+     * @BeforeMethods({"enablePDOIntegration", "initSharedPdoAndStmt"})
      * @Revs(1000)
      * @Iterations(20)
      * @OutputTimeUnit("microseconds")
@@ -47,7 +47,7 @@ class PDOBench
     }
 
     /**
-     * @BeforeMethods({"initSharedPdoAndStmt", "enablePDOIntegrationWithDBM"})
+     * @BeforeMethods({"enablePDOIntegrationWithDBM", "initSharedPdoAndStmt"})
      * @Revs(1000)
      * @Iterations(20)
      * @OutputTimeUnit("microseconds")
