@@ -13,7 +13,6 @@ ddtrace_metric_register_buffer
 ddtrace_metric_add_point
 ddtrace_emit_asm_event
 ddtrace_loaded_by_ssi
-ddtrace_ssi_injection_enabled
 ddtrace_ssi_forced_injection_enabled
 ddog_remote_config_reader_for_path
 ddog_remote_config_read
