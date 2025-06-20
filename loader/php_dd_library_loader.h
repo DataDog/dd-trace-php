@@ -56,7 +56,7 @@ typedef struct _injected_ext {
     const char *tmp_name;
     const zend_module_dep *tmp_deps;
     char *(*pre_load_hook)(struct _injected_ext *config);
-    void (*pre_minit_hook)(struct _injected_ext *config);
+    void (*pre_minit_hook)(struct _injected_ext *config, zend_module_entry *module);
 
     zend_result (*orig_module_startup_func)(INIT_FUNC_ARGS);
     const zend_module_dep *orig_module_deps;
