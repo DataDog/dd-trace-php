@@ -402,7 +402,8 @@ pub struct RequestLocals {
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
 
-    pub interrupt_count: AtomicU32,
+    pub wall_cpu_time_interrupt_count: AtomicU32,
+    pub allocation_interrupt_count: AtomicU32,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
@@ -423,7 +424,8 @@ impl Default for RequestLocals {
             version: None,
             tags: vec![],
             system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
-            interrupt_count: AtomicU32::new(0),
+            wall_cpu_time_interrupt_count: AtomicU32::new(0),
+            allocation_interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
     }
@@ -496,7 +498,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     REQUEST_LOCALS.with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
-        locals.interrupt_count.store(0, Ordering::SeqCst);
+        locals
+            .wall_cpu_time_interrupt_count
+            .store(0, Ordering::SeqCst);
+        locals.allocation_interrupt_count.store(0, Ordering::SeqCst);
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {
@@ -627,7 +632,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
             if let Some(profiler) = Profiler::get() {
                 let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
+                    interrupt_count_ptr: &locals.wall_cpu_time_interrupt_count as *const AtomicU32,
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.add_interrupt(interrupt);
@@ -691,7 +696,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         if system_settings.profiling_enabled {
             if let Some(profiler) = Profiler::get() {
                 let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count,
+                    interrupt_count_ptr: &locals.wall_cpu_time_interrupt_count,
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.remove_interrupt(interrupt);

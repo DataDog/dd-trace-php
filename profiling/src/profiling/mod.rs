@@ -749,6 +749,10 @@ impl Profiler {
         // likely to be other threads serving requests.
     }
 
+    pub fn trigger_interrupt(&self) {
+        self.interrupt_manager.trigger_interrupts();
+    }
+
     /// Call before a fork, on the thread of the parent process that will fork.
     pub fn fork_prepare(&self) -> anyhow::Result<()> {
         // Send the message to the uploader first, as it has a longer worst
