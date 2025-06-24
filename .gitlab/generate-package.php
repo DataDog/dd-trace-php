@@ -82,6 +82,7 @@ stages:
   - packaging
   - benchmarks
   - gate
+  - notify
   - verify
   - shared-pipeline # OCI packaging
   - release
