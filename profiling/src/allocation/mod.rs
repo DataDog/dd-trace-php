@@ -180,10 +180,10 @@ fn initialization_panic() -> ! {
 
 unsafe fn alloc_prof_panic_alloc(
     _len: size_t,
-    #[cfg(php_debug)] _filename: *const c_char,
-    #[cfg(php_debug)] _lineno: u32,
-    #[cfg(php_debug)] _orig_filename: *const c_char,
-    #[cfg(php_debug)] _orig_lineno: u32,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _filename: *const c_char,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _lineno: u32,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _orig_filename: *const c_char,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _orig_lineno: u32,
 ) -> *mut c_void {
     initialization_panic();
 }
@@ -191,20 +191,20 @@ unsafe fn alloc_prof_panic_alloc(
 unsafe fn alloc_prof_panic_realloc(
     _prev_ptr: *mut c_void,
     _len: size_t,
-    #[cfg(php_debug)] _filename: *const c_char,
-    #[cfg(php_debug)] _lineno: u32,
-    #[cfg(php_debug)] _orig_filename: *const c_char,
-    #[cfg(php_debug)] _orig_lineno: u32,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _filename: *const c_char,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _lineno: u32,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _orig_filename: *const c_char,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _orig_lineno: u32,
 ) -> *mut c_void {
     initialization_panic();
 }
 
 unsafe fn alloc_prof_panic_free(
     _ptr: *mut c_void,
-    #[cfg(php_debug)] _filename: *const c_char,
-    #[cfg(php_debug)] _lineno: u32,
-    #[cfg(php_debug)] _orig_filename: *const c_char,
-    #[cfg(php_debug)] _orig_lineno: u32,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _filename: *const c_char,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _lineno: u32,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _orig_filename: *const c_char,
+    #[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))] _orig_lineno: u32,
 ) {
     initialization_panic();
 }

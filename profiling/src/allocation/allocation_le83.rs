@@ -35,26 +35,17 @@ struct ZendMMState {
     /// `alloc_prof_prev_alloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid function
     /// pointer, otherwise there will be dragons.
-    #[cfg(not(php_debug))]
     alloc: unsafe fn(size_t) -> *mut c_void,
-    #[cfg(php_debug)]
-    alloc: unsafe fn(size_t, *const c_char, u32, *const c_char, u32) -> *mut c_void,
     /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_realloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
     /// function pointer, otherwise there will be dragons.
-    #[cfg(not(php_debug))]
     realloc: unsafe fn(*mut c_void, size_t) -> *mut c_void,
-    #[cfg(php_debug)]
-    realloc: unsafe fn(*mut c_void, size_t, *const c_char, u32, *const c_char, u32) -> *mut c_void,
     /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_free()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid function
     /// pointer, otherwise there will be dragons.
-    #[cfg(not(php_debug))]
     free: unsafe fn(*mut c_void),
-    #[cfg(php_debug)]
-    free: unsafe fn(*mut c_void, *const c_char, u32, *const c_char, u32),
 }
 
 impl ZendMMState {
@@ -233,35 +224,50 @@ pub fn alloc_prof_rshutdown() {
             return zend_mm_state;
         };
 
-        unsafe {
-            zend::zend_mm_get_custom_handlers(
-                heap,
-                &mut custom_mm_malloc,
-                &mut custom_mm_free,
-                &mut custom_mm_realloc,
-            );
-        }
-        if custom_mm_free != Some(alloc_prof_free)
-            || custom_mm_malloc != Some(alloc_prof_malloc)
-            || custom_mm_realloc != Some(alloc_prof_realloc)
+        #[cfg(not(php_debug))]
         {
-            // Custom handlers are installed, but it's not us. Someone, somewhere might have
-            // function pointers to our custom handlers. Best bet to avoid segfaults is to not
-            // touch custom handlers in ZendMM and make sure our extension will not be
-            // `dlclose()`-ed so the pointers stay valid
-            let zend_extension =
-                unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
-            if !zend_extension.is_null() {
-                // Safety: Checked for null pointer above.
-                unsafe { ptr::addr_of_mut!((*zend_extension).handle).write(ptr::null_mut()) };
+            unsafe {
+                zend::zend_mm_get_custom_handlers(
+                    heap,
+                    &mut custom_mm_malloc,
+                    &mut custom_mm_free,
+                    &mut custom_mm_realloc,
+                );
             }
-            warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
-        } else {
-            // This is the happy path. Restore previously installed custom handlers or
-            // NULL-pointers to the ZendMM. In case all pointers are NULL, the ZendMM will reset
-            // the `use_custom_heap` flag to `None`, in case we restore a neighbouring extension
-            // custom handlers, ZendMM will call those for future allocations. In either way, we
-            // have unregistered and we'll not receive any allocation calls anymore.
+            if custom_mm_free != Some(alloc_prof_free)
+                || custom_mm_malloc != Some(alloc_prof_malloc)
+                || custom_mm_realloc != Some(alloc_prof_realloc)
+            {
+                // Custom handlers are installed, but it's not us. Someone, somewhere might have
+                // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+                // touch custom handlers in ZendMM and make sure our extension will not be
+                // `dlclose()`-ed so the pointers stay valid
+                let zend_extension =
+                    unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
+                if !zend_extension.is_null() {
+                    // Safety: Checked for null pointer above.
+                    unsafe { ptr::addr_of_mut!((*zend_extension).handle).write(ptr::null_mut()) };
+                }
+                warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
+            } else {
+                // This is the happy path. Restore previously installed custom handlers or
+                // NULL-pointers to the ZendMM. In case all pointers are NULL, the ZendMM will reset
+                // the `use_custom_heap` flag to `None`, in case we restore a neighbouring extension
+                // custom handlers, ZendMM will call those for future allocations. In either way, we
+                // have unregistered and we'll not receive any allocation calls anymore.
+                unsafe {
+                    zend::ddog_php_prof_zend_mm_set_custom_handlers(
+                        heap,
+                        zend_mm_state.prev_custom_mm_alloc,
+                        zend_mm_state.prev_custom_mm_free,
+                        zend_mm_state.prev_custom_mm_realloc,
+                    );
+                }
+                trace!("Memory allocation profiling shutdown gracefully.");
+            }
+        }
+        #[cfg(php_debug)]
+        {
             unsafe {
                 zend::ddog_php_prof_zend_mm_set_custom_handlers(
                     heap,
@@ -272,6 +278,7 @@ pub fn alloc_prof_rshutdown() {
             }
             trace!("Memory allocation profiling shutdown gracefully.");
         }
+
         zend_mm_state.heap = None;
         zend_mm_state
     };
@@ -348,20 +355,11 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     }
 }
 
-unsafe extern "C" fn alloc_prof_malloc(
-    len: size_t,
-    #[cfg(php_debug)] filename: *const c_char,
-    #[cfg(php_debug)] lineno: u32,
-    #[cfg(php_debug)] orig_filename: *const c_char,
-    #[cfg(php_debug)] orig_lineno: u32,
-) -> *mut c_void {
+unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
-    #[cfg(not(php_debug))]
     let ptr = tls_zend_mm_state_get!(alloc)(len);
-    #[cfg(php_debug)]
-    let ptr = tls_zend_mm_state_get!(alloc)(len, filename, lineno, orig_filename, orig_lineno);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -379,11 +377,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
     // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_alloc` is also initialised
     let alloc = tls_zend_mm_state_get!(prev_custom_mm_alloc).unwrap();
-    #[cfg(not(php_debug))]
-    let result = alloc(len);
-    #[cfg(php_debug)]
-    let result = alloc(len, c"unknown".as_ptr(), 0, c"unknown".as_ptr(), 0);
-    result
+    alloc(len)
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
@@ -403,13 +397,7 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// you need to pass a pointer to a `free()` function as well, otherwise your
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
-unsafe extern "C" fn alloc_prof_free(
-    ptr: *mut c_void,
-    #[cfg(php_debug)] _filename: *const c_char,
-    #[cfg(php_debug)] _lineno: u32,
-    #[cfg(php_debug)] _orig_filename: *const c_char,
-    #[cfg(php_debug)] _orig_lineno: u32,
-) {
+unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
     tls_zend_mm_state_get!(free)(ptr);
 }
 
@@ -418,10 +406,7 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
     // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_free` is also initialised
     let free = tls_zend_mm_state_get!(prev_custom_mm_free).unwrap();
-    #[cfg(not(php_debug))]
     free(ptr);
-    #[cfg(php_debug)]
-    free(ptr, c"unknown".as_ptr(), 0, c"unknown".as_ptr(), 0);
 }
 
 unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
@@ -432,14 +417,7 @@ unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
     zend::_zend_mm_free(heap, ptr, c"unknown".as_ptr(), 0, c"unknown".as_ptr(), 0);
 }
 
-unsafe extern "C" fn alloc_prof_realloc(
-    prev_ptr: *mut c_void,
-    len: size_t,
-    #[cfg(php_debug)] _filename: *const c_char,
-    #[cfg(php_debug)] _lineno: u32,
-    #[cfg(php_debug)] _orig_filename: *const c_char,
-    #[cfg(php_debug)] _orig_lineno: u32,
-) -> *mut c_void {
+unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
@@ -461,26 +439,13 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     // `alloc_prof_rinit()` and only point to this function when
     // `prev_custom_mm_realloc` is also initialised
     let realloc = tls_zend_mm_state_get!(prev_custom_mm_realloc).unwrap();
-    #[cfg(not(php_debug))]
-    let result = realloc(prev_ptr, len);
-    #[cfg(php_debug)]
-    let result = realloc(
-        prev_ptr,
-        len,
-        c"unknown".as_ptr(),
-        0,
-        c"unknown".as_ptr(),
-        0,
-    );
-    result
+    realloc(prev_ptr, len)
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
-    #[cfg(not(php_debug))]
-    let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
     #[cfg(php_debug)]
     let ptr: *mut c_void = zend::_zend_mm_realloc(
         heap,
@@ -491,6 +456,8 @@ unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
         c"unknown".as_ptr(),
         0,
     );
+    #[cfg(not(php_debug))]
+    let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
     restore(heap, custom_heap);
     ptr
 }

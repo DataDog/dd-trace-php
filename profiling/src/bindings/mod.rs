@@ -42,17 +42,34 @@ pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zval);
 #[cfg(all(feature = "exception_profiling", php8))]
 pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
 
-#[cfg(all(feature = "allocation_profiling", not(php_debug)))]
+#[cfg(all(
+    feature = "allocation_profiling",
+    any(not(php_debug), not(php_zend_mm_set_custom_handlers_ex))
+))]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
-#[cfg(all(feature = "allocation_profiling", not(php_debug)))]
+#[cfg(all(
+    feature = "allocation_profiling",
+    any(not(php_debug), not(php_zend_mm_set_custom_handlers_ex))
+))]
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
-#[cfg(all(feature = "allocation_profiling", not(php_debug)))]
+#[cfg(all(
+    feature = "allocation_profiling",
+    any(not(php_debug), not(php_zend_mm_set_custom_handlers_ex))
+))]
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
 
-#[cfg(all(feature = "allocation_profiling", php_debug))]
+#[cfg(all(
+    feature = "allocation_profiling",
+    php_debug,
+    php_zend_mm_set_custom_handlers_ex
+))]
 pub type VmMmCustomAllocFn =
     unsafe extern "C" fn(size_t, *const c_char, u32, *const c_char, u32) -> *mut c_void;
-#[cfg(all(feature = "allocation_profiling", php_debug))]
+#[cfg(all(
+    feature = "allocation_profiling",
+    php_debug,
+    php_zend_mm_set_custom_handlers_ex
+))]
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(
     *mut c_void,
     size_t,
@@ -61,7 +78,11 @@ pub type VmMmCustomReallocFn = unsafe extern "C" fn(
     *const c_char,
     u32,
 ) -> *mut c_void;
-#[cfg(all(feature = "allocation_profiling", php_debug))]
+#[cfg(all(
+    feature = "allocation_profiling",
+    php_debug,
+    php_zend_mm_set_custom_handlers_ex
+))]
 pub type VmMmCustomFreeFn =
     unsafe extern "C" fn(*mut c_void, *const c_char, u32, *const c_char, u32);
 #[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]

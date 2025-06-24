@@ -293,19 +293,18 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
     return;
 }
 
-#if ZEND_DEBUG
+#if ZEND_DEBUG && PHP_VERSION_ID >= 80400
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_malloc)(size_t ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC),
                                                void  (*_free)(void* ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC),
                                                void* (*_realloc)(void*, size_t ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)) {
-    zend_mm_set_custom_debug_handlers(heap, _malloc, _free, _realloc);
 #else
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_malloc)(size_t),
                                                void  (*_free)(void*),
                                                void* (*_realloc)(void*, size_t)) {
-    zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #endif
+    zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {
         memset(heap, ZEND_MM_CUSTOM_HEAP_NONE, sizeof(int));
@@ -484,7 +483,7 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
 // "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
-#if ZEND_DEBUG
+#if ZEND_DEBUG && PHP_VERSION_ID >= 80400
 void *__attribute__((weak)) __zend_malloc(size_t len ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) {
     (void)__zend_filename;
     (void)__zend_lineno;
