@@ -422,6 +422,16 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
+typedef struct ddog_SpanBytes ddog_SpanBytes;
+
+typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
+
+typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
+
+typedef struct ddog_TraceBytes ddog_TraceBytes;
+
+typedef struct ddog_TracesBytes ddog_TracesBytes;
+
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -898,19 +908,15 @@ typedef struct ddog_Vec_SpanBytes {
   uintptr_t capacity;
 } ddog_Vec_SpanBytes;
 
-typedef struct ddog_Vec_SpanBytes ddog_TraceBytes;
-
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
-typedef struct ddog_Vec_TraceBytes {
-  const ddog_TraceBytes *ptr;
+typedef struct ddog_Vec_VecSpanBytes {
+  const struct ddog_Vec_SpanBytes *ptr;
   uintptr_t len;
   uintptr_t capacity;
-} ddog_Vec_TraceBytes;
-
-typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
+} ddog_Vec_VecSpanBytes;
 
 typedef struct ddog_SenderParameters {
   struct ddog_TracerHeaderTags tracer_headers_tags;

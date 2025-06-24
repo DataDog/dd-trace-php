@@ -283,60 +283,200 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        ddog_CharSlice log);
 
 void ddog_init_span_func(void (*free_func)(struct _zend_string*),
-                         void (*addref_func)(struct _zend_string*));
+                         void (*addref_func)(struct _zend_string*),
+                         uint8_t *(*emalloc)(uintptr_t),
+                         void (*efree)(uint8_t*));
 
-void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+void ddog_set_span_service_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+void ddog_set_span_name_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+void ddog_set_span_resource_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+void ddog_set_span_type_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *str);
 
-void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
+void ddog_add_span_meta_zstr(struct ddog_SpanBytes *ptr,
                              struct _zend_string *key,
                              struct _zend_string *val);
 
-void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
+void ddog_add_CharSlice_span_meta_zstr(struct ddog_SpanBytes *ptr,
                                        ddog_CharSlice key,
                                        struct _zend_string *val);
 
-void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
+void ddog_add_zstr_span_meta_str(struct ddog_SpanBytes *ptr,
+                                 struct _zend_string *key,
+                                 const char *val);
 
-void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
+void ddog_add_str_span_meta_str(struct ddog_SpanBytes *ptr, const char *key, const char *val);
 
-void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
+void ddog_add_str_span_meta_zstr(struct ddog_SpanBytes *ptr,
+                                 const char *key,
+                                 struct _zend_string *val);
 
-void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
+void ddog_add_str_span_meta_CharSlice(struct ddog_SpanBytes *ptr,
+                                      const char *key,
+                                      ddog_CharSlice val);
 
-void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+void ddog_del_span_meta_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *key);
 
-void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+void ddog_del_span_meta_str(struct ddog_SpanBytes *ptr, const char *key);
 
-bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+bool ddog_has_span_meta_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *key);
 
-bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+bool ddog_has_span_meta_str(struct ddog_SpanBytes *ptr, const char *key);
 
-ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
+ddog_CharSlice ddog_get_span_meta_str(struct ddog_SpanBytes *span, const char *key);
 
-void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
+void ddog_add_span_metrics_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *key, double val);
 
-bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+bool ddog_has_span_metrics_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *key);
 
-void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+void ddog_del_span_metrics_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *key);
 
-void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
+void ddog_add_span_metrics_str(struct ddog_SpanBytes *ptr, const char *key, double val);
 
-bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
+bool ddog_get_span_metrics_str(struct ddog_SpanBytes *ptr, const char *key, double *result);
 
-void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
+void ddog_del_span_metrics_str(struct ddog_SpanBytes *ptr, const char *key);
 
-void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
+void ddog_add_span_meta_struct_zstr(struct ddog_SpanBytes *ptr,
                                     struct _zend_string *key,
                                     struct _zend_string *val);
 
-void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
+void ddog_add_zstr_span_meta_struct_CharSlice(struct ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
+
+struct ddog_TracesBytes *ddog_get_traces(void);
+
+void ddog_free_traces(struct ddog_TracesBytes *traces);
+
+uintptr_t ddog_get_traces_size(const struct ddog_TracesBytes *traces);
+
+struct ddog_TraceBytes *ddog_get_trace(struct ddog_TracesBytes *traces, uintptr_t index);
+
+struct ddog_TraceBytes *ddog_traces_new_trace(struct ddog_TracesBytes *traces);
+
+uintptr_t ddog_get_trace_size(const struct ddog_TraceBytes *trace);
+
+struct ddog_SpanBytes *ddog_get_span(struct ddog_TraceBytes *trace, uintptr_t index);
+
+struct ddog_SpanBytes *ddog_trace_new_span(struct ddog_TraceBytes *trace);
+
+ddog_CharSlice ddog_span_debug_log(const struct ddog_SpanBytes *span);
+
+void ddog_free_charslice(ddog_CharSlice slice);
+
+void ddog_set_span_service(struct ddog_SpanBytes *span, ddog_CharSlice slice);
+
+ddog_CharSlice ddog_get_span_service(struct ddog_SpanBytes *span);
+
+void ddog_set_span_name(struct ddog_SpanBytes *span, ddog_CharSlice slice);
+
+ddog_CharSlice ddog_get_span_name(struct ddog_SpanBytes *span);
+
+void ddog_set_span_resource(struct ddog_SpanBytes *span, ddog_CharSlice slice);
+
+ddog_CharSlice ddog_get_span_resource(struct ddog_SpanBytes *span);
+
+void ddog_set_span_type(struct ddog_SpanBytes *span, ddog_CharSlice slice);
+
+ddog_CharSlice ddog_get_span_type(struct ddog_SpanBytes *span);
+
+void ddog_set_span_trace_id(struct ddog_SpanBytes *span, uint64_t value);
+
+uint64_t ddog_get_span_trace_id(struct ddog_SpanBytes *span);
+
+void ddog_set_span_id(struct ddog_SpanBytes *span, uint64_t value);
+
+uint64_t ddog_get_span_id(struct ddog_SpanBytes *span);
+
+void ddog_set_span_parent_id(struct ddog_SpanBytes *span, uint64_t value);
+
+uint64_t ddog_get_span_parent_id(struct ddog_SpanBytes *span);
+
+void ddog_set_span_start(struct ddog_SpanBytes *span, int64_t value);
+
+int64_t ddog_get_span_start(struct ddog_SpanBytes *span);
+
+void ddog_set_span_duration(struct ddog_SpanBytes *span, int64_t value);
+
+int64_t ddog_get_span_duration(struct ddog_SpanBytes *span);
+
+void ddog_set_span_error(struct ddog_SpanBytes *span, int32_t value);
+
+int32_t ddog_get_span_error(struct ddog_SpanBytes *span);
+
+void ddog_add_span_meta(struct ddog_SpanBytes *span, ddog_CharSlice key, ddog_CharSlice value);
+
+void ddog_del_span_meta(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+ddog_CharSlice ddog_get_span_meta(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+bool ddog_has_span_meta(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+ddog_CharSlice *ddog_span_meta_get_keys(struct ddog_SpanBytes *span, uintptr_t *out_count);
+
+void ddog_add_span_metrics(struct ddog_SpanBytes *span, ddog_CharSlice key, double val);
+
+void ddog_del_span_metrics(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+bool ddog_get_span_metrics(struct ddog_SpanBytes *span, ddog_CharSlice key, double *result);
+
+bool ddog_has_span_metrics(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+ddog_CharSlice *ddog_span_metrics_get_keys(struct ddog_SpanBytes *span, uintptr_t *out_count);
+
+void ddog_add_span_meta_struct(struct ddog_SpanBytes *span, ddog_CharSlice key, ddog_CharSlice val);
+
+void ddog_del_span_meta_struct(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+ddog_CharSlice ddog_get_span_meta_struct(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+bool ddog_has_span_meta_struct(struct ddog_SpanBytes *span, ddog_CharSlice key);
+
+ddog_CharSlice *ddog_span_meta_struct_get_keys(struct ddog_SpanBytes *span, uintptr_t *out_count);
+
+void ddog_span_free_keys_ptr(ddog_CharSlice *keys_ptr, uintptr_t count);
+
+struct ddog_SpanLinkBytes *ddog_span_new_link(struct ddog_SpanBytes *span);
+
+void ddog_set_link_tracestate(struct ddog_SpanLinkBytes *link, ddog_CharSlice slice);
+
+void ddog_set_link_trace_id(struct ddog_SpanLinkBytes *link, uint64_t value);
+
+void ddog_set_link_trace_id_high(struct ddog_SpanLinkBytes *link, uint64_t value);
+
+void ddog_set_link_span_id(struct ddog_SpanLinkBytes *link, uint64_t value);
+
+void ddog_set_link_flags(struct ddog_SpanLinkBytes *link, uint64_t value);
+
+void ddog_add_link_attributes(struct ddog_SpanLinkBytes *link,
+                              ddog_CharSlice key,
+                              ddog_CharSlice val);
+
+struct ddog_SpanEventBytes *ddog_span_new_event(struct ddog_SpanBytes *span);
+
+void ddog_set_event_name(struct ddog_SpanEventBytes *event, ddog_CharSlice slice);
+
+void ddog_set_event_time(struct ddog_SpanEventBytes *event, uint64_t val);
+
+void ddog_add_event_attributes_str(struct ddog_SpanEventBytes *event,
+                                   ddog_CharSlice key,
+                                   ddog_CharSlice val);
+
+void ddog_add_event_attributes_bool(struct ddog_SpanEventBytes *event,
+                                    ddog_CharSlice key,
+                                    bool val);
+
+void ddog_add_event_attributes_int(struct ddog_SpanEventBytes *event,
+                                   ddog_CharSlice key,
+                                   int64_t val);
+
+void ddog_add_event_attributes_float(struct ddog_SpanEventBytes *event,
+                                     ddog_CharSlice key,
+                                     double val);
+
+ddog_CharSlice ddog_serialize_trace_into_c_string(struct ddog_TraceBytes *trace);
 
 #endif  /* DDTRACE_PHP_H */

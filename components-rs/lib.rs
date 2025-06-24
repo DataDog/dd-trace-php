@@ -1,6 +1,7 @@
 #![allow(internal_features)]
 #![feature(allow_internal_unstable)]
 #![feature(linkage)]
+#![feature(allocator_api)]
 
 pub mod log;
 pub mod remote_config;
