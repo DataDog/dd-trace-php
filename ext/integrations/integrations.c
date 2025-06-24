@@ -304,6 +304,13 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GOOGLESPANNER, "Google\\Cloud\\Spanner\\Database", "__construct",
                                          "DDTrace\\Integrations\\GoogleSpanner\\GoogleSpannerIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GRAPHQL, "GraphQL\\GraphQL", "promiseToExecute",
+                                         "DDTrace\\Integrations\\GraphQL\\GraphQLIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GRAPHQL, "GraphQL\\Validator\\DocumentValidator", "validate",
+                                         "DDTrace\\Integrations\\GraphQL\\GraphQLIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GRAPHQL, "GraphQL\\Language\\Parser", "parse",
+                                         "DDTrace\\Integrations\\GraphQL\\GraphQLIntegration");
+
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_GUZZLE, "GuzzleHttp\\Client", "__construct",
                                          "DDTrace\\Integrations\\Guzzle\\GuzzleIntegration");
 
