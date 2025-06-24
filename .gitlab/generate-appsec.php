@@ -2,9 +2,43 @@
 
 include "generate-common.php";
 
+$ecrLoginSnippet = <<<'EOT'
+    - |
+      if [ "${ARCH}" = "amd64" ]; then
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      else
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+      fi
+      unzip awscliv2.zip > /dev/null
+      ./aws/install
+      aws --version
+    - |
+      echo Assuming ddbuild-agent-ci role
+      roleoutput="$(aws sts assume-role --role-arn arn:aws:iam::669783387624:role/ddbuild-dd-trace-php-ci \
+        --external-id ddbuild-dd-trace-php-ci --role-session-name RoleSession)"
+
+      export AWS_ACCESS_KEY_ID="$(echo "$roleoutput" | jq -r '.Credentials.AccessKeyId')"
+      export AWS_SECRET_ACCESS_KEY="$(echo "$roleoutput" | jq -r '.Credentials.SecretAccessKey')"
+      export AWS_SESSION_TOKEN="$(echo "$roleoutput" | jq -r '.Credentials.SessionToken')"
+      echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"
+
+      echo "Logging in to ECR"
+      aws ecr get-login-password | docker login --username AWS --password-stdin 669783387624.dkr.ecr.us-east-1.amazonaws.com
+EOT;
 ?>
+variables:
+  CI_REGISTRY_USER:
+    value: ""
+    description: "Your docker hub username"
+  CI_REGISTRY_TOKEN:
+    value: ""
+    description: "Your docker hub personal access token, can be created following this doc https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token"
+  CI_REGISTRY:
+    value: "docker.io"
+
 stages:
   - test
+  - docker-build
 
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
@@ -19,6 +53,26 @@ stages:
       paths:
         - /hunter-cache
 
+.docker_push_job:
+  stage: docker-build
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
+    - |
+      echo "Logging in to Docker Hub"
+      if [ "$CI_REGISTRY_USER" = "" ]; then
+        echo "Fetching Docker Hub credentials from vault"
+        vaultoutput=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/dockerhub)
+        user=$(echo "$vaultoutput" | jq -r .data.data.user)
+        token=$(echo "$vaultoutput" | jq -r .data.data.token)
+      else
+        user="$CI_REGISTRY_USER"
+        token="$CI_REGISTRY_TOKEN"
+      fi
+
+      echo "Docker Hub user: $user"
+      docker login -u "$user" -p "$token" docker.io
+    - apt update && apt install -y default-jre
 
 "test appsec extension":
   stage: test
@@ -53,6 +107,7 @@ stages:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
+    ARCH: amd64
   parallel:
     matrix:
       - targets:
@@ -76,9 +131,25 @@ stages:
           - test8.3-release-zts
           - test8.4-release
           - test8.4-release-zts
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
   script:
     - apt update && apt install -y default-jre
-    - cd appsec/tests/integration && TERM=dumb ./gradlew loadCaches $targets --info -Pbuildscan --scan
+    - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
+    - |
+      cd appsec/tests/integration
+      CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
+      if [ -f "$CACHE_PATH" ]; then
+        echo "Loading cache from $CACHE_PATH"
+        TERM=dumb ./gradlew loadCaches --info
+      fi
+
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan
+      TERM=dumb ./gradlew saveCaches --info
+  cache:
+    - key: "appsec int test cache"
+      paths:
+        - appsec/tests/integration/build/*.tar.gz
 
 "appsec code coverage":
   stage: test
@@ -92,20 +163,80 @@ stages:
     matrix:
       - ARCH: *arch_targets
   script:
-    - sudo apt install -y gcovr
+    - |
+      # install packages
+      cd /tmp
+      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
+      unzip vault.zip
+      sudo cp -v vault /usr/local/bin
+      cd -
+      sudo apt-get update && sudo apt-get install -y jq gcovr
     - cd appsec/build
     - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - PATH=$PATH:$HOME/.cargo/bin make -j 4 xtest ddappsec_helper_test
     - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
-    - cd appsec
-    - mkdir coverage
-    - gcovr -f '.*src/extension/.*' -x -o coverage.xml
-    #- gcovr --gcov-ignore-parse-errors --html-details coverage/coverage.html -f ".*src/.*" -d
-    #- tar -cvzf appsec-extension-coverage.tar.gz coverage/
-    # TODO: umm, how to do codecov uploading on gitlab?
+    - |
+      # report only on amd64
+      if [ "$ARCH" = "amd64" ]; then
+        cd appsec
+        gcovr -f '.*src/extension/.*' -x -o coverage.xml
+        echo "Uploading coverage to codecov"
+        CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+        CODECOV_VERSION=0.6.1
+        CODECOV_ARCH=linux
+        curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov
+        curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        rm codecov.SHA256SUM.sig codecov.SHA256SUM
+        mv codecov /usr/local/bin/codecov
+        chmod +x /usr/local/bin/codecov
+        codecov -t "$CODECOV_TOKEN" -v -f coverage.xml
+      fi
   artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: appsec/coverage.xml
     paths:
-      - appsec/appsec-coverage.tar.gz
+      - appsec/coverage.xml
+    expire_in: 1 week
+
+
+"push appsec images":
+  extends: .docker_push_job
+  tags: [ "docker-in-docker:${ARCH}" ]
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 24Gi
+  parallel:
+    matrix:
+# XXX: docker-in-docker:arm64 is not supported yet
+      - ARCH: ["amd64", "arm64"]
+  rules:
+    - when: manual
+  needs: []
+  script:
+    - cd appsec/tests/integration
+    - TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan
+
+"push appsec docker images multiarch":
+  extends: .docker_push_job
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    ARCH: amd64
+  rules:
+    - when: on_success
+  needs:
+    - job: "push appsec images"
+  script:
+    - cd appsec/tests/integration
+    - TERM=dumb ./gradlew pushMultiArch --info -Pbuildscan --scan
 
 "appsec lint":
   stage: test
