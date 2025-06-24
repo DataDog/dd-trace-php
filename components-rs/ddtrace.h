@@ -285,6 +285,7 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
 void ddog_init_span_func(void (*free_func)(struct _zend_string*),
                          void (*addref_func)(struct _zend_string*),
                          uint8_t *(*emalloc)(uintptr_t),
+                         uint8_t *(*erealloc)(uint8_t*, uintptr_t),
                          void (*efree)(uint8_t*));
 
 void ddog_set_span_service_zstr(struct ddog_SpanBytes *ptr, struct _zend_string *str);

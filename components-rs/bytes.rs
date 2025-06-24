@@ -33,6 +33,16 @@ unsafe impl Allocator for ZendAlloc {
             Ok(EMALLOC.unwrap_unchecked()(layout.size()))
         }
     }
+    
+    #[inline]
+    unsafe fn grow(&self, ptr: NonNull<u8>, _old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        Ok(EREALLOC.unwrap_unchecked()(ptr, new_layout.size()))
+    }
+    
+    #[inline]
+    unsafe fn shrink(&self, ptr: NonNull<u8>, _old_layout: Layout, _new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        Ok(ptr.cast())
+    }
 
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
@@ -55,6 +65,7 @@ static mut DDOG_ADDREF_ZEND_STRING: Option<extern "C" fn(&mut ZendString)> = Non
 static mut REFCOUNTED_CELL_VTABLE: Option<RefCountedCellVTable> = None;
 
 static mut EMALLOC: Option<extern "C" fn(usize) -> NonNull<[u8]>> = None;
+static mut EREALLOC: Option<extern "C" fn(NonNull<u8>, usize) -> NonNull<[u8]>> = None;
 static mut EFREE: Option<extern "C" fn(NonNull<u8>)> = None;
 
 #[no_mangle]
@@ -63,9 +74,11 @@ pub unsafe extern "C" fn ddog_init_span_func(
     addref_func: extern "C" fn(&mut ZendString),
     // check fastcall convention
     emalloc: extern "C" fn(usize) -> NonNull<u8>,
+    erealloc: extern "C" fn(NonNull<u8>, usize) -> NonNull<u8>,
     efree: extern "C" fn(NonNull<u8>),
 ) {
     EMALLOC = Some(mem::transmute(emalloc));
+    EREALLOC = Some(mem::transmute(erealloc));
     EFREE = Some(efree);
 
     DDOG_ADDREF_ZEND_STRING = Some(addref_func);
