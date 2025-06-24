@@ -479,7 +479,7 @@ pub extern "C" fn ddog_span_debug_log(span: &SpanBytes) -> CharSlice<'static> {
     unsafe {
         let debug_str = format!("{:?}\0", &span.0);
         let len = debug_str.len() - 1;
-        CharSlice::from_raw_parts(debug_str.leak().cast(), len)
+        CharSlice::from_raw_parts(debug_str.leak().as_ptr().cast(), len)
     }
 }
 
@@ -493,8 +493,7 @@ pub extern "C" fn ddog_free_charslice(slice: CharSlice<'static>) {
 
     // SAFETY: we assume this pointer came from `String::leak`
     unsafe {
-        let owned_ptr = ptr as *mut c_char;
-        let _ = String::from_raw_parts(owned_ptr, len, len);
+        let _ = String::from_raw_parts(ptr.cast_mut().cast(), len, len);
     }
 }
 
