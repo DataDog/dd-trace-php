@@ -30,18 +30,18 @@ unsafe impl Allocator for ZendAlloc {
         unsafe {
             // Assuming alignment is not going to be > 4k, all power of two alignments will be properly aligned thanks to the binning of zend_alloc
             // Thus we only care about size
-            Ok(EMALLOC.unwrap_unchecked()(layout.size()))
+            Ok(NonNull::slice_from_raw_parts(EMALLOC.unwrap_unchecked()(layout.size()), layout.size()))
         }
     }
     
     #[inline]
     unsafe fn grow(&self, ptr: NonNull<u8>, _old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        Ok(EREALLOC.unwrap_unchecked()(ptr, new_layout.size()))
+        Ok(NonNull::slice_from_raw_parts(EREALLOC.unwrap_unchecked()(ptr, new_layout.size()), new_layout.size()))
     }
     
     #[inline]
-    unsafe fn shrink(&self, ptr: NonNull<u8>, _old_layout: Layout, _new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        Ok(ptr.cast())
+    unsafe fn shrink(&self, ptr: NonNull<u8>, _old_layout: Layout, new_layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        Ok(NonNull::slice_from_raw_parts(ptr, new_layout.size()))
     }
 
     #[inline]
@@ -64,8 +64,8 @@ static mut DDOG_ADDREF_ZEND_STRING: Option<extern "C" fn(&mut ZendString)> = Non
 
 static mut REFCOUNTED_CELL_VTABLE: Option<RefCountedCellVTable> = None;
 
-static mut EMALLOC: Option<extern "C" fn(usize) -> NonNull<[u8]>> = None;
-static mut EREALLOC: Option<extern "C" fn(NonNull<u8>, usize) -> NonNull<[u8]>> = None;
+static mut EMALLOC: Option<extern "C" fn(usize) -> NonNull<u8>> = None;
+static mut EREALLOC: Option<extern "C" fn(NonNull<u8>, usize) -> NonNull<u8>> = None;
 static mut EFREE: Option<extern "C" fn(NonNull<u8>)> = None;
 
 #[no_mangle]
@@ -77,8 +77,8 @@ pub unsafe extern "C" fn ddog_init_span_func(
     erealloc: extern "C" fn(NonNull<u8>, usize) -> NonNull<u8>,
     efree: extern "C" fn(NonNull<u8>),
 ) {
-    EMALLOC = Some(mem::transmute(emalloc));
-    EREALLOC = Some(mem::transmute(erealloc));
+    EMALLOC = Some(emalloc);
+    EREALLOC = Some(erealloc);
     EFREE = Some(efree);
 
     DDOG_ADDREF_ZEND_STRING = Some(addref_func);

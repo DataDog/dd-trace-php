@@ -119,14 +119,12 @@ jobs:
           done
 
       - name: Check profiler correctness for allocations
-        if: matrix.phpts != 'zts'
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations/
 
       - name: Check profiler correctness for allocations with 1 byte sampling distance
-        if: matrix.phpts != 'zts'
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocations.json

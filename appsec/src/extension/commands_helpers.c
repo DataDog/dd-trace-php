@@ -12,6 +12,7 @@
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "tags.h"
+#include "telemetry.h"
 #include "user_tracking.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
@@ -470,7 +471,7 @@ dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t force_keep = mpack_node_array_at(root, RESP_INDEX_FORCE_KEEP);
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
-        dd_tags_set_sampling_priority();
+        dd_trace_emit_asm_event();
     }
 
     if (mpack_node_array_length(root) >= RESP_INDEX_SETTINGS + 1) {
@@ -619,6 +620,7 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
     }
 
     size_t count = mpack_node_map_count(root);
+    bool has_schemas = false;
 
     for (size_t i = 0; i < count; i++) {
         mpack_node_t key = mpack_node_map_key_at(root, i);
@@ -639,6 +641,12 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             key_len = INT_MAX;
         }
 
+        if (!has_schemas && dd_string_starts_with_lc(
+                                key_str, key_len, ZEND_STRL("_dd.appsec.s."))) {
+            // There is schemas extrated
+            has_schemas = true;
+        }
+
         bool res = dd_trace_span_add_tag_str(span, key_str, key_len,
             mpack_node_str(value), mpack_node_strlen(value));
 
@@ -647,6 +655,10 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
                 key_str);
             return;
         }
+    }
+
+    if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
+        dd_trace_emit_asm_event();
     }
 }
 
@@ -815,9 +827,7 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
             static zend_string *_Atomic key_zstr;                              \
             _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
             zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 1);  \
-            ddtrace_metric_register_buffer(                                    \
-                key_zstr, type, DDTRACE_METRIC_NAMESPACE_APPSEC);              \
-            ddtrace_metric_add_point(key_zstr, value, tags_zstr);              \
+            dd_telemetry_add_metric(key_zstr, value, tags_zstr, type);         \
             zend_string_release(tags_zstr);                                    \
             mlog_g(dd_log_debug,                                               \
                 "Telemetry metric %.*s added with tags %.*s and value %f",     \
