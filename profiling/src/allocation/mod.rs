@@ -1,13 +1,16 @@
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::REQUEST_LOCALS;
-use libc::{c_char, size_t};
+use libc::size_t;
 use log::{error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+#[cfg(php_debug)]
+use libc::c_char;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub mod allocation_ge84;

@@ -45,7 +45,7 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# NTS NODEBUG'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
-    - php -v
+    - php -n -v
     - cargo build --release --all-features
     - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 
@@ -53,7 +53,7 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# NTS DEBUG'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-debug"
-    - php -v
+    - php -n -v
     - cargo build --release --all-features
     - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 
@@ -61,7 +61,7 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# ZTS NODEBUG'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-zts"
-    - php -v
+    - php -n -v
     - cargo build --release --all-features
     - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 

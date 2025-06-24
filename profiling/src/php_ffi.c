@@ -483,7 +483,11 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
 // "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
+#ifdef ZEND_DEBUG
+void *__attribute__((weak)) __zend_malloc(size_t len ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) {
+#else
 void *__attribute__((weak)) __zend_malloc(size_t len) {
+#endif
     void *tmp = malloc(len);
     if (EXPECTED(tmp || !len)) {
         return tmp;
