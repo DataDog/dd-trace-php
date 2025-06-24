@@ -56,6 +56,7 @@ fn main() {
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
     cfg_zts();
+    cfg_debug();
 }
 
 fn php_config_vernum() -> u64 {
@@ -438,5 +439,32 @@ fn cfg_zts() {
 
     if zts.contains('1') {
         println!("cargo:rustc-cfg=php_zts");
+    }
+}
+
+fn cfg_debug() {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_debug)");
+    }
+
+    let output = Command::new("php")
+        .arg("-n")
+        .arg("-r")
+        .arg("echo PHP_DEBUG, PHP_EOL;")
+        .output()
+        .expect("Unable to run `php`. Is it in your PATH?");
+
+    if !output.status.success() {
+        match String::from_utf8(output.stderr) {
+            Ok(stderr) => panic!("`php failed: {stderr}"),
+            Err(err) => panic!("`php` failed, not utf8: {err}"),
+        }
+    }
+
+    let debug =
+        std::str::from_utf8(output.stdout.as_slice()).expect("`php`'s stdout to be valid utf8");
+
+    if debug.contains('1') {
+        println!("cargo:rustc-cfg=php_debug");
     }
 }

@@ -293,10 +293,17 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
     return;
 }
 
+#ifdef ZEND_DEBUG
+void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
+                                               void* (*_malloc)(size_t ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC),
+                                               void  (*_free)(void* ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC),
+                                               void* (*_realloc)(void*, size_t ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC)) {
+#else
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_malloc)(size_t),
                                                void  (*_free)(void*),
                                                void* (*_realloc)(void*, size_t)) {
+#endif
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {

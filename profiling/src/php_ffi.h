@@ -140,10 +140,17 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num);
  * `use_custom_heap` flag back to normal when null pointers are being passed
  * in on those PHP versions.
  */
+#ifdef ZEND_DEBUG
+void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
+                                               void* (*_malloc)(size_t ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC),
+                                               void  (*_free)(void* ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC),
+                                               void* (*_realloc)(void*, size_t ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC));
+#else
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                void* (*_malloc)(size_t),
                                                void  (*_free)(void*),
                                                void* (*_realloc)(void*, size_t));
+#endif
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
 
