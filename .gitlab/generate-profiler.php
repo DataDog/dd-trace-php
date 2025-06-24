@@ -43,15 +43,25 @@ foreach ($profiler_minor_major_targets as $version) {
     - cp -v "${run_tests_php}" tests
     - unset DD_SERVICE; unset DD_ENV
 
-    - '# NTS'
+    - '# NTS NODEBUG'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
+    - php -v
     - cargo build --release --all-features
     - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 
     - touch build.rs #make sure `build.rs` gets executed after `switch-php` call
 
-    - '# ZTS'
+    - '# NTS DEBUG'
+    - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-debug"
+    - php -v
+    - cargo build --release --all-features
+    - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
+
+    - touch build.rs #make sure `build.rs` gets executed after `switch-php` call
+
+    - '# ZTS NODEBUG'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-zts"
+    - php -v
     - cargo build --release --all-features
     - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 
@@ -70,6 +80,7 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
     - switch-php nts # not compatible with debug
+    - php -v
     - cd profiling
     - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
     - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
