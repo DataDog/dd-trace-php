@@ -35,17 +35,26 @@ struct ZendMMState {
     /// `alloc_prof_prev_alloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid function
     /// pointer, otherwise there will be dragons.
+    #[cfg(not(php_debug))]
     alloc: unsafe fn(size_t) -> *mut c_void,
+    #[cfg(php_debug)]
+    alloc: unsafe fn(size_t, *const c_char, u32, *const c_char, u32) -> *mut c_void,
     /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_realloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
     /// function pointer, otherwise there will be dragons.
+    #[cfg(not(php_debug))]
     realloc: unsafe fn(*mut c_void, size_t) -> *mut c_void,
+    #[cfg(php_debug)]
+    realloc: unsafe fn(*mut c_void, size_t, *const c_char, u32, *const c_char, u32) -> *mut c_void,
     /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_free()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid function
     /// pointer, otherwise there will be dragons.
+    #[cfg(not(php_debug))]
     free: unsafe fn(*mut c_void),
+    #[cfg(php_debug)]
+    free: unsafe fn(*mut c_void, *const c_char, u32, *const c_char, u32),
 }
 
 impl ZendMMState {
@@ -339,36 +348,20 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     }
 }
 
-#[cfg(not(php_debug))]
-unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
-    ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
-    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
-
-    let ptr = tls_zend_mm_state_get!(alloc)(len);
-
-    // during startup, minit, rinit, ... current_execute_data is null
-    // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() {
-        return ptr;
-    }
-
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
-
-    ptr
-}
-
-#[cfg(php_debug)]
 unsafe extern "C" fn alloc_prof_malloc(
     len: size_t,
-    _filename: *const c_char,
-    _lineno: u32,
-    _orig_filename: *const c_char,
-    _orig_lineno: u32,
+    #[cfg(php_debug)] filename: *const c_char,
+    #[cfg(php_debug)] lineno: u32,
+    #[cfg(php_debug)] orig_filename: *const c_char,
+    #[cfg(php_debug)] orig_lineno: u32,
 ) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
 
+    #[cfg(not(php_debug))]
     let ptr = tls_zend_mm_state_get!(alloc)(len);
+    #[cfg(php_debug)]
+    let ptr = tls_zend_mm_state_get!(alloc)(len, filename, lineno, orig_filename, orig_lineno);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -410,18 +403,12 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// you need to pass a pointer to a `free()` function as well, otherwise your
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
-#[cfg(not(php_debug))]
-unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
-    tls_zend_mm_state_get!(free)(ptr);
-}
-
-#[cfg(php_debug)]
 unsafe extern "C" fn alloc_prof_free(
     ptr: *mut c_void,
-    _filename: *const c_char,
-    _lineno: u32,
-    _orig_filename: *const c_char,
-    _orig_lineno: u32,
+    #[cfg(php_debug)] _filename: *const c_char,
+    #[cfg(php_debug)] _lineno: u32,
+    #[cfg(php_debug)] _orig_filename: *const c_char,
+    #[cfg(php_debug)] _orig_lineno: u32,
 ) {
     tls_zend_mm_state_get!(free)(ptr);
 }
@@ -445,32 +432,13 @@ unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
     zend::_zend_mm_free(heap, ptr, c"unknown".as_ptr(), 0, c"unknown".as_ptr(), 0);
 }
 
-#[cfg(not(php_debug))]
-unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
-    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
-
-    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
-
-    // during startup, minit, rinit, ... current_execute_data is null
-    // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr::eq(ptr, prev_ptr) {
-        return ptr;
-    }
-
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
-
-    ptr
-}
-
-#[cfg(php_debug)]
 unsafe extern "C" fn alloc_prof_realloc(
     prev_ptr: *mut c_void,
     len: size_t,
-    _filename: *const c_char,
-    _lineno: u32,
-    _orig_filename: *const c_char,
-    _orig_lineno: u32,
+    #[cfg(php_debug)] _filename: *const c_char,
+    #[cfg(php_debug)] _lineno: u32,
+    #[cfg(php_debug)] _orig_filename: *const c_char,
+    #[cfg(php_debug)] _orig_lineno: u32,
 ) -> *mut c_void {
     ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);

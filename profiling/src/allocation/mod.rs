@@ -1,7 +1,7 @@
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::REQUEST_LOCALS;
-use libc::size_t;
+use libc::{c_char, size_t};
 use log::{error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
@@ -175,14 +175,33 @@ fn initialization_panic() -> ! {
     panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
-unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
+unsafe fn alloc_prof_panic_alloc(
+    _len: size_t,
+    #[cfg(php_debug)] _filename: *const c_char,
+    #[cfg(php_debug)] _lineno: u32,
+    #[cfg(php_debug)] _orig_filename: *const c_char,
+    #[cfg(php_debug)] _orig_lineno: u32,
+) -> *mut c_void {
     initialization_panic();
 }
 
-unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
+unsafe fn alloc_prof_panic_realloc(
+    _prev_ptr: *mut c_void,
+    _len: size_t,
+    #[cfg(php_debug)] _filename: *const c_char,
+    #[cfg(php_debug)] _lineno: u32,
+    #[cfg(php_debug)] _orig_filename: *const c_char,
+    #[cfg(php_debug)] _orig_lineno: u32,
+) -> *mut c_void {
     initialization_panic();
 }
 
-unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
+unsafe fn alloc_prof_panic_free(
+    _ptr: *mut c_void,
+    #[cfg(php_debug)] _filename: *const c_char,
+    #[cfg(php_debug)] _lineno: u32,
+    #[cfg(php_debug)] _orig_filename: *const c_char,
+    #[cfg(php_debug)] _orig_lineno: u32,
+) {
     initialization_panic();
 }
