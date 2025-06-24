@@ -485,6 +485,10 @@ static int (*og_snprintf)(char *, size_t, const char *, ...);
 // "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
 #ifdef ZEND_DEBUG
 void *__attribute__((weak)) __zend_malloc(size_t len ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) {
+    (void)__zend_filename;
+    (void)__zend_lineno;
+    (void)__zend_orig_filename;
+    (void)__zend_orig_lineno;
 #else
 void *__attribute__((weak)) __zend_malloc(size_t len) {
 #endif
