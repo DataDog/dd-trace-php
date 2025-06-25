@@ -349,6 +349,44 @@ void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddtrace_root_span_dat
     ddtrace_sidecar_submit_root_span_data_direct(root, get_DD_SERVICE(), get_DD_ENV(), get_DD_VERSION());
 }
 
+static void ddtrace_flush_missing_telemetry(ddog_CharSlice service, ddog_CharSlice env, ddog_CharSlice version) {
+    ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
+    ddog_CharSlice *ffi_integration_names = NULL;
+    ddog_CharSlice *ffi_paths = NULL;
+    uint32_t ffi_integration_count = 0;
+    uint32_t ffi_path_count = 0;
+
+    if (!ddog_telemetry_shm_parse(service, env, version, &ffi_integration_names, &ffi_integration_count, &ffi_paths, &ffi_path_count)) {
+        return;
+    }
+
+    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
+        ddtrace_integration *integration = &ddtrace_integrations[i];
+        if (!integration->is_enabled()) {
+            ddog_CharSlice integration_name = {
+                .ptr = integration->name_lcase,
+                .len = integration->name_len,
+            };
+
+            bool found = false;
+            for (uint32_t j = 0; j < ffi_integration_count; ++j) {
+                if (integration_name.len == ffi_integration_names[j].len &&
+                    memcmp(integration_name.ptr, ffi_integration_names[j].ptr, integration_name.len) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C(""), false);
+            }
+        }
+    }
+
+    ddtrace_ffi_try("Failed flushing telemetry buffer",
+                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
+}
+
 void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
     if (!ddtrace_sidecar || !get_global_DD_REMOTE_CONFIG_ENABLED()) {
         return;
@@ -406,6 +444,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
     if (changed || !root) {
         ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
     }
+
+    ddtrace_flush_missing_telemetry(service_slice, env_slice, version_slice);
 
     if (free_string) {
         zend_string_release(free_string);

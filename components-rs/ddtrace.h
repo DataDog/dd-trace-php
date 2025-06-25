@@ -279,4 +279,12 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
+bool ddog_telemetry_shm_parse(ddog_CharSlice service,
+                              ddog_CharSlice env,
+                              ddog_CharSlice version,
+                              ddog_CharSlice **out_integration_names,
+                              uint32_t *out_integration_count,
+                              ddog_CharSlice **out_paths,
+                              uint32_t *out_path_count);
+
 #endif  /* DDTRACE_PHP_H */

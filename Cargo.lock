@@ -1419,7 +1419,6 @@ dependencies = [
  "symbolic-common",
  "symbolic-demangle",
  "tempfile",
- "thiserror 1.0.69",
  "tokio",
  "uuid",
  "windows 0.59.0",
@@ -1846,8 +1845,6 @@ dependencies = [
  "rustls-native-certs 0.8.1",
  "serde",
  "static_assertions",
- "tempfile",
- "thiserror 1.0.69",
  "tokio",
  "tokio-rustls",
  "tower-service",
@@ -1961,6 +1958,7 @@ name = "ddtrace-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bincode",
  "cbindgen 0.27.0",
  "const-str",
  "datadog-crashtracker-ffi",
