@@ -1958,6 +1958,7 @@ name = "ddtrace-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bincode",
  "cbindgen 0.27.0",
  "const-str",
  "datadog-crashtracker-ffi",
