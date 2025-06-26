@@ -20,7 +20,7 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(12) {
+array(13) {
   ["runtime-id"]=>
   string(%d) %s
   ["appsec.events.users.login.success.usr.login"]=>
@@ -45,4 +45,6 @@ array(12) {
   string(%d) "metavalue02"
   ["_dd.p.ts"]=>
   string(2) "02"
+  ["_dd.p.dm"]=>
+  string(2) "-5"
 }

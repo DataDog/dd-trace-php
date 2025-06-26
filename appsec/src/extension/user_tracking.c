@@ -71,7 +71,6 @@ static void _emit_user_event(void)
 {
     dd_tags_set_user_event_triggered();
     dd_trace_emit_asm_event();
-    dd_tags_set_sampling_priority();
 }
 
 static PHP_FUNCTION(v2_track_user_login_success_wrapper)
