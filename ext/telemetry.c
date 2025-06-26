@@ -224,6 +224,7 @@ void ddtrace_telemetry_finalize(void) {
     }
 
     dd_commit_metrics();
+
     ddtrace_ffi_try("Failed flushing telemetry buffer",
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
 }
@@ -236,7 +237,7 @@ void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_
     if (ddtrace_sidecar && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
         ddog_CharSlice ver = (ddog_CharSlice) {.len = version_len, .ptr = version};
-        ddog_sidecar_telemetry_addIntegration(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), integration, ver, true);
+        ddog_sidecar_telemetry_addIntegration_buffer(ddtrace_telemetry_buffer(), integration, ver, true);
     }
 }
 
