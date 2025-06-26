@@ -1,6 +1,5 @@
 use crate::log::Log;
 use datadog_sidecar::service::telemetry::path_for_telemetry;
-use std::ffi::CString;
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
@@ -17,11 +16,9 @@ use ddtelemetry::data::{Dependency, Integration, LogLevel};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
 use ddtelemetry_ffi::try_c;
-use std::collections::HashSet;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use std::ptr;
 use std::str::FromStr;
 use zwohash::ZwoHasher;
 
@@ -231,83 +228,48 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_telemetry_shm_parse(
+pub extern "C" fn ddog_sidecar_telemetry_buffer_filter_new(
+    current_buffer: &mut SidecarActionsBuffer,
     service: CharSlice,
     env: CharSlice,
     version: CharSlice,
-    out_integration_names: *mut *mut CharSlice<'static>,
-    out_integration_count: *mut u32,
-    out_paths: *mut *mut CharSlice<'static>,
-    out_path_count: *mut u32,
-) -> bool {
+) -> *mut SidecarActionsBuffer {
     let Ok(service_str) = service.try_to_string() else {
-        return false;
+        return std::ptr::null_mut();
     };
     let Ok(env_str) = env.try_to_string() else {
-        return false;
+        return std::ptr::null_mut();
     };
     let Ok(version_str) = version.try_to_string() else {
-        return false;
+        return std::ptr::null_mut();
     };
 
     let shm_path = path_for_telemetry(service_str, env_str, version_str);
-
     let mapped = match open_named_shm(&shm_path) {
         Ok(m) => Some(m),
-        Err(_) => return false,
+        Err(_) => return std::ptr::null_mut(),
     };
 
-    let mut reader = OneWayShmReader::<NamedShmHandle, CString>::new(mapped, shm_path.clone());
+    let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(mapped, shm_path.clone());
     let (_, buf) = reader.read();
 
-    let Ok((integration_names, composer_paths)) =
-        bincode::deserialize::<(HashSet<String>, HashSet<PathBuf>)>(buf)
-    else {
-        return false;
+    let Ok((seen_integrations, seen_composer_paths)) = bincode::deserialize::<(
+        std::collections::HashSet<String>,
+        std::collections::HashSet<std::path::PathBuf>,
+    )>(buf) else {
+        return std::ptr::null_mut();
     };
 
-    let name_vec: Vec<CharSlice> = integration_names
+    let filtered = std::mem::take(&mut current_buffer.buffer)
         .into_iter()
-        .map(|name| {
-            let boxed: Box<str> = name.into_boxed_str();
-            let ptr = Box::leak(boxed);
-            CharSlice::from(&*ptr)
+        .filter(|action| match action {
+            SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
+                !seen_integrations.contains(&integration.name)
+            }
+            SidecarAction::PhpComposerTelemetryFile(path) => !seen_composer_paths.contains(path),
+            _ => false,
         })
         .collect();
 
-    let path_vec: Vec<CharSlice> = composer_paths
-        .into_iter()
-        .map(|p| {
-            let boxed: Box<str> = p.to_string_lossy().into_owned().into_boxed_str();
-            let ptr = Box::leak(boxed);
-            CharSlice::from(&*ptr)
-        })
-        .collect();
-
-    *out_integration_count = name_vec.len() as u32;
-    *out_path_count = path_vec.len() as u32;
-
-    let names_ptr =
-        libc::malloc(name_vec.len() * std::mem::size_of::<CharSlice>()) as *mut CharSlice;
-    if names_ptr.is_null() {
-        return false;
-    }
-
-    let paths_ptr =
-        libc::malloc(path_vec.len() * std::mem::size_of::<CharSlice>()) as *mut CharSlice;
-    if paths_ptr.is_null() {
-        libc::free(names_ptr as *mut _);
-        return false;
-    }
-
-    ptr::copy_nonoverlapping(name_vec.as_ptr(), names_ptr, name_vec.len());
-    ptr::copy_nonoverlapping(path_vec.as_ptr(), paths_ptr, path_vec.len());
-
-    *out_integration_names = names_ptr;
-    *out_paths = paths_ptr;
-
-    std::mem::forget(name_vec);
-    std::mem::forget(path_vec);
-
-    true
+    Box::into_raw(Box::new(SidecarActionsBuffer { buffer: filtered }))
 }
