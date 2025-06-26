@@ -637,3 +637,20 @@ zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
 // dummy symbol for tests, so that they can be run without being linked into PHP
 __attribute__((weak)) zend_write_func_t zend_write;
 #endif
+
+/**
+ * Wrapper functions to normalize sigsetjmp/siglongjmp across platforms.
+ * These hide the complexity of __sigsetjmp vs sigsetjmp and different
+ * jmp_buf types across glibc, musl, macOS, etc.
+ */
+
+int ddog_sigsetjmp(ddog_sigjmp_buf *env, int savemask) {
+    // sigsetjmp is a macro that may expand to __sigsetjmp on some platforms
+    // This wrapper normalizes the interface regardless of the underlying implementation
+    return sigsetjmp(env->buf, savemask);
+}
+
+void ddog_siglongjmp(ddog_sigjmp_buf *env, int val) {
+    // siglongjmp should be consistent across platforms, but we wrap it for symmetry
+    siglongjmp(env->buf, val);
+}

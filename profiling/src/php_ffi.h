@@ -13,6 +13,7 @@
 #include <php.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <setjmp.h>
 
 #include <ext/standard/info.h>
 
@@ -161,3 +162,15 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data);
 
 void ddog_php_opcache_init_handle();
 bool ddog_php_jit_enabled();
+
+/**
+ * Wrapper functions to normalize sigsetjmp/siglongjmp across platforms.
+ * These hide the complexity of __sigsetjmp vs sigsetjmp and different
+ * jmp_buf types across glibc, musl, macOS, etc.
+ */
+typedef struct ddog_sigjmp_buf_s {
+    sigjmp_buf buf;
+} ddog_sigjmp_buf;
+
+int ddog_sigsetjmp(ddog_sigjmp_buf *env, int savemask);
+void ddog_siglongjmp(ddog_sigjmp_buf *env, int val);

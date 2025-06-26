@@ -26,6 +26,7 @@ mod timeline;
 mod vec_ext;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
+use crate::profiling::init_opline_protection;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -370,6 +371,8 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         ZAI_CONFIG_ONCE = Once::new();
         RINIT_ONCE = Once::new();
     }
+
+    init_opline_protection();
 
     ZendResult::Success
 }
