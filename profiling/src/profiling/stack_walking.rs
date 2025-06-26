@@ -2,6 +2,7 @@ use crate::bindings::{zai_str_from_zstr, zend_execute_data, zend_function};
 use crate::vec_ext::VecExt;
 use std::borrow::Cow;
 use std::collections::TryReserveError;
+use std::mem::MaybeUninit;
 use std::str::Utf8Error;
 
 #[cfg(php_frameless)]
@@ -20,6 +21,47 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 /// replaced by a shorter string, etc.
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[large string]");
+
+// Thread-local storage for setjmp/longjmp
+thread_local! {
+    static OPLINE_ACCESS_FLAG: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static JUMP_BUFFER: std::cell::Cell<*mut crate::bindings::ddog_sigjmp_buf> = const { std::cell::Cell::new(std::ptr::null_mut())};
+}
+
+// Simple segfault handler for opline access
+extern "C" fn segfault_handler(sig: i32) {
+    OPLINE_ACCESS_FLAG.with(|flag| {
+        if flag.get() {
+            flag.set(false);
+            // Jump back to the setjmp point
+            JUMP_BUFFER.with(|buf| {
+                let jmp_buf_ptr = buf.get();
+                if !jmp_buf_ptr.is_null() {
+                    unsafe {
+                        crate::bindings::ddog_siglongjmp(jmp_buf_ptr, 1);
+                    }
+                }
+            });
+            // does not return from here, in fact will never reach this point as we `siglongjmp`
+            // few lines above
+        }
+    });
+    // Forward to default handler for other segfaults
+    unsafe {
+        libc::signal(sig, libc::SIG_DFL);
+        libc::raise(sig);
+    }
+}
+
+// Setup signal handler (call once during initialization)
+pub fn init_opline_protection() {
+    unsafe {
+        libc::signal(
+            libc::SIGSEGV,
+            segfault_handler as unsafe extern "C" fn(i32) as libc::sighandler_t,
+        );
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
@@ -101,6 +143,7 @@ unsafe fn extract_file_and_line(
             } else {
                 COW_LARGE_STRING
             };
+            // SAFETY: protected access to opline with segfault handling
             let lineno = match execute_data.opline.as_ref() {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -244,6 +287,21 @@ mod detail {
             let mut samples = Vec::with_capacity(max_depth >> 3);
             let mut execute_data_ptr = top_execute_data;
 
+            // Set up sigsetjmp for segfault recovery with signal mask preservation
+            let mut jmp_buf: MaybeUninit<crate::bindings::ddog_sigjmp_buf> = MaybeUninit::uninit();
+            OPLINE_ACCESS_FLAG.with(|flag| flag.set(true));
+            let setjmp_result = unsafe { crate::bindings::ddog_sigsetjmp(jmp_buf.as_mut_ptr(), 1) };
+
+            if setjmp_result != 0 {
+                // We jumped back here due to a segfault, clean up and return empty result
+                OPLINE_ACCESS_FLAG.with(|flag| flag.set(false));
+                JUMP_BUFFER.with(|buf| buf.set(std::ptr::null_mut()));
+                return Ok(samples);
+            }
+
+            // Store the jump buffer for the signal handler
+            JUMP_BUFFER.with(|buf| buf.set(jmp_buf.as_mut_ptr()));
+
             while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
                 // allowed because it's only used on the frameless path
                 #[allow(unused_variables)]
@@ -254,8 +312,9 @@ mod detail {
                     // this case, so we can check for null.
                     #[cfg(php_frameless)]
                     if !func.is_internal() && !execute_data.opline.is_null() {
-                        // SAFETY: if it's not null, then it should be valid
-                        // or something else has messed up already.
+                        // SAFETY: if it's not null, then it should be valid or something else has
+                        // messed up already, so we do a protected access to opline with segfault
+                        // handling
                         let opline = unsafe { &*execute_data.opline };
                         match opline.opcode as u32 {
                             ZEND_FRAMELESS_ICALL_0
@@ -296,6 +355,9 @@ mod detail {
 
                 execute_data_ptr = execute_data.prev_execute_data;
             }
+            // Unset flag on normal return
+            OPLINE_ACCESS_FLAG.with(|flag| flag.set(false));
+            JUMP_BUFFER.with(|buf| buf.set(std::ptr::null_mut()));
             Ok(samples)
         })
     }
@@ -378,7 +440,7 @@ mod detail {
         });
         match option {
             Some(filename) => {
-                // SAFETY: if there's a file, then there should be an opline.
+                // SAFETY: protected access to opline with segfault handling
                 let lineno = match execute_data.opline.as_ref() {
                     Some(opline) => opline.lineno,
                     None => 0,
@@ -410,6 +472,21 @@ mod detail {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
+        // Set up sigsetjmp for segfault recovery with signal mask preservation
+        let mut jmp_buf: MaybeUninit<crate::bindings::ddog_sigjmp_buf> = MaybeUninit::uninit();
+        OPLINE_ACCESS_FLAG.with(|flag| flag.set(true));
+        let setjmp_result = unsafe { crate::bindings::ddog_sigsetjmp(jmp_buf.as_mut_ptr(), 1) };
+
+        if setjmp_result != 0 {
+            // We jumped back here due to a segfault, clean up and return empty result
+            OPLINE_ACCESS_FLAG.with(|flag| flag.set(false));
+            JUMP_BUFFER.with(|buf| buf.set(std::ptr::null_mut()));
+            return Ok(Vec::new());
+        }
+
+        // Store the jump buffer for the signal handler
+        JUMP_BUFFER.with(|buf| buf.set(jmp_buf.as_mut_ptr()));
+
         let max_depth = 512;
         let mut samples = Vec::with_capacity(max_depth >> 3);
         let mut execute_data_ptr = top_execute_data;
@@ -435,6 +512,9 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
+        // Unset flag on normal return
+        OPLINE_ACCESS_FLAG.with(|flag| flag.set(false));
+        JUMP_BUFFER.with(|buf| buf.set(std::ptr::null_mut()));
         Ok(samples)
     }
 
