@@ -1,28 +1,38 @@
-use datadog_sidecar::service::blocking::SidecarTransport;
-use datadog_sidecar::service::{blocking, InstanceId, QueueId, SidecarAction};
-use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::{CharSlice, MaybeError, self as ffi};
+use crate::log::Log;
+use datadog_sidecar::service::telemetry::path_for_telemetry;
+
+use datadog_ipc::platform::NamedShmHandle;
+use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use datadog_sidecar::service::{
+    blocking::{self, SidecarTransport},
+    InstanceId, QueueId, SidecarAction,
+};
 use ddcommon::tag::parse_tags;
+use ddcommon_ffi::slice::AsBytes;
+use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
 use ddtelemetry::data;
 use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
 use ddtelemetry::data::{Dependency, Integration, LogLevel};
 use ddtelemetry::metrics::MetricContext;
-use ddtelemetry::worker::{TelemetryActions, LogIdentifier};
+use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
 use ddtelemetry_ffi::try_c;
 use std::error::Error;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::str::FromStr;
 use zwohash::ZwoHasher;
-use std::hash::{Hash, Hasher};
-use crate::log::Log;
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
-    ($lit:literal) => (const_str::replace!($lit, "/", "\\"))
+    ($lit:literal) => {
+        const_str::replace!($lit, "/", "\\")
+    };
 }
 #[cfg(unix)]
 macro_rules! windowsify_path {
-    ($lit:literal) => ($lit)
+    ($lit:literal) => {
+        $lit
+    };
 }
 
 #[must_use]
@@ -35,7 +45,11 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
 ) -> bool {
     let pathstr = path.to_utf8_lossy();
     if let Some(index) = pathstr.rfind(windowsify_path!("/vendor/autoload.php")) {
-        let path = format!("{}{}", &pathstr[..index], windowsify_path!("/vendor/composer/installed.json"));
+        let path = format!(
+            "{}{}",
+            &pathstr[..index],
+            windowsify_path!("/vendor/composer/installed.json")
+        );
         if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
             return true;
         }
@@ -49,7 +63,9 @@ fn parse_composer_installed_json(
     queue_id: &QueueId,
     path: String,
 ) -> Result<(), Box<dyn Error>> {
-    let action = vec![SidecarAction::PhpComposerTelemetryFile(PathBuf::from_str(path.as_str())?)];
+    let action = vec![SidecarAction::PhpComposerTelemetryFile(PathBuf::from_str(
+        path.as_str(),
+    )?)];
     blocking::enqueue_actions(transport, instance_id, queue_id, action)?;
 
     Ok(())
@@ -95,10 +111,10 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
     dependency_name: CharSlice,
     dependency_version: CharSlice,
 ) {
-    let version = (!dependency_version.is_empty())
-        .then(|| dependency_version.to_utf8_lossy().into_owned());
+    let version =
+        (!dependency_version.is_empty()).then(|| dependency_version.to_utf8_lossy().into_owned());
 
-    let action = TelemetryActions::AddDependecy(Dependency {
+    let action = TelemetryActions::AddDependency(Dependency {
         name: dependency_name.to_utf8_lossy().into_owned(),
         version,
     });
@@ -151,14 +167,15 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
     metric_type: MetricType,
     namespace: MetricNamespace,
 ) {
-
-    buffer.buffer.push(SidecarAction::RegisterTelemetryMetric(MetricContext {
-        name: metric_name.to_utf8_lossy().into_owned(),
-        namespace,
-        metric_type,
-        tags: Vec::default(),
-        common: true,
-    }));
+    buffer
+        .buffer
+        .push(SidecarAction::RegisterTelemetryMetric(MetricContext {
+            name: metric_name.to_utf8_lossy().into_owned(),
+            namespace,
+            metric_type,
+            tags: Vec::default(),
+            common: true,
+        }));
 }
 
 #[no_mangle]
@@ -181,7 +198,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_span_metric_point_buffer(
 pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
     category: Log,
     buffer: &mut SidecarActionsBuffer,
-    log: CharSlice
+    log: CharSlice,
 ) {
     let mut hasher = ZwoHasher::default();
     log.hash(&mut hasher);
@@ -194,7 +211,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
     };
 
     let action = TelemetryActions::AddLog((
-        LogIdentifier {indentifier: hasher.finish()},
+        LogIdentifier {
+            indentifier: hasher.finish(),
+        },
         data::Log {
             message: log.to_utf8_lossy().into_owned(),
             level,
@@ -203,7 +222,54 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
             tags: String::new(),
             is_sensitive: false,
             is_crash: false,
-        })
-    );
+        },
+    ));
     buffer.buffer.push(SidecarAction::Telemetry(action));
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_buffer_filter_new(
+    current_buffer: &mut SidecarActionsBuffer,
+    service: CharSlice,
+    env: CharSlice,
+    version: CharSlice,
+) -> *mut SidecarActionsBuffer {
+    let Ok(service_str) = service.try_to_string() else {
+        return std::ptr::null_mut();
+    };
+    let Ok(env_str) = env.try_to_string() else {
+        return std::ptr::null_mut();
+    };
+    let Ok(version_str) = version.try_to_string() else {
+        return std::ptr::null_mut();
+    };
+
+    let shm_path = path_for_telemetry(service_str, env_str, version_str);
+    let mapped = match open_named_shm(&shm_path) {
+        Ok(m) => Some(m),
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(mapped, shm_path.clone());
+    let (_, buf) = reader.read();
+
+    let Ok((seen_integrations, seen_composer_paths)) = bincode::deserialize::<(
+        std::collections::HashSet<String>,
+        std::collections::HashSet<std::path::PathBuf>,
+    )>(buf) else {
+        return std::ptr::null_mut();
+    };
+
+    let filtered = std::mem::take(&mut current_buffer.buffer)
+        .into_iter()
+        .filter(|action| match action {
+            SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
+                !seen_integrations.contains(&integration.name)
+            }
+            SidecarAction::PhpComposerTelemetryFile(path) => !seen_composer_paths.contains(path),
+            _ => false,
+        })
+        .collect();
+
+    Box::into_raw(Box::new(SidecarActionsBuffer { buffer: filtered }))
 }
