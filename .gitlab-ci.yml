@@ -2,7 +2,6 @@ stages:
   - build
   - tests
   - deploy
-  - benchmarks
   - ci-build
 
 variables:
@@ -21,7 +20,6 @@ include:
   - project: DataDog/apm-reliability/libdatadog-build
     ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
-  - local: .gitlab/benchmarks.yml
   - local: .gitlab/ci-images.yml
 
 build:
@@ -161,6 +159,7 @@ package-trigger:
     include:
       - artifact: .gitlab/package-gen.yml
         job: "generate-templates"
+      - local: .gitlab/benchmarks.yml
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID

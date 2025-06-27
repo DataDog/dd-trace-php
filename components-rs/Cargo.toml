@@ -12,14 +12,6 @@ ddcommon = { path = "../libdatadog/ddcommon", features = ["cgroup_testing"] }
 ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
 ddtelemetry = { path = "../libdatadog/ddtelemetry" }
 ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-data-pipeline-ffi = { path = "../libdatadog/data-pipeline-ffi", default-features = false }
-=======
->>>>>>> 51ae46aae (feat: move rust span code to sidecar-ffi)
-datadog-dynamic-configuration = { path = "../libdatadog/datadog-dynamic-configuration" }
->>>>>>> 8adfff687 (chore: fix tests)
 datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/datadog-ipc" }

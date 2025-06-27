@@ -34,4 +34,5 @@ Array
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null
     [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
 )

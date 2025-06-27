@@ -10,7 +10,7 @@ class TraceFlushBench
 {
     /**
      * @Revs(1)
-     * @Iterations(10)
+     * @Iterations(20)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
      * @BeforeMethods("setUp")
@@ -24,7 +24,8 @@ class TraceFlushBench
     {
         \dd_trace_serialize_closed_spans();
         Utils::putEnvAndReloadConfig([
-            'DD_TRACE_GENERATE_ROOT_SPAN=0'
+            'DD_TRACE_GENERATE_ROOT_SPAN=0',
+            'DD_TRACE_AUTO_FLUSH_ENABLED=0'
         ]);
 
         for ($i = 0; $i < 100; $i++) {
