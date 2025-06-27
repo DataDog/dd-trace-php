@@ -158,15 +158,15 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     log("%s thrown in ddtrace's integration autoloader for %s: %s",
                         type, ZSTR_VAL(aux->classname), msg);
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's integration autoloader for %s: %s",
-                            type, ZSTR_VAL(aux->classname), msg);
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's integration autoloader for %s: $ERROR_MSG",
+                            type, ZSTR_VAL(aux->classname));
                     }
                 } else if (PG(last_error_message)) {
                     log("Error raised in ddtrace's integration autoloader for %s: %s in %s on line %d",
                         ZSTR_VAL(aux->classname), LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's integration autoloader for %s: %s in <redacted>%s on line %d",
-                            ZSTR_VAL(aux->classname), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
+                        INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's integration autoloader for %s: $ERROR_MSG in <redacted>%s on line %d",
+                            ZSTR_VAL(aux->classname), ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
                     }
                 }
             })

@@ -103,7 +103,7 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
             if (PG(last_error_message)) {
                 log("Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                 if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED() && VCWD_ACCESS(filename, R_OK) == 0) {
-                    INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
+                    INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in autoloaded file %s: $ERROR_MSG in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                 }
             }
             zend_object *ex = EG(exception);
