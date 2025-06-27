@@ -342,17 +342,21 @@ ddog_TracesBytes *ddog_get_traces(void);
 
 void ddog_free_traces(ddog_TracesBytes *_traces);
 
-uintptr_t ddog_get_traces_size(ddog_TracesBytes *traces);
+uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
 
 ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
 
 ddog_TraceBytes *ddog_traces_new_trace(ddog_TracesBytes *traces);
 
-uintptr_t ddog_get_trace_size(ddog_TraceBytes *trace);
+uintptr_t ddog_get_trace_size(const ddog_TraceBytes *trace);
 
 ddog_SpanBytes *ddog_get_span(ddog_TraceBytes *trace, uintptr_t index);
 
 ddog_SpanBytes *ddog_trace_new_span(ddog_TraceBytes *trace);
+
+ddog_SpanBytes *ddog_trace_new_span_with_capacities(ddog_TraceBytes *trace,
+                                                    uintptr_t meta_size,
+                                                    uintptr_t metrics_size);
 
 ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *span);
 
@@ -440,7 +444,7 @@ void ddog_set_link_trace_id_high(ddog_SpanLinkBytes *link, uint64_t value);
 
 void ddog_set_link_span_id(ddog_SpanLinkBytes *link, uint64_t value);
 
-void ddog_set_link_flags(ddog_SpanLinkBytes *link, uint64_t value);
+void ddog_set_link_flags(ddog_SpanLinkBytes *link, uint32_t value);
 
 void ddog_add_link_attributes(ddog_SpanLinkBytes *link, ddog_CharSlice key, ddog_CharSlice val);
 

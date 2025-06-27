@@ -98,7 +98,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
     let version = (!dependency_version.is_empty())
         .then(|| dependency_version.to_utf8_lossy().into_owned());
 
-    let action = TelemetryActions::AddDependecy(Dependency {
+    let action = TelemetryActions::AddDependency(Dependency {
         name: dependency_name.to_utf8_lossy().into_owned(),
         version,
     });
@@ -194,7 +194,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
     };
 
     let action = TelemetryActions::AddLog((
-        LogIdentifier {indentifier: hasher.finish()},
+        LogIdentifier {identifier: hasher.finish()},
         data::Log {
             message: log.to_utf8_lossy().into_owned(),
             level,
