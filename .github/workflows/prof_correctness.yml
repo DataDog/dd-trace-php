@@ -75,7 +75,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "multi_allocations"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
@@ -102,6 +102,11 @@ jobs:
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
           php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
+          mkdir -p profiling/tests/correctness/multi_allocations/
+          export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/multi_allocations/test.pprof
+          export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+          php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/multi_allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run ZTS tests
@@ -130,6 +135,12 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations_1byte/
+
+      - name: Check profiler correctness for multi allocations with 1 byte sampling distance
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/multi_allocations.json
+          pprof_path: profiling/tests/correctness/multi_allocations/
 
       - name: Check profiler correctness for time
         uses: Datadog/prof-correctness/analyze@main

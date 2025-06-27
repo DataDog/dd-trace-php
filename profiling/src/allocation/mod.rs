@@ -65,22 +65,36 @@ impl AllocationProfilingStats {
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_allocations(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    1_i64,
-                    len as i64,
-                )
-            };
-        }
+        // Queue the allocation for safe-point collection
+        REQUEST_LOCALS.with_borrow_mut(|locals| {
+            locals
+                .allocation_interrupt_count
+                .fetch_add(1, Ordering::SeqCst);
+        });
+
+        PENDING_ALLOCATION_SIZE.with_borrow_mut(|pending_size| {
+            // Trigger interrupt only when transitioning from zero to non-zero
+            if *pending_size == 0 {
+                *pending_size += len as u64;
+                if let Some(profiler) = Profiler::get() {
+                    // TODO: If this thread needs to take an allocation sample, calling
+                    // `profiler.trigger_interrupt()` will not only trigger this threads interrupt,
+                    // but all other PHP ZTS threads interrupts as well. The interrupt handler is
+                    // pretty slim, and does not collect a stack trace if there is nothing pending,
+                    // yet we should only trigger an interrupt in the "current" thread.
+                    profiler.trigger_interrupt();
+                }
+            } else {
+                *pending_size += len as u64;
+            }
+        });
     }
 }
 
 thread_local! {
     static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> =
         RefCell::new(AllocationProfilingStats::new());
+    static PENDING_ALLOCATION_SIZE: RefCell<u64> = const {RefCell::new(0)};
 }
 
 pub fn alloc_prof_ginit() {
@@ -185,4 +199,14 @@ unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut
 
 unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
     initialization_panic();
+}
+
+/// Collect any pending allocations at VM interrupt safe-point
+/// This should be called from the VM interrupt handler
+pub fn collect_pending_allocations(execute_data: *mut zend::zend_execute_data, count: i64) {
+    let pending_size = PENDING_ALLOCATION_SIZE.with_borrow_mut(|size| std::mem::take(size));
+
+    if let Some(profiler) = Profiler::get() {
+        profiler.collect_allocations(execute_data, count, pending_size as i64);
+    }
 }

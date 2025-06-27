@@ -44,7 +44,9 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
             if locals.system_settings().profiling_enabled {
                 // Safety: only vm interrupts are stored there, or possibly null (edges only).
                 if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
-                    locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                    locals
+                        .wall_cpu_time_interrupt_count
+                        .fetch_add(1, Ordering::SeqCst);
                     vm_interrupt.store(true, Ordering::SeqCst);
                 }
             }
