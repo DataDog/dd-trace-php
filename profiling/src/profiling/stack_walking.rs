@@ -110,7 +110,10 @@ fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&crate::binding
     }
 
     // Safety: `opcodes_start` is null checked and both point/pointed to the same allocated object.
-    let opline_offset = unsafe { execute_data.opline.offset_from(opcodes_start) };
+    let opline_offset = unsafe {
+        execute_data.opline.byte_offset_from(opcodes_start)
+            / (std::mem::size_of::<crate::bindings::zend_op>() as isize)
+    };
 
     // Check if `opline` is within the allocated opcodes array `op_array`
     if opline_offset >= 0 && (opline_offset as u32) < op_array.last {
