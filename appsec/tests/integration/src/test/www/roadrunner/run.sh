@@ -1,12 +1,22 @@
 #!/bin/bash -e
 
 set -x
+set -o pipefail
 
 cd /var/www
 
 composer install --no-dev
 if [[ ! -f rr ]]; then
-  vendor/bin/rr get-binary
+  # Uses the github API, which is flaky
+  #vendor/bin/rr get-binary
+  if [[ $(arch) == "arm64" ]]; then
+    ARCH="arm64"
+  else
+    ARCH="amd64"
+  fi
+
+  curl -Lf https://github.com/roadrunner-server/roadrunner/releases/download/v2.12.3/roadrunner-2.12.3-linux-$ARCH.tar.gz | \
+    tar -xzf - --strip-components=1 roadrunner-2.12.3-linux-$ARCH/rr
 fi
 
 mkdir -p /tmp/logs/apache2

@@ -291,8 +291,24 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             throw new RuntimeException('one of workVolume, baseTag, phpVersion, phpVariant is missing')
         }
 
+        String dockerMirror = System.getProperty('DOCKER_MIRROR') ?: 'docker.io'
         String tag = "$baseTag-$phpVersion-$phpVariant"
-        this.imageName = "datadog/dd-appsec-php-ci:$tag"
+        String tagMappings = System.getProperty('TAG_MAPPINGS')
+        if (tagMappings) {
+            def binding = new Binding(ext: [:])
+            def shell = new GroovyShell(binding)
+            File scriptFile = new File(tagMappings)
+            shell.evaluate(scriptFile)
+            String sha = binding['ext']['tag_mappings'][tag]
+            if (!sha) {
+                log.info("No sha256 found for tag $tag in $tagMappings, using tag as is")
+                this.imageName = "$dockerMirror/datadog/dd-appsec-php-ci:$sha"
+            } else {
+                this.imageName = "$dockerMirror/datadog/dd-appsec-php-ci@$sha"
+            }
+         } else {
+            this.imageName = "$dockerMirror/datadog/dd-appsec-php-ci:$tag"
+        }
 
         privilegedMode = true
 
