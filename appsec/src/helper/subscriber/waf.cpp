@@ -162,7 +162,9 @@ action_type parse_action_type_string(const std::string &action)
     return action_type::invalid;
 }
 
-void format_waf_result(const ddwaf_object *actions, const ddwaf_object *events, event &event)
+void format_waf_result(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    const ddwaf_object *actions, const ddwaf_object *events, event &event)
 {
     try {
         if (actions != nullptr) {
@@ -422,8 +424,10 @@ void instance::listener::call(
     DDWAF_RET_CODE code;
     unsigned duration = 0;
     bool timeout = false;
-    const ddwaf_object *events = NULL, *actions = NULL, *attributes = NULL,
-             *keep = NULL;
+    const ddwaf_object *events = nullptr;
+    const ddwaf_object *actions = nullptr;
+    const ddwaf_object *attributes = nullptr;
+    const ddwaf_object *keep = nullptr;
     auto run_waf = [&]() {
         dds::parameter_view *persistent = rasp_rule.empty() ? &data : nullptr;
         dds::parameter_view *ephemeral = rasp_rule.empty() ? nullptr : &data;
@@ -431,27 +435,35 @@ void instance::listener::call(
             handle_, persistent, ephemeral, &res, waf_timeout_.count());
         for (size_t i = 0; i < ddwaf_object_size(&res); ++i) {
             const ddwaf_object *child = ddwaf_object_get_index(&res, i);
-            if (child == NULL) {
+            if (child == nullptr) {
                 /* handle failure */
+                continue;
             }
 
             size_t length = 0;
             const char *key = ddwaf_object_get_key(child, &length);
-            if (key == NULL) {
+            if (key == nullptr) {
                 /* handle failure */
+                continue;
             }
 
-            if (length == (sizeof("events") - 1) && memcmp(key, "events", length) == 0) {
+            if (length == (sizeof("events") - 1) &&
+                memcmp(key, "events", length) == 0) {
                 events = child;
-            } else if (length == (sizeof("actions") - 1) && memcmp(key, "actions", length) == 0) {
+            } else if (length == (sizeof("actions") - 1) &&
+                       memcmp(key, "actions", length) == 0) {
                 actions = child;
-            } else if (length == (sizeof("attributes") - 1) && memcmp(key, "attributes", length) == 0) {
+            } else if (length == (sizeof("attributes") - 1) &&
+                       memcmp(key, "attributes", length) == 0) {
                 attributes = child;
-            } else if (length == (sizeof("keep") - 1) && memcmp(key, "keep", length) == 0) {
+            } else if (length == (sizeof("keep") - 1) &&
+                       memcmp(key, "keep", length) == 0) {
                 keep = child;
-            } else if (length == (sizeof("duration") - 1) && memcmp(key, "duration", length) == 0) {
+            } else if (length == (sizeof("duration") - 1) &&
+                       memcmp(key, "duration", length) == 0) {
                 duration = ddwaf_object_get_unsigned(child);
-            } else if (length == (sizeof("timeout") - 1) && memcmp(key, "timeout", length) == 0) {
+            } else if (length == (sizeof("timeout") - 1) &&
+                       memcmp(key, "timeout", length) == 0) {
                 timeout = ddwaf_object_get_bool(child);
             }
         }
@@ -466,13 +478,15 @@ void instance::listener::call(
         // done on debug, we can live with it...
         if (events != nullptr) {
             DD_STDLOG(DD_STDLOG_AFTER_WAF,
-                parameter_to_json(parameter_view{*events}),
-                duration / millis);
+                parameter_to_json(parameter_view{*events}), duration / millis);
         }
         SPDLOG_DEBUG("Waf response: code {} - actions {} - attributes {}",
             fmt::underlying(code),
-                actions != nullptr ? parameter_to_json(parameter_view{*actions}) : "",
-                attributes != nullptr ? parameter_to_json(parameter_view{*attributes}) : "");
+            actions != nullptr ? parameter_to_json(parameter_view{*actions})
+                               : "",
+            attributes != nullptr
+                ? parameter_to_json(parameter_view{*attributes})
+                : "");
     } else {
         run_waf();
     }
