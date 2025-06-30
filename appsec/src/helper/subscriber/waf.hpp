@@ -70,7 +70,7 @@ public:
         unsigned rasp_calls_{0};
         unsigned rasp_timeouts_{0};
         DDWAF_RET_CODE code_{DDWAF_OK};
-        std::map<std::string, std::string> derivatives_;
+        std::map<std::string, std::string> attributes_;
         metrics::telemetry_tags base_tags_;
         bool rule_triggered_{};
         bool request_blocked_{};
