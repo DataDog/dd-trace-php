@@ -296,6 +296,7 @@
             "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ErrorDetailsStamp": 1,
             "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\ReceivedStamp": 1,
             "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\RedeliveryStamp": 1,
+            "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentForRetryStamp": 1,
             "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentToFailureTransportStamp": 1,
             "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializedMessageStamp": 1,
             "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 4,
