@@ -997,7 +997,6 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     EXPECT_FALSE(res->force_keep);
 }
 
-
 TEST(EngineTest, ListenersCanForceKeep)
 {
     // Lets set max 1 per second but both calls should be allowed

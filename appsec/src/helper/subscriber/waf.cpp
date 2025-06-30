@@ -444,30 +444,30 @@ void instance::listener::call(
                 continue;
             }
 
-            static constexpr const char events_str[] = "events";
-            static constexpr const char actions_str[] = "actions";
-            static constexpr const char attributes_str[] = "attributes";
-            static constexpr const char keep_str[] = "keep";
-            static constexpr const char duration_str[] = "duration";
-            static constexpr const char timeout_str[] = "timeout";
+            static constexpr std::string_view events_str = "events";
+            static constexpr std::string_view actions_str = "actions";
+            static constexpr std::string_view attributes_str = "attributes";
+            static constexpr std::string_view keep_str = "keep";
+            static constexpr std::string_view duration_str = "duration";
+            static constexpr std::string_view timeout_str = "timeout";
 
-            if (length == (sizeof(events_str) - 1) &&
-                memcmp(key, events_str, length) == 0) {
+            if (length == events_str.length() &&
+                memcmp(key, events_str.data(), length) == 0) {
                 events = child;
-            } else if (length == (sizeof(actions_str) - 1) &&
-                       memcmp(key, actions_str, length) == 0) {
+            } else if (length == actions_str.length() &&
+                       memcmp(key, actions_str.data(), length) == 0) {
                 actions = child;
-            } else if (length == (sizeof(attributes_str) - 1) &&
-                       memcmp(key, attributes_str, length) == 0) {
+            } else if (length == attributes_str.length() &&
+                       memcmp(key, attributes_str.data(), length) == 0) {
                 attributes = child;
-            } else if (length == (sizeof(keep_str) - 1) &&
-                       memcmp(key, keep_str, length) == 0) {
+            } else if (length == keep_str.length() &&
+                       memcmp(key, keep_str.data(), length) == 0) {
                 event.keep = ddwaf_object_get_bool(child);
-            } else if (length == (sizeof(duration_str) - 1) &&
-                       memcmp(key, duration_str, length) == 0) {
+            } else if (length == duration_str.length() &&
+                       memcmp(key, duration_str.data(), length) == 0) {
                 duration = ddwaf_object_get_unsigned(child);
-            } else if (length == (sizeof(timeout_str) - 1) &&
-                       memcmp(key, timeout_str, length) == 0) {
+            } else if (length == timeout_str.size() &&
+                       memcmp(key, timeout_str.data(), length) == 0) {
                 timeout = ddwaf_object_get_bool(child);
             }
         }
