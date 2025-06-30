@@ -91,9 +91,13 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
 /// Safely get opline reference with bounds checking to prevent segfaults on dangling pointers that
 /// have been observed when dereferencing `execute_data.opline` under some conditions.
 ///
-/// Safety: Relies on the caller to only try and access an `opline` for a non internal function
+/// Safety: Relies on the caller to only try and access an `opline` for a non internal function.
+/// Internal functions do not have an `execute_data.func.op_array` and as such the
+/// `execute_data.opline` is guaranteed to be invalid (dangling or only by accident pointing to
+/// some left over `op_array` from another non internal function). Check if the function is
+/// internal by calling `execute_data.func.is_internal()`.
 #[inline]
-fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&crate::bindings::zend_op> {
+unsafe fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&crate::bindings::zend_op> {
     if execute_data.opline.is_null() {
         return None;
     }
@@ -136,6 +140,7 @@ unsafe fn extract_file_and_line(
             } else {
                 COW_LARGE_STRING
             };
+            // Safety: we made sure that `execute_data.func` is a non internal function
             let lineno = match safely_get_opline(execute_data) {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -289,7 +294,8 @@ mod detail {
                     // this case, so we can check for null.
                     #[cfg(php_frameless)]
                     if !func.is_internal() {
-                        if let Some(opline) = safely_get_opline(execute_data) {
+                        // Safety: we made sure `execute_data.func` is a non internal function
+                        if let Some(opline) = unsafe { safely_get_opline(execute_data) } {
                             match opline.opcode as u32 {
                                 ZEND_FRAMELESS_ICALL_0
                                 | ZEND_FRAMELESS_ICALL_1
@@ -412,7 +418,9 @@ mod detail {
         });
         match option {
             Some(filename) => {
-                let lineno = match safely_get_opline(execute_data) {
+                // Safety: we made sure above by returning `Some(file)` that `execute_data.func` is
+                // a non internal function
+                let lineno = match unsafe { safely_get_opline(execute_data) } {
                     Some(opline) => opline.lineno,
                     None => 0,
                 };
