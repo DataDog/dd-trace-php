@@ -1312,7 +1312,10 @@ endforeach;
   stage: release
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
   tags: [ "arch:amd64" ]
-  when: manual
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+      when: always
+    - when: manual
   needs:
     - job: "prepare code"
       artifacts: true
