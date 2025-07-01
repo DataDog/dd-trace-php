@@ -50,6 +50,25 @@ These can be fetched from docker hub, but if you need to build them yourself,
 do `./gradlew buildAll`. You can also build a specific image. You can see the
 list of these individual tasks with `./gradlew tasks --all`.
 
+To then use these images, loaded locally in your docker instance, you need to
+run the tests with `-PfloatingImageTags=true`. Otherwise, the image digests
+listed in the file [`tag_mappings.gradle`](gradle/tag_mappings.gradle) will be
+used instead.
+
+## Updating the images on Docker Hub
+
+Pushing new images to Docker Hub requires logging in with a Docker Hub account
+that has access to the
+[`dd-appsec-php-ci`](https://hub.docker.com/r/datadog/dd-appsec-php-ci)
+repository. It's not currently possible to do this via Gitlab CI.
+
+You need an arm64 and an amd64 machine. On each, you'll run `./gradlew pushAll`.
+This will push images with the `-$ARCH` suffix in their tag. You then to run
+(once) `./gradlew pushMultiArch`.
+
+Finally, you need to run `./gradlew generateTagMappings` and submit a PR with
+the modified `tag_mappings.gradle`.
+
 ## Cleaning
 
 If for some reason you need to clean the builds of the tracer or appSec or some

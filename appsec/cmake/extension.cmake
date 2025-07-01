@@ -63,10 +63,7 @@ target_linker_flag_conditional(extension -Wl,-exported_symbol -Wl,_get_module)
 patch_away_libc(extension)
 
 if(DD_APPSEC_TESTING)
-    if(DD_APPSEC_ENABLE_COVERAGE)
-        target_compile_options(extension PRIVATE --coverage)
-        target_link_options(extension PRIVATE --coverage)
-    endif()
+    maybe_enable_coverage(extension)
 
     include(cmake/run_tests.cmake)
 endif()

@@ -89,12 +89,10 @@ if(DD_APPSEC_TESTING)
        add_subdirectory(tests/fuzzer EXCLUDE_FROM_ALL)
 
        if(DD_APPSEC_ENABLE_COVERAGE)
-           target_compile_options(helper_objects PRIVATE --coverage)
-           target_compile_options(ddappsec_helper_test PRIVATE --coverage)
+           maybe_enable_coverage(helper_objects)
+           maybe_enable_coverage(ddappsec_helper_test)
 
-           target_link_options(ddappsec_helper_test PRIVATE --coverage)
-
-           # helper objects are shared, so we need to link ddappsec-helper with --coverage too
-           target_link_options(ddappsec-helper PRIVATE --coverage)
+           # helper objects are shared, so we need to link ddappsec-helper with coverage too
+           maybe_enable_coverage(ddappsec-helper)
        endif()
 endif()
