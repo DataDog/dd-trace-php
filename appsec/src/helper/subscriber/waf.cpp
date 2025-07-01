@@ -444,30 +444,18 @@ void instance::listener::call(
                 continue;
             }
 
-            static constexpr std::string_view events_str = "events";
-            static constexpr std::string_view actions_str = "actions";
-            static constexpr std::string_view attributes_str = "attributes";
-            static constexpr std::string_view keep_str = "keep";
-            static constexpr std::string_view duration_str = "duration";
-            static constexpr std::string_view timeout_str = "timeout";
-
-            if (length == events_str.length() &&
-                memcmp(key, events_str.data(), length) == 0) {
+            const std::string_view key_sv{key, length};
+            if (key_sv == "events"sv) {
                 events = child;
-            } else if (length == actions_str.length() &&
-                       memcmp(key, actions_str.data(), length) == 0) {
+            } else if (key_sv == "actions"sv) {
                 actions = child;
-            } else if (length == attributes_str.length() &&
-                       memcmp(key, attributes_str.data(), length) == 0) {
+            } else if (key_sv == "attributes"sv) {
                 attributes = child;
-            } else if (length == keep_str.length() &&
-                       memcmp(key, keep_str.data(), length) == 0) {
+            } else if (key_sv == "keep"sv) {
                 event.keep = ddwaf_object_get_bool(child);
-            } else if (length == duration_str.length() &&
-                       memcmp(key, duration_str.data(), length) == 0) {
+            } else if (key_sv == "duration"sv) {
                 duration = ddwaf_object_get_unsigned(child);
-            } else if (length == timeout_str.size() &&
-                       memcmp(key, timeout_str.data(), length) == 0) {
+            } else if (key_sv == "timeout"sv) {
                 timeout = ddwaf_object_get_bool(child);
             }
         }
