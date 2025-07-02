@@ -6,7 +6,7 @@
 #include <remote_config/client.hpp>
 #include <service.hpp>
 extern "C" {
-#include <sidecar_ffi.h>
+#include <sidecar.h>
 }
 
 extern "C" {

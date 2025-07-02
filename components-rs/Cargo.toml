@@ -45,10 +45,6 @@ serde_json = "1.0.113"
 regex = "1.10.5"
 regex-automata = "0.4.5"
 http = "1.0"
-libc = "0.2"
 
 [build-dependencies]
 cbindgen = "0.27"
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)'] }

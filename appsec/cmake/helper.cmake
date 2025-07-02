@@ -22,7 +22,7 @@ set_target_properties(helper_objects PROPERTIES
     POSITION_INDEPENDENT_CODE 1)
 target_include_directories(helper_objects
     INTERFACE ${HELPER_INCLUDE_DIR}
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../libdatadog/datadog-sidecar/include
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../components-rs
 )
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
