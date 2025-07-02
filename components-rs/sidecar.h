@@ -162,6 +162,13 @@ ddog_MaybeError ddog_sidecar_lifecycle_end(struct ddog_SidecarTransport **transp
                                            const ddog_QueueId *queue_id);
 
 /**
+ * Enqueues a list of actions to be performed.
+ */
+ddog_MaybeError ddog_sidecar_application_remove(struct ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                const ddog_QueueId *queue_id);
+
+/**
  * Flushes the telemetry data.
  */
 ddog_MaybeError ddog_sidecar_telemetry_flush(struct ddog_SidecarTransport **transport,

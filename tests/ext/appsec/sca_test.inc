@@ -30,7 +30,7 @@ for ($i = 0; $i < 300; ++$i) {
             }
         }
         $found = array_filter($batches, function ($json) {
-            if ($json["request_type"] !== "app-started") {
+            if ($json["request_type"] !== "app-client-configuration-change") {
                 return false;
             }
             foreach($json["payload"]["configuration"] as $configuration) {
