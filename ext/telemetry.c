@@ -1,3 +1,4 @@
+#include "components-rs/sidecar.h"
 #include "ddtrace.h"
 #include "configuration.h"
 #include "integrations/integrations.h"
@@ -111,7 +112,16 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
                     ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 }
 
-void ddtrace_telemetry_finalize(void) {
+void ddtrace_telemetry_flush() {
+    if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        return;
+    }
+
+    ddtrace_ffi_try("Failed ending sidecar lifecycle",
+                    ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
+}
+
+void ddtrace_telemetry_finalize(bool clear_id) {
     if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
@@ -227,6 +237,12 @@ void ddtrace_telemetry_finalize(void) {
 
     ddtrace_ffi_try("Failed flushing telemetry buffer",
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
+
+    if (clear_id) {
+
+    ddtrace_ffi_try("Failed removing application from sidecar",
+                    ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
+    }
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {

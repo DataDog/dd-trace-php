@@ -2,9 +2,15 @@
 Check the library config files
 --SKIPIF--
 <?php
-if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
-if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to telemetry");
-if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow');
+if (getenv('PHP_PEAR_RUNTESTS') === '1') {
+    die("skip: pecl run-tests does not support {PWD}");
+}
+if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) {
+    die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to telemetry");
+}
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) {
+    die('skip timing sensitive test - valgrind is too slow');
+}
 require __DIR__ . '/../includes/clear_skipif_telemetry.inc';
 copy(__DIR__.'/local_config.yaml', '/tmp/test_c_local_config.yaml');
 ?>
@@ -17,7 +23,8 @@ datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
 <?php
 
-function to_str($val) {
+function to_str($val)
+{
     return $val ? "true" : "false";
 }
 
@@ -37,21 +44,24 @@ for ($i = 0; $i < 100; ++$i) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
-                if ($json && $json["request_type"] == "app-started" && $json["application"]["service_name"] != "background_sender-php-service" && $json["application"]["service_name"] != "datadog-ipc-helper") {
-                    $cfg = $json["payload"]["configuration"];
+                $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
+                foreach ($batch as $json) {
+                    if ($json["request_type"] == "app-client-configuration-change") {
+                        $cfg = $json["payload"]["configuration"];
 
-                    // Hack: On PHP <= 7.3, another PHP process is sending telemetry data
-                    // before the stable config file is taken into account.
-                    if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3) {
-                        if (strpos($l, '42_local_config') === false) {
-                            continue;
+                        // Hack: On PHP <= 7.3, another PHP process is sending telemetry data
+                        // before the stable config file is taken into account.
+                        if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3) {
+                            if (strpos($l, '42_local_config') === false) {
+                                continue;
+                            }
                         }
-                    }
 
-                    var_dump(array_values(array_filter($cfg, function($c) {
-                        return in_array($c["name"], ['service', 'env', 'dynamic_instrumentation.enabled', 'trace.spans_limit', 'trace.generate_root_span']);
-                    })));
-                    break 2;
+                        var_dump(array_values(array_filter($cfg, function ($c) {
+                            return in_array($c["name"], ['service', 'env', 'dynamic_instrumentation.enabled', 'trace.spans_limit', 'trace.generate_root_span']);
+                        })));
+                        break 3;
+                    }
                 }
             }
         }
