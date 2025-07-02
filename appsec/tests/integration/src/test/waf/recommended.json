@@ -470,9 +470,11 @@
                 "address": "server.request.headers.no_cookies",
                 "key_path": [ "authorization" ]
               }
-            ]
+            ],
+            "type": "string",
+            "value": "digest 1234567890"
           },
-          "operator": "exists"
+          "operator": "equals"
         }
       ],
       "transformers": [],

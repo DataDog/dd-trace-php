@@ -179,7 +179,7 @@ static void _pack_headers(
             dd_mpack_write_lstr(w, "content-length");
             dd_mpack_write_zval(w, val);
         } else if (zend_string_equals_literal(key, "PHP_AUTH_DIGEST")) {
-            if (Z_TYPE_P(val) == IS_STRING) {
+            if (Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
                 dd_mpack_write_lstr(w, "authorization");
                 size_t auth_len = sizeof("digest ") - 1 + Z_STRLEN_P(val);
                 char *auth_str = emalloc(auth_len);
