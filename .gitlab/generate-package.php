@@ -1321,8 +1321,9 @@ endforeach;
       artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
-    - job: "package extension asan"
-      artifacts: true
+# Maybe use a different base name for these
+#    - job: "package extension asan"
+#      artifacts: true
     - job: "package extension windows"
       artifacts: true
 <?php
