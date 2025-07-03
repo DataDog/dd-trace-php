@@ -1,0 +1,36 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_multi_allocations",
+  "stacks": [
+    {
+      "profile-type": "alloc-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;a;standard\\|array_intersect$",
+          "percent": 56,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;b;standard\\|array_intersect$",
+          "percent": 43,
+          "error_margin": 5
+        }
+      ]
+    },
+    {
+      "profile-type": "alloc-samples",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;a;standard\\|array_intersect$",
+          "percent": 50,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;b;standard\\|array_intersect$",
+          "percent": 50,
+          "error_margin": 5
+        }
+      ]
+    }
+  ]
+}

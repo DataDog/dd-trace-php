@@ -2,7 +2,7 @@
 //! implementation reasons, it has cpu-time code as well.
 
 use crate::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
-use crate::{profiling::Profiler, REQUEST_LOCALS};
+use crate::{allocation, profiling::Profiler, REQUEST_LOCALS};
 use core::ptr;
 use std::sync::atomic::Ordering;
 
@@ -96,45 +96,48 @@ mod execute_internal {
 /// once per process, this cannot be made into a OnceCell nor lazy_static.
 static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 
-/// Gathers a time sample if the configured period has elapsed.
+/// Gathers a sample if one is pending
 ///
 /// Exposed to the C API so the tracer can handle pending profiler interrupts
 /// before calling a tracing closure from an internal function hook; if this
 /// isn't done then the closure is erroneously at the top of the stack.
 ///
 /// # Safety
-/// The zend_execute_data pointer should come from the engine to ensure it and
-/// its sub-objects are valid.
+/// The `execute_data` is provided by the engine, and the profiler doesn't mutate it.
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
+    // Other extensions/modules or the engine itself may trigger an interrupt, but given how
+    // expensive it is to gather a stack trace, it should only be done if we triggered it
+    // ourselves. So `wall_cpu_time_interrupt_count` and `allocation_interrupt_count` serve
+    // dual purposes:
+    // 1. Track how many wall/cpu time and/or allocation interrupts there were.
+    // 2. Ensure we don't collect on someone else's interrupt.
+    let (wall_cpu_time_interrupt_count, allocation_interrupt_count) =
+        REQUEST_LOCALS.with_borrow(|locals| {
+            if !locals.system_settings().profiling_enabled {
+                // Profiler disabled, so just say we have no pending samples.
+                return (0, 0);
+            }
+            return (
+                locals
+                    .wall_cpu_time_interrupt_count
+                    .swap(0, Ordering::SeqCst),
+                locals.allocation_interrupt_count.swap(0, Ordering::SeqCst),
+            );
+        });
 
-        if !locals.system_settings().profiling_enabled {
-            return;
-        }
-
-        /* Other extensions/modules or the engine itself may trigger an
-         * interrupt, but given how expensive it is to gather a stack trace,
-         * it should only be done if we triggered it ourselves. So
-         * interrupt_count serves dual purposes:
-         *  1. Track how many interrupts there were.
-         *  2. Ensure we don't collect on someone else's interrupt.
-         */
-        let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
-        if interrupt_count == 0 {
-            return;
-        }
-
+    // Collect pending wall/cpu time
+    if wall_cpu_time_interrupt_count > 0 {
         if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_time(execute_data, interrupt_count);
+            profiler.collect_time(execute_data, wall_cpu_time_interrupt_count);
         }
-    });
+    }
+
+    // Collect pending allocations
+    if allocation_interrupt_count > 0 {
+        allocation::collect_pending_allocations(execute_data, allocation_interrupt_count as i64);
+    }
 }
 
 /// A wrapper for the `ddog_php_prof_interrupt_function` to call the
