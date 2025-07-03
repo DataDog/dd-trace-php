@@ -88,6 +88,49 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     }
 }
 
+/// Safely get opline reference with bounds checking to prevent segfaults on dangling pointers that
+/// have been observed when dereferencing `execute_data.opline` under some conditions.
+///
+/// Safety: Relies on the caller to only try and access an `opline` for a non internal function.
+/// Internal functions do not have an `execute_data.func.op_array` and as such the
+/// `execute_data.opline` is guaranteed to be invalid (dangling or only by accident pointing to
+/// some left over `op_array` from another non internal function). Check if the function is
+/// internal by calling `execute_data.func.is_internal()`.
+#[inline]
+unsafe fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&crate::bindings::zend_op> {
+    if execute_data.opline.is_null() {
+        return None;
+    }
+
+    let func = unsafe { execute_data.func.as_ref()? };
+
+    // Safety: relies on the caller to only call for non internal functions. In that case, the
+    // `op_array` is used in the union.
+    let op_array = unsafe { &func.op_array };
+    let opcodes_start = op_array.opcodes;
+
+    if opcodes_start.is_null() {
+        return None;
+    }
+
+    // Check if `opline` is within the allocated opcodes array `op_array`. `op_array.last` is the
+    // index of the last opcode, so valid range is [opcodes_start, opcodes_start + last]
+    let opcodes_end = unsafe { opcodes_start.add(op_array.last as usize) };
+    if { execute_data.opline as usize } >= { opcodes_start as usize } && {
+        execute_data.opline as usize
+    } < {
+        opcodes_end as usize
+    } {
+        // Safety: we did our best we could to validate that this pointer is not NULL and not
+        // dangling and actually pointing to the right kind of data. Otherwise this is the crash
+        // site you are looking for.
+        unsafe { Some(&*execute_data.opline) }
+    } else {
+        // Opline is out of bounds
+        None
+    }
+}
+
 unsafe fn extract_file_and_line(
     execute_data: &zend_execute_data,
 ) -> (Option<Cow<'static, str>>, u32) {
@@ -101,7 +144,8 @@ unsafe fn extract_file_and_line(
             } else {
                 COW_LARGE_STRING
             };
-            let lineno = match execute_data.opline.as_ref() {
+            // Safety: we made sure that `execute_data.func` is a non internal function
+            let lineno = match safely_get_opline(execute_data) {
                 Some(opline) => opline.lineno,
                 None => 0,
             };
@@ -253,25 +297,25 @@ mod detail {
                     // variable `fake_execute_data`. The frame is zeroed in
                     // this case, so we can check for null.
                     #[cfg(php_frameless)]
-                    if !func.is_internal() && !execute_data.opline.is_null() {
-                        // SAFETY: if it's not null, then it should be valid
-                        // or something else has messed up already.
-                        let opline = unsafe { &*execute_data.opline };
-                        match opline.opcode as u32 {
-                            ZEND_FRAMELESS_ICALL_0
-                            | ZEND_FRAMELESS_ICALL_1
-                            | ZEND_FRAMELESS_ICALL_2
-                            | ZEND_FRAMELESS_ICALL_3 => {
-                                let func = unsafe {
-                                    &**zend_flf_functions.offset(opline.extended_value as isize)
-                                };
-                                samples.try_push(ZendFrame {
-                                    function: extract_function_name(func).unwrap(),
-                                    file: None,
-                                    line: 0,
-                                })?;
+                    if !func.is_internal() {
+                        // Safety: we made sure `execute_data.func` is a non internal function
+                        if let Some(opline) = unsafe { safely_get_opline(execute_data) } {
+                            match opline.opcode as u32 {
+                                ZEND_FRAMELESS_ICALL_0
+                                | ZEND_FRAMELESS_ICALL_1
+                                | ZEND_FRAMELESS_ICALL_2
+                                | ZEND_FRAMELESS_ICALL_3 => {
+                                    let func = unsafe {
+                                        &**zend_flf_functions.offset(opline.extended_value as isize)
+                                    };
+                                    samples.try_push(ZendFrame {
+                                        function: extract_function_name(func).unwrap(),
+                                        file: None,
+                                        line: 0,
+                                    })?;
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
 
@@ -378,8 +422,9 @@ mod detail {
         });
         match option {
             Some(filename) => {
-                // SAFETY: if there's a file, then there should be an opline.
-                let lineno = match execute_data.opline.as_ref() {
+                // Safety: we made sure above by returning `Some(file)` that `execute_data.func` is
+                // a non internal function
+                let lineno = match unsafe { safely_get_opline(execute_data) } {
                     Some(opline) => opline.lineno,
                     None => 0,
                 };

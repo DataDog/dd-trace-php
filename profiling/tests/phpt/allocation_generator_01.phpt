@@ -13,17 +13,19 @@ restores the opline in a opcode handler!
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
-    echo "skip: test requires datadog-profiling", PHP_EOL;
+    die("skip: test requires datadog-profiling");
+if (PHP_VERSION_ID <= 80010)
+    die("skip: PHP is buggy");
 ?>
+--ENV--
+DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
 --INI--
 memory_limit=16m
 --FILE--
 <?php
-
 function a() {
     yield from a();
 }
-
 foreach(a() as $v);
 ?>
 --EXPECTF--
