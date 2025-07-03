@@ -56,6 +56,7 @@ option(DD_APPSEC_DDTRACE_ALT "Whether to build appsec with cmake" OFF)
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 
 include("cmake/patchelf.cmake")
+include("cmake/coverage.cmake")
 
 if(DD_APPSEC_BUILD_EXTENSION OR DD_APPSEC_DDTRACE_ALT)
     find_package(PhpConfig REQUIRED)

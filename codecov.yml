@@ -21,3 +21,8 @@ comment: # See https://docs.codecov.com/docs/pull-request-comments
   require_changes: true
   require_base: false
   require_head: false
+
+ignore:
+  - appsec/build
+  - appsec/tests
+  - appsec/third_party
