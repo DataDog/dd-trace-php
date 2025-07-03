@@ -15,6 +15,10 @@
 #include "components/log/log.h"
 #include "agent_info.h"
 
+/* Sampling constants */
+const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
+const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_try_read_agent_rate(void) {
@@ -210,8 +214,8 @@ static ddtrace_rule_result dd_decide_on_open_span_sampling(ddtrace_root_span_dat
     ddtrace_rule_result result = root->sampling_rule;
     do {
         ddtrace_span_data *span = SPANDATA(span_props);
-
-        ddtrace_rule_result new_result = dd_match_rules(span, &root->span == span && !root->parent_id, result.rule);
+        bool is_root = &root->span == span && (!root->parent_id || zval_get_long(&root->property_propagated_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN);
+        ddtrace_rule_result new_result = dd_match_rules(span, is_root, result.rule);
         if (new_result.rule != INT32_MAX) {
             result = new_result;
         }
@@ -230,7 +234,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     double sample_rate = 0;
     bool explicit_rule = true;
 
-    if (is_trace_root) {
+    if (is_trace_root || zval_get_long(&span->property_propagated_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         // when we sample, we need to fetch the env first
         ddtrace_check_agent_info_env();
 
@@ -295,7 +299,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     }
 
     // this must be stable on re-evaluation
-    bool sampling = (double)span->trace_id.low < sample_rate * (double)~0ULL;
+    bool sampling = (span->trace_id.low * KNUTH_FACTOR) <= (sample_rate * MAX_TRACE_ID);
     bool limited = false;
     if (result.mechanism != DD_MECHANISM_MANUAL && ddtrace_limiter_active() && sampling) {
         if (span->trace_is_limited == DD_TRACE_LIMIT_UNCHECKED) {
