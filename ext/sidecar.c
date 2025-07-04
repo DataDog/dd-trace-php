@@ -82,6 +82,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddog_sidecar_session_set_config(&sidecar_transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
+                                    dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION")))),
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),
@@ -96,6 +97,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS.len,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.ptr,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
+                                    get_DD_REMOTE_CONFIG_ENABLED(),
                                     is_fork);
 
     ddog_endpoint_drop(dogstatsd_endpoint);
@@ -391,6 +393,13 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
     }
     if (changed || !root) {
         ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+    }
+
+    ddog_SidecarActionsBuffer *filtered = ddog_sidecar_telemetry_buffer_filter_new(ddtrace_telemetry_buffer(), service_slice, env_slice, version_slice);
+    if (filtered) {
+        ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
+            ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), filtered));
+        ddog_sidecar_telemetry_buffer_drop(filtered);
     }
 
     if (free_string) {

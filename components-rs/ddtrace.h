@@ -157,6 +157,8 @@ struct ddog_Endpoint *ddtrace_parse_agent_url(ddog_CharSlice url);
 
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
+int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -276,5 +278,10 @@ void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActi
 void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
+
+struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_filter_new(struct ddog_SidecarActionsBuffer *current_buffer,
+                                                                           ddog_CharSlice service,
+                                                                           ddog_CharSlice env,
+                                                                           ddog_CharSlice version);
 
 #endif  /* DDTRACE_PHP_H */
