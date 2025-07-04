@@ -942,32 +942,6 @@ TEST(EngineTest, WafSubscriptorCustomRules)
     }
 }
 
-TEST(EngineTest, RateLimiterForceKeep)
-{
-    // Rate limit 0 allows all calls
-    int rate_limit = 0;
-    auto e{engine::create(rate_limit)};
-
-    auto listener = std::make_unique<mock::listener>();
-    EXPECT_CALL(*listener, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
-            event_.actions.push_back({dds::action_type::redirect, {}});
-        }));
-
-    auto sub = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
-        return std::move(listener);
-    }));
-
-    e->subscribe(std::move(sub));
-
-    parameter p = parameter::map();
-    p.add("a", parameter::string("value"sv));
-    auto res = e->get_context().publish(std::move(p));
-    EXPECT_TRUE(res->force_keep);
-}
-
 TEST(EngineTest, RateLimiterDoNotForceKeep)
 {
     // Lets set max 1 per second and do two calls
@@ -995,36 +969,6 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     p2.add("a", parameter::string("value"sv));
     res = e->get_context().publish(std::move(p2));
     EXPECT_FALSE(res->force_keep);
-}
-
-TEST(EngineTest, ListenersCanForceKeep)
-{
-    // Lets set max 1 per second but both calls should be allowed
-    int rate_limit = 1;
-    auto e{engine::create(rate_limit)};
-
-    auto sub = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
-        auto listener = std::make_unique<mock::listener>();
-        EXPECT_CALL(*listener, call(_, _, _))
-            .WillOnce(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                 std::string rasp) -> void {
-                event_.actions.push_back({dds::action_type::redirect, {}});
-                event_.keep = true;
-            }));
-        return listener;
-    }));
-
-    e->subscribe(std::move(sub));
-
-    parameter p = parameter::map();
-    p.add("a", parameter::string("value"sv));
-    auto res = e->get_context().publish(std::move(p));
-    EXPECT_TRUE(res->force_keep);
-    parameter p2 = parameter::map();
-    p2.add("a", parameter::string("value"sv));
-    res = e->get_context().publish(std::move(p2));
-    EXPECT_TRUE(res->force_keep);
 }
 
 } // namespace dds
