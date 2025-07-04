@@ -21,7 +21,7 @@ dd_result dd_command_process_config_sync(
 static const dd_command_spec _spec = {
     .name = "config_sync",
     .name_len = sizeof("config_sync") - 1,
-    .num_args = 1,
+    .num_args = 2,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_process_config_sync,
     .config_features_cb = dd_command_process_config_features,
@@ -42,7 +42,11 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx_)
     const struct config_sync_data *nonnull data =
         (struct config_sync_data *)ctx_;
 
+    // 1. rem_cfg_path
     dd_mpack_write_nullable_cstr(w, data->rem_cfg_path);
+
+    // 2. queue_id
+    mpack_write_u64(w, dd_trace_get_sidecar_queue_id());
 
     return dd_success;
 }

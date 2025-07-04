@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "engine_listener.hpp"
+#include "../../telemetry.hpp"
 #include "../exception.hpp"
 #include "../product.hpp"
 #include "config_aggregators/asm_aggregator.hpp"
@@ -15,7 +16,7 @@
 namespace dds::remote_config {
 
 engine_listener::engine_listener(std::shared_ptr<engine> engine,
-    std::shared_ptr<dds::metrics::telemetry_submitter> msubmitter,
+    std::shared_ptr<dds::telemetry::telemetry_submitter> msubmitter,
     const std::string & /*rules_file*/)
     : engine_{std::move(engine)}, msubmitter_{std::move(msubmitter)}
 {

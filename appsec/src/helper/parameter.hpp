@@ -11,6 +11,13 @@
 
 #include "parameter_base.hpp"
 
+namespace {
+template <typename T>
+concept StrictDDwafObjectSubtype =
+    std::is_base_of_v<ddwaf_object, std::decay_t<T>> &&
+    !std::is_same_v<ddwaf_object, std::decay_t<T>>;
+}
+
 namespace dds {
 
 class parameter : public parameter_base {
@@ -18,12 +25,7 @@ public:
     parameter() = default;
     explicit parameter(const ddwaf_object &arg);
 
-    template <typename T,
-        typename = std::enable_if_t<std::conjunction_v<
-            std::is_base_of<ddwaf_object, std::remove_cv_t<std::decay_t<T>>>,
-            std::negation<std::is_same<ddwaf_object,
-                std::remove_cv_t<std::decay_t<T>>>>>>>
-    parameter(T &&t) = delete;
+    template <StrictDDwafObjectSubtype T> parameter(T &&t) = delete;
 
     parameter(const parameter &) = delete;
     parameter &operator=(const parameter &) = delete;

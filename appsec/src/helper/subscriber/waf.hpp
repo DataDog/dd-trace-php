@@ -50,7 +50,8 @@ public:
             const std::string &rasp_rule) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
-        void submit_metrics(metrics::telemetry_submitter &msubmitter) override;
+        void submit_metrics(
+            telemetry::telemetry_submitter &msubmitter) override;
 
     protected:
         struct rasp_telemetry_metrics {
@@ -71,7 +72,7 @@ public:
         unsigned rasp_timeouts_{0};
         DDWAF_RET_CODE code_{DDWAF_OK};
         std::map<std::string, std::string> attributes_;
-        metrics::telemetry_tags base_tags_;
+        telemetry::telemetry_tags base_tags_;
         bool rule_triggered_{};
         bool request_blocked_{};
         bool waf_hit_timeout_{};
@@ -79,7 +80,7 @@ public:
     };
 
     // NOLINTNEXTLINE(google-runtime-references)
-    instance(dds::parameter rule, metrics::telemetry_submitter &msubmit,
+    instance(dds::parameter rule, telemetry::telemetry_submitter &msubmit,
         std::uint64_t waf_timeout_us,
         std::string_view key_regex = std::string_view(),
         std::string_view value_regex = std::string_view());
@@ -100,22 +101,22 @@ public:
 
     std::unique_ptr<subscriber> update(
         const remote_config::changeset &changeset,
-        metrics::telemetry_submitter &msubmitter) override;
+        telemetry::telemetry_submitter &msubmitter) override;
 
     static std::unique_ptr<instance> from_settings(
         const engine_settings &settings, parameter ruleset,
-        metrics::telemetry_submitter &msubmitter);
+        telemetry::telemetry_submitter &msubmitter);
 
     // testing only
     static std::unique_ptr<instance> from_string(std::string_view rule,
-        metrics::telemetry_submitter &msubmitter,
+        telemetry::telemetry_submitter &msubmitter,
         std::uint64_t waf_timeout_us = default_waf_timeout_us,
         std::string_view key_regex = std::string_view(),
         std::string_view value_regex = std::string_view());
 
 protected:
     instance(std::shared_ptr<waf_builder> builder, waf_handle_up handle,
-        metrics::telemetry_submitter &msubmitter,
+        telemetry::telemetry_submitter &msubmitter,
         std::chrono::microseconds timeout, std::string version);
 
     static constexpr std::string_view BUILTIN_RULES_KEY = "ASM_DD/builtin";
@@ -125,7 +126,7 @@ protected:
     std::chrono::microseconds waf_timeout_;
     std::string ruleset_version_;
     std::unordered_set<std::string> addresses_;
-    metrics::telemetry_submitter &msubmitter_; // NOLINT
+    telemetry::telemetry_submitter &msubmitter_; // NOLINT
 };
 
 parameter parse_file(std::string_view filename);
