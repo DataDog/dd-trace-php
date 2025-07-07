@@ -476,6 +476,7 @@ dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t force_keep = mpack_node_array_at(root, RESP_INDEX_FORCE_KEEP);
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
+        dd_trace_emit_asm_event();
         dd_tags_set_sampling_priority();
     }
 
