@@ -18,9 +18,11 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(2) {
+array(3) {
   ["runtime-id"]=>
   string(%d) %s
   ["_dd.p.ts"]=>
   string(2) "02"
+  ["_dd.p.dm"]=>
+  string(2) "-5"
 }

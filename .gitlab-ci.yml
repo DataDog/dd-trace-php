@@ -8,9 +8,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
-  LATEST_LIBRARY_x86_64_LINUX_GNU:
-    value: ""
-    description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -22,74 +19,6 @@ include:
     file: templates/ci_authenticated_job.yml
   - local: .gitlab/ci-images.yml
 
-build:
-  extends: .ci_authenticated_job
-  stage: build
-  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - |
-      if [ -z "$LATEST_LIBRARY_x86_64_LINUX_GNU" ]; then
-        source /download-binary-tracer.sh
-        get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-x86_64-linux-gnu.tar.gz" "dd-library-php-x86_64-linux-gnu.tar.gz"
-        get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "datadog-setup.php" "datadog-setup.php"
-        echo "UPSTREAM_TRACER_VERSION=dev-master" >> upstream.env
-      else
-        UPSTREAM_TRACER_VERSION=$(echo "$LATEST_LIBRARY_x86_64_LINUX_GNU" | grep -Po '(?<=dd-library-php-).+(?=-x86_64-linux-gnu.tar.gz)')
-        echo "UPSTREAM_TRACER_VERSION=${UPSTREAM_TRACER_VERSION}" >> upstream.env
-        curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
-        curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
-      fi
-    - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
-  artifacts:
-    paths:
-      - 'upstream.env'
-      - 'datadog-setup-x86_64-linux-gnu.tar'
-
-deploy_to_reliability_env:
-  stage: deploy
-  needs: [ build ]
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
-      when: always
-    - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-      when: always
-    - when: manual
-      allow_failure: true
-  trigger:
-    project: DataDog/apm-reliability/datadog-reliability-env
-    branch: $DOWNSTREAM_REL_BRANCH
-  variables:
-    UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
-#    COMMIT_SHA would be wrong because the artifact is not built here
-#    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
-
-tracer-base-image:
-  extends: .ci_authenticated_job
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
-  stage: deploy
-  needs: [ build ]
-  script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-
-    #Dev X86
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh dev
-    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
-
-    #Prod X86
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod
-    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
-
 generate-templates:
   stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
@@ -97,7 +26,7 @@ generate-templates:
   needs: []
   script:
     - php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
-    - php ./.gitlab/generate-tests.php | tee .gitlab/tests-gen.yml
+    - php ./.gitlab/generate-tracer.php | tee .gitlab/tracer-gen.yml
     - php ./.gitlab/generate-appsec.php | tee .gitlab/appsec-gen.yml
     - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
     - php ./.gitlab/generate-shared.php | tee .gitlab/shared-gen.yml
@@ -107,12 +36,12 @@ generate-templates:
     paths:
       - .gitlab/*-gen.yml
 
-tests-trigger:
+tracer-trigger:
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
     include:
-      - artifact: .gitlab/tests-gen.yml
+      - artifact: .gitlab/tracer-gen.yml
         job: "generate-templates"
     strategy: depend
   variables:
