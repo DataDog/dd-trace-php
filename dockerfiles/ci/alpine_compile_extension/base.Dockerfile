@@ -11,8 +11,6 @@ RUN set -eux; \
         autoconf \
         catch2 \
         coreutils \
-        g++ \
-        gcc \
         make \
         cmake \
         build-base \
@@ -32,7 +30,7 @@ RUN set -eux; \
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
-RUN apk add --no-cache llvm17-libs clang17-dev lld llvm17 rust-stdlib cargo clang git protoc unzip
+RUN apk add --no-cache llvm19-libs clang19-dev lld19 llvm19 rust-stdlib cargo clang19 git protoc unzip
 
 RUN cargo install --force --locked bindgen-cli && mv /root/.cargo/bin/bindgen /usr/local/bin/ && rm -rf /root/.cargo
 

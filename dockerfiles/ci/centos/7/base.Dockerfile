@@ -164,31 +164,31 @@ RUN source scl_source enable devtoolset-7; set -ex; \
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/openssl/lib/pkgconfig:/usr/local/zlib/lib/pkgconfig:/usr/local/curl/lib/pkgconfig:/usr/local/sqlite3/lib/pkgconfig"
 
 # Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 17, which matches Rust 1.76.
+# I picked LLVM 19, which matches Rust 1.84.1.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 RUN source scl_source enable devtoolset-9 \
-  && yum install -y python3 \
+  && yum install -y rh-python38 --nogpgcheck \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
   && mkdir -vp "${SRC_DIR}/ninja/build" \
   && cd "${SRC_DIR}/ninja/build" \
-  && ../configure.py --bootstrap --verbose \
+  && /opt/rh/rh-python38/root/usr/bin/python3.8 ../configure.py --bootstrap --verbose --with-python=/opt/rh/rh-python38/root/usr/bin/python3.8 \
   && strip ninja \
   && mv -v ninja /usr/local/bin/ \
   && cd - \
   && rm -fr "${SRC_DIR}/ninja" \
   && cd /usr/local/src \
-  && git clone --depth 1 -b release/17.x https://github.com/llvm/llvm-project.git \
+  && git clone --depth 1 -b release/19.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
+  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm -DPython3_EXECUTABLE=/opt/rh/rh-python38/root/usr/bin/python3.8 \
   && cmake --build . --parallel $(nproc) --target "install/strip" \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
   && cd - \
   && rm -fr llvm-project \
-  && yum remove -y python3 \
+  && yum remove -y rh-python38 \
   && yum clean all
 
 ARG PROTOBUF_VERSION="3.19.4"

@@ -9,10 +9,10 @@ ENV ACCEPT_EULA=Y
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
 ENV DEVLIBS \
-    libclang-17-dev \
-    libclang-rt-17-dev \
-    llvm-17-dev \
-    lld-17 \
+    libclang-19-dev \
+    libclang-rt-19-dev \
+    llvm-19-dev \
+    lld-19 \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -65,7 +65,7 @@ ENV PHPIZE_DEPS \
     autoconf \
     bison \
     catch2 \
-    clang-17 \
+    clang-19 \
     cmake \
     dpkg-dev \
     file \
@@ -89,12 +89,12 @@ RUN set -eux; \
     echo "deb http://deb.debian.org/debian-debug/ bookworm-debug main" | \
         tee -a /etc/apt/sources.list; \
     \
-# Use LLVM from orig vendor (also LLVM 17 is not shipped with bookworm)
+# Use LLVM from orig vendor (also LLVM 19 is not shipped with bookworm)
     apt-get update; \
     apt-get install -y curl gnupg software-properties-common; \
     curl https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
-    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-17 main"; \
-    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-17 main"; \
+    add-apt-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-19 main"; \
+    add-apt-repository "deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-19 main"; \
     \
 # prevent Debian's PHP packages from being installed
 # https://github.com/docker-library/php/pull/542
@@ -128,14 +128,14 @@ RUN set -eux; \
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
     \
 # Make clang the default compiler
-    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-17 100; \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-17 100; \
-    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100; \
-    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100; \
-    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-17 100; \
-    echo "-L /usr/lib/llvm-17/lib/clang/17/lib/linux" > /usr/lib/llvm-17/bin/clang.cfg; \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-19 100; \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-19 100; \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100; \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100; \
+    update-alternatives --install /usr/bin/ld ld /usr/bin/ld.lld-19 100; \
+    echo "-L /usr/lib/llvm-19/lib/clang/19/lib/linux" > /usr/lib/llvm-19/bin/clang.cfg; \
 # Include libasan library path
-    echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
+    echo /usr/lib/llvm-19/lib/clang/19/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
 
 # Install lcov
 RUN set -eux; \
