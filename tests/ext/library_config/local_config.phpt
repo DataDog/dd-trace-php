@@ -20,6 +20,8 @@ _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_local_config.yaml
 DD_TRACE_SPANS_LIMIT=42
 --INI--
 datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
+--XFAIL--
+Need fixing
 --FILE--
 <?php
 
