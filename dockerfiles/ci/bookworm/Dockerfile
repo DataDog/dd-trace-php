@@ -164,10 +164,10 @@ RUN set -eux; \
 
 # Install valgrind
 RUN set -eux; \
-    VALGRIND_VERSION="3.23.0"; \
-    VALGRIND_SHA1="ec410c75d3920d4f9249a5cfa2cac31e1bf6d586"; \
+    VALGRIND_VERSION="3.25.0"; \
+    VALGRIND_SHA256="295f60291d6b64c0d90c1ce645634bdc5361d39b0c50ecf9de6385ee77586ecc"; \
     cd /tmp && curl -OL https://sourceware.org/pub/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
-    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha1sum -c -); \
+    (echo "${VALGRIND_SHA256}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha256sum -c -); \
     mkdir valgrind && cd valgrind; \
     tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
     ./configure; \
