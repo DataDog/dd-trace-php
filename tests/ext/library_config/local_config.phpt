@@ -19,9 +19,7 @@ _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_local_config.yaml
 DD_TRACE_SPANS_LIMIT=42
 --INI--
-datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
---XFAIL--
-Need fixing
+datadog.trace.agent_url="file://{PWD}/local-config-telemetry.out"
 --FILE--
 <?php
 
@@ -42,8 +40,8 @@ dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 100; ++$i) {
     usleep(100000);
-    if (file_exists(__DIR__ . '/config-telemetry.out')) {
-        foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
+    if (file_exists(__DIR__ . '/local-config-telemetry.out')) {
+        foreach (file(__DIR__ . '/local-config-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
@@ -136,4 +134,4 @@ array(5) {
 --CLEAN--
 <?php
 
-@unlink(__DIR__ . '/config-telemetry.out');
+@unlink(__DIR__ . '/local-config-telemetry.out');

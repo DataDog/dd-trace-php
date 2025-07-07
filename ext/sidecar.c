@@ -411,7 +411,6 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
     if (filtered) {
         ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
             ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), filtered));
-        ddog_sidecar_telemetry_buffer_drop(filtered);
     }
 
     if (free_string) {
