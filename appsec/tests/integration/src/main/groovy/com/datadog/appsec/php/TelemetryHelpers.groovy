@@ -1,5 +1,7 @@
 package com.datadog.appsec.php
 
+import groovy.transform.Canonical
+
 /**
  * @link https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md
  */
@@ -37,6 +39,37 @@ class TelemetryHelpers {
             common = m.common
             type = m.type
             interval = m.interval
+        }
+    }
+
+    static class Logs {
+        static names = ['logs']
+        List<Log> logs
+
+        Logs(List m) {
+            logs = m.collect { new Log(it as Map) }
+        }
+    }
+
+    @Canonical
+    static class Log {
+        String level
+        String message
+        int count
+        String tags
+        String stack_trace
+        String is_sensitive
+        boolean is_crash
+
+        def getParsedTags() {
+            if (tags) {
+                tags.split(',').collectEntries { tag ->
+                    def parts = tag.split(':', 2)
+                    [(parts[0]): parts[1]]
+                }
+            } else {
+                [:]
+            }
         }
     }
 

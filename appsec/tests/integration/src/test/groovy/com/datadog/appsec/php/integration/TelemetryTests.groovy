@@ -243,6 +243,82 @@ class TelemetryTests {
 
     @Test
     @Order(3)
+    void 'telemetry log for failed application of config'() {
+        def request = CONTAINER.buildReq('/hello.php').GET().build()
+        CONTAINER.traceFromRequest(request, ofString()) { HttpResponse<String> resp ->
+            assert resp.body().size() > 0
+        }
+
+        def requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_DATA/bad_config/config': [
+                        rules_data: 'BAD VALUE'
+                ],
+                'datadog/2/ASM_DD/bad_rule/config': [
+                        version: '2.1',
+                        metadata: [rules_version: '1.1.1'],
+                        rules: [[
+                                        id: 'bad_rule',
+                                        name: 'Name of the bad rule',
+                                ]
+                        ]
+                ],
+                'datadog/2/ASM_DD/warning_rule/config': [
+                        version: '2.1',
+                        metadata: [rules_version: '1.1.1'],
+                        rules: [[
+                                        id: 'bad_condition_rule',
+                                        name: 'Bad condition rule',
+                                        tags: [
+                                                type: 'block_ip',
+                                                category: 'attack_attempt'
+                                        ],
+                                        conditions: [[
+                                                             parameters: [:],
+                                                             operator: 'unknown_operator'
+                                                     ]],
+                                ]
+                        ]
+                ]
+        ])
+
+        def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
+            logs.any { it.logs.any { it.tags.contains('log_type:rc::') && it.level == 'ERROR' } }
+        }.collectMany { it.logs }
+
+        assert requestSup.get() != null
+
+        assert messages.size() >= 3
+        assert messages.any {
+            it.level == 'ERROR' &&
+                    it.message == "bad cast, expected 'array', obtained 'string'" &&
+                    it.parsedTags == [
+                    log_type: 'rc::asm_data::diagnostic',
+                    appsec_config_key: 'rules_data',
+                    rc_config_id: 'bad_config',
+            ]
+        }
+        assert messages.any {
+            it.level == 'ERROR' &&
+                    it.message == "{\"missing key 'conditions'\":[\"bad_rule\"]}" &&
+                    it.parsedTags == [
+                    log_type: 'rc::asm_dd::diagnostic',
+                    appsec_config_key: 'rules',
+                    rc_config_id: 'bad_rule',
+            ]
+        }
+        assert messages.any {
+            it.level == 'WARN' &&
+                    it.message == "{\"unknown operator: 'unknown_operator'\":[\"bad_condition_rule\"]}" &&
+                    it.parsedTags == [
+                    log_type: 'rc::asm_dd::diagnostic',
+                    appsec_config_key: 'rules',
+                    rc_config_id: 'warning_rule',
+            ]
+        }
+    }
+
+    @Test
+    @Order(4)
     void 'telemetry reflects the loading of a new integration'() {
         def trace = CONTAINER.traceFromRequest('/custom_integrations.php?integrations[]=redis') {
             HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
@@ -280,8 +356,12 @@ class TelemetryTests {
         waitForTelemetryData(timeoutSec, cl, TelemetryHelpers.WithIntegrations)
     }
 
-    private static List<TelemetryHelpers.GenerateMetrics> waitForTelemetryData(int timeoutSec, Closure<Boolean> cl, Class cls) {
-        List<TelemetryHelpers.GenerateMetrics> messages = []
+    private static List<TelemetryHelpers.Logs> waitForTelemetryLogs(int timeoutSec, Closure<Boolean> cl) {
+        waitForTelemetryData(timeoutSec, cl, TelemetryHelpers.Logs)
+    }
+
+    private static <T> List<T> waitForTelemetryData(int timeoutSec, Closure<Boolean> cl, Class<T> cls) {
+        List<T> messages = []
         def deadline = System.currentTimeSeconds() + timeoutSec
         def lastHttpReq = System.currentTimeSeconds() - 6
         while (System.currentTimeSeconds() < deadline) {
@@ -308,7 +388,7 @@ class TelemetryTests {
      * interval is hardcoded to 10 seconds in the metrics.rs.
      */
     @Test
-    @Order(4)
+    @Order(5)
     void 'Rasp telemetry is generated'() {
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [

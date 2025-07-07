@@ -167,7 +167,7 @@ bool client::handle_command(const network::client_init::request &command)
 
     try {
         set_service(service_manager_->create_service(
-            eng_settings, command.rc_settings));
+            eng_settings, command.rc_settings, command.sc_settings));
 
         // save engine settings so we can recreate the service if rc path
         // changes
@@ -365,7 +365,10 @@ bool client::handle_command(network::config_sync::request &command)
     }
 
     SPDLOG_DEBUG(
-        "received command config_sync with path {}", command.rem_cfg_path);
+        "received command config_sync with rem cfg path {} and queue id {}",
+        command.rem_cfg_path, command.queue_id);
+
+    service_->drain_logs(command.queue_id);
 
     update_remote_config_path(command.rem_cfg_path);
 
@@ -451,6 +454,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     }
 
     collect_metrics(*response, *service_, context_);
+    service_->drain_logs(command.queue_id);
 
     return send_message<network::request_shutdown>(response);
 }
@@ -474,8 +478,11 @@ void client::update_remote_config_path(std::string_view path)
         rc_settings.shmem_path = path;
     }
 
-    set_service(
-        service_manager_->create_service(*engine_settings_, rc_settings));
+    sidecar_settings current_sc_settings = service_->get_sidecar_settings();
+    std::shared_ptr<service> new_service = service_manager_->create_service(
+        *engine_settings_, rc_settings, std::move(current_sc_settings));
+
+    set_service(std::move(new_service));
 }
 
 bool client::run_client_init()
@@ -517,7 +524,7 @@ void client::run(worker::queue_consumer &q)
 
 namespace {
 
-struct request_metrics_submitter : public metrics::telemetry_submitter {
+struct request_metrics_submitter : public telemetry::telemetry_submitter {
     request_metrics_submitter() = default;
     ~request_metrics_submitter() override = default;
     request_metrics_submitter(const request_metrics_submitter &) = delete;
@@ -527,7 +534,7 @@ struct request_metrics_submitter : public metrics::telemetry_submitter {
     request_metrics_submitter &operator=(request_metrics_submitter &&) = delete;
 
     void submit_metric(std::string_view name, double value,
-        metrics::telemetry_tags tags) override
+        telemetry::telemetry_tags tags) override
     {
         std::string tags_s = tags.consume();
         SPDLOG_TRACE("submit_metric [req]: name={}, value={}, tags={}", name,
@@ -550,6 +557,15 @@ struct request_metrics_submitter : public metrics::telemetry_submitter {
         SPDLOG_TRACE(
             "submit_span_meta_copy_key [req]: name={}, value={}", name, value);
         meta[name] = value;
+    }
+
+    void submit_log(telemetry::telemetry_submitter::log_level /*level*/,
+        std::string /*identifier*/, std::string /*message*/,
+        std::optional<std::string> /*stack_trace*/,
+        std::optional<std::string> /*tags*/, bool /*is_sensitive*/) override
+    {
+        // this class only exists to collect metrics, not logs
+        SPDLOG_WARN("submit_log [req]: should not be called");
     }
 
     std::map<std::string, std::string> meta;
