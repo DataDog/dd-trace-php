@@ -643,6 +643,16 @@ namespace DDTrace {
     function get_sanitized_exception_trace(\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
+     * Collects code origin tags for the current active span given the current stack. It is advised to set attributes
+     * like meta[span.kind] and type before calling this function as it makes use of them. Has no effect without active
+     * span
+     *
+     * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
+     * in a hook function.
+     */
+    function collect_code_origins(int $skipFrames = 0): void {}
+
+    /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *

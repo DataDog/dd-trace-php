@@ -4,6 +4,7 @@ When DD_GIT_REPOSITORY_URL is specified, _dd.git.repository_url is injected
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_GIT_REPOSITORY_URL=github.com/user/env_repo
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 

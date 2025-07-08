@@ -78,6 +78,7 @@ class RatchetIntegration extends Integration
             $span->meta[Tag::HTTP_METHOD] = "GET";
             $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             $span->meta[Tag::NETWORK_DESTINATION_NAME] = Urls::hostname($url);
+            \DDTrace\collect_code_origins(1);
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
             }

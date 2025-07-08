@@ -3,6 +3,7 @@ dd_trace_method() is aliased to DDTrace\trace_method()
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 use DDTrace\SpanData;

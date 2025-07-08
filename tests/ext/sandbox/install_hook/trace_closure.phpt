@@ -8,6 +8,7 @@ if (PHP_VERSION_ID >= 80400) {
 ?>
 --INI--
 datadog.trace.generate_root_span=0
+datadog.code_origin_for_spans_enabled=0
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
