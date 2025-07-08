@@ -212,7 +212,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 
     let action = TelemetryActions::AddLog((
         LogIdentifier {
-            indentifier: hasher.finish(),
+            identifier: hasher.finish(),
         },
         data::Log {
             message: log.to_utf8_lossy().into_owned(),
