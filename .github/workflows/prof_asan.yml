@@ -39,12 +39,11 @@ jobs:
           rm $(php-config --ini-dir)/sqlsrv.ini #sqlsrv leaks memory and triggers asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
-          export CC=clang-17
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
-          export RUSTC_LINKER=lld-17
           triplet=$(uname -m)-unknown-linux-gnu
           RUST_NIGHTLY_VERSION="-2025-01-03"
+          rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}
           RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release
           cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 

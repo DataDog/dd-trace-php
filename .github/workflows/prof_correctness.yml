@@ -45,13 +45,15 @@ jobs:
 
       - name: Build profiler
         run: |
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main" | sudo tee -a /etc/apt/sources.list
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main" | sudo tee -a /etc/apt/sources.list
           echo "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main" | sudo tee -a /etc/apt/sources.list
           curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
           sudo apt remove -y clang-*
           sudo apt-get update
-          sudo apt install -y clang-17
+          sudo apt install -y clang-19
+          export CC=clang-19
+          export RUSTC_LINKER=lld-19
           cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"

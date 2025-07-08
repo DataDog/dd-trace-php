@@ -16,9 +16,12 @@ fi
 #  /usr/lib/llvm20/lib/clang/20/include/arm_vector_types.h:94:24: error: Neon vector size must be 64 or 128 bits
 #  /usr/lib/llvm20/lib/clang/20/include/arm_neon.h:6374:25: error: incompatible constant for this __builtin_neon function
 # etc.
-if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then
-    ln -sf ../lib/llvm17/bin/clang /usr/bin/clang
+if [ -f /sbin/apk ]; then
+    ln -sf ../lib/llvm19/bin/clang /usr/bin/clang
+    ln -sf ../lib/llvm19/bin/clang++ /usr/bin/clang++
 fi
+
+export CC=clang
 
 set -u
 

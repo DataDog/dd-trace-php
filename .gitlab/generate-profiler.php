@@ -35,7 +35,10 @@ foreach ($profiler_minor_major_targets as $version) {
         IMAGE_SUFFIX: _centos-7
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
-    - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
+    - if [ -f /sbin/apk ]; then ln -sf /usr/bin/clang-19 /usr/bin/cc; fi
+
+    - rustc -vV
+    - cc -v
 
     - cd profiling
     - export TEST_PHP_EXECUTABLE=$(which php)

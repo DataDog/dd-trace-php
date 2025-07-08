@@ -169,7 +169,7 @@ stages:
       unzip vault.zip
       sudo cp -v vault /usr/local/bin
       cd -
-      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-17 clang-17
+      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-19 clang-19
 
       echo "Installing codecov"
 
@@ -203,8 +203,8 @@ stages:
         ./appsec/build/tests/helper/ddappsec_helper_test
     - |
       cd /tmp/cov-ext
-      llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-      llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-profdata-19 merge -sparse *.profraw -o default.profdata
+      llvm-cov-19 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
       echo "Uploading extension coverage to codecov"
@@ -212,8 +212,8 @@ stages:
       codecov -t "$CODECOV_TOKEN" -n appsec-extension -v -f appsec/build/coverage-ext.lcov
     - |
       cd /tmp/cov-helper
-      llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-      llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
+      llvm-profdata-19 merge -sparse *.profraw -o default.profdata
+      llvm-cov-19 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR/appsec/build/coverage-helper.lcov"
       echo "Uploading helper coverage to codecov"
