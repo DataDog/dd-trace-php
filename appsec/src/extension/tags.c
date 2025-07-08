@@ -145,7 +145,6 @@ static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
 static THREAD_LOCAL_ON_ZTS bool _blocked;
-static THREAD_LOCAL_ON_ZTS bool _force_keep;
 
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
@@ -359,7 +358,6 @@ void dd_tags_rinit(void)
     // Just in case...
     _event_user_id = NULL;
     _blocked = false;
-    _force_keep = false;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -413,12 +411,6 @@ void dd_tags_add_tags(
     // tag _dd.runtime_family
     _set_runtime_family(span);
 
-    if (_force_keep) {
-        dd_trace_set_priority_sampling_on_span_zobj(
-            span, PRIORITY_SAMPLING_USER_KEEP, DD_MECHANISM_ASM);
-        mlog(dd_log_debug, "Updated sampling priority to asm");
-    }
-
     if (zend_llist_count(&_appsec_json_frags) == 0) {
         if (!server) {
             return;
@@ -466,8 +458,6 @@ void dd_tags_add_tags(
 }
 
 void dd_tags_add_blocked(void) { _blocked = true; }
-
-void dd_tags_set_sampling_priority(void) { _force_keep = true; }
 
 static void _zend_string_release_indirect(void *s)
 {
@@ -970,11 +960,7 @@ static zval *nullable _root_span_get_meta(void)
     return meta;
 }
 
-static void _emit_auto_user_event(void)
-{
-    dd_tags_set_sampling_priority();
-    dd_trace_emit_asm_event();
-}
+static void _emit_auto_user_event(void) { dd_trace_emit_asm_event(); }
 
 static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
 {
