@@ -2,6 +2,7 @@
 URL with special characters in host part
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 SERVER_NAME=localhost:8888
 SCRIPT_NAME=/foo.php
 REQUEST_URI=/foo

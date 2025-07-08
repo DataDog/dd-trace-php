@@ -23,6 +23,7 @@
 #include "hook/uhook.h"
 #include "trace_source.h"
 #include "standalone_limiter.h"
+#include "code_origins.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -553,6 +554,9 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
     if ((Z_TYPE_INFO_P(span_zv) -= 2) == 1 || !keep) {
         if (!ddtrace_span_is_dropped(span)) {
             if (keep) {
+                if (&span->root->span != span) {
+                    ddtrace_maybe_add_code_origin_information(span);
+                }
                 ddtrace_close_span(span);
             } else {
                 ddtrace_drop_span(span);
@@ -854,6 +858,8 @@ void ddtrace_close_span(ddtrace_span_data *span) {
             dd_trace_stop_span_time(inferred_span);
             inferred_span->type = DDTRACE_SPAN_CLOSED;
         }
+
+        ddtrace_maybe_add_code_origin_information(span);
     }
 
     if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
