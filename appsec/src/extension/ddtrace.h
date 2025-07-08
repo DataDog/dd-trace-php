@@ -58,7 +58,10 @@ zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
 void dd_trace_span_add_propagated_tags(
     zend_string *nonnull key, zval *nonnull value);
+
+const uint8_t *nullable dd_trace_get_formatted_session_id(void);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
+uint64_t dd_trace_get_sidecar_queue_id(void);
 
 // Set sampling priority on root span
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,

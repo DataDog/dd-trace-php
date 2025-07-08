@@ -11,6 +11,7 @@
 #include <boost/asio/write.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include <map>
 #include <regex>
 #include <stdexcept>
 #include <unistd.h>
