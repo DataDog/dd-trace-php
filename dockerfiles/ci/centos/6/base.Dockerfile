@@ -48,11 +48,11 @@ RUN set -eux; \
     cd "${SRC_DIR}/openssl"; \
     CFLAGS=-fPIC ./config shared --prefix=/usr --openssldir=/etc/pki/tls && make && make install; \
 # Latest version of m4 required
-    /root/download-src.sh m4 https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.gz; \
+    /root/download-src.sh m4 https://ftpmirror.gnu.org/gnu/m4/m4-1.4.18.tar.gz; \
     cd "${SRC_DIR}/m4"; \
     ./configure && make && make install; \
 # Latest version of autoconf required
-    /root/download-src.sh autoconf https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz; \
+    /root/download-src.sh autoconf https://ftpmirror.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz; \
     cd "${SRC_DIR}/autoconf"; \
     ./configure && make && make install; \
 # Required: libxml >= 2.9.0 (default version is 2.7.6)
@@ -73,7 +73,7 @@ RUN set -eux; \
     cd "${SRC_DIR}/oniguruma"; \
     ./configure && make && make install; \
 # Required: bison >= 3.0.0 (not installed by deafult)
-    /root/download-src.sh bison https://ftp.gnu.org/gnu/bison/bison-3.7.3.tar.gz; \
+    /root/download-src.sh bison https://ftpmirror.gnu.org/gnu/bison/bison-3.7.3.tar.gz; \
     cd "${SRC_DIR}/bison"; \
     ./configure && make && make install; \
 # Required: re2c >= 0.13.4 (not installed by deafult)
