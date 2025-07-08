@@ -279,6 +279,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
     dd_msgpack_helpers_rinit();
 
     dd_req_lifecycle_rinit(false);
+    dd_trace_rinit();
 
     if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {
         if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
