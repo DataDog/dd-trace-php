@@ -23,6 +23,7 @@
     INTEGRATION_CUSTOM_ENABLED(FILESYSTEM, "filesystem", is_filesystem_enabled)                                          \
     INTEGRATION(FRANKENPHP, "frankenphp")                                                                                \
     INTEGRATION(GOOGLESPANNER, "googlespanner")                                                                          \
+    INTEGRATION(GRAPHQL, "graphql")                                                                                      \
     INTEGRATION(GUZZLE, "guzzle")                                                                                        \
     INTEGRATION(KAFKA, "kafka")                                                                                          \
     INTEGRATION(LAMINAS, "laminas")                                                                                      \
@@ -43,7 +44,7 @@
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \
-    INTEGRATION(RATCHET, "ratchet")                                                                                       \
+    INTEGRATION(RATCHET, "ratchet")                                                                                      \
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \
