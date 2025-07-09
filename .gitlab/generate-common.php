@@ -137,6 +137,7 @@ foreach ($arch_targets as $arch_target) {
       ZOOKEEPER_INIT_LIMIT: 5
       ZOOKEEPER_SYNC_LIMIT: 2
       ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOOKEEPER_ADMIN_ENABLE_SERVER: "false"
 
   kafka-service:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
