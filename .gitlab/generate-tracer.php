@@ -778,4 +778,6 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
       when: always
+    - if: $CI_COMMIT_REF_NAME =~ /^alex\//
+      when: always
     - when: manual
