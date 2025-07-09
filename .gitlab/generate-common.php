@@ -134,7 +134,7 @@ foreach ($arch_targets as $arch_target) {
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
-  kafka:
+  kafka-service:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
     alias: kafka-integration
     variables:

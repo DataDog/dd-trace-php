@@ -492,15 +492,14 @@ endforeach;
 <?php
 
 // specific service maps:
-$service_mappings = [];
-$service_mappings["elasticsearch1"] = "elasticsearch2";
-$service_mappings["elasticsearch8"] = "elasticsearch7";
-$service_mappings["elasticsearch_latest"] = "elasticsearch7";
-$service_mappings["magento"] = "elasticsearch7";
-$service_mappings["deferred_loading"] = "mysql";
-$service_mappings["deferred_loadin"] = "redis";
-$service_mappings["pdo"] = "mysql";
-$service_mappings["test_integrations_kafka"] = ["kafka", "zookeeper"];
+$services["elasticsearch1"] = "elasticsearch2";
+$services["elasticsearch8"] = "elasticsearch7";
+$services["elasticsearch_latest"] = "elasticsearch7";
+$services["magento"] = "elasticsearch7";
+$services["deferred_loading"] = "mysql";
+$services["deferred_loadin"] = "redis";
+$services["pdo"] = "mysql";
+$services["kafk"] = ["kafka-service", "zookeeper"];
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -538,7 +537,7 @@ foreach ($jobs as $type => $type_jobs):
     - !reference [.services, mysql]
 <?php endif; ?>
 <?php 
-foreach ($service_mappings as $part => $service) {
+foreach ($services as $part => $service) {
     if (str_contains($target, $part)) {
         if (is_array($service)) {
             foreach ($service as $svc) {
