@@ -678,6 +678,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   stage: "aggregate versions"
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
   tags: [ "arch:amd64" ]
+  when: always
   variables:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
