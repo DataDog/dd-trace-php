@@ -112,7 +112,7 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
                     ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 }
 
-void ddtrace_telemetry_flush() {
+void ddtrace_telemetry_lifecycle_end() {
     if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
@@ -239,9 +239,8 @@ void ddtrace_telemetry_finalize(bool clear_id) {
                     ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
 
     if (clear_id) {
-
-    ddtrace_ffi_try("Failed removing application from sidecar",
-                    ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
+        ddtrace_ffi_try("Failed removing application from sidecar",
+                        ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
     }
 }
 

@@ -2782,7 +2782,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
             dd_finalize_sidecar_lifecycle(false);
-            ddtrace_telemetry_flush();
+            ddtrace_telemetry_lifecycle_end();
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
