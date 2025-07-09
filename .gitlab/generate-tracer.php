@@ -681,40 +681,6 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
-  needs:
-<?php
-// Add all integration and web test jobs as dependencies
-foreach ($jobs as $type => $type_jobs):
-    foreach ($type_jobs as $target => $versions):
-        foreach ($versions as $major_minor):
-            $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
-            foreach ($sapis as $sapi):
-                $job_name = $target . ": [" . $major_minor . ($sapi ? ", $sapi" : "") . "]";
-?>
-    - job: "<?= $job_name ?>"
-      artifacts: true
-<?php
-            endforeach;
-        endforeach;
-    endforeach;
-endforeach;
-
-// Also add the other integration test jobs
-foreach ($all_minor_major_targets as $major_minor):
-    foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
-?>
-    - job: "<?= $test ?>: [<?= $major_minor ?>]"
-      artifacts: true
-<?php
-    endforeach;
-    foreach (["cli-server", "cgi-fcgi"] as $sapi):
-?>
-    - job: "test_distributed_tracing: [<?= $major_minor ?>, <?= $sapi ?>]"
-      artifacts: true
-<?php
-    endforeach;
-endforeach;
-?>
   before_script:
     - apt update && apt install -y jq git curl
     - |
