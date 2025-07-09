@@ -165,9 +165,9 @@ RUN set -eux; \
 # Install valgrind
 RUN set -eux; \
     VALGRIND_VERSION="3.25.1"; \
-    VALGRIND_SHA1="61deb8d0727b45c268efdc1b3b6c9e679cd97cbf5ee4b28d1dead7c8b7a271af"; \
+    VALGRIND_SHA256="61deb8d0727b45c268efdc1b3b6c9e679cd97cbf5ee4b28d1dead7c8b7a271af"; \
     cd /tmp && curl -OL https://mirrors.kernel.org/sourceware/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
-    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha256sum -c -); \
+    (echo "${VALGRIND_SHA256}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha256sum -c -); \
     mkdir valgrind && cd valgrind; \
     tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
     ./configure; \
