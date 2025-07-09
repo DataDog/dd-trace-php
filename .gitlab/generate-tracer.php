@@ -51,6 +51,7 @@ stages:
   - test
   - "integrations test"
   - "web test"
+  - "aggregate versions"
 
 #variables:
 #  CI_DEBUG_SERVICES: "true"
@@ -664,3 +665,122 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 <?php after_script(has_test_agent: true); ?>
 
 <?php endforeach; ?>
+
+"aggregate tested versions":
+  stage: "aggregate versions"
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  variables:
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+  needs:
+<?php
+// Add all integration and web test jobs as dependencies
+foreach ($jobs as $type => $type_jobs):
+    foreach ($type_jobs as $target => $versions):
+        foreach ($versions as $major_minor):
+            $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
+            foreach ($sapis as $sapi):
+                $job_name = $target . ": [" . $major_minor . ($sapi ? ", $sapi" : "") . "]";
+?>
+    - job: "<?= $job_name ?>"
+      artifacts: true
+<?php
+            endforeach;
+        endforeach;
+    endforeach;
+endforeach;
+
+// Also add the other integration test jobs
+foreach ($all_minor_major_targets as $major_minor):
+    foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
+?>
+    - job: "<?= $test ?>: [<?= $major_minor ?>]"
+      artifacts: true
+<?php
+    endforeach;
+    foreach (["cli-server", "cgi-fcgi"] as $sapi):
+?>
+    - job: "test_distributed_tracing: [<?= $major_minor ?>, <?= $sapi ?>]"
+      artifacts: true
+<?php
+    endforeach;
+endforeach;
+?>
+  before_script:
+    - apt update && apt install -y jq git curl
+    - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+    - git config --global user.name "github-actions[bot]"
+  script:
+    - echo "Aggregating tested versions from all test jobs..."
+    - mkdir -p temp_versions
+    - find . -name "tested_versions.json" -path "*/artifacts/*" -exec cp {} temp_versions/{}.$(date +%s_%N) \;
+    - ls -la temp_versions/
+    - |
+      jq -s 'reduce .[] as $item ({};
+        . as $acc |
+        reduce ($item | to_entries[]) as $entry ($acc;
+          .[$entry.key] = (.[$entry.key] + $entry.value | unique)
+        )
+      ) | to_entries | sort_by(.key) | from_entries' temp_versions/*.json > aggregated_tested_versions.json
+    - php tooling/tested_versions/generate_markdown_table.php aggregated_tested_versions.json integration_versions.md
+    - ls -la aggregated_tested_versions.json integration_versions.md
+    - cat integration_versions.md
+    - |
+      if [[ -n "${CI_COMMIT_REF_NAME:-}" ]] && [[ "${CI_COMMIT_REF_NAME}" == "master" ]] && [[ -n "$(git status --porcelain)" ]]; then
+        echo "Changes detected, creating/updating PR..."
+        
+        # Install GitHub CLI
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+        chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        apt update && apt install -y gh
+        
+        TARGET_BRANCH="update-supported-versions"
+        
+        # Setup git remote with token
+        git remote remove origin || true
+        git remote add origin https://$GITHUB_TOKEN@github.com/DataDog/dd-trace-php.git
+        
+        # Check if branch exists and switch to it
+        if git ls-remote --heads origin $TARGET_BRANCH | grep $TARGET_BRANCH; then
+          echo "Branch exists, updating it..."
+          git fetch -f -u origin $TARGET_BRANCH:$TARGET_BRANCH
+          git checkout $TARGET_BRANCH
+        else
+          echo "Branch does not exist, creating it..."
+          git checkout -b $TARGET_BRANCH
+        fi
+        
+        # Add and commit changes
+        git add aggregated_tested_versions.json integration_versions.md
+        git commit -m "chore: Update supported versions [skip ci]" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" || {
+          echo "No changes to commit"
+          exit 0
+        }
+        git push origin $TARGET_BRANCH
+        
+        # Create or update PR
+        PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-php --head $TARGET_BRANCH --json number --jq '.[0].number' || echo "")
+        if [[ -z "$PR_NUMBER" ]]; then
+          echo "Creating new PR..."
+          gh pr create --repo DataDog/dd-trace-php \
+            --base master \
+            --head $TARGET_BRANCH \
+            --title "chore: update supported versions" \
+            --body "This PR updates the tested versions list automatically based on integration test results."
+        else
+          echo "PR #$PR_NUMBER already exists, it has been updated."
+        fi
+      else
+        echo "Not on master branch or no changes detected, skipping PR creation"
+      fi
+  artifacts:
+    paths:
+      - "aggregated_tested_versions.json"
+      - "integration_versions.md"
+    when: "always"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: always
+    - when: manual
