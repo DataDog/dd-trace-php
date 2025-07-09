@@ -116,11 +116,9 @@ unsafe fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&crate::
     // Check if `opline` is within the allocated opcodes array `op_array`. `op_array.last` is the
     // index of the last opcode, so valid range is [opcodes_start, opcodes_start + last]
     let opcodes_end = unsafe { opcodes_start.add(op_array.last as usize) };
-    if { execute_data.opline as usize } >= { opcodes_start as usize } && {
-        execute_data.opline as usize
-    } < {
-        opcodes_end as usize
-    } {
+    if (execute_data.opline as usize) >= (opcodes_start as usize)
+        && (execute_data.opline as usize) < (opcodes_end as usize)
+    {
         // Safety: we did our best we could to validate that this pointer is not NULL and not
         // dangling and actually pointing to the right kind of data. Otherwise this is the crash
         // site you are looking for.
