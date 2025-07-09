@@ -960,8 +960,6 @@ static zval *nullable _root_span_get_meta(void)
     return meta;
 }
 
-static void _emit_auto_user_event(void) { dd_trace_emit_asm_event(); }
-
 static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
 {
     UNUSED(return_value);
@@ -1051,7 +1049,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     _add_new_zstr_to_meta(
         meta_ht, _dd_business_logic_users_signup, _null_zstr, true, true);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 void dd_tags_set_user_event_triggered(void) { _user_event_triggered = true; }
@@ -1109,7 +1107,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     _add_new_zstr_to_meta(
         meta_ht, _dd_business_logic_users_signup, _null_zstr, true, true);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
@@ -1204,7 +1202,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_success,
         _null_zstr, true, true);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
@@ -1264,7 +1262,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_success,
         _null_zstr, true, true);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
@@ -1366,7 +1364,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_failure,
         _null_zstr, true, true);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
@@ -1426,7 +1424,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     _add_new_zstr_to_meta(meta_ht, _dd_business_logic_users_login_failure,
         _null_zstr, true, true);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
@@ -1586,7 +1584,7 @@ static PHP_FUNCTION(datadog_appsec_track_custom_event)
 
     smart_str_free(&event_str);
 
-    _emit_auto_user_event();
+    dd_trace_emit_asm_event();
 }
 
 static bool _set_appsec_enabled(zval *metrics_zv)
