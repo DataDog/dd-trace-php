@@ -492,12 +492,13 @@ endforeach;
 
 // specific service maps:
 $services["elasticsearch1"] = "elasticsearch2";
+$services["elasticsearch8"] = "elasticsearch7";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["deferred_loadin"] = "redis";
 $services["pdo"] = "mysql";
-$services["kafk"] = "zookeeper";
+$services["kafka"] = ["kafka", "zookeeper"];
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -535,7 +536,13 @@ foreach ($jobs as $type => $type_jobs):
     - !reference [.services, mysql]
 <?php endif; ?>
 <?php foreach ($services as $part => $service): if (str_contains($target, $part)): ?>
+<?php if (is_array($service)): ?>
+<?php foreach ($service as $svc): ?>
+    - !reference [.services, <?= $svc ?>]
+<?php endforeach; ?>
+<?php else: ?>
     - !reference [.services, <?= $service ?>]
+<?php endif; ?>
 <?php endif; endforeach; ?>
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
