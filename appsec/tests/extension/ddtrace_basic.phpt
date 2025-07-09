@@ -2,6 +2,7 @@
 ddtrace integration — basic test
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_AUTOFINISH_SPANS=1
 DD_SERVICE=appsec_tests
 --SKIPIF--

@@ -108,7 +108,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     '_dd.code_origin.frames.0.type' => 'GuzzleHttp\Client',
                     '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',
                     '_dd.code_origin.frames.1.line' => '%d',
-                    '_dd.code_origin.frames.1.method' => '{closur%s}',
+                    '_dd.code_origin.frames.1.method' => '%s}', // closure format differs on PHP versions
                     '_dd.code_origin.frames.1.type' => 'DDTrace\Tests\Integrations\Guzzle\%s\GuzzleIntegrationTest',
                     '_dd.code_origin.type' => 'exit',
                 ])
