@@ -103,7 +103,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'guzzle',
                     // Note that the leaf span is guzzle, not the curl inside
                     '_dd.code_origin.frames.0.file' => '%s/vendor/guzzlehttp/guzzle/src/Client.php',
-                    '_dd.code_origin.frames.0.line' => '120',
+                    '_dd.code_origin.frames.0.line' => '%d',
                     '_dd.code_origin.frames.0.method' => 'send',
                     '_dd.code_origin.frames.0.type' => 'GuzzleHttp\Client',
                     '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',

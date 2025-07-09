@@ -185,6 +185,15 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
     _key = _p->key; \
     _val = _z;
 
+static zend_always_inline zval *zend_hash_str_find_deref(const HashTable *ht, const char *str, size_t len)
+{
+    zval *zv = zend_hash_str_find(ht, str, len);
+    if (zv) {
+        ZVAL_DEREF(zv);
+    }
+    return zv;
+}
+
 #else
 #define DD_PARAM_PROLOGUE Z_PARAM_PROLOGUE
 #endif
