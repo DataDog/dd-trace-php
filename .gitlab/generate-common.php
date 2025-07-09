@@ -154,6 +154,9 @@ foreach ($arch_targets as $arch_target) {
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 120000
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 120000
+      KAFKA_ZOOKEEPER_MAX_IN_FLIGHT_REQUESTS: 100
 
   redis:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0
