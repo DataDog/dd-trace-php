@@ -5,12 +5,12 @@
     "resource": "error",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 12560359480360243939,
+    "parent_id": 16163652167125917316,
     "type": "web",
     "error": 1,
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "686e4f1800000000",
+      "_dd.p.tid": "6661b35000000000",
       "component": "symfony",
       "error.message": "Uncaught Exception (500): An exception occurred in {path}/tests/Frameworks/Symfony/Version_2_3/src/AppBundle/Controller/CommonScenariosController.php:40",
       "error.stack": "#0 [internal function]: AppBundle\\Controller\\CommonScenariosController->errorAction()\n#1 {path}/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2978): call_user_func_array()\n#2 {path}/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2952): Symfony\\Component\\HttpKernel\\HttpKernel->handleRaw()\n#3 {path}/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(3081): Symfony\\Component\\HttpKernel\\HttpKernel->handle()\n#4 {path}/tests/Frameworks/Symfony/Version_2_3/app/bootstrap.php.cache(2351): Symfony\\Component\\HttpKernel\\DependencyInjection\\ContainerAwareHttpKernel->handle()\n#5 {path}/tests/Frameworks/Symfony/Version_2_3/web/app.php(14): Symfony\\Component\\HttpKernel\\Kernel->handle()\n#6 {main}",
@@ -18,7 +18,7 @@
       "http.method": "GET",
       "http.status_code": "500",
       "http.url": "http://localhost/app.php/error?key=value&<redacted>",
-      "runtime-id": "056634db-dbf5-4b27-8812-92fff58863ea",
+      "runtime-id": "93535b2f-0ff1-4add-8907-53304703f545",
       "span.kind": "server",
       "symfony.route.action": "AppBundle\\Controller\\CommonScenariosController@errorAction",
       "symfony.route.name": "error"
