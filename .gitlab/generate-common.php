@@ -133,14 +133,18 @@ foreach ($arch_targets as $arch_target) {
     variables:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ALLOW_ANONYMOUS_LOGIN: "yes"
 
   kafka-service:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
     alias: kafka-integration
     variables:
-      KAFKA_BROKER_ID: 111
-      KAFKA_CREATE_TOPICS: test-lowlevel:1:1,test-highlevel:1:1
+      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-integration:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -148,6 +152,7 @@ foreach ($arch_targets as $arch_target) {
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
 
   redis:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0
