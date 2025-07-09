@@ -492,14 +492,15 @@ endforeach;
 <?php
 
 // specific service maps:
-$services["elasticsearch1"] = "elasticsearch2";
-$services["elasticsearch8"] = "elasticsearch7";
-$services["elasticsearch_latest"] = "elasticsearch7";
-$services["magento"] = "elasticsearch7";
-$services["deferred_loading"] = "mysql";
-$services["deferred_loadin"] = "redis";
-$services["pdo"] = "mysql";
-$services["kafka"] = ["kafka", "zookeeper"];
+$service_mappings = [];
+$service_mappings["elasticsearch1"] = "elasticsearch2";
+$service_mappings["elasticsearch8"] = "elasticsearch7";
+$service_mappings["elasticsearch_latest"] = "elasticsearch7";
+$service_mappings["magento"] = "elasticsearch7";
+$service_mappings["deferred_loading"] = "mysql";
+$service_mappings["deferred_loadin"] = "redis";
+$service_mappings["pdo"] = "mysql";
+$service_mappings["test_integrations_kafka"] = ["kafka", "zookeeper"];
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -536,15 +537,19 @@ foreach ($jobs as $type => $type_jobs):
 <?php if ($type == "web"): ?>
     - !reference [.services, mysql]
 <?php endif; ?>
-<?php foreach ($services as $part => $service): if (str_contains($target, $part)): ?>
-<?php if (is_array($service)): ?>
-<?php foreach ($service as $svc): ?>
-    - !reference [.services, <?= $svc ?>]
-<?php endforeach; ?>
-<?php else: ?>
-    - !reference [.services, <?= $service ?>]
-<?php endif; ?>
-<?php endif; endforeach; ?>
+<?php 
+foreach ($service_mappings as $part => $service) {
+    if (str_contains($target, $part)) {
+        if (is_array($service)) {
+            foreach ($service as $svc) {
+                echo "    - !reference [.services, $svc]\n";
+            }
+        } else {
+            echo "    - !reference [.services, $service]\n";
+        }
+    }
+}
+?>
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
@@ -673,6 +678,9 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   variables:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   needs:
 <?php
 // Add all integration and web test jobs as dependencies
@@ -709,6 +717,13 @@ endforeach;
 ?>
   before_script:
     - apt update && apt install -y jq git curl
+    - |
+      # Install dd-octo-sts binary
+      # Use crane to extract the binary from the official image
+      curl -L "https://github.com/google/go-containerregistry/releases/download/v0.19.0/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz crane
+      chmod +x crane && mv crane /usr/local/bin/crane
+      crane export registry.ddbuild.io/dd-octo-sts:v1.0.0 - | tar -xf - usr/local/bin/dd-octo-sts
+      chmod +x usr/local/bin/dd-octo-sts
     - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
     - git config --global user.name "github-actions[bot]"
   script:
@@ -737,6 +752,13 @@ endforeach;
         apt update && apt install -y gh
         
         TARGET_BRANCH="update-supported-versions"
+        
+        # Get GitHub token from DD Octo STS
+        # TODO: Create trust policy .github/chainguard/gitlab-ci-aggregate-versions.sts.yaml
+        # in DataDog/dd-trace-php with appropriate GitLab CI claim patterns
+        dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions
+        dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions > github_token.txt
+        export GITHUB_TOKEN=$(cat github_token.txt)
         
         # Setup git remote with token
         git remote remove origin || true
@@ -775,6 +797,9 @@ endforeach;
       else
         echo "Not on master branch or no changes detected, skipping PR creation"
       fi
+  after_script:
+    # Revoke the GitHub token after usage
+    - if [[ -f github_token.txt ]]; then dd-octo-sts revoke -t $(cat github_token.txt) || true; fi
   artifacts:
     paths:
       - "aggregated_tested_versions.json"
