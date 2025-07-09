@@ -38,6 +38,9 @@ final class InternalTelemetryTest extends CLITestCase
                 $json = json_decode($request["body"], true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $innerJson) {
+                    if ($innerjson["request_type"] == "app-client-configuration-change") {
+                        continue;
+                    }
                     if (isset($json["application"])) {
                         $innerJson["application"] = $json["application"];
                     }
@@ -47,7 +50,7 @@ final class InternalTelemetryTest extends CLITestCase
         }
 
         // Filter the payloads from the trace background sender
-        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
+        return array_values($telemetryPayloads);
     }
 
     public function testInternalMetricWithOpenTelemetry()
