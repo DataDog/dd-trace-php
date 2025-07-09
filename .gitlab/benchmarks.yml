@@ -53,8 +53,7 @@ benchmarks-profiler:
   variables:
     SCENARIO: "profiler"
 
-benchmarks-tracer:
-  extends: .microbenchmarks
+.benchmarks-tracer-rules:
   rules:
     - if: $CI_PIPELINE_SOURCE != "schedule"
       changes:
@@ -70,6 +69,11 @@ benchmarks-tracer:
         compare_to: "master"
       when: on_success
     - when: manual
+
+benchmarks-tracer:
+  extends:
+    - .microbenchmarks
+    - .benchmarks-tracer-rules
   artifacts:
     name: "reports"
     when: always
@@ -101,7 +105,7 @@ benchmarks-appsec:
 check-big-regressions:
   stage: gate
   needs: [ "benchmarks-tracer" ]
-  when: on_success
+  extends: .benchmarks-tracer-rules
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   script: |
