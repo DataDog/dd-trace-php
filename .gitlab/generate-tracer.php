@@ -482,14 +482,7 @@ endforeach;
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
-    - echo "WAIT_FOR variable: ${WAIT_FOR:-}"
-    - echo "Available services and their status:"
-    - docker ps || echo "Docker not available"
-    - ss -tuln || netstat -tuln || echo "Network tools not available"
-    - echo "Testing connectivity to known service hosts:"
-    - nmap -p 9092 kafka-integration 2>/dev/null || echo "kafka-integration:9092 not reachable"
-    - nmap -p 2181 zookeeper 2>/dev/null || echo "zookeeper:2181 not reachable"
-    - for host in ${WAIT_FOR:-}; do echo "Waiting for $host"; wait-for $host --timeout=30; done
+    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
