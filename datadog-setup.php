@@ -1566,12 +1566,22 @@ function download($url, $destination, $retry = false)
     }
 
     if (IS_WINDOWS) {
-        $webRequestInvocationStatusCode = 0;
-        system(
-            'powershell ' . escapeshellarg('[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Out ' . escapeshellarg($destination) . ' ' . escapeshellarg($url)),
-            $webRequestInvocationStatusCode
+        $proc = proc_open(
+            'powershell -',
+            [['pipe', 'r'], STDOUT, STDERR],
+            $pipes,
+            null,
+            null,
+            ["bypass_shell" => true]
         );
-        if ($webRequestInvocationStatusCode === 0) {
+        $input = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Out '" . addcslashes($destination, "\\'") . "' '" . addcslashes($url, "\\'") . "'";
+        fwrite($pipes[0], $input);
+        fclose($pipes[0]);
+        do {
+            $status = proc_get_status($proc);
+            usleep(100000);
+        } while ($status['running']);
+        if ($status['exitcode'] === 0) {
             echo $okMessage;
             return true;
         }
@@ -1801,7 +1811,7 @@ function resolve_command_full_path($command)
                 // command is not defined
                 return false;
             }
-            $path = ltrim($path, "\r\n");
+            $path = trim($path, "\r\n");
         } elseif (!file_exists($command)) {
             return false;
         } else {
