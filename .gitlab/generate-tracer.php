@@ -556,6 +556,9 @@ foreach ($services as $part => $service) {
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
+<?php if (str_contains($target, "kafk")): ?>
+    WAIT_FOR: kafka-integration:9092
+<?php endif; ?>
 <?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2
 <?php endif; ?>
