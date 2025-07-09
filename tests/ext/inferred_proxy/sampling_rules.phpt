@@ -51,11 +51,12 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "stage": "aws-prod",
             "component": "aws-apigateway",
             "http.status_code": "200",
-            "_dd.p.tid": "%s"
+            "_dd.p.tid": "%s",
+            "_dd.p.dm": "-3"
         },
         "metrics": {
             "_dd.inferred_span": 1,
-            "_sampling_priority_v1": -1,
+            "_sampling_priority_v1": 2,
             "_dd.rule_psr": 0.3
         }
     },
