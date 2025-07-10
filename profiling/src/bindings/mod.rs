@@ -148,8 +148,20 @@ impl _zend_function {
 
     #[inline]
     pub fn is_internal(&self) -> bool {
-        // Safety: the function's type field is always safe to access.
+        // SAFETY: the function's type field is always safe to access.
         unsafe { self.type_ == ZEND_INTERNAL_FUNCTION }
+    }
+
+    /// Returns the op_array if this is a user function or eval code.
+    #[inline]
+    pub fn op_array(&self) -> Option<&_zend_op_array> {
+        if !self.is_internal() {
+            // SAFETY: If it's not internal, then both user and eval types use
+            // the op_array field.
+            unsafe { Some(&self.op_array) }
+        } else {
+            None
+        }
     }
 }
 
