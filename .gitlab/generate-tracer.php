@@ -683,7 +683,6 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   before_script:
-    - apt update && apt install -y php8.2-cli php8.2-json
     - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
     - git config --global user.name "github-actions[bot]"
   script:
@@ -698,7 +697,30 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
           .[$entry.key] = (.[$entry.key] + $entry.value | unique)
         )
       ) | to_entries | sort_by(.key) | from_entries' temp_versions/*.json > aggregated_tested_versions.json
-    - php tooling/tested_versions/generate_markdown_table.php aggregated_tested_versions.json integration_versions.md
+    - |
+      echo "Generating markdown table with bash/jq..."
+      echo "| Library                     | Min. Supported Version | Max. Supported Version |" > integration_versions.md
+      echo "|-----------------------------|------------------------|------------------------|" >> integration_versions.md
+      
+      # Process each library and find min/max versions
+      jq -r 'to_entries | sort_by(.key) | .[] | @base64' aggregated_tested_versions.json | while read encoded; do
+        decoded=$(echo $encoded | base64 -d)
+        library=$(echo $decoded | jq -r '.key')
+        versions=$(echo $decoded | jq -r '.value | join(" ")')
+        
+        # Find min and max versions using sort -V (version sort)
+        min_version=$(echo $versions | tr ' ' '\n' | sort -V | head -1)
+        max_version=$(echo $versions | tr ' ' '\n' | sort -V | tail -1)
+        
+        # Format library name to fit table width
+        formatted_library=$(printf "%-27s" "$library")
+        formatted_min=$(printf "%-22s" "$min_version")
+        formatted_max=$(printf "%-22s" "$max_version")
+        
+        echo "| $formatted_library | $formatted_min | $formatted_max |" >> integration_versions.md
+      done
+      
+      echo "Markdown table generated successfully"
     - ls -la aggregated_tested_versions.json integration_versions.md
     - cat integration_versions.md
     - |
