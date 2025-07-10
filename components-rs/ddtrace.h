@@ -279,9 +279,11 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
-struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_filter_new(struct ddog_SidecarActionsBuffer *current_buffer,
-                                                                           ddog_CharSlice service,
-                                                                           ddog_CharSlice env,
-                                                                           ddog_CharSlice version);
+ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    const ddog_QueueId *queue_id,
+                                                    struct ddog_SidecarActionsBuffer *current_buffer,
+                                                    ddog_CharSlice service,
+                                                    ddog_CharSlice env);
 
 #endif  /* DDTRACE_PHP_H */

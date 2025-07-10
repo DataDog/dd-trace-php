@@ -235,12 +235,33 @@ void ddtrace_telemetry_finalize(bool clear_id) {
 
     dd_commit_metrics();
 
-    ddtrace_ffi_try("Failed flushing telemetry buffer",
-                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer));
+    zend_string *free_string = NULL;
+    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
+    if (DDTRACE_G(last_flushed_root_service_name)) {
+        service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
+    } else if (ZSTR_LEN(get_DD_SERVICE())) {
+        service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
+    } else {
+        free_string = ddtrace_default_service_name();
+        service_name = dd_zend_string_to_CharSlice(free_string);
+    }
+    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
+    if (DDTRACE_G(last_flushed_root_env_name)) {
+        env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
+    } else if (ZSTR_LEN(get_DD_ENV())) {
+        env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
+    }
+
+    ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
+        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer, service_name, env_name));
 
     if (clear_id) {
         ddtrace_ffi_try("Failed removing application from sidecar",
                         ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
+    }
+
+    if (free_string) {
+        zend_string_release(free_string);
     }
 }
 
