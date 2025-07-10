@@ -679,9 +679,6 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base
   tags: [ "arch:amd64" ]
   when: always
-  variables:
-    KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_REQUEST: 2Gi
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
