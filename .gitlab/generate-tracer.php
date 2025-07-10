@@ -487,7 +487,7 @@ endforeach;
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
-    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions.json
+    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
 
@@ -689,7 +689,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   script:
     - echo "Aggregating tested versions from all test jobs..."
     - mkdir -p temp_versions
-    - find . -name "tested_versions.json" -path "*/artifacts/*" -exec cp {} temp_versions/{}.$(date +%s_%N) \;
+    - find . -name "tested_versions_*.json" -path "*/artifacts/*" -exec sh -c 'cp "$1" "temp_versions/$(basename "$1" .json)_$(date +%s_%N).json"' _ {} \;
     - ls -la temp_versions/
     - |
       jq -s 'reduce .[] as $item ({};
