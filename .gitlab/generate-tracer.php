@@ -683,6 +683,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   before_script:
+    - git config --global --add safe.directory /go/src/github.com/DataDog/apm-reliability/dd-trace-php
     - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
     - git config --global user.name "github-actions[bot]"
   script:
