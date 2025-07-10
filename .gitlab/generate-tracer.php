@@ -676,7 +676,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 
 "aggregate tested versions":
   stage: "aggregate versions"
-  image: registry.ddbuild.io/images/dd-octo-sts-ci-base
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   when: always
   id_tokens:
