@@ -407,11 +407,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
         ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
     }
 
-    ddog_SidecarActionsBuffer *filtered = ddog_sidecar_telemetry_buffer_filter_new(ddtrace_telemetry_buffer(), service_slice, env_slice, version_slice);
-    if (filtered) {
-        ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
-            ddog_sidecar_telemetry_buffer_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), filtered));
-    }
+    ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
+        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), service_slice, env_slice));
 
     if (free_string) {
         zend_string_release(free_string);

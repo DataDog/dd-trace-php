@@ -228,48 +228,59 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_telemetry_buffer_filter_new(
+pub extern "C" fn ddog_sidecar_telemetry_filter_flush(
+    transport: &mut Box<SidecarTransport>,
+    instance_id: &InstanceId,
+    queue_id: &QueueId,
     current_buffer: &mut SidecarActionsBuffer,
     service: CharSlice,
     env: CharSlice,
-    version: CharSlice,
-) -> *mut SidecarActionsBuffer {
+) -> MaybeError {
     let Ok(service_str) = service.try_to_string() else {
-        return std::ptr::null_mut();
+        return MaybeError::Some(ddcommon_ffi::Error::from(
+            "Failed to flush telemetry buffer: invalid service_name string",
+        ));
     };
+
     let Ok(env_str) = env.try_to_string() else {
-        return std::ptr::null_mut();
-    };
-    let Ok(version_str) = version.try_to_string() else {
-        return std::ptr::null_mut();
-    };
-
-    let shm_path = path_for_telemetry(service_str, env_str, version_str);
-    let mapped = match open_named_shm(&shm_path) {
-        Ok(m) => Some(m),
-        Err(_) => return std::ptr::null_mut(),
+        return MaybeError::Some(ddcommon_ffi::Error::from(
+            "Failed to flush telemetry buffer: invalid env_name string",
+        ));
     };
 
-    let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(mapped, shm_path.clone());
-    let (_, buf) = reader.read();
+    let mut filtered: Vec<SidecarAction> = std::mem::take(&mut current_buffer.buffer);
 
-    let Ok((seen_integrations, seen_composer_paths)) = bincode::deserialize::<(
-        std::collections::HashSet<String>,
-        std::collections::HashSet<std::path::PathBuf>,
-    )>(buf) else {
-        return std::ptr::null_mut();
-    };
+    let shm_path = path_for_telemetry(service_str, env_str);
+    if let Ok(mapped) = open_named_shm(&shm_path) {
+        let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(Some(mapped), shm_path.clone());
+        let (_, buf) = reader.read();
 
-    let filtered = std::mem::take(&mut current_buffer.buffer)
-        .into_iter()
-        .filter(|action| match action {
-            SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
-                !seen_integrations.contains(&integration.name)
-            }
-            SidecarAction::PhpComposerTelemetryFile(path) => !seen_composer_paths.contains(path),
-            _ => false,
-        })
-        .collect();
+        if let Ok((seen_integrations, seen_composer_paths)) = bincode::deserialize::<(
+            std::collections::HashSet<String>,
+            std::collections::HashSet<std::path::PathBuf>,
+        )>(buf)
+        {
+            filtered = filtered
+                .into_iter()
+                .filter(|action| match action {
+                    SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
+                        !seen_integrations.contains(&integration.name)
+                    }
+                    SidecarAction::PhpComposerTelemetryFile(path) => {
+                        !seen_composer_paths.contains(path)
+                    }
+                    _ => false,
+                })
+                .collect();
+        }
+    }
 
-    Box::into_raw(Box::new(SidecarActionsBuffer { buffer: filtered }))
+    try_c!(blocking::enqueue_actions(
+        transport,
+        instance_id,
+        queue_id,
+        filtered
+    ));
+
+    MaybeError::None
 }

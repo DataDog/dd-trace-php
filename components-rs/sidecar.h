@@ -150,7 +150,7 @@ ddog_MaybeError ddog_sidecar_telemetry_addIntegration(struct ddog_SidecarTranspo
                                                       ddog_CharSlice integration_version,
                                                       bool integration_enabled);
 
-char *ddog_telemetry_path(ddog_CharSlice service, ddog_CharSlice env, ddog_CharSlice version);
+char *ddog_telemetry_path(ddog_CharSlice service, ddog_CharSlice env);
 
 void ddog_telemetry_path_free(char *path);
 
