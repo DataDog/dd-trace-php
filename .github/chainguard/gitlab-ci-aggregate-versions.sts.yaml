@@ -1,0 +1,13 @@
+issuer: https://gitlab.ddbuild.io
+subject_pattern: "project_path:DataDog/dd-trace-php:ref_type:branch:ref:master"
+claim_pattern:
+  project_path: "DataDog/dd-trace-php"
+  ref: "master"
+  ref_type: "branch"
+  ref_path: "refs/heads/master"
+  ref_protected: "true"
+  pipeline_source: "push"
+  ci_config_ref_uri: "gitlab.ddbuild.io/DataDog/dd-trace-php//.gitlab-ci.yml@refs/heads/master"
+permissions:
+  contents: write
+  pull_requests: write 

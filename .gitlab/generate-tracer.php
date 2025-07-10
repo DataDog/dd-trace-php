@@ -676,7 +676,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 
 "aggregate tested versions":
   stage: "aggregate versions"
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.01-2
   tags: [ "arch:amd64" ]
   when: always
   variables:
@@ -686,14 +686,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   before_script:
-    - apt update && apt install -y jq git curl
-    - |
-      # Install dd-octo-sts binary
-      # Use crane to extract the binary from the official image
-      curl -L "https://github.com/google/go-containerregistry/releases/download/v0.19.0/go-containerregistry_Linux_x86_64.tar.gz" | tar -xz crane
-      chmod +x crane && mv crane /usr/local/bin/crane
-      crane export registry.ddbuild.io/dd-octo-sts:v1.0.0 - | tar -xf - usr/local/bin/dd-octo-sts
-      chmod +x usr/local/bin/dd-octo-sts
+    - apt update && apt install -y php8.2-cli php8.2-json
     - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
     - git config --global user.name "github-actions[bot]"
   script:
