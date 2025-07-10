@@ -724,7 +724,13 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - ls -la aggregated_tested_versions.json integration_versions.md
     - cat integration_versions.md
     - |
-      if [[ -n "${CI_COMMIT_REF_NAME:-}" ]] && [[ "${CI_COMMIT_REF_NAME}" == "master" ]] && [[ -n "$(git status --porcelain)" ]]; then
+      if [[ -z "$(git status --porcelain)" ]]; then
+        echo "No changes detected, exiting."
+        exit 0
+      fi
+      
+      # Only create PR if on master or alex/ branches
+      if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] || [[ "${CI_COMMIT_REF_NAME}" =~ ^alex/ ]]; then
         echo "Changes detected, creating/updating PR..."
         
         # Install GitHub CLI
@@ -733,6 +739,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
         apt update && apt install -y gh
         
+        CURRENT_BRANCH=${CI_COMMIT_REF_NAME}
         TARGET_BRANCH="update-supported-versions"
         
         # Get GitHub token from DD Octo STS
@@ -750,7 +757,8 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         if git ls-remote --heads origin $TARGET_BRANCH | grep $TARGET_BRANCH; then
           echo "Branch exists, updating it..."
           git fetch -f -u origin $TARGET_BRANCH:$TARGET_BRANCH
-          git checkout $TARGET_BRANCH
+          git symbolic-ref HEAD refs/heads/$TARGET_BRANCH
+          git reset
         else
           echo "Branch does not exist, creating it..."
           git checkout -b $TARGET_BRANCH
@@ -758,8 +766,8 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         
         # Add and commit changes
         git add aggregated_tested_versions.json integration_versions.md
-        git commit -m "chore: Update supported versions [skip ci]" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" || {
-          echo "No changes to commit"
+        git commit -m "chore: Update supported versions" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" || {
+          echo "No changes detected, exiting."
           exit 0
         }
         git push origin $TARGET_BRANCH
@@ -769,15 +777,15 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         if [[ -z "$PR_NUMBER" ]]; then
           echo "Creating new PR..."
           gh pr create --repo DataDog/dd-trace-php \
-            --base master \
+            --base $CURRENT_BRANCH \
             --head $TARGET_BRANCH \
             --title "chore: update supported versions" \
-            --body "This PR updates the tested versions list automatically based on integration test results."
+            --body "This PR updates the tested versions list automatically."
         else
-          echo "PR #$PR_NUMBER already exists, it has been updated."
+          echo "A PR already exists."
         fi
       else
-        echo "Not on master branch or no changes detected, skipping PR creation"
+        echo "Not on master or alex/ branch, skipping PR creation"
       fi
   after_script:
     # Revoke the GitHub token after usage
