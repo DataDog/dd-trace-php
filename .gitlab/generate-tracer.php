@@ -778,7 +778,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
           echo "A PR already exists."
         fi
       else
-        echo "Not on masterbranch, skipping PR creation"
+        echo "Not on master branch, skipping PR creation"
       fi
   after_script:
     # Revoke the GitHub token after usage
