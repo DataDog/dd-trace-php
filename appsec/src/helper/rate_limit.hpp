@@ -10,6 +10,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <spdlog/spdlog.h>
 
 #include "timer.hpp"
 
@@ -21,12 +22,15 @@ public:
         : max_per_second_(max_per_second){};
     bool allow()
     {
+        SPDLOG_TRACE("rate_limiter: allow() called");
         using std::chrono::duration_cast;
         using std::chrono::microseconds;
         using std::chrono::milliseconds;
         using std::chrono::seconds;
 
         if (max_per_second_ == 0) {
+            SPDLOG_TRACE(
+                "rate_limiter: max_per_second_ is 0, allowing all requests");
             return true;
         }
 
@@ -51,11 +55,17 @@ public:
             (precounter_ * (mil - (now_ms % mil))) / mil + counter_;
 
         if (count >= max_per_second_) {
+            SPDLOG_TRACE("rate_limiter: count is greater than max_per_second_, "
+                         "returning false: {}, {}",
+                count, max_per_second_);
             return false;
         }
 
         counter_++;
 
+        SPDLOG_TRACE("rate_limiter: count is less than max_per_second_, "
+                     "returning true: {}, {}",
+            count, max_per_second_);
         return true;
     }
 

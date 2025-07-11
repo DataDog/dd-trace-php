@@ -225,7 +225,6 @@ trait CommonTests {
         assert span.meta."_dd.appsec.event_rules.version" != ''
     }
 
-
     @Test
     void 'trace with an attack'() {
         HttpRequest req = container.buildReq('/hello.php')

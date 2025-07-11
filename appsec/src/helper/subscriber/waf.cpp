@@ -567,13 +567,15 @@ void instance::listener::call(
             DD_STDLOG(DD_STDLOG_AFTER_WAF,
                 parameter_to_json(parameter_view{*events}), duration / millis);
         }
-        SPDLOG_DEBUG("Waf response: code {} - actions {} - attributes {}",
+        SPDLOG_DEBUG(
+            "Waf response: code {} - actions {} - attributes {} - keep {}",
             fmt::underlying(code),
             actions != nullptr ? parameter_to_json(parameter_view{*actions})
                                : "",
             attributes != nullptr
                 ? parameter_to_json(parameter_view{*attributes})
-                : "");
+                : "",
+            event.keep);
     } else {
         run_waf();
     }

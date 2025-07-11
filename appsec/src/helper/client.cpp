@@ -416,8 +416,21 @@ bool client::send_message(const std::shared_ptr<typename T::response> &message)
                 all_verdicts << "no verdicts";
             }
         }
-        SPDLOG_DEBUG("sending response to {}, verdicts: {}",
-            message->get_type(), all_verdicts.str());
+        std::string force_keep = "not provided";
+        if constexpr (std::is_same_v<typename T::response,
+                          network::request_init::response> ||
+                      std::is_same_v<typename T::response,
+                          network::request_exec::response> ||
+                      std::is_same_v<typename T::response,
+                          network::request_shutdown::response>) {
+            if (message->force_keep) {
+                force_keep = "true";
+            } else {
+                force_keep = "false";
+            }
+        }
+        SPDLOG_DEBUG("sending response to {}, verdicts: {}, force_keep: {}",
+            message->get_type(), all_verdicts.str(), force_keep);
     }
     try {
         return broker_->send(message);

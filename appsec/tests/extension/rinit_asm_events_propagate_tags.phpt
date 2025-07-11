@@ -20,10 +20,14 @@ ddtrace_version_at_least('0.79.0');
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['record', []]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([
+            [['record', []]],
+            ['{"found":"attack"}','{"another":"attack"}'],
+            true
+    ])),
     response_list(
      response_request_shutdown(
-          [[['record', []]], ['{"yet another":"attack"}'], false, ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
+          [[['record', []]], ['{"yet another":"attack"}'], true, ["rshutdown_tag" => "rshutdown_value"], ["rshutdown_metric" => 2.1]]
      )
     ),
 ], ['continuous' => true]);
