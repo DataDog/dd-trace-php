@@ -77,7 +77,7 @@ array(1) {
       ["enabled"]=>
       bool(true)
       ["version"]=>
-      NULL
+      string(0) ""
       ["compatible"]=>
       NULL
       ["auto_enabled"]=>
