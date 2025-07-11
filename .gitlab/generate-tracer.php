@@ -738,9 +738,8 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         TARGET_BRANCH="update-supported-versions"
         
         # Get GitHub token from DD Octo STS
-        # Using existing policy until gitlab-ci-aggregate-versions is created
-        dd-octo-sts debug --scope DataDog/dd-trace-php --policy self.gitlab.read
-        dd-octo-sts token --scope DataDog/dd-trace-php --policy self.gitlab.read > github_token.txt
+        dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions
+        dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions > github_token.txt
         export GITHUB_TOKEN=$(cat github_token.txt)
         
         # Setup git remote with token
