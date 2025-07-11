@@ -27,6 +27,13 @@ ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
     return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 }
 
+ddog_ShmCacheMap *ddtrace_telemetry_cache(void) {
+    if (DDTRACE_G(telemetry_cache)) {
+        return DDTRACE_G(telemetry_cache);
+    }
+    return DDTRACE_G(telemetry_cache) = ddog_sidecar_telemetry_cache_new();
+}
+
 void ddtrace_integration_error_telemetryf(ddog_Log source, const char *format, ...) {
     va_list va, va2;
     va_start(va, format);
@@ -253,7 +260,9 @@ void ddtrace_telemetry_finalize(bool clear_id) {
     }
 
     ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer, service_name, env_name));
+        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer, ddtrace_telemetry_cache(), service_name, env_name));
+
+    ddog_sidecar_telemetry_buffer_drop(buffer);
 
     if (clear_id) {
         ddtrace_ffi_try("Failed removing application from sidecar",

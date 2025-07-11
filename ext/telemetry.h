@@ -24,6 +24,7 @@ typedef struct _trace_api_metrics {
 } trace_api_metrics;
 
 ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void);
+ddog_ShmCacheMap *ddtrace_telemetry_cache(void);
 const char *ddtrace_telemetry_redact_file(const char *file);
 void ddtrace_telemetry_first_init(void);
 void ddtrace_telemetry_rinit(void);

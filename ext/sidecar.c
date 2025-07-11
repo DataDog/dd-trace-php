@@ -403,12 +403,13 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
             ddog_process_remote_configs(DDTRACE_G(remote_config_state));
         }
     }
-    if (changed || !root) {
-        ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
-    }
 
-    ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), service_slice, env_slice));
+    ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+
+    if (DDTRACE_G(telemetry_buffer)) {
+        ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
+            ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
+    }
 
     if (free_string) {
         zend_string_release(free_string);

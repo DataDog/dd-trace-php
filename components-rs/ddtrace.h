@@ -279,10 +279,15 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
+ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
+
+void ddog_sidecar_telemetry_cache_drop(ddog_ShmCacheMap*);
+
 ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,
-                                                    struct ddog_SidecarActionsBuffer *current_buffer,
+                                                    struct ddog_SidecarActionsBuffer *buffer,
+                                                    ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
