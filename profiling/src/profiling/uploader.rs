@@ -4,8 +4,8 @@ use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
 use log::{info, warn};
-use reqwest::blocking::{multipart, Client};
 use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{multipart, ClientBuilder};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
@@ -126,14 +126,23 @@ impl Uploader {
         );
 
         // Send request
-        let client = Client::new();
-        let endpoint_url = self.endpoint.to_string(); // Adjust as needed
-        let response = client
-            .post(&endpoint_url)
-            .headers(headers)
-            .multipart(form)
-            .timeout(std::time::Duration::from_millis(10000))
-            .send()?;
+        let client = ClientBuilder::new().timeout(std::time::Duration::from_millis(10000));
+        // Handle UDS
+        let client = match &self.endpoint {
+            AgentEndpoint::Socket(path) => client.unix_socket(path.clone()),
+            _ => client,
+        };
+
+        let rt = tokio::runtime::Builder::new_current_thread().build()?;
+        let client = client.build()?;
+        let response = rt.block_on(async {
+            client
+                .post(self.endpoint.to_string())
+                .headers(headers)
+                .multipart(form)
+                .send()
+                .await
+        })?;
 
         Ok(response.status().as_u16())
     }
