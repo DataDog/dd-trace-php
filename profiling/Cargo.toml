@@ -24,7 +24,6 @@ datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v18.
 ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
 datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
 env_logger = { version = "0.11", default-features = false }
-indexmap = { version = "2.2" }
 lazy_static = { version = "1.4" }
 libc = "0.2"
 # TRACE set to max to support runtime configuration.
