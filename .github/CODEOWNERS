@@ -1,9 +1,6 @@
 # Default owners
 * @DataDog/apm-php
 
-# DD Octo STS trust policies (security-critical)
-.github/chainguard/** @DataDog/apm-php
-
 # Profiling team
 /profiling/ @DataDog/profiling-php
 
