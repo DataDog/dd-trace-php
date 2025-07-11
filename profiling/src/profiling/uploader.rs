@@ -133,7 +133,10 @@ impl Uploader {
             _ => client,
         };
 
-        let rt = tokio::runtime::Builder::new_current_thread().build()?;
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()?;
         let client = client.build()?;
         let response = rt.block_on(async {
             client
