@@ -1,18 +1,21 @@
-#[cfg(feature = "allocation_profiling")]
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 use crate::config::AgentEndpoint;
-#[cfg(feature = "exception_profiling")]
-use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use ddcommon::Endpoint;
-use log::{debug, info, warn};
+use log::{info, warn};
+use reqwest::blocking::{multipart, Client};
+use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
 use std::sync::{Arc, Barrier};
+
+#[cfg(feature = "allocation_profiling")]
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+
+#[cfg(feature = "exception_profiling")]
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 
 #[cfg(any(
     feature = "exception_profiling",
@@ -84,35 +87,88 @@ impl Uploader {
         let index = message.index;
         let profile = message.profile;
 
-        let profiling_library_name: &str = &PROFILER_NAME_STR;
-        let profiling_library_version: &str = &PROFILER_VERSION_STR;
-        let agent_endpoint = &self.endpoint;
-        let endpoint = Endpoint::try_from(agent_endpoint)?;
-
-        let tags = Some(Arc::unwrap_or_clone(index.tags));
-        let mut exporter = datadog_profiling::exporter::ProfileExporter::new(
-            profiling_library_name,
-            profiling_library_version,
-            "php",
-            tags,
-            endpoint,
-        )?;
-
+        // Serialize profile as compressed pprof
         let serialized =
             profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
-        exporter.set_timeout(10000); // 10 seconds in milliseconds
-        let request = exporter.build(
-            serialized,
-            &[],
-            &[],
-            None,
-            Self::create_internal_metadata(),
-            self.create_profiler_info(),
-        )?;
-        debug!("Sending profile to: {agent_endpoint}");
-        let result = exporter.send(request, None)?;
-        Ok(result.status().as_u16())
+
+        // Prepare multipart form
+        let mut form = multipart::Form::new().part(
+            "profile.pprof",
+            multipart::Part::bytes(serialized.buffer)
+                .file_name("profile.pprof")
+                .mime_str("application/octet-stream")?,
+        );
+
+        // Add event metadata as JSON
+        let tags = Some(Arc::unwrap_or_clone(index.tags));
+        let event_json = serde_json::to_string(&json!({
+            "tags_profiler": tags,
+            "internal": Self::create_internal_metadata(),
+            "info": self.create_profiler_info(),
+        }))?;
+        form = form.part(
+            "event",
+            multipart::Part::text(event_json)
+                .file_name("event.json")
+                .mime_str("application/json")?,
+        );
+
+        // Build headers
+        let mut headers = HeaderMap::new();
+        headers.insert("Connection", HeaderValue::from_static("close"));
+        headers.insert(
+            "DD-EVP-ORIGIN",
+            HeaderValue::from_static(&PROFILER_NAME_STR),
+        );
+        headers.insert(
+            "DD-EVP-ORIGIN-VERSION",
+            HeaderValue::from_static(&PROFILER_VERSION_STR),
+        );
+
+        // Send request
+        let client = Client::new();
+        let endpoint_url = self.endpoint.to_string(); // Adjust as needed
+        let response = client
+            .post(&endpoint_url)
+            .headers(headers)
+            .multipart(form)
+            .timeout(std::time::Duration::from_millis(10000))
+            .send()?;
+
+        Ok(response.status().as_u16())
     }
+
+    // fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
+    //     use ddcommon::Endpoint;
+    //     let index = message.index;
+    //     let profile = message.profile;
+    //
+    //     let profiling_library_name: &str = &PROFILER_NAME_STR;
+    //     let profiling_library_version: &str = &PROFILER_VERSION_STR;
+    //     let agent_endpoint = &self.endpoint;
+    //     let endpoint = Endpoint::try_from(agent_endpoint)?;
+    //
+    //     let tags = Some(Arc::unwrap_or_clone(index.tags));
+    //     let mut exporter = datadog_profiling::exporter::ProfileExporter::new(
+    //         profiling_library_name,
+    //         profiling_library_version,
+    //         "php",
+    //         tags,
+    //         endpoint,
+    //     )?;
+    //     exporter.set_timeout(10000); // 10 seconds in milliseconds
+    //     let request = exporter.build(
+    //         serialized,
+    //         &[],
+    //         &[],
+    //         None,
+    //         Self::create_internal_metadata(),
+    //         self.create_profiler_info(),
+    //     )?;
+    //     debug!("Sending profile to: {agent_endpoint}");
+    //     let result = exporter.send(request, None)?;
+    //     Ok(result.status().as_u16())
+    // }
 
     pub fn run(self) {
         /* Safety: Called from Profiling::new, which is after config is
