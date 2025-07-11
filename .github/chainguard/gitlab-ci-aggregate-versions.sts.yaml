@@ -1,15 +1,14 @@
 issuer: https://gitlab.ddbuild.io
 
-subject_pattern: "project_path:DataDog/apm-reliability/dd-trace-php:ref_type:branch:ref:alex/.*"
+subject_pattern: "project_path:DataDog/apm-reliability/dd-trace-php:ref_type:(branch|tag):ref:.*"
 
 claim_pattern:
   project_path: "DataDog/apm-reliability/dd-trace-php"
-  ref: "alex/.*"
-  ref_type: "branch"
-  ref_path: "refs/heads/alex/.*"
-  ref_protected: "true"
-  pipeline_source: "parent_pipeline"
+  ref: ".*"
+  ref_type: "(branch|tag)"
+  pipeline_source: "(push|schedule)"
 
 permissions:
+  actions: write
   contents: write
   pull_requests: write 
