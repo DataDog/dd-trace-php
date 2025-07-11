@@ -51,6 +51,7 @@ stages:
   - test
   - "integrations test"
   - "web test"
+  - "aggregate versions"
 
 #variables:
 #  CI_DEBUG_SERVICES: "true"
@@ -191,7 +192,7 @@ stages:
     HTTPBIN_PORT: 8080
   before_script:
 <?php before_script_steps() ?>
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
+    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
 
 .asan_test:
   extends: .base_test
@@ -481,23 +482,24 @@ endforeach;
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
+    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
-    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions.json
+    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
 
 // specific service maps:
 $services["elasticsearch1"] = "elasticsearch2";
+$services["elasticsearch8"] = "elasticsearch7";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["deferred_loadin"] = "redis";
 $services["pdo"] = "mysql";
-$services["kafk"] = "zookeeper";
+$services["kafk"] = ["kafka", "zookeeper"];
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -534,15 +536,29 @@ foreach ($jobs as $type => $type_jobs):
 <?php if ($type == "web"): ?>
     - !reference [.services, mysql]
 <?php endif; ?>
-<?php foreach ($services as $part => $service): if (str_contains($target, $part)): ?>
-    - !reference [.services, <?= $service ?>]
-<?php endif; endforeach; ?>
+<?php 
+foreach ($services as $part => $service) {
+    if (str_contains($target, $part)) {
+        if (is_array($service)) {
+            foreach ($service as $svc) {
+                echo "    - !reference [.services, $svc]\n";
+            }
+        } else {
+            echo "    - !reference [.services, $service]\n";
+        }
+    }
+}
+?>
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
+<?php endif; ?>
+<?php if (str_contains($target, "kafk")): ?>
+    WAIT_FOR: zookeeper:2181 kafka-integration:9092
+    CI_DEBUG_SERVICES: "true"
 <?php endif; ?>
 <?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2
@@ -657,3 +673,122 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 <?php after_script(has_test_agent: true); ?>
 
 <?php endforeach; ?>
+
+"aggregate tested versions":
+  stage: "aggregate versions"
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  when: always
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  before_script:
+    - git config --global --add safe.directory /go/src/github.com/DataDog/apm-reliability/dd-trace-php
+    - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+    - git config --global user.name "github-actions[bot]"
+  script:
+    - echo "Aggregating tested versions from all test jobs..."
+    - mkdir -p temp_versions
+    - find . -name "tested_versions_*.json" -path "*/artifacts/*" -exec sh -c 'cp "$1" "temp_versions/$(basename "$1" .json)_$(date +%s_%N).json"' _ {} \;
+    - ls -la temp_versions/
+    - |
+      jq -s 'reduce .[] as $item ({};
+        . as $acc |
+        reduce ($item | to_entries[]) as $entry ($acc;
+          .[$entry.key] = (.[$entry.key] + $entry.value | unique)
+        )
+      ) | to_entries | sort_by(.key) | from_entries' temp_versions/*.json > aggregated_tested_versions.json
+    - |
+      echo "Generating markdown table with bash/jq..."
+      echo "| Library                     | Min. Supported Version | Max. Supported Version |" > integration_versions.md
+      echo "|-----------------------------|------------------------|------------------------|" >> integration_versions.md
+      
+      # Process each library and find min/max versions
+      jq -r 'to_entries | sort_by(.key) | .[] | @base64' aggregated_tested_versions.json | while read encoded; do
+        decoded=$(echo $encoded | base64 -d)
+        library=$(echo $decoded | jq -r '.key')
+        versions=$(echo $decoded | jq -r '.value | join(" ")')
+        
+        # Find min and max versions using sort -V (version sort)
+        min_version=$(echo $versions | tr ' ' '\n' | sort -V | head -1)
+        max_version=$(echo $versions | tr ' ' '\n' | sort -V | tail -1)
+        
+        # Format library name to fit table width
+        formatted_library=$(printf "%-27s" "$library")
+        formatted_min=$(printf "%-22s" "$min_version")
+        formatted_max=$(printf "%-22s" "$max_version")
+        
+        echo "| $formatted_library | $formatted_min | $formatted_max |" >> integration_versions.md
+      done
+      
+      echo "Markdown table generated successfully"
+    - ls -la aggregated_tested_versions.json integration_versions.md
+    - cat integration_versions.md
+    - |
+      if [[ -z "$(git status --porcelain)" ]]; then
+        echo "No changes detected, exiting."
+        exit 0
+      fi
+      
+      # Only create PR if on master
+      if [[ "${CI_COMMIT_REF_NAME}" == "master" ]]; then
+        echo "Changes detected, creating/updating PR..."
+        
+        CURRENT_BRANCH=${CI_COMMIT_REF_NAME}
+        TARGET_BRANCH="update-supported-versions"
+        
+        # Get GitHub token from DD Octo STS
+        dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions
+        dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions > github_token.txt
+        export GITHUB_TOKEN=$(cat github_token.txt)
+        
+        # Setup git remote with token
+        git remote remove origin || true
+        git remote add origin https://$GITHUB_TOKEN@github.com/DataDog/dd-trace-php.git
+        
+        # Check if branch exists and switch to it
+        if git ls-remote --heads origin $TARGET_BRANCH | grep $TARGET_BRANCH; then
+          echo "Branch exists, updating it..."
+          git fetch -f -u origin $TARGET_BRANCH:$TARGET_BRANCH
+          git symbolic-ref HEAD refs/heads/$TARGET_BRANCH
+          git reset
+        else
+          echo "Branch does not exist, creating it..."
+          git checkout -b $TARGET_BRANCH
+        fi
+        
+        # Add and commit changes
+        git add aggregated_tested_versions.json integration_versions.md
+        git commit -m "chore: Update supported versions" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" || {
+          echo "No changes detected, exiting."
+          exit 0
+        }
+        git push origin $TARGET_BRANCH
+        
+        # Create or update PR
+        PR_NUMBER=$(gh pr list --repo DataDog/dd-trace-php --head $TARGET_BRANCH --json number --jq '.[0].number' || echo "")
+        if [[ -z "$PR_NUMBER" ]]; then
+          echo "Creating new PR..."
+          gh pr create --repo DataDog/dd-trace-php \
+            --base $CURRENT_BRANCH \
+            --head $TARGET_BRANCH \
+            --title "chore: update supported versions" \
+            --body "This PR updates the tested versions list automatically."
+        else
+          echo "A PR already exists."
+        fi
+      else
+        echo "Not on master branch, skipping PR creation"
+      fi
+  after_script:
+    # Revoke the GitHub token after usage
+    - if [[ -f github_token.txt ]]; then dd-octo-sts revoke -t $(cat github_token.txt) || true; fi
+  artifacts:
+    paths:
+      - "aggregated_tested_versions.json"
+      - "integration_versions.md"
+    when: "always"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: always
+    - when: manual
