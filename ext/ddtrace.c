@@ -684,6 +684,10 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
 
+    if (ddtrace_globals->telemetry_cache) {
+        ddog_sidecar_telemetry_cache_drop(ddtrace_globals->telemetry_cache);
+    }
+
     zend_hash_destroy(&ddtrace_globals->git_metadata);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER

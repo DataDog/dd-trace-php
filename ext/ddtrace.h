@@ -1,5 +1,6 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
+#include "components-rs/common.h"
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -164,6 +165,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable git_metadata;
     zend_object *git_object;
 
+    ddog_ShmCacheMap *telemetry_cache;
     bool inferred_span_created;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on

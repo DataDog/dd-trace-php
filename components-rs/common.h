@@ -396,6 +396,8 @@ typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
 
+typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_HashMap_ShmCacheKey__ShmCache;
+
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -602,6 +604,8 @@ typedef struct ddog_Vec_DebuggerPayload {
   uintptr_t len;
   uintptr_t capacity;
 } ddog_Vec_DebuggerPayload;
+
+typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_ShmCacheMap;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
