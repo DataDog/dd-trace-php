@@ -735,10 +735,10 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         echo "Changes detected, creating/updating PR..."
         
         # Install GitHub CLI
-        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-        chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-        echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-        apt update && apt install -y gh
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+        sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        sudo apt update && sudo apt install -y gh
         
         CURRENT_BRANCH=${CI_COMMIT_REF_NAME}
         TARGET_BRANCH="update-supported-versions"
