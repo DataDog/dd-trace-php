@@ -730,8 +730,8 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
         exit 0
       fi
       
-      # Only create PR if on master or alex/ branches
-      if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] || [[ "${CI_COMMIT_REF_NAME}" =~ ^alex/ ]]; then
+      # Only create PR if on master
+      if [[ "${CI_COMMIT_REF_NAME}" == "master" ]]; then
         echo "Changes detected, creating/updating PR..."
         
         CURRENT_BRANCH=${CI_COMMIT_REF_NAME}
@@ -778,7 +778,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
           echo "A PR already exists."
         fi
       else
-        echo "Not on master or alex/ branch, skipping PR creation"
+        echo "Not on masterbranch, skipping PR creation"
       fi
   after_script:
     # Revoke the GitHub token after usage
@@ -790,7 +790,5 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     when: "always"
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
-      when: always
-    - if: $CI_COMMIT_REF_NAME =~ /^alex\//
       when: always
     - when: manual
