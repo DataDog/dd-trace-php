@@ -36,6 +36,12 @@ dd_dump_spans();
 spans(\DDTrace\SpanData) (1) {
   main (default_span_properties.php, main, cli)
     max => 6
+    _dd.code_origin.frames.0.file => %s/default_span_properties.php
+    _dd.code_origin.frames.0.line => 16
+    _dd.code_origin.frames.0.method => main
+    _dd.code_origin.frames.1.file => %s/default_span_properties.php
+    _dd.code_origin.frames.1.line => 1
+    _dd.code_origin.type => entry
     _dd.p.dm => -0
     _dd.p.tid => %s
     MyRange (default_span_properties.php, MyRange, cli)
