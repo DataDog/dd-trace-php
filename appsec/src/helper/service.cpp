@@ -48,7 +48,6 @@ service::service(std::shared_ptr<engine> engine,
     std::shared_ptr<service_config> service_config,
     std::unique_ptr<dds::remote_config::client_handler> client_handler,
     std::shared_ptr<metrics_impl> msubmitter, std::string rc_path,
-    sidecar_settings sc_settings,
     const schema_extraction_settings &schema_extraction_settings)
     : engine_{std::move(engine)}, service_config_{std::move(service_config)},
       client_handler_{std::move(client_handler)},
@@ -59,8 +58,7 @@ service::service(std::shared_ptr<engine> engine,
               ? std::make_optional<sampler>(static_cast<std::uint32_t>(
                     schema_extraction_settings.sampling_period))
               : std::nullopt},
-      rc_path_{std::move(rc_path)}, msubmitter_{std::move(msubmitter)},
-      sidecar_settings_{std::move(sc_settings)}
+      rc_path_{std::move(rc_path)}, msubmitter_{std::move(msubmitter)}
 {
     // The engine should always be valid
     if (!engine_) {
@@ -74,10 +72,9 @@ service::service(std::shared_ptr<engine> engine,
 
 std::shared_ptr<service> service::from_settings(
     const dds::engine_settings &eng_settings,
-    const remote_config::settings &rc_settings, sidecar_settings sc_settings)
+    const remote_config::settings &rc_settings)
 {
-    std::shared_ptr<metrics_impl> msubmitter =
-        std::make_shared<metrics_impl>(sc_settings);
+    std::shared_ptr<metrics_impl> msubmitter = std::make_shared<metrics_impl>();
 
     const std::shared_ptr<engine> engine_ptr =
         engine::from_settings(eng_settings, *msubmitter);
@@ -89,12 +86,11 @@ std::shared_ptr<service> service::from_settings(
 
     return create_shared(engine_ptr, std::move(service_config),
         std::move(client_handler), std::move(msubmitter),
-        rc_settings.shmem_path, std::move(sc_settings),
-        eng_settings.schema_extraction);
+        rc_settings.shmem_path, eng_settings.schema_extraction);
 }
 
 void service::metrics_impl::submit_log(
-    uint64_t queue_id, const tel_log &log) const
+    const sidecar_settings &sc_settings, uint64_t queue_id, const tel_log &log)
 {
     SPDLOG_DEBUG("submit_log (ffi): [{}][{}]: {}", log.level, log.identifier,
         log.message);
@@ -106,8 +102,8 @@ void service::metrics_impl::submit_log(
         return;
     }
 
-    CharSlice const session_id_ffi = to_ffi_string(sc_settings_.session_id);
-    CharSlice const runtime_id_ffi = to_ffi_string(sc_settings_.runtime_id);
+    CharSlice const session_id_ffi = to_ffi_string(sc_settings.session_id);
+    CharSlice const runtime_id_ffi = to_ffi_string(sc_settings.runtime_id);
 
     CharSlice const identifier_ffi = to_ffi_string(log.identifier);
     ddog_LogLevel c_level = DDOG_LOG_LEVEL_DEBUG; // Default to Debug

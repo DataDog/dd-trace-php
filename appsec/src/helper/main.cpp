@@ -9,6 +9,7 @@
 
 #include "config.hpp"
 #include "runner.hpp"
+#include "subscriber/waf.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <spdlog/common.h>

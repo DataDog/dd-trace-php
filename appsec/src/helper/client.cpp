@@ -153,9 +153,9 @@ bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
                  "runtime_version={}, engine_settings={}, "
-                 "remote_config_settings={}",
+                 "remote_config_settings={}, sidecar_settings={}",
         command.pid, command.client_version, command.runtime_version,
-        command.engine_settings, command.rc_settings);
+        command.engine_settings, command.rc_settings, command.sc_settings);
 
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
@@ -167,11 +167,14 @@ bool client::handle_command(const network::client_init::request &command)
 
     try {
         set_service(service_manager_->create_service(
-            eng_settings, command.rc_settings, command.sc_settings));
+            eng_settings, command.rc_settings));
 
         // save engine settings so we can recreate the service if rc path
         // changes
         engine_settings_ = eng_settings;
+
+        // sidecar settings (session/runtime id)should not change
+        sc_settings_ = command.sc_settings;
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
@@ -368,7 +371,7 @@ bool client::handle_command(network::config_sync::request &command)
         "received command config_sync with rem cfg path {} and queue id {}",
         command.rem_cfg_path, command.queue_id);
 
-    service_->drain_logs(command.queue_id);
+    service_->drain_logs(sc_settings_, command.queue_id);
 
     update_remote_config_path(command.rem_cfg_path);
 
@@ -416,6 +419,7 @@ bool client::send_message(const std::shared_ptr<typename T::response> &message)
                 all_verdicts << "no verdicts";
             }
         }
+        // NOLINTNEXTLINE(misc-const-correctness)
         std::string force_keep = "not provided";
         if constexpr (std::is_same_v<typename T::response,
                           network::request_init::response> ||
@@ -467,7 +471,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     }
 
     collect_metrics(*response, *service_, context_);
-    service_->drain_logs(command.queue_id);
+    service_->drain_logs(sc_settings_, command.queue_id);
 
     return send_message<network::request_shutdown>(response);
 }
@@ -491,9 +495,10 @@ void client::update_remote_config_path(std::string_view path)
         rc_settings.shmem_path = path;
     }
 
-    sidecar_settings current_sc_settings = service_->get_sidecar_settings();
-    std::shared_ptr<service> new_service = service_manager_->create_service(
-        *engine_settings_, rc_settings, std::move(current_sc_settings));
+    sidecar_settings const current_sc_settings =
+        service_->get_sidecar_settings();
+    std::shared_ptr<service> new_service =
+        service_manager_->create_service(*engine_settings_, rc_settings);
 
     set_service(std::move(new_service));
 }
