@@ -1613,7 +1613,6 @@ dependencies = [
  "rustc_version",
  "serde_json",
  "thiserror 2.0.12",
- "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -4836,7 +4835,7 @@ dependencies = [
 [[package]]
 name = "reqwest"
 version = "0.12.22"
-source = "git+https://github.com/seanmonstar/reqwest.git?branch=uds#3fb061f3bdf84d1b7c385931b6947c277fa487a4"
+source = "git+https://github.com/seanmonstar/reqwest.git?rev=10ad5afa5985c9ce8f486cefa27e258a3e925f8b#10ad5afa5985c9ce8f486cefa27e258a3e925f8b"
 dependencies = [
  "base64 0.22.1",
  "bytes",

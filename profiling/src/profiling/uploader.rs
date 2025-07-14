@@ -4,8 +4,8 @@ use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
 use log::{info, warn};
+use reqwest::blocking::{multipart, ClientBuilder};
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{multipart, ClientBuilder};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
@@ -125,27 +125,18 @@ impl Uploader {
             HeaderValue::from_static(&PROFILER_VERSION_STR),
         );
 
-        // Send request
-        let client = ClientBuilder::new().timeout(std::time::Duration::from_millis(10000));
-        // Handle UDS
-        let client = match &self.endpoint {
-            AgentEndpoint::Socket(path) => client.unix_socket(path.clone()),
-            _ => client,
-        };
-
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_io()
-            .enable_time()
-            .build()?;
+        // Build blocking client with optional unix socket
+        let mut client = ClientBuilder::new().timeout(std::time::Duration::from_millis(10000));
+        if let AgentEndpoint::Socket(path) = &self.endpoint {
+            client = client.unix_socket(path.clone())
+        }
         let client = client.build()?;
-        let response = rt.block_on(async {
-            client
-                .post(self.endpoint.to_string())
-                .headers(headers)
-                .multipart(form)
-                .send()
-                .await
-        })?;
+
+        let response = client
+            .post(self.endpoint.to_string())
+            .headers(headers)
+            .multipart(form)
+            .send()?;
 
         Ok(response.status().as_u16())
     }
