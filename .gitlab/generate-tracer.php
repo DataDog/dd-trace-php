@@ -539,12 +539,8 @@ foreach ($jobs as $type => $type_jobs):
 <?php 
 foreach ($services as $part => $service) {
     if (str_contains($target, $part)) {
-        if (is_array($service)) {
-            foreach ($service as $svc) {
-                echo "    - !reference [.services, $svc]\n";
-            }
-        } else {
-            echo "    - !reference [.services, $service]\n";
+        foreach ((array)$service as $svc) {
+            echo "    - !reference [.services, $svc]\n";
         }
     }
 }
