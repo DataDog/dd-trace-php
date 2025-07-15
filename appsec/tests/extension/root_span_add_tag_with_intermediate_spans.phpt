@@ -5,6 +5,7 @@ extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 SERVER_NAME=localhost:8888
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown,ddtrace_rshutdown,root_span_get_meta,root_span_get_metrics,root_span_add_tag};

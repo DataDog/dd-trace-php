@@ -3,6 +3,7 @@ API Gateway span should be created from consuming distributed tracing headers
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_SERVICE=aws-server
 DD_ENV=local-prod
 DD_VERSION=1.0
