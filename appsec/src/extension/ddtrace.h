@@ -27,6 +27,7 @@ typedef zend_object root_span_t;
 
 void dd_trace_startup(void);
 void dd_trace_shutdown(void);
+void dd_trace_rinit(void);
 
 // Returns the tracer version
 const char *nullable dd_trace_version(void);

@@ -90,7 +90,8 @@ template <> struct hash<dds::engine_settings> {
     std::size_t operator()(const dds::engine_settings &s) const noexcept
     {
         return dds::hash(s.rules_file, s.waf_timeout_us, s.trace_rate_limit,
-            s.obfuscator_key_regex, s.obfuscator_value_regex);
+            s.obfuscator_key_regex, s.obfuscator_value_regex,
+            s.schema_extraction.enabled, s.schema_extraction.sampling_period);
     }
 };
 } // namespace std

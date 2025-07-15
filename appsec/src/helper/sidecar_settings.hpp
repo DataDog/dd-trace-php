@@ -7,6 +7,7 @@
 
 #include "utils.hpp"
 #include <msgpack.hpp>
+#include <spdlog/fmt/bundled/base.h>
 #include <string>
 
 namespace dds {
@@ -26,6 +27,17 @@ struct sidecar_settings {
 };
 
 } // namespace dds
+
+template <> struct fmt::formatter<dds::sidecar_settings> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const dds::sidecar_settings &s, FormatContext &ctx) const
+    {
+        return fmt::format_to(ctx.out(), "{{session_id={}, runtime_id={}}}",
+            s.session_id, s.runtime_id);
+    }
+};
 
 namespace std {
 template <> struct hash<dds::sidecar_settings> {

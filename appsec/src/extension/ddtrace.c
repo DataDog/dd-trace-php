@@ -33,6 +33,7 @@ static zend_string *_metrics_propname;
 static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
 static uint8_t *_ddtrace_runtime_id;
+static THREAD_LOCAL_ON_ZTS bool _asm_event_emitted;
 
 static void _setup_testing_telemetry_functions(void);
 static zend_module_entry *_find_ddtrace_module(void);
@@ -153,6 +154,8 @@ void dd_trace_startup(void)
         mod->request_shutdown_func = _ddtrace_rshutdown_testing;
     }
 }
+
+void dd_trace_rinit(void) { _asm_event_emitted = false; }
 
 static void _setup_testing_telemetry_functions(void)
 {
@@ -439,6 +442,10 @@ void dd_trace_span_add_propagated_tags(
 
 void dd_trace_emit_asm_event(void)
 {
+    if (_asm_event_emitted) {
+        return;
+    }
+
     if (UNEXPECTED(_ddtrace_emit_asm_event == NULL)) {
         return;
     }
@@ -446,6 +453,7 @@ void dd_trace_emit_asm_event(void)
     mlog(dd_log_trace, "Emitting ASM event");
 
     _ddtrace_emit_asm_event();
+    _asm_event_emitted = true;
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

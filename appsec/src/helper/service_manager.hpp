@@ -5,13 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "engine.hpp"
 #include "engine_settings.hpp"
-#include "exception.hpp"
-#include "network/proto.hpp"
 #include "service.hpp"
-#include "std_logging.hpp"
-#include "subscriber/waf.hpp"
 #include "utils.hpp"
 #include <memory>
 #include <mutex>
@@ -35,8 +30,7 @@ public:
 
     virtual std::shared_ptr<service> create_service(
         const engine_settings &settings,
-        const remote_config::settings &rc_settings,
-        sidecar_settings sc_settings);
+        const remote_config::settings &rc_settings);
 
     void notify_of_rc_updates(std::string_view shmem_path);
 
@@ -44,19 +38,16 @@ protected:
     class cache_key {
     public:
         cache_key(engine_settings engine_settings,
-            remote_config::settings config_settings,
-            sidecar_settings sc_settings)
+            remote_config::settings config_settings)
             : engine_settings_{std::move(engine_settings)},
               config_settings_{std::move(config_settings)},
-              sc_settings_{std::move(sc_settings)},
-              hash_{dds::hash(engine_settings_, config_settings_, sc_settings_)}
+              hash_{dds::hash(engine_settings_, config_settings_)}
         {}
 
         bool operator==(const cache_key &other) const
         {
             return engine_settings_ == other.engine_settings_ &&
-                   config_settings_ == other.config_settings_ &&
-                   sc_settings_ == other.sc_settings_;
+                   config_settings_ == other.config_settings_;
         }
 
         struct hash {
@@ -74,7 +65,6 @@ protected:
     private:
         engine_settings engine_settings_;
         remote_config::settings config_settings_;
-        sidecar_settings sc_settings_;
         std::size_t hash_;
     };
 

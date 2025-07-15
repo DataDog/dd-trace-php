@@ -8,10 +8,11 @@
 namespace dds {
 
 std::shared_ptr<service> service_manager::create_service(
-    const engine_settings &settings, const remote_config::settings &rc_settings,
-    sidecar_settings sc_settings)
+    const engine_settings &settings, const remote_config::settings &rc_settings)
 {
-    const cache_key key{settings, rc_settings, sc_settings};
+    const cache_key key{settings, rc_settings};
+    SPDLOG_DEBUG(
+        "Will try to fetch service with cache hash={}", cache_key::hash{}(key));
 
     const std::lock_guard guard{mutex_};
     auto hit = cache_.find(key);
@@ -28,8 +29,7 @@ std::shared_ptr<service> service_manager::create_service(
     SPDLOG_DEBUG("Creating a service for settings={} rc_settings={}", settings,
         rc_settings);
 
-    auto service_ptr =
-        service::from_settings(settings, rc_settings, std::move(sc_settings));
+    auto service_ptr = service::from_settings(settings, rc_settings);
     cache_.emplace(key, std::move(service_ptr));
 
     last_service_ = service_ptr;
@@ -62,6 +62,8 @@ void service_manager::notify_of_rc_updates(std::string_view shmem_path)
 
 void service_manager::cleanup_cache()
 {
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+    auto entries_before = cache_.size();
     for (auto it = cache_.begin(); it != cache_.end();) {
         if (it->second.expired()) {
             it = cache_.erase(it);
@@ -69,6 +71,10 @@ void service_manager::cleanup_cache()
             it++;
         }
     }
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+    auto entries_after = cache_.size();
+    SPDLOG_DEBUG("Cleaned up service cache. Entries before: {}, after: {}",
+        entries_before, entries_after);
 }
 
 } // namespace dds

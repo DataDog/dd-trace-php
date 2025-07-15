@@ -6,7 +6,6 @@
 #pragma once
 
 #include "engine.hpp"
-#include "metrics.hpp"
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
 #include "service_config.hpp"
@@ -46,8 +45,7 @@ protected:
         static constexpr std::size_t MAX_PENDING_LOGS = 100;
 
     public:
-        metrics_impl(sidecar_settings sc_settings)
-            : sc_settings_{std::move(sc_settings)} {};
+        metrics_impl() = default;
         metrics_impl(const metrics_impl &) = delete;
         metrics_impl &operator=(const metrics_impl &) = delete;
         metrics_impl(metrics_impl &&) = delete;
@@ -90,12 +88,6 @@ protected:
             std::optional<std::string> stack_trace,
             std::optional<std::string> tags, bool is_sensitive) override
         {
-            if (!sc_settings_.is_valid()) {
-                SPDLOG_DEBUG(
-                    "Sidecar settings are not valid, skipping telemetry log");
-                return;
-            }
-
             if (pending_logs_.size() >= MAX_PENDING_LOGS) {
                 SPDLOG_WARN("Pending logs queue is full, dropping log");
                 return;
@@ -121,7 +113,7 @@ protected:
             }
         }
 
-        void drain_logs(uint64_t queue_id)
+        void drain_logs(const sidecar_settings &sc_settings, uint64_t queue_id)
         {
             std::vector<tel_log> logs;
             {
@@ -134,7 +126,9 @@ protected:
                     logs.size());
                 return;
             }
-            for (auto &log : logs) { submit_log(queue_id, std::move(log)); }
+            for (auto &log : logs) {
+                submit_log(sc_settings, queue_id, std::move(log));
+            }
         }
 
         std::map<std::string_view, double> drain_legacy_metrics()
@@ -150,7 +144,8 @@ protected:
         }
 
     private:
-        void submit_log(uint64_t queue_id, const tel_log &log) const;
+        static void submit_log(const sidecar_settings &sc_settings,
+            uint64_t queue_id, const tel_log &log);
 
         std::vector<tel_metric> pending_metrics_;
         std::mutex pending_metrics_mutex_;
@@ -160,22 +155,18 @@ protected:
         std::mutex legacy_metrics_mutex_;
         std::map<std::string, std::string> meta_;
         std::mutex meta_mutex_;
-
-        sidecar_settings sc_settings_;
     };
 
     // TODO: remove this. For testing only
-    static std::shared_ptr<metrics_impl> create_shared_metrics(
-        sidecar_settings sc_settings)
+    static std::shared_ptr<metrics_impl> create_shared_metrics()
     {
-        return std::make_shared<metrics_impl>(std::move(sc_settings));
+        return std::make_shared<metrics_impl>();
     }
 
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config,
         std::unique_ptr<dds::remote_config::client_handler> client_handler,
         std::shared_ptr<metrics_impl> msubmitter, std::string rc_path,
-        sidecar_settings sc_settings,
         const schema_extraction_settings &schema_extraction_settings = {});
 
     template <typename... Args>
@@ -196,8 +187,7 @@ public:
 
     static std::shared_ptr<service> from_settings(
         const dds::engine_settings &eng_settings,
-        const remote_config::settings &rc_settings,
-        sidecar_settings sc_settings);
+        const remote_config::settings &rc_settings);
 
     static void resolve_symbols();
 
@@ -240,7 +230,10 @@ public:
         msubmitter_->drain_metrics(std::forward<Func>(func));
     }
 
-    void drain_logs(uint64_t queue_id) { msubmitter_->drain_logs(queue_id); }
+    void drain_logs(const sidecar_settings &sc_settings, uint64_t queue_id)
+    {
+        msubmitter_->drain_logs(sc_settings, queue_id);
+    }
 
     [[nodiscard]] std::map<std::string_view, double> drain_legacy_metrics()
     {
