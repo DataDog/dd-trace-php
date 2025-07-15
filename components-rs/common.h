@@ -840,6 +840,13 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_SpanBytes ddog_SpanBytes;
+typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
+typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
+typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
+typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
+
+
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
@@ -884,6 +891,40 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_top_level;
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_SpanBytes {
+  const ddog_SpanBytes *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_SpanBytes;
+
+typedef struct ddog_Vec_SpanBytes ddog_TraceBytes;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_TraceBytes {
+  const ddog_TraceBytes *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_TraceBytes;
+
+typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
+
+typedef struct ddog_SenderParameters {
+  struct ddog_TracerHeaderTags tracer_headers_tags;
+  struct ddog_SidecarTransport *transport;
+  struct ddog_InstanceId *instance_id;
+  uintptr_t limit;
+  int64_t n_requests;
+  int64_t buffer_size;
+  ddog_CharSlice url;
+} ddog_SenderParameters;
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,

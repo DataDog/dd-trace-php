@@ -283,6 +283,10 @@ ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
 
 void ddog_sidecar_telemetry_cache_drop(ddog_ShmCacheMap*);
 
+bool ddog_sidecar_telemetry_config_sent(const ddog_ShmCacheMap *cache,
+                                        ddog_CharSlice service,
+                                        ddog_CharSlice env);
+
 ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
                                                     const struct ddog_InstanceId *instance_id,
                                                     const ddog_QueueId *queue_id,

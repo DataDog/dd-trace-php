@@ -10,3 +10,4 @@ $span->setTag('resource.name', 'resource_name');
 $span->setTag('span.type', 'web');
 $span->setTag('http.method', $_SERVER['REQUEST_METHOD']);
 $span->finish();
+dd_trace_internal_fn("finalize_telemetry");

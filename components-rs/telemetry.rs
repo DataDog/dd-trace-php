@@ -234,6 +234,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 
 pub struct ShmCache {
     pub last_updated: Instant,
+    pub config_sent: bool,
     pub integrations: HashSet<String>,
     pub composer_paths: HashSet<PathBuf>,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
@@ -242,7 +243,7 @@ pub struct ShmCache {
 #[derive(Hash, Eq, PartialEq)]
 struct ShmCacheKey(String, String);
 
-impl Equivalent<ShmCacheKey> for (&String, &String) {
+impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {
         *self.0 == key.0 && *self.1 == key.1
     }
@@ -258,6 +259,19 @@ pub extern "C" fn ddog_sidecar_telemetry_cache_new() -> Box<ShmCacheMap> {
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_cache_drop(_: Box<ShmCacheMap>) {}
 
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_config_sent(
+    cache: &ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> bool {
+    let service_str = service.to_utf8_lossy();
+    let env_str = env.to_utf8_lossy();
+    cache
+        .get(&(service_str.as_ref(), env_str.as_ref()))
+        .map_or(false, |entry| entry.config_sent)
+}
+
 unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     cache: &'a mut ShmCacheMap,
     service: CharSlice,
@@ -265,10 +279,10 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
 ) -> Option<&'a ShmCache> {
     let cache = &mut *cache;
 
-    let service_str = service.to_string();
-    let env_str = env.to_string();
+    let service_str = service.to_utf8_lossy();
+    let env_str = env.to_utf8_lossy();
 
-    let needs_refresh = cache.get(&(&service_str, &env_str)).map_or(true, |entry| {
+    let needs_refresh = cache.get(&(service_str.as_ref(), env_str.as_ref())).map_or(true, |entry| {
         entry.last_updated.elapsed() > Duration::from_secs(1800)
     });
 
@@ -278,10 +292,11 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
             let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(Some(mapped), shm_path);
             let (_, buf) = reader.read();
 
-            if let Ok((integrations, composer_paths)) =
-                bincode::deserialize::<(HashSet<String>, HashSet<PathBuf>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
             {
                 let entry = ShmCache {
+                    config_sent,
                     integrations,
                     composer_paths,
                     last_updated: Instant::now(),
@@ -289,7 +304,7 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                 };
                 return Some(
                     cache
-                        .entry(ShmCacheKey(service_str.to_string(), env_str.to_string()))
+                        .entry(ShmCacheKey(service_str.into(), env_str.into()))
                         .or_insert(entry),
                 );
             }
@@ -298,7 +313,7 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
         return None;
     }
 
-    cache.get(&(&service_str, &env_str))
+    cache.get(&(service_str.as_ref(), env_str.as_ref()))
 }
 
 #[no_mangle]
@@ -325,7 +340,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
                 SidecarAction::PhpComposerTelemetryFile(path) => {
                     !entry.composer_paths.contains(path)
                 }
-                _ => false,
+                _ => true,
             })
             .collect();
     }
