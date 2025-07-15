@@ -136,6 +136,23 @@ void ddtrace_telemetry_finalize(bool clear_id) {
     ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
     DDTRACE_G(telemetry_buffer) = NULL;
 
+    zend_string *free_string = NULL;
+    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
+    if (DDTRACE_G(last_flushed_root_service_name)) {
+        service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
+    } else if (ZSTR_LEN(get_DD_SERVICE())) {
+        service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
+    } else {
+        free_string = ddtrace_default_service_name();
+        service_name = dd_zend_string_to_CharSlice(free_string);
+    }
+    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
+    if (DDTRACE_G(last_flushed_root_env_name)) {
+        env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
+    } else if (ZSTR_LEN(get_DD_ENV())) {
+        env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
+    }
+
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
@@ -147,48 +164,50 @@ void ddtrace_telemetry_finalize(bool clear_id) {
                                                     (ddog_CharSlice) {.len = strlen(version), .ptr = version});
     } ZEND_HASH_FOREACH_END();
 
-    for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
-        zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
-        zend_ini_entry *ini = cfg->ini_entries[0];
+    if (!ddog_sidecar_telemetry_config_sent(ddtrace_telemetry_cache(), service_name, env_name)) {
+        for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
+            zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
+            zend_ini_entry *ini = cfg->ini_entries[0];
 #if ZTS
-        ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
+            ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
-        if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
-            ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
-            switch (cfg->name_index) {
-                case ZAI_CONFIG_ORIGIN_DEFAULT:
-                    origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
-                    break;
-                case ZAI_CONFIG_ORIGIN_LOCAL_STABLE:
-                    origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
-                    break;
-                case ZAI_CONFIG_ORIGIN_FLEET_STABLE:
-                    origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
-                    break;
+            if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
+                ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
+                switch (cfg->name_index) {
+                    case ZAI_CONFIG_ORIGIN_DEFAULT:
+                        origin = DDOG_CONFIGURATION_ORIGIN_DEFAULT;
+                        break;
+                    case ZAI_CONFIG_ORIGIN_LOCAL_STABLE:
+                        origin = DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG;
+                        break;
+                    case ZAI_CONFIG_ORIGIN_FLEET_STABLE:
+                        origin = DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG;
+                        break;
+                }
+                if (cfg->name_index != ZAI_CONFIG_ORIGIN_LOCAL_STABLE
+                    && cfg->name_index != ZAI_CONFIG_ORIGIN_FLEET_STABLE
+                    && !zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
+                    origin = cfg->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
+                }
+                ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
+                name.len -= strlen("datadog.");
+                name.ptr += strlen("datadog.");
+                ddog_CharSlice config_id = (ddog_CharSlice) {.len = cfg->config_id.len, .ptr = cfg->config_id.ptr};
+                ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin, config_id);
             }
-            if (cfg->name_index != ZAI_CONFIG_ORIGIN_LOCAL_STABLE
-                && cfg->name_index != ZAI_CONFIG_ORIGIN_FLEET_STABLE
-                && !zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
-                origin = cfg->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
-            }
-            ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
-            name.len -= strlen("datadog.");
-            name.ptr += strlen("datadog.");
-            ddog_CharSlice config_id = (ddog_CharSlice) {.len = cfg->config_id.len, .ptr = cfg->config_id.ptr};
-            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin, config_id);
         }
-    }
 
-    // Send extra internal configuration
-    ddog_CharSlice instrumentation_source = ddtrace_loaded_by_ssi ? DDOG_CHARSLICE_C("ssi") : DDOG_CHARSLICE_C("manual");
-    ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("instrumentation_source"), instrumentation_source, DDOG_CONFIGURATION_ORIGIN_DEFAULT, DDOG_CHARSLICE_C(""));
+        // Send extra internal configuration
+        ddog_CharSlice instrumentation_source = ddtrace_loaded_by_ssi ? DDOG_CHARSLICE_C("ssi") : DDOG_CHARSLICE_C("manual");
+        ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("instrumentation_source"), instrumentation_source, DDOG_CONFIGURATION_ORIGIN_DEFAULT, DDOG_CHARSLICE_C(""));
 
-    ddog_CharSlice ssi_forced = ddtrace_ssi_forced_injection_enabled ? DDOG_CHARSLICE_C("True") : DDOG_CHARSLICE_C("False");
-    ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_forced_injection_enabled"), ssi_forced, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+        ddog_CharSlice ssi_forced = ddtrace_ssi_forced_injection_enabled ? DDOG_CHARSLICE_C("True") : DDOG_CHARSLICE_C("False");
+        ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_forced_injection_enabled"), ssi_forced, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
 
-    char *injection_enabled = getenv("DD_INJECTION_ENABLED");
-    if (injection_enabled) {
-        ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_injection_enabled"), (ddog_CharSlice) {.ptr = injection_enabled, .len = strlen(injection_enabled)}, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+        char *injection_enabled = getenv("DD_INJECTION_ENABLED");
+        if (injection_enabled) {
+            ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_injection_enabled"), (ddog_CharSlice) {.ptr = injection_enabled, .len = strlen(injection_enabled)}, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+        }
     }
 
     // Send information about explicitly disabled integrations
@@ -241,23 +260,6 @@ void ddtrace_telemetry_finalize(bool clear_id) {
     }
 
     dd_commit_metrics();
-
-    zend_string *free_string = NULL;
-    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
-    if (DDTRACE_G(last_flushed_root_service_name)) {
-        service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
-    } else if (ZSTR_LEN(get_DD_SERVICE())) {
-        service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
-    } else {
-        free_string = ddtrace_default_service_name();
-        service_name = dd_zend_string_to_CharSlice(free_string);
-    }
-    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
-    if (DDTRACE_G(last_flushed_root_env_name)) {
-        env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
-    } else if (ZSTR_LEN(get_DD_ENV())) {
-        env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
-    }
 
     ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
         ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer, ddtrace_telemetry_cache(), service_name, env_name));

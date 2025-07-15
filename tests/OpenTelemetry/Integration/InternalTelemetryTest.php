@@ -15,6 +15,8 @@ final class InternalTelemetryTest extends CLITestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_OTEL_ENABLED' => 1,
+            'DD_SERVICE' => 'OpenTelemetryService',
+            'DD_TRACE_GENERATE_ROOT_SPAN' => 0,
         ]);
     }
 
@@ -38,9 +40,6 @@ final class InternalTelemetryTest extends CLITestCase
                 $json = json_decode($request["body"], true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $innerJson) {
-                    if ($innerjson["request_type"] == "app-client-configuration-change") {
-                        continue;
-                    }
                     if (isset($json["application"])) {
                         $innerJson["application"] = $json["application"];
                     }
@@ -60,6 +59,7 @@ final class InternalTelemetryTest extends CLITestCase
         $this->executeCommand();
 
         $requests = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
+        var_dump($requests);
 
         $payloads = $this->readTelemetryPayloads($requests);
         $isMetric = function (array $payload) {

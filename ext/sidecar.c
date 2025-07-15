@@ -350,7 +350,7 @@ void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddtrace_root_span_dat
 }
 
 void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
-    if (!ddtrace_sidecar || !get_global_DD_REMOTE_CONFIG_ENABLED()) {
+    if (!ddtrace_sidecar) {
         return;
     }
 
@@ -404,7 +404,9 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
         }
     }
 
-    ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+    if (changed || !root) {
+        ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+    }
 
     if (DDTRACE_G(telemetry_buffer)) {
         ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
