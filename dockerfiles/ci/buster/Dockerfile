@@ -185,7 +185,7 @@ RUN set -eux; \
     apt install -y libmpfr-dev libgmp-dev; \
     GDB_VERSION="15.2"; \
     GDB_SHA256="9d16bc2539a2a20dc3ef99b48b8414d51c51305c8577eb7a1da00996f6dea223";\
-    cd /tmp && curl -OL https://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz; \
+    cd /tmp && curl -OL https://mirrors.kernel.org/sourceware/gdb/releases/gdb-${GDB_VERSION}.tar.gz; \
     (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
     mkdir gdb && cd gdb; \
     tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
@@ -195,10 +195,10 @@ RUN set -eux; \
 
 # Install valgrind
 RUN set -eux; \
-    VALGRIND_VERSION="3.23.0"; \
-    VALGRIND_SHA1="ec410c75d3920d4f9249a5cfa2cac31e1bf6d586"; \
-    cd /tmp && curl -OL https://sourceware.org/pub/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
-    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha1sum -c -); \
+    VALGRIND_VERSION="3.25.1"; \
+    VALGRIND_SHA256="61deb8d0727b45c268efdc1b3b6c9e679cd97cbf5ee4b28d1dead7c8b7a271af"; \
+    cd /tmp && curl -OL https://mirrors.kernel.org/sourceware/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
+    (echo "${VALGRIND_SHA256}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha256sum -c -); \
     mkdir valgrind && cd valgrind; \
     tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
     ./configure; \
