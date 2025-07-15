@@ -38,7 +38,7 @@ final class InternalTelemetryTest extends CLITestCase
                 $json = json_decode($request["body"], true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $innerJson) {
-                    if ($innerjson["request_type"] == "app-client-configuration-change") {
+                    if ($innerjson["request_type"] != "app-client-configuration-change") {
                         continue;
                     }
                     if (isset($json["application"])) {
