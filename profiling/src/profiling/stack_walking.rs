@@ -3,8 +3,6 @@ use crate::bindings::{
 };
 use crate::vec_ext::VecExt;
 use std::borrow::Cow;
-use std::collections::TryReserveError;
-use std::str::Utf8Error;
 
 #[cfg(php_frameless)]
 use crate::bindings::zend_flf_functions;
@@ -34,10 +32,14 @@ pub struct ZendFrame {
 
 #[derive(thiserror::Error, Debug)]
 pub enum CollectStackSampleError {
-    #[error("failed to collect stack sample: `0`")]
-    Utf8Error(#[from] Utf8Error),
-    #[error("failed to collect stack sample: `{0}`")]
-    TryReserveError(#[from] TryReserveError),
+    #[error("failed to borrow request locals: already destroyed")]
+    AccessError(#[from] std::thread::AccessError),
+    #[error("failed to borrow request locals: non-mutable borrow while mutably borrowed")]
+    BorrowError(#[from] std::cell::BorrowError),
+    #[error("failed to borrow request locals: mutable borrow while mutably borrowed")]
+    BorrowMutError(#[from] std::cell::BorrowMutError),
+    #[error(transparent)]
+    TryReserveError(#[from] std::collections::TryReserveError),
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -148,6 +150,7 @@ mod detail {
     use super::*;
     use crate::string_set::StringSet;
     use crate::thin_str::ThinStr;
+    use crate::{RefCellExt, RefCellExtError};
     use log::{debug, trace};
     use std::cell::RefCell;
     use std::ptr::NonNull;
@@ -195,9 +198,9 @@ mod detail {
         }
     }
 
-    /// Used to help track the function run_time_cache hit rate. It glosses over
-    /// the fact that there are two cache slots used, and they don't have to be in
-    /// sync. However, they usually are, so we simplify.
+    /// Used to help track the function run_time_cache hit rate. It glosses
+    /// over the fact that there are two cache slots used, and they don't have
+    /// to be in sync. However, they usually are, so we simplify.
     #[derive(Debug, Default)]
     struct FunctionRunTimeCacheStats {
         hit: usize,
@@ -235,18 +238,14 @@ mod detail {
 
     #[inline]
     pub fn rshutdown() {
-        FUNCTION_CACHE_STATS.with_borrow(|stats| {
+        // If we cannot borrow the stats, then something has gone wrong, but
+        // it's not that important.
+        _ = FUNCTION_CACHE_STATS.try_with_borrow(|stats| {
             let hit_rate = stats.hit_rate();
             debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });
 
-        // PANIC: panics if the string arena is already borrowed. However, it
-        // should not be borrowed at this point, so we're likely going to fail.
-        // It's probably better to fail in rshutdown.
-        // Maybe in a new PHP version, we can have the engine check rshutdown
-        // failures, and stop serving requests from that process, and go into
-        // module shutdown instead.
-        CACHED_STRINGS.with_borrow_mut(|string_set| {
+        let result = CACHED_STRINGS.try_with_borrow_mut(|string_set| {
             // A slow ramp up to 2 MiB is probably _not_ going to look like a
             // memory leak. A higher threshold may make a user suspect a leak.
             const THRESHOLD: usize = 2 * 1024 * 1024;
@@ -262,73 +261,96 @@ mod detail {
                 trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
             }
         });
+
+        if let Err(err) = result {
+            // Debug level because rshutdown could be quite spammy.
+            debug!("failed to borrow request locals in rshutdown: {err}");
+        }
     }
 
-    #[inline(never)]
-    pub fn collect_stack_sample(
+    /// Collects the stack trace, cached strings versions.
+    ///
+    /// # Errors
+    /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding the frames is
+    /// unable to allocate memory.
+    #[inline]
+    fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
+        string_set: &mut StringSet,
     ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
-        #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("collect_stack_sample").entered();
+        let max_depth = 512;
+        let mut samples = Vec::new();
+        let mut execute_data_ptr = top_execute_data;
 
-        CACHED_STRINGS.with_borrow_mut(|string_set| {
-            let max_depth = 512;
-            let mut samples = Vec::with_capacity(max_depth >> 3);
-            let mut execute_data_ptr = top_execute_data;
+        samples.try_reserve(max_depth >> 3)?;
 
-            while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-                // allowed because it's only used on the frameless path
-                #[allow(unused_variables)]
-                if let Some(func) = unsafe { execute_data.func.as_ref() } {
-                    // It's possible that this is a fake frame put there by
-                    // the engine, see accel_preload on PHP 8.4 and the local
-                    // variable `fake_execute_data`. The frame is zeroed in
-                    // this case, so we can check for null.
-                    #[cfg(php_frameless)]
-                    if !func.is_internal() {
-                        if let Some(opline) = safely_get_opline(execute_data) {
-                            match opline.opcode as u32 {
-                                ZEND_FRAMELESS_ICALL_0
-                                | ZEND_FRAMELESS_ICALL_1
-                                | ZEND_FRAMELESS_ICALL_2
-                                | ZEND_FRAMELESS_ICALL_3 => {
-                                    let func = unsafe {
-                                        &**zend_flf_functions.offset(opline.extended_value as isize)
-                                    };
-                                    samples.try_push(ZendFrame {
-                                        function: extract_function_name(func).unwrap(),
-                                        file: None,
-                                        line: 0,
-                                    })?;
-                                }
-                                _ => {}
+        while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            // allowed because it's only used on the frameless path
+            #[allow(unused_variables)]
+            if let Some(func) = unsafe { execute_data.func.as_ref() } {
+                // It's possible that this is a fake frame put there by the
+                // engine, see accel_preload on PHP 8.4 and the local variable
+                // `fake_execute_data`. The frame is zeroed in this case, so
+                // we can check for null.
+                #[cfg(php_frameless)]
+                if !func.is_internal() {
+                    if let Some(opline) = safely_get_opline(execute_data) {
+                        match opline.opcode as u32 {
+                            ZEND_FRAMELESS_ICALL_0
+                            | ZEND_FRAMELESS_ICALL_1
+                            | ZEND_FRAMELESS_ICALL_2
+                            | ZEND_FRAMELESS_ICALL_3 => {
+                                let func = unsafe {
+                                    &**zend_flf_functions.offset(opline.extended_value as isize)
+                                };
+                                samples.try_push(ZendFrame {
+                                    function: extract_function_name(func).unwrap(),
+                                    file: None,
+                                    line: 0,
+                                })?;
                             }
-                        }
-                    }
-
-                    let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
-                    if let Some(frame) = maybe_frame {
-                        samples.try_push(frame)?;
-
-                        /* -1 to reserve room for the [truncated] message. In case the
-                         * backend and/or frontend have the same limit, without the -1
-                         * then ironically the [truncated] message would be truncated.
-                         */
-                        if samples.len() == max_depth - 1 {
-                            samples.try_push(ZendFrame {
-                                function: COW_TRUNCATED,
-                                file: None,
-                                line: 0,
-                            })?;
-                            break;
+                            _ => {}
                         }
                     }
                 }
 
-                execute_data_ptr = execute_data.prev_execute_data;
+                let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
+                if let Some(frame) = maybe_frame {
+                    samples.try_push(frame)?;
+
+                    // -1 to reserve room for the [truncated] message. In case
+                    // the backend and/or frontend have the same limit, without
+                    // subtracting one, then the [truncated] message itself
+                    // would be truncated!
+                    if samples.len() == max_depth - 1 {
+                        samples.try_push(ZendFrame {
+                            function: COW_TRUNCATED,
+                            file: None,
+                            line: 0,
+                        })?;
+                        break;
+                    }
+                }
             }
-            Ok(samples)
-        })
+
+            execute_data_ptr = execute_data.prev_execute_data;
+        }
+        Ok(samples)
+    }
+
+    #[inline(never)]
+    pub fn collect_stack_sample(
+        execute_data: *mut zend_execute_data,
+    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+        #[cfg(feature = "tracing")]
+        let _span = tracing::trace_span!("collect_stack_sample").entered();
+        CACHED_STRINGS
+            .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
+            .unwrap_or_else(|err| match err {
+                RefCellExtError::AccessError(e) => Err(e.into()),
+                RefCellExtError::BorrowError(e) => Err(e.into()),
+                RefCellExtError::BorrowMutError(e) => Err(e.into()),
+            })
     }
 
     unsafe fn collect_call_frame(
@@ -351,7 +373,9 @@ mod detail {
                 let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
 
                 let cache_slots = string_cache.cache_slots;
-                FUNCTION_CACHE_STATS.with_borrow_mut(|stats| {
+                // If we cannot borrow the stats, then something has gone
+                // wrong, but it's not that important.
+                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
                     if cache_slots[0] == 0 {
                         stats.missed += 1;
                     } else {
@@ -363,7 +387,9 @@ mod detail {
             }
 
             None => {
-                FUNCTION_CACHE_STATS.with_borrow_mut(|stats| stats.not_applicable += 1);
+                // If we cannot borrow the stats, then something has gone
+                // wrong, but it's not that important.
+                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
                 let function = extract_function_name(func);
                 let (file, line) = extract_file_and_line(execute_data);
                 (function, file, line)
