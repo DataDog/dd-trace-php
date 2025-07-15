@@ -21,7 +21,7 @@ variables:
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-    - ./steps/capture-hardware-software-info.sh
+    - ./steps/capture-hardwa<re-software-info.sh
     - ./steps/run-benchmarks.sh
     - ./steps/analyze-results.sh
     - "./steps/upload-results-to-s3.sh || :"
@@ -99,10 +99,8 @@ check-big-regressions:
   stage: gate
   rules:
     - when: always
-  needs:
-    - job: benchmarks-tracer
-      optional: true
-      artifacts: true
+  dependencies:
+    - benchmarks-tracer
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   script: |
