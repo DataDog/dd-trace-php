@@ -297,21 +297,22 @@ mod detail {
                 #[cfg(php_frameless)]
                 if !func.is_internal() {
                     if let Some(opline) = safely_get_opline(execute_data) {
-                    match opline.opcode as u32 {
-                        ZEND_FRAMELESS_ICALL_0
-                        | ZEND_FRAMELESS_ICALL_1
-                        | ZEND_FRAMELESS_ICALL_2
-                        | ZEND_FRAMELESS_ICALL_3 => {
-                            let func = unsafe {
-                                &**zend_flf_functions.offset(opline.extended_value as isize)
-                            };
-                            samples.try_push(ZendFrame {
-                                function: extract_function_name(func).unwrap(),
-                                file: None,
-                                line: 0,
-                            })?;
+                        match opline.opcode as u32 {
+                            ZEND_FRAMELESS_ICALL_0
+                            | ZEND_FRAMELESS_ICALL_1
+                            | ZEND_FRAMELESS_ICALL_2
+                            | ZEND_FRAMELESS_ICALL_3 => {
+                                let func = unsafe {
+                                    &**zend_flf_functions.offset(opline.extended_value as isize)
+                                };
+                                samples.try_push(ZendFrame {
+                                    function: extract_function_name(func).unwrap(),
+                                    file: None,
+                                    line: 0,
+                                })?;
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
 
