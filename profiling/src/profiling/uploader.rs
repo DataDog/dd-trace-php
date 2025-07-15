@@ -3,11 +3,13 @@ use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use log::{info, warn};
+use ddcommon::Endpoint;
+use log::{debug, info, warn};
 use reqwest::blocking::{multipart, ClientBuilder};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
 use std::borrow::Cow;
+use std::ops::Sub;
 use std::str;
 use std::sync::{Arc, Barrier};
 
@@ -91,7 +93,7 @@ impl Uploader {
         let serialized =
             profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
 
-        // Prepare multipart form
+        // Prepare multipart form with only profile.pprof
         let mut form = multipart::Form::new().part(
             "profile.pprof",
             multipart::Part::bytes(serialized.buffer)
@@ -99,16 +101,40 @@ impl Uploader {
                 .mime_str("application/octet-stream")?,
         );
 
-        // Add event metadata as JSON
+        // Build tags string
         let tags = Some(Arc::unwrap_or_clone(index.tags));
-        let event_json = serde_json::to_string(&json!({
-            "tags_profiler": tags,
-            "internal": Self::create_internal_metadata(),
-            "info": self.create_profiler_info(),
-        }))?;
+        let mut tags_profiler = String::new();
+        if let Some(tags_vec) = &tags {
+            for tag in tags_vec {
+                tags_profiler.push_str(tag.as_ref());
+                tags_profiler.push(',');
+            }
+        }
+
+        // Build internal metadata
+        let mut internal: serde_json::value::Value =
+            Self::create_internal_metadata().unwrap_or_else(|| json!({}));
+        internal["libdatadog_version"] = json!(env!("CARGO_PKG_VERSION"));
+
+        // todo: use start_time
+        let start = message.end_time.sub(message.duration.unwrap());
+
+        // Build event JSON
+        let event = json!({
+            "attachments": vec!["profile.pprof"],
+            "tags_profiler": tags_profiler,
+            "start": DateTime::<Utc>::from(start).format("%Y-%m-%dT%H:%M:%S%.9fZ").to_string(),
+            "end": DateTime::<Utc>::from(message.end_time).format("%Y-%m-%dT%H:%M:%S%.9fZ").to_string(),
+            "family": "php",
+            "version": "4",
+            "internal": internal,
+            "info": self.create_profiler_info().unwrap_or_else(|| json!({})),
+        })
+        .to_string();
+
         form = form.part(
             "event",
-            multipart::Part::text(event_json)
+            multipart::Part::text(event)
                 .file_name("event.json")
                 .mime_str("application/json")?,
         );
@@ -126,14 +152,22 @@ impl Uploader {
         );
 
         // Build blocking client with optional unix socket
-        let mut client = ClientBuilder::new().timeout(std::time::Duration::from_millis(10000));
+        let mut client = ClientBuilder::new().timeout(std::time::Duration::from_secs(10));
+        let mut endpoint = Endpoint::try_from(&self.endpoint)?.url;
         if let AgentEndpoint::Socket(path) = &self.endpoint {
-            client = client.unix_socket(path.clone())
-        }
+            let mut parts = endpoint.into_parts();
+            // reqwest doesn't support "unix" as a scheme, only "http" or
+            // "https", and "unix" urls as documented are currently HTTP only.
+            parts.scheme = Some(http::uri::Scheme::HTTP);
+            endpoint = parts.try_into()?;
+            let socket = path.display();
+            debug!("using unix socket `{socket}` for profiling upload to URL `{endpoint}`");
+            client = client.unix_socket(path.as_path());
+        };
         let client = client.build()?;
 
         let response = client
-            .post(self.endpoint.to_string())
+            .post(endpoint.to_string())
             .headers(headers)
             .multipart(form)
             .send()?;
@@ -142,7 +176,6 @@ impl Uploader {
     }
 
     // fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
-    //     use ddcommon::Endpoint;
     //     let index = message.index;
     //     let profile = message.profile;
     //
@@ -159,6 +192,9 @@ impl Uploader {
     //         tags,
     //         endpoint,
     //     )?;
+    //
+    //     let serialized =
+    //         profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
     //     exporter.set_timeout(10000); // 10 seconds in milliseconds
     //     let request = exporter.build(
     //         serialized,
