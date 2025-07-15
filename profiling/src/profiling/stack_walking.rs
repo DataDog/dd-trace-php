@@ -271,10 +271,8 @@ mod detail {
     /// Collects the stack trace, cached strings versions.
     ///
     /// # Errors
-    ///
-    ///  1. Returns [`CollectStackSampleError::TryReserveError`] if the vec
-    ///     holding the frames is unable to allocate memory.
-    ///  2.
+    /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding the frames is
+    /// unable to allocate memory.
     #[inline]
     fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
