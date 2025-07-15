@@ -69,7 +69,15 @@ void ddtrace_dogstatsd_client_rinit(void) {
         if (dogstatsd_client_is_default_client(client)) {
             LOG(WARN, "Dogstatsd client failed opening socket to %s", url);
             if (addrs) {
-                freeaddrinfo(addrs);
+                // Free based on how it was allocated
+                if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
+                    // Unix socket - manually allocated
+                    free(((struct sockaddr_un*)addrs->ai_addr));
+                    free(addrs);
+                } else {
+                    // UDP socket - from getaddrinfo
+                    freeaddrinfo(addrs);
+                }
             }
             break;
         }
@@ -85,9 +93,6 @@ void ddtrace_dogstatsd_client_rinit(void) {
             })
         }
 
-        if (addrs) {
-            freeaddrinfo(addrs);
-        }
         break;
     }
     _set_dogstatsd_client_globals(client);
