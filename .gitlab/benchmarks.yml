@@ -21,7 +21,7 @@ variables:
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-    - ./steps/capture-hardwa<re-software-info.sh
+    - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh
     - ./steps/analyze-results.sh
     - "./steps/upload-results-to-s3.sh || :"
@@ -99,30 +99,10 @@ check-big-regressions:
   stage: gate
   rules:
     - when: always
-  dependencies:
-    - benchmarks-tracer
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
-  script: |
-    if [ ! -d "reports/" ]; then
-      # No reports directory = benchmarks job didn't run = no regression check needed
-      echo "No reports directory found - benchmarks were not needed for this PR"
-      exit 0
-    elif [ -z "$(ls -A reports/ 2>/dev/null)" ]; then
-      # Reports directory exists but is empty = benchmarks job ran but failed/had issues
-      echo "ERROR: Reports directory exists but is empty - benchmarks job had issues"
-      exit 1
-    else
-      # Reports directory exists with content = run regression check
-      echo "Reports directory found with content - running regression check"
-      export ARTIFACTS_DIR="$(pwd)/reports/"
-      if [[ -n "$CI_JOB_TOKEN" ]]; then
-        git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-      fi
-      git clone --branch dd-trace-php https://github.com/DataDog/benchmarking-platform /platform
-      export PATH="$PATH:/platform/steps"
-      bp-runner /platform/bp-runner.fail-on-regression.yml --debug
-    fi
+  script:
+    - .gitlab/check-benchmark-regressions.sh
   variables:
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
 
