@@ -82,10 +82,6 @@ benchmarks-tracer:
       fi
   variables:
     SCENARIO: "tracer"
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
-    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
 
 benchmarks-appsec:
   extends: .microbenchmarks
@@ -108,9 +104,8 @@ benchmarks-appsec:
 
 check-big-regressions:
   stage: gate
-  needs:
-    - job: benchmarks-tracer
-      artifacts: true
+  needs: [ "benchmarks-tracer" ]
+  when: on_success
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   script: |
@@ -131,6 +126,7 @@ check-big-regressions:
       bp-runner /platform/bp-runner.fail-on-regression.yml --debug
     fi
   variables:
+    # Gitlab and BP specific env vars. Do not modify.
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
 
 .macrobenchmarks_rules: &macrobenchmarks_rules
