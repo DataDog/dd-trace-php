@@ -30,6 +30,7 @@ function test($headers, $key_expected) {
 $headers = [
 'x_forwarded_for' => '7.7.7.1',
 'x_real_ip' => '7.7.7.2',
+'forwarded' => '7.7.7.10',
 'true_client_ip' => '7.7.7.3',
 'x_client_ip' => '7.7.7.4',
 'x_forwarded' => 'for="7.7.7.5"',
@@ -44,6 +45,8 @@ test($headers, 'x_forwarded_for');
 unset($headers['x_forwarded_for']); //Lets remove it so it it not top priority any more
 test($headers, 'x_real_ip');
 unset($headers['x_real_ip']); //Lets remove it so it it not top priority any more
+test($headers, 'forwarded');
+unset($headers['forwarded']); //Lets remove it so it it not top priority any more
 test($headers, 'true_client_ip');
 unset($headers['true_client_ip']); //Lets remove it so it it not top priority any more
 test($headers, 'x_client_ip');
@@ -65,6 +68,7 @@ unset($headers['cf_connecting_ipv6']); //Lets remove it so it it not top priorit
 --EXPECTF--
 Testing 'x_forwarded_for': Result is: 7.7.7.1
 Testing 'x_real_ip': Result is: 7.7.7.2
+Testing 'forwarded': Result is: 7.7.7.10
 Testing 'true_client_ip': Result is: 7.7.7.3
 Testing 'x_client_ip': Result is: 7.7.7.4
 Testing 'x_forwarded': Result is: 7.7.7.5
