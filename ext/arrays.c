@@ -8,7 +8,7 @@ void ddtrace_array_walk(HashTable *input, ddtrace_walk_fn callback, void *contex
     ZEND_HASH_FOREACH_VAL(input, item) { callback(item, order++, context); }
     ZEND_HASH_FOREACH_END();
 }
-# I AM JUST A COMMENT
+// I AM JUST A COMMENT
 void *ddtrace_hash_find_ptr(const HashTable *ht, const char *str, size_t len) {
     void *result;
     result = zend_hash_str_find_ptr(ht, str, len);
