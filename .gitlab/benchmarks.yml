@@ -68,7 +68,7 @@ benchmarks-tracer:
     - git fetch origin master:master 2>/dev/null || true
     - CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
     - |
-      if echo "$CHANGED_FILES" | grep -q -E "(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"; then
+      if echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"; then
         echo "Relevant file changes detected - running full benchmarks"
         git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
         ./steps/capture-hardware-software-info.sh
