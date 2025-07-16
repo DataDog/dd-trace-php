@@ -20,6 +20,18 @@ variables:
   timeout: 1h
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
+    - |
+      if [ "${CHECK_TRACER_FILE_CHANGES:-false}" = "true" ]; then
+        echo "Checking if tracer-related files changed..."
+        git fetch origin master:master 2>/dev/null || true
+        CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
+        if ! echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"; then
+          echo "No tracer-related file changes detected - skipping benchmark execution"
+          echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
+          exit 0
+        fi
+        echo "Tracer-related file changes detected - proceeding with benchmarks"
+      fi
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
     - ./steps/capture-hardware-software-info.sh
     - ./steps/run-benchmarks.sh
@@ -62,26 +74,9 @@ benchmarks-tracer:
     paths:
       - reports/
     expire_in: 3 months
-  script:
-    - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
-    # Check if relevant files changed
-    - git fetch origin master:master 2>/dev/null || true
-    - CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
-    - |
-      if echo "$CHANGED_FILES" | grep -q -E "^(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"; then
-        echo "Relevant file changes detected - running full benchmarks"
-        git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-        ./steps/capture-hardware-software-info.sh
-        ./steps/run-benchmarks.sh
-        ./steps/analyze-results.sh
-        ./steps/upload-results-to-s3.sh || true
-        ./steps/post-pr-comment.sh || true
-      else
-        echo "No relevant file changes detected - skipping benchmark execution"
-        echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
-      fi
   variables:
     SCENARIO: "tracer"
+    CHECK_TRACER_FILE_CHANGES: "true"
 
 benchmarks-appsec:
   extends: .microbenchmarks
