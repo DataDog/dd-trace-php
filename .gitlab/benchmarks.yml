@@ -54,17 +54,6 @@ benchmarks-tracer:
   extends: .microbenchmarks
   rules:
     - if: $CI_PIPELINE_SOURCE != "schedule"
-      changes:
-        paths:
-          - ext/**/*
-          - src/**/*
-          - components/**/*
-          - components-rs/**/*
-          - zend_abstract_interface/**/*
-          - tests/Benchmarks/**/*
-          - benchmark/*
-          - tea/**/*
-        compare_to: "master"
       when: on_success
     - when: manual
   artifacts:
@@ -73,8 +62,30 @@ benchmarks-tracer:
     paths:
       - reports/
     expire_in: 3 months
+  script:
+    - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
+    # Check if relevant files changed
+    - git fetch origin master:master 2>/dev/null || true
+    - CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
+    - |
+      if echo "$CHANGED_FILES" | grep -q -E "(ext/|src/|components/|components-rs/|zend_abstract_interface/|tests/Benchmarks/|benchmark/|tea/)"; then
+        echo "Relevant file changes detected - running full benchmarks"
+        git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
+        ./steps/capture-hardware-software-info.sh
+        ./steps/run-benchmarks.sh
+        ./steps/analyze-results.sh
+        "./steps/upload-results-to-s3.sh || :"
+        "./steps/post-pr-comment.sh || :"
+      else
+        echo "No relevant file changes detected - skipping benchmark execution"
+        echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
+      fi
   variables:
     SCENARIO: "tracer"
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
 
 benchmarks-appsec:
   extends: .microbenchmarks
@@ -97,12 +108,28 @@ benchmarks-appsec:
 
 check-big-regressions:
   stage: gate
-  rules:
-    - when: always
+  needs:
+    - job: benchmarks-tracer
+      artifacts: true
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
-  script:
-    - .gitlab/check-benchmark-regressions.sh
+  script: |
+    if [ -f "reports/skip-reason.txt" ]; then
+      echo "Benchmarks were skipped (no relevant file changes) - regression check not needed"
+      exit 0
+    elif [ -z "$(ls -A reports/ 2>/dev/null)" ]; then
+      echo "ERROR: Reports directory exists but is empty - benchmarks job had issues"
+      exit 1
+    else
+      echo "Reports directory found with content - running regression check"
+      export ARTIFACTS_DIR="$(pwd)/reports/"
+      if [[ -n "$CI_JOB_TOKEN" ]]; then
+        git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+      fi
+      git clone --branch dd-trace-php https://github.com/DataDog/benchmarking-platform /platform
+      export PATH="$PATH:/platform/steps"
+      bp-runner /platform/bp-runner.fail-on-regression.yml --debug
+    fi
   variables:
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
 
