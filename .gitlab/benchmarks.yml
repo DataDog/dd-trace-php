@@ -74,8 +74,8 @@ benchmarks-tracer:
         ./steps/capture-hardware-software-info.sh
         ./steps/run-benchmarks.sh
         ./steps/analyze-results.sh
-        "./steps/upload-results-to-s3.sh || :"
-        "./steps/post-pr-comment.sh || :"
+        ./steps/upload-results-to-s3.sh || true
+        ./steps/post-pr-comment.sh || true
       else
         echo "No relevant file changes detected - skipping benchmark execution"
         echo "Reports directory created but empty (no benchmarks needed)" > "${ARTIFACTS_DIR}/skip-reason.txt"
