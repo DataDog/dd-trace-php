@@ -36,7 +36,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
 
     while (health_metrics_enabled) {
         struct addrinfo *addrs = NULL;
-        const char *url = ddtrace_dogstatsd_url();
+        char *url = ddtrace_dogstatsd_url();
         if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
             addrs = dd_alloc_unix_addr(url + 7, strlen(url) - 7);
         } else if (strlen(url) > 6 && strncmp("udp://", url, 6) == 0) {
@@ -45,6 +45,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 LOG(WARN,
                     "Dogstatsd client encountered an invalid udp:// DD_DOGSTATSD_URL: %s, missing a colon followed by a port",
                     url);
+                free(url);
                 break;
             }
 
@@ -55,6 +56,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
                 LOG(WARN, "Dogstatsd client failed looking up %s:%s: %s", host, port,
                                     (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
                 efree(host);
+                free(url);
                 break;
             }
             efree(host);
@@ -62,6 +64,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
             LOG(WARN,
                 "Dogstatsd client encountered an invalid url: %s, expecting url starting with unix:// or udp://",
                 url);
+            free(url);
             break;
         }
 
@@ -69,8 +72,17 @@ void ddtrace_dogstatsd_client_rinit(void) {
         if (dogstatsd_client_is_default_client(client)) {
             LOG(WARN, "Dogstatsd client failed opening socket to %s", url);
             if (addrs) {
-                freeaddrinfo(addrs);
+                // Free based on how it was allocated
+                if (strlen(url) > 7 && strncmp("unix://", url, 7) == 0) {
+                    // Unix socket - manually allocated
+                    free(((struct sockaddr_un*)addrs->ai_addr));
+                    free(addrs);
+                } else {
+                    // UDP socket - from getaddrinfo
+                    freeaddrinfo(addrs);
+                }
             }
+            free(url);
             break;
         }
 
@@ -85,9 +97,7 @@ void ddtrace_dogstatsd_client_rinit(void) {
             })
         }
 
-        if (addrs) {
-            freeaddrinfo(addrs);
-        }
+        free(url);
         break;
     }
     _set_dogstatsd_client_globals(client);

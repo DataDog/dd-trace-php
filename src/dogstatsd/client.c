@@ -97,13 +97,14 @@ void dogstatsd_client_dtor(dogstatsd_client *client) {
     client->socket = -1;
   }
   if (client->addresslist) {
-    if (client->address->ai_family == PF_UNIX) {
+    if (client->address && client->address->ai_family == PF_UNIX) {
       free(client->address->ai_addr);
       free(client->addresslist);
     } else {
       freeaddrinfo(client->addresslist);
     }
     client->addresslist = NULL;
+    client->address = NULL;
   }
 }
 
