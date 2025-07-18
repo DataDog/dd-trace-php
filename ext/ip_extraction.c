@@ -76,7 +76,7 @@ void dd_ip_extraction_startup() {
     priority_header_map[X_REAL_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1),
                                                        zend_string_init_interned(ZEND_STRL("x-real-ip"), 1), &dd_parse_multiple_maybe_port};
     priority_header_map[FORWARDED] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED"), 1),
-                                                        zend_string_init_interned(ZEND_STRL("forwarded"), 1), &dd_parse_multiple_maybe_port};
+                                                        zend_string_init_interned(ZEND_STRL("forwarded"), 1), &dd_parse_forwarded};
     priority_header_map[TRUE_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1),
                                                             zend_string_init_interned(ZEND_STRL("true-client-ip"), 1), &dd_parse_multiple_maybe_port};
     priority_header_map[X_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_CLIENT_IP"), 1),

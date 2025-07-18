@@ -30,7 +30,7 @@ function test($headers, $key_expected) {
 $headers = [
 'x_forwarded_for' => '7.7.7.1',
 'x_real_ip' => '7.7.7.2',
-'forwarded' => '7.7.7.10',
+'forwarded' => 'for="7.7.7.10"',
 'true_client_ip' => '7.7.7.3',
 'x_client_ip' => '7.7.7.4',
 'x_forwarded' => 'for="7.7.7.5"',
