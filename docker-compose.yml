@@ -201,7 +201,7 @@ services:
       - ZOOKEEPER_TICK_TIME=2000
 
   mongodb-integration:
-    image: "circleci/mongo:4.0"
+    image: "mongo:4.2.24"
     ports:
       - "27017:27017"
     environment:
