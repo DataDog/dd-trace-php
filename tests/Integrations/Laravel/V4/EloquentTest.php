@@ -121,6 +121,6 @@ class EloquentTest extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=laravel42', 'test', 'test');
+        return new \PDO('mysql:host=mysql-integration;dbname=laravel42', 'test', 'test');
     }
 }

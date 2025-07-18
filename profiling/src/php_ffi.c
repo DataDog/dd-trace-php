@@ -11,12 +11,6 @@
 #include <dlfcn.h> // for dlsym
 #endif
 
-#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80400
-#define CFG_NEED_OPCODE_HANDLERS 1
-#else
-#define CFG_NEED_OPCODE_HANDLERS 0
-#endif
-
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
@@ -106,71 +100,6 @@ bool ddog_php_prof_is_post_startup(void) {
     return _is_post_startup;
 }
 
-#if CFG_NEED_OPCODE_HANDLERS
-/* The purpose here is to set the opline, because the built-in opcode handlers
- * for some versions are missing a SAVE_OPLINE() and it causes a crash when
- * trying to access the line number. The allocation profiler is vulnerable in
- * particular because it can access the opline on any allocation.
- *
- * The handler doesn't actually need to do anything, because just by having a
- * user opcode handler the engine will save the opline before calling the user
- * handler:
- * https://heap.space/xref/PHP-7.4/Zend/zend_vm_execute.h?r=0b7dffb4#2650
- */
-static zend_result ddog_php_prof_opcode_dispatch(zend_execute_data *execute_data) {
-    (void)execute_data;
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-
-// Argument `php_version_id` should be the version of PHP at runtime, not the
-// version this was compiled against.
-static void ddog_php_prof_install_opcode_handlers(uint32_t php_version_id) {
-
-    /* Only need to install user opcode handlers if there isn't one already
-     * for the given opcode, see the docs on `ddog_php_prof_opcode_dispatch`.
-     */
-    user_opcode_handler_t dispatch_handler = (user_opcode_handler_t)ddog_php_prof_opcode_dispatch;
-
-#if PHP_VERSION_ID < 80100
-    /* Issue is fixed in 8.0.26:
-     * https://github.com/php/php-src/commit/26c7c82d32dad841dd151ebc6a31b8ea6f93f94a
-     */
-    if (php_version_id < 80026 && zend_get_user_opcode_handler(ZEND_GENERATOR_CREATE) == NULL) {
-        zend_set_user_opcode_handler(ZEND_GENERATOR_CREATE, dispatch_handler);
-    }
-#endif
-
-#if PHP_VERSION_ID < 80400
-    /* Part of the issue was fixed in 8.0.12:
-     * https://github.com/php/php-src/commit/ec54ffad1e3b15fedfd07f7d29d97ec3e8d1c45a
-     * However, the fix is not complete as it's possible for the opcode to
-     * call `zend_array_dup()` before the `SAVE_OPLINE()`.
-     *
-     * This was finally fixed with https://github.com/php/php-src/pull/12758 in
-     * PHP 8.1.27, 8.2.14 and 8.3.1
-     */
-    if ((php_version_id < 80127 ||
-        (php_version_id >= 80200 && php_version_id < 80214) ||
-        php_version_id == 80300) &&
-        zend_get_user_opcode_handler(ZEND_BIND_STATIC) == NULL)
-    {
-        zend_set_user_opcode_handler(ZEND_BIND_STATIC, dispatch_handler);
-    }
-
-    /* This was fixed with https://github.com/php/php-src/pull/12768 in
-     * PHP 8.1.27, 8.2.14 and 8.3.1
-     */
-    if ((php_version_id < 80127 ||
-        (php_version_id >= 80200 && php_version_id < 80214) ||
-        php_version_id == 80300) &&
-        zend_get_user_opcode_handler(ZEND_FUNC_GET_ARGS) == NULL)
-    {
-        zend_set_user_opcode_handler(ZEND_FUNC_GET_ARGS, dispatch_handler);
-    }
-#endif
-}
-#endif
-
 #if PHP_VERSION_ID < 80000
 #define post_startup_cb_result int
 #else
@@ -190,11 +119,6 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
     }
 
     _is_post_startup = true;
-
-#if CFG_NEED_OPCODE_HANDLERS
-    uint32_t php_version_id = ddog_php_prof_php_version_id();
-    ddog_php_prof_install_opcode_handlers(php_version_id);
-#endif
 
     return SUCCESS;
 }
@@ -451,13 +375,13 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
         non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
         *non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
     }
-    return *non_const_func->op_array.run_time_cache__ptr;
+    return (uintptr_t *)*non_const_func->op_array.run_time_cache__ptr;
 #else
     if (non_const_func->common.run_time_cache__ptr == NULL) {
         non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
         *non_const_func->common.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
     }
-    return *non_const_func->common.run_time_cache__ptr;
+    return (uintptr_t *)*non_const_func->common.run_time_cache__ptr;
 #endif
 #else
     (void)func;

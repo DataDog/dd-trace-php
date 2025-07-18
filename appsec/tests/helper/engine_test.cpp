@@ -6,8 +6,8 @@
 
 #include "common.hpp"
 #include "ddwaf.h"
-#include "metrics.hpp"
 #include "remote_config/mocks.hpp"
+#include "telemetry.hpp"
 #include <engine.hpp>
 #include <gmock/gmock-nice-strict.h>
 #include <memory>
@@ -30,7 +30,7 @@ namespace dds {
 namespace mock {
 class listener : public dds::subscriber::listener {
 public:
-    MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
+    MOCK_METHOD1(submit_metrics, void(telemetry::telemetry_submitter &));
     MOCK_METHOD3(
         call, void(dds::parameter_view &, dds::event &, const std::string &));
     MOCK_METHOD2(
@@ -44,7 +44,7 @@ public:
     MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
     MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(const changeset &,
-                             metrics::telemetry_submitter &));
+                             telemetry::telemetry_submitter &));
 };
 } // namespace mock
 
@@ -540,7 +540,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
             msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
         EXPECT_CALL(msubmitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -570,7 +570,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
             msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
         EXPECT_CALL(msubmitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -615,7 +615,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
         // success is true because WAF is capable of generating a handle
         EXPECT_CALL(submitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -942,32 +942,6 @@ TEST(EngineTest, WafSubscriptorCustomRules)
     }
 }
 
-TEST(EngineTest, RateLimiterForceKeep)
-{
-    // Rate limit 0 allows all calls
-    int rate_limit = 0;
-    auto e{engine::create(rate_limit)};
-
-    auto listener = std::make_unique<mock::listener>();
-    EXPECT_CALL(*listener, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
-            event_.actions.push_back({dds::action_type::redirect, {}});
-        }));
-
-    auto sub = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
-        return std::move(listener);
-    }));
-
-    e->subscribe(std::move(sub));
-
-    parameter p = parameter::map();
-    p.add("a", parameter::string("value"sv));
-    auto res = e->get_context().publish(std::move(p));
-    EXPECT_TRUE(res->force_keep);
-}
-
 TEST(EngineTest, RateLimiterDoNotForceKeep)
 {
     // Lets set max 1 per second and do two calls
@@ -981,6 +955,7 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
             .WillOnce(Invoke([](dds::parameter_view &data, dds::event &event_,
                                  std::string rasp) -> void {
                 event_.actions.push_back({dds::action_type::redirect, {}});
+                event_.keep = false;
             }));
         return listener;
     }));

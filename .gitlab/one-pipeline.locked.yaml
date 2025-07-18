@@ -1,0 +1,2 @@
+include:
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/one-pipeline/ca/d927e008ce0b8024a982c85b8da633f5a98ae743199f668d0e7f352e460d814e/one-pipeline.yml

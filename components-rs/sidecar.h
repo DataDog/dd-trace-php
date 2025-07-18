@@ -23,11 +23,11 @@ bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_
 
 /**
  * This creates Rust PlatformHandle<File> from supplied C std FILE object.
- * This method takes the ownership of the underlying filedescriptor.
+ * This method takes the ownership of the underlying file descriptor.
  *
  * # Safety
  * Caller must ensure the file descriptor associated with FILE pointer is open, and valid
- * Caller must not close the FILE associated filedescriptor after calling this fuction
+ * Caller must not close the FILE associated file descriptor after calling this function
  */
 struct ddog_NativeFile ddog_ph_file_from(FILE *file);
 
@@ -128,7 +128,8 @@ ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTranspor
                                                      const ddog_QueueId *queue_id,
                                                      ddog_CharSlice config_key,
                                                      ddog_CharSlice config_value,
-                                                     enum ddog_ConfigurationOrigin origin);
+                                                     enum ddog_ConfigurationOrigin origin,
+                                                     ddog_CharSlice config_id);
 
 /**
  * Reports a dependency to the telemetry.
@@ -200,6 +201,23 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
                                                 uintptr_t remote_config_capabilities_count,
                                                 bool is_fork);
+
+/**
+ * Enqueues a telemetry log action to be processed internally.
+ * Non-blocking. Logs might be dropped if the internal queue is full.
+ *
+ * # Safety
+ * Pointers must be valid, strings must be null-terminated if not null.
+ */
+ddog_MaybeError ddog_sidecar_enqueue_telemetry_log(ddog_CharSlice session_id_ffi,
+                                                   ddog_CharSlice runtime_id_ffi,
+                                                   uint64_t queue_id,
+                                                   ddog_CharSlice identifier_ffi,
+                                                   enum ddog_LogLevel level,
+                                                   ddog_CharSlice message_ffi,
+                                                   ddog_CharSlice *stack_trace_ffi,
+                                                   ddog_CharSlice *tags_ffi,
+                                                   bool is_sensitive);
 
 /**
  * Sends a trace to the sidecar via shared memory.

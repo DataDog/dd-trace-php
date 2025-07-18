@@ -192,24 +192,31 @@ static void dd_patched_zend_call_known_function(
 
     // If current_execute_data is on the stack, move it to the VM stack
     zend_execute_data *execute_data = EG(current_execute_data);
-    if (execute_data && (uintptr_t)&retval > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func)) {
-        zend_execute_data *call = zend_vm_stack_push_call_frame_ex(
-                ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_execute_data), sizeof(zval)) +
-                ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_op), sizeof(zval)) +
-                ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_function), sizeof(zval)),
-                0, EX(func), 0, NULL);
+    if (execute_data) {
+        bool is_stack_ex = (uintptr_t)&retval + 0xfffff > (uintptr_t)execute_data && (uintptr_t)&retval - 0xfffff < (uintptr_t)execute_data;
+        bool is_stack_func = (uintptr_t)&retval + 0xfffff > (uintptr_t)EX(func) && (uintptr_t)&retval - 0xfffff < (uintptr_t)EX(func);
+        if (is_stack_ex || is_stack_func) {
+            zend_execute_data *call = zend_vm_stack_push_call_frame_ex(
+                    ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_execute_data), sizeof(zval)) +
+                    (is_stack_func ? ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_op), sizeof(zval)) + ZEND_MM_ALIGNED_SIZE_EX(sizeof(zend_function), sizeof(zval)) : 0),
+                    0, EX(func), 0, NULL);
 
-        memcpy(call, execute_data, sizeof(zend_execute_data));
-        zend_op *opline = (zend_op *)(call + 1);
-        memcpy(opline, EX(opline), sizeof(zend_op));
-        zend_function *func = (zend_function *)(opline + 1);
-        func->common.fn_flags |= ZEND_ACC_CALL_VIA_TRAMPOLINE; // See https://github.com/php/php-src/commit/2f6a06ccb0ef78e6122bb9e67f9b8b1ad07776e1
-        memcpy((zend_op *)(call + 1) + 1, EX(func), sizeof(zend_function));
+            memcpy(call, execute_data, sizeof(zend_execute_data));
+            if (is_stack_func) {
+                zend_op *opline = (zend_op *)(call + 1);
+                memcpy(opline, EX(opline), sizeof(zend_op));
+                zend_function *func = (zend_function *)(opline + 1);
+                memcpy(func, EX(func), sizeof(zend_function));
+                func->common.fn_flags |= ZEND_ACC_CALL_VIA_TRAMPOLINE; // See https://github.com/php/php-src/commit/2f6a06ccb0ef78e6122bb9e67f9b8b1ad07776e1
 
-        call->opline = opline;
-        call->func = func;
+                call->opline = opline;
+                call->func = func;
+            } else {
+                call->opline = EX(opline);
+            }
 
-        EG(current_execute_data) = call;
+            EG(current_execute_data) = call;
+        }
     }
 
     // here follows the original implementation of zend_call_known_function
@@ -257,7 +264,7 @@ static void dd_patch_zend_call_known_function(void) {
 
 #ifdef _WIN32
     DWORD old_protection;
-    if (VirtualProtect(page, page_size, PAGE_READWRITE, &old_protection))
+    if (!VirtualProtect(page, page_size, PAGE_READWRITE, &old_protection))
 #else
     if (mprotect(page, page_size, PROT_READ | PROT_WRITE) != 0)
 #endif
@@ -423,7 +430,7 @@ static void dd_activate_once(void) {
 
 #ifndef _WIN32
         // Only disable sidecar sender when explicitly disabled
-        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index < 0 && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
+        bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
         zend_string *bgs_service = NULL;
         if (bgs_fallback) {
             // We enabled sending traces through the sidecar by default
@@ -516,7 +523,7 @@ static void ddtrace_activate(void) {
     }
 
     if (!ddtrace_disable && strcmp(sapi_module.name, "cli") == 0) {
-        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index < 0 && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
+        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
             zend_string *zero = zend_string_init("0", 1, 0);
             zend_alter_ini_entry(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_CLI_ENABLED].ini_entries[0]->name, zero,
                                  ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
@@ -1432,6 +1439,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         ddtrace_module = Z_PTR_P(ddtrace_module_zv);
     }
 
+    // Make sure it's available for appsec, before any early returns
+    dd_ip_extraction_startup();
+
     // config initialization needs to be at the top
     // This also initialiyzed logging, so no logs may be emitted before this.
     ddtrace_log_init();
@@ -1465,9 +1475,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
     mod_ptr->handle = NULL;
     /* }}} */
-
-    // Make sure it's available for appsec, i.e. before disabling
-    dd_ip_extraction_startup();
 
     if (ddtrace_disable) {
         return SUCCESS;
@@ -1625,6 +1632,15 @@ static void dd_initialize_request(void) {
     // Do after env check, so that RC data is not updated before RC init
     DDTRACE_G(request_initialized) = true;
 
+    if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
+        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint);
+    }
+
+    // We need to init RC for the sidecar to write to it immediately
+    if (DDTRACE_G(remote_config_state)) {
+        ddtrace_rinit_remote_config();
+    }
+
     ddtrace_sidecar_rinit();
     ddtrace_asm_event_rinit();
 
@@ -1641,14 +1657,6 @@ static void dd_initialize_request(void) {
             ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
 #endif
         }
-    }
-
-    if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
-        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint);
-    }
-
-    if (DDTRACE_G(remote_config_state)) {
-        ddtrace_rinit_remote_config();
     }
 
     ddtrace_internal_handlers_rinit();
@@ -2042,25 +2050,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
     RETURN_NULL();
 }
 
-PHP_FUNCTION(DDTrace_set_user) {
-    UNUSED(execute_data);
-
-    zend_string *user_id;
-    HashTable *metadata = NULL;
-    zend_bool propagate = get_DD_TRACE_PROPAGATE_USER_ID_DEFAULT();
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata, &propagate) == FAILURE) {
-        RETURN_NULL();
-    }
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_NULL();
-    }
-
-    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
-        LOG_LINE(WARN, "Unexpected empty user id in DDTrace\\set_user");
-        RETURN_NULL();
-    }
-
+static void _ddtrace_set_user(zend_string *user_id, zend_array *metadata, zend_bool propagate) {
     zend_array *target_table, *propagated;
     if (DDTRACE_G(active_stack)->root_span) {
         target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
@@ -2102,8 +2092,218 @@ PHP_FUNCTION(DDTrace_set_user) {
         }
         ZEND_HASH_FOREACH_END();
     }
+}
+
+PHP_FUNCTION(DDTrace_set_user) {
+    UNUSED(execute_data);
+
+    zend_string *user_id;
+    HashTable *metadata = NULL;
+    zend_bool propagate = get_DD_TRACE_PROPAGATE_USER_ID_DEFAULT();
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|hb", &user_id, &metadata, &propagate) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
+        LOG_LINE(WARN, "Unexpected empty user id in DDTrace\\set_user");
+        RETURN_NULL();
+    }
+
+    _ddtrace_set_user(user_id, metadata, propagate);
 
     RETURN_NULL();
+}
+
+PHP_FUNCTION(datadog_appsec_v2_track_user_login_success) {
+    UNUSED(execute_data);
+
+    zend_string *login;
+    zval *user = NULL;
+    zend_array *metadata = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|zh", &login, &user, &metadata) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+    }
+
+    if (ZSTR_LEN(login) == 0) {
+        LOG_LINE(WARN, "Unexpected empty login in datadog\\appsec\\v2\\track_user_login_success");
+        RETURN_NULL();
+    }
+
+#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS "appsec.events.users.login.success"
+    zend_string *user_id = NULL;
+    if (user != NULL && Z_TYPE_P(user) == IS_STRING) {
+        user_id = Z_STR_P(user);
+    } else if (user != NULL && Z_TYPE_P(user) == IS_ARRAY) {
+        // This is required to avoid writting to metadata if no id
+        zval *user_id_zv = zend_hash_str_find(Z_ARR_P(user), ZEND_STRL("id"));
+        if (user_id_zv != NULL && Z_TYPE_P(user_id_zv) == IS_STRING) {
+            user_id = Z_STR_P(user_id_zv);
+        }
+        zend_string *user_key;
+        zval *user_value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(user), user_key, user_value) {
+            if (!user_key || Z_TYPE_P(user_value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *key = zend_strpprintf(0, "%s.usr.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, ZSTR_VAL(user_key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, user_value);
+            zend_hash_update(target_table, key, &value_copy);
+
+            zend_string_release(key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    // appsec.events.users.login.success.usr.login
+    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, "usr.login");
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, login);
+    zend_hash_update(target_table, prefixed_key, &value_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.success.track
+    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
+    zval true_value_zv;
+    ZVAL_STRING(&true_value_zv, "true");
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    //_dd.appsec.events.users.login.success.sdk
+    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS);
+    Z_TRY_ADDREF_P(&true_value_zv);
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    if (user_id != NULL) {
+        //_dd.appsec.user.collection_mode: "sdk"
+        prefixed_key = zend_strpprintf(0, "_dd.appsec.user.collection_mode");
+        zval collection_mode_zv;
+        ZVAL_STRING(&collection_mode_zv, "sdk");
+        zend_hash_update(target_table, prefixed_key, &collection_mode_zv);
+        zend_string_release(prefixed_key);
+
+        // appsec.events.users.login.success.usr.id
+        prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, "usr.id");
+        zval user_id_zv;
+        ZVAL_STR_COPY(&user_id_zv, user_id);
+        zend_hash_update(target_table, prefixed_key, &user_id_zv);
+        zend_string_release(prefixed_key);
+    }
+
+    if (metadata != NULL) {
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value) {
+            if (!key || Z_TYPE_P(value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_SUCCESS, ZSTR_VAL(key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, value);
+            zend_hash_update(target_table, prefixed_key, &value_copy);
+
+            zend_string_release(prefixed_key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    if (user_id != NULL) {
+        _ddtrace_set_user(user_id, metadata, false);
+    }
+}
+
+PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
+    UNUSED(execute_data);
+
+    zend_string *login = NULL;
+    zend_bool exists = false;
+    zend_array *metadata = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sb|h", &login, &exists, &metadata) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (!get_DD_TRACE_ENABLED()) {
+        RETURN_NULL();
+    }
+
+    zend_array *target_table;
+    if (DDTRACE_G(active_stack)->root_span) {
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+    } else {
+        target_table = &DDTRACE_G(root_span_tags_preset);
+    }
+
+    if (ZSTR_LEN(login) == 0) {
+        LOG_LINE(WARN, "Unexpected empty login in datadog\\appsec\\v2\\track_user_login_failure");
+        RETURN_NULL();
+    }
+
+#define DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE "appsec.events.users.login.failure"
+
+    // appsec.events.users.login.failure.usr.login: <login>
+    zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, "usr.login");
+    zval value_zv;
+    ZVAL_STR_COPY(&value_zv, login);
+    zend_hash_update(target_table, prefixed_key, &value_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.failure.usr.exists: <"true"|"false">
+    prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, "usr.exists");
+    zval exists_zv;
+    ZVAL_STRING(&exists_zv, exists ? "true" : "false");
+    zend_hash_update(target_table, prefixed_key, &exists_zv);
+    zend_string_release(prefixed_key);
+
+    // appsec.events.users.login.failure.track: "true"
+    prefixed_key = zend_strpprintf(0, "%s.track", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    zval true_value_zv;
+    ZVAL_STRING(&true_value_zv, "true");
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    //_dd.appsec.events.users.login.failure.sdk: "true"
+    prefixed_key = zend_strpprintf(0, "_dd.%s.sdk", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE);
+    Z_TRY_ADDREF_P(&true_value_zv);
+    zend_hash_update(target_table, prefixed_key, &true_value_zv);
+    zend_string_release(prefixed_key);
+
+    if (metadata != NULL) {
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(metadata, key, value) {
+            if (!key || Z_TYPE_P(value) != IS_STRING) {
+                continue;
+            }
+
+            zend_string *prefixed_key = zend_strpprintf(0, "%s.%s", DDTRACE_ATO_V2_EVENT_USERS_LOGIN_FAILURE, ZSTR_VAL(key));
+            zval value_copy;
+            ZVAL_COPY(&value_copy, value);
+            zend_hash_update(target_table, prefixed_key, &value_copy);
+
+            zend_string_release(prefixed_key);
+        }
+        ZEND_HASH_FOREACH_END();
+    }
 }
 
 PHP_FUNCTION(dd_trace_serialize_closed_spans) {

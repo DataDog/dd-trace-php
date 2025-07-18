@@ -34,12 +34,6 @@ struct ddog_Result_VecLibraryConfig ddog_library_configurator_get(const struct d
  * Returns a static null-terminated string, containing the name of the environment variable
  * associated with the library configuration
  */
-struct ddog_CStr ddog_library_config_name_to_env(enum ddog_LibraryConfigName name);
-
-/**
- * Returns a static null-terminated string, containing the name of the environment variable
- * associated with the library configuration
- */
 struct ddog_CStr ddog_library_config_source_to_string(enum ddog_LibraryConfigSource name);
 
 /**
@@ -55,6 +49,22 @@ struct ddog_CStr ddog_library_config_fleet_stable_config_path(void);
 struct ddog_CStr ddog_library_config_local_stable_config_path(void);
 
 void ddog_library_config_drop(struct ddog_Vec_LibraryConfig);
+
+/**
+ * Store tracer metadata to a file handle
+ *
+ * # Safety
+ *
+ * Accepts raw C-compatible strings
+ */
+struct ddog_Result_TracerMemfdHandle ddog_store_tracer_metadata(uint8_t schema_version,
+                                                                ddog_CharSlice runtime_id,
+                                                                ddog_CharSlice tracer_language,
+                                                                ddog_CharSlice tracer_version,
+                                                                ddog_CharSlice hostname,
+                                                                ddog_CharSlice service_name,
+                                                                ddog_CharSlice service_env,
+                                                                ddog_CharSlice service_version);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -1,6 +1,11 @@
 #/usr/bin/env bash
 set -eo pipefail
 
+if [[ -n "${CI_COMMIT_TAG:-}" ]]; then
+  echo "Tag detected; not adding git sha1 to version number."
+  exit 0
+fi
+
 githash="${CI_COMMIT_SHA?}"
 if [[ "x$CI_COMMIT_BRANCH" == "x" ]] ; then
   echo "The environment variable CI_COMMIT_BRANCH was not set or was empty."

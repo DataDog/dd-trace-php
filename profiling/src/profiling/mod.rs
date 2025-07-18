@@ -17,8 +17,9 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
-use crate::{CLOCKS, TAGS};
+use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
+use core::mem::forget;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
@@ -30,8 +31,6 @@ use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::intrinsics::transmute;
-use std::mem::forget;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
@@ -131,7 +130,7 @@ impl WallTime {
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
-    Num(i64, Option<&'static str>),
+    Num(i64, &'static str),
 }
 
 #[derive(Debug, Clone)]
@@ -143,18 +142,18 @@ pub struct Label {
 impl<'a> From<&'a Label> for ApiLabel<'a> {
     fn from(label: &'a Label) -> Self {
         let key = label.key;
-        match &label.value {
-            LabelValue::Str(str) => Self {
+        match label.value {
+            LabelValue::Str(ref str) => Self {
                 key,
-                str: Some(str),
+                str,
                 num: 0,
-                num_unit: None,
+                num_unit: "",
             },
             LabelValue::Num(num, num_unit) => Self {
                 key,
-                str: None,
-                num: *num,
-                num_unit: num_unit.as_deref(),
+                str: "",
+                num,
+                num_unit,
             },
         }
     }
@@ -370,7 +369,7 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset,
                 count_value_offset: alloc_samples_offset,
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL as u64,
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst),
             };
             let values_offset = [alloc_size_offset, alloc_samples_offset];
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
@@ -676,16 +675,16 @@ impl Profiler {
     /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
     pub fn init(system_settings: &mut SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
-        // PROFILER is not being mutated outside single-threaded phases such
-        // as minit/mshutdown.
-        unsafe { PROFILER.get_or_init(|| Profiler::new(system_settings)) };
+        // PROFILER is only being mutated in single-threaded phases such as
+        //minit/mshutdown.
+        unsafe { (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings)) };
     }
 
     pub fn get() -> Option<&'static Profiler> {
         // SAFETY: the `get` access is a thread-safe API, and the PROFILER is
-        // not being mutated outside single-threaded phases such as minit and
+        // only being mutated in single-threaded phases such as minit and
         // mshutdown.
-        unsafe { PROFILER.get() }
+        unsafe { (*ptr::addr_of!(PROFILER)).get() }
     }
 
     pub fn new(system_settings: &mut SystemSettings) -> Self {
@@ -801,11 +800,13 @@ impl Profiler {
     /// Note that you must call [Profiler::shutdown] afterwards; it's two
     /// parts of the same operation. It's split so you (or other extensions)
     /// can do something while the other threads finish up.
-    pub fn stop(timeout: Duration) {
-        // SAFETY: the `get_mut` access is a thread-safe API, and the PROFILER
-        // is not being mutated outside single-threaded phases such as minit
-        // and mshutdown.
-        if let Some(profiler) = unsafe { PROFILER.get_mut() } {
+    ///
+    /// # Safety
+    /// Must be called in mshutdown.
+    pub unsafe fn stop(timeout: Duration) {
+        // SAFETY: only called during mshutdown, where we have ownership of
+        // the PROFILER object.
+        if let Some(profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).get_mut() } {
             profiler.join_and_drop_sender(timeout);
         }
     }
@@ -843,12 +844,12 @@ impl Profiler {
     /// Note the timeout is per thread, and there may be multiple threads.
     /// Returns Ok(true) if any thread hit a timeout.
     ///
-    /// Safety: only safe to be called in `SHUTDOWN`/`MSHUTDOWN` phase
-    pub fn shutdown(timeout: Duration) -> Result<(), JoinError> {
-        // SAFETY: the `take` access is a thread-safe API, and the PROFILER is
-        // not being mutated outside single-threaded phases such  as minit and
-        // mshutdown.
-        if let Some(profiler) = unsafe { PROFILER.take() } {
+    /// # Safety
+    /// Only safe to be called in Zend Extension shutdown.
+    pub unsafe fn shutdown(timeout: Duration) -> Result<(), JoinError> {
+        // SAFETY: only called during extension shutdown, where we have
+        // ownership of the PROFILER object.
+        if let Some(profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).take() } {
             profiler.join_collector_and_uploader(timeout)
         } else {
             Ok(())
@@ -893,7 +894,7 @@ impl Profiler {
     /// includes this thread in some kind of recursive manner.
     pub unsafe fn kill() {
         // SAFETY: see this function's safety conditions.
-        if let Some(mut profiler) = PROFILER.take() {
+        if let Some(mut profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).take() } {
             // Drop some things to reduce memory.
             profiler.interrupt_manager = Arc::new(InterruptManager::new());
             profiler.message_sender = crossbeam_channel::bounded(0).0;
@@ -915,14 +916,12 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let (wall_time, cpu_time) = CLOCKS.with(|cell| cell.borrow_mut().rotate_clocks());
+                let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                #[cfg(not(feature = "timeline"))]
-                let mut timestamp = NO_TIMESTAMP;
-                #[cfg(feature = "timeline")]
+                #[cfg_attr(not(feature = "timeline"), allow(unused_mut))]
                 let mut timestamp = NO_TIMESTAMP;
                 #[cfg(feature = "timeline")]
                 {
@@ -1029,9 +1028,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                #[cfg(not(feature = "timeline"))]
-                let timestamp = NO_TIMESTAMP;
-                #[cfg(feature = "timeline")]
+                #[cfg_attr(not(feature = "timeline"), allow(unused_mut))]
                 let mut timestamp = NO_TIMESTAMP;
                 #[cfg(feature = "timeline")]
                 {
@@ -1329,11 +1326,11 @@ impl Profiler {
         #[cfg(php_gc_status)]
         labels.push(Label {
             key: "gc runs",
-            value: LabelValue::Num(runs, Some("count")),
+            value: LabelValue::Num(runs, "count"),
         });
         labels.push(Label {
             key: "gc collected",
-            value: LabelValue::Num(collected, Some("count")),
+            value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
 
@@ -1462,12 +1459,12 @@ impl Profiler {
     /// Creates the common message labels for all samples.
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
-    ///                      caller adds gc or exception labels.
+    ///   caller adds gc or exception labels.
     fn common_labels(n_extra_labels: usize) -> Vec<Label> {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id".into()),
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
         });
 
         labels.push(Label {
@@ -1479,21 +1476,19 @@ impl Profiler {
         // we're getting the profiling context on a PHP thread.
         let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
         if context.local_root_span_id != 0 {
-            /* Safety: PProf only has signed integers for label.num.
-             * We bit-cast u64 to i64, and the backend does the
-             * reverse so the conversion is lossless.
-             */
-            let local_root_span_id: i64 = unsafe { transmute(context.local_root_span_id) };
-            let span_id: i64 = unsafe { transmute(context.span_id) };
+            // Casting between two integers of the same size is a no-op, and
+            // Rust uses 2's complement for negative numbers.
+            let local_root_span_id = context.local_root_span_id as i64;
+            let span_id = context.span_id as i64;
 
             labels.push(Label {
                 key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, None),
+                value: LabelValue::Num(local_root_span_id, ""),
             });
 
             labels.push(Label {
                 key: "span id",
-                value: LabelValue::Num(span_id, None),
+                value: LabelValue::Num(span_id, ""),
             });
         }
 
@@ -1542,7 +1537,7 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        let tags = TAGS.with(|cell| Arc::clone(&cell.borrow()));
+        let tags = TAGS.with_borrow(Arc::clone);
 
         SampleMessage {
             key: ProfileIndex { sample_types, tags },
@@ -1563,7 +1558,7 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::AgentEndpoint;
+    use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
@@ -1582,6 +1577,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
+            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,

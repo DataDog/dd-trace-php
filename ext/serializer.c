@@ -27,6 +27,7 @@
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
 #include <zend_abstract_interface/symbols/symbols.h>
+#include <ext/standard/url.h>
 
 #include "arrays.h"
 #include "asm_event.h"
@@ -553,6 +554,28 @@ static zend_string *dd_get_user_agent(zend_array *_server) {
     return ZSTR_EMPTY_ALLOC();
 }
 
+static zend_string *dd_get_referrer_host(zend_array *_server) {
+    if (_server) {
+        zval *referer = zend_hash_str_find(_server, ZEND_STRL("HTTP_REFERER"));
+        if (referer && Z_TYPE_P(referer) == IS_STRING) {
+            php_url *url = php_url_parse(Z_STRVAL_P(referer));
+            if (url && url->host) {
+#if PHP_VERSION_ID >= 70300
+                zend_string *host_str = zend_string_init(ZSTR_VAL(url->host), ZSTR_LEN(url->host), 0);
+#else
+                zend_string *host_str = zend_string_init(url->host, strlen(url->host), 0);
+#endif
+                php_url_free(url);
+                return host_str;
+            }
+            if (url) {
+                php_url_free(url);
+            }
+        }
+    }
+    return ZSTR_EMPTY_ALLOC();
+}
+
 static bool dd_set_mapped_peer_service(zval *meta, zend_string *peer_service) {
     zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
     if (zend_hash_num_elements(peer_service_mapping) == 0 || !meta || !peer_service) {
@@ -654,6 +677,13 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         zval http_useragent;
         ZVAL_STR_COPY(&http_useragent, user_agent);
         zend_hash_str_add_new(meta, ZEND_STRL("http.useragent"), &http_useragent);
+    }
+
+    zend_string *referrer_host = dd_get_referrer_host(data->server);
+    if (referrer_host && ZSTR_LEN(referrer_host) > 0) {
+        zval http_referrer_host;
+        ZVAL_STR(&http_referrer_host, referrer_host);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.referrer_hostname"), &http_referrer_host);
     }
 
     if (data->server) {
@@ -1122,10 +1152,42 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
         ZVAL_STR(&status_zv, status_str);
         zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_zv);
 
-        if (status >= 500 && !ignore_error) {
-            zval zv = {0}, *value;
-            if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
-                ZVAL_STR(value, zend_string_init(ZEND_STRL("Internal Server Error"), 0));
+        // Only check status codes if not ignoring errors
+        if (!ignore_error) {
+            bool is_error = false;
+
+            // Get server error configuration
+            zend_array *cfg = get_DD_TRACE_HTTP_SERVER_ERROR_STATUSES();
+
+            // Loop through configuration if any
+            zend_string *str_key;
+            ZEND_HASH_FOREACH_STR_KEY(cfg, str_key) {
+                if (str_key) {
+                    const char *s = ZSTR_VAL(str_key);
+
+                    // Range like "500-599"
+                    int start, end;
+                    if (sscanf(s, "%d-%d", &start, &end) == 2) {
+                        if (status >= start && status <= end) {
+                            is_error = true;
+                            break;
+                        }
+                    } else {
+                        // Single status code
+                        int code = atoi(s);
+                        if (status == code) {
+                            is_error = true;
+                            break;
+                        }
+                    }
+                }
+            } ZEND_HASH_FOREACH_END();
+
+            if (is_error) {
+                zval zv = {0}, *value;
+                if ((value = zend_hash_str_add(meta, ZEND_STRL("error.type"), &zv))) {
+                    ZVAL_STR(value, zend_string_init(ZEND_STRL("HttpError"), 0));
+                }
             }
         }
     }
@@ -1135,6 +1197,24 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
         zend_string_release(lowerheader);
         zend_string_release(headerval);
     }
+}
+
+static bool should_track_error(zend_object *exception, ddtrace_span_data *span) {
+    if (Z_TYPE(span->property_exception) != IS_OBJECT || Z_OBJ(span->property_exception) != exception) {
+        return true;
+    }
+
+    zval *zv;
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    
+    // Check if error should be ignored or tracking is disabled
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
+        return false;
+    }
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zval_is_true(zv)) {
+        return false;
+    }
+    return true;
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *service_name) {
@@ -1200,8 +1280,7 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
 
     zval *exception_zv = &span->property_exception;
     bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-    if (has_exception) {
-        ignore_error = false;
+    if (has_exception && !ignore_error) {
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
@@ -1305,23 +1384,22 @@ static void _serialize_meta(zval *el, ddtrace_span_data *span, zend_string *serv
 
     zend_bool error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.message")) ||
                       ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.type"));
-    if (error && !ignore_error) {
+    if (error) {
         add_assoc_long(el, "error", 1);
-
-        if (Z_TYPE(span->property_exception) == IS_OBJECT) {
-            ddtrace_span_data *parent = span;
-            while (parent->parent) {
-                parent = SPANDATA(parent->parent);
-                if (Z_TYPE(parent->property_exception) == IS_OBJECT && Z_OBJ(parent->property_exception) == Z_OBJ(span->property_exception)) {
-                    zval *zv;
-                    if ((zv = zend_hash_str_find(ddtrace_property_array(&parent->property_meta), ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
-                        add_assoc_string(meta, "track_error", "false");
-                        break;
-                    }
-                } else {
+        
+        if (!ignore_error && Z_TYPE(span->property_exception) == IS_OBJECT) {
+            zend_object *exception = Z_OBJ(span->property_exception);
+            ddtrace_span_data *current = span;
+            bool should_track;
+            
+            do {
+                should_track = should_track_error(exception, current);
+                if (!should_track) {
+                    add_assoc_string(meta, "track_error", "false");
                     break;
                 }
-            }
+                current = current->parent ? SPANDATA(current->parent) : NULL;
+            } while (current);
         }
     }
 
@@ -1445,7 +1523,6 @@ void transfer_data(zend_array *source, zend_array *destination, const char *key,
         }
     }
 }
-
 
 zval *ddtrace_serialize_span_to_array(ddtrace_span_data *span, zval *array) {
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;

@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class MysqliTest extends IntegrationTestCase
 {
-    private static $host = 'mysql_integration';
+    private static $host = 'mysql-integration';
     public static $database = 'mysqlitest';
     private static $port = '3306';
     private static $user = 'test';
@@ -634,7 +634,7 @@ class MysqliTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('mysqli.__construct', 'my-mysqli-mysql_integration', 'sql', 'mysqli.__construct', SpanAssertion::NOT_TESTED)
+            SpanAssertion::build('mysqli.__construct', 'my-mysqli-mysql-integration', 'sql', 'mysqli.__construct', SpanAssertion::NOT_TESTED)
         ]);
     }
 

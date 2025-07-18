@@ -257,37 +257,6 @@ typedef struct ddog_Vec_Tag_ParseResult {
   struct ddog_Error *error_message;
 } ddog_Vec_Tag_ParseResult;
 
-/**
- * C-compatible representation of an anonymous file handle
- */
-typedef struct ddog_TracerMemfdHandle {
-  /**
-   * File descriptor (relevant only on Linux)
-   */
-  int fd;
-} ddog_TracerMemfdHandle;
-
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_Result_TracerMemfdHandle_Tag {
-  DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
-  DDOG_RESULT_TRACER_MEMFD_HANDLE_ERR_TRACER_MEMFD_HANDLE,
-} ddog_Result_TracerMemfdHandle_Tag;
-
-typedef struct ddog_Result_TracerMemfdHandle {
-  ddog_Result_TracerMemfdHandle_Tag tag;
-  union {
-    struct {
-      struct ddog_TracerMemfdHandle ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_Result_TracerMemfdHandle;
-
 #define ddog_LOG_ONCE (1 << 3)
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
@@ -408,9 +377,11 @@ typedef enum ddog_RemoteConfigCapabilities {
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
+  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_CONFIG,
+  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_TASK,
   DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
@@ -1042,6 +1013,12 @@ typedef enum ddog_crasht_StacktraceCollection {
    */
   DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
   DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
+  /**
+   * This option uses `backtrace::resolve_frame_unsynchronized()` to gather symbol information
+   * and also unwind inlined functions. Enabling this feature will not only provide symbolic
+   * details, but may also yield additional or less stack frames compared to other
+   * configurations.
+   */
   DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
   DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
 } ddog_crasht_StacktraceCollection;
@@ -1066,13 +1043,6 @@ typedef enum ddog_VoidResult_Tag {
 typedef struct ddog_VoidResult {
   ddog_VoidResult_Tag tag;
   union {
-    struct {
-      /**
-       * Do not use the value of Ok. This value only exists to overcome
-       * Rust -> C code generation.
-       */
-      bool ok;
-    };
     struct {
       struct ddog_Error err;
     };
@@ -1110,12 +1080,16 @@ typedef struct ddog_crasht_Slice_I32 {
 typedef struct ddog_crasht_Config {
   struct ddog_crasht_Slice_CharSlice additional_files;
   bool create_alt_stack;
-  bool use_alt_stack;
+  bool demangle_names;
   /**
    * The endpoint to send the crash report to (can be a file://).
    * If None, the crashtracker will infer the agent host from env variables.
    */
   const struct ddog_Endpoint *endpoint;
+  /**
+   * Optional filename for a unix domain socket if the receiver is used asynchonously
+   */
+  ddog_CharSlice optional_unix_socket_filename;
   enum ddog_crasht_StacktraceCollection resolve_frames;
   /**
    * The set of signals we should be registered for.
@@ -1128,10 +1102,7 @@ typedef struct ddog_crasht_Config {
    * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.
    */
   uint32_t timeout_ms;
-  /**
-   * Optional filename for a unix domain socket if the receiver is used asynchonously
-   */
-  ddog_CharSlice optional_unix_socket_filename;
+  bool use_alt_stack;
 } ddog_crasht_Config;
 
 typedef struct ddog_crasht_EnvVar {
@@ -1334,23 +1305,6 @@ typedef struct ddog_StringWrapperResult {
   };
 } ddog_StringWrapperResult;
 
-typedef enum ddog_LibraryConfigName {
-  DDOG_LIBRARY_CONFIG_NAME_DD_APM_TRACING_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_RUNTIME_METRICS_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_LOGS_INJECTION,
-  DDOG_LIBRARY_CONFIG_NAME_DD_PROFILING_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_DATA_STREAMS_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_APPSEC_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_IAST_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_DYNAMIC_INSTRUMENTATION_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_DATA_JOBS_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_APPSEC_SCA_ENABLED,
-  DDOG_LIBRARY_CONFIG_NAME_DD_TRACE_DEBUG,
-  DDOG_LIBRARY_CONFIG_NAME_DD_SERVICE,
-  DDOG_LIBRARY_CONFIG_NAME_DD_ENV,
-  DDOG_LIBRARY_CONFIG_NAME_DD_VERSION,
-} ddog_LibraryConfigName;
-
 typedef enum ddog_LibraryConfigSource {
   DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG = 0,
   DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG = 1,
@@ -1409,9 +1363,10 @@ typedef struct ddog_CString {
 } ddog_CString;
 
 typedef struct ddog_LibraryConfig {
-  enum ddog_LibraryConfigName name;
+  struct ddog_CString name;
   struct ddog_CString value;
   enum ddog_LibraryConfigSource source;
+  struct ddog_CString config_id;
 } ddog_LibraryConfig;
 
 /**
@@ -1445,13 +1400,49 @@ typedef struct ddog_Result_VecLibraryConfig {
   };
 } ddog_Result_VecLibraryConfig;
 
+/**
+ * C-compatible representation of an anonymous file handle
+ */
+typedef struct ddog_TracerMemfdHandle {
+  /**
+   * File descriptor (relevant only on Linux)
+   */
+  int fd;
+} ddog_TracerMemfdHandle;
+
+/**
+ * A generic result type for when an operation may fail,
+ * or may return <T> in case of success.
+ */
+typedef enum ddog_Result_TracerMemfdHandle_Tag {
+  DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
+  DDOG_RESULT_TRACER_MEMFD_HANDLE_ERR_TRACER_MEMFD_HANDLE,
+} ddog_Result_TracerMemfdHandle_Tag;
+
+typedef struct ddog_Result_TracerMemfdHandle {
+  ddog_Result_TracerMemfdHandle_Tag tag;
+  union {
+    struct {
+      struct ddog_TracerMemfdHandle ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_Result_TracerMemfdHandle;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
 /**
+ * Drops the error. It should not be used after this, though the
+ * implementation tries to limit the damage in the case of use-after-free and
+ * double-free scenarios.
+ *
  * # Safety
- * Only pass null or a valid reference to a `ddog_Error`.
+ *
+ * Only pass null or a pointer to a valid, mutable `ddog_Error`.
  */
 void ddog_Error_drop(struct ddog_Error *error);
 
@@ -1557,16 +1548,23 @@ struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
 struct ddog_Option_U32 ddog_Option_U32_none(void);
 
 /**
+ * Drops a `ddog_StringWrapper`. It should not be used after this, though the
+ * implementation tries to limit the damage in the case of use-after-free and
+ * double-free scenarios.
+ *
  * # Safety
- * Only pass null or a valid reference to a `ddog_StringWrapper`.
+ *
+ * Only pass null or a pointer to a valid, mutable `ddog_StringWrapper`.
  */
 void ddog_StringWrapper_drop(struct ddog_StringWrapper *s);
 
 /**
- * Returns a CharSlice of the message that is valid until the StringWrapper
- * is dropped.
+ * Returns a CharSlice of the message.
+ *
  * # Safety
+ *
  * Only pass null or a valid reference to a `ddog_StringWrapper`.
+ * The string should not be mutated nor dropped while the CharSlice is alive.
  */
 ddog_CharSlice ddog_StringWrapper_message(const struct ddog_StringWrapper *s);
 
@@ -1595,22 +1593,6 @@ struct ddog_Vec_Tag_PushResult ddog_Vec_Tag_push(struct ddog_Vec_Tag *vec,
  * .len property.
  */
 DDOG_CHECK_RETURN struct ddog_Vec_Tag_ParseResult ddog_Vec_Tag_parse(ddog_CharSlice string);
-
-/**
- * Store tracer metadata to a file handle
- *
- * # Safety
- *
- * Accepts raw C-compatible strings
- */
-struct ddog_Result_TracerMemfdHandle ddog_store_tracer_metadata(uint8_t schema_version,
-                                                                ddog_CharSlice runtime_id,
-                                                                ddog_CharSlice tracer_language,
-                                                                ddog_CharSlice tracer_version,
-                                                                ddog_CharSlice hostname,
-                                                                ddog_CharSlice service_name,
-                                                                ddog_CharSlice service_env,
-                                                                ddog_CharSlice service_version);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -30,7 +30,7 @@ class GoogleSpannerIntegrationTest extends IntegrationTestCase
 
     public static function spannerSetup()
     {
-        putenv('SPANNER_EMULATOR_HOST=googlespanner_integration:9010');
+        putenv('SPANNER_EMULATOR_HOST=googlespanner-integration:9010');
         putenv('GOOGLE_APPLICATION_CREDENTIALS=./tests/Integrations/GoogleSpanner/Latest/dummy_credentials.json');
         $projectId = 'emulator-project';
         $spanner = new SpannerClient([

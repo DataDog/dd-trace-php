@@ -3,6 +3,7 @@ ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Better-support-for-cross-compilation.patch /home/circleci
 COPY 0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch /home/circleci
+COPY php-8.0/0001-Disable-ZEND_RC_MOD_CHECK-while-loading-shared-exten.patch /home/circleci
 COPY php-8.0/0001-Fix-memory-leak-in-zend_wrong_callback_error.patch /home/circleci
 COPY php-8.0/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch /home/circleci
 RUN set -eux; \
@@ -14,7 +15,10 @@ RUN set -eux; \
     git apply /home/circleci/0001-Better-support-for-cross-compilation.patch; \
     git apply /home/circleci/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch; \
     git apply /home/circleci/0001-Fix-memory-leak-in-zend_wrong_callback_error.patch; \
+    git apply /home/circleci/0001-Disable-ZEND_RC_MOD_CHECK-while-loading-shared-exten.patch; \
     patch -p1 /home/circleci/0001-Fix-GH-10611-fpm_env_init_main-leaks-environ.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
     ./buildconf --force
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build

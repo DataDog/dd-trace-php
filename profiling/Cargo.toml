@@ -3,7 +3,7 @@ name = "datadog-php-profiling"
 version = "0.0.0"
 edition = "2021"
 license = "Apache-2.0"
-rust-version = "1.78"
+rust-version = "1.84.1"
 
 [lib]
 crate-type = ["cdylib"]
@@ -19,10 +19,10 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v17.0.0" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v17.0.0" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v17.0.0" }
-datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "v17.0.0" }
+datadog-alloc = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
+datadog-profiling = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
+ddcommon = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
+datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", tag = "v18.0.0" }
 env_logger = { version = "0.11", default-features = false }
 indexmap = { version = "2.2" }
 lazy_static = { version = "1.4" }
@@ -46,6 +46,7 @@ default-features = false
 features = ["env-filter", "fmt", "smallvec", "std"]
 
 [dev-dependencies]
+allocator-api2 = { version = "0.2", default-features = false, features = ["alloc"] }
 criterion = { version = "0.5.1" }
 datadog-php-profiling = { path = ".", features = ["test"] }
 
@@ -75,4 +76,10 @@ trigger_time_sample = []
 bindgen = { version = "0.69.4" }
 cc = { version = "1.0" }
 
+# We can remove this when we're using Rust 1.80+
+rustc_version = "0.4"
+
 # profiling release options in root Cargo.toml
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(stack_walking_tests)'] }

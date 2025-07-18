@@ -7,6 +7,7 @@ FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Delete-timers-on-fork.patch /home/circleci
+COPY 0001-Disable-ZEND_RC_MOD_CHECK-while-loading-shared-exten.patch /home/circleci
 COPY php-8.2/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
@@ -14,9 +15,12 @@ RUN set -eux; \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force; \
     git apply /home/circleci/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch; \
-    patch Zend/zend_max_execution_timer.c /home/circleci/0001-Delete-timers-on-fork.patch;
+    git apply /home/circleci/0001-Disable-ZEND_RC_MOD_CHECK-while-loading-shared-exten.patch; \
+    patch Zend/zend_max_execution_timer.c /home/circleci/0001-Delete-timers-on-fork.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
+    ./buildconf --force
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
 ARG phpVersion

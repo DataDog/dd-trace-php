@@ -78,10 +78,12 @@ void resolve_symbols()
 }
 
 client::client(remote_config::settings settings,
-    std::vector<std::shared_ptr<listener_base>> listeners)
+    std::vector<std::shared_ptr<listener_base>> listeners,
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter)
     : reader_{ddog_remote_config_reader_for_path(settings.shmem_path.c_str()),
           ddog_remote_config_reader_drop},
-      settings_{std::move(settings)}, listeners_{std::move(listeners)}
+      settings_{std::move(settings)}, listeners_{std::move(listeners)},
+      msubmitter_{std::move(msubmitter)}
 {
     assert(settings_.enabled == true); // NOLINT
 
@@ -97,9 +99,11 @@ client::client(remote_config::settings settings,
 
 std::unique_ptr<client> client::from_settings(
     const remote_config::settings &settings,
-    std::vector<std::shared_ptr<listener_base>> listeners)
+    std::vector<std::shared_ptr<listener_base>> listeners,
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter)
 {
-    return std::unique_ptr<client>{new client(settings, std::move(listeners))};
+    return std::unique_ptr<client>{
+        new client(settings, std::move(listeners), std::move(msubmitter))};
 }
 
 bool client::poll()
@@ -148,6 +152,8 @@ bool client::poll()
 
 bool client::process_response(std::set<config> new_configs)
 {
+    using log_level = telemetry::telemetry_submitter::log_level;
+
     for (auto &listener : listeners_) {
         try {
             listener->init();
@@ -157,7 +163,7 @@ bool client::process_response(std::set<config> new_configs)
     }
 
     // unapply should happen first
-    for (const auto &cfg : last_configs_) {
+    for (const config &cfg : last_configs_) {
         if (new_configs.contains(cfg)) {
             continue;
         }
@@ -174,6 +180,21 @@ bool client::process_response(std::set<config> new_configs)
                 listener->on_unapply(cfg);
             } catch (const std::exception &e) {
                 SPDLOG_ERROR("Failed to unapply config {}: {}", cfg, e.what());
+                if (msubmitter_) {
+                    std::string identifier = fmt::format("rc::{}::exception",
+                        cfg.config_key().product().name_lower());
+                    std::string tags =
+                        telemetry::telemetry_tags{}
+                            .add("log_type", identifier)
+                            .add("rc_config_id", cfg.config_key().config_id())
+                            .consume();
+                    msubmitter_->submit_log(
+                        telemetry::telemetry_submitter::log_level::Error,
+                        std::move(identifier),
+                        fmt::format("Failed to unapply config {}: {}",
+                            cfg.rc_path, e.what()),
+                        std::nullopt, std::move(tags), false);
+                }
             }
         }
     }
@@ -198,6 +219,20 @@ bool client::process_response(std::set<config> new_configs)
                 listener->on_update(cfg);
             } catch (const std::exception &e) {
                 SPDLOG_ERROR("Failed to apply config {}: {}", cfg, e.what());
+                if (msubmitter_) {
+                    std::string identifier = fmt::format("rc::{}::exception",
+                        cfg.config_key().product().name_lower());
+                    std::string tags =
+                        telemetry::telemetry_tags{}
+                            .add("log_type", identifier)
+                            .add("rc_config_id", cfg.config_key().config_id())
+                            .consume();
+                    msubmitter_->submit_log(log_level::Error,
+                        std::move(identifier),
+                        fmt::format("Failed to apply config {}: {}",
+                            cfg.rc_path, e.what()),
+                        std::nullopt, std::move(tags), false);
+                }
             }
         }
     }
@@ -207,6 +242,12 @@ bool client::process_response(std::set<config> new_configs)
             listener->commit();
         } catch (const std::exception &e) {
             SPDLOG_ERROR("Failed to commit listener: {}", e.what());
+            if (msubmitter_) {
+                msubmitter_->submit_log(log_level::Error,
+                    "rc::client::exception",
+                    fmt::format("Failed to commit listener: {}", e.what()),
+                    std::nullopt, std::nullopt, false);
+            }
         }
     }
 

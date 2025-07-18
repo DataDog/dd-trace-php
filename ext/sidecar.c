@@ -2,6 +2,7 @@
 #include "auto_flush.h"
 #include "compat_string.h"
 #include "configuration.h"
+#include "ddtrace_export.h"
 #include "dogstatsd.h"
 #include "logging.h"
 #include <components-rs/common.h>
@@ -34,6 +35,17 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
+}
+
+DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
+    if (memcmp(dd_sidecar_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+        return NULL;
+    }
+    return dd_sidecar_formatted_session_id;
+}
+
+DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
+    return DDTRACE_G(sidecar_queue_id);
 }
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
@@ -383,6 +395,11 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
         changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
+        if (!changed && root) {
+            // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
+            // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+            ddog_process_remote_configs(DDTRACE_G(remote_config_state));
+        }
     }
     if (changed || !root) {
         ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));

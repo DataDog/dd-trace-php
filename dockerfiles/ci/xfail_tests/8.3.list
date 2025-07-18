@@ -119,6 +119,8 @@ ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
 ext/soap/tests/bug77088.phpt
+ext/sockets/tests/socket_create_listen-nobind.phpt
+ext/sockets/tests/socket_import_stream-4.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
 ext/spl/tests/bug48493.phpt
@@ -141,6 +143,7 @@ ext/standard/tests/file/bug52820.phpt
 ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
+ext/standard/tests/file/lstat_stat_variation15.phpt
 ext/standard/tests/filters/bug54350.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/floatval.phpt
@@ -170,6 +173,8 @@ ext/standard/tests/strings/sprintf_variation54.phpt
 ext/standard/tests/strings/gh15613.phpt
 ext/zend_test/tests/
 sapi/cli/tests/bug80092.phpt
+sapi/cli/tests/gh8827-001.phpt
+sapi/cli/tests/gh8827-003.phpt
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
@@ -190,3 +195,8 @@ sapi/phpdbg/tests/exceptions_003.phpt
 sapi/phpdbg/tests/stepping_001.phpt
 tests/lang/bug45392.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt

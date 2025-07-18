@@ -27,7 +27,7 @@ class UDPServer {
     public function dump($expected, $iter = 5000) {
         $lines = [];
         for ($i = 0; $i < $iter; ++$i) {
-            usleep(100);
+            usleep(1000);
             if (socket_recvfrom($this->socket, $buf, 2048, MSG_DONTWAIT, $remote_ip, $remote_port)) {
                 $lines[] = "$buf\n";
                 if (count($lines) == $expected) {

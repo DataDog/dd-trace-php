@@ -17,7 +17,7 @@ namespace dds::remote_config {
 class engine_listener : public listener_base {
 public:
     explicit engine_listener(std::shared_ptr<engine> engine,
-        std::shared_ptr<metrics::telemetry_submitter> msubmitter,
+        std::shared_ptr<telemetry::telemetry_submitter> msubmitter,
         const std::string &rules_file = {});
     engine_listener(const engine_listener &) = delete;
     engine_listener(engine_listener &&) = default;
@@ -43,7 +43,7 @@ protected:
     std::shared_ptr<engine> engine_;
     rapidjson::Document ruleset_;
     std::unordered_set<config_aggregator_base *> to_commit_;
-    std::shared_ptr<metrics::telemetry_submitter> msubmitter_;
+    std::shared_ptr<telemetry::telemetry_submitter> msubmitter_;
 };
 
 } // namespace dds::remote_config

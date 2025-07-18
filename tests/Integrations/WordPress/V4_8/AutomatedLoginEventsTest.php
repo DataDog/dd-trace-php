@@ -11,8 +11,6 @@ class AutomatedLoginEventsTest extends AutomatedLoginEventsTestSuite
 {
     public static $database = "wp48";
 
-    protected $users_table = 'wp_users';
-
     public static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_4_8/index.php';

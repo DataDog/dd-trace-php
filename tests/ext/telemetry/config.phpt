@@ -30,7 +30,7 @@ dd_trace_serialize_closed_spans();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-for ($i = 0; $i < 100; ++$i) {
+for ($i = 0; $i < 300; ++$i) {
     usleep(100000);
     if (file_exists(__DIR__ . '/config-telemetry.out')) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
@@ -64,6 +64,7 @@ Array
             [name] => trace.agent_url
             [value] => file://%s/config-telemetry.out
             [origin] => env_var
+            [config_id] => 
         )
 
     [1] => Array
@@ -71,6 +72,7 @@ Array
             [name] => instrumentation_telemetry_enabled
             [value] => 1
             [origin] => env_var
+            [config_id] => 
         )
 
     [2] => Array
@@ -78,6 +80,7 @@ Array
             [name] => trace.ignore_agent_sampling_rates
             [value] => 1
             [origin] => env_var
+            [config_id] => 
         )
 
     [3] => Array
@@ -85,6 +88,7 @@ Array
             [name] => trace.generate_root_span
             [value] => 0
             [origin] => env_var
+            [config_id] => 
         )
 
     [4] => Array
@@ -92,6 +96,7 @@ Array
             [name] => trace.git_metadata_enabled
             [value] => 0
             [origin] => env_var
+            [config_id] => 
         )
 
 )

@@ -305,7 +305,7 @@ static bool _is_config_using_default(dd_config_id id)
 {
     zai_config_memoized_entry config = zai_config_memoized_entries[id];
 
-    return config.name_index == -1;
+    return config.name_index == ZAI_CONFIG_ORIGIN_DEFAULT;
 }
 
 bool dd_cfg_enable_via_remcfg(void)

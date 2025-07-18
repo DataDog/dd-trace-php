@@ -314,10 +314,16 @@ ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/bug75245.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/soap/tests/bug71610.phpt
 ext/soap/tests/bug77088.phpt
+ext/sockets/tests/mcast_ipv6_recv.phpt
+ext/sockets/tests/mcast_ipv6_send.phpt
+ext/sockets/tests/mcast_ipv6_recv_limited.phpt
 ext/sockets/tests/socket_addrinfo_bind.phpt
 ext/sockets/tests/socket_addrinfo_connect.phpt
 ext/sockets/tests/socket_create_pair.phpt
+ext/sockets/tests/socket_create_listen-nobind.phpt
+ext/sockets/tests/socket_import_stream-4.phpt
 ext/sockets/tests/socket_set_nonblock.phpt
 ext/sodium/tests/utils.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
@@ -427,6 +433,7 @@ ext/standard/tests/class_object/get_object_vars_variation_002.phpt
 ext/standard/tests/class_object/get_object_vars_variation_004.phpt
 ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
+ext/standard/tests/file/lstat_stat_variation15.phpt
 ext/standard/tests/filters/bug54350.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/floatval.phpt
@@ -508,3 +515,8 @@ tests/classes/tostring_001.phpt
 tests/lang/bug45392.phpt
 tests/lang/type_hints_002.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt

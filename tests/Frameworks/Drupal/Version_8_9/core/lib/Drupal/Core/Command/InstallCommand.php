@@ -146,7 +146,7 @@ class InstallCommand extends Command {
               'database' => 'drupal89',
               'username' => 'test',
               'password' => 'test',
-              'host' => 'mysql_integration',
+              'host' => 'mysql-integration',
               'prefix' => '',
           ],
         ],

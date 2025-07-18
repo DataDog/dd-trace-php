@@ -27,6 +27,7 @@ struct action {
 };
 
 struct event {
+    bool keep = false;
     std::vector<std::string> data;
     std::vector<action> actions;
 };

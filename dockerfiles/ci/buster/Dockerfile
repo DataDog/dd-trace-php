@@ -46,7 +46,8 @@ ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
-    clang-format \
+    clang-format-17 \
+    clang-tidy-17 \
     curl \
     debian-goodies \
     git \
@@ -184,7 +185,7 @@ RUN set -eux; \
     apt install -y libmpfr-dev libgmp-dev; \
     GDB_VERSION="15.2"; \
     GDB_SHA256="9d16bc2539a2a20dc3ef99b48b8414d51c51305c8577eb7a1da00996f6dea223";\
-    cd /tmp && curl -OL https://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz; \
+    cd /tmp && curl -OL https://mirrors.kernel.org/sourceware/gdb/releases/gdb-${GDB_VERSION}.tar.gz; \
     (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
     mkdir gdb && cd gdb; \
     tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
@@ -194,10 +195,10 @@ RUN set -eux; \
 
 # Install valgrind
 RUN set -eux; \
-    VALGRIND_VERSION="3.23.0"; \
-    VALGRIND_SHA1="ec410c75d3920d4f9249a5cfa2cac31e1bf6d586"; \
-    cd /tmp && curl -OL https://sourceware.org/pub/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
-    (echo "${VALGRIND_SHA1}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha1sum -c -); \
+    VALGRIND_VERSION="3.25.1"; \
+    VALGRIND_SHA256="61deb8d0727b45c268efdc1b3b6c9e679cd97cbf5ee4b28d1dead7c8b7a271af"; \
+    cd /tmp && curl -OL https://mirrors.kernel.org/sourceware/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
+    (echo "${VALGRIND_SHA256}" valgrind-${VALGRIND_VERSION}.tar.bz2 | sha256sum -c -); \
     mkdir valgrind && cd valgrind; \
     tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
     ./configure; \
@@ -291,9 +292,9 @@ RUN set -eux; \
     chown -R circleci:circleci /opt;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.78.0"
-ARG RUST_SHA256_ARM="131eda738cd977fff2c912e5838e8e9b9c260ecddc1247c0fe5473bf09c594af"
-ARG RUST_SHA256_X86="1307747915e8bd925f4d5396ab2ae3d8d9c7fad564afbc358c081683d0f22e87"
+ARG RUST_VERSION="1.84.1"
+ARG RUST_SHA256_ARM="be89f6ad9b70cc4b25182ae299f94ab047a713a51fddf95284823c8afe4aef85"
+ARG RUST_SHA256_X86="106c89f23ce1c763fcbea8e2714b2ba869bf7af70804813987a4483896398933"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

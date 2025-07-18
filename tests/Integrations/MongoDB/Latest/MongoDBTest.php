@@ -14,7 +14,7 @@ class MongoDBTest extends IntegrationTestCase
 {
     protected static $lockedResource = "mongodb";
 
-    const HOST = 'mongodb_integration';
+    const HOST = 'mongodb-integration';
     const PORT = '27017';
     const USER = 'test';
     const PASSWORD = 'test';
@@ -378,60 +378,6 @@ class MongoDBTest extends IntegrationTestCase
             ['insertOne', [['brand' => 'chevy']]],
             ['listIndexes', []],
         ];
-    }
-
-    public function testMapReduce()
-    {
-        $expected = [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "mapReduce test_db cars")
-                ->withExactTags([
-                    'mongodb.db' => self::DATABASE,
-                    'mongodb.collection' => 'cars',
-                    'span.kind' => 'client',
-                    'out.host' => self::HOST,
-                    'out.port' => self::PORT,
-                    Tag::COMPONENT => 'mongodb',
-                    Tag::DB_SYSTEM => 'mongodb',
-                ])->withChildren([
-                    SpanAssertion::exists('mongodb.driver.cmd')
-                ]),
-        ];
-
-        // As array
-        $traces = $this->isolateTracer(
-            function () {
-                $this->client()->test_db->cars->mapReduce(
-                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
-                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
-                    ['inline' => 1]
-                );
-            }
-        );
-        $this->assertFlameGraph($traces, $expected);
-
-        // As stdClass
-        $traces = $this->isolateTracer(
-            function () {
-                $this->client()->test_db->cars->mapReduce(
-                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
-                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
-                    $this->arrayToStdClass(['inline' => 1])
-                );
-            }
-        );
-        $this->assertFlameGraph($traces, $expected);
-
-        // As object
-        $traces = $this->isolateTracer(
-            function () {
-                $this->client()->test_db->cars->mapReduce(
-                    new \MongoDB\BSON\Javascript('function() { emit(this.state, this.pop); }'),
-                    new \MongoDB\BSON\Javascript('function(key, values) { return Array.sum(values) }'),
-                    $this->arrayToObject(['inline' => 1])
-                );
-            }
-        );
-        $this->assertFlameGraph($traces, $expected);
     }
 
     /**

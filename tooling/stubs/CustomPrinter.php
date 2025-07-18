@@ -5,7 +5,7 @@ use PhpParser\PrettyPrinter\Standard;
 
 class CustomPrinter extends Standard
 {
-    protected function pStmt_Namespace(Stmt\Namespace_ $node)
+    protected function pStmt_Namespace(Stmt\Namespace_ $node): string
     {
         $this->canUseSemicolonNamespaces = false;
         return parent::pStmt_Namespace($node);

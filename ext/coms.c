@@ -173,6 +173,8 @@ bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t
     atomic_store(&ddtrace_coms_globals.next_group_id, 1);
     atomic_store(&ddtrace_coms_globals.current_stack, stack);
 
+    ddtrace_coms_globals.tmp_stack = NULL;
+
     _dd_ptr_at_exit_callback = _dd_at_exit_callback;
     atexit(_dd_at_exit_hook);
 

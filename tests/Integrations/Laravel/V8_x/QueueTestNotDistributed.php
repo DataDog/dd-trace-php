@@ -88,7 +88,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
 
     protected function connection()
     {
-        return new \PDO('mysql:host=mysql_integration;dbname=laravel8', 'test', 'test');
+        return new \PDO('mysql:host=mysql-integration;dbname=laravel8', 'test', 'test');
     }
 
     protected function getCommonTags(

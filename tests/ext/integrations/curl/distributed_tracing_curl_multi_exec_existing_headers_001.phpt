@@ -32,7 +32,7 @@ function dumpHeaders($ch)
 
 function doMulti($url)
 {
-    $ch1 = curl_init();
+    $ch1 = curl_init_no_dns_cache();
     curl_setopt($ch1, CURLOPT_URL, $url);
     curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch1, CURLOPT_HTTPHEADER, [
@@ -40,7 +40,7 @@ function doMulti($url)
         'x-ch-1-bar: bar',
     ]);
 
-    $ch2 = curl_init();
+    $ch2 = curl_init_no_dns_cache();
     curl_setopt($ch2, CURLOPT_URL, $url);
     curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch2, CURLOPT_HTTPHEADER, [

@@ -41,5 +41,6 @@ void dd_mpack_writer_init_iov(
     mpack_writer_t *nonnull writer, zend_llist *nonnull iovec_list);
 
 void dd_msgpack_helpers_startup(void);
-
+void dd_msgpack_helpers_rinit(void);
+bool dd_msgpack_helpers_is_data_truncated(void);
 #endif // DD_MSGPACK_HELPERS_H

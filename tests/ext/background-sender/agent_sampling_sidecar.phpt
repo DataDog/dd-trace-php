@@ -24,7 +24,7 @@ $filename = null;
 // Race conditions are annoying, especially with parallel test runs
 function checkUpdated($marker) {
     if (PHP_OS === "Linux") {
-        $retries = 50;
+        $retries = 100;
         do {
             foreach (glob("/dev/shm/*") as $f) {
                 if (@filesize($f) < 5000) {

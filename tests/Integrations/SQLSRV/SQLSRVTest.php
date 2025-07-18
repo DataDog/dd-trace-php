@@ -9,7 +9,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class SQLSRVTest extends IntegrationTestCase
 {
-    private static $host = 'sqlsrv_integration';
+    private static $host = 'sqlsrv-integration';
     private static $port = '1433';
     private static $db = 'master';
     private static $user = 'sa';

@@ -11,7 +11,6 @@ dev,googletest,BSD-3-Clause,Google Inc
 dev,gflags,BSD-3-Clause,Google Inc
 dev,libfuzzer,Apache-2.0,The original authors
 build,cmake,BSD-3-Clause,Kitware Inc and Contributors
-build,hunter,BSD-2-Clause,Ruslan Baratov
 junit,junit,EPL-1.0,JUnit
 junit-jupiter-api,org.junit.jupiter,EPL-2.0,JUnit
 junit-jupiter-engine,org.junit.jupiter,EPL-2.0,JUnit

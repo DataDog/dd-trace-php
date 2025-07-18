@@ -14,7 +14,7 @@ jobs:
         phpts: [nts, zts]
         include:
           - phpts: zts
-            extensions: parallel
+            extensions: parallel-krakjoe/parallel@v1.2.7
 
     steps:
       - name: Checkout
@@ -24,15 +24,16 @@ jobs:
           submodules: true
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@9e72090525849c5e82e596468b86eb55e9cc5401 # v2.32.0
+        uses: shivammathur/setup-php@0f7f1d08e3e32076e51cae65eb0b0c871405b16e # v2.34.1
         with:
           php-version: ${{ matrix.php-version }}
           extensions: ${{ matrix.extensions }}
         env:
           phpts: ${{ matrix.phpts }}
+          fail-fast: true
 
       - name: Restore build cache
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: |
             ~/.cargo/bin/
@@ -97,6 +98,11 @@ jobs:
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
           done
+          mkdir -p profiling/tests/correctness/allocations_1byte/
+          export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
+          export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+          php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run ZTS tests
         if: matrix.phpts == 'zts'
@@ -114,11 +120,16 @@ jobs:
           done
 
       - name: Check profiler correctness for allocations
-        if: matrix.phpts != 'zts'
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations/
+
+      - name: Check profiler correctness for allocations with 1 byte sampling distance
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/allocations.json
+          pprof_path: profiling/tests/correctness/allocations_1byte/
 
       - name: Check profiler correctness for time
         uses: Datadog/prof-correctness/analyze@main

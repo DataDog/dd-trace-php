@@ -24,9 +24,9 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         protected function getDbPdo()
         {
             if (!isset($this->connection)) {
-                $pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+                $pdo = new \PDO('mysql:host=mysql-integration', 'test', 'test');
                 $pdo->exec("CREATE DATABASE IF NOT EXISTS test");
-                $this->connection = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
+                $this->connection = new \PDO('mysql:host=mysql-integration;dbname=test', 'test', 'test');
                 $this->connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             }
             return $this->connection;
@@ -45,6 +45,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
         public function init()
         {
             $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000), token varchar(100))");
+            $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_blocked_events (event varchar(1000), token varchar(100))");
         }
 
         public function setDefaults()
@@ -52,8 +53,9 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             if (!$this->initiated()) {
                 return;
             }
-
             $stmt = $this->getDbPdo()->prepare("DELETE FROM appsec_events WHERE token = :token");
+            $stmt->execute(['token' => ini_get("datadog.trace.agent_test_session_token")]);
+            $stmt = $this->getDbPdo()->prepare("DELETE FROM appsec_blocked_events WHERE token = :token");
             $stmt->execute(['token' => ini_get("datadog.trace.agent_test_session_token")]);
         }
 
@@ -62,16 +64,26 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             if (!$this->initiated()) {
                 return;
             }
-
             $event['eventName'] = $eventName;
             $jsonEvent = json_encode($event);
             $token = ini_get("datadog.trace.agent_test_session_token");
 
+            $stmt = $this->getDbPdo()->prepare("SELECT * from appsec_blocked_events where event=:event and token=:token");
+            $stmt->execute([
+                'event' => $jsonEvent,
+                'token' => $token
+            ]);
+            $eventIsBlocked = $stmt->rowCount() > 0;
+        
             $stmt = $this->getDbPdo()->prepare("INSERT INTO appsec_events VALUES (:event, :token)");
             $stmt->execute([
                 'event' => $jsonEvent,
                 'token' => $token
             ]);
+
+            if ($eventIsBlocked) {
+                \DDTrace\Testing\trigger_error("Datadog blocked the request and NON RELEVANT TEXT FROM HERE", E_ERROR);
+            }
         }
 
         public function getEvents(array $names = [], array $addresses = [])
@@ -98,6 +110,16 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             }
 
             return $result;
+        }
+
+        public function simulateBlockOnEvent($event) {
+            $jsonEvent = json_encode($event);
+            $token = ini_get("datadog.trace.agent_test_session_token");
+            $stmt = $this->getDbPdo()->prepare("INSERT INTO appsec_blocked_events VALUES (:event, :token)");
+            $stmt->execute([
+                'event' => $jsonEvent,
+                'token' => $token
+            ]);
         }
     }
 }
