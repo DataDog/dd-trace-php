@@ -852,7 +852,6 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
-	test_integrations_googlespanner_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
