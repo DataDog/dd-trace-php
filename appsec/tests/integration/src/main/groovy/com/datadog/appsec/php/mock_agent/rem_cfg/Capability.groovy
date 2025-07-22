@@ -30,7 +30,9 @@ enum Capability {
     ASM_RASP_NOSQLI(27),
     ASM_RASP_XSS(28),
     APM_TRACING_SAMPLE_RULES(29),
-    CSM_ACTIVATION(30)
+    CSM_ACTIVATION(30),
+    ASM_DD_MULTICONFIG(42),
+    ASM_TRACE_TAGGING_RULES(43)
 
     final int ordinal
 
