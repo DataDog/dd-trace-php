@@ -87,6 +87,8 @@ class RemoteConfigTests {
                 Capability.ASM_RASP_LFI,
                 Capability.ASM_RASP_SSRF,
                 Capability.ASM_RASP_SQLI,
+                Capability.ASM_DD_MULTICONFIG,
+                Capability.ASM_TRACE_TAGGING_RULES,
         ].each { assert it in capSet }
 
         doReq.call(403)
