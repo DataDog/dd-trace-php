@@ -99,6 +99,14 @@ Array
             [config_id] => 
         )
 
+    [5] => Array
+        (
+            [name] => ssi_forced_injection_enabled
+            [value] => False
+            [origin] => env_var
+            [config_id] => 
+        )
+
 )
 bool(true)
 int(0)

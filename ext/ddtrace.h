@@ -124,11 +124,11 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_span_stack *top_closed_stack;
     HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
-    unit32_t baggage_extract_count;
-    unit32_t baggage_inject_count;
-    unit32_t baggage_malformed_count;
-    unit32_t baggage_max_item_count;
-    unit32_t baggage_max_byte_count;
+    uint32_t baggage_extract_count;
+    uint32_t baggage_inject_count;
+    uint32_t baggage_malformed_count;
+    uint32_t baggage_max_item_count;
+    uint32_t baggage_max_byte_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;

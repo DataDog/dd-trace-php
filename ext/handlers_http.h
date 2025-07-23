@@ -40,7 +40,7 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
         smart_str_append_printf(&str, "s:" ZEND_LONG_FMT, sampling_priority);
     }
 
-    if (propagated_tags) {
+    if (propagated_tags && ZSTR_LEN(propagated_tags) > 0) {
         if (str.s) {
             smart_str_appendc(&str, ';');
         }
