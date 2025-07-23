@@ -81,6 +81,11 @@ void ddtrace_telemetry_first_init(void) {
 
 void ddtrace_telemetry_rinit(void) {
     zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
+    DDTRACE_G(baggage_extract_count) = 0;
+    DDTRACE_G(baggage_inject_count) = 0;
+    DDTRACE_G(baggage_malformed_count) = 0;
+    DDTRACE_G(baggage_max_item_count) = 0;
+    DDTRACE_G(baggage_max_byte_count) = 0;
 }
 
 void ddtrace_telemetry_rshutdown(void) {
@@ -99,6 +104,14 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
     ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), DDOG_METRIC_TYPE_COUNT,
                                                   DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.extracted"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDOG_METRIC_TYPE_COUNT,
+                                                  DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDOG_METRIC_TYPE_COUNT,
                                                   DDOG_METRIC_NAMESPACE_TRACERS);
 
     // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
@@ -197,6 +210,12 @@ void ddtrace_telemetry_finalize(void) {
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zai_string_to_CharSlice(tags));
         zai_string_destroy(&tags);
     } ZEND_HASH_FOREACH_END();
+
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.extracted"), DDTRACE_G(baggage_extract_count), DDOG_CHARSLICE_C("header_style:baggage"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDTRACE_G(baggage_inject_count), DDOG_CHARSLICE_C("header_style:baggage"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDTRACE_G(baggage_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_item_exceeded"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDTRACE_G(baggage_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_count_exceeded"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
     metric_name = DDOG_CHARSLICE_C("logs_created");
     ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_GENERAL);

@@ -164,6 +164,7 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
             LOG(WARN, "Baggage item limit of %ld exceeded, dropping excess items.", max_items);
             zend_string_release(encoded_key);
             zend_string_release(encoded_value);
+            DDTRACE_G(baggage_max_item_count) += 1;
             break;
         }
 
@@ -172,6 +173,7 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
             LOG(WARN, "Baggage header size of %ld bytes exceeded, dropping excess items.", max_bytes);
             zend_string_release(encoded_key);
             zend_string_release(encoded_value);
+            DDTRACE_G(baggage_max_byte_count) += 1;
             break;
         }
 
@@ -190,6 +192,10 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
 
     if (serialized_baggage.s) {
         smart_str_0(&serialized_baggage); // Null-terminate
+    }
+
+    if (item_count != 0) {
+        DDTRACE_G(baggage_inject_count) += 1;
     }
 
     return serialized_baggage.s;
