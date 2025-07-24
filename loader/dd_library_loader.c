@@ -327,7 +327,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         case REASON_ERROR:
             if (config) {
                 config->result = "abort";
-                config->result_class = "internal_error"
+                config->result_class = "internal_error";
                 config->result_reason = buf;
                 config->injection_error = error;
                 config->injection_success = false;
