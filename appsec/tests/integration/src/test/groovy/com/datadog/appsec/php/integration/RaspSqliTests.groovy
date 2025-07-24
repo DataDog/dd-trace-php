@@ -17,6 +17,7 @@ import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.utility.DockerImageName
 
 import java.net.http.HttpResponse
 import java.util.stream.Stream
@@ -50,7 +51,9 @@ class RaspSqliTests {
 
 
     @Container
-    private static MySQLContainer MYSQL = new MySQLContainer('mysql:5.7')
+    private static MySQLContainer MYSQL = new MySQLContainer(
+            DockerImageName.parse("${System.getProperty('DOCKER_MIRROR')}/library/mysql:5.7")
+                    .asCompatibleSubstituteFor('mysql'))
             .withDatabaseName('testdb')
             .withUsername('testuser')
             .withPassword('testpass')

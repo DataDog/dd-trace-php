@@ -150,6 +150,9 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
 
     if (is_malformed) {
         zend_hash_clean(baggage);
+        DDTRACE_G(baggage_malformed_count) += 1;
+    } else {
+        DDTRACE_G(baggage_extract_count) += 1;
     }
 }
 

@@ -17,8 +17,11 @@ require __DIR__ . '/vendor/autoload.php';
     }
 );
 
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/json';
+
 $client  = new \GuzzleHttp\Client();
-$request = new \GuzzleHttp\Message\Request('GET', 'https://httpbin.org/json');
+$request = new \GuzzleHttp\Message\Request('GET', $url);
 for ($i = 1; $i <= 3; $i++) {
     echo 'Request ' . $i . PHP_EOL;
     $response = $client->send($request);

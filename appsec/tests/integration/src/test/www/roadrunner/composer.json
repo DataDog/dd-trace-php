@@ -1,6 +1,6 @@
 {
   "require": {
-    "spiral/roadrunner": "^2.0",
+    "spiral/roadrunner": "2.12.3",
     "nyholm/psr7": "^1.0"
   },
   "autoload": {

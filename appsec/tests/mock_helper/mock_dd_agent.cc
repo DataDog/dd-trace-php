@@ -5,13 +5,13 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/basic_endpoint.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/read_until.hpp>
 #include <boost/asio/spawn.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include <map>
 #include <regex>
 #include <stdexcept>
 #include <unistd.h>
@@ -279,10 +279,9 @@ HttpServerDispatcher::HttpServerDispatcher(
     EchoPipe &echo_pipe, ip::port_type port)
     : echo_pipe_{echo_pipe}, acceptor_{iocontext}
 {
-    ip::tcp::endpoint endpoint{ip::tcp::v6(), port};
+    ip::tcp::endpoint endpoint{ip::tcp::v4(), port};
     acceptor_.open(endpoint.protocol());
     acceptor_.set_option(ip::tcp::acceptor::reuse_address{true});
-    acceptor_.set_option(ip::v6_only{false});
     acceptor_.bind(endpoint);
 }
 HttpServerDispatcher::~HttpServerDispatcher()
@@ -313,7 +312,9 @@ void HttpServerDispatcher::run_loop(const yield_context& yield)
                 auto yield) mutable {
                 HttpClient client{pipe, std::move(sock)};
                 client.do_request(yield);
-            });
+            }, [](std::exception_ptr e) {
+                    if (e) std::rethrow_exception(e);
+                });
     }
     SPDLOG_INFO("Finished HttpServerDispatcher loop");
 }

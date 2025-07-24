@@ -38,18 +38,23 @@ pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
 #[cfg(feature = "trigger_time_sample")]
 #[no_mangle]
 extern "C" fn ddog_php_prof_trigger_time_sample() {
+    use crate::RefCellExt;
+    use log::error;
     use std::sync::atomic::Ordering;
-    super::REQUEST_LOCALS.with(|cell| {
-        if let Ok(locals) = cell.try_borrow() {
-            if locals.system_settings().profiling_enabled {
-                // Safety: only vm interrupts are stored there, or possibly null (edges only).
-                if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
-                    locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
-                    vm_interrupt.store(true, Ordering::SeqCst);
-                }
+
+    let result = super::REQUEST_LOCALS.try_with_borrow(|locals| {
+        if locals.system_settings().profiling_enabled {
+            // Safety: only vm interrupts are stored there, or possibly null (edges only).
+            if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
+                locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                vm_interrupt.store(true, Ordering::SeqCst);
             }
         }
-    })
+    });
+
+    if let Err(err) = result {
+        error!("ddog_php_prof_trigger_time_sample failed to borrow request locals: {err}");
+    }
 }
 
 pub use crate::wall_time::ddog_php_prof_interrupt_function;

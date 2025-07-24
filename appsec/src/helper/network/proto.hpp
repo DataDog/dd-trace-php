@@ -6,7 +6,9 @@
 #pragma once
 
 #include "../engine_settings.hpp"
+#include "../parameter.hpp"
 #include "../remote_config/settings.hpp"
+#include "../sidecar_settings.hpp"
 #include "../version.hpp"
 #include "msgpack_helpers.hpp"
 #include <msgpack.hpp>
@@ -105,6 +107,7 @@ struct client_init {
 
         dds::engine_settings engine_settings;
         dds::remote_config::settings rc_settings;
+        dds::sidecar_settings sc_settings;
 
         request() = default;
         request(const request &) = delete;
@@ -114,7 +117,7 @@ struct client_init {
         ~request() override = default;
 
         MSGPACK_DEFINE(pid, client_version, runtime_version,
-            enabled_configuration, engine_settings, rc_settings)
+            enabled_configuration, engine_settings, rc_settings, sc_settings)
     };
 
     struct response : base_response_generic<response> {
@@ -232,8 +235,9 @@ struct config_sync {
         ~request() override = default;
 
         std::string rem_cfg_path;
+        std::uint64_t queue_id{0};
 
-        MSGPACK_DEFINE(rem_cfg_path)
+        MSGPACK_DEFINE(rem_cfg_path, queue_id)
     };
 
     struct response : base_response_generic<response> {
@@ -271,6 +275,7 @@ struct request_shutdown {
 
         dds::parameter data;
         std::uint64_t api_sec_samp_key{0};
+        std::uint64_t queue_id{0};
 
         request() = default;
         request(const request &) = delete;
@@ -279,7 +284,7 @@ struct request_shutdown {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data, api_sec_samp_key)
+        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id)
     };
 
     struct response : base_response_generic<response> {

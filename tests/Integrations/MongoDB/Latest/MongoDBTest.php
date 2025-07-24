@@ -18,16 +18,16 @@ class MongoDBTest extends IntegrationTestCase
     const PORT = '27017';
     const USER = 'test';
     const PASSWORD = 'test';
-    const DATABASE = 'test_db';
+    const DATABASE = 'test';
 
     protected function ddSetUp()
     {
         parent::ddSetUp();
 
-        $this->client()->test_db->cars->drop();
-        $this->client()->test_db->my_collection->drop();
+        $this->client()->test->cars->drop();
+        $this->client()->test->my_collection->drop();
 
-        $this->client()->test_db->cars->insertMany(
+        $this->client()->test->cars->insertMany(
             [
                 [
                     'brand' => 'ford',
@@ -51,7 +51,7 @@ class MongoDBTest extends IntegrationTestCase
     public function testFilterNormalizationRegex()
     {
         $expected = [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test_db cars {"brand":"?"}')
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test cars {"brand":"?"}')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
@@ -68,7 +68,7 @@ class MongoDBTest extends IntegrationTestCase
 
         // As array
         $traces = $this->isolateTracer(function () {
-            $this->client()->test_db->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
+            $this->client()->test->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -76,14 +76,14 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $query = new \stdClass();
             $query->brand = new \MongoDB\BSON\Regex('^ford$', 'i');
-            $this->client()->test_db->cars->find($query);
+            $this->client()->test->cars->find($query);
         });
         $this->assertFlameGraph($traces, $expected);
 
         // As object
         $traces = $this->isolateTracer(function () {
             $query = new AQuery(new \MongoDB\BSON\Regex('^ford$', 'i'));
-            $this->client()->test_db->cars->find($query);
+            $this->client()->test->cars->find($query);
         });
         $this->assertFlameGraph($traces, $expected);
     }
@@ -95,7 +95,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.cmd',
                 'mongodb',
                 'mongodb',
-                'aggregate test_db cars [{"$group":{"_id":"?","count":{"$sum":"?"}}},{"$sort":{"count":"?"}},{"$limit":"?"}]'
+                'aggregate test cars [{"$group":{"_id":"?","count":{"$sum":"?"}}},{"$sort":{"count":"?"}},{"$limit":"?"}]'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -118,13 +118,13 @@ class MongoDBTest extends IntegrationTestCase
 
         // As array
         $traces = $this->isolateTracer(function () use ($pipeline) {
-            $this->client()->test_db->cars->aggregate($pipeline);
+            $this->client()->test->cars->aggregate($pipeline);
         });
         $this->assertFlameGraph($traces, $expected);
 
         // As stdClass
         $traces = $this->isolateTracer(function () use ($pipeline) {
-            $this->client()->test_db->cars->aggregate(
+            $this->client()->test->cars->aggregate(
                 \array_map(__CLASS__ . '::arrayToStdClass', $pipeline)
             );
         });
@@ -132,7 +132,7 @@ class MongoDBTest extends IntegrationTestCase
 
         // As object
         $traces = $this->isolateTracer(function () use ($pipeline) {
-            $this->client()->test_db->cars->aggregate(
+            $this->client()->test->cars->aggregate(
                 \array_map(__CLASS__ . '::arrayToObject', $pipeline)
             );
         });
@@ -143,7 +143,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             // These are actually expected to be array, stdClass and objects are not supported.
-            $this->client()->test_db->cars->bulkWrite([
+            $this->client()->test->cars->bulkWrite([
                 ['deleteMany' => [['brand' => 'ferrari'], []]],
                 ['insertOne'  => [['brand' => 'maserati']]],
             ]);
@@ -154,7 +154,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.cmd',
                 'mongodb',
                 'mongodb',
-                'bulkWrite test_db cars'
+                'bulkWrite test cars'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -173,7 +173,7 @@ class MongoDBTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () use (&$errorType) {
             try {
-                $this->client()->test_db->cars->find(20);
+                $this->client()->test->cars->find(20);
             } catch (\TypeError $e) {
                 $errorType = 'TypeError';
             } catch (\Exception $e) {
@@ -196,7 +196,7 @@ class MongoDBTest extends IntegrationTestCase
             ];
         }
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test_db cars "?"')
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', 'find test cars "?"')
                 ->withExactTags($tags)
                 ->setError($errorType)
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
@@ -209,7 +209,7 @@ class MongoDBTest extends IntegrationTestCase
     public function testMethodsWithFilter($method, $args)
     {
         $expected = [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test_db cars {\"brand\":\"?\"}")
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test cars {\"brand\":\"?\"}")
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
@@ -228,9 +228,9 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method(['brand' => 'ferrari'], $args[0]);
+                    $this->client()->test->cars->$method(['brand' => 'ferrari'], $args[0]);
                 } else {
-                    $this->client()->test_db->cars->$method(['brand' => 'ferrari']);
+                    $this->client()->test->cars->$method(['brand' => 'ferrari']);
                 }
             }
         );
@@ -240,12 +240,12 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method(
+                    $this->client()->test->cars->$method(
                         $this->arrayToStdClass(['brand' => 'ferrari']),
                         $this->arrayToStdClass($args[0])
                     );
                 } else {
-                    $this->client()->test_db->cars->$method($this->arrayToStdClass(['brand' => 'ferrari']));
+                    $this->client()->test->cars->$method($this->arrayToStdClass(['brand' => 'ferrari']));
                 }
             }
         );
@@ -255,12 +255,12 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method(
+                    $this->client()->test->cars->$method(
                         $this->arrayToObject(['brand' => 'ferrari']),
                         $this->arrayToObject($args[0])
                     );
                 } else {
-                    $this->client()->test_db->cars->$method($this->arrayToObject(['brand' => 'ferrari']));
+                    $this->client()->test->cars->$method($this->arrayToObject(['brand' => 'ferrari']));
                 }
             }
         );
@@ -291,7 +291,7 @@ class MongoDBTest extends IntegrationTestCase
     public function testMethodsNoArgs($method, $args)
     {
         $expected = [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test_db cars")
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "$method test cars")
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
@@ -309,13 +309,13 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method($args[0]);
+                    $this->client()->test->cars->$method($args[0]);
                 } elseif (\count($args) === 2) {
-                    $this->client()->test_db->cars->$method($args[0], $args[1]);
+                    $this->client()->test->cars->$method($args[0], $args[1]);
                 } elseif (\count($args) === 3) {
-                    $this->client()->test_db->cars->$method($args[0], $args[1], $args[2]);
+                    $this->client()->test->cars->$method($args[0], $args[1], $args[2]);
                 } else {
-                    $this->client()->test_db->cars->$method();
+                    $this->client()->test->cars->$method();
                 }
             }
         );
@@ -325,20 +325,20 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method($this->arrayToStdClass($args[0]));
+                    $this->client()->test->cars->$method($this->arrayToStdClass($args[0]));
                 } elseif (\count($args) === 2) {
-                    $this->client()->test_db->cars->$method(
+                    $this->client()->test->cars->$method(
                         $this->arrayToStdClass($args[0]),
                         $this->arrayToStdClass($args[1])
                     );
                 } elseif (\count($args) === 3) {
-                    $this->client()->test_db->cars->$method(
+                    $this->client()->test->cars->$method(
                         $this->arrayToStdClass($args[0]),
                         $this->arrayToStdClass($args[1]),
                         $this->arrayToStdClass($args[2])
                     );
                 } else {
-                    $this->client()->test_db->cars->$method();
+                    $this->client()->test->cars->$method();
                 }
             }
         );
@@ -348,20 +348,20 @@ class MongoDBTest extends IntegrationTestCase
         $traces = $this->isolateTracer(
             function () use ($method, $args) {
                 if (\count($args) === 1) {
-                    $this->client()->test_db->cars->$method($this->arrayToObject($args[0]));
+                    $this->client()->test->cars->$method($this->arrayToObject($args[0]));
                 } elseif (\count($args) === 2) {
-                    $this->client()->test_db->cars->$method(
+                    $this->client()->test->cars->$method(
                         $this->arrayToObject($args[0]),
                         $this->arrayToObject($args[1])
                     );
                 } elseif (\count($args) === 3) {
-                    $this->client()->test_db->cars->$method(
+                    $this->client()->test->cars->$method(
                         $this->arrayToObject($args[0]),
                         $this->arrayToObject($args[1]),
                         $this->arrayToObject($args[2])
                     );
                 } else {
-                    $this->client()->test_db->cars->$method();
+                    $this->client()->test->cars->$method();
                 }
             }
         );
@@ -386,7 +386,7 @@ class MongoDBTest extends IntegrationTestCase
     public function testQueryNormalization($query, $expected)
     {
         $traces = $this->isolateTracer(function () use ($query) {
-            $this->client()->test_db->cars->find($query);
+            $this->client()->test->cars->find($query);
         });
 
         if (null === $expected) {
@@ -434,7 +434,7 @@ class MongoDBTest extends IntegrationTestCase
     public function testManagerExecuteQuery()
     {
         $expected = [
-            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db cars {"brand":"?"}')
+            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test cars {"brand":"?"}')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
@@ -450,21 +450,21 @@ class MongoDBTest extends IntegrationTestCase
         // As array
         $traces = $this->isolateTracer(function () {
             $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
-            $this->manager()->executeQuery('test_db.cars', $query);
+            $this->manager()->executeQuery('test.cars', $query);
         });
         $this->assertFlameGraph($traces, $expected);
 
         // As stdClass
         $traces = $this->isolateTracer(function () {
             $query = new \MongoDB\Driver\Query($this->arrayToStdClass(['brand' => 'ferrari']));
-            $this->manager()->executeQuery('test_db.cars', $query);
+            $this->manager()->executeQuery('test.cars', $query);
         });
         $this->assertFlameGraph($traces, $expected);
 
         // As object
         $traces = $this->isolateTracer(function () {
             $query = new \MongoDB\Driver\Query($this->arrayToObject(['brand' => 'ferrari']));
-            $this->manager()->executeQuery('test_db.cars', $query);
+            $this->manager()->executeQuery('test.cars', $query);
         });
         $this->assertFlameGraph($traces, $expected);
     }
@@ -478,7 +478,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeCommand test_db ' . $collectionName . ' create'
+                'executeCommand test ' . $collectionName . ' create'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => $collectionName,
@@ -493,26 +493,26 @@ class MongoDBTest extends IntegrationTestCase
         // As array
         $traces = $this->isolateTracer(function () use ($collectionName) {
             $command = new \MongoDB\Driver\Command(['create' => $collectionName]);
-            $this->manager()->executeCommand('test_db', $command);
+            $this->manager()->executeCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
+        $this->client()->test->$collectionName->drop();
 
         // As stdClass
         $traces = $this->isolateTracer(function () use ($collectionName) {
             $command = new \MongoDB\Driver\Command($this->arrayToStdClass(['create' => $collectionName]));
-            $this->manager()->executeCommand('test_db', $command);
+            $this->manager()->executeCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
+        $this->client()->test->$collectionName->drop();
 
         // As object
         $traces = $this->isolateTracer(function () use ($collectionName) {
             $command = new \MongoDB\Driver\Command($this->arrayToObject(['create' => $collectionName]));
-            $this->manager()->executeCommand('test_db', $command);
+            $this->manager()->executeCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
+        $this->client()->test->$collectionName->drop();
     }
 
     public function testManagerExecuteReadCommand()
@@ -522,7 +522,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeReadCommand test_db cars find'
+                'executeReadCommand test cars find'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -542,7 +542,7 @@ class MongoDBTest extends IntegrationTestCase
                     'filter' => ['brand' => 'ferrari'],
                 ]
             );
-            $this->manager()->executeReadCommand('test_db', $command);
+            $this->manager()->executeReadCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -554,7 +554,7 @@ class MongoDBTest extends IntegrationTestCase
                     'filter' => $this->arrayToStdClass(['brand' => 'ferrari']),
                 ]
             ));
-            $this->manager()->executeReadCommand('test_db', $command);
+            $this->manager()->executeReadCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -566,7 +566,7 @@ class MongoDBTest extends IntegrationTestCase
                     'filter' => $this->arrayToObject(['brand' => 'ferrari']),
                 ]
             ));
-            $this->manager()->executeReadCommand('test_db', $command);
+            $this->manager()->executeReadCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
     }
@@ -578,7 +578,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeWriteCommand test_db cars insert'
+                'executeWriteCommand test cars insert'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -598,7 +598,7 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             );
-            $this->manager()->executeWriteCommand('test_db', $command);
+            $this->manager()->executeWriteCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -610,7 +610,7 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             ));
-            $this->manager()->executeWriteCommand('test_db', $command);
+            $this->manager()->executeWriteCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -622,7 +622,7 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             ));
-            $this->manager()->executeWriteCommand('test_db', $command);
+            $this->manager()->executeWriteCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
     }
@@ -634,7 +634,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeReadWriteCommand test_db cars insert'
+                'executeReadWriteCommand test cars insert'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -654,7 +654,7 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             );
-            $this->manager()->executeReadWriteCommand('test_db', $command);
+            $this->manager()->executeReadWriteCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -666,7 +666,7 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             ));
-            $this->manager()->executeReadWriteCommand('test_db', $command);
+            $this->manager()->executeReadWriteCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
 
@@ -678,7 +678,7 @@ class MongoDBTest extends IntegrationTestCase
                     'documents' => [['brand' => 'ferrari']],
                 ]
             ));
-            $this->manager()->executeReadWriteCommand('test_db', $command);
+            $this->manager()->executeReadWriteCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
     }
@@ -693,7 +693,7 @@ class MongoDBTest extends IntegrationTestCase
             $bulkWrite->insert(['brand' => 'ford']);
             $bulkWrite->insert(['brand' => 'maserati']);
             $bulkWrite->update(['brand' => 'jaguar'], ['brand' => 'gm']);
-            $this->manager()->executeBulkWrite('test_db.cars', $bulkWrite);
+            $this->manager()->executeBulkWrite('test.cars', $bulkWrite);
         });
 
         $this->assertFlameGraph($traces, [
@@ -701,7 +701,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeBulkWrite test_db cars'
+                'executeBulkWrite test cars'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -727,7 +727,7 @@ class MongoDBTest extends IntegrationTestCase
                 ]
             );
             try {
-                $this->manager()->executeWriteCommand('test_db', $command);
+                $this->manager()->executeWriteCommand('test', $command);
             } catch (\MongoDB\Driver\Exception\CommandException $e) {
             }
         });
@@ -737,7 +737,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeWriteCommand test_db insert'
+                'executeWriteCommand test insert'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'span.kind' => 'client',
@@ -756,7 +756,7 @@ class MongoDBTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $expected = [
-            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test_db cars {"brand":"?"}')
+            SpanAssertion::build('mongodb.driver.cmd', 'mongodb', 'mongodb', 'executeQuery test cars {"brand":"?"}')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
@@ -773,7 +773,7 @@ class MongoDBTest extends IntegrationTestCase
 
         $traces = $this->isolateTracer(function () {
             $query = new \MongoDB\Driver\Query(['brand' => 'ferrari']);
-            $this->manager()->executeQuery('test_db.cars', $query);
+            $this->manager()->executeQuery('test.cars', $query);
         });
         $this->assertFlameGraph($traces, $expected);
     }
@@ -791,7 +791,7 @@ class MongoDBTest extends IntegrationTestCase
             $bulkWrite->insert(['brand' => 'ford']);
             $bulkWrite->insert(['brand' => 'maserati']);
             $bulkWrite->update(['brand' => 'jaguar'], ['brand' => 'gm']);
-            $this->manager()->executeBulkWrite('test_db.cars', $bulkWrite);
+            $this->manager()->executeBulkWrite('test.cars', $bulkWrite);
         });
 
         $this->assertFlameGraph($traces, [
@@ -799,7 +799,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeBulkWrite test_db cars'
+                'executeBulkWrite test cars'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => 'cars',
@@ -828,7 +828,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.driver.cmd',
                 'mongodb',
                 'mongodb',
-                'executeCommand test_db ' . $collectionName . ' create'
+                'executeCommand test ' . $collectionName . ' create'
             )->withExactTags([
                 'mongodb.db' => self::DATABASE,
                 'mongodb.collection' => $collectionName,
@@ -845,10 +845,10 @@ class MongoDBTest extends IntegrationTestCase
         // As array
         $traces = $this->isolateTracer(function () use ($collectionName) {
             $command = new \MongoDB\Driver\Command(['create' => $collectionName]);
-            $this->manager()->executeCommand('test_db', $command);
+            $this->manager()->executeCommand('test', $command);
         });
         $this->assertFlameGraph($traces, $expected);
-        $this->client()->test_db->$collectionName->drop();
+        $this->client()->test->$collectionName->drop();
     }
 
     public function testMethodsWithFilterPeerServiceEnabled()
@@ -856,7 +856,7 @@ class MongoDBTest extends IntegrationTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true']);
 
         $expected = [
-            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "count test_db cars {\"brand\":\"?\"}")
+            SpanAssertion::build('mongodb.cmd', 'mongodb', 'mongodb', "count test cars {\"brand\":\"?\"}")
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',
@@ -876,7 +876,7 @@ class MongoDBTest extends IntegrationTestCase
         // As array
         $traces = $this->isolateTracer(
             function () {
-                $this->client()->test_db->cars->count(['brand' => 'ferrari']);
+                $this->client()->test->cars->count(['brand' => 'ferrari']);
             }
         );
         $this->assertFlameGraph($traces, $expected);
@@ -892,12 +892,12 @@ class MongoDBTest extends IntegrationTestCase
 
         // As array
         $traces = $this->isolateTracer(function () {
-            $this->client()->test_db->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
+            $this->client()->test->cars->find(['brand' => new \MongoDB\BSON\Regex('^ford$', 'i')]);
         });
 
         $this->assertFlameGraph(
             $traces,
-            [SpanAssertion::build('mongodb.cmd', 'configured_service', 'mongodb', 'find test_db cars {"brand":"?"}')
+            [SpanAssertion::build('mongodb.cmd', 'configured_service', 'mongodb', 'find test cars {"brand":"?"}')
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'cars',

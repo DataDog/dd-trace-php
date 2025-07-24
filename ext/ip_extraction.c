@@ -43,6 +43,7 @@ typedef struct _header_map_node {
 typedef enum _priority_header_id {
     X_FORWARDED_FOR = 0,
     X_REAL_IP,
+    FORWARDED,
     TRUE_CLIENT_IP,
     X_CLIENT_IP,
     X_FORWARDED,
@@ -74,6 +75,8 @@ void dd_ip_extraction_startup() {
                                                              zend_string_init_interned(ZEND_STRL("x-forwarded-for"), 1), &dd_parse_multiple_maybe_port};
     priority_header_map[X_REAL_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_REAL_IP"), 1),
                                                        zend_string_init_interned(ZEND_STRL("x-real-ip"), 1), &dd_parse_multiple_maybe_port};
+    priority_header_map[FORWARDED] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_FORWARDED"), 1),
+                                                        zend_string_init_interned(ZEND_STRL("forwarded"), 1), &dd_parse_forwarded};
     priority_header_map[TRUE_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_TRUE_CLIENT_IP"), 1),
                                                             zend_string_init_interned(ZEND_STRL("true-client-ip"), 1), &dd_parse_multiple_maybe_port};
     priority_header_map[X_CLIENT_IP] = (header_map_node){zend_string_init_interned(ZEND_STRL("HTTP_X_CLIENT_IP"), 1),
@@ -445,6 +448,10 @@ static bool dd_is_private_v4(const struct in_addr *addr) {
         {
             .base.s_addr = CT_HTONL(0xA9FE0000U),  // 169.254.0.0
             .mask.s_addr = CT_HTONL(0xFFFF0000U),  // 255.255.0.0
+        },
+        {
+            .base.s_addr = CT_HTONL(0x64400000U),  // 100.64.0.0 (RFC6598, CGNAT, K8s pod IPs)
+            .mask.s_addr = CT_HTONL(0xFFC00000U),  // 255.192.0.0 (/10)
         },
     };
 

@@ -1,11 +1,12 @@
 use crate::allocation::{
-    ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE, ALLOCATION_PROFILING_STATS,
+    collect_allocation, ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE,
+    ALLOCATION_PROFILING_STATS,
 };
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
 };
-use crate::{PROFILER_NAME, REQUEST_LOCALS};
+use crate::{RefCellExt, PROFILER_NAME, REQUEST_LOCALS};
 use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
@@ -202,6 +203,7 @@ pub fn alloc_prof_rinit() {
     trace!("Memory allocation profiling enabled.")
 }
 
+#[allow(unpredictable_function_pointer_comparisons)]
 pub fn alloc_prof_rshutdown() {
     // If `is_zend_mm()` is true, the custom handlers have already been reset
     // to `None`. This is unexpected, therefore we will not touch the ZendMM
@@ -316,12 +318,9 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     execute_data: *mut zend::zend_execute_data,
     return_value: *mut zend::zval,
 ) {
-    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_allocation_enabled)
-            // Not logging here to avoid potentially overwhelming logs.
-            .unwrap_or(false)
-    });
+    // Not logging here to avoid potentially overwhelming logs.
+    let allocation_profiling: bool = REQUEST_LOCALS
+        .borrow_or_false(|locals| locals.system_settings().profiling_allocation_enabled);
 
     if let Some(func) = GC_MEM_CACHES_HANDLER {
         if allocation_profiling {
@@ -350,7 +349,11 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
+    if ALLOCATION_PROFILING_STATS
+        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
+    {
+        collect_allocation(len);
+    }
 
     ptr
 }
@@ -405,7 +408,11 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
+    if ALLOCATION_PROFILING_STATS
+        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
+    {
+        collect_allocation(len);
+    }
 
     ptr
 }

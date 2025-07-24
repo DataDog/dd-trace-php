@@ -9,6 +9,8 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
     patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
     ./buildconf --force;
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
