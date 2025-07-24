@@ -18,7 +18,7 @@
 using dds::remote_config::changeset;
 
 const std::string waf_rule =
-    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^string.*"}}]}]})";
+    R"({"version": "2.1", "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ] }, {"id": "2", "name": "rule2", "tags": {"type": "flow2", "category": "category2" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg3", "key_path": [] } ], "regex": "^string.*" } } ] } ], "rules_compat": [{"id": "ttr-000-001", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg4", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": true, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] }, {"id": "ttr-000-002", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg5", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": false, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] } ] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -790,6 +790,56 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
+    }
+
+    {// Test keep is true
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg4", parameter::string("string 4"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
+        EXPECT_EQ(res->force_keep, true);
+    }
+}
+
+TEST(EngineTest, TestKeep)
+{
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg12", parameter::string("string 12"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg5", parameter::string("string 5"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg4", parameter::string("string 4"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
+        EXPECT_EQ(res->force_keep, true);
     }
 }
 

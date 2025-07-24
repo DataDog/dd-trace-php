@@ -563,19 +563,23 @@ void instance::listener::call(
         // This converts the events to JSON which is already done in the
         // switch below so it's slightly inefficient, albeit since it's only
         // done on debug, we can live with it...
+        std::string events_json = "";
         if (events != nullptr) {
-            DD_STDLOG(DD_STDLOG_AFTER_WAF,
-                parameter_to_json(parameter_view{*events}), duration / millis);
+            events_json = parameter_to_json(parameter_view{*events});
+            DD_STDLOG(DD_STDLOG_AFTER_WAF, events_json, duration / millis);
         }
         SPDLOG_DEBUG(
-            "Waf response: code {} - actions {} - attributes {} - keep {}",
+            "Waf response: code {} - keep {} - duration {} - timeout {} - actions {} - attributes {} - events {}",
             fmt::underlying(code),
+            event.keep,
+            duration / millis,
+            timeout,
             actions != nullptr ? parameter_to_json(parameter_view{*actions})
                                : "",
             attributes != nullptr
                 ? parameter_to_json(parameter_view{*attributes})
                 : "",
-            event.keep);
+            events_json);
     } else {
         run_waf();
     }
