@@ -119,7 +119,7 @@ std::optional<engine::result> engine::context::publish(
         }
     }
 
-    if (event_.actions.empty() && event_.data.empty()) {
+    if (!event_.keep && event_.actions.empty() && event_.data.empty()) {
         return std::nullopt;
     }
 
