@@ -1393,6 +1393,7 @@ dependencies = [
  "httpmock",
  "rmp-serde",
  "tinybytes",
+ "tracing",
 ]
 
 [[package]]
@@ -1432,6 +1433,7 @@ dependencies = [
  "symbolic-common",
  "symbolic-demangle",
  "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "uuid",
  "windows 0.59.0",
@@ -1861,6 +1863,8 @@ dependencies = [
  "rustls-native-certs 0.8.1",
  "serde",
  "static_assertions",
+ "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "tokio-rustls",
  "tower-service",

@@ -1139,6 +1139,9 @@ typedef struct ddog_crasht_Config {
   struct ddog_crasht_Slice_I32 signals;
   /**
    * Timeout in milliseconds before the signal handler starts tearing things down to return.
+   * If 0, uses the default timeout as specified in
+   * `datadog_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
+   * the specified timeout value.
    * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
    * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.
    */

@@ -80,6 +80,9 @@ stages:
   - appsec
   - tracing
   - packaging
+  - benchmarks
+  - gate
+  - notify
   - verify
   - shared-pipeline # OCI packaging
   - release
@@ -89,6 +92,7 @@ variables:
 
 include:
   - local: .gitlab/one-pipeline.locked.yml
+  - local: .gitlab/benchmarks.yml
 
 # One pipeline job overrides
 configure_system_tests:
@@ -1308,14 +1312,18 @@ endforeach;
   stage: release
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
   tags: [ "arch:amd64" ]
-  when: manual
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+      when: always
+    - when: manual
   needs:
     - job: "prepare code"
       artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
-    - job: "package extension asan"
-      artifacts: true
+# Maybe use a different base name for these
+#    - job: "package extension asan"
+#      artifacts: true
     - job: "package extension windows"
       artifacts: true
 <?php
@@ -1340,10 +1348,60 @@ foreach ($arch_targets as $arch) {
     VERSION="$(<VERSION)"
     [[ -z "${VERSION}" ]] && echo "VERSION file is empty or not present" && exit 1
     cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/${VERSION}/"
+    aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
     echo "https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/$(echo $VERSION | sed 's/+/%2B/')/datadog-setup.php"
   artifacts:
     paths:
       - packages/datadog-setup.php
+
+"bundle for reliability env":
+  stage: shared-pipeline
+  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
+  tags: [ "runner:main", "size:large" ]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
+      when: always
+    - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
+      when: always
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "datadog-setup.php"
+      artifacts: true
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+  script:
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "master" ]; then
+        echo UPSTREAM_TRACER_VERSION=dev-master > upstream.env
+      else
+        echo "UPSTREAM_TRACER_VERSION=$(<VERSION)" > upstream.env
+      fi
+    - mv packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
+    - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
+  artifacts:
+    paths:
+      - 'upstream.env'
+      - 'datadog-setup-x86_64-linux-gnu.tar'
+
+deploy_to_reliability_env:
+  stage: shared-pipeline
+  needs:
+    - job: "bundle for reliability env"
+  rules:
+   - when: on_success
+  trigger:
+    project: DataDog/apm-reliability/datadog-reliability-env
+    branch: $RELIABILITY_ENV_BRANCH
+  variables:
+    UPSTREAM_PACKAGE_JOB: "bundle for reliability env"
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
 
 "publish release to github":
   stage: release

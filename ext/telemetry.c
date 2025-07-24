@@ -10,6 +10,10 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+// These globals are set by the SSI loader
+DDTRACE_PUBLIC bool ddtrace_loaded_by_ssi = false;
+DDTRACE_PUBLIC bool ddtrace_ssi_forced_injection_enabled = false;
+
 zend_long dd_composer_hook_id;
 ddog_QueueId dd_bgs_queued_id;
 
@@ -77,6 +81,11 @@ void ddtrace_telemetry_first_init(void) {
 
 void ddtrace_telemetry_rinit(void) {
     zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
+    DDTRACE_G(baggage_extract_count) = 0;
+    DDTRACE_G(baggage_inject_count) = 0;
+    DDTRACE_G(baggage_malformed_count) = 0;
+    DDTRACE_G(baggage_max_item_count) = 0;
+    DDTRACE_G(baggage_max_byte_count) = 0;
 }
 
 void ddtrace_telemetry_rshutdown(void) {
@@ -162,6 +171,18 @@ void ddtrace_telemetry_finalize(void) {
         }
     }
 
+    // Send extra internal configuration
+    ddog_CharSlice instrumentation_source = ddtrace_loaded_by_ssi ? DDOG_CHARSLICE_C("ssi") : DDOG_CHARSLICE_C("manual");
+    ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("instrumentation_source"), instrumentation_source, DDOG_CONFIGURATION_ORIGIN_DEFAULT, DDOG_CHARSLICE_C(""));
+
+    ddog_CharSlice ssi_forced = ddtrace_ssi_forced_injection_enabled ? DDOG_CHARSLICE_C("True") : DDOG_CHARSLICE_C("False");
+    ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_forced_injection_enabled"), ssi_forced, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+
+    char *injection_enabled = getenv("DD_INJECTION_ENABLED");
+    if (injection_enabled) {
+        ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_injection_enabled"), (ddog_CharSlice) {.ptr = injection_enabled, .len = strlen(injection_enabled)}, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+    }
+
     // Send information about explicitly disabled integrations
     for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
         ddtrace_integration *integration = &ddtrace_integrations[i];
@@ -181,6 +202,16 @@ void ddtrace_telemetry_finalize(void) {
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zai_string_to_CharSlice(tags));
         zai_string_destroy(&tags);
     } ZEND_HASH_FOREACH_END();
+
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.extracted"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.extracted"), DDTRACE_G(baggage_extract_count), DDOG_CHARSLICE_C("header_style:baggage"));
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDTRACE_G(baggage_inject_count), DDOG_CHARSLICE_C("header_style:baggage"));
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDTRACE_G(baggage_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_item_exceeded"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDTRACE_G(baggage_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_count_exceeded"));
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
     metric_name = DDOG_CHARSLICE_C("logs_created");
     ddog_sidecar_telemetry_register_metric_buffer(buffer, metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_GENERAL);

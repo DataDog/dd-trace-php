@@ -3,12 +3,15 @@
 #include <components-rs/common.h>
 #include <components/log/log.h>
 #include <zai_string/string.h>
+#include "ddtrace_export.h"
 #include "ddtrace.h"
 #include "zend_string.h"
 
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+
+DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
 
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);

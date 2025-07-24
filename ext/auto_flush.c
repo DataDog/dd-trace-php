@@ -78,7 +78,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         size_t length = ddog_get_traces_size(traces);
         for (size_t i = 0; i < length; i++) {
             ddog_TraceBytes *trace = ddog_get_trace(traces, i);
-            ddog_CharSlice serialized_trace = ddog_serialize_trace_into_c_string(trace);
+            ddog_CharSlice serialized_trace = ddog_serialize_trace_into_charslice(trace);
 
             if (serialized_trace.len > 0) {
                 if (serialized_trace.len > limit) {

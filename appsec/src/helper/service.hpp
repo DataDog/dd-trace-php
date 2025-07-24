@@ -6,10 +6,10 @@
 #pragma once
 
 #include "engine.hpp"
-#include "metrics.hpp"
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
 #include "service_config.hpp"
+#include "sidecar_settings.hpp"
 #include <memory>
 #include <mutex>
 #include <spdlog/spdlog.h>
@@ -22,16 +22,27 @@ using sampler = timed_set<4096, 8192>;
 
 class service {
 protected:
-    class metrics_impl : public metrics::telemetry_submitter {
+    class metrics_impl : public telemetry::telemetry_submitter {
         struct tel_metric {
             tel_metric(std::string_view name, double value,
-                metrics::telemetry_tags tags)
+                telemetry::telemetry_tags tags)
                 : name{name}, value{value}, tags{std::move(tags)}
             {}
             std::string_view name;
             double value;
-            metrics::telemetry_tags tags;
+            telemetry::telemetry_tags tags;
         };
+
+        struct tel_log {
+            telemetry::telemetry_submitter::log_level level;
+            std::string identifier;
+            std::string message;
+            std::optional<std::string> stack_trace;
+            std::optional<std::string> tags;
+            bool is_sensitive;
+        };
+
+        static constexpr std::size_t MAX_PENDING_LOGS = 100;
 
     public:
         metrics_impl() = default;
@@ -43,7 +54,7 @@ protected:
         ~metrics_impl() override = default;
 
         void submit_metric(std::string_view metric_name, double value,
-            metrics::telemetry_tags tags) override
+            telemetry::telemetry_tags tags) override
         {
             SPDLOG_TRACE("submit_metric: {} {} {}", metric_name, value, tags);
             const std::lock_guard<std::mutex> lock{pending_metrics_mutex_};
@@ -72,6 +83,23 @@ protected:
             meta_[std::move(name)] = std::move(value);
         }
 
+        void submit_log(telemetry::telemetry_submitter::log_level level,
+            std::string identifier, std::string message,
+            std::optional<std::string> stack_trace,
+            std::optional<std::string> tags, bool is_sensitive) override
+        {
+            if (pending_logs_.size() >= MAX_PENDING_LOGS) {
+                SPDLOG_WARN("Pending logs queue is full, dropping log");
+                return;
+            }
+
+            SPDLOG_TRACE("submit_log [{}][{}]: {}", level, identifier, message);
+            const std::lock_guard<std::mutex> lock{pending_logs_mutex_};
+            pending_logs_.emplace_back(
+                tel_log{level, std::move(identifier), std::move(message),
+                    std::move(stack_trace), std::move(tags), is_sensitive});
+        }
+
         template <typename Func> void drain_metrics(Func &&func)
         {
             std::vector<tel_metric> metrics;
@@ -82,6 +110,24 @@ protected:
             for (auto &metric : metrics) {
                 std::invoke(std::forward<Func>(func), metric.name, metric.value,
                     std::move(metric.tags));
+            }
+        }
+
+        void drain_logs(const sidecar_settings &sc_settings, uint64_t queue_id)
+        {
+            std::vector<tel_log> logs;
+            {
+                const std::lock_guard<std::mutex> lock(pending_logs_mutex_);
+                logs.swap(pending_logs_);
+            }
+            if (queue_id == 0) {
+                SPDLOG_INFO(
+                    "Discarding {} telemetry logs: no queue_id available",
+                    logs.size());
+                return;
+            }
+            for (auto &log : logs) {
+                submit_log(sc_settings, queue_id, std::move(log));
             }
         }
 
@@ -98,14 +144,20 @@ protected:
         }
 
     private:
+        static void submit_log(const sidecar_settings &sc_settings,
+            uint64_t queue_id, const tel_log &log);
+
         std::vector<tel_metric> pending_metrics_;
         std::mutex pending_metrics_mutex_;
+        std::vector<tel_log> pending_logs_;
+        std::mutex pending_logs_mutex_;
         std::map<std::string_view, double> legacy_metrics_;
         std::mutex legacy_metrics_mutex_;
         std::map<std::string, std::string> meta_;
         std::mutex meta_mutex_;
     };
 
+    // TODO: remove this. For testing only
     static std::shared_ptr<metrics_impl> create_shared_metrics()
     {
         return std::make_shared<metrics_impl>();
@@ -113,7 +165,7 @@ protected:
 
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config,
-        std::unique_ptr<dds::remote_config::client_handler> &&client_handler,
+        std::unique_ptr<dds::remote_config::client_handler> client_handler,
         std::shared_ptr<metrics_impl> msubmitter, std::string rc_path,
         const schema_extraction_settings &schema_extraction_settings = {});
 
@@ -137,6 +189,8 @@ public:
         const dds::engine_settings &eng_settings,
         const remote_config::settings &rc_settings);
 
+    static void resolve_symbols();
+
     [[nodiscard]] std::shared_ptr<engine> get_engine() const
     {
         // TODO make access atomic?
@@ -147,6 +201,11 @@ public:
     {
         // TODO make access atomic?
         return service_config_;
+    }
+
+    [[nodiscard]] const sidecar_settings &get_sidecar_settings() const
+    {
+        return sidecar_settings_;
     }
 
     [[nodiscard]] bool schema_extraction_enabled()
@@ -169,6 +228,11 @@ public:
     template <typename Func> void drain_metrics(Func &&func)
     {
         msubmitter_->drain_metrics(std::forward<Func>(func));
+    }
+
+    void drain_logs(const sidecar_settings &sc_settings, uint64_t queue_id)
+    {
+        msubmitter_->drain_logs(sc_settings, queue_id);
     }
 
     [[nodiscard]] std::map<std::string_view, double> drain_legacy_metrics()
@@ -199,6 +263,7 @@ protected:
     std::optional<sampler> schema_sampler_;
     std::string rc_path_;
     std::shared_ptr<metrics_impl> msubmitter_;
+    sidecar_settings sidecar_settings_;
 };
 
 } // namespace dds

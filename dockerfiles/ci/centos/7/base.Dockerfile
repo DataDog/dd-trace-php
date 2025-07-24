@@ -41,7 +41,7 @@ COPY download-src.sh /root/
 
 # Latest version of m4 required
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh m4 https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.gz; \
+    /root/download-src.sh m4 https://mirrors.kernel.org/gnu/m4/m4-1.4.18.tar.gz; \
     cd "${SRC_DIR}/m4"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
@@ -49,7 +49,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 # Latest version of autoconf required
 RUN set -eux; \
-    /root/download-src.sh autoconf https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz; \
+    /root/download-src.sh autoconf https://mirrors.kernel.org/gnu/autoconf/autoconf-2.69.tar.gz; \
     cd "${SRC_DIR}/autoconf"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
@@ -81,7 +81,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 # Required: bison >= 3.0.0 (not installed by deafult)
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh bison https://ftp.gnu.org/gnu/bison/bison-3.7.3.tar.gz; \
+    /root/download-src.sh bison https://mirrors.kernel.org/gnu/bison/bison-3.7.3.tar.gz; \
     cd "${SRC_DIR}/bison"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \

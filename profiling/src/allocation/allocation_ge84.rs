@@ -1,14 +1,14 @@
-use crate::allocation::ALLOCATION_PROFILING_COUNT;
-use crate::allocation::ALLOCATION_PROFILING_SIZE;
-use crate::allocation::ALLOCATION_PROFILING_STATS;
+use crate::allocation::{
+    collect_allocation, ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE,
+    ALLOCATION_PROFILING_STATS,
+};
 use crate::bindings::{self as zend};
-use crate::PROFILER_NAME;
+use crate::{RefCellExt, PROFILER_NAME};
 use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_void, size_t};
 use log::{debug, error, trace, warn};
-use std::sync::atomic::Ordering::Relaxed;
-use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::Ordering::{Relaxed, SeqCst};
 
 #[derive(Copy, Clone)]
 struct ZendMMState {
@@ -287,7 +287,7 @@ pub fn alloc_prof_rinit() {
     trace!("Memory allocation profiling enabled.")
 }
 
-#[allow(unpredictable_function_pointer_comparisons)]
+#[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
 pub fn alloc_prof_rshutdown() {
     // If `is_zend_mm()` is true, the custom handlers have been reset to `None` or our observed
     // heap has been uninstalled. This is unexpected, therefore we will not touch the ZendMM
@@ -364,7 +364,11 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
+    if ALLOCATION_PROFILING_STATS
+        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
+    {
+        collect_allocation(len);
+    }
 
     ptr
 }
@@ -429,7 +433,11 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    ALLOCATION_PROFILING_STATS.with_borrow_mut(|allocations| allocations.track_allocation(len));
+    if ALLOCATION_PROFILING_STATS
+        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
+    {
+        collect_allocation(len);
+    }
 
     ptr
 }

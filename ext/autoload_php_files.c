@@ -103,7 +103,8 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
             if (PG(last_error_message)) {
                 log("Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
                 if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED() && VCWD_ACCESS(filename, R_OK) == 0) {
-                    INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in autoloaded file %s: %s in %s on line %d", filename, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
+                    INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in autoloaded file <redacted>%s: %s in <redacted>%s on line %d",
+                        ddtrace_telemetry_redact_file(filename), LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
                 }
             }
             zend_object *ex = EG(exception);
@@ -112,7 +113,7 @@ int dd_execute_php_file(const char *filename, zval *result, bool try) {
                 const char *msg = instanceof_function(ex->ce, zend_ce_throwable) ? ZSTR_VAL(zai_exception_message(ex)) : "<exit>";
                 log("%s thrown in autoloaded file %s: %s", type, filename, msg);
                 if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED() && VCWD_ACCESS(filename, R_OK) == 0) {
-                    INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in autoloaded file %s: %s", type, filename, msg);
+                    INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in autoloaded file <redacted>%s: %s", type, ddtrace_telemetry_redact_file(filename), msg);
                 }
             }
         })

@@ -21,7 +21,7 @@ public:
         : dds::engine(trace_rate_limit)
     {}
     MOCK_METHOD(void, update,
-        (const rapidjson::Document &, metrics::telemetry_submitter &),
+        (const rapidjson::Document &, telemetry::telemetry_submitter &),
         (override));
 
     static auto create() { return std::shared_ptr<engine>(new engine()); }
