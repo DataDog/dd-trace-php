@@ -82,7 +82,10 @@ function assertTelemetry($telemetryLogPath, $metrics) {
         "language_name": "php",
         "language_version": "unknown",
         "tracer_version": "unknown",
-        "pid": %d
+        "pid": %d,
+        "result_class": "unknown",
+        "result_reason": "unknown",
+        "result": "unknown"
     },
     "points": [
         {

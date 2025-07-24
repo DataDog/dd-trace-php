@@ -35,7 +35,10 @@ $metrics = [<<<EOS
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result_class": "already_instrumented",
+        "result_reason": "%s",
+        "result": "abort"
     },
     "points": [
         {
