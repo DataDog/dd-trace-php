@@ -52,4 +52,5 @@ report_hostname_on_root_span: false
 traced_internal_functions: null
 enabled_from_env: true
 opcache.file_cache: null
+loaded_by_ssi: false
 datadog.trace.sources_path_reachable: false
