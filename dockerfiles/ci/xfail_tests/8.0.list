@@ -453,6 +453,7 @@ ext/standard/tests/math/hexdec_variation1_64bit.phpt
 ext/standard/tests/math/octdec_variation1.phpt
 ext/standard/tests/misc/bug77338.phpt
 ext/standard/tests/misc/get_browser_variation2.phpt
+ext/standard/tests/network/bug80067.phpt
 ext/standard/tests/serialize/005.phpt
 ext/standard/tests/serialize/006.phpt
 ext/standard/tests/serialize/__serialize_001.phpt
