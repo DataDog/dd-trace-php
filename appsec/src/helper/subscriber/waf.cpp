@@ -618,12 +618,30 @@ void instance::listener::call(
     }
     if (attributes != nullptr) {
         const parameter_view attributes_pv{*attributes};
-        for (const auto &derivative : attributes_pv) {
+        for (const parameter_view &derivative : attributes_pv) {
             if (derivative.key().starts_with("_dd.appsec.s.")) {
-                attributes_.emplace(
-                    derivative.key(), parameter_to_json(derivative));
+                std::string json_derivative = parameter_to_json(derivative);
+                if (json_derivative.length() > max_plain_schema_allowed) {
+                    auto encoded = compress(json_derivative);
+                    if (encoded) {
+                        json_derivative = base64_encode(encoded.value(), false);
+                    }
+                }
+                if (json_derivative.length() <= max_schema_size) {
+                    meta_attributes_.emplace(derivative.key(), std::move(json_derivative));
+                } else {
+                    SPDLOG_WARN("Schema for key {} is too large to submit", derivative.key());
+                }
             } else {
-                attributes_.emplace(derivative.key(), derivative);
+                if (derivative.is_signed()) {
+                    double value = static_cast<double>(static_cast<int64_t>(derivative));
+                    metrics_attributes_.emplace(derivative.key(), value);
+                } else if (derivative.is_unsigned()) {
+                    double value = static_cast<double>(static_cast<uint64_t>(derivative));
+                    metrics_attributes_.emplace(derivative.key(), value);
+                } else {
+                    meta_attributes_.emplace(derivative.key(), std::move(derivative));
+                }
             }
         }
     }
@@ -696,21 +714,12 @@ void instance::listener::submit_metrics(
         }
     }
 
-    for (const auto &[key, value] : attributes_) {
-        std::string derivative = value;
-        if (value.length() > max_plain_schema_allowed &&
-            key.starts_with("_dd.appsec.s.")) {
-            auto encoded = compress(derivative);
-            if (encoded) {
-                derivative = base64_encode(encoded.value(), false);
-            }
-        }
+    for (const auto &[key, value] : meta_attributes_) {
+        msubmitter.submit_span_meta_copy_key(std::string{key}, std::string(value));
+    }
 
-        if (derivative.length() <= max_schema_size) {
-            msubmitter.submit_span_meta_copy_key(key, std::move(derivative));
-        } else {
-            SPDLOG_WARN("Schema for key {} is too large to submit", key);
-        }
+    for (const auto &[key, value] : metrics_attributes_) {
+        msubmitter.submit_span_metric(key, std::move(value));
     }
 }
 
