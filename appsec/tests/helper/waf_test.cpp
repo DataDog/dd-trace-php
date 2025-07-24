@@ -22,7 +22,7 @@ using dds::remote_config::changeset;
 using dds::remote_config::parsed_config_key;
 
 const std::string waf_rule =
-    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
+    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "rules_compat": [{"id": "ttr-000-001", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg3", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": false, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -918,4 +918,36 @@ TEST(WafTest, TelemetryTimeoutMetric)
     Mock::VerifyAndClearExpectations(&submitm);
 }
 
+TEST(WafTest, TraceAttributesAreSent)
+{
+    NiceMock<mock::tel_submitter> submitm{};
+
+    auto p = parameter::map();
+    p.add("arg3", parameter::string("string 3"sv));
+
+    auto headers = parameter::map();
+    headers.add("user-agent", parameter::string("some-agent"sv));
+    p.add("server.request.headers.no_cookies", std::move(headers));
+    parameter_view pv(p);
+
+    {
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, submitm)};
+        ASSERT_TRUE(wi);
+
+        EXPECT_CALL(submitm, submit_span_metric(std::string_view{"_dd.appsec.trace.integer"}, 12345));
+        EXPECT_CALL(submitm, submit_span_meta_copy_key("_dd.appsec.trace.string", std::string{"678"}));
+        EXPECT_CALL(submitm, submit_span_meta_copy_key("_dd.appsec.trace.agent", std::string{"some-agent"}));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
+        EXPECT_CALL(
+            submitm, submit_span_meta("_dd.appsec.event_rules.version", "1.2.3"));
+
+
+        auto ctx = wi->get_listener();
+        dds::event e;
+        ctx->call(pv, e);
+        ctx->submit_metrics(submitm);
+        Mock::VerifyAndClearExpectations(&submitm);
+    }
+}
 } // namespace dds
