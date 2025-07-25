@@ -935,13 +935,17 @@ TEST(WafTest, TraceAttributesAreSent)
             waf::instance::from_string(waf_rule, submitm)};
         ASSERT_TRUE(wi);
 
-        EXPECT_CALL(submitm, submit_span_metric(std::string_view{"_dd.appsec.trace.integer"}, 12345));
-        EXPECT_CALL(submitm, submit_span_meta_copy_key("_dd.appsec.trace.string", std::string{"678"}));
-        EXPECT_CALL(submitm, submit_span_meta_copy_key("_dd.appsec.trace.agent", std::string{"some-agent"}));
-        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
         EXPECT_CALL(
-            submitm, submit_span_meta("_dd.appsec.event_rules.version", "1.2.3"));
-
+            submitm, submit_span_metric(
+                         std::string_view{"_dd.appsec.trace.integer"}, 12345));
+        EXPECT_CALL(
+            submitm, submit_span_meta_copy_key(
+                         "_dd.appsec.trace.string", std::string{"678"}));
+        EXPECT_CALL(submitm, submit_span_meta_copy_key("_dd.appsec.trace.agent",
+                                 std::string{"some-agent"}));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
+        EXPECT_CALL(submitm,
+            submit_span_meta("_dd.appsec.event_rules.version", "1.2.3"));
 
         auto ctx = wi->get_listener();
         dds::event e;
