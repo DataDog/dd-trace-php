@@ -33,6 +33,11 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) 
   extra_args="-j$(nproc)"
 fi
 
+# run-tests supports flaky since 8.1
+if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) ]]; then
+  sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
+fi
+
 php run-tests.php -q \
   -p /usr/local/bin/php \
   --show-diff \

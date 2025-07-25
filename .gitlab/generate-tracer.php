@@ -120,6 +120,7 @@ stages:
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
+    GIT_STRATEGY: clone
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
     # Make sure we actually fail if a command fails
