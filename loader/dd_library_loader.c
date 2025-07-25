@@ -380,10 +380,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
     }
 
-    va_list va;
-    va_start(va, format);
-    ddloader_logv(config,level, format, va);
-    va_end(va);
+    ddloader_logf(config, level, "%s", buf);
 
     // Skip COMPLETE telemetry except for ddtrace
     if (reason == REASON_COMPLETE && config && strcmp(config->ext_name, "ddtrace") != 0) {
