@@ -42,7 +42,8 @@ typedef enum {
         .pre_load_hook = _pre_load_hook, .pre_minit_hook = _pre_minit_hook,                         \
         .orig_module_startup_func = NULL, .orig_module_deps = NULL, .orig_module_functions = NULL,  \
         .module_number = -1, .version = NULL,                                                       \
-        .injection_success = false, .injection_error = NULL, .extra_config = {0}, .logs = {0}       \
+        .injection_success = false, .injection_error = NULL, .extra_config = {0}, .logs = {0},       \
+        .result_class = NULL, .result_reason = NULL, .result = NULL                              \
     }
 
 #define MAX_EXTRA_CONFIG_SIZE 1024
@@ -69,6 +70,10 @@ typedef struct _injected_ext {
     const char *injection_error;
     char extra_config[MAX_EXTRA_CONFIG_SIZE];
     char logs[MAX_LOGS_SIZE];
+
+    const char *result_class;
+    const char *result_reason;
+    const char *result;
 } injected_ext;
 
 void ddloader_logv(injected_ext *config, log_level level, const char *format, va_list va);

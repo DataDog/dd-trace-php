@@ -21,7 +21,10 @@ $metrics = [<<<EOS
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result_class": "success",
+        "result_reason": "%s",
+        "result": "success"
     },
     "points": [
         {
@@ -44,7 +47,10 @@ if ('7.0' === php_minor_version()) {
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result_class": "incompatible_runtime",
+        "result_reason": "%s",
+        "result": "abort"
     },
     "points": [
         {
