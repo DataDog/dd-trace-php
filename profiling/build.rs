@@ -410,7 +410,10 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80400 {
         println!("cargo:rustc-cfg=php_frameless");
         println!("cargo:rustc-cfg=php_opcache_restart_hook");
-        println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
+        // Commenting the following line temporary disables the new hooking mechanism for
+        // allocation profiling until we solved the intefereing with
+        // `memory_get_usage()`/`memory_get_peak_usage()`
+        // println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
     }
 }
 
