@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 532d12c31154bae7c08ed3fc468a70dd7f31c892 */
+ * Stub hash: 2fa8c7fb33e71ec0fb70c54ba57a8c5281e6e8d8 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -90,6 +90,10 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_get_sanitized_exception_trace, 0, 1, IS_STRING, 0)
 	ZEND_ARG_OBJ_INFO(0, exception, Throwable, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, skipFrames, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_collect_code_origins, 0, 0, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, skipFrames, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
@@ -341,6 +345,7 @@ ZEND_FUNCTION(DDTrace_switch_stack);
 ZEND_FUNCTION(DDTrace_set_priority_sampling);
 ZEND_FUNCTION(DDTrace_get_priority_sampling);
 ZEND_FUNCTION(DDTrace_get_sanitized_exception_trace);
+ZEND_FUNCTION(DDTrace_collect_code_origins);
 ZEND_FUNCTION(DDTrace_consume_distributed_tracing_headers);
 ZEND_FUNCTION(DDTrace_generate_distributed_tracing_headers);
 ZEND_FUNCTION(DDTrace_find_active_exception);
@@ -428,6 +433,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "set_priority_sampling"), zif_DDTrace_set_priority_sampling, arginfo_DDTrace_set_priority_sampling, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "get_priority_sampling"), zif_DDTrace_get_priority_sampling, arginfo_DDTrace_get_priority_sampling, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "get_sanitized_exception_trace"), zif_DDTrace_get_sanitized_exception_trace, arginfo_DDTrace_get_sanitized_exception_trace, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "collect_code_origins"), zif_DDTrace_collect_code_origins, arginfo_DDTrace_collect_code_origins, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "consume_distributed_tracing_headers"), zif_DDTrace_consume_distributed_tracing_headers, arginfo_DDTrace_consume_distributed_tracing_headers, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "generate_distributed_tracing_headers"), zif_DDTrace_generate_distributed_tracing_headers, arginfo_DDTrace_generate_distributed_tracing_headers, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "find_active_exception"), zif_DDTrace_find_active_exception, arginfo_DDTrace_find_active_exception, 0, NULL, NULL)
