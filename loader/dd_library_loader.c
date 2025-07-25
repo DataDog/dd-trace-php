@@ -484,9 +484,9 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 }\
 ";
     char *tracer_version = ddloader_injected_ext_config[0].version ?: "unknown";
-    char *result_class = (config && config->result_class) ? config->result_class : "unknown";
-    char *result_reason = (config && config->result_reason) ? config->result_reason : "unknown";
-    char *result = (config && config->result) ? config->result : "unknown";
+    const char *result_class = (config && config->result_class) ? config->result_class : "unknown";
+    const char *result_reason = (config && config->result_reason) ? config->result_reason : "unknown";
+    const char *result = (config && config->result) ? config->result : "unknown";
 
     char payload[1024];
     snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, result_class, result_reason, result, points);
