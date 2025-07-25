@@ -132,9 +132,9 @@ void json_to_object(ddwaf_object *object, T &doc)
     }
     case rapidjson::kNumberType: {
         if (doc.IsInt64()) {
-            ddwaf_object_string_from_signed(object, doc.GetInt64());
+            ddwaf_object_signed(object, doc.GetInt64());
         } else if (doc.IsUint64()) {
-            ddwaf_object_string_from_unsigned(object, doc.GetUint64());
+            ddwaf_object_unsigned(object, doc.GetUint64());
         }
         break;
     }
