@@ -69,6 +69,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "example.com",
         "type": "web",
         "meta": {
+            "_dd.p.dm": "-3",
             "_dd.p.tid": "%s",
             "component": "aws-apigateway",
             "http.method": "GET",
@@ -79,7 +80,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "metrics": {
             "_dd.inferred_span": 1,
             "_dd.rule_psr": 0.3,
-            "_sampling_priority_v1": -1
+            "_sampling_priority_v1": 2
         }
     }
 ]
