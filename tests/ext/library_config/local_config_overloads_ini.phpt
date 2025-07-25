@@ -24,6 +24,8 @@ echo 'DD_ENV: '.dd_trace_env_config("DD_ENV")."\n";
 // System INI
 echo 'DD_DYNAMIC_INSTRUMENTATION_ENABLED: '.to_str(dd_trace_env_config("DD_DYNAMIC_INSTRUMENTATION_ENABLED"))."\n";
 
+dd_trace_internal_fn("finalize_telemetry");
+
 ?>
 --EXPECT--
 DD_SERVICE: service_from_local_config
