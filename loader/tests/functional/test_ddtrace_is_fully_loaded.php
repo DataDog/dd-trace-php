@@ -36,9 +36,9 @@ Array
             [type] => system
             [meta] => Array
                 (
+                    [cmd.exit_code] => 0
                     [cmd.shell] => echo using passthru
                     [component] => subprocess
-                    [cmd.exit_code] => 0
                 )
 %A
 EOS

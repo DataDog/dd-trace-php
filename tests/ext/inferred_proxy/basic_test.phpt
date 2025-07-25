@@ -44,7 +44,7 @@ $endTimeMs = (int)(microtime(true) * 1000);
 $serializedSpans = dd_trace_serialize_closed_spans();
 echo json_encode($serializedSpans, JSON_PRETTY_PRINT);
 
-$actualDurationNs = $serializedSpans[0]["duration"];
+$actualDurationNs = $serializedSpans[1]["duration"];
 $expectedDurationNs = ($endTimeMs - $requestTimeMs) * 1000 * 1000;
 $percentageDifference = abs($actualDurationNs - $expectedDurationNs) / $expectedDurationNs * 100;
 if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
@@ -58,32 +58,6 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
 [
     {
         "trace_id": "13930160852258120406",
-        "span_id": "11788048577503494824",
-        "start": 1742285908783000000,
-        "duration": %d,
-        "name": "aws.apigateway",
-        "resource": "GET \/test",
-        "service": "example.com",
-        "type": "web",
-        "meta": {
-            "http.method": "GET",
-            "http.url": "example.com\/test",
-            "stage": "aws-prod",
-            "component": "aws-apigateway",
-            "env": "local-prod",
-            "version": "1.0",
-            "http.status_code": "200",
-            "_dd.p.tid": "%s",
-            "_dd.p.dm": "-0"
-        },
-        "metrics": {
-            "_dd.inferred_span": 1,
-            "_sampling_priority_v1": 1,
-            "_dd.agent_psr": 1
-        }
-    },
-    {
-        "trace_id": "13930160852258120406",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": %d,
@@ -93,19 +67,45 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
         "service": "aws-server",
         "type": "web",
         "meta": {
-            "runtime-id": "%s",
-            "http.url": "http:\/\/localhost:8888\/foo",
-            "http.method": "GET",
-            "foo": "bar",
             "env": "local-prod",
-            "version": "1.0",
-            "http.status_code": "200"
+            "foo": "bar",
+            "http.method": "GET",
+            "http.status_code": "200",
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "runtime-id": "%s",
+            "version": "1.0"
         },
         "metrics": {
-            "process_id": %d,
             "php.compilation.total_time_ms": %f,
+            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "php.memory.peak_real_usage_bytes": %d
+            "process_id": %d
+        }
+    },
+    {
+        "trace_id": "13930160852258120406",
+        "span_id": "11788048577503494824",
+        "start": 1742285908783000000,
+        "duration": %d,
+        "name": "aws.apigateway",
+        "resource": "GET \/test",
+        "service": "example.com",
+        "type": "web",
+        "meta": {
+            "_dd.p.dm": "-0",
+            "_dd.p.tid": "%s",
+            "component": "aws-apigateway",
+            "env": "local-prod",
+            "http.method": "GET",
+            "http.status_code": "200",
+            "http.url": "example.com\/test",
+            "stage": "aws-prod",
+            "version": "1.0"
+        },
+        "metrics": {
+            "_dd.agent_psr": 1,
+            "_dd.inferred_span": 1,
+            "_sampling_priority_v1": 1
         }
     },
     {

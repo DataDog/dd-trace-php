@@ -38,30 +38,6 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
 [
     {
         "trace_id": "13930160852258120406",
-        "span_id": "11788048577503494824",
-        "start": 100000000,
-        "duration": %d,
-        "name": "aws.apigateway",
-        "resource": "GET \/test",
-        "service": "example.com",
-        "type": "web",
-        "meta": {
-            "http.method": "GET",
-            "http.url": "example.com\/test",
-            "stage": "aws-prod",
-            "component": "aws-apigateway",
-            "http.status_code": "200",
-            "_dd.p.tid": "%s",
-            "_dd.p.dm": "-3"
-        },
-        "metrics": {
-            "_dd.inferred_span": 1,
-            "_sampling_priority_v1": 2,
-            "_dd.rule_psr": 0.3
-        }
-    },
-    {
-        "trace_id": "13930160852258120406",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": 120000000,
@@ -71,16 +47,40 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "foo",
         "type": "web",
         "meta": {
-            "runtime-id": "%s",
-            "http.url": "http:\/\/localhost:8888\/foo",
             "http.method": "GET",
-            "http.status_code": "200"
+            "http.status_code": "200",
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "runtime-id": "%s"
         },
         "metrics": {
-            "process_id": %d,
             "php.compilation.total_time_ms": %f,
+            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "php.memory.peak_real_usage_bytes": %d
+            "process_id": %d
+        }
+    },
+    {
+        "trace_id": "13930160852258120406",
+        "span_id": "11788048577503494824",
+        "start": 100000000,
+        "duration": %d,
+        "name": "aws.apigateway",
+        "resource": "GET \/test",
+        "service": "example.com",
+        "type": "web",
+        "meta": {
+            "_dd.p.dm": "-3",
+            "_dd.p.tid": "%s",
+            "component": "aws-apigateway",
+            "http.method": "GET",
+            "http.status_code": "200",
+            "http.url": "example.com\/test",
+            "stage": "aws-prod"
+        },
+        "metrics": {
+            "_dd.inferred_span": 1,
+            "_dd.rule_psr": 0.3,
+            "_sampling_priority_v1": 2
         }
     }
 ]

@@ -1,6 +1,7 @@
 #include "span.h"
 
 #include <SAPI.h>
+#include "components-rs/sidecar.h"
 #include "priority_sampling/priority_sampling.h"
 #include <time.h>
 #include "zend_hrtime.h"
@@ -1070,7 +1071,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     dd_drop_span(span, false);
 }
 
-void ddtrace_serialize_closed_spans(zval *serialized) {
+void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
@@ -1084,8 +1085,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 stack = next_stack;
                 next_stack = stack->next;
             }
-            zval spans;
-            array_init(&spans);
+            ddog_TraceBytes *trace = ddog_traces_new_trace(traces);
 
             do {
                 // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
@@ -1094,7 +1094,7 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    ddtrace_serialize_span_to_array(tmp, &spans);
+                    ddtrace_serialize_span_to_rust_span(tmp, trace);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
@@ -1111,8 +1111,6 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
                     next_stack = stack->next;
                 }
             } while (stack);
-
-            zend_hash_next_index_insert_new(Z_ARR_P(serialized), &spans);
         } while (rootstack);
     }
 
@@ -1121,10 +1119,10 @@ void ddtrace_serialize_closed_spans(zval *serialized) {
     DDTRACE_G(dropped_spans_count) = 0;
 }
 
-void ddtrace_serialize_closed_spans_with_cycle(zval *serialized) {
+void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
-        ddtrace_serialize_closed_spans(serialized);
+        ddtrace_serialize_closed_spans(traces);
         // Also flush possible cycles here
         gc_collect_cycles();
     }

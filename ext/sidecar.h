@@ -4,6 +4,8 @@
 #include <components/log/log.h>
 #include <zai_string/string.h>
 #include "ddtrace_export.h"
+#include "ddtrace.h"
+#include "zend_string.h"
 
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
