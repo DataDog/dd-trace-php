@@ -563,17 +563,14 @@ void instance::listener::call(
         // This converts the events to JSON which is already done in the
         // switch below so it's slightly inefficient, albeit since it's only
         // done on debug, we can live with it...
-        std::string events_json = "";
+        std::string events_json;
         if (events != nullptr) {
             events_json = parameter_to_json(parameter_view{*events});
             DD_STDLOG(DD_STDLOG_AFTER_WAF, events_json, duration / millis);
         }
-        SPDLOG_DEBUG(
-            "Waf response: code {} - keep {} - duration {} - timeout {} - actions {} - attributes {} - events {}",
-            fmt::underlying(code),
-            event.keep,
-            duration / millis,
-            timeout,
+        SPDLOG_DEBUG("Waf response: code {} - keep {} - duration {} - timeout "
+                     "{} - actions {} - attributes {} - events {}",
+            fmt::underlying(code), event.keep, duration / millis, timeout,
             actions != nullptr ? parameter_to_json(parameter_view{*actions})
                                : "",
             attributes != nullptr
@@ -632,19 +629,23 @@ void instance::listener::call(
                     }
                 }
                 if (json_derivative.length() <= max_schema_size) {
-                    meta_attributes_.emplace(derivative.key(), std::move(json_derivative));
+                    meta_attributes_.emplace(
+                        derivative.key(), std::move(json_derivative));
                 } else {
-                    SPDLOG_WARN("Schema for key {} is too large to submit", derivative.key());
+                    SPDLOG_WARN("Schema for key {} is too large to submit",
+                        derivative.key());
                 }
             } else {
                 if (derivative.is_signed()) {
-                    double value = static_cast<double>(static_cast<int64_t>(derivative));
+                    auto value =
+                        static_cast<double>(static_cast<int64_t>(derivative));
                     metrics_attributes_.emplace(derivative.key(), value);
                 } else if (derivative.is_unsigned()) {
-                    double value = static_cast<double>(static_cast<uint64_t>(derivative));
+                    auto value =
+                        static_cast<double>(static_cast<uint64_t>(derivative));
                     metrics_attributes_.emplace(derivative.key(), value);
                 } else {
-                    meta_attributes_.emplace(derivative.key(), std::move(derivative));
+                    meta_attributes_.emplace(derivative.key(), derivative);
                 }
             }
         }
@@ -719,11 +720,12 @@ void instance::listener::submit_metrics(
     }
 
     for (const auto &[key, value] : meta_attributes_) {
-        msubmitter.submit_span_meta_copy_key(std::string{key}, std::string(value));
+        msubmitter.submit_span_meta_copy_key(
+            std::string{key}, std::string(value));
     }
 
     for (const auto &[key, value] : metrics_attributes_) {
-        msubmitter.submit_span_metric(key, std::move(value));
+        msubmitter.submit_span_metric(key, value);
     }
 }
 

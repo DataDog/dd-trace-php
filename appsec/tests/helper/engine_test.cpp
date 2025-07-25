@@ -792,7 +792,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
 
-    {// Test keep is true
+    { // Test keep is true
         auto ctx = e->get_context();
 
         auto p = parameter::map();
