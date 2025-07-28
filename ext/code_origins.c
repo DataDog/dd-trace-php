@@ -45,7 +45,7 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
         execute_data = EX(prev_execute_data);
     }
 
-    // This typically happens when a file is the entrypoint.
+    // current_frame is typically 0 when a file is the entrypoint.
     if (current_frame != 0) {
         zval *kind = zend_hash_str_find_deref(meta, ZEND_STRL("span.kind"));
 
@@ -62,7 +62,7 @@ void ddtrace_maybe_add_code_origin_information(ddtrace_span_data *span) {
         zval *type = &span->property_type;
         ZVAL_DEREF(type);
         if (Z_TYPE_P(type) == IS_STRING && Z_STRLEN_P(type) != 0) {
-            // If it's identical, the parent span will have the code origin information itself already
+            // If it's identical, we don't add it to the child so that only the parent span will be added the code origin information
             if (span->parent && zend_is_identical(type, &span->parent->property_type)) {
                 zend_array *meta = ddtrace_property_array(&span->property_meta);
                 zval *kind = zend_hash_str_find(meta, ZEND_STRL("span.kind"));
