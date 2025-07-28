@@ -294,7 +294,7 @@ static void dd_patch_zend_call_known_function(void) {
 #endif
 
 #ifdef _WIN32
-    VirtualProtect(page, page_size, old_protection, NULL);
+    VirtualProtect(page, page_size, old_protection, &old_protection /* dummy, but must be valid */);
 #else
     mprotect(page, page_size, PROT_READ | PROT_EXEC);
 #endif
