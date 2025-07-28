@@ -507,11 +507,12 @@ bool ddog_php_jit_enabled() {
     }
 
     // Check if we can safely use zend_jit_status() based on PHP version
-    bool can_use_zend_jit_status =
-        PHP_VERSION_ID >= 80500 || // PHP 8.5+ has the fix
-        (PHP_VERSION_ID >= 80230 && PHP_VERSION_ID < 80300) || // PHP 8.2.30+
-        (PHP_VERSION_ID >= 80324 && PHP_VERSION_ID < 80400) || // PHP 8.3.24+
-        (PHP_VERSION_ID >= 80411 && PHP_VERSION_ID < 80500);   // PHP 8.4.11+
+    bool can_use_zend_jit_status = false; // Upstream PR has not yet been merged
+        // Most likely those will be the versions that will have the fix:
+        // PHP_VERSION_ID >= 80500 || // PHP 8.5+
+        // (PHP_VERSION_ID >= 80230 && PHP_VERSION_ID < 80300) || // PHP 8.2.30+
+        // (PHP_VERSION_ID >= 80324 && PHP_VERSION_ID < 80400) || // PHP 8.3.24+
+        // (PHP_VERSION_ID >= 80411 && PHP_VERSION_ID < 80500);   // PHP 8.4.11+
 
     if (can_use_zend_jit_status) {
         // Safe to use zend_jit_status() on these versions
