@@ -488,6 +488,7 @@ foreach ($windows_build_platforms as $platform) {
     IMAGE: "<?= $image ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
+    GIT_STRATEGY: clone
     GIT_CONFIG_COUNT: 1
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
