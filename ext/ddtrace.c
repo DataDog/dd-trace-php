@@ -684,6 +684,10 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
     }
 
+    if (ddtrace_globals->telemetry_cache) {
+        ddog_sidecar_telemetry_cache_drop(ddtrace_globals->telemetry_cache);
+    }
+
     zend_hash_destroy(&ddtrace_globals->git_metadata);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
@@ -1797,13 +1801,9 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
-static void dd_finalize_sidecar_lifecycle(void) {
+static void dd_finalize_sidecar_lifecycle(bool clear_id) {
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_telemetry_finalize();
-        if (ddtrace_sidecar) {
-            ddtrace_ffi_try("Failed signaling lifecycle end",
-                ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
-        }
+        ddtrace_telemetry_finalize(clear_id);
     }
 }
 
@@ -1833,7 +1833,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    dd_finalize_sidecar_lifecycle();
+    dd_finalize_sidecar_lifecycle(true);
     DDTRACE_G(request_initialized) = false;
 
     ddtrace_telemetry_rshutdown();
@@ -2785,7 +2785,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_sidecar_lifecycle();
+            dd_finalize_sidecar_lifecycle(false);
+            ddtrace_telemetry_lifecycle_end();
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));

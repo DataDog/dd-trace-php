@@ -1,6 +1,18 @@
 use crate::log::Log;
-use datadog_sidecar::service::blocking::SidecarTransport;
-use datadog_sidecar::service::{blocking, InstanceId, QueueId, SidecarAction};
+use datadog_sidecar::service::telemetry::path_for_telemetry;
+
+use hashbrown::{Equivalent, HashMap};
+use std::collections::HashSet;
+use std::ffi::CString;
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
+
+use datadog_ipc::platform::NamedShmHandle;
+use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use datadog_sidecar::service::{
+    blocking::{self, SidecarTransport},
+    InstanceId, QueueId, SidecarAction,
+};
 use ddcommon::tag::parse_tags;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
@@ -12,7 +24,6 @@ use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
 use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
 use std::str::FromStr;
 use zwohash::ZwoHasher;
 
@@ -219,4 +230,128 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
         },
     ));
     buffer.buffer.push(SidecarAction::Telemetry(action));
+}
+
+pub struct ShmCache {
+    pub last_updated: Instant,
+    pub config_sent: bool,
+    pub integrations: HashSet<String>,
+    pub composer_paths: HashSet<PathBuf>,
+    pub reader: OneWayShmReader<NamedShmHandle, CString>,
+}
+
+#[derive(Hash, Eq, PartialEq)]
+struct ShmCacheKey(String, String);
+
+impl Equivalent<ShmCacheKey> for (&str, &str) {
+    fn equivalent(&self, key: &ShmCacheKey) -> bool {
+        *self.0 == key.0 && *self.1 == key.1
+    }
+}
+
+pub type ShmCacheMap = HashMap<ShmCacheKey, ShmCache>;
+
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_cache_new() -> Box<ShmCacheMap> {
+    ShmCacheMap::default().into()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_cache_drop(_: Box<ShmCacheMap>) {}
+
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_telemetry_config_sent(
+    cache: &ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> bool {
+    let service_str = service.to_utf8_lossy();
+    let env_str = env.to_utf8_lossy();
+    cache
+        .get(&(service_str.as_ref(), env_str.as_ref()))
+        .map_or(false, |entry| entry.config_sent)
+}
+
+unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
+    cache: &'a mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> Option<&'a ShmCache> {
+    let cache = &mut *cache;
+
+    let service_str = service.to_utf8_lossy();
+    let env_str = env.to_utf8_lossy();
+
+    let needs_refresh = cache.get(&(service_str.as_ref(), env_str.as_ref())).map_or(true, |entry| {
+        entry.last_updated.elapsed() > Duration::from_secs(1800)
+    });
+
+    if needs_refresh {
+        let shm_path = path_for_telemetry(&service_str, &env_str);
+        if let Ok(mapped) = open_named_shm(&shm_path) {
+            let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(Some(mapped), shm_path);
+            let (_, buf) = reader.read();
+
+            if let Ok((config_sent, integrations, composer_paths)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
+            {
+                let entry = ShmCache {
+                    config_sent,
+                    integrations,
+                    composer_paths,
+                    last_updated: Instant::now(),
+                    reader,
+                };
+                return Some(
+                    cache
+                        .entry(ShmCacheKey(service_str.into(), env_str.into()))
+                        .or_insert(entry),
+                );
+            }
+        }
+
+        return None;
+    }
+
+    cache.get(&(service_str.as_ref(), env_str.as_ref()))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
+    transport: &mut Box<SidecarTransport>,
+    instance_id: &InstanceId,
+    queue_id: &QueueId,
+    buffer: &mut SidecarActionsBuffer,
+    cache: &mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> MaybeError {
+    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+
+    let mut filtered: Vec<SidecarAction> = std::mem::take(&mut buffer.buffer);
+
+    if let Some(entry) = cache_entry {
+        filtered = filtered
+            .into_iter()
+            .filter(|action| match action {
+                SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
+                    !entry.integrations.contains(&integration.name)
+                }
+                SidecarAction::PhpComposerTelemetryFile(path) => {
+                    !entry.composer_paths.contains(path)
+                }
+                _ => true,
+            })
+            .collect();
+    }
+
+    // Proceed with sending whatever remains, whether filtered or not
+    try_c!(blocking::enqueue_actions(
+        transport,
+        instance_id,
+        queue_id,
+        filtered
+    ));
+
+    MaybeError::None
 }
