@@ -1,12 +1,12 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
-#include <components-rs/common.h>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
 #include <components/sapi/sapi.h>
 
