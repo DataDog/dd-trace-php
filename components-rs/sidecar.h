@@ -150,21 +150,18 @@ ddog_MaybeError ddog_sidecar_telemetry_addIntegration(struct ddog_SidecarTranspo
                                                       bool integration_enabled);
 
 /**
- * Registers a service and flushes any queued actions.
- */
-ddog_MaybeError ddog_sidecar_telemetry_flushServiceData(struct ddog_SidecarTransport **transport,
-                                                        const struct ddog_InstanceId *instance_id,
-                                                        const ddog_QueueId *queue_id,
-                                                        const struct ddog_RuntimeMetadata *runtime_meta,
-                                                        ddog_CharSlice service_name,
-                                                        ddog_CharSlice env_name);
-
-/**
  * Enqueues a list of actions to be performed.
  */
 ddog_MaybeError ddog_sidecar_lifecycle_end(struct ddog_SidecarTransport **transport,
                                            const struct ddog_InstanceId *instance_id,
                                            const ddog_QueueId *queue_id);
+
+/**
+ * Enqueues a list of actions to be performed.
+ */
+ddog_MaybeError ddog_sidecar_application_remove(struct ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                const ddog_QueueId *queue_id);
 
 /**
  * Flushes the telemetry data.
@@ -186,6 +183,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
                                                 ddog_CharSlice language,
+                                                ddog_CharSlice language_version,
                                                 ddog_CharSlice tracer_version,
                                                 uint32_t flush_interval_milliseconds,
                                                 uint32_t remote_config_poll_interval_millis,
@@ -199,6 +197,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
                                                 uintptr_t remote_config_capabilities_count,
+                                                bool remote_config_enabled,
                                                 bool is_fork);
 
 /**
@@ -250,13 +249,13 @@ ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransp
                                                        ddog_QueueId queue_id,
                                                        struct ddog_DebuggerPayload diagnostics_payload);
 
-ddog_MaybeError ddog_sidecar_set_remote_config_data(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
-                                                    ddog_CharSlice service_name,
-                                                    ddog_CharSlice env_name,
-                                                    ddog_CharSlice app_version,
-                                                    const struct ddog_Vec_Tag *global_tags);
+ddog_MaybeError ddog_sidecar_set_universal_service_tags(struct ddog_SidecarTransport **transport,
+                                                        const struct ddog_InstanceId *instance_id,
+                                                        const ddog_QueueId *queue_id,
+                                                        ddog_CharSlice service_name,
+                                                        ddog_CharSlice env_name,
+                                                        ddog_CharSlice app_version,
+                                                        const struct ddog_Vec_Tag *global_tags);
 
 /**
  * Dumps the current state of the sidecar.
