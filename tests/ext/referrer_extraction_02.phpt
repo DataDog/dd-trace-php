@@ -18,18 +18,18 @@ var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
 array(7) {
-  ["runtime-id"]=>
-  string(36) "%s"
-  ["http.url"]=>
-  string(25) "http://localhost:8888/foo"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
+  ["_dd.p.tid"]=>
+  string(16) "%s"
   ["http.method"]=>
   string(3) "GET"
   ["http.referrer_hostname"]=>
   string(11) "example.com"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["http.status_code"]=>
   string(3) "200"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-} 
+  ["http.url"]=>
+  string(25) "http://localhost:8888/foo"
+  ["runtime-id"]=>
+  string(36) "%s"
+}

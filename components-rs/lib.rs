@@ -6,6 +6,7 @@ pub mod log;
 pub mod remote_config;
 pub mod sidecar;
 pub mod telemetry;
+pub mod bytes;
 
 use ddcommon::entity_id::{get_container_id, set_cgroup_file};
 use http::uri::{PathAndQuery, Scheme};

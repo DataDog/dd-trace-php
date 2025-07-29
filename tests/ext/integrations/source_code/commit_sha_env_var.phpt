@@ -40,28 +40,28 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(4) {
-      ["runtime-id"]=>
-      string(%d) "%s"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["runtime-id"]=>
+      string(%d) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

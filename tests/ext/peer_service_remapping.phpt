@@ -54,16 +54,16 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(6) {
-      ["db.instance"]=>
-      string(3) "db1"
-      ["net.peer.name"]=>
-      string(3) "xyz"
-      ["foo"]=>
-      string(3) "bar"
-      ["peer.service"]=>
-      string(3) "net"
       ["_dd.peer.service.source"]=>
       string(12) "peer.service"
+      ["db.instance"]=>
+      string(3) "db1"
+      ["foo"]=>
+      string(3) "bar"
+      ["net.peer.name"]=>
+      string(3) "xyz"
+      ["peer.service"]=>
+      string(3) "net"
       ["peer.service.remapped_from"]=>
       string(13) "net.peer.name"
     }
@@ -90,18 +90,18 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(6) {
-      ["db.instance"]=>
-      string(3) "db1"
-      ["net.peer.name"]=>
-      string(3) "xyz"
-      ["foo"]=>
-      string(3) "bar"
       ["_dd.peer.service.source"]=>
       string(11) "db.instance"
-      ["peer.service.remapped_from"]=>
+      ["db.instance"]=>
       string(3) "db1"
+      ["foo"]=>
+      string(3) "bar"
+      ["net.peer.name"]=>
+      string(3) "xyz"
       ["peer.service"]=>
       string(8) "database"
+      ["peer.service.remapped_from"]=>
+      string(3) "db1"
     }
   }
 }

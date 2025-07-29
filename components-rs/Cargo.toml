@@ -18,6 +18,8 @@ datadog-ipc = { path = "../libdatadog/datadog-ipc" }
 datadog-remote-config = { path = "../libdatadog/datadog-remote-config" }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
+tinybytes = { path = "../libdatadog/tinybytes" }
+datadog-trace-utils = { path = "../libdatadog/datadog-trace-utils" }
 datadog-crashtracker-ffi = { path = "../libdatadog/datadog-crashtracker-ffi", default-features = false, features = ["collector"] }
 datadog-library-config-ffi = { path = "../libdatadog/datadog-library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }

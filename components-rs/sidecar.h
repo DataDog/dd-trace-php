@@ -480,6 +480,6 @@ void ddog_add_event_attributes_int(ddog_SpanEventBytes *event, ddog_CharSlice ke
 
 void ddog_add_event_attributes_float(ddog_SpanEventBytes *event, ddog_CharSlice key, double val);
 
-ddog_CharSlice ddog_serialize_trace_into_c_string(ddog_TraceBytes *trace);
+ddog_CharSlice ddog_serialize_trace_into_charslice(ddog_TraceBytes *trace);
 
 #endif  /* DDOG_SIDECAR_H */
