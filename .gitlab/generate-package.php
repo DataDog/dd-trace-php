@@ -1412,6 +1412,15 @@ deploy_to_reliability_env:
   only:
     refs:
       - /^ddtrace-.*$/
+  needs:
+    - job: "datadog-setup.php"
+      artifacts: false
+    - job: "package extension windows"
+      artifacts: false
+<?php foreach ($build_platforms as $platform): ?>
+    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: false
+<?php endforeach; ?>
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
