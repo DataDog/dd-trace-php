@@ -486,9 +486,9 @@ endforeach;
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
+    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json || echo "Warning: Failed to generate tested_versions artifact"
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
-    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
 
@@ -698,5 +698,8 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   rules:
     # Run automatically on master even if previous jobs failed (flaky tests may still provide artifacts)
     - if: $CI_COMMIT_REF_NAME == "master"
+      when: always
+    # Run automatically on alex/ prefixed branches for testing
+    - if: $CI_COMMIT_REF_NAME =~ /^alex\//
       when: always
     - when: manual
