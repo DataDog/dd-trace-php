@@ -22,9 +22,9 @@ $format = <<<EOS
         "language_version": "5.%d",
         "tracer_version": "%s",
         "pid": %d,
-        "result_class": "incompatible_runtime",
-        "result_reason": "%s",
-        "result": "abort"
+        "result_class": "unknown",
+        "result_reason": "unknown",
+        "result": "unknown"
     },
     "points": [
         {
