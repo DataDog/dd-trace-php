@@ -86,7 +86,7 @@ static void dd_inject_distributed_tracing_headers(zend_object *ch) {
         array_init(&headers);
     }
 
-    ddtrace_inject_distributed_headers(Z_ARR(headers), false);
+    ddtrace_inject_distributed_headers(Z_ARR(headers), HEADER_MODE_ARRAY);
 
     zend_function *setopt_fn = zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("curl_setopt"));
 
