@@ -315,7 +315,7 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...) {
-    log_level level = ERROR;
+    //log_level level = ERROR;
     static char buf[256]; 
     va_list va;
     va_start(va, format);
@@ -361,7 +361,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
                 config->injection_error = "Already loaded";
                 config->injection_success = false;
             }
-            level = INFO;
+            //level = INFO;
             break;
         case REASON_COMPLETE:
             if (config) {
@@ -370,10 +370,10 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
                 config->result_reason = buf;
                 config->injection_success = true;
             }
-            level = INFO;
+            //level = INFO;
             break;
         case REASON_START:
-            level = INFO;
+            //level = INFO;
             break;
         default:
             break;
