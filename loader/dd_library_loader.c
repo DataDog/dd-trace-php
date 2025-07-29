@@ -316,10 +316,9 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
  */
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...) {
     log_level level = ERROR;
-    
+    static char buf[256]; 
     va_list va;
     va_start(va, format);
-    char buf[256];
     vsnprintf(buf, sizeof(buf), format, va);
     va_end(va);
 
@@ -380,7 +379,10 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
     }
 
-    ddloader_logf(config, level, "%s", buf);
+    va_list va2;
+    va_start(va2, format);
+    ddloader_logv(config,level, format, va2);
+    va_end(va2);
 
     // Skip COMPLETE telemetry except for ddtrace
     if (reason == REASON_COMPLETE && config && strcmp(config->ext_name, "ddtrace") != 0) {
