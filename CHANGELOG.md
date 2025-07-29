@@ -24,6 +24,8 @@ Changelog for older versions can be found in our [release page](https://github.c
 - Add redaction in autoload_php_file #3313
 - Reduce telemetry sent #3316
 - Adding telemetry for baggage propagation #3353
+- Make max memory of sidecar configurable DataDog/libdatadog#1105
+- Fix possible remote config deadlock DataDog/libdatadog#1161
 
 ## Profiling
 ### Fixed
