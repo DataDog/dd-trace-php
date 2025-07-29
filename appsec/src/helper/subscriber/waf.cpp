@@ -644,8 +644,14 @@ void instance::listener::call(
                     auto value =
                         static_cast<double>(static_cast<uint64_t>(derivative));
                     metrics_attributes_.emplace(derivative.key(), value);
-                } else {
+                } else if (derivative.is_float()) {
+                    auto value = static_cast<double>(derivative);
+                    metrics_attributes_.emplace(derivative.key(), value);
+                } else if (derivative.is_string()) {
                     meta_attributes_.emplace(derivative.key(), derivative);
+                } else {
+                    SPDLOG_WARN("Unsupported attribute type for key {}",
+                        derivative.key());
                 }
             }
         }

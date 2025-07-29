@@ -135,6 +135,8 @@ void json_to_object(ddwaf_object *object, T &doc)
             ddwaf_object_signed(object, doc.GetInt64());
         } else if (doc.IsUint64()) {
             ddwaf_object_unsigned(object, doc.GetUint64());
+        } else if (doc.IsDouble()) {
+            ddwaf_object_float(object, doc.GetDouble());
         }
         break;
     }

@@ -89,6 +89,10 @@ public:
     {
         return ddwaf_object::type != DDWAF_OBJ_INVALID;
     }
+    [[nodiscard]] bool is_float() const noexcept
+    {
+        return ddwaf_object::type == DDWAF_OBJ_FLOAT;
+    }
     // NOLINTNEXTLINE
     operator ddwaf_object *() noexcept { return this; }
 
@@ -120,7 +124,13 @@ public:
         }
         return intValue;
     }
-
+    explicit operator double() const
+    {
+        if (!is_float()) {
+            throw bad_cast("parameter not a float");
+        }
+        return f64;
+    }
     explicit operator bool() const
     {
         if (!is_boolean()) {
