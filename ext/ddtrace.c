@@ -1367,6 +1367,108 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
+static php_stream_wrapper ddtrace_original_http_wrapper;
+static php_stream_wrapper ddtrace_original_https_wrapper;
+static php_stream_wrapper ddtrace_traced_http_wrapper;
+static php_stream_wrapper ddtrace_traced_https_wrapper;
+
+static php_stream *ddtrace_stream_opener(
+    php_stream_wrapper *wrapper,
+    const char *filename,
+    const char *mode,
+    int options,
+    zend_string **opened_path,
+    php_stream_context *context
+) {
+    if (!context) {
+        context = php_stream_context_alloc();
+    }
+
+    // Inject distributed tracing headers
+    zval *http_context_zv = zend_hash_str_find(Z_ARRVAL(context->options), "http", sizeof("http") - 1);
+    if (!http_context_zv) {
+        zval tmp;
+        array_init(&tmp);
+        zend_hash_str_update(Z_ARRVAL(context->options), "http", sizeof("http") - 1, &tmp);
+        http_context_zv = zend_hash_str_find(Z_ARRVAL(context->options), "http", sizeof("http") - 1);
+    }
+
+    if (http_context_zv && Z_TYPE_P(http_context_zv) == IS_ARRAY) {
+        HashTable *http_context = Z_ARRVAL_P(http_context_zv);
+        ddtrace_inject_distributed_headers(http_context, HEADER_MODE_CONTEXT);
+    }
+
+    // Open internal span
+    ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
+    if (span) {
+        ddtrace_set_global_span_properties(span);
+
+        zend_array *meta = ddtrace_property_array(&span->property_meta);
+        zval zv;
+
+        ZVAL_STRING(&zv, "php.stream");
+        zend_hash_str_add_new(meta, ZEND_STRL("component"), &zv);
+
+        ZVAL_STRING(&zv, "client");
+        zend_hash_str_add_new(meta, ZEND_STRL("span.kind"), &zv);
+
+        ZVAL_STRING(&zv, filename);
+        zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
+
+        zval *method_zv = zend_hash_str_find(Z_ARRVAL(context->options), "method", sizeof("method") - 1);
+        if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
+            zend_hash_str_add_new(meta, ZEND_STRL("http.method"), method_zv);
+        }
+
+        const char *host_start = strstr(filename, "://");
+        if (host_start) {
+            host_start += 3; // skip "://"
+            const char *host_end = strchr(host_start, '/');
+            size_t host_len = host_end ? (size_t)(host_end - host_start) : strlen(host_start);
+            char *host = estrndup(host_start, host_len);
+            ZVAL_STRING(&zv, host);
+            zend_hash_str_add_new(meta, ZEND_STRL("network.destination.name"), &zv);
+            efree(host);
+        }
+    }
+
+    php_stream_wrapper *original_wrapper =
+        strncmp(filename, "https://", 8) == 0 ? &ddtrace_original_https_wrapper : &ddtrace_original_http_wrapper;
+
+    php_stream *stream = original_wrapper->wops->stream_opener(
+        wrapper, filename, mode, options, opened_path, context);
+
+    if (span) {
+        ddtrace_close_span(span);
+    }
+
+    return stream;
+}
+
+static void ddtrace_instrument_stream_wrapper(const char *name, php_stream_wrapper *original_wrapper, php_stream_wrapper *traced_wrapper) {
+    HashTable *wrappers = php_stream_get_url_stream_wrappers_hash_global();
+    zval *wrapper_zv = zend_hash_str_find(wrappers, name, strlen(name));
+
+    if (!wrapper_zv) {
+        return;
+    }
+
+    php_stream_wrapper *orig = (php_stream_wrapper *)Z_PTR_P(wrapper_zv);
+    memcpy(original_wrapper, orig, sizeof(php_stream_wrapper));
+    memcpy(traced_wrapper, orig, sizeof(php_stream_wrapper));
+
+    traced_wrapper->wops = emalloc(sizeof(*orig->wops));
+    memcpy((void *)traced_wrapper->wops, orig->wops, sizeof(*orig->wops));
+    ((php_stream_wrapper_ops *)traced_wrapper->wops)->stream_opener = ddtrace_stream_opener;
+
+    zend_hash_str_update_ptr(wrappers, name, strlen(name), traced_wrapper);
+}
+
+static void ddtrace_instrument_stream_wrappers(void) {
+    ddtrace_instrument_stream_wrapper("http", &ddtrace_original_http_wrapper, &ddtrace_traced_http_wrapper);
+    ddtrace_instrument_stream_wrapper("https", &ddtrace_original_https_wrapper, &ddtrace_traced_https_wrapper);
+}
+
 #if PHP_VERSION_ID < 80500
 zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 void ddtrace_init_known_strings(void) {
@@ -1521,6 +1623,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
     ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
+
+    ddtrace_instrument_stream_wrappers();
 
     ddtrace_engine_hooks_minit();
     ddtrace_init_proxy_info_map();
