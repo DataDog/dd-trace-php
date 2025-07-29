@@ -110,6 +110,7 @@
 #include "inferred_proxy_headers.h"
 #include "live_debugger.h"
 #include "agent_info.h"
+#include "code_origins.h"
 
 #if PHP_VERSION_ID < 70200
 #pragma pop_macro("ZVAL_EMPTY_STRING")
@@ -3598,6 +3599,26 @@ PHP_FUNCTION(DDTrace_get_sanitized_exception_trace) {
     ZEND_PARSE_PARAMETERS_END();
 
     RETURN_STR(zai_get_trace_without_args_from_exception_skip_frames(ex, skip));
+}
+
+PHP_FUNCTION(DDTrace_collect_code_origins) {
+    zend_long skip = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+            Z_PARAM_OPTIONAL
+            Z_PARAM_LONG(skip)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (!get_DD_CODE_ORIGIN_FOR_SPANS_ENABLED()) {
+        return;
+    }
+
+    ddtrace_span_data *span = ddtrace_active_span();
+    if (!span) {
+        return;
+    }
+
+    ddtrace_add_code_origin_information(span, skip);
 }
 
 PHP_FUNCTION(DDTrace_startup_logs) {

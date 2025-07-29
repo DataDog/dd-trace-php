@@ -7,6 +7,7 @@ datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 HTTPS=on
 SERVER_NAME=localhost:8888
 SCRIPT_NAME=/foo.php

@@ -2,6 +2,7 @@
 Reserved OTel attributes that have special meaning
 --ENV--
 DD_SERVICE_MAPPING=new.service:mapped.service
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 

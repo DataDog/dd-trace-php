@@ -44,6 +44,9 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "aws-server",
         "type": "web",
         "meta": {
+            "_dd.code_origin.frames.0.file": "%s\/incomplete_headers.php",
+            "_dd.code_origin.frames.0.line": "1",
+            "_dd.code_origin.type": "entry",
             "_dd.p.dm": "-0",
             "_dd.p.tid": "%s",
             "env": "local-prod",

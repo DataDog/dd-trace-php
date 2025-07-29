@@ -3,6 +3,7 @@ Basic Git Metadata Injection from invalid .git files (Repository URL & Commit Sh
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_GIT_METADATA_ENABLED=0
 --SKIPIF--
 <?php
