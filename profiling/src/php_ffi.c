@@ -482,19 +482,40 @@ void ddog_php_opcache_init_handle() {
     }
 }
 
-// This checks if the JIT actually has a buffer, if so, JIT is active, otherwise
-// JIT is inactive. This will only work after OPcache was initialized (after it
-// assigned its PHP.INI settings), so make sure to call this in RINIT.
+// Detects if JIT is enabled by checking OPcache settings.
 //
-// Attention: this will check for the `opcache.jit_buffer_size` setting as this
-// one is a PHP_INI_SYSTEM (can not be changed on a per directory basis). This
-// means that the `opcache.jit` setting could be `off` and this function would
-// still consider JIT to be enabled, as it could be enabled at anytime (runtime
-// and per directory settings).
+// This function uses two different detection methods based on PHP version:
+// 1. For PHP versions with the zend_jit_status() crash fix
+//    - Calls zend_jit_status() directly to get accurate JIT state
+// 2. For PHP versions where zend_jit_status() can crash in Apache mod_php:
+//    - Uses INI-based detection to avoid the crash
+//    - Checks opcache.enable, opcache.enable_cli, opcache.jit_buffer_size, and opcache.jit
+//
+// The INI fallback may have false positives (e.g., if JIT is enabled via INI but disabled because
+// user opcode handlers are installed) but avoids false negatives and prevents crashes.
+//
+// Note: This function should be called in RINIT or later, after OPcache initialization.
+// Returns true if JIT is potentially active, false otherwise.
 bool ddog_php_jit_enabled() {
-    bool jit = false;
+#if PHP_VERSION_ID < 80000
+    // JIT was introduced in PHP 8.0
+    return false;
+#else
+    // No OPcache -> no JIT
+    if (!opcache_handle) {
+        return false;
+    }
 
-    if (opcache_handle) {
+    // Check if we can safely use zend_jit_status() based on PHP version
+    bool can_use_zend_jit_status = false; // Upstream PR has not yet been merged
+        // Most likely those will be the versions that will have the fix:
+        // PHP_VERSION_ID >= 80500 || // PHP 8.5+
+        // (PHP_VERSION_ID >= 80230 && PHP_VERSION_ID < 80300) || // PHP 8.2.30+
+        // (PHP_VERSION_ID >= 80324 && PHP_VERSION_ID < 80400) || // PHP 8.3.24+
+        // (PHP_VERSION_ID >= 80411 && PHP_VERSION_ID < 80500);   // PHP 8.4.11+
+
+    if (can_use_zend_jit_status) {
+        // Safe to use zend_jit_status() on these versions
         void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
         if (zend_jit_status == NULL) {
             zend_jit_status = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_status");
@@ -506,14 +527,62 @@ bool ddog_php_jit_enabled() {
 
             zval *jit_stats = zend_hash_str_find(Z_ARR(jit_stats_arr), ZEND_STRL("jit"));
             zval *jit_buffer = zend_hash_str_find(Z_ARR_P(jit_stats), ZEND_STRL("buffer_size"));
-            jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
+            bool jit = Z_LVAL_P(jit_buffer) > 0; // JIT is active!
 
             zval_ptr_dtor(&jit_stats_arr);
+            return jit;
+        }
+        // zend_jit_status() symbol not found despite having an OPcache handle, this is weird, but
+        // let's fallback to INI based detection
+    }
+
+    // For versions with the bug, use INI-based detection
+
+    zend_string *key = zend_string_init(ZEND_STRL("opcache.enable"), 0);
+    zend_string *opcache_enable_str = zend_ini_get_value(key);
+    zend_string_release(key);
+    if (opcache_enable_str && !zend_ini_parse_bool(opcache_enable_str)) {
+        return false;
+    }
+
+    // For CLI SAPI, also check opcache.enable_cli
+    if (strcmp("cli", sapi_module.name) == 0) {
+        key = zend_string_init(ZEND_STRL("opcache.enable_cli"), 0);
+        zend_string *opcache_enable_cli_str = zend_ini_get_value(key);
+        zend_string_release(key);
+        if (!opcache_enable_cli_str || !zend_ini_parse_bool(opcache_enable_cli_str)) {
+            return false;
         }
     }
-    return jit;
-}
 
+    // Check opcache.jit_buffer_size, no buffer -> no JIT
+    char *buffer_size_str = zend_ini_string("opcache.jit_buffer_size", sizeof("opcache.jit_buffer_size") - 1, 0);
+    if (!buffer_size_str || strlen(buffer_size_str) == 0 || strcmp(buffer_size_str, "0") == 0) {
+        return false;
+    }
+
+    // Parse buffer size, handle suffixes like K, M, G
+    long buffer_size = ZEND_STRTOL(buffer_size_str, NULL, 10);
+    if (buffer_size <= 0) {
+        return false;
+    }
+
+    // Finally check the opcache.jit setting
+    char *jit_str = zend_ini_string("opcache.jit", sizeof("opcache.jit") - 1, 0);
+    if (!jit_str || strlen(jit_str) == 0 ||
+        strcmp(jit_str, "disable") == 0 ||
+        strcmp(jit_str, "off") == 0 ||
+        strcmp(jit_str, "0") == 0) {
+        return false;
+    }
+
+    // At this point:
+    // - opcache is loaded and enabled
+    // - buffer_size > 0 (JIT memory allocated)
+    // - opcache.jit is truthy
+    return true;
+#endif // PHP_VERSION_ID >= 80000
+}
 
 #if PHP_VERSION_ID < 70200
 #define zend_parse_parameters_none_throw() \
