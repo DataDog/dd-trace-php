@@ -1,47 +1,58 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
 ## All products
-### Added
-- Add injection information to phpinfo output for the SSI loader #3271
-- Allow specifying datadog.loader.force_inject=1 in loader #3278
+### Internal
+- Implement new SSI configuration telemetry #3301
 
 ### Fixed
-- Add missing dep to injected ddappsec #3252
-- Filter SSI paths from installer ini paths #3275
+- Treat opcache.jit=0 as JIT disabled #3337
 
 ## Tracer
-### Added
-- Add http status error configuration #3223 (Thanks @scott-shields-github)
-- Baggage span tags #3262
-
 ### Changed
-- Avoid retrieving all the roots all the time in remote config DataDog/libdatadog#1069
+- Add knuth sampling formula #3281
+- Add db.type to PDO integration #3350
 
 ### Fixed
-- Fix Laravel error reporting #3185
-- Fix crash with non-interned string in Trace attribute tags #3251
-- Init ddtrace_coms_globals.tmp_stack #3256 (Thanks @junjihashimoto)
-- Enhance Guzzle integration to handle promise fulfillment state #3260
-- Block signals for mysqli_real_connect too #3264
-- Fix exception serialize arena cleanup #3272
-- Handle stack-allocated execute_data but outside of stack allocated func #3273
-- Fix WordPress integration hook handling for "static" and object methods #3274
+- Fix dd_patch_zend_call_known_function on early PHP 8 versions on Windows #3326
+- Fix DogStatsD client crash when endpoint is unreachable #3344
+- Fix trailing ; in tracestate #3354
+- Fix DD_TRACE_AGENT_URL panic without scheme and path #3358
 
 ### Internal
-- Remove non actionnable telemetry logs #3270
+- Fixup the otel.env.invalid metric name #3284
+- Bump the required rust version to 1.84.1 #3299
+- Add redaction in autoload_php_file #3313
+- Reduce telemetry sent #3316
+- Adding telemetry for baggage propagation #3353
 
 ## Profiling
-### Changed
-- Re-enable allocation profiling with JIT for PHP 8.4.7 #3277
-
 ### Fixed
-- Fix borrow error in request shutdown #3247
-- Fix crash in ZEND_INIT_ARRAY #3255
+- Fewer borrows, less panics on borrows #3295
+- Validate opline before access #3319
+- Do not call zend_jit_status() on affected versions #3356
+- Revert to more stable hooking for allocation profiling #3361
 
-### Internal changes
-- Add opcache tags in crash report #3231
-- Use local_key_cell_methods #3248
+### Internal
+- Bump Rust version #3330
+- Bump patch versions, drop indexmap #3338
 
 ## Application Security Management
+### Added
+- Truncate input #3250
+- Implement ATO v2 functions #3263, #3315
+- Schema extraction with DD_APM_TRACING_ENABLED=false #3269
+- Parse authorization header #3279
+- Add forwarded header and private IP #3345
+
+### Changed
+- Update SLO metrics #3239
+- Update event obfuscation regex #3290
+
 ### Fixed
-- Use the ddtrace handle instead of dlopen(NULL) #3244, #3249
+- Fix rate limiter #3331
+
+### Internal
+- Send some telemetry logs from the helper #3236
+- Fix warnings on clang-tidy-17 #3287
+- Upgrade boost to 1.86 #3289
+- Upgrade waf #3323
