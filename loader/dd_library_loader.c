@@ -315,19 +315,27 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...) {
+    
+    /*
     if (config) {
         va_list va;
         va_start(va, format);
         vsnprintf(config->result_reason_buffer, sizeof(config->result_reason_buffer), format, va);
         va_end(va);
-    }
+    } */
+
+    const char *result_class = "unknown";
+    const char *result_reason = "unknown";
+    const char *result = "unknown";
+
+    log_level level = ERROR;
 
     switch (reason) {
         case REASON_ERROR:
             if (config) {
-                config->result = "abort";
-                config->result_class = "internal_error";
-                config->result_reason = config->result_reason_buffer;
+                result = "abort";
+                result_class = "internal_error";
+                result_reason = "buf";
                 config->injection_error = error;
                 config->injection_success = false;
             }
@@ -335,9 +343,9 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_EOL_RUNTIME:
             if (config) {
-                config->result = "abort";
-                config->result_class = "incompatible_runtime";
-                config->result_reason = config->result_reason_buffer;
+                result = "abort";
+                result_class = "incompatible_runtime";
+                result_reason = "buf";
                 config->injection_error = "Incompatible runtime (end-of-life)";
                 config->injection_success = false;
             }
@@ -345,9 +353,9 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_INCOMPATIBLE_RUNTIME:
             if (config) {
-                config->result = "abort";
-                config->result_class = "incompatible_runtime";
-                config->result_reason = config->result_reason_buffer;
+                result = "abort";
+                result_class = "incompatible_runtime";
+                result_reason = "buf";
                 config->injection_error = "Incompatible runtime";
                 config->injection_success = false;
             }
@@ -355,26 +363,34 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_ALREADY_LOADED:
             if (config) {
-                config->result = "abort";
-                config->result_class = "already_instrumented";
-                config->result_reason = config->result_reason_buffer;
+                result = "abort";
+                result_class = "already_instrumented";
+                result_reason = "buf";
                 config->injection_error = "Already loaded";
                 config->injection_success = false;
             }
+            level = INFO;
             break;
         case REASON_COMPLETE:
             if (config) {
-                config->result = "success";
-                config->result_class = injection_forced ? "success_forced" : "success";
-                config->result_reason = config->result_reason_buffer;
+                result = "success";
+                result_class = injection_forced ? "success_forced" : "success";
+                result_reason = "buf";
                 config->injection_success = true;
             }
+            level = INFO;
             break;
         case REASON_START:
+            level = INFO;
             break;
         default:
             break;
     }
+
+    va_list va;
+    va_start(va, format);
+    ddloader_logv(config,level, format, va);
+    va_end(va);
 
     // Skip COMPLETE telemetry except for ddtrace
     if (reason == REASON_COMPLETE && config && strcmp(config->ext_name, "ddtrace") != 0) {
@@ -478,9 +494,6 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 }\
 ";
     char *tracer_version = ddloader_injected_ext_config[0].version ?: "unknown";
-    const char *result_class = (config && config->result_class) ? config->result_class : "unknown";
-    const char *result_reason = (config && config->result_reason) ? config->result_reason : "unknown";
-    const char *result = (config && config->result) ? config->result : "unknown";
 
     char payload[1024];
     snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, result_class, result_reason, result, points);
