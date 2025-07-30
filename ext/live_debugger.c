@@ -12,6 +12,7 @@
 #include "zend_interfaces.h"
 #include "zend_hrtime.h"
 #include "components-rs/common.h"
+#include "zend_generators.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -428,6 +429,111 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
     }
 }
 
+static void dd_probe_capture_stack(ddog_DebuggerPayload *payload, zend_execute_data *execute_data) {
+    int remaining_depth = 128;
+    zend_execute_data *call = execute_data, *last_call = NULL;
+    while (call && --remaining_depth > 0) {
+        if (UNEXPECTED(!call->func)) {
+            /* This is the fake frame inserted for nested generators. Normally,
+             * this frame is preceded by the actual generator frame and then
+             * replaced by zend_generator_check_placeholder_frame() below.
+             * However, the frame is popped before cleaning the stack frame,
+             * which is observable by destructors. */
+            call = zend_generator_check_placeholder_frame(call);
+        }
+
+        zend_execute_data *prev = call->prev_execute_data;
+        ddog_CharSlice filename = DDOG_CHARSLICE_C_BARE("[internal function]");
+        ddog_CharSlice type_name = DDOG_CHARSLICE_C_BARE("");
+        uint32_t lineno = 0;
+
+#if PHP_VERSION_ID >= 80400
+        if (ZEND_USER_CODE(call->func->type)) {
+            /* For frameless calls we add an additional frame for the call itself. */
+            const zend_op *opline = call->opline;
+            if (!ZEND_OP_IS_FRAMELESS_ICALL(opline->opcode)) {
+                goto not_frameless_call;
+            }
+            int num_args = ZEND_FLF_NUM_ARGS(opline->opcode);
+            /* Check if any args were already freed. Skip the frame in that case. */
+            if (num_args >= 1) {
+                zval *arg = zend_get_zval_ptr(opline, opline->op1_type, &opline->op1, call);
+                if (Z_TYPE_P(arg) == IS_UNDEF) goto not_frameless_call;
+            }
+            if (num_args >= 2) {
+                zval *arg = zend_get_zval_ptr(opline, opline->op2_type, &opline->op2, call);
+                if (Z_TYPE_P(arg) == IS_UNDEF) goto not_frameless_call;
+            }
+            if (num_args >= 3) {
+                const zend_op *op_data = opline + 1;
+                zval *arg = zend_get_zval_ptr(op_data, op_data->op1_type, &op_data->op1, call);
+                if (Z_TYPE_P(arg) == IS_UNDEF) goto not_frameless_call;
+            }
+            zend_function *func = ZEND_FLF_FUNC(opline);
+            if (last_call && last_call->func == func) {
+                goto not_frameless_call;
+            }
+
+            zend_string *name = func->common.function_name;
+            ddog_snapshot_push_stack_frame(payload, filename, dd_zend_string_to_CharSlice(name), type_name, 0);
+        }
+        not_frameless_call: ;
+#endif
+
+        if (call->func && ZEND_USER_CODE(call->func->common.type)) {
+            filename = dd_zend_string_to_CharSlice(call->func->op_array.filename);
+            if (call->opline->opcode == ZEND_HANDLE_EXCEPTION) {
+                if (EG(opline_before_exception)) {
+                    lineno = EG(opline_before_exception)->lineno;
+                } else {
+                    lineno = call->func->op_array.line_end;
+                }
+            } else {
+                lineno = call->opline->lineno;
+            }
+        }
+
+        ddog_CharSlice function_name;
+        if (call->func && call->func->common.function_name) {
+            function_name = dd_zend_string_to_CharSlice(call->func->common.function_name);
+
+            if (call->func->common.scope) {
+                type_name = dd_zend_string_to_CharSlice(call->func->common.scope->name);
+            }
+        } else {
+            if (prev && prev->func && ZEND_USER_CODE(prev->func->common.type) && prev->opline->opcode == ZEND_INCLUDE_OR_EVAL) {
+                switch (prev->opline->extended_value) {
+                    case ZEND_EVAL:
+                        function_name = dd_zend_string_to_CharSlice(ZSTR_KNOWN(ZEND_STR_EVAL));
+                        break;
+                    case ZEND_INCLUDE:
+                        function_name = dd_zend_string_to_CharSlice(ZSTR_KNOWN(ZEND_STR_INCLUDE));
+                        break;
+                    case ZEND_REQUIRE:
+                        function_name = dd_zend_string_to_CharSlice(ZSTR_KNOWN(ZEND_STR_REQUIRE));
+                        break;
+                    case ZEND_INCLUDE_ONCE:
+                        function_name = dd_zend_string_to_CharSlice(ZSTR_KNOWN(ZEND_STR_INCLUDE_ONCE));
+                        break;
+                    case ZEND_REQUIRE_ONCE:
+                        function_name = dd_zend_string_to_CharSlice(ZSTR_KNOWN(ZEND_STR_REQUIRE_ONCE));
+                        break;
+                    default:
+                        goto next_frame;
+                }
+            } else {
+                function_name = DDOG_CHARSLICE_C("");
+            }
+        }
+
+        ddog_snapshot_push_stack_frame(payload, filename, function_name, type_name, lineno);
+
+        next_frame: ;
+        last_call = call;
+        call = prev;
+    }
+}
+
 static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_log_probe_dyn *dyn = dynamic;
     dd_log_probe_def *def = auxiliary;
@@ -461,8 +567,12 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
     dd_log_probe_ensure_payload(dyn, def, &result_msg);
 
     if (def->parent.probe.probe.log.capture_snapshot) {
+        bool already_snapshotted = dyn->capture_arena;
         DDTRACE_G(debugger_capture_arena) = dyn->capture_arena ? dyn->capture_arena : zend_arena_create(65536);
         ddog_DebuggerCapture *capture = ddog_snapshot_exit(dyn->payload);
+        if (!already_snapshotted) {
+            dd_probe_capture_stack(dyn->payload, execute_data);
+        }
         dd_log_probe_capture_snapshot(capture, def, execute_data);
         const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
         struct ddog_CaptureValue capture_value = {0};
@@ -497,6 +607,7 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
         if (def->parent.probe.probe.log.capture_snapshot) {
             ddog_DebuggerCapture *capture = ddog_snapshot_entry(dyn->payload);
             DDTRACE_G(debugger_capture_arena) = zend_arena_create(65536);
+            dd_probe_capture_stack(dyn->payload, execute_data);
             dd_log_probe_capture_snapshot(capture, def, execute_data);
             dyn->capture_arena = DDTRACE_G(debugger_capture_arena);
             DDTRACE_G(debugger_capture_arena) = NULL;
