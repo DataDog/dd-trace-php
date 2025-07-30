@@ -1412,7 +1412,14 @@ static php_stream *ddtrace_stream_opener(
     if (Z_TYPE_P(http_context_zv) == IS_ARRAY) {
         SEPARATE_ARRAY(http_context_zv);
         HashTable *http_context = Z_ARRVAL_P(http_context_zv);
-        ddtrace_inject_distributed_headers(http_context, HEADER_MODE_CONTEXT);
+
+        zval *header_zv = zend_hash_str_find(http_context, ZEND_STRL("header"));
+        if (header_zv && Z_TYPE_P(header_zv) == IS_ARRAY) {
+            SEPARATE_ARRAY(header_zv);
+            ddtrace_inject_distributed_headers(Z_ARRVAL_P(header_zv), HEADER_MODE_ARRAY);
+        } else {
+            ddtrace_inject_distributed_headers(http_context, HEADER_MODE_CONTEXT);
+        }
     }
 
     // Open internal span
@@ -1666,7 +1673,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
     ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
 
-    /* ddtrace_instrument_stream_wrappers(); */
+    ddtrace_instrument_stream_wrappers();
 
     ddtrace_engine_hooks_minit();
     ddtrace_init_proxy_info_map();
