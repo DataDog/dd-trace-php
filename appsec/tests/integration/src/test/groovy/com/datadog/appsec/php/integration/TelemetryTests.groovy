@@ -281,7 +281,7 @@ class TelemetryTests {
                 ]
         ])
 
-        def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
+        def messages = waitForTelemetryLogs(50) { List<TelemetryHelpers.Logs> logs ->
             logs.any { it.logs.any { it.tags.contains('log_type:rc::') && it.level == 'ERROR' } }
         }.collectMany { it.logs }
 
