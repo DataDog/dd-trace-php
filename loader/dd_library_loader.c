@@ -332,8 +332,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         case REASON_ERROR:
             if (config) {
                 result = "abort";
-                result_class = "internal_error";
                 result_reason = config->result_reason_buffer;
+                result_class = "internal_error";
                 config->injection_error = error;
                 config->injection_success = false;
             }
@@ -342,8 +342,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         case REASON_EOL_RUNTIME:
             if (config) {
                 result = "abort";
-                result_class = "incompatible_runtime";
                 result_reason = config->result_reason_buffer;
+                result_class = "incompatible_runtime";
                 config->injection_error = "Incompatible runtime (end-of-life)";
                 config->injection_success = false;
             }
@@ -352,8 +352,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         case REASON_INCOMPATIBLE_RUNTIME:
             if (config) {
                 result = "abort";
-                result_class = "incompatible_runtime";
                 result_reason = config->result_reason_buffer;
+                result_class = "incompatible_runtime";
                 config->injection_error = "Incompatible runtime";
                 config->injection_success = false;
             }
@@ -362,8 +362,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         case REASON_ALREADY_LOADED:
             if (config) {
                 result = "abort";
-                result_class = "already_instrumented";
                 result_reason = config->result_reason_buffer;
+                result_class = "already_instrumented";
                 config->injection_error = "Already loaded";
                 config->injection_success = false;
             }
@@ -372,8 +372,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         case REASON_COMPLETE:
             if (config) {
                 result = "success";
-                result_class = injection_forced ? "success_forced" : "success";
                 result_reason = config->result_reason_buffer;
+                result_class = injection_forced ? "success_forced" : "success";
                 config->injection_success = true;
             }
             level = INFO;
@@ -483,9 +483,9 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         \"language_version\": \"%s\",\
         \"tracer_version\": \"%s\",\
         \"pid\": %d,\
-        \"result_class\": \"%s\",\
+        \"result\": \"%s\",\
         \"result_reason\": \"%s\",\
-        \"result\": \"%s\"\
+        \"result_class\": \"%s\"\
     },\
     \"points\": [%s]\
 }\
@@ -493,7 +493,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     char *tracer_version = ddloader_injected_ext_config[0].version ?: "unknown";
 
     char payload[1024];
-    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, result_class, result_reason, result, points);
+    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, result, result_reason, result_class, points);
 
     char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
 

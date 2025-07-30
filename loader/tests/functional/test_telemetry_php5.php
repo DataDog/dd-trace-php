@@ -22,9 +22,9 @@ $format = <<<EOS
         "language_version": "5.%d",
         "tracer_version": "%s",
         "pid": %d,
-        "result_class": "unknown",
+        "result": "unknown",
         "result_reason": "unknown",
-        "result": "unknown"
+        "result_class": "unknown"
     },
     "points": [
         {
