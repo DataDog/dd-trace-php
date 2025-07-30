@@ -44,8 +44,8 @@ if [[ -z "$(git status --porcelain)" ]]; then
   exit 0
 fi
 
-# Only create PR if on master
-if [[ "${CI_COMMIT_REF_NAME}" == "master" ]]; then
+# Only create PR if on master or alex/ branches (alex/ for testing)
+if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] || [[ "${CI_COMMIT_REF_NAME}" =~ ^alex/ ]]; then
   echo "Changes detected, creating/updating PR..."
 
   CURRENT_BRANCH=${CI_COMMIT_REF_NAME}
