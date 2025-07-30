@@ -72,7 +72,7 @@ array(5) {
   ["debugger"]=>
   array(1) {
     ["snapshot"]=>
-    array(5) {
+    array(6) {
       ["language"]=>
       string(3) "php"
       ["id"]=>
@@ -217,6 +217,27 @@ array(5) {
           string(3) "foo"
           ["type"]=>
           string(3) "Bar"
+        }
+      }
+      ["stack"]=>
+      array(2) {
+        [0]=>
+        array(3) {
+          ["fileName"]=>
+          string(%d) "%sdebugger_log_probe.php"
+          ["function"]=>
+          string(8) "foo::Bar"
+          ["lineNumber"]=>
+          int(11)
+        }
+        [1]=>
+        array(3) {
+          ["fileName"]=>
+          string(%d) "%sdebugger_log_probe.php"
+          ["function"]=>
+          string(0) ""
+          ["lineNumber"]=>
+          int(34)
         }
       }
     }
