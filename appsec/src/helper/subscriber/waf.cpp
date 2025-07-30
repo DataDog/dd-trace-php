@@ -206,7 +206,7 @@ void format_waf_result(
         if (events != nullptr) {
             const parameter_view events_pv{*events};
             for (const auto &event_pv : events_pv) {
-                event.data.emplace_back(parameter_to_json(event_pv));
+                event.triggers.emplace_back(parameter_to_json(event_pv));
             }
         }
     } catch (const std::exception &e) {

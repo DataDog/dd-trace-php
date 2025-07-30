@@ -18,7 +18,7 @@
 using dds::remote_config::changeset;
 
 const std::string waf_rule =
-    R"({"version": "2.1", "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ] }, {"id": "2", "name": "rule2", "tags": {"type": "flow2", "category": "category2" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg3", "key_path": [] } ], "regex": "^string.*" } } ] } ], "rules_compat": [{"id": "ttr-000-001", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg4", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": true, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] }, {"id": "ttr-000-002", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg5", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": false, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] } ] })";
+    R"({"version": "2.1", "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ] }, {"id": "2", "name": "rule2", "tags": {"type": "flow2", "category": "category2" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg3", "key_path": [] } ], "regex": "^string.*" } } ] } ], "rules_compat": [{"id": "ttr-000-001", "name": "Trace Tagging Rule: Attributes, Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg4", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": true, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] }, {"id": "ttr-000-002", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg5", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": false, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] } ] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -104,7 +104,7 @@ TEST(EngineTest, MultipleSubscriptors)
                                    std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                event_.data.push_back("some event");
+                event_.triggers.push_back("some event");
                 event_.actions.push_back({dds::action_type::block, {}});
             }
         }));
@@ -115,7 +115,7 @@ TEST(EngineTest, MultipleSubscriptors)
                                    std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                event_.data.push_back("some event");
+                event_.triggers.push_back("some event");
             }
         }));
 
@@ -382,8 +382,8 @@ TEST(EngineTest, WafSubscriptorBasic)
     Mock::VerifyAndClearExpectations(&msubmitter);
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
-    EXPECT_EQ(res->events.size(), 1);
-    for (auto &match : res->events) {
+    EXPECT_EQ(res->triggers.size(), 1);
+    for (auto &match : res->triggers) {
         rapidjson::Document doc;
         doc.Parse(match);
         EXPECT_FALSE(doc.HasParseError());
@@ -562,7 +562,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 
     {
@@ -672,7 +672,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 }
 

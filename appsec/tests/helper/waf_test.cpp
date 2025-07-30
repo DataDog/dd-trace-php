@@ -311,7 +311,7 @@ TEST(WafTest, ValidRunMonitor)
     dds::event e;
     ctx->call(pv, e);
 
-    for (auto &match : e.data) {
+    for (auto &match : e.triggers) {
         rapidjson::Document doc;
         doc.Parse(match);
         EXPECT_FALSE(doc.HasParseError());
@@ -352,9 +352,9 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     dds::event e;
     ctx->call(pv, e);
 
-    EXPECT_EQ(e.data.size(), 1);
+    EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(e.data[0]);
+    doc.Parse(e.triggers[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -386,9 +386,9 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     dds::event e;
     ctx->call(pv, e);
 
-    EXPECT_EQ(e.data.size(), 1);
+    EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(e.data[0]);
+    doc.Parse(e.triggers[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -443,9 +443,9 @@ TEST(WafTest, UpdateRuleData)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -508,9 +508,9 @@ TEST(WafTest, SchemasAreAdded)
     dds::event e;
     ctx->call(pv, e);
 
-    EXPECT_EQ(e.data.size(), 1);
+    EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(e.data[0]);
+    doc.Parse(e.triggers[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -629,9 +629,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -668,9 +668,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -707,9 +707,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -741,9 +741,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 

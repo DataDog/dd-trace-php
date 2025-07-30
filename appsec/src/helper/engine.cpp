@@ -97,7 +97,7 @@ std::optional<engine::result> engine::context::publish(
         DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, entry.key());
     }
 
-    event event_;
+    event event;
 
     auto common =
         std::atomic_load_explicit(&common_, std::memory_order_acquire);
@@ -113,25 +113,30 @@ std::optional<engine::result> engine::context::publish(
         }
         try {
             const auto &listener = it->second;
-            listener->call(data, event_, rasp_rule);
+            listener->call(data, event, rasp_rule);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }
     }
 
-    if (!event_.keep && event_.actions.empty() && event_.data.empty()) {
+    // force_keep indicates to the extension that it should change the
+    // priority of the span. We set it to true if libddwaf tells us to AND
+    // if the limiter allows it.
+    // XXX: the limiter should probably only be invoked once per request
+    const bool force_keep = event.keep && limiter_.allow();
+
+    if (!force_keep && event.actions.empty() && event.triggers.empty()) {
         return std::nullopt;
     }
 
-    const bool force_keep = event_.keep && limiter_.allow();
-    dds::engine::result res{{}, std::move(event_.data), force_keep};
-    // Currently the only action the extension can perform is block
-    if (event_.actions.empty()) {
+    // no actions, but we have json fragments in triggers. Add a record action
+    if (event.actions.empty()) {
         action record = {dds::action_type::record, {}};
-        res.actions.emplace_back(std::move(record));
+        event.actions.emplace_back(std::move(record));
     }
 
-    for (auto const &action : event_.actions) {
+    dds::engine::result res{{}, std::move(event.triggers), force_keep};
+    for (auto const &action : event.actions) {
         dds::action new_action;
         new_action.type = action.type;
         new_action.parameters.insert(
