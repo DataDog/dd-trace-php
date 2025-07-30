@@ -5,6 +5,7 @@ extension=ddtrace.so
 datadog.appsec.enabled=1
 --ENV--
 SERVER_NAME=localhost:8888
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 use function datadog\appsec\testing\{rinit,rshutdown,ddtrace_rshutdown,root_span_get_meta,root_span_get_metrics,root_span_add_tag};
@@ -49,6 +50,7 @@ echo "tags:\n";
 ksort($tags);
 print_r($tags);
 echo "metrics:\n";
+ksort($metrics);
 print_r($metrics);
 
 $helper->finished_with_commands();
@@ -77,11 +79,11 @@ Array
 metrics:
 Array
 (
-    [process_id] => %d
-    [_dd.appsec.enabled] => 1
     [_dd.agent_psr] => 1
+    [_dd.appsec.enabled] => 1
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %s
-    [php.memory.peak_usage_bytes] => %f
     [php.memory.peak_real_usage_bytes] => %f
+    [php.memory.peak_usage_bytes] => %f
+    [process_id] => %d
 )

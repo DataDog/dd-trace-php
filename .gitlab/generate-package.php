@@ -1412,6 +1412,15 @@ deploy_to_reliability_env:
   only:
     refs:
       - /^ddtrace-.*$/
+  needs:
+    - job: "datadog-setup.php"
+      artifacts: false
+    - job: "package extension windows"
+      artifacts: false
+<?php foreach ($build_platforms as $platform): ?>
+    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: false
+<?php endforeach; ?>
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
@@ -1436,6 +1445,9 @@ deploy_to_reliability_env:
   stage: release
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
   tags: [ "arch:amd64" ]
+  variables: # enough memory for the individual artifacts
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 5Gi
   only:
     refs:
       - /^ddtrace-.*$/
@@ -1453,7 +1465,7 @@ deploy_to_reliability_env:
   script:
     - echo "Using pre-generated GitHub token for release..."
     - export GITHUB_RELEASE_PAT=$(cat github_token.txt)
-    - php tooling/ci/create_release.php packages
+    - php -d memory_limit=4G tooling/ci/create_release.php packages
   after_script:
     # Clean up token file (token will expire automatically in 1 hour)
     - rm -f github_token.txt

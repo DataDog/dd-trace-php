@@ -49,6 +49,7 @@ ENV RUNTIME_DEPS \
     debian-goodies \
     gdb \
     git \
+    jq \
     less \
     lsof \
     netbase \

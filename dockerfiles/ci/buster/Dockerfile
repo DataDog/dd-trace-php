@@ -51,6 +51,7 @@ ENV RUNTIME_DEPS \
     curl \
     debian-goodies \
     git \
+    jq \
     less \
     lsof \
     netbase \

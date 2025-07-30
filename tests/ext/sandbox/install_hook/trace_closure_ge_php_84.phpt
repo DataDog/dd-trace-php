@@ -8,6 +8,7 @@ if (PHP_VERSION_ID < 80400) {
 ?>
 --INI--
 datadog.trace.generate_root_span=0
+datadog.code_origin_for_spans_enabled=0
 datadog.trace.auto_flush_enabled=0
 --FILE--
 <?php
@@ -70,33 +71,33 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (8) {
   intval (trace_closure_ge_php_84.php, 0, cli)
-    result => 0
     _dd.p.tid => %s
+    result => 0
   {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
+    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 1
-    _dd.p.tid => %s
   test\foo.{closure} (trace_closure_ge_php_84.php, 2, cli)
+    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:12
     result => 2
-    _dd.p.tid => %s
   test\bar.foo.{closure} (trace_closure_ge_php_84.php, 3, cli)
+    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:19
     result => 3
-    _dd.p.tid => %s
   intval (trace_closure_ge_php_84.php, 0, cli)
-    result => 1
     _dd.p.tid => %s
+    result => 1
   {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
+    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 2
-    _dd.p.tid => %s
   test\foo.{closure} (trace_closure_ge_php_84.php, 2, cli)
+    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:12
     result => 3
-    _dd.p.tid => %s
   test\bar.foo.{closure} (trace_closure_ge_php_84.php, 3, cli)
+    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:19
     result => 4
-    _dd.p.tid => %s
 }

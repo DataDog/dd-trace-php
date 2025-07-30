@@ -8,7 +8,7 @@ version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfbe277e56a376000877090da837660b4427aad530e3028d44e0bffe4f89a1c1"
 dependencies = [
- "gimli",
+ "gimli 0.31.1",
 ]
 
 [[package]]
@@ -579,12 +579,12 @@ checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
 name = "blazesym"
-version = "0.2.0-rc.3"
+version = "0.2.0-rc.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86d5caf72227115ce486e764e9199d6eab3437c51dacd78c3fae78ca1340c27d"
+checksum = "29a810b7e5f883ad3c711208237841f051061bf59b6ee698ac4dc1fe12a3a5db"
 dependencies = [
  "cpp_demangle",
- "gimli",
+ "gimli 0.32.0",
  "libc 0.2.173",
  "memmap2",
  "miniz_oxide",
@@ -1654,6 +1654,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "datadog-live-debugger",
+ "datadog-remote-config",
  "datadog-trace-protobuf",
  "ddcommon 0.0.1",
  "futures",
@@ -1665,6 +1666,7 @@ dependencies = [
  "manual_future",
  "serde",
  "serde_json",
+ "serde_with",
  "sha2",
  "time",
  "tokio",
@@ -1974,6 +1976,7 @@ dependencies = [
  "datadog-remote-config",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
+ "datadog-trace-utils",
  "ddcommon 0.0.1",
  "ddcommon-ffi 0.0.1",
  "ddtelemetry",
@@ -1994,6 +1997,7 @@ dependencies = [
  "simd-json",
  "spawn_worker",
  "tempfile",
+ "tinybytes",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -2527,6 +2531,12 @@ name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
+
+[[package]]
+name = "gimli"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93563d740bc9ef04104f9ed6f86f1e3275c2cdafb95664e26584b9ca807a8ffe"
 dependencies = [
  "fallible-iterator",
  "indexmap 2.7.1",
@@ -4790,9 +4800,9 @@ dependencies = [
 
 [[package]]
 name = "rustc-demangle"
-version = "0.1.24"
+version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
+checksum = "56f7d92ca342cea22a06f2121d944b4fd82af56988c270852495420f961d4ace"
 
 [[package]]
 name = "rustc-hash"
