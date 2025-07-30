@@ -377,7 +377,24 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
 
     if (format == HEADER_MODE_CONTEXT && stream_header.s) {
         smart_str_0(&stream_header);
-        add_assoc_str(&headers, "header", stream_header.s);
+
+        zval headers_zv;
+        zval *existing_header = zend_hash_str_find(array, ZEND_STRL("header"));
+        if (existing_header && Z_TYPE_P(existing_header) == IS_STRING) {
+            smart_str merged = {0};
+            smart_str_append(&merged, Z_STR_P(existing_header));
+            smart_str_appendl(&merged, "\r\n", 2);
+            smart_str_append(&merged, stream_header.s);
+            smart_str_0(&merged);
+
+            zend_string_release(stream_header.s);
+
+            ZVAL_STR(&headers_zv, merged.s);
+        } else {
+            ZVAL_STR(&headers_zv, stream_header.s);
+        }
+
+        zend_hash_str_update(array, ZEND_STRL("header"), &headers_zv);
     }
 
 #undef ADD_HEADER
