@@ -31,6 +31,28 @@ $metrics = [<<<EOS
 {
     "metadata": {
         "runtime_name": "php",
+        "runtime_version": "%s",
+        "language_name": "php",
+        "language_version": "%s",
+        "tracer_version": "%s",
+        "pid": %d,
+        "result": "unknown",
+        "result_reason": "unknown",
+        "result_class": "unknown"
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.start",
+            "tags": []
+        }
+    ]
+}
+EOS
+,
+<<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
         "runtime_version": "%d.%d.%d%S",
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
