@@ -315,15 +315,6 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...) {
-    va_list va;
-    va_start(va, format);
-    char result_reason[1024];
-    if (config && format) {
-        vsnprintf(result_reason, sizeof(result_reason), format, va);
-    } else {
-        strcpy(result_reason, "unknown");
-    }
-    va_end(va);
     const char *result_class = "unknown";
     const char *result = "unknown";
     log_level level = ERROR;
@@ -379,9 +370,12 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
     }
 
-    if (config && format && result_reason[0] != '\0') {
-        ddloader_logf(config, level, "%s", result_reason);
-    }
+    va_list va;
+    va_start(va, format);
+    char *result_reason[1024];
+    vsnprintf(result_reason, sizeof(result_reason), format, va);
+    ddloader_logv(config,level, format, va);
+    va_end(va);
 
     // Skip COMPLETE telemetry except for ddtrace
     if (reason == REASON_COMPLETE && config && strcmp(config->ext_name, "ddtrace") != 0) {
