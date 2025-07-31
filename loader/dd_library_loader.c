@@ -372,9 +372,16 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
     va_list va;
     va_start(va, format);
+    va_list va_copy;
+    va_copy(va_copy, va);
     char result_reason[1024];
-    vsnprintf(result_reason, sizeof(result_reason), format, va);
-    ddloader_logv(config,level, format, va);
+    if (config && format) {
+        vsnprintf(result_reason, sizeof(result_reason), format, va_copy);
+    } else {
+        strcpy(result_reason, "unknown");
+    }
+    va_end(va_copy);
+    ddloader_logv(config, level, format, va);
     va_end(va);
 
     // Skip COMPLETE telemetry except for ddtrace
