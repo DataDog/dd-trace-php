@@ -372,7 +372,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
     va_list va;
     va_start(va, format);
-    char *result_reason[1024];
+    char result_reason[1024];
     vsnprintf(result_reason, sizeof(result_reason), format, va);
     ddloader_logv(config,level, format, va);
     va_end(va);
