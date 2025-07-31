@@ -13,6 +13,7 @@ import java.net.http.HttpResponse
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
+import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
@@ -74,6 +75,53 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
             def content = resp.body().text
 
             assert content.contains('Value of pool env is 10001')
+        }
+    }
+
+    void setRateLimit(String limit) {
+        def res = container.execInContainer(
+                'bash', '-c',
+                """kill -9 `pgrep php-fpm`;
+               export DD_APPSEC_TRACE_RATE_LIMIT=$limit;
+               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini""")
+        assert res.exitCode == 0
+    }
+
+    private void resetFpm() {
+        container.execInContainer(
+                'bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
+    }
+
+    @Test
+    void 'test sampling priority'() {
+        // Set rate limit to 5 to ensure fewer than 15 events get sampling priority 2
+        setRateLimit('5')
+
+        try {
+            def results = (1..15).collect {
+                def req = container.buildReq('/hello.php')
+                        .header('User-Agent', "Arachni/v1")
+                        .GET().build()
+
+                def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                    resp.body() == 'Hello world!'
+                }
+
+                trace.first().metrics._sampling_priority_v1
+            }.toList()
+
+            System.out.println("Sampling priorities: ${results}")
+
+            def countWithPriority2 = results.count { it == 2.0d }
+
+            assert countWithPriority2 < 15 : "Expected fewer than 15 events with sampling priority 2, but got ${countWithPriority2}"
+
+            assert countWithPriority2 > 0 : "Expected at least some events with sampling priority 2, but got ${countWithPriority2}"
+        } finally {
+            // Reset php-fpm to default configuration
+            resetFpm()
         }
     }
 

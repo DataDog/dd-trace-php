@@ -2,6 +2,7 @@
 Tracing Functions via install_hook()
 --INI--
 datadog.trace.generate_root_span=0
+datadog.code_origin_for_spans_enabled=0
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 --FILE--
@@ -48,9 +49,9 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (2) {
   test\foo (trace_function.php, 0, cli)
+    _dd.p.tid => %s
     result => 1
-    _dd.p.tid => %s
   test\bar.foo (trace_function.php, 1, cli)
-    result => 2
     _dd.p.tid => %s
+    result => 2
 }

@@ -37,7 +37,7 @@ inline std::string generate_random_uuid()
 inline std::string dd_tolower(std::string string)
 {
     for (auto &c : string) {
-        if (c > 'A' && c < 'Z') {
+        if (c >= 'A' && c <= 'Z') {
             c += ('a' - 'A');
         }
     }

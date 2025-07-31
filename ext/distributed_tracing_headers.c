@@ -150,6 +150,9 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
 
     if (is_malformed) {
         zend_hash_clean(baggage);
+        DDTRACE_G(baggage_malformed_count) += 1;
+    } else {
+        DDTRACE_G(baggage_extract_count) += 1;
     }
 }
 
@@ -652,7 +655,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (DDTRACE_G(tracestate)) {
             zend_string_release(DDTRACE_G(tracestate));
         }
-        DDTRACE_G(tracestate) = result->tracestate;  
+        DDTRACE_G(tracestate) = result->tracestate;
         zend_hash_destroy(&DDTRACE_G(baggage));
         DDTRACE_G(baggage) = result->baggage;
         zend_string *key;
@@ -672,6 +675,15 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
     result->meta_tags.pDestructor = NULL; // we moved values directly
     zend_hash_destroy(&result->meta_tags);
 
+    if (result->trace_id.low || result->trace_id.high || result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
+        if (span) {
+            ZVAL_LONG(&zv, result->priority_sampling);
+            ddtrace_assign_variable(&span->property_propagated_sampling_priority, &zv);
+        } else {
+            DDTRACE_G(propagated_priority_sampling) = result->priority_sampling;
+        }
+    }
+
     if (result->priority_sampling != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         bool reset_decision_maker = result->conflicting_sampling_priority || !zend_hash_str_exists(root_meta, ZEND_STRL("_dd.p.dm"));
         if (reset_decision_maker) {
@@ -684,11 +696,8 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             }
         }
         if (!span) {
-            DDTRACE_G(propagated_priority_sampling) = DDTRACE_G(default_priority_sampling) = result->priority_sampling;
+            DDTRACE_G(default_priority_sampling) = result->priority_sampling;
         } else {
-            ZVAL_LONG(&zv, result->priority_sampling);
-            ddtrace_assign_variable(&span->property_propagated_sampling_priority, &zv);
-
             ddtrace_set_priority_sampling_on_span(span, result->priority_sampling, DD_MECHANISM_DEFAULT);
         }
     }

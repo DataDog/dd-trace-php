@@ -2,6 +2,7 @@
 test request recording failure due to no root span available
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
@@ -37,6 +38,7 @@ $commands = $helper->get_commands();
 $tags = $commands[0]['payload'][0][0]['meta'];
 
 echo "tags:\n";
+ksort($tags);
 print_r($tags);
 
 $helper->finished_with_commands();
@@ -52,7 +54,7 @@ bool(true)
 tags:
 Array
 (
-    [runtime-id] => %s
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
+    [runtime-id] => %s
 )

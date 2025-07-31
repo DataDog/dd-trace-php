@@ -2,6 +2,7 @@
 ddtrace integration — basic test
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_AUTOFINISH_SPANS=1
 DD_SERVICE=appsec_tests
 --SKIPIF--
@@ -70,6 +71,7 @@ echo 'sent trace id is the same as \DDTrace\trace_id(): ',
     $trace_id == $sent_trace_id ? 'yes' : 'no', "\n";
 
 echo "tags:\n";
+ksort($tags);
 print_r($tags);
 
 mlog(DEBUG, "Call finished_with_commands");
@@ -101,8 +103,8 @@ sent trace id is the same as \DDTrace\trace_id(): yes
 tags:
 Array
 (
-    [runtime-id] => %s
-    [ddappsec] => true
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
+    [ddappsec] => true
+    [runtime-id] => %s
 )

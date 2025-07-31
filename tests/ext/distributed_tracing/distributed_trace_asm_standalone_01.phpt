@@ -9,6 +9,7 @@ HTTP_X_DATADOG_SAMPLING_PRIORITY=3
 HTTP_X_DATADOG_TAGS=_dd.p.custom_tag=inherited,_dd.p.dropped,_dd.p.other_tag=also,_dd.p.drop
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_APM_TRACING_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -47,32 +48,32 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(6) {
-      ["_dd.p.custom_tag"]=>
-      string(9) "inherited"
-      ["_dd.propagation_error"]=>
-      string(14) "decoding_error"
-      ["_dd.p.other_tag"]=>
-      string(4) "also"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["runtime-id"]=>
-      string(36) "%s"
       ["_dd.origin"]=>
       string(7) "datadog"
+      ["_dd.p.custom_tag"]=>
+      string(9) "inherited"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
+      ["_dd.p.other_tag"]=>
+      string(4) "also"
+      ["_dd.propagation_error"]=>
+      string(14) "decoding_error"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
+      ["_dd.apm.enabled"]=>
+      float(0)
       ["_sampling_priority_v1"]=>
       float(1)
-      ["_dd.apm.enabled"]=>
-      int(0)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

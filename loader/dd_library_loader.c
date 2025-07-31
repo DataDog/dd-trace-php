@@ -174,7 +174,7 @@ static bool ddloader_is_opcache_jit_enabled() {
     if (php_api_no > 20230831) { // PHP > 8.3 (https://wiki.php.net/rfc/jit_config_defaults)
         // opcache.jit == disable (default: disable)
         zval *opcache_jit = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit"));
-        if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || Z_STRLEN_P(opcache_jit) == 0 || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0) {
+        if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || Z_STRLEN_P(opcache_jit) == 0 || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "0") == 0) {
             return false;
         }
     } else {
@@ -188,7 +188,7 @@ static bool ddloader_is_opcache_jit_enabled() {
     return true;
 }
 
-static void ddtrace_pre_minit_hook(injected_ext *config) {
+static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *sources_path;
@@ -228,9 +228,21 @@ static void ddtrace_pre_minit_hook(injected_ext *config) {
     if (disable_tracer) {
         ddloader_ini_set_configuration(config, ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
+
+    // Let ddtrace knows that it was loaded by the loader
+    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_loaded_by_ssi");
+    if (ddtrace_loaded_by_ssi) {
+        *ddtrace_loaded_by_ssi = true;
+    }
+    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_ssi_forced_injection_enabled");
+    if (ddtrace_ssi_forced_injection_enabled) {
+        *ddtrace_ssi_forced_injection_enabled = force_load;
+    }
 }
 
-static void appsec_pre_minit_hook(injected_ext *config) {
+static void appsec_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
+    UNUSED(module);
+
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *helper_path;
@@ -242,7 +254,9 @@ static void appsec_pre_minit_hook(injected_ext *config) {
     }
 }
 
-static void profiling_pre_minit_hook(injected_ext *config) {
+static void profiling_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
+    UNUSED(module);
+
     if (!ddloader_ini_get_configuration(ZEND_STRL("datadog.profiling.enabled"))) {
         ddloader_ini_set_configuration(config, ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
     }
@@ -606,7 +620,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     }
 
     if (config->pre_minit_hook) {
-        config->pre_minit_hook(config);
+        config->pre_minit_hook(config, module);
     }
 
     zend_result ret = module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);

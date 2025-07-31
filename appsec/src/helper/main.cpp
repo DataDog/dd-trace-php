@@ -9,6 +9,7 @@
 
 #include "config.hpp"
 #include "runner.hpp"
+#include "subscriber/waf.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <spdlog/common.h>
@@ -112,6 +113,7 @@ int appsec_helper_main_impl()
 
     dds::remote_config::resolve_symbols();
     dds::runner::resolve_symbols();
+    dds::service::resolve_symbols();
 
     auto runner = std::make_shared<dds::runner>(config, interrupted);
     SPDLOG_INFO("starting runner on new thread");
@@ -159,18 +161,38 @@ appsec_helper_shutdown() noexcept
 
     // wait up to 1 second for the runner to finish
     auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
+    bool had_finished = false;
     while (true) {
-        if (finished.load(std::memory_order_acquire)) {
+        if (!had_finished && finished.load(std::memory_order_acquire)) {
             SPDLOG_INFO("AppSec helper finished");
-            return 0;
+            had_finished = true;
         }
+
+        const int res = pthread_kill(thread_id, 0);
+        // finished being true only means that the body of the thread has
+        // finished. After it returns, the thread still needs to perform
+        // cleanup work, including calling the destructors of the captured
+        // variables in the lambda that implments the body thread.
+        // These destructors are code that lives in the helper shared library,
+        // so these cleanups must happen **before** the helper shared library
+        // is unloaded by trampoline.c.
+        //
+        // At least glibc appears to only start returning ESRCH after
+        // the __call_tls_dtors / ___nptl_deallocate_tsd / __libc_thread_freeres
+        // have all been called (pd->exiting is read by thread_kill and set by
+        // start_thread relatively late).
+        if (res == ESRCH) {
+            SPDLOG_INFO("AppSec helper thread has exited");
+            break;
+        }
+
         if (std::chrono::steady_clock::now() >= deadline) {
             // we need to call exit() to avoid a segfault in the still running
             // helper threads after the helper shared library is unloaded by
             // trampoline.c
             SPDLOG_WARN("Could not finish AppSec helper before deadline. "
-                        "Calling exit().");
-            std::exit(EXIT_FAILURE); // NOLINT
+                        "Calling _exit().");
+            _exit(EXIT_FAILURE); // NOLINT
             __builtin_unreachable();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{10}); // NOLINT

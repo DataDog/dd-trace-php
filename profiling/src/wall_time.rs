@@ -2,8 +2,9 @@
 //! implementation reasons, it has cpu-time code as well.
 
 use crate::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
-use crate::{profiling::Profiler, REQUEST_LOCALS};
+use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS};
 use core::ptr;
+use log::debug;
 use std::sync::atomic::Ordering;
 
 #[cfg(not(php_frameless))]
@@ -108,12 +109,7 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
-    REQUEST_LOCALS.with(|cell| {
-        // try to borrow and bail out if not successful
-        let Ok(locals) = cell.try_borrow() else {
-            return;
-        };
-
+    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
         if !locals.system_settings().profiling_enabled {
             return;
         }
@@ -135,6 +131,10 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
             profiler.collect_time(execute_data, interrupt_count);
         }
     });
+
+    if let Err(err) = result {
+        debug!("ddog_php_prof_interrupt_function failed to borrow request locals: {err}");
+    }
 }
 
 /// A wrapper for the `ddog_php_prof_interrupt_function` to call the

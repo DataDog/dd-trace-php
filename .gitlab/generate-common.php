@@ -133,6 +133,8 @@ foreach ($arch_targets as $arch_target) {
     variables:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOOKEEPER_ADMIN_ENABLE_SERVER: "false"
 
   kafka:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
@@ -148,6 +150,8 @@ foreach ($arch_targets as $arch_target) {
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 120000
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 120000
 
   redis:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0

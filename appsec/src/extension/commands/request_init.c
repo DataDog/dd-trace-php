@@ -178,6 +178,17 @@ static void _pack_headers(
         } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
             dd_mpack_write_lstr(w, "content-length");
             dd_mpack_write_zval(w, val);
+        } else if (zend_string_equals_literal(key, "PHP_AUTH_DIGEST")) {
+            if (Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
+                dd_mpack_write_lstr(w, "authorization");
+                size_t auth_len = sizeof("digest ") - 1 + Z_STRLEN_P(val);
+                char *auth_str = emalloc(auth_len);
+                memcpy(auth_str, "digest ", sizeof("digest ") - 1);
+                memcpy(auth_str + sizeof("digest ") - 1, Z_STRVAL_P(val),
+                    Z_STRLEN_P(val));
+                mpack_write_str(w, auth_str, auth_len);
+                efree(auth_str);
+            }
         } else if (_is_relevant_header(key)) {
             zend_string *transf_header_name = _transform_header_name(key);
             dd_mpack_write_zstr(w, transf_header_name);

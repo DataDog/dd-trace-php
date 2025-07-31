@@ -2,6 +2,11 @@
 
 set -xe
 
+PHP_70_API='20151012'
+PHP_72_API='20170718'
+PHP_74_API='20190902'
+PHP_81_API='20210902'
+
 # Downloading PHP
 PHP_TAR_FILE=php.tar.gz
 apk add --no-cache --virtual .php-build-deps \
@@ -20,11 +25,32 @@ echo "$PHP_SHA256 *${PHP_TAR_FILE}" | sha256sum -c -
 docker-php-source extract
 cd $PHP_SRC_DIR
 
-CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS"
+if [ -f ext/opcache/jit/zend_jit_x86.dasc ]; then
+    sed -i 's/: "=a" (ti))/: "=D" (ti))/g' ext/opcache/jit/zend_jit_x86.dasc
+elif [ -f ext/opcache/jit/zend_jit_ir.c ]; then
+    # PHP 8.4 specific, can be removed once PHP 8.4.9 is released
+    sed -i 's/: "=a" (ti))/: "=D" (ti))/g' ext/opcache/jit/zend_jit_ir.c
+fi
+if [ "${PHP_API}" -lt "${PHP_81_API}" ]; then
+    patch -p1 < /patches/0001-Backport-0a39890c-Fix-libxml2-2.12-build-due-to-API-.patch
+fi
+if [ "${PHP_API}" -le "${PHP_70_API}" ]; then
+    patch -p1 < /patches/0001-Sync-callback-signature-with-libxml2-2.9.8.patch
+fi
+
+export CFLAGS="$PHP_CFLAGS"
+if [ "${PHP_API}" -le "${PHP_74_API}" ]; then
+   export CFLAGS="$CFLAGS -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0"
+fi
+if [ "${PHP_API}" -lt "${PHP_74_API}" ]; then
+   export CFLAGS="$CFLAGS -DCOOKIE_SEEKER_USES_OFF64_T=1 -D__off64_t=ssize_t"
+elif [ "${PHP_API}" -le "${PHP_81_API}" ]; then
+   export CFLAGS="$CFLAGS -DCOOKIE_SEEKER_USES_OFF64_T=1 -Doff64_t=ssize_t"
+fi
+export CPPFLAGS="$PHP_CPPFLAGS"
+export LDFLAGS="$PHP_LDFLAGS"
 PHP_CONFIG_ARGS=""
 
-PHP_72_API='20170718'
-PHP_74_API='20190902'
 if [ "${PHP_API}" -lt "${PHP_72_API}" ] ; then
     # Removed in v7.2
     PHP_CONFIG_ARGS="--with-mcrypt $PHP_CONFIG_ARGS"

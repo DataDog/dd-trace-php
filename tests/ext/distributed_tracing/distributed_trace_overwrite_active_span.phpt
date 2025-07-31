@@ -5,6 +5,7 @@ DD_TRACE_AUTO_FLUSH_ENABLED=0
 HTTP_X_DATADOG_TAGS=custom_tag=inherited
 HTTP_X_DATADOG_ORIGIN=datadog
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -96,7 +97,7 @@ array(7) {
   }
 }
 bool(true)
-parent: 321, trace: 123, meta: {"a":"b","_dd.origin":"foo"}
+parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
 parent: %d, trace: 123, meta: {"_dd.origin":"foo"}
 bool(true)
 array(5) {

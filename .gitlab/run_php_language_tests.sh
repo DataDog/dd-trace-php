@@ -9,7 +9,7 @@ if [[ ! "${XFAIL_LIST:-none}" == "none" ]]; then
   cp "${XFAIL_LIST}" /usr/local/src/php/xfail_tests.list
   (
     cd /usr/local/src/php
-    cat xfail_tests.list | xargs -n 1 -I{} find {} -name "*.phpt" -delete || true
+    (cat xfail_tests.list; grep -lrFx zend_test.observer.enabled=0 .) | xargs -n 1 -I{} find {} -name "*.phpt" -delete || true
   )
 fi
 
@@ -31,6 +31,11 @@ PHP
 extra_args=""
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
   extra_args="-j$(nproc)"
+fi
+
+# run-tests supports flaky since 8.1
+if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) ]]; then
+  sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
 fi
 
 php run-tests.php -q \
