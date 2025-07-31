@@ -324,12 +324,9 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         strcpy(result_reason, "unknown");
     }
     va_end(va);
-
     const char *result_class = "unknown";
     const char *result = "unknown";
-
     log_level level = ERROR;
-
     switch (reason) {
         case REASON_ERROR:
             if (config) {

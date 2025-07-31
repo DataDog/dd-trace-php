@@ -42,12 +42,11 @@ typedef enum {
         .pre_load_hook = _pre_load_hook, .pre_minit_hook = _pre_minit_hook,                         \
         .orig_module_startup_func = NULL, .orig_module_deps = NULL, .orig_module_functions = NULL,  \
         .module_number = -1, .version = NULL,                                                       \
-        .injection_success = false, .injection_error = NULL, .extra_config = {0}, .logs = {0},       \
+        .injection_success = false, .injection_error = NULL, .extra_config = {0}, .logs = {0}       \
     }
 
 #define MAX_EXTRA_CONFIG_SIZE 1024
 #define MAX_LOGS_SIZE 2048
-#define MAX_RESULT_REASON_SIZE 256
 
 typedef struct _injected_ext {
     const char *ext_name;
