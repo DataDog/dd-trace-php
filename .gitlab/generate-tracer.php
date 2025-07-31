@@ -699,7 +699,4 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     # Run automatically on master even if previous jobs failed (flaky tests may still provide artifacts)
     - if: $CI_COMMIT_REF_NAME == "master"
       when: always
-    # Run automatically on alex/ prefixed branches for testing
-    - if: $CI_COMMIT_REF_NAME =~ /^alex\//
-      when: always
     - when: manual
