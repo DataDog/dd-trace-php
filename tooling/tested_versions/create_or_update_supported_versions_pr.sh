@@ -53,7 +53,7 @@ if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] || [[ "${CI_COMMIT_REF_NAME}" =~ ^a
 
   # Setup git remote with token
   git remote remove origin || true
-  git remote add origin https://$GITHUB_TOKEN@github.com/DataDog/dd-trace-php.git
+  git remote add origin https://x-access-token:$GITHUB_TOKEN@github.com/DataDog/dd-trace-php.git
 
   # Check if branch exists and switch to it
   if git ls-remote --heads origin $TARGET_BRANCH | grep $TARGET_BRANCH; then
