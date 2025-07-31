@@ -41,24 +41,7 @@ namespace
 
 ?>
 --EXPECT--
-array(1) {
-  ["integrations"]=>
-  array(1) {
-    [0]=>
-    array(5) {
-      ["name"]=>
-      string(4) "logs"
-      ["enabled"]=>
-      bool(false)
-      ["version"]=>
-      string(0) ""
-      ["compatible"]=>
-      NULL
-      ["auto_enabled"]=>
-      NULL
-    }
-  }
-}
+
 --CLEAN--
 <?php
 

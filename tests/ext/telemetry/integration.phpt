@@ -69,7 +69,7 @@ PUBLIC STATIC METHOD
 test_access hook
 array(1) {
   ["integrations"]=>
-  array(2) {
+  array(1) {
     [0]=>
     array(5) {
       ["name"]=>
@@ -78,19 +78,6 @@ array(1) {
       bool(true)
       ["version"]=>
       NULL
-      ["compatible"]=>
-      NULL
-      ["auto_enabled"]=>
-      NULL
-    }
-    [1]=>
-    array(5) {
-      ["name"]=>
-      string(4) "logs"
-      ["enabled"]=>
-      bool(false)
-      ["version"]=>
-      string(0) ""
       ["compatible"]=>
       NULL
       ["auto_enabled"]=>
