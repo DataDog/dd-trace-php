@@ -101,7 +101,7 @@ void ddtrace_telemetry_rshutdown(void) {
 }
 
 // Register in the sidecar services not bound to the request lifetime
-void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
+void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar) {
     if (!dd_bgs_queued_id) {
         dd_bgs_queued_id = ddog_sidecar_queueId_generate();
     }
@@ -116,7 +116,7 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
 
     // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
     ddtrace_ffi_try("Failed flushing background sender telemetry buffer",
-                    ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
+                    ddog_sidecar_telemetry_buffer_flush(sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 }
 
 void ddtrace_telemetry_lifecycle_end() {
@@ -128,6 +128,25 @@ void ddtrace_telemetry_lifecycle_end() {
                     ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
 }
 
+void ddtrace_telemetry_current_names(ddog_CharSlice *service_name, ddog_CharSlice *env_name, zend_string **free_string) {
+    if (DDTRACE_G(last_flushed_root_service_name)) {
+        *service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
+    } else if (ZSTR_LEN(get_DD_SERVICE())) {
+        *service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
+    } else {
+        *free_string = ddtrace_default_service_name();
+        *service_name = dd_zend_string_to_CharSlice(*free_string);
+    }
+    if (DDTRACE_G(last_flushed_root_env_name)) {
+        *env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
+    } else if (ZSTR_LEN(get_DD_ENV())) {
+        *env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
+    } else {
+        *env_name = DDOG_CHARSLICE_C("none");
+    }
+
+}
+
 void ddtrace_telemetry_finalize(bool clear_id) {
     if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
@@ -137,21 +156,8 @@ void ddtrace_telemetry_finalize(bool clear_id) {
     DDTRACE_G(telemetry_buffer) = NULL;
 
     zend_string *free_string = NULL;
-    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
-    if (DDTRACE_G(last_flushed_root_service_name)) {
-        service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
-    } else if (ZSTR_LEN(get_DD_SERVICE())) {
-        service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
-    } else {
-        free_string = ddtrace_default_service_name();
-        service_name = dd_zend_string_to_CharSlice(free_string);
-    }
-    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
-    if (DDTRACE_G(last_flushed_root_env_name)) {
-        env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
-    } else if (ZSTR_LEN(get_DD_ENV())) {
-        env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
-    }
+    ddog_CharSlice service_name, env_name;
+    ddtrace_telemetry_current_names(&service_name, &env_name, &free_string);
 
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };
