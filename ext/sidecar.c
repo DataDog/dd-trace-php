@@ -19,13 +19,32 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 ddog_Endpoint *ddtrace_endpoint;
+ddog_Endpoint *dogstatsd_endpoint;
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 static uint8_t dd_sidecar_formatted_session_id[36];
+
+static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
+    if (zai_config_is_initialized()) {
+        if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+            ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+        }
+    } else if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
+        ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+    }
+}
 
 // Set the globals that stay unchanged in case of fork
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
     ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
     ddtrace_endpoint = ddtrace_sidecar_agent_endpoint();
+
+    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
+        dogstatsd_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));
+    } else {
+        char *dogstatsd_url = ddtrace_dogstatsd_url();
+        dogstatsd_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = dogstatsd_url, .len = strlen(dogstatsd_url)});
+        free(dogstatsd_url);
+    }
 }
 
 // Set the globals that must be updated in case of fork
@@ -48,51 +67,9 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
     return DDTRACE_G(sidecar_queue_id);
 }
 
-static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
-    if (zai_config_is_initialized()) {
-        if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-            ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
-        }
-    } else if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
-    }
-}
-
-static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
-    // Should not happen, unless the agent url is malformed
-    if (!ddtrace_endpoint) {
-        return NULL;
-    }
-
-    ddog_Endpoint *dogstatsd_endpoint;
-    if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
-        dogstatsd_endpoint = ddog_endpoint_from_api_key(dd_zend_string_to_CharSlice(get_global_DD_API_KEY()));;
-    } else {
-        char *dogstatsd_url = ddtrace_dogstatsd_url();
-        dogstatsd_endpoint = ddog_endpoint_from_url((ddog_CharSlice) {.ptr = dogstatsd_url, .len = strlen(dogstatsd_url)});
-        free(dogstatsd_url);
-    }
-
-    dd_set_endpoint_test_token(dogstatsd_endpoint);
-
-#ifdef _WIN32
-    DDOG_PHP_FUNCTION = (const uint8_t *)zend_hash_func;
-#endif
-
-    char logpath[MAXPATHLEN];
-    int error_fd = atomic_load(&ddtrace_error_log_fd);
-    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
-        *logpath = 0;
-    }
-
-    ddog_SidecarTransport *sidecar_transport;
-    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()))) {
-        ddog_endpoint_drop(dogstatsd_endpoint);
-        return NULL;
-    }
-
+static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
-    ddog_sidecar_session_set_config(&sidecar_transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
+    ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
                                     dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION")))),
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
@@ -112,11 +89,61 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
                                     get_global_DD_REMOTE_CONFIG_ENABLED(),
                                     is_fork);
 
-    ddog_endpoint_drop(dogstatsd_endpoint);
-
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-        ddtrace_telemetry_register_services(sidecar_transport);
+        ddtrace_telemetry_register_services(transport);
     }
+}
+
+static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
+    char logpath[MAXPATHLEN];
+    int error_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+
+    dd_sidecar_post_connect(&transport, false, logpath);
+
+    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span) {
+        ddtrace_sidecar_submit_root_span_data_direct_defaults(&transport, DDTRACE_G(active_stack)->root_span);
+    } else {
+        // when we get disconnected during shutdown
+        zend_string *free_string = NULL;
+        ddog_CharSlice service_name, env_name;
+        ddtrace_telemetry_current_names(&service_name, &env_name, &free_string);
+
+        ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name, env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
+
+        if (free_string) {
+            zend_string_release(free_string);
+        }
+    }
+}
+
+static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
+    // Should not happen, unless the agent url is malformed
+    if (!ddtrace_endpoint) {
+        return NULL;
+    }
+
+    dd_set_endpoint_test_token(dogstatsd_endpoint);
+
+#ifdef _WIN32
+    DDOG_PHP_FUNCTION = (const uint8_t *)zend_hash_func;
+#endif
+
+    char logpath[MAXPATHLEN];
+    int error_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+
+    ddog_SidecarTransport *sidecar_transport;
+    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect))) {
+        ddog_endpoint_drop(dogstatsd_endpoint);
+        return NULL;
+    }
+
+    dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
 
     return sidecar_transport;
 }
@@ -158,6 +185,7 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_sidecar = dd_sidecar_connection_factory();
     if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong
         ddog_endpoint_drop(ddtrace_endpoint);
+        ddog_endpoint_drop(dogstatsd_endpoint);
         ddtrace_endpoint = NULL;
     }
 
@@ -178,23 +206,29 @@ void ddtrace_sidecar_shutdown(void) {
     }
     if (ddtrace_endpoint) {
         ddog_endpoint_drop(ddtrace_endpoint);
+        ddog_endpoint_drop(dogstatsd_endpoint);
     }
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
 }
 
-void ddtrace_reset_sidecar(void) {
+void ddtrace_force_new_instance_id(void) {
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
         ddtrace_set_resettable_sidecar_globals();
     }
+}
+
+void ddtrace_reset_sidecar(void) {
+    ddtrace_force_new_instance_id();
 
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
         ddtrace_sidecar = dd_sidecar_connection_factory_ex(true);
         if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong
             ddog_endpoint_drop(ddtrace_endpoint);
+            ddog_endpoint_drop(dogstatsd_endpoint);
             ddtrace_endpoint = NULL;
         } else {
             ddtrace_sidecar_submit_root_span_data();
@@ -345,12 +379,12 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
     ddog_Vec_Tag_drop(vec);
 }
 
-void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddtrace_root_span_data *root) {
-    ddtrace_sidecar_submit_root_span_data_direct(root, get_DD_SERVICE(), get_DD_ENV(), get_DD_VERSION());
+void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddog_SidecarTransport **transport, ddtrace_root_span_data *root) {
+    ddtrace_sidecar_submit_root_span_data_direct(transport, root, get_DD_SERVICE(), get_DD_ENV(), get_DD_VERSION());
 }
 
-void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
-    if (!ddtrace_sidecar) {
+void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transport, ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
+    if (!transport) {
         return;
     }
 
@@ -404,13 +438,14 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
         }
     }
 
-    if (changed || !root) {
-        ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+    // Force resend on reconnect
+    if (changed || !root || *transport != ddtrace_sidecar) {
+        ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
     }
 
-    if (DDTRACE_G(telemetry_buffer)) {
+    if ((changed || !root) && DDTRACE_G(telemetry_buffer)) {
         ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
-            ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
+            ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
     }
 
     if (free_string) {
@@ -422,7 +457,7 @@ void ddtrace_sidecar_submit_root_span_data(void) {
     if (DDTRACE_G(active_stack)) {
         ddtrace_root_span_data *root = DDTRACE_G(active_stack)->root_span;
         if (root) {
-            ddtrace_sidecar_submit_root_span_data_direct_defaults(root);
+            ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, root);
         }
     }
 }
@@ -469,7 +504,7 @@ void ddtrace_sidecar_rinit(void) {
         }
     }
 
-    ddtrace_sidecar_submit_root_span_data_direct_defaults(NULL);
+    ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, NULL);
 }
 
 void ddtrace_sidecar_rshutdown(void) {
