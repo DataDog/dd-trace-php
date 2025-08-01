@@ -228,7 +228,8 @@ void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,
-                                         bool enable_telemetry);
+                                         bool enable_telemetry,
+                                         void (*on_reconnect)(struct ddog_SidecarTransport*));
 
 void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
