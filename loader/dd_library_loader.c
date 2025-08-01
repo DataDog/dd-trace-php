@@ -315,10 +315,14 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...) {
+    const char *result_class = "unknown";
+    const char *result = "unknown";
     log_level level = ERROR;
     switch (reason) {
         case REASON_ERROR:
             if (config) {
+                result = "abort";
+                result_class = "internal_error";
                 config->injection_error = error;
                 config->injection_success = false;
             }
@@ -326,6 +330,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_EOL_RUNTIME:
             if (config) {
+                result = "abort";
+                result_class = "incompatible_runtime";
                 config->injection_error = "Incompatible runtime (end-of-life)";
                 config->injection_success = false;
             }
@@ -333,6 +339,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_INCOMPATIBLE_RUNTIME:
             if (config) {
+                result = "abort";
+                result_class = "incompatible_runtime";
                 config->injection_error = "Incompatible runtime";
                 config->injection_success = false;
             }
@@ -340,6 +348,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_ALREADY_LOADED:
             if (config) {
+                result = "abort";
+                result_class = "already_instrumented";
                 config->injection_error = "Already loaded";
                 config->injection_success = false;
             }
@@ -347,6 +357,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_COMPLETE:
             if (config) {
+                result = "success";
+                result_class = injection_forced ? "success_forced" : "success";
                 config->injection_success = true;
             }
             level = INFO;
@@ -360,7 +372,16 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
     va_list va;
     va_start(va, format);
-    ddloader_logv(config,level, format, va);
+    va_list va_copy;
+    va_copy(va_copy, va);
+    char result_reason[1024];
+    if (config && format) {
+        vsnprintf(result_reason, sizeof(result_reason), format, va_copy);
+    } else {
+        strcpy(result_reason, "unknown");
+    }
+    va_end(va_copy);
+    ddloader_logv(config, level, format, va);
     va_end(va);
 
     // Skip COMPLETE telemetry except for ddtrace
@@ -456,7 +477,10 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         \"language_name\": \"php\",\
         \"language_version\": \"%s\",\
         \"tracer_version\": \"%s\",\
-        \"pid\": %d\
+        \"pid\": %d,\
+        \"result\": \"%s\",\
+        \"result_reason\": \"%s\",\
+        \"result_class\": \"%s\"\
     },\
     \"points\": [%s]\
 }\
@@ -464,7 +488,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     char *tracer_version = ddloader_injected_ext_config[0].version ?: "unknown";
 
     char payload[1024];
-    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, points);
+    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, result, result_reason, result_class, points);
 
     char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
 

@@ -21,7 +21,10 @@ $format = <<<EOS
         "language_name": "php",
         "language_version": "5.%d",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result": "unknown",
+        "result_reason": "unknown",
+        "result_class": "unknown"
     },
     "points": [
         {
